@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.0] - 2025-11-11
+
+### Added
+
+- Added a new sepia theme. Closes #133. Contributed by @Janszczyrek
+- Added the ability to scale fonts in details screen to increase or decrease font size. Closes #90. Contributed by @Janszczyrek
+
+### Fixed
+
+- Fixed missing support for Android devices with min sdk 24 (Android 7.0). Closes #127
+
 ## [0.7.0] - 2025-10-05
 
 ### Fixed

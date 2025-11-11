@@ -56,6 +56,7 @@ class BookmarkDetailViewModel @Inject constructor(
         when (it) {
             Theme.DARK -> assetLoader.loadAsset(Template.DARK_TEMPLATE_FILE)?.let { Template.SimpleTemplate(it) }
             Theme.LIGHT -> assetLoader.loadAsset(Template.LIGHT_TEMPLATE_FILE)?.let { Template.SimpleTemplate(it) }
+            Theme.SEPIA -> assetLoader.loadAsset(Template.SEPIA_TEMPLATE_FILE)?.let { Template.SimpleTemplate(it) }
             Theme.SYSTEM -> {
                 val light = assetLoader.loadAsset(Template.LIGHT_TEMPLATE_FILE)
                 val dark = assetLoader.loadAsset(Template.DARK_TEMPLATE_FILE)
@@ -65,14 +66,16 @@ class BookmarkDetailViewModel @Inject constructor(
             }
         }
     }
+    private val zoomFactor: Flow<Int> = settingsDataStore.zoomFactorFlow
     private val updateState = MutableStateFlow<UpdateBookmarkState?>(null)
 
     @OptIn(ExperimentalEncodingApi::class)
     val uiState = combine(
         bookmarkRepository.observeBookmark(bookmarkId!!),
         updateState,
-        template
-    ) { bookmark, updateState, template ->
+        template,
+        zoomFactor
+    ) { bookmark, updateState, template, zoomFactor ->
         if (bookmark == null) {
             Timber.e("Error loading bookmark [bookmarkId=$bookmarkId]")
             UiState.Error
@@ -100,7 +103,8 @@ class BookmarkDetailViewModel @Inject constructor(
                     articleContent = bookmark.articleContent
                 ),
                 updateBookmarkState = updateState,
-                template = template
+                template = template,
+                zoomFactor = zoomFactor
             )
         }
     }
@@ -189,6 +193,16 @@ class BookmarkDetailViewModel @Inject constructor(
         _navigationEvent.update { NavigationEvent.NavigateBack }
     }
 
+    fun onClickChangeZoomFactor(value: Int) {
+        viewModelScope.launch {
+            val currentZoom = settingsDataStore.zoomFactorFlow
+                .stateIn(viewModelScope)
+                .value
+            val newZoom = (currentZoom + value).coerceAtMost(400).coerceAtLeast(25)
+            settingsDataStore.saveZoomFactor(newZoom)
+        }
+    }
+
     fun onNavigationEventConsumed() {
         _navigationEvent.update { null } // Reset the event
     }
@@ -211,7 +225,7 @@ class BookmarkDetailViewModel @Inject constructor(
     }
 
     sealed class UiState {
-        data class Success(val bookmark: Bookmark, val updateBookmarkState: UpdateBookmarkState?, val template: Template) :
+        data class Success(val bookmark: Bookmark, val updateBookmarkState: UpdateBookmarkState?, val template: Template, val zoomFactor: Int) :
             UiState()
 
         data object Loading : UiState()

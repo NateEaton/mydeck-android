@@ -68,6 +68,7 @@ other{}
     <string name="theme_system">System default</string>
     <string name="theme_light">Light</string>
     <string name="theme_dark">Dark</string>
+    <string name="theme_sepia">Sepia</string>
     <string name="ui_settings_theme_heading">Theming</string>
     <string name="ui_settings_theme_dialog_support_text">Which theme should be used?</string>
 
@@ -78,6 +79,8 @@ other{}
     <string name="action_share">Share link</string>
     <string name="action_delete">Delete</string>
     <string name="action_open_in_browser">Open in browser</string>
+    <string name="action_increase_text_size">Increase text size</string>
+    <string name="action_decrease_text_size">Decrease text size</string>
     <string name="error_no_article_content">Error, article content not available</string>
     <string name="update_successful">Update successful</string>
     <string name="notification_channel_sync_name">Synchronization Errors</string>
