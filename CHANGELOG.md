@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Added a new sepia theme. Closes #133. Contributed by @Janszczyrek
 - Added the ability to scale fonts in details screen to increase or decrease font size. Closes #90. Contributed by @Janszczyrek
 
 ### Fixed
