@@ -91,7 +91,7 @@ other{}
     <string name="settings_sync_full_sync_heading">Sincronización en segundo plano</string>
     <string name="settings_sync_auto_full_sync_title">Sincronización en segundo plano</string>
     <string name="settings_sync_auto_full_button">Sincronizar ahora</string>
-    <string name="settings_sync_support_text">Para mantener la lista de tus marcadores actualizada, la aplicación verifica ocasionalmente y borra marcadores que hayas borrado en el servidor de MyDeck. Como este proceso requiere descargar toda la información de los marcadores, corre automáticamente en segundo plano. Esto ayuda a que la aplicación refleje los marcadores actuales de MyDeck sin que tengas que borrarlos manualmente.</string>
+    <string name="settings_sync_support_text">Para mantener la lista de tus marcadores actualizada, la aplicación verifica ocasionalmente y borra marcadores que hayas borrado en el servidor de Readeck. Como este proceso requiere descargar toda la información de los marcadores, corre automáticamente en segundo plano. Esto ayuda a que la aplicación refleje los marcadores actuales de Readeck sin que tengas que borrarlos manualmente.</string>
     <string name="settings_sync_dialog_support_text">¿Cuan seguido debe realizarse la sincronización en segundo plano?</string>
     <string name="auto_sync_timeframe_manual">Manual</string>
     <string name="auto_sync_timeframe_01_hours">Cada hora</string>

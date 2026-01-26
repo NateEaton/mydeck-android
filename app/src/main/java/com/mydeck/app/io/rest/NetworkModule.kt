@@ -64,7 +64,7 @@ object NetworkModule {
 
     @Provides
     @Singleton
-    fun provideMyDeckApiService(retrofit: Retrofit): MyDeckApi {
+    fun provideReadeckApiService(retrofit: Retrofit): ReadeckApi {
         return retrofit.create()
     }
 

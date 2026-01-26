@@ -1,7 +1,7 @@
 package com.mydeck.app.domain
 
 import com.mydeck.app.io.db.dao.BookmarkDao
-import com.mydeck.app.io.rest.MyDeckApi
+import com.mydeck.app.io.rest.ReadeckApi
 import com.mydeck.app.io.rest.model.BookmarkDto
 import com.mydeck.app.io.rest.model.EditBookmarkDto
 import com.mydeck.app.io.rest.model.EditBookmarkErrorDto
@@ -36,7 +36,7 @@ import kotlin.time.Duration.Companion.days
 class BookmarkRepositoryImplTest {
 
     private lateinit var bookmarkDao: BookmarkDao
-    private lateinit var readeckApi: MyDeckApi
+    private lateinit var readeckApi: ReadeckApi
     private lateinit var json: Json
     private lateinit var bookmarkRepositoryImpl: BookmarkRepositoryImpl
     private val testDispatcher = StandardTestDispatcher()
@@ -345,27 +345,27 @@ class BookmarkRepositoryImplTest {
         val bookmarkList3 = List(20) { bookmarkDto.copy(id = "bookmark_${it + 2 * pageSize}") }
 
         coEvery {
-            readeckApi.getBookmarks(limit = pageSize, offset = 0, updatedSince = null, MyDeckApi.SortOrder(MyDeckApi.Sort.Created))
+            readeckApi.getBookmarks(limit = pageSize, offset = 0, updatedSince = null, ReadeckApi.SortOrder(ReadeckApi.Sort.Created))
         } returns Response.success(bookmarkList1, Headers.headersOf(
-            MyDeckApi.Header.TOTAL_COUNT, totalCount.toString(),
-            MyDeckApi.Header.TOTAL_PAGES, totalPages.toString(),
-            MyDeckApi.Header.CURRENT_PAGE, "1"
+            ReadeckApi.Header.TOTAL_COUNT, totalCount.toString(),
+            ReadeckApi.Header.TOTAL_PAGES, totalPages.toString(),
+            ReadeckApi.Header.CURRENT_PAGE, "1"
         ))
 
         coEvery {
-            readeckApi.getBookmarks(limit = pageSize, offset = pageSize, updatedSince = null, MyDeckApi.SortOrder(MyDeckApi.Sort.Created))
+            readeckApi.getBookmarks(limit = pageSize, offset = pageSize, updatedSince = null, ReadeckApi.SortOrder(ReadeckApi.Sort.Created))
         } returns Response.success(bookmarkList2, Headers.headersOf(
-            MyDeckApi.Header.TOTAL_COUNT, totalCount.toString(),
-            MyDeckApi.Header.TOTAL_PAGES, totalPages.toString(),
-            MyDeckApi.Header.CURRENT_PAGE, "2"
+            ReadeckApi.Header.TOTAL_COUNT, totalCount.toString(),
+            ReadeckApi.Header.TOTAL_PAGES, totalPages.toString(),
+            ReadeckApi.Header.CURRENT_PAGE, "2"
         ))
 
         coEvery {
-            readeckApi.getBookmarks(limit = pageSize, offset = 2 * pageSize, updatedSince = null, MyDeckApi.SortOrder(MyDeckApi.Sort.Created))
+            readeckApi.getBookmarks(limit = pageSize, offset = 2 * pageSize, updatedSince = null, ReadeckApi.SortOrder(ReadeckApi.Sort.Created))
         } returns Response.success(bookmarkList3, Headers.headersOf(
-            MyDeckApi.Header.TOTAL_COUNT, totalCount.toString(),
-            MyDeckApi.Header.TOTAL_PAGES, totalPages.toString(),
-            MyDeckApi.Header.CURRENT_PAGE, "3"
+            ReadeckApi.Header.TOTAL_COUNT, totalCount.toString(),
+            ReadeckApi.Header.TOTAL_PAGES, totalPages.toString(),
+            ReadeckApi.Header.CURRENT_PAGE, "3"
         ))
 
         coEvery { bookmarkDao.removeDeletedBookmars() } returns 10
@@ -378,9 +378,9 @@ class BookmarkRepositoryImplTest {
         assertTrue(result is BookmarkRepository.SyncResult.Success)
         assertEquals(10, (result as BookmarkRepository.SyncResult.Success).countDeleted)
 
-        coVerify { readeckApi.getBookmarks(limit = pageSize, offset = 0, updatedSince = null, MyDeckApi.SortOrder(MyDeckApi.Sort.Created)) }
-        coVerify { readeckApi.getBookmarks(limit = pageSize, offset = pageSize, updatedSince = null, MyDeckApi.SortOrder(MyDeckApi.Sort.Created)) }
-        coVerify { readeckApi.getBookmarks(limit = pageSize, offset = 2 * pageSize, updatedSince = null, MyDeckApi.SortOrder(MyDeckApi.Sort.Created)) }
+        coVerify { readeckApi.getBookmarks(limit = pageSize, offset = 0, updatedSince = null, ReadeckApi.SortOrder(ReadeckApi.Sort.Created)) }
+        coVerify { readeckApi.getBookmarks(limit = pageSize, offset = pageSize, updatedSince = null, ReadeckApi.SortOrder(ReadeckApi.Sort.Created)) }
+        coVerify { readeckApi.getBookmarks(limit = pageSize, offset = 2 * pageSize, updatedSince = null, ReadeckApi.SortOrder(ReadeckApi.Sort.Created)) }
         coVerify { bookmarkDao.insertRemoteBookmarkIds(any()) }
         coVerify { bookmarkDao.removeDeletedBookmars() }
         coVerify { bookmarkDao.clearRemoteBookmarkIds() }
@@ -389,7 +389,7 @@ class BookmarkRepositoryImplTest {
     @Test
     fun `performFullSync API error`() = runTest {
         // Arrange
-        coEvery { readeckApi.getBookmarks(limit = any(), offset = any(), updatedSince = any(), MyDeckApi.SortOrder(MyDeckApi.Sort.Created)) } returns Response.error(500, "Error".toResponseBody())
+        coEvery { readeckApi.getBookmarks(limit = any(), offset = any(), updatedSince = any(), ReadeckApi.SortOrder(ReadeckApi.Sort.Created)) } returns Response.error(500, "Error".toResponseBody())
 
         // Act
         val result = bookmarkRepositoryImpl.performFullSync()
@@ -403,7 +403,7 @@ class BookmarkRepositoryImplTest {
     @Test
     fun `performFullSync missing headers`() = runTest {
         // Arrange
-        coEvery { readeckApi.getBookmarks(limit = any(), offset = any(), updatedSince = any(), MyDeckApi.SortOrder(MyDeckApi.Sort.Created)) } returns Response.success(emptyList())
+        coEvery { readeckApi.getBookmarks(limit = any(), offset = any(), updatedSince = any(), ReadeckApi.SortOrder(ReadeckApi.Sort.Created)) } returns Response.success(emptyList())
 
         // Act
         val result = bookmarkRepositoryImpl.performFullSync()
@@ -416,7 +416,7 @@ class BookmarkRepositoryImplTest {
     @Test
     fun `performFullSync network error`() = runTest {
         // Arrange
-        coEvery { readeckApi.getBookmarks(limit = any(), offset = any(), updatedSince = any(), MyDeckApi.SortOrder(MyDeckApi.Sort.Created)) } throws IOException("Network error")
+        coEvery { readeckApi.getBookmarks(limit = any(), offset = any(), updatedSince = any(), ReadeckApi.SortOrder(ReadeckApi.Sort.Created)) } throws IOException("Network error")
 
         // Act
         val result = bookmarkRepositoryImpl.performFullSync()

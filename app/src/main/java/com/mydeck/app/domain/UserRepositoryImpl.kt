@@ -3,7 +3,7 @@ package com.mydeck.app.domain
 import com.mydeck.app.domain.model.AuthenticationDetails
 import com.mydeck.app.domain.model.User
 import com.mydeck.app.io.prefs.SettingsDataStore
-import com.mydeck.app.io.rest.MyDeckApi
+import com.mydeck.app.io.rest.ReadeckApi
 import com.mydeck.app.io.rest.model.AuthenticationRequestDto
 import com.mydeck.app.io.rest.model.StatusMessageDto
 import kotlinx.coroutines.Dispatchers
@@ -20,7 +20,7 @@ import javax.inject.Inject
 
 class UserRepositoryImpl @Inject constructor(
     private val settingsDataStore: SettingsDataStore,
-    private val readeckApi: MyDeckApi,
+    private val readeckApi: ReadeckApi,
     private val json: Json
 ) : UserRepository {
     override fun observeAuthenticationDetails(): Flow<AuthenticationDetails?> =

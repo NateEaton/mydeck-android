@@ -1,13 +1,13 @@
 package com.mydeck.app.domain.usecase
 
 import com.mydeck.app.domain.BookmarkRepository
-import com.mydeck.app.io.rest.MyDeckApi
+import com.mydeck.app.io.rest.ReadeckApi
 import timber.log.Timber
 import javax.inject.Inject
 
 class LoadArticleUseCase @Inject constructor(
     private val bookmarkRepository: BookmarkRepository,
-    private val readeckApi: MyDeckApi,
+    private val readeckApi: ReadeckApi,
 ) {
     suspend fun execute(bookmarkId: String) {
         val bookmark = bookmarkRepository.getBookmarkById(bookmarkId)

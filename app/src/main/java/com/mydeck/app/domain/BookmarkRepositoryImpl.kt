@@ -9,7 +9,7 @@ import com.mydeck.app.domain.model.BookmarkListItem
 import com.mydeck.app.io.db.dao.BookmarkDao
 import com.mydeck.app.io.db.model.BookmarkEntity
 import com.mydeck.app.io.db.model.RemoteBookmarkIdEntity
-import com.mydeck.app.io.rest.MyDeckApi
+import com.mydeck.app.io.rest.ReadeckApi
 import com.mydeck.app.io.rest.model.CreateBookmarkDto
 import com.mydeck.app.io.rest.model.EditBookmarkDto
 import com.mydeck.app.io.rest.model.EditBookmarkErrorDto
@@ -27,7 +27,7 @@ import javax.inject.Inject
 
 class BookmarkRepositoryImpl @Inject constructor(
     private val bookmarkDao: BookmarkDao,
-    private val readeckApi: MyDeckApi,
+    private val readeckApi: ReadeckApi,
     private val json: Json,
     @IoDispatcher
     private val dispatcher: CoroutineDispatcher = Dispatchers.IO
@@ -133,7 +133,7 @@ class BookmarkRepositoryImpl @Inject constructor(
         val createBookmarkDto = CreateBookmarkDto(title = title, url = url)
         val response = readeckApi.createBookmark(createBookmarkDto)
         if (response.isSuccessful) {
-            return response.headers()[MyDeckApi.Header.BOOKMARK_ID]!!
+            return response.headers()[ReadeckApi.Header.BOOKMARK_ID]!!
         } else {
             throw Exception("Failed to create bookmark")
         }
@@ -274,15 +274,15 @@ class BookmarkRepositoryImpl @Inject constructor(
             var hasMore = true
 
             while (hasMore) {
-                val response = readeckApi.getBookmarks(limit = pageSize, offset = offset, updatedSince = null, MyDeckApi.SortOrder(MyDeckApi.Sort.Created))
+                val response = readeckApi.getBookmarks(limit = pageSize, offset = offset, updatedSince = null, ReadeckApi.SortOrder(ReadeckApi.Sort.Created))
 
                 if (response.isSuccessful) {
                     val remoteBookmarks = response.body() ?: emptyList()
                     Timber.d("Fetched ${remoteBookmarks.size} remote bookmarks (offset=$offset)")
 
-                    val totalCountHeader = response.headers()[MyDeckApi.Header.TOTAL_COUNT]
-                    val totalPagesHeader = response.headers()[MyDeckApi.Header.TOTAL_PAGES]
-                    val currentPageHeader = response.headers()[MyDeckApi.Header.CURRENT_PAGE]
+                    val totalCountHeader = response.headers()[ReadeckApi.Header.TOTAL_COUNT]
+                    val totalPagesHeader = response.headers()[ReadeckApi.Header.TOTAL_PAGES]
+                    val currentPageHeader = response.headers()[ReadeckApi.Header.CURRENT_PAGE]
 
                     if (totalCountHeader == null || totalPagesHeader == null || currentPageHeader == null) {
                         return@withContext BookmarkRepository.SyncResult.Error("Missing headers in API response")

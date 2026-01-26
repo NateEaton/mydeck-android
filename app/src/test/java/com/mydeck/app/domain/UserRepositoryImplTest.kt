@@ -3,7 +3,7 @@ package com.mydeck.app.domain
 import com.mydeck.app.domain.model.AuthenticationDetails
 import com.mydeck.app.domain.model.User
 import com.mydeck.app.io.prefs.SettingsDataStore
-import com.mydeck.app.io.rest.MyDeckApi
+import com.mydeck.app.io.rest.ReadeckApi
 import com.mydeck.app.io.rest.model.AuthenticationRequestDto
 import com.mydeck.app.io.rest.model.AuthenticationResponseDto
 import com.mydeck.app.io.rest.model.StatusMessageDto
@@ -32,7 +32,7 @@ import java.io.IOException
 class UserRepositoryImplTest {
 
     private lateinit var settingsDataStore: SettingsDataStore
-    private lateinit var readeckApi: MyDeckApi
+    private lateinit var readeckApi: ReadeckApi
     private lateinit var json: Json
     private lateinit var userRepository: UserRepositoryImpl
 

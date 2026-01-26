@@ -7,7 +7,7 @@ import androidx.work.WorkManager
 import com.mydeck.app.domain.BookmarkRepository
 import com.mydeck.app.domain.mapper.toDomain
 import com.mydeck.app.io.prefs.SettingsDataStore
-import com.mydeck.app.io.rest.MyDeckApi
+import com.mydeck.app.io.rest.ReadeckApi
 import com.mydeck.app.io.rest.model.BookmarkDto
 import com.mydeck.app.worker.LoadArticleWorker
 import kotlinx.datetime.TimeZone
@@ -17,7 +17,7 @@ import javax.inject.Inject
 
 class LoadBookmarksUseCase @Inject constructor(
     private val bookmarkRepository: BookmarkRepository,
-    private val readeckApi: MyDeckApi,
+    private val readeckApi: ReadeckApi,
     private val workManager: WorkManager,
     private val settingsDataStore: SettingsDataStore
 ) {
@@ -38,13 +38,13 @@ class LoadBookmarksUseCase @Inject constructor(
 
             var hasMorePages = true
             while (hasMorePages) {
-                val response = readeckApi.getBookmarks(pageSize, offset, lastLoadedTimestamp, MyDeckApi.SortOrder(MyDeckApi.Sort.Created))
+                val response = readeckApi.getBookmarks(pageSize, offset, lastLoadedTimestamp, ReadeckApi.SortOrder(ReadeckApi.Sort.Created))
                 if (response.isSuccessful && response.body() != null) {
                     val bookmarks = (response.body() as List<BookmarkDto>).map { it.toDomain() }
 
-                    val totalCountHeader = response.headers()[MyDeckApi.Header.TOTAL_COUNT]
-                    val totalPagesHeader = response.headers()[MyDeckApi.Header.TOTAL_PAGES]
-                    val currentPageHeader = response.headers()[MyDeckApi.Header.CURRENT_PAGE]
+                    val totalCountHeader = response.headers()[ReadeckApi.Header.TOTAL_COUNT]
+                    val totalPagesHeader = response.headers()[ReadeckApi.Header.TOTAL_PAGES]
+                    val currentPageHeader = response.headers()[ReadeckApi.Header.CURRENT_PAGE]
 
                     if (totalCountHeader == null || totalPagesHeader == null || currentPageHeader == null) {
                         return UseCaseResult.Error(Exception("Missing headers in API response"))

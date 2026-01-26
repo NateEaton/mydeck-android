@@ -30,7 +30,7 @@ import java.io.BufferedReader
 import java.io.InputStreamReader
 import java.net.HttpURLConnection
 
-class MyDeckApiTest {
+class ReadeckApiTest {
     private lateinit var mockWebServer: MockWebServer
     val tokenManager = mockk<TokenManager>()
     val notificationHelper = mockk<NotificationHelper>()
@@ -42,7 +42,7 @@ class MyDeckApiTest {
         .addInterceptor(loggingInterceptor)
         .build()
     lateinit var retrofit: Retrofit
-    lateinit var readeckApi: MyDeckApi
+    lateinit var readeckApi: ReadeckApi
 
     @Before
     fun setup() {
@@ -159,7 +159,7 @@ class MyDeckApiTest {
             .setBody(loadJsonFromClasspath("api/bookmarks.json"))
         )
 
-        val response = readeckApi.getBookmarks(10, 0, null, MyDeckApi.SortOrder(MyDeckApi.Sort.Created))
+        val response = readeckApi.getBookmarks(10, 0, null, ReadeckApi.SortOrder(ReadeckApi.Sort.Created))
 
         assertTrue(response.isSuccessful)
         assertEquals(200, response.code())

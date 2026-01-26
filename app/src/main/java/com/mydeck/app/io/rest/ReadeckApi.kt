@@ -20,7 +20,7 @@ import retrofit2.http.Body
 import retrofit2.http.Headers
 import retrofit2.http.Path
 
-interface MyDeckApi {
+interface ReadeckApi {
     @GET("bookmarks")
     suspend fun getBookmarks(
         @Query("limit") limit: Int,

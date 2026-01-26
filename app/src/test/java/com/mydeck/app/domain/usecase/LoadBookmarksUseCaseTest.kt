@@ -3,7 +3,7 @@ package com.mydeck.app.domain.usecase
 import com.mydeck.app.domain.BookmarkRepository
 import com.mydeck.app.domain.mapper.toDomain
 import com.mydeck.app.io.prefs.SettingsDataStore
-import com.mydeck.app.io.rest.MyDeckApi
+import com.mydeck.app.io.rest.ReadeckApi
 import com.mydeck.app.io.rest.model.BookmarkDto
 import com.mydeck.app.io.rest.model.ImageResource
 import com.mydeck.app.io.rest.model.Resource
@@ -23,7 +23,7 @@ import kotlin.time.Duration.Companion.days
 class LoadBookmarksUseCaseTest {
 
     private lateinit var bookmarkRepository: BookmarkRepository
-    private lateinit var readeckApi: MyDeckApi
+    private lateinit var readeckApi: ReadeckApi
     private lateinit var settingsDataStore: SettingsDataStore
     private lateinit var loadBookmarksUseCase: LoadBookmarksUseCase
 
@@ -47,11 +47,11 @@ class LoadBookmarksUseCaseTest {
         val response: Response<List<BookmarkDto>> = Response.success(
             bookmarkDtoList,
             Headers.headersOf(
-                MyDeckApi.Header.TOTAL_COUNT,
+                ReadeckApi.Header.TOTAL_COUNT,
                 "1",
-                MyDeckApi.Header.TOTAL_PAGES,
+                ReadeckApi.Header.TOTAL_PAGES,
                 "1",
-                MyDeckApi.Header.CURRENT_PAGE,
+                ReadeckApi.Header.CURRENT_PAGE,
                 "1"
             )
         )
@@ -109,11 +109,11 @@ class LoadBookmarksUseCaseTest {
         val response: Response<List<BookmarkDto>> = Response.success(
             sampleBookmarks,
             Headers.headersOf(
-                MyDeckApi.Header.TOTAL_COUNT,
+                ReadeckApi.Header.TOTAL_COUNT,
                 "1",
-                MyDeckApi.Header.TOTAL_PAGES,
+                ReadeckApi.Header.TOTAL_PAGES,
                 "1",
-                MyDeckApi.Header.CURRENT_PAGE,
+                ReadeckApi.Header.CURRENT_PAGE,
                 "1"
             )
         )

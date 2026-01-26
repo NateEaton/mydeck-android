@@ -19,7 +19,7 @@ import com.mydeck.app.domain.UserRepository
 import com.mydeck.app.domain.UserRepositoryImpl
 import com.mydeck.app.domain.usecase.LoadArticleUseCase
 import com.mydeck.app.io.rest.NetworkModule
-import com.mydeck.app.io.rest.MyDeckApi
+import com.mydeck.app.io.rest.ReadeckApi
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -41,7 +41,7 @@ abstract class AppModule {
         @Provides
         fun provideLoadBookmarksUseCase(
             bookmarkRepository: BookmarkRepository,
-            readeckApi: MyDeckApi
+            readeckApi: ReadeckApi
         ): LoadArticleUseCase {
             return LoadArticleUseCase(bookmarkRepository, readeckApi)
         }
