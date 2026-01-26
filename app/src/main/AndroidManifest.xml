@@ -6,7 +6,7 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
 
     <application
-        android:name=".ReadeckApplication"
+        android:name=".MyDeckApplication"
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
@@ -14,13 +14,13 @@
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:supportsRtl="true"
-        android:theme="@style/Theme.ReadeckApp"
+        android:theme="@style/Theme.MyDeck"
         tools:targetApi="31">
         <activity
             android:name=".MainActivity"
             android:exported="true"
             android:label="@string/app_name"
-            android:theme="@style/Theme.ReadeckApp">
+            android:theme="@style/Theme.MyDeck">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
@@ -53,7 +53,7 @@
                 tools:node="remove" />
             <!-- enable custom -->
             <meta-data
-                android:name="de.readeckapp.worker.CustomWorkManagerInitializer"
+                android:name="com.mydeck.app.worker.CustomWorkManagerInitializer"
                 android:value="androidx.startup" />
         </provider>
     </application>

@@ -1,14 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <string name="app_name">Readeck App</string>
+    <string name="app_name">MyDeck</string>
     <string name="back">Zurück</string>
     <string name="settings_topbar_title">Einstellungen</string>
     <string name="settings_account_title">Konto</string>
     <string name="settings_account_subtitle_default">Nicht eingeloggt</string>
     <string name="accountsettings_topbar_title">Konto</string>
-    <string name="account_settings_topbar_title">Readeck URL</string>
+    <string name="account_settings_topbar_title">MyDeck URL</string>
     <string name="account_settings_url_placeholder">https://readeck.example.com/api</string>
-    <string name="account_settings_url_label">Readeck URL</string>
+    <string name="account_settings_url_label">MyDeck URL</string>
     <string name="account_settings_username_placeholder">Benutzername</string>
     <string name="account_settings_username_label">Benutzername</string>
     <string name="account_settings_password_label">Passwort</string>

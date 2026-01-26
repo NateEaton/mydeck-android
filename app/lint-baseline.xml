@@ -7,7 +7,7 @@
         errorLine1="        NotificationUtil.showUnauthorizedNotification(context, notificationManager)"
         errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
-            file="src/main/java/de/readeckapp/io/rest/auth/NotificationHelper.kt"
+            file="src/main/java/com/mydeck/app/io/rest/auth/NotificationHelper.kt"
             line="16"
             column="9"/>
     </issue>
@@ -16,7 +16,7 @@
         id="EnsureInitializerMetadata"
         message="Every Initializer needs to be accompanied by a corresponding &lt;meta-data> entry in the AndroidManifest.xml file.">
         <location
-            file="src/main/java/de/readeckapp/AppModule.kt"/>
+            file="src/main/java/com/mydeck/app/AppModule.kt"/>
     </issue>
 
     <issue
@@ -498,7 +498,7 @@
         errorLine1="        Log.d(&quot;Hilt Init&quot;, &quot;WorkManager initialized by Hilt this time&quot;)"
         errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
-            file="src/main/java/de/readeckapp/AppModule.kt"
+            file="src/main/java/com/mydeck/app/AppModule.kt"
             line="85"
             column="9"/>
     </issue>
@@ -509,7 +509,7 @@
         errorLine1="        Log.i(&quot;LOGDIR&quot;, &quot;logdir $logdir already exists&quot;)"
         errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
-            file="src/main/java/de/readeckapp/util/LoggerUtil.kt"
+            file="src/main/java/com/mydeck/app/util/LoggerUtil.kt"
             line="18"
             column="9"/>
     </issue>
@@ -520,7 +520,7 @@
         errorLine1="                Log.i(&quot;LOGDIR&quot;, &quot;logdir $logdir created&quot;)"
         errorLine2="                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
-            file="src/main/java/de/readeckapp/util/LoggerUtil.kt"
+            file="src/main/java/com/mydeck/app/util/LoggerUtil.kt"
             line="23"
             column="17"/>
     </issue>
@@ -531,7 +531,7 @@
         errorLine1="                Log.w(&quot;LOGDIR&quot;, &quot;logdir $logdir not created&quot;)"
         errorLine2="                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
-            file="src/main/java/de/readeckapp/util/LoggerUtil.kt"
+            file="src/main/java/com/mydeck/app/util/LoggerUtil.kt"
             line="26"
             column="17"/>
     </issue>

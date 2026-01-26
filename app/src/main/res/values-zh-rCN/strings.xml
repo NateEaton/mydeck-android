@@ -11,14 +11,14 @@
     <string name="auto_sync_notification_rationale_dialog_text">为了通知您后台同步失败，我们需要发送通知的权限。请授予此权限。</string>
     <string name="auto_sync_notification_rationale_dialog_grant_button">授予权限</string>
     <string name="settings_account_title">账号</string>
-    <string name="app_name">Readeck 应用</string>
+    <string name="app_name">MyDeck 应用</string>
     <string name="back">返回</string>
     <string name="settings_topbar_title">设置</string>
     <string name="settings_account_subtitle_default">未登录</string>
     <string name="accountsettings_topbar_title">账号</string>
-    <string name="account_settings_topbar_title">Readeck URL</string>
+    <string name="account_settings_topbar_title">MyDeck URL</string>
     <string name="account_settings_url_placeholder">https://readeck.example.com/api</string>
-    <string name="account_settings_url_label">Readeck URL</string>
+    <string name="account_settings_url_label">MyDeck URL</string>
     <string name="account_settings_username_placeholder">用户名</string>
     <string name="account_settings_username_label">用户名</string>
     <string name="account_settings_username_error">用户名不能为空</string>

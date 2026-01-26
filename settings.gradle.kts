@@ -22,6 +22,6 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "Readeck App"
+rootProject.name = "MyDeck"
 include(":app")
  

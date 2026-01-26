@@ -11,7 +11,7 @@ plugins {
 }
 
 android {
-    namespace = "de.readeckapp"
+    namespace = "com.mydeck.app"
     compileSdk = 35
 
     dependenciesInfo {
@@ -23,7 +23,7 @@ android {
 
     defaultConfig {
         multiDexEnabled = true
-        applicationId = "de.readeckapp"
+        applicationId = "com.mydeck.app"
         minSdk = 24
         targetSdk = 35
         versionCode = 800
