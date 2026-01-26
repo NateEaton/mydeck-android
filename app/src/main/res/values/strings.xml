@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">Readeck App</string>
+    <string name="app_name">MyDeck</string>
     <string name="back">Back</string>
     <string name="settings_topbar_title">Settings</string>
     <string name="settings_account_title">Account</string>
@@ -114,4 +114,23 @@ other{}
     <string name="list_view_empty_not_loaded_yet">Bookmarks have not been loaded yet.</string>
     <string name="list_view_empty_error_loading_bookmarks">An error has occurred while loading bookmarks.</string>
     <string name="list_view_empty_nothing_to_see">No bookmarks have been found.</string>
+    <string name="about_title">About</string>
+    <string name="about_version">Version %s</string>
+    <string name="about_description">A read-later app for Readeck with a Pocket-like experience</string>
+    <string name="about_credits_title">Credits</string>
+    <string name="about_credits_app_author">MyDeck by Nate Eaton</string>
+    <string name="about_credits_readeck">Readeck server by François Revol and contributors</string>
+    <string name="about_credits_fork">This is a fork of ReadeckApp by jensomato, reimagined with a Pocket-like user experience.</string>
+    <string name="about_system_info_title">System Info</string>
+    <string name="about_system_info_version">Version %1$s (%2$d)</string>
+    <string name="about_system_info_build_time">Built: %s</string>
+    <string name="about_system_info_android">Android %1$s (API %2$d)</string>
+    <string name="about_system_info_device">Device: %1$s %2$s</string>
+    <string name="about_project_title">Project</string>
+    <string name="about_project_this_repo">MyDeck Repository (Fork)</string>
+    <string name="about_project_original_repo">Original ReadeckApp Repository</string>
+    <string name="about_project_readeck_repo">Readeck Server</string>
+    <string name="about_license_title">License</string>
+    <string name="about_license_text">MyDeck is licensed under the MIT License. Source code is available on GitHub.</string>
+    <string name="about_license_readeck">Readeck server is licensed under the AGPL-3.0 license.</string>
 </resources>

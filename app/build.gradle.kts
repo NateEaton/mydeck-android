@@ -11,7 +11,7 @@ plugins {
 }
 
 android {
-    namespace = "de.readeckapp"
+    namespace = "com.mydeck.app"
     compileSdk = 35
 
     dependenciesInfo {
@@ -23,13 +23,15 @@ android {
 
     defaultConfig {
         multiDexEnabled = true
-        applicationId = "de.readeckapp"
+        applicationId = "com.mydeck.app"
         minSdk = 24
         targetSdk = 35
         versionCode = 800
         versionName = "0.8.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        buildConfigField("long", "BUILD_TIME", "${System.currentTimeMillis()}L")
 
         javaCompileOptions {
             annotationProcessorOptions {
@@ -73,7 +75,7 @@ android {
             outputs.all {
                 if (outputFile != null && (outputFile.name.endsWith(".apk") || outputFile.name.endsWith(".aab"))) {
                     val extension = if (outputFile.name.endsWith(".apk")) "apk" else "aab"
-                    val newName = "ReadeckApp-${versionName}.${extension}"
+                    val newName = "MyDeck-${versionName}.${extension}"
                     (this as? com.android.build.gradle.internal.api.BaseVariantOutputImpl)?.outputFileName = newName
                 }
             }
