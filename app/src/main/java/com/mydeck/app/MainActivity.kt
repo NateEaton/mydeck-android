@@ -35,6 +35,8 @@ import com.mydeck.app.ui.navigation.OpenSourceLibrariesRoute
 import com.mydeck.app.ui.navigation.SettingsRoute
 import com.mydeck.app.ui.navigation.SyncSettingsRoute
 import com.mydeck.app.ui.navigation.UiSettingsRoute
+import com.mydeck.app.ui.navigation.AboutRoute
+import com.mydeck.app.ui.about.AboutScreen
 import com.mydeck.app.ui.settings.AccountSettingsScreen
 import com.mydeck.app.ui.settings.LogViewScreen
 import com.mydeck.app.ui.settings.OpenSourceLibrariesScreen
@@ -126,6 +128,9 @@ fun MyDeckNavHost(navController: NavHostController) {
         }
         composable<UiSettingsRoute> {
             UiSettingsScreen(navHostController = navController)
+        }
+        composable<AboutRoute> {
+            AboutScreen(navHostController = navController)
         }
     }
 }

@@ -18,6 +18,7 @@ import androidx.compose.material.icons.outlined.Bookmarks
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Favorite
 import androidx.compose.material.icons.outlined.Image
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Inventory2
 import androidx.compose.material.icons.outlined.Movie
 import androidx.compose.material.icons.outlined.Settings
@@ -67,6 +68,7 @@ import com.mydeck.app.R
 import com.mydeck.app.domain.model.Bookmark
 import com.mydeck.app.domain.model.BookmarkListItem
 import com.mydeck.app.ui.components.ShareBookmarkChooser
+import com.mydeck.app.ui.navigation.AboutRoute
 import com.mydeck.app.ui.navigation.BookmarkDetailRoute
 import com.mydeck.app.ui.navigation.SettingsRoute
 import com.mydeck.app.util.openUrlInCustomTab
@@ -116,6 +118,11 @@ fun BookmarkListScreen(navHostController: NavHostController) {
             when (event) {
                 is BookmarkListViewModel.NavigationEvent.NavigateToSettings -> {
                     navHostController.navigate(SettingsRoute)
+                    scope.launch { drawerState.close() }
+                }
+
+                is BookmarkListViewModel.NavigationEvent.NavigateToAbout -> {
+                    navHostController.navigate(AboutRoute)
                     scope.launch { drawerState.close() }
                 }
 
@@ -321,6 +328,18 @@ fun BookmarkListScreen(navHostController: NavHostController) {
                         selected = false,
                         onClick = {
                             onClickSettings()
+                            scope.launch { drawerState.close() }
+                        }
+                    )
+                    NavigationDrawerItem(
+                        label = { Text(
+                            style = Typography.labelLarge,
+                            text = stringResource(id = R.string.about_title)
+                        ) },
+                        icon = { Icon(Icons.Outlined.Info, contentDescription = null) },
+                        selected = false,
+                        onClick = {
+                            viewModel.onClickAbout()
                             scope.launch { drawerState.close() }
                         }
                     )
