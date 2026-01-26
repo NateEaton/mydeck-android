@@ -72,7 +72,7 @@ jobs:
           allowUpdates: false
           prerelease: true
           draft: true
-          name: Release v${{ steps.get_version.outputs.version }}
+          name: MyDeck Release v${{ steps.get_version.outputs.version }}
           tag: ${{ github.ref }}
           artifacts: "./artifacts/*.apk"
           token: ${{ secrets.GITHUB_TOKEN }}
