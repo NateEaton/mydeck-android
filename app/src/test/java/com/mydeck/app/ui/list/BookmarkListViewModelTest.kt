@@ -620,7 +620,7 @@ class BookmarkListViewModelTest {
                 bookmarkRepository.observeBookmarkListItems(
                     type = null,
                     unread = null,
-                    archived = null,
+                    archived = false,
                     favorite = null,
                     state = Bookmark.State.LOADED
                 )
@@ -684,7 +684,7 @@ class BookmarkListViewModelTest {
                 bookmarkRepository.observeBookmarkListItems(
                     type = null,
                     unread = null,
-                    archived = null,
+                    archived = false,
                     favorite = null,
                     state = Bookmark.State.LOADED
                 )
@@ -756,7 +756,7 @@ class BookmarkListViewModelTest {
                 bookmarkRepository.observeBookmarkListItems(
                     type = null,
                     unread = null,
-                    archived = null,
+                    archived = false,
                     favorite = null,
                     state = Bookmark.State.LOADED
                 )
@@ -814,7 +814,7 @@ class BookmarkListViewModelTest {
                 bookmarkRepository.observeBookmarkListItems(
                     type = null,
                     unread = null,
-                    archived = null,
+                    archived = false,
                     favorite = null,
                     state = Bookmark.State.LOADED
                 )
@@ -879,7 +879,7 @@ class BookmarkListViewModelTest {
                 bookmarkRepository.observeBookmarkListItems(
                     type = null,
                     unread = null,
-                    archived = null,
+                    archived = false,
                     favorite = null,
                     state = Bookmark.State.LOADED
                 )
@@ -951,7 +951,7 @@ class BookmarkListViewModelTest {
                 bookmarkRepository.observeBookmarkListItems(
                     type = null,
                     unread = null,
-                    archived = null,
+                    archived = false,
                     favorite = null,
                     state = Bookmark.State.LOADED
                 )
@@ -1009,7 +1009,7 @@ class BookmarkListViewModelTest {
                 bookmarkRepository.observeBookmarkListItems(
                     type = null,
                     unread = null,
-                    archived = null,
+                    archived = false,
                     favorite = null,
                     state = Bookmark.State.LOADED
                 )
