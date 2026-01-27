@@ -1,0 +1,1545 @@
+01-27 13:47:02:238 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:02:307 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:02:310 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:02:814 D/BatchArticleLoadWorker(716) : Processing batch 224, size=5
+01-27 13:47:02:823 I/LoadArticleUseCase(716) : Bookmark has no article [type=Article]
+01-27 13:47:02:915 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:02:941 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:02:942 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:02:964 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:03:460 D/BatchArticleLoadWorker(716) : Processing batch 225, size=5
+01-27 13:47:03:469 I/LoadArticleUseCase(691) : Bookmark has no article [type=Article]
+01-27 13:47:03:670 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:03:671 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:03:767 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:03:769 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:04:273 D/BatchArticleLoadWorker(691) : Processing batch 226, size=5
+01-27 13:47:04:389 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:04:405 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:04:406 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:04:409 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:04:409 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:04:915 D/BatchArticleLoadWorker(719) : Processing batch 227, size=5
+01-27 13:47:04:923 I/LoadArticleUseCase(718) : Bookmark has no article [type=Article]
+01-27 13:47:04:924 I/LoadArticleUseCase(685) : Bookmark has no article [type=Article]
+01-27 13:47:04:924 I/LoadArticleUseCase(716) : Bookmark has no article [type=Article]
+01-27 13:47:05:127 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:05:165 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:05:667 D/BatchArticleLoadWorker(685) : Processing batch 228, size=5
+01-27 13:47:05:676 I/LoadArticleUseCase(685) : Bookmark has no article [type=Article]
+01-27 13:47:05:676 I/LoadArticleUseCase(719) : Bookmark has no article [type=Article]
+01-27 13:47:05:677 I/LoadArticleUseCase(716) : Bookmark has no article [type=Article]
+01-27 13:47:05:677 I/LoadArticleUseCase(691) : Bookmark has no article [type=Article]
+01-27 13:47:05:782 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:06:281 D/BatchArticleLoadWorker(720) : Processing batch 229, size=5
+01-27 13:47:06:290 I/LoadArticleUseCase(720) : Bookmark has no article [type=Article]
+01-27 13:47:06:471 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:06:477 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:06:492 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:06:507 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:07:010 D/BatchArticleLoadWorker(691) : Processing batch 230, size=5
+01-27 13:47:07:019 I/LoadArticleUseCase(720) : Bookmark has no article [type=Article]
+01-27 13:47:07:159 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:07:215 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:07:216 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:07:244 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:07:734 D/BatchArticleLoadWorker(720) : Processing batch 231, size=5
+01-27 13:47:07:742 I/LoadArticleUseCase(718) : Bookmark has no article [type=Picture]
+01-27 13:47:07:833 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:07:885 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:07:889 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:07:891 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:08:387 D/BatchArticleLoadWorker(718) : Processing batch 232, size=5
+01-27 13:47:08:574 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:08:577 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:08:661 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:08:671 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:08:681 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:09:182 D/BatchArticleLoadWorker(691) : Processing batch 233, size=5
+01-27 13:47:09:286 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:09:312 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:09:363 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:09:364 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:09:366 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:09:868 D/BatchArticleLoadWorker(718) : Processing batch 234, size=5
+01-27 13:47:09:875 I/LoadArticleUseCase(719) : Bookmark has no article [type=Article]
+01-27 13:47:09:875 I/LoadArticleUseCase(716) : Bookmark has no article [type=Article]
+01-27 13:47:09:876 I/LoadArticleUseCase(691) : Bookmark has no article [type=Article]
+01-27 13:47:10:010 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:10:082 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:10:581 D/BatchArticleLoadWorker(718) : Processing batch 235, size=5
+01-27 13:47:10:588 I/LoadArticleUseCase(685) : Bookmark has no article [type=Article]
+01-27 13:47:10:688 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:10:712 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:10:726 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:10:746 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:11:235 D/BatchArticleLoadWorker(720) : Processing batch 236, size=5
+01-27 13:47:11:245 I/LoadArticleUseCase(716) : Bookmark has no article [type=Article]
+01-27 13:47:11:245 I/LoadArticleUseCase(719) : Bookmark has no article [type=Article]
+01-27 13:47:11:245 I/LoadArticleUseCase(691) : Bookmark has no article [type=Article]
+01-27 13:47:11:450 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:11:514 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:12:015 D/BatchArticleLoadWorker(719) : Processing batch 237, size=5
+01-27 13:47:12:024 I/LoadArticleUseCase(718) : Bookmark has no article [type=Article]
+01-27 13:47:12:024 I/LoadArticleUseCase(685) : Bookmark has no article [type=Article]
+01-27 13:47:12:115 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:12:163 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:12:175 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:12:678 D/BatchArticleLoadWorker(685) : Processing batch 238, size=5
+01-27 13:47:12:686 I/LoadArticleUseCase(691) : Bookmark has no article [type=Article]
+01-27 13:47:12:687 I/LoadArticleUseCase(718) : Bookmark has no article [type=Article]
+01-27 13:47:12:688 I/LoadArticleUseCase(719) : Bookmark has no article [type=Article]
+01-27 13:47:12:688 I/LoadArticleUseCase(685) : Bookmark has no article [type=Article]
+01-27 13:47:12:904 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:13:407 D/BatchArticleLoadWorker(685) : Processing batch 239, size=5
+01-27 13:47:13:415 I/LoadArticleUseCase(719) : Bookmark has no article [type=Article]
+01-27 13:47:13:511 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:13:526 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:13:530 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:13:558 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:14:063 D/BatchArticleLoadWorker(720) : Processing batch 240, size=5
+01-27 13:47:14:166 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:14:263 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:14:264 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:14:265 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:14:293 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:14:796 D/BatchArticleLoadWorker(691) : Processing batch 241, size=5
+01-27 13:47:14:903 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:14:929 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:14:930 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:14:931 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:14:931 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:15:437 D/BatchArticleLoadWorker(716) : Processing batch 242, size=5
+01-27 13:47:15:647 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:15:673 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:15:723 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:15:728 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:15:730 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:16:225 D/BatchArticleLoadWorker(719) : Processing batch 243, size=5
+01-27 13:47:16:233 I/LoadArticleUseCase(719) : Bookmark has no article [type=Article]
+01-27 13:47:16:332 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:16:360 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:16:361 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:16:906 D/BatchArticleLoadWorker(718) : Processing batch 244, size=5
+01-27 13:47:16:914 I/LoadArticleUseCase(719) : Bookmark has no article [type=Article]
+01-27 13:47:17:082 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:17:150 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:17:151 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:17:653 D/BatchArticleLoadWorker(716) : Processing batch 245, size=5
+01-27 13:47:17:759 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:17:818 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:17:823 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:17:826 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:17:827 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:18:331 D/BatchArticleLoadWorker(720) : Processing batch 246, size=5
+01-27 13:47:18:341 I/LoadArticleUseCase(718) : Bookmark has no article [type=Article]
+01-27 13:47:18:518 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:18:594 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:18:615 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:19:117 D/BatchArticleLoadWorker(719) : Processing batch 247, size=5
+01-27 13:47:19:222 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:19:249 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:19:251 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:19:278 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:19:782 D/BatchArticleLoadWorker(718) : Processing batch 248, size=5
+01-27 13:47:19:790 I/LoadArticleUseCase(685) : Bookmark has no article [type=Article]
+01-27 13:47:19:790 I/LoadArticleUseCase(719) : Bookmark has no article [type=Article]
+01-27 13:47:19:791 I/LoadArticleUseCase(718) : Bookmark has no article [type=Article]
+01-27 13:47:19:791 I/LoadArticleUseCase(720) : Bookmark has no article [type=Article]
+01-27 13:47:19:791 I/LoadArticleUseCase(691) : Bookmark has no article [type=Article]
+01-27 13:47:20:297 D/BatchArticleLoadWorker(691) : Processing batch 249, size=5
+01-27 13:47:20:301 I/LoadArticleUseCase(691) : Bookmark has no article [type=Article]
+01-27 13:47:20:303 I/LoadArticleUseCase(716) : Bookmark has no article [type=Article]
+01-27 13:47:20:460 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:20:516 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:20:519 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:21:022 D/BatchArticleLoadWorker(718) : Processing batch 250, size=5
+01-27 13:47:21:031 I/LoadArticleUseCase(718) : Bookmark has no article [type=Article]
+01-27 13:47:21:119 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:21:204 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:21:210 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:21:713 D/BatchArticleLoadWorker(691) : Processing batch 251, size=5
+01-27 13:47:21:722 I/LoadArticleUseCase(720) : Bookmark has no article [type=Article]
+01-27 13:47:21:891 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:21:949 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:22:001 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:22:005 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:22:508 D/BatchArticleLoadWorker(691) : Processing batch 252, size=5
+01-27 13:47:22:518 I/LoadArticleUseCase(685) : Bookmark has no article [type=Article]
+01-27 13:47:22:615 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:22:634 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:22:638 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:22:650 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:23:152 D/BatchArticleLoadWorker(720) : Processing batch 253, size=5
+01-27 13:47:23:161 I/LoadArticleUseCase(720) : Bookmark has no article [type=Article]
+01-27 13:47:23:161 I/LoadArticleUseCase(716) : Bookmark has no article [type=Article]
+01-27 13:47:23:161 I/LoadArticleUseCase(685) : Bookmark has no article [type=Article]
+01-27 13:47:23:426 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:23:637 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:24:138 D/BatchArticleLoadWorker(685) : Processing batch 254, size=5
+01-27 13:47:24:146 I/LoadArticleUseCase(716) : Bookmark has no article [type=Article]
+01-27 13:47:24:250 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:24:273 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:24:273 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:24:803 D/BatchArticleLoadWorker(691) : Processing batch 255, size=5
+01-27 13:47:24:811 I/LoadArticleUseCase(718) : Bookmark has no article [type=Article]
+01-27 13:47:24:966 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:25:067 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:25:069 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:25:073 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:25:575 D/BatchArticleLoadWorker(685) : Processing batch 256, size=5
+01-27 13:47:25:782 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:25:855 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:25:889 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:25:890 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:25:891 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:26:384 D/BatchArticleLoadWorker(719) : Processing batch 257, size=5
+01-27 13:47:26:394 I/LoadArticleUseCase(720) : Bookmark has no article [type=Article]
+01-27 13:47:26:510 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:26:601 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:26:604 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:26:606 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:27:110 D/BatchArticleLoadWorker(720) : Processing batch 258, size=5
+01-27 13:47:27:121 I/LoadArticleUseCase(719) : Bookmark has no article [type=Article]
+01-27 13:47:27:121 I/LoadArticleUseCase(718) : Bookmark has no article [type=Article]
+01-27 13:47:27:320 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:27:383 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:27:445 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:27:945 D/BatchArticleLoadWorker(716) : Processing batch 259, size=5
+01-27 13:47:27:954 I/LoadArticleUseCase(720) : Bookmark has no article [type=Article]
+01-27 13:47:27:955 I/LoadArticleUseCase(716) : Bookmark has no article [type=Article]
+01-27 13:47:28:060 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:28:087 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:28:088 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:28:585 D/BatchArticleLoadWorker(720) : Processing batch 260, size=5
+01-27 13:47:28:597 I/LoadArticleUseCase(720) : Bookmark has no article [type=Article]
+01-27 13:47:28:756 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:28:856 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:28:870 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:28:883 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:29:387 D/BatchArticleLoadWorker(719) : Processing batch 261, size=5
+01-27 13:47:29:546 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:29:571 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:29:572 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:29:572 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:29:583 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:30:086 D/BatchArticleLoadWorker(691) : Processing batch 262, size=5
+01-27 13:47:30:288 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:30:388 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:30:392 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:30:399 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:30:897 D/BatchArticleLoadWorker(685) : Processing batch 263, size=5
+01-27 13:47:30:909 I/LoadArticleUseCase(685) : Bookmark has no article [type=Article]
+01-27 13:47:30:909 I/LoadArticleUseCase(691) : Bookmark has no article [type=Article]
+01-27 13:47:30:910 I/LoadArticleUseCase(716) : Bookmark has no article [type=Article]
+01-27 13:47:31:105 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:31:204 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:31:706 D/BatchArticleLoadWorker(716) : Processing batch 264, size=5
+01-27 13:47:31:714 I/LoadArticleUseCase(719) : Bookmark has no article [type=Article]
+01-27 13:47:31:714 I/LoadArticleUseCase(691) : Bookmark has no article [type=Article]
+01-27 13:47:31:714 I/LoadArticleUseCase(685) : Bookmark has no article [type=Article]
+01-27 13:47:31:715 I/LoadArticleUseCase(720) : Bookmark has no article [type=Article]
+01-27 13:47:31:815 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:32:315 D/BatchArticleLoadWorker(720) : Processing batch 265, size=5
+01-27 13:47:32:327 I/LoadArticleUseCase(719) : Bookmark has no article [type=Article]
+01-27 13:47:32:327 I/LoadArticleUseCase(718) : Bookmark has no article [type=Article]
+01-27 13:47:32:446 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:32:487 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:32:493 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:32:981 D/BatchArticleLoadWorker(720) : Processing batch 266, size=5
+01-27 13:47:32:988 I/LoadArticleUseCase(716) : Bookmark has no article [type=Article]
+01-27 13:47:32:989 I/LoadArticleUseCase(716) : Bookmark has no article [type=Article]
+01-27 13:47:33:221 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:33:244 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:33:748 D/BatchArticleLoadWorker(716) : Processing batch 267, size=5
+01-27 13:47:33:757 I/LoadArticleUseCase(716) : Bookmark has no article [type=Article]
+01-27 13:47:33:757 I/LoadArticleUseCase(685) : Bookmark has no article [type=Article]
+01-27 13:47:33:939 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:33:941 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:33:946 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:34:449 D/BatchArticleLoadWorker(718) : Processing batch 268, size=5
+01-27 13:47:34:458 I/LoadArticleUseCase(691) : Bookmark has no article [type=Article]
+01-27 13:47:34:459 I/LoadArticleUseCase(718) : Bookmark has no article [type=Article]
+01-27 13:47:34:584 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:34:593 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:34:677 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:35:179 D/BatchArticleLoadWorker(685) : Processing batch 269, size=5
+01-27 13:47:35:186 I/LoadArticleUseCase(720) : Bookmark has no article [type=Article]
+01-27 13:47:35:186 I/LoadArticleUseCase(718) : Bookmark has no article [type=Picture]
+01-27 13:47:35:284 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:35:309 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:35:310 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:35:811 D/BatchArticleLoadWorker(720) : Processing batch 270, size=5
+01-27 13:47:35:816 I/LoadArticleUseCase(719) : Bookmark has no article [type=Article]
+01-27 13:47:35:816 I/LoadArticleUseCase(691) : Bookmark has no article [type=Article]
+01-27 13:47:35:926 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:35:999 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:36:002 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:36:503 D/BatchArticleLoadWorker(685) : Processing batch 271, size=5
+01-27 13:47:36:512 I/LoadArticleUseCase(720) : Bookmark has no article [type=Article]
+01-27 13:47:36:611 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:36:637 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:36:638 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:36:642 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:37:146 D/BatchArticleLoadWorker(720) : Processing batch 272, size=5
+01-27 13:47:37:154 I/LoadArticleUseCase(691) : Bookmark has no article [type=Article]
+01-27 13:47:37:262 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:37:322 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:37:324 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:37:343 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:37:846 D/BatchArticleLoadWorker(716) : Processing batch 273, size=5
+01-27 13:47:37:949 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:37:977 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:37:982 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:37:989 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:38:002 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:38:496 D/BatchArticleLoadWorker(719) : Processing batch 274, size=5
+01-27 13:47:38:506 I/LoadArticleUseCase(718) : Bookmark has no article [type=Article]
+01-27 13:47:38:506 I/LoadArticleUseCase(716) : Bookmark has no article [type=Article]
+01-27 13:47:38:678 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:38:744 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:38:746 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:39:250 D/BatchArticleLoadWorker(716) : Processing batch 275, size=5
+01-27 13:47:39:260 I/LoadArticleUseCase(716) : Bookmark has no article [type=Article]
+01-27 13:47:39:404 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:39:408 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:39:413 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:39:914 D/BatchArticleLoadWorker(691) : Processing batch 276, size=5
+01-27 13:47:39:923 I/LoadArticleUseCase(685) : Bookmark has no article [type=Article]
+01-27 13:47:40:118 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:40:195 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:40:221 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:40:235 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:40:733 D/BatchArticleLoadWorker(720) : Processing batch 277, size=5
+01-27 13:47:40:743 I/LoadArticleUseCase(720) : Bookmark has no article [type=Article]
+01-27 13:47:40:743 I/LoadArticleUseCase(691) : Bookmark has no article [type=Article]
+01-27 13:47:40:889 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:40:919 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:40:921 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:41:423 D/BatchArticleLoadWorker(716) : Processing batch 278, size=5
+01-27 13:47:41:431 I/LoadArticleUseCase(718) : Bookmark has no article [type=Article]
+01-27 13:47:41:551 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:41:615 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:41:626 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:41:628 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:42:133 D/BatchArticleLoadWorker(685) : Processing batch 279, size=5
+01-27 13:47:42:141 I/LoadArticleUseCase(691) : Bookmark has no article [type=Article]
+01-27 13:47:42:141 I/LoadArticleUseCase(720) : Bookmark has no article [type=Article]
+01-27 13:47:42:141 I/LoadArticleUseCase(718) : Bookmark has no article [type=Article]
+01-27 13:47:42:234 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:42:265 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:42:759 D/BatchArticleLoadWorker(718) : Processing batch 280, size=5
+01-27 13:47:42:882 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:42:945 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:42:946 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:42:982 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:43:480 D/BatchArticleLoadWorker(716) : Processing batch 281, size=5
+01-27 13:47:43:489 I/LoadArticleUseCase(716) : Bookmark has no article [type=Article]
+01-27 13:47:43:489 I/LoadArticleUseCase(691) : Bookmark has no article [type=Article]
+01-27 13:47:43:607 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:43:615 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:43:617 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:44:119 D/BatchArticleLoadWorker(691) : Processing batch 282, size=5
+01-27 13:47:44:126 I/LoadArticleUseCase(691) : Bookmark has no article [type=Article]
+01-27 13:47:44:127 I/LoadArticleUseCase(691) : Bookmark has no article [type=Article]
+01-27 13:47:44:321 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:44:384 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:44:389 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:44:892 D/BatchArticleLoadWorker(716) : Processing batch 283, size=5
+01-27 13:47:44:899 I/LoadArticleUseCase(685) : Bookmark has no article [type=Article]
+01-27 13:47:44:901 I/LoadArticleUseCase(691) : Bookmark has no article [type=Article]
+01-27 13:47:45:043 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:45:045 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:45:548 D/BatchArticleLoadWorker(691) : Processing batch 284, size=5
+01-27 13:47:45:557 I/LoadArticleUseCase(719) : Bookmark has no article [type=Article]
+01-27 13:47:45:757 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:45:814 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:45:846 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:45:893 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:46:396 D/BatchArticleLoadWorker(716) : Processing batch 285, size=5
+01-27 13:47:46:404 I/LoadArticleUseCase(720) : Bookmark has no article [type=Article]
+01-27 13:47:46:404 I/LoadArticleUseCase(716) : Bookmark has no article [type=Article]
+01-27 13:47:46:542 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:46:570 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:47:070 D/BatchArticleLoadWorker(716) : Processing batch 286, size=5
+01-27 13:47:47:078 I/LoadArticleUseCase(685) : Bookmark has no article [type=Article]
+01-27 13:47:47:078 I/LoadArticleUseCase(719) : Bookmark has no article [type=Article]
+01-27 13:47:47:185 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:47:390 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:47:393 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:47:896 D/BatchArticleLoadWorker(691) : Processing batch 287, size=5
+01-27 13:47:47:905 I/LoadArticleUseCase(685) : Bookmark has no article [type=Article]
+01-27 13:47:47:906 I/LoadArticleUseCase(719) : Bookmark has no article [type=Article]
+01-27 13:47:48:063 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:48:067 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:48:068 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:48:572 D/BatchArticleLoadWorker(719) : Processing batch 288, size=5
+01-27 13:47:48:580 I/LoadArticleUseCase(720) : Bookmark has no article [type=Article]
+01-27 13:47:48:580 I/LoadArticleUseCase(718) : Bookmark has no article [type=Article]
+01-27 13:47:48:719 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:48:806 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:48:810 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:49:312 D/BatchArticleLoadWorker(691) : Processing batch 289, size=5
+01-27 13:47:49:319 I/LoadArticleUseCase(685) : Bookmark has no article [type=Article]
+01-27 13:47:49:319 I/LoadArticleUseCase(718) : Bookmark has no article [type=Article]
+01-27 13:47:49:320 I/LoadArticleUseCase(719) : Bookmark has no article [type=Article]
+01-27 13:47:49:465 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:49:487 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:49:984 D/BatchArticleLoadWorker(719) : Processing batch 290, size=5
+01-27 13:47:50:153 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:50:260 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:50:310 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:50:311 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:50:312 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:50:815 D/BatchArticleLoadWorker(691) : Processing batch 291, size=5
+01-27 13:47:50:824 I/LoadArticleUseCase(685) : Bookmark has no article [type=Article]
+01-27 13:47:50:933 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:50:956 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:50:956 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:50:962 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:51:460 D/BatchArticleLoadWorker(716) : Processing batch 292, size=5
+01-27 13:47:51:470 I/LoadArticleUseCase(719) : Bookmark has no article [type=Article]
+01-27 13:47:51:657 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:51:688 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:51:708 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:52:210 D/BatchArticleLoadWorker(716) : Processing batch 293, size=5
+01-27 13:47:52:427 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:52:432 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:52:434 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:52:459 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:52:524 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:53:026 D/BatchArticleLoadWorker(718) : Processing batch 294, size=5
+01-27 13:47:53:036 I/LoadArticleUseCase(720) : Bookmark has no article [type=Article]
+01-27 13:47:53:036 I/LoadArticleUseCase(691) : Bookmark has no article [type=Article]
+01-27 13:47:53:231 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:53:288 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:53:300 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:53:798 D/BatchArticleLoadWorker(691) : Processing batch 295, size=5
+01-27 13:47:53:807 I/LoadArticleUseCase(718) : Bookmark has no article [type=Article]
+01-27 13:47:53:807 I/LoadArticleUseCase(719) : Bookmark has no article [type=Article]
+01-27 13:47:53:903 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:53:925 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:53:965 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:54:470 D/BatchArticleLoadWorker(691) : Processing batch 296, size=5
+01-27 13:47:54:480 I/LoadArticleUseCase(685) : Bookmark has no article [type=Article]
+01-27 13:47:54:480 I/LoadArticleUseCase(719) : Bookmark has no article [type=Article]
+01-27 13:47:54:658 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:54:742 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:54:759 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:55:260 D/BatchArticleLoadWorker(719) : Processing batch 297, size=5
+01-27 13:47:55:354 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:55:399 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:55:412 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:55:426 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:55:426 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:55:923 D/BatchArticleLoadWorker(685) : Processing batch 298, size=5
+01-27 13:47:55:931 I/LoadArticleUseCase(719) : Bookmark has no article [type=Article]
+01-27 13:47:56:102 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:56:110 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:56:155 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:56:203 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:56:699 D/BatchArticleLoadWorker(685) : Processing batch 299, size=5
+01-27 13:47:56:709 I/LoadArticleUseCase(691) : Bookmark has no article [type=Article]
+01-27 13:47:56:830 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:56:864 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:56:880 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:57:372 D/BatchArticleLoadWorker(719) : Processing batch 300, size=5
+01-27 13:47:57:380 I/LoadArticleUseCase(720) : Bookmark has no article [type=Article]
+01-27 13:47:57:543 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:57:600 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:57:627 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:57:635 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:58:133 D/BatchArticleLoadWorker(720) : Processing batch 301, size=5
+01-27 13:47:58:234 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:58:288 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:58:292 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:58:294 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:58:798 D/BatchArticleLoadWorker(716) : Processing batch 302, size=5
+01-27 13:47:58:805 I/LoadArticleUseCase(720) : Bookmark has no article [type=Article]
+01-27 13:47:58:962 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:59:027 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:59:072 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:59:075 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:59:580 D/BatchArticleLoadWorker(691) : Processing batch 303, size=5
+01-27 13:47:59:674 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:59:707 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:59:708 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:59:708 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:47:59:769 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:00:272 D/BatchArticleLoadWorker(716) : Processing batch 304, size=5
+01-27 13:48:00:397 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:00:461 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:00:463 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:00:500 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:00:506 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:01:001 D/BatchArticleLoadWorker(685) : Processing batch 305, size=5
+01-27 13:48:01:010 I/LoadArticleUseCase(685) : Bookmark has no article [type=Article]
+01-27 13:48:01:010 I/LoadArticleUseCase(718) : Bookmark has no article [type=Article]
+01-27 13:48:01:010 I/LoadArticleUseCase(716) : Bookmark has no article [type=Article]
+01-27 13:48:01:140 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:01:162 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:01:660 D/BatchArticleLoadWorker(719) : Processing batch 306, size=5
+01-27 13:48:01:669 I/LoadArticleUseCase(691) : Bookmark has no article [type=Article]
+01-27 13:48:01:834 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:02:032 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:02:036 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:02:040 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:02:541 D/BatchArticleLoadWorker(691) : Processing batch 307, size=5
+01-27 13:48:02:550 I/LoadArticleUseCase(716) : Bookmark has no article [type=Article]
+01-27 13:48:02:551 I/LoadArticleUseCase(720) : Bookmark has no article [type=Article]
+01-27 13:48:02:551 I/LoadArticleUseCase(691) : Bookmark has no article [type=Article]
+01-27 13:48:02:709 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:02:723 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:03:219 D/BatchArticleLoadWorker(691) : Processing batch 308, size=5
+01-27 13:48:03:228 I/LoadArticleUseCase(691) : Bookmark has no article [type=Article]
+01-27 13:48:03:370 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:03:435 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:03:438 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:03:487 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:03:988 D/BatchArticleLoadWorker(691) : Processing batch 309, size=5
+01-27 13:48:03:997 I/LoadArticleUseCase(720) : Bookmark has no article [type=Article]
+01-27 13:48:04:094 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:04:114 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:04:115 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:04:124 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:04:624 D/BatchArticleLoadWorker(720) : Processing batch 310, size=5
+01-27 13:48:04:830 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:04:860 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:04:905 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:04:906 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:05:406 D/BatchArticleLoadWorker(716) : Processing batch 311, size=5
+01-27 13:48:05:415 I/LoadArticleUseCase(691) : Bookmark has no article [type=Article]
+01-27 13:48:05:415 I/LoadArticleUseCase(718) : Bookmark has no article [type=Article]
+01-27 13:48:05:565 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:05:595 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:05:622 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:06:125 D/BatchArticleLoadWorker(691) : Processing batch 312, size=5
+01-27 13:48:06:134 I/LoadArticleUseCase(691) : Bookmark has no article [type=Article]
+01-27 13:48:06:134 I/LoadArticleUseCase(685) : Bookmark has no article [type=Article]
+01-27 13:48:06:134 I/LoadArticleUseCase(720) : Bookmark has no article [type=Article]
+01-27 13:48:06:338 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:06:399 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:06:899 D/BatchArticleLoadWorker(720) : Processing batch 313, size=5
+01-27 13:48:06:909 I/LoadArticleUseCase(719) : Bookmark has no article [type=Article]
+01-27 13:48:06:910 I/LoadArticleUseCase(720) : Bookmark has no article [type=Article]
+01-27 13:48:06:909 I/LoadArticleUseCase(685) : Bookmark has no article [type=Article]
+01-27 13:48:06:910 I/LoadArticleUseCase(691) : Bookmark has no article [type=Article]
+01-27 13:48:07:004 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:07:503 D/BatchArticleLoadWorker(691) : Processing batch 314, size=5
+01-27 13:48:07:514 I/LoadArticleUseCase(716) : Bookmark has no article [type=Article]
+01-27 13:48:07:515 I/LoadArticleUseCase(718) : Bookmark has no article [type=Article]
+01-27 13:48:07:514 I/LoadArticleUseCase(685) : Bookmark has no article [type=Article]
+01-27 13:48:07:515 I/LoadArticleUseCase(720) : Bookmark has no article [type=Article]
+01-27 13:48:07:515 I/LoadArticleUseCase(691) : Bookmark has no article [type=Article]
+01-27 13:48:08:020 D/BatchArticleLoadWorker(691) : Processing batch 315, size=5
+01-27 13:48:08:026 I/LoadArticleUseCase(691) : Bookmark has no article [type=Article]
+01-27 13:48:08:027 I/LoadArticleUseCase(718) : Bookmark has no article [type=Article]
+01-27 13:48:08:027 I/LoadArticleUseCase(716) : Bookmark has no article [type=Article]
+01-27 13:48:08:124 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:08:152 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:08:646 D/BatchArticleLoadWorker(716) : Processing batch 316, size=5
+01-27 13:48:08:655 I/LoadArticleUseCase(720) : Bookmark has no article [type=Article]
+01-27 13:48:08:657 I/LoadArticleUseCase(716) : Bookmark has no article [type=Article]
+01-27 13:48:08:805 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:08:806 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:08:813 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:09:313 D/BatchArticleLoadWorker(716) : Processing batch 317, size=5
+01-27 13:48:09:412 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:09:436 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:09:443 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:09:479 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:09:977 D/BatchArticleLoadWorker(719) : Processing batch 318, size=5
+01-27 13:48:09:986 I/LoadArticleUseCase(685) : Bookmark has no article [type=Article]
+01-27 13:48:09:987 I/LoadArticleUseCase(716) : Bookmark has no article [type=Article]
+01-27 13:48:10:125 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:10:225 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:10:226 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:10:727 D/BatchArticleLoadWorker(685) : Processing batch 319, size=5
+01-27 13:48:10:735 I/LoadArticleUseCase(718) : Bookmark has no article [type=Article]
+01-27 13:48:10:735 I/LoadArticleUseCase(720) : Bookmark has no article [type=Article]
+01-27 13:48:10:830 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:10:856 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:11:379 D/BatchArticleLoadWorker(720) : Processing batch 320, size=5
+01-27 13:48:11:585 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:11:627 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:11:628 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:11:643 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:11:662 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:12:163 D/BatchArticleLoadWorker(691) : Processing batch 321, size=5
+01-27 13:48:12:173 I/LoadArticleUseCase(718) : Bookmark has no article [type=Article]
+01-27 13:48:12:264 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:12:325 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:12:329 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:12:832 D/BatchArticleLoadWorker(718) : Processing batch 322, size=5
+01-27 13:48:12:842 I/LoadArticleUseCase(719) : Bookmark has no article [type=Article]
+01-27 13:48:12:842 I/LoadArticleUseCase(716) : Bookmark has no article [type=Article]
+01-27 13:48:12:842 I/LoadArticleUseCase(685) : Bookmark has no article [type=Article]
+01-27 13:48:12:986 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:13:551 D/BatchArticleLoadWorker(685) : Processing batch 323, size=5
+01-27 13:48:13:560 I/LoadArticleUseCase(685) : Bookmark has no article [type=Article]
+01-27 13:48:13:561 I/LoadArticleUseCase(719) : Bookmark has no article [type=Article]
+01-27 13:48:13:562 I/LoadArticleUseCase(691) : Bookmark has no article [type=Article]
+01-27 13:48:13:718 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:13:744 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:14:245 D/BatchArticleLoadWorker(691) : Processing batch 324, size=5
+01-27 13:48:14:422 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:14:513 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:15:057 D/BatchArticleLoadWorker(716) : Processing batch 325, size=5
+01-27 13:48:15:069 I/LoadArticleUseCase(719) : Bookmark has no article [type=Article]
+01-27 13:48:15:068 I/LoadArticleUseCase(720) : Bookmark has no article [type=Article]
+01-27 13:48:15:162 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:15:189 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:15:190 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:15:693 D/BatchArticleLoadWorker(720) : Processing batch 326, size=5
+01-27 13:48:15:701 I/LoadArticleUseCase(719) : Bookmark has no article [type=Article]
+01-27 13:48:15:701 I/LoadArticleUseCase(718) : Bookmark has no article [type=Article]
+01-27 13:48:15:701 I/LoadArticleUseCase(685) : Bookmark has no article [type=Article]
+01-27 13:48:15:702 I/LoadArticleUseCase(720) : Bookmark has no article [type=Article]
+01-27 13:48:15:865 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:16:364 D/BatchArticleLoadWorker(720) : Processing batch 327, size=5
+01-27 13:48:16:373 I/LoadArticleUseCase(685) : Bookmark has no article [type=Article]
+01-27 13:48:16:373 I/LoadArticleUseCase(691) : Bookmark has no article [type=Article]
+01-27 13:48:16:373 I/LoadArticleUseCase(716) : Bookmark has no article [type=Article]
+01-27 13:48:16:373 I/LoadArticleUseCase(720) : Bookmark has no article [type=Article]
+01-27 13:48:16:495 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:16:993 D/BatchArticleLoadWorker(691) : Processing batch 328, size=5
+01-27 13:48:16:995 I/LoadArticleUseCase(685) : Bookmark has no article [type=Article]
+01-27 13:48:16:996 I/LoadArticleUseCase(685) : Bookmark has no article [type=Article]
+01-27 13:48:17:098 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:17:127 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:17:127 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:17:631 D/BatchArticleLoadWorker(691) : Processing batch 329, size=5
+01-27 13:48:17:640 I/LoadArticleUseCase(716) : Bookmark has no article [type=Article]
+01-27 13:48:17:800 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:17:915 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:17:965 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:17:972 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:18:477 D/BatchArticleLoadWorker(718) : Processing batch 330, size=5
+01-27 13:48:18:629 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:18:641 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:18:651 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:18:651 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:18:652 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:19:156 D/BatchArticleLoadWorker(691) : Processing batch 331, size=5
+01-27 13:48:19:163 I/LoadArticleUseCase(718) : Bookmark has no article [type=Article]
+01-27 13:48:19:263 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:19:337 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:19:348 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:19:846 D/BatchArticleLoadWorker(720) : Processing batch 332, size=5
+01-27 13:48:19:854 I/LoadArticleUseCase(691) : Bookmark has no article [type=Article]
+01-27 13:48:19:854 I/LoadArticleUseCase(716) : Bookmark has no article [type=Article]
+01-27 13:48:19:854 I/LoadArticleUseCase(718) : Bookmark has no article [type=Article]
+01-27 13:48:19:854 I/LoadArticleUseCase(719) : Bookmark has no article [type=Article]
+01-27 13:48:19:955 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:20:454 D/BatchArticleLoadWorker(719) : Processing batch 333, size=5
+01-27 13:48:20:459 I/LoadArticleUseCase(691) : Bookmark has no article [type=Article]
+01-27 13:48:20:460 I/LoadArticleUseCase(716) : Bookmark has no article [type=Article]
+01-27 13:48:20:460 I/LoadArticleUseCase(720) : Bookmark has no article [type=Article]
+01-27 13:48:20:460 I/LoadArticleUseCase(718) : Bookmark has no article [type=Article]
+01-27 13:48:20:555 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:21:055 D/BatchArticleLoadWorker(718) : Processing batch 334, size=5
+01-27 13:48:21:063 I/LoadArticleUseCase(716) : Bookmark has no article [type=Article]
+01-27 13:48:21:063 I/LoadArticleUseCase(691) : Bookmark has no article [type=Article]
+01-27 13:48:21:064 I/LoadArticleUseCase(719) : Bookmark has no article [type=Article]
+01-27 13:48:21:064 I/LoadArticleUseCase(720) : Bookmark has no article [type=Article]
+01-27 13:48:21:210 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:21:708 D/BatchArticleLoadWorker(719) : Processing batch 335, size=5
+01-27 13:48:21:716 I/LoadArticleUseCase(720) : Bookmark has no article [type=Article]
+01-27 13:48:21:832 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:21:836 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:21:840 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:22:351 D/BatchArticleLoadWorker(719) : Processing batch 336, size=5
+01-27 13:48:22:363 I/LoadArticleUseCase(716) : Bookmark has no article [type=Article]
+01-27 13:48:22:512 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:22:580 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:22:608 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:22:647 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:23:149 D/BatchArticleLoadWorker(691) : Processing batch 337, size=5
+01-27 13:48:23:250 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:23:276 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:23:329 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:23:824 D/BatchArticleLoadWorker(716) : Processing batch 338, size=5
+01-27 13:48:23:943 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:24:019 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:24:057 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:24:058 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:24:058 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:24:557 D/BatchArticleLoadWorker(685) : Processing batch 339, size=5
+01-27 13:48:24:565 I/LoadArticleUseCase(720) : Bookmark has no article [type=Article]
+01-27 13:48:24:565 I/LoadArticleUseCase(685) : Bookmark has no article [type=Article]
+01-27 13:48:24:565 I/LoadArticleUseCase(718) : Bookmark has no article [type=Article]
+01-27 13:48:24:673 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:25:178 D/BatchArticleLoadWorker(691) : Processing batch 340, size=5
+01-27 13:48:25:386 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:25:444 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:25:477 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:25:478 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:25:981 D/BatchArticleLoadWorker(720) : Processing batch 341, size=5
+01-27 13:48:25:989 I/LoadArticleUseCase(719) : Bookmark has no article [type=Article]
+01-27 13:48:25:989 I/LoadArticleUseCase(685) : Bookmark has no article [type=Article]
+01-27 13:48:25:990 I/LoadArticleUseCase(718) : Bookmark has no article [type=Article]
+01-27 13:48:25:990 I/LoadArticleUseCase(691) : Bookmark has no article [type=Article]
+01-27 13:48:26:084 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:26:584 D/BatchArticleLoadWorker(691) : Processing batch 342, size=5
+01-27 13:48:26:591 I/LoadArticleUseCase(717) : Bookmark has no article [type=Article]
+01-27 13:48:26:592 I/LoadArticleUseCase(717) : Bookmark has no article [type=Article]
+01-27 13:48:26:592 I/LoadArticleUseCase(720) : Bookmark has no article [type=Article]
+01-27 13:48:26:592 I/LoadArticleUseCase(691) : Bookmark has no article [type=Article]
+01-27 13:48:26:767 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:27:265 D/BatchArticleLoadWorker(719) : Processing batch 343, size=5
+01-27 13:48:27:272 I/LoadArticleUseCase(720) : Bookmark has no article [type=Article]
+01-27 13:48:27:273 I/LoadArticleUseCase(691) : Bookmark has no article [type=Article]
+01-27 13:48:27:273 I/LoadArticleUseCase(719) : Bookmark has no article [type=Article]
+01-27 13:48:27:460 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:27:488 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:27:990 D/BatchArticleLoadWorker(719) : Processing batch 344, size=5
+01-27 13:48:27:998 I/LoadArticleUseCase(685) : Bookmark has no article [type=Article]
+01-27 13:48:27:998 I/LoadArticleUseCase(718) : Bookmark has no article [type=Article]
+01-27 13:48:28:092 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:28:118 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:28:119 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:28:623 D/BatchArticleLoadWorker(719) : Processing batch 345, size=5
+01-27 13:48:28:795 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:28:838 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:28:881 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:28:882 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:29:376 D/BatchArticleLoadWorker(719) : Processing batch 346, size=5
+01-27 13:48:29:468 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:29:494 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:29:519 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:29:536 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:30:030 D/BatchArticleLoadWorker(691) : Processing batch 347, size=5
+01-27 13:48:30:202 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:30:257 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:30:258 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:30:261 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:30:312 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:30:805 D/BatchArticleLoadWorker(719) : Processing batch 348, size=5
+01-27 13:48:30:814 I/LoadArticleUseCase(717) : Bookmark has no article [type=Article]
+01-27 13:48:30:814 I/LoadArticleUseCase(718) : Bookmark has no article [type=Article]
+01-27 13:48:31:011 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:31:014 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:31:518 D/BatchArticleLoadWorker(718) : Processing batch 349, size=5
+01-27 13:48:31:526 I/LoadArticleUseCase(717) : Bookmark has no article [type=Article]
+01-27 13:48:31:631 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:31:697 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:31:701 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:31:736 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:32:229 D/BatchArticleLoadWorker(720) : Processing batch 350, size=5
+01-27 13:48:32:238 I/LoadArticleUseCase(717) : Bookmark has no article [type=Article]
+01-27 13:48:32:345 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:32:346 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:32:360 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:32:364 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:32:861 D/BatchArticleLoadWorker(720) : Processing batch 351, size=5
+01-27 13:48:32:870 I/LoadArticleUseCase(685) : Bookmark has no article [type=Article]
+01-27 13:48:33:062 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:33:162 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:33:168 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:33:670 D/BatchArticleLoadWorker(685) : Processing batch 352, size=5
+01-27 13:48:33:678 I/LoadArticleUseCase(718) : Bookmark has no article [type=Article]
+01-27 13:48:33:768 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:33:784 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:33:796 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:33:821 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:34:322 D/BatchArticleLoadWorker(691) : Processing batch 353, size=5
+01-27 13:48:34:330 I/LoadArticleUseCase(718) : Bookmark has no article [type=Article]
+01-27 13:48:34:503 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:34:597 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:34:602 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:35:104 D/BatchArticleLoadWorker(720) : Processing batch 354, size=5
+01-27 13:48:35:112 I/LoadArticleUseCase(691) : Bookmark has no article [type=Article]
+01-27 13:48:35:112 I/LoadArticleUseCase(718) : Bookmark has no article [type=Article]
+01-27 13:48:35:259 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:35:280 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:35:307 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:35:806 D/BatchArticleLoadWorker(685) : Processing batch 355, size=5
+01-27 13:48:35:814 I/LoadArticleUseCase(691) : Bookmark has no article [type=Article]
+01-27 13:48:35:933 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:36:032 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:36:034 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:36:049 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:36:543 D/BatchArticleLoadWorker(691) : Processing batch 356, size=5
+01-27 13:48:36:551 I/LoadArticleUseCase(720) : Bookmark has no article [type=Article]
+01-27 13:48:36:552 I/LoadArticleUseCase(685) : Bookmark has no article [type=Article]
+01-27 13:48:36:752 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:36:769 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:37:270 D/BatchArticleLoadWorker(685) : Processing batch 357, size=5
+01-27 13:48:37:277 I/LoadArticleUseCase(718) : Bookmark has no article [type=Article]
+01-27 13:48:37:468 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:37:472 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:37:540 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:37:566 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:38:067 D/BatchArticleLoadWorker(685) : Processing batch 358, size=5
+01-27 13:48:38:076 I/LoadArticleUseCase(717) : Bookmark has no article [type=Article]
+01-27 13:48:38:198 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:38:200 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:38:203 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:38:212 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:38:711 D/BatchArticleLoadWorker(717) : Processing batch 359, size=5
+01-27 13:48:38:720 I/LoadArticleUseCase(685) : Bookmark has no article [type=Article]
+01-27 13:48:38:721 I/LoadArticleUseCase(717) : Bookmark has no article [type=Article]
+01-27 13:48:38:721 I/LoadArticleUseCase(719) : Bookmark has no article [type=Article]
+01-27 13:48:38:902 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:38:972 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:39:474 D/BatchArticleLoadWorker(719) : Processing batch 360, size=5
+01-27 13:48:39:482 I/LoadArticleUseCase(718) : Bookmark has no article [type=Article]
+01-27 13:48:39:484 I/LoadArticleUseCase(720) : Bookmark has no article [type=Article]
+01-27 13:48:39:593 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:39:597 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:39:601 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:40:101 D/BatchArticleLoadWorker(720) : Processing batch 361, size=5
+01-27 13:48:40:109 I/LoadArticleUseCase(718) : Bookmark has no article [type=Article]
+01-27 13:48:40:109 I/LoadArticleUseCase(717) : Bookmark has no article [type=Article]
+01-27 13:48:40:227 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:40:233 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:40:303 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:40:805 D/BatchArticleLoadWorker(719) : Processing batch 362, size=5
+01-27 13:48:40:813 I/LoadArticleUseCase(719) : Bookmark has no article [type=Article]
+01-27 13:48:40:943 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:40:948 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:40:952 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:40:955 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:41:456 D/BatchArticleLoadWorker(685) : Processing batch 363, size=5
+01-27 13:48:41:464 I/LoadArticleUseCase(718) : Bookmark has no article [type=Article]
+01-27 13:48:41:561 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:41:625 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:41:688 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:41:691 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:42:195 D/BatchArticleLoadWorker(719) : Processing batch 364, size=5
+01-27 13:48:42:204 I/LoadArticleUseCase(720) : Bookmark has no article [type=Article]
+01-27 13:48:42:204 I/LoadArticleUseCase(718) : Bookmark has no article [type=Article]
+01-27 13:48:42:205 I/LoadArticleUseCase(691) : Bookmark has no article [type=Article]
+01-27 13:48:42:301 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:42:330 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:42:832 D/BatchArticleLoadWorker(691) : Processing batch 365, size=5
+01-27 13:48:42:840 I/LoadArticleUseCase(685) : Bookmark has no article [type=Article]
+01-27 13:48:42:841 I/LoadArticleUseCase(717) : Bookmark has no article [type=Article]
+01-27 13:48:42:992 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:43:098 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:43:117 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:43:615 D/BatchArticleLoadWorker(685) : Processing batch 366, size=5
+01-27 13:48:43:623 I/LoadArticleUseCase(720) : Bookmark has no article [type=Article]
+01-27 13:48:43:624 I/LoadArticleUseCase(717) : Bookmark has no article [type=Article]
+01-27 13:48:43:767 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:43:786 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:43:787 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:44:291 D/BatchArticleLoadWorker(719) : Processing batch 367, size=5
+01-27 13:48:44:298 I/LoadArticleUseCase(720) : Bookmark has no article [type=Article]
+01-27 13:48:44:298 I/LoadArticleUseCase(720) : Bookmark has no article [type=Article]
+01-27 13:48:44:298 I/LoadArticleUseCase(719) : Bookmark has no article [type=Article]
+01-27 13:48:44:431 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:44:487 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:44:988 D/BatchArticleLoadWorker(719) : Processing batch 368, size=5
+01-27 13:48:44:996 I/LoadArticleUseCase(691) : Bookmark has no article [type=Article]
+01-27 13:48:45:087 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:45:137 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:45:138 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:45:139 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:45:642 D/BatchArticleLoadWorker(691) : Processing batch 369, size=5
+01-27 13:48:45:650 I/LoadArticleUseCase(720) : Bookmark has no article [type=Article]
+01-27 13:48:45:650 I/LoadArticleUseCase(719) : Bookmark has no article [type=Article]
+01-27 13:48:45:760 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:45:821 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:45:822 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:46:327 D/BatchArticleLoadWorker(720) : Processing batch 370, size=5
+01-27 13:48:46:340 I/LoadArticleUseCase(717) : Bookmark has no article [type=Article]
+01-27 13:48:46:340 I/LoadArticleUseCase(691) : Bookmark has no article [type=Article]
+01-27 13:48:46:340 I/LoadArticleUseCase(719) : Bookmark has no article [type=Article]
+01-27 13:48:46:459 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:46:470 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:46:963 D/BatchArticleLoadWorker(691) : Processing batch 371, size=5
+01-27 13:48:46:972 I/LoadArticleUseCase(691) : Bookmark has no article [type=Article]
+01-27 13:48:46:973 I/LoadArticleUseCase(719) : Bookmark has no article [type=Article]
+01-27 13:48:46:974 I/LoadArticleUseCase(691) : Bookmark has no article [type=Article]
+01-27 13:48:46:973 I/LoadArticleUseCase(718) : Bookmark has no article [type=Article]
+01-27 13:48:47:103 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:47:602 D/BatchArticleLoadWorker(718) : Processing batch 372, size=5
+01-27 13:48:47:705 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:47:730 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:47:740 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:47:789 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:47:791 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:48:295 D/BatchArticleLoadWorker(719) : Processing batch 373, size=5
+01-27 13:48:48:303 I/LoadArticleUseCase(720) : Bookmark has no article [type=Article]
+01-27 13:48:48:304 I/LoadArticleUseCase(719) : Bookmark has no article [type=Article]
+01-27 13:48:48:304 I/LoadArticleUseCase(685) : Bookmark has no article [type=Article]
+01-27 13:48:48:431 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:48:486 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:48:981 D/BatchArticleLoadWorker(719) : Processing batch 374, size=5
+01-27 13:48:48:988 I/LoadArticleUseCase(720) : Bookmark has no article [type=Article]
+01-27 13:48:48:990 I/LoadArticleUseCase(717) : Bookmark has no article [type=Article]
+01-27 13:48:49:140 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:49:213 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:49:759 D/BatchArticleLoadWorker(717) : Processing batch 375, size=5
+01-27 13:48:49:766 I/LoadArticleUseCase(718) : Bookmark has no article [type=Article]
+01-27 13:48:49:766 I/LoadArticleUseCase(720) : Bookmark has no article [type=Article]
+01-27 13:48:49:766 I/LoadArticleUseCase(717) : Bookmark has no article [type=Article]
+01-27 13:48:49:881 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:49:963 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:50:463 D/BatchArticleLoadWorker(717) : Processing batch 376, size=5
+01-27 13:48:50:473 I/LoadArticleUseCase(717) : Bookmark has no article [type=Article]
+01-27 13:48:50:474 I/LoadArticleUseCase(718) : Bookmark has no article [type=Article]
+01-27 13:48:50:702 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:50:885 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:50:889 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:51:390 D/BatchArticleLoadWorker(718) : Processing batch 377, size=5
+01-27 13:48:51:399 I/LoadArticleUseCase(718) : Bookmark has no article [type=Article]
+01-27 13:48:51:494 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:51:519 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:51:519 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:52:024 D/BatchArticleLoadWorker(691) : Processing batch 378, size=5
+01-27 13:48:52:033 I/LoadArticleUseCase(719) : Bookmark has no article [type=Article]
+01-27 13:48:52:033 I/LoadArticleUseCase(720) : Bookmark has no article [type=Article]
+01-27 13:48:52:033 I/LoadArticleUseCase(685) : Bookmark has no article [type=Article]
+01-27 13:48:52:033 I/LoadArticleUseCase(717) : Bookmark has no article [type=Article]
+01-27 13:48:52:212 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:52:712 D/BatchArticleLoadWorker(717) : Processing batch 379, size=5
+01-27 13:48:52:724 I/LoadArticleUseCase(719) : Bookmark has no article [type=Article]
+01-27 13:48:52:724 I/LoadArticleUseCase(685) : Bookmark has no article [type=Article]
+01-27 13:48:52:819 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:52:843 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:52:901 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:53:384 D/BatchArticleLoadWorker(685) : Processing batch 380, size=5
+01-27 13:48:53:556 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:53:609 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:53:636 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:53:637 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:53:640 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:54:144 D/BatchArticleLoadWorker(685) : Processing batch 381, size=5
+01-27 13:48:54:153 I/LoadArticleUseCase(691) : Bookmark has no article [type=Article]
+01-27 13:48:54:153 I/LoadArticleUseCase(718) : Bookmark has no article [type=Article]
+01-27 13:48:54:248 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:54:300 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:54:301 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:54:799 D/BatchArticleLoadWorker(717) : Processing batch 382, size=5
+01-27 13:48:54:807 I/LoadArticleUseCase(717) : Bookmark has no article [type=Article]
+01-27 13:48:54:807 I/LoadArticleUseCase(718) : Bookmark has no article [type=Article]
+01-27 13:48:54:808 I/LoadArticleUseCase(719) : Bookmark has no article [type=Article]
+01-27 13:48:54:974 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:55:042 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:55:543 D/BatchArticleLoadWorker(719) : Processing batch 383, size=5
+01-27 13:48:55:552 I/LoadArticleUseCase(685) : Bookmark has no article [type=Article]
+01-27 13:48:55:552 I/LoadArticleUseCase(719) : Bookmark has no article [type=Article]
+01-27 13:48:55:552 I/LoadArticleUseCase(718) : Bookmark has no article [type=Article]
+01-27 13:48:55:552 I/LoadArticleUseCase(720) : Bookmark has no article [type=Article]
+01-27 13:48:55:680 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:56:179 D/BatchArticleLoadWorker(720) : Processing batch 384, size=5
+01-27 13:48:56:188 I/LoadArticleUseCase(720) : Bookmark has no article [type=Article]
+01-27 13:48:56:312 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:56:316 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:56:327 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:56:332 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:56:826 D/BatchArticleLoadWorker(720) : Processing batch 385, size=5
+01-27 13:48:56:834 I/LoadArticleUseCase(718) : Bookmark has no article [type=Article]
+01-27 13:48:56:834 I/LoadArticleUseCase(685) : Bookmark has no article [type=Article]
+01-27 13:48:56:834 I/LoadArticleUseCase(720) : Bookmark has no article [type=Article]
+01-27 13:48:57:026 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:57:083 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:57:582 D/BatchArticleLoadWorker(720) : Processing batch 386, size=5
+01-27 13:48:57:591 I/LoadArticleUseCase(719) : Bookmark has no article [type=Article]
+01-27 13:48:57:772 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:57:777 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:57:787 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:57:795 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:58:292 D/BatchArticleLoadWorker(718) : Processing batch 387, size=5
+01-27 13:48:58:302 I/LoadArticleUseCase(685) : Bookmark has no article [type=Article]
+01-27 13:48:58:303 I/LoadArticleUseCase(691) : Bookmark has no article [type=Article]
+01-27 13:48:58:461 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:58:527 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:58:528 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:59:033 D/BatchArticleLoadWorker(691) : Processing batch 388, size=5
+01-27 13:48:59:042 I/LoadArticleUseCase(720) : Bookmark has no article [type=Article]
+01-27 13:48:59:042 I/LoadArticleUseCase(718) : Bookmark has no article [type=Article]
+01-27 13:48:59:043 I/LoadArticleUseCase(717) : Bookmark has no article [type=Article]
+01-27 13:48:59:138 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:59:161 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:59:665 D/BatchArticleLoadWorker(717) : Processing batch 389, size=5
+01-27 13:48:59:672 I/LoadArticleUseCase(719) : Bookmark has no article [type=Article]
+01-27 13:48:59:672 I/LoadArticleUseCase(717) : Bookmark has no article [type=Article]
+01-27 13:48:59:673 I/LoadArticleUseCase(685) : Bookmark has no article [type=Article]
+01-27 13:48:59:894 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:48:59:898 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:00:402 D/BatchArticleLoadWorker(720) : Processing batch 390, size=5
+01-27 13:49:00:410 I/LoadArticleUseCase(691) : Bookmark has no article [type=Article]
+01-27 13:49:00:411 I/LoadArticleUseCase(718) : Bookmark has no article [type=Article]
+01-27 13:49:00:411 I/LoadArticleUseCase(720) : Bookmark has no article [type=Article]
+01-27 13:49:00:551 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:00:558 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:01:058 D/BatchArticleLoadWorker(718) : Processing batch 391, size=5
+01-27 13:49:01:224 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:01:325 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:01:328 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:01:331 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:01:832 D/BatchArticleLoadWorker(717) : Processing batch 392, size=5
+01-27 13:49:01:840 I/LoadArticleUseCase(720) : Bookmark has no article [type=Article]
+01-27 13:49:01:841 I/LoadArticleUseCase(685) : Bookmark has no article [type=Article]
+01-27 13:49:01:841 I/LoadArticleUseCase(691) : Bookmark has no article [type=Article]
+01-27 13:49:02:077 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:02:139 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:02:640 D/BatchArticleLoadWorker(691) : Processing batch 393, size=5
+01-27 13:49:02:649 I/LoadArticleUseCase(720) : Bookmark has no article [type=Article]
+01-27 13:49:02:756 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:02:863 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:02:867 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:03:370 D/BatchArticleLoadWorker(720) : Processing batch 394, size=5
+01-27 13:49:03:379 I/LoadArticleUseCase(717) : Bookmark has no article [type=Article]
+01-27 13:49:03:380 I/LoadArticleUseCase(691) : Bookmark has no article [type=Article]
+01-27 13:49:03:380 I/LoadArticleUseCase(685) : Bookmark has no article [type=Article]
+01-27 13:49:03:598 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:03:660 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:04:145 D/BatchArticleLoadWorker(685) : Processing batch 395, size=5
+01-27 13:49:04:153 I/LoadArticleUseCase(717) : Bookmark has no article [type=Article]
+01-27 13:49:04:153 I/LoadArticleUseCase(719) : Bookmark has no article [type=Article]
+01-27 13:49:04:296 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:04:400 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:04:403 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:04:906 D/BatchArticleLoadWorker(691) : Processing batch 396, size=5
+01-27 13:49:04:913 I/LoadArticleUseCase(719) : Bookmark has no article [type=Article]
+01-27 13:49:04:913 I/LoadArticleUseCase(685) : Bookmark has no article [type=Article]
+01-27 13:49:05:116 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:05:240 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:05:742 D/BatchArticleLoadWorker(717) : Processing batch 397, size=5
+01-27 13:49:05:750 I/LoadArticleUseCase(685) : Bookmark has no article [type=Article]
+01-27 13:49:05:750 I/LoadArticleUseCase(718) : Bookmark has no article [type=Article]
+01-27 13:49:05:940 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:06:038 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:06:540 D/BatchArticleLoadWorker(718) : Processing batch 398, size=5
+01-27 13:49:06:552 I/LoadArticleUseCase(718) : Bookmark has no article [type=Article]
+01-27 13:49:06:553 I/LoadArticleUseCase(720) : Bookmark has no article [type=Article]
+01-27 13:49:06:554 I/LoadArticleUseCase(685) : Bookmark has no article [type=Article]
+01-27 13:49:06:755 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:07:349 D/BatchArticleLoadWorker(685) : Processing batch 399, size=5
+01-27 13:49:07:358 I/LoadArticleUseCase(718) : Bookmark has no article [type=Article]
+01-27 13:49:07:482 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:07:485 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:07:490 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:07:508 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:08:011 D/BatchArticleLoadWorker(718) : Processing batch 400, size=5
+01-27 13:49:08:024 I/LoadArticleUseCase(685) : Bookmark has no article [type=Article]
+01-27 13:49:08:024 I/LoadArticleUseCase(717) : Bookmark has no article [type=Article]
+01-27 13:49:08:024 I/LoadArticleUseCase(720) : Bookmark has no article [type=Article]
+01-27 13:49:08:024 I/LoadArticleUseCase(691) : Bookmark has no article [type=Article]
+01-27 13:49:08:180 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:08:683 D/BatchArticleLoadWorker(691) : Processing batch 401, size=5
+01-27 13:49:08:692 I/LoadArticleUseCase(718) : Bookmark has no article [type=Article]
+01-27 13:49:08:692 I/LoadArticleUseCase(719) : Bookmark has no article [type=Article]
+01-27 13:49:08:692 I/LoadArticleUseCase(717) : Bookmark has no article [type=Article]
+01-27 13:49:08:693 I/LoadArticleUseCase(720) : Bookmark has no article [type=Article]
+01-27 13:49:09:292 D/BatchArticleLoadWorker(720) : Processing batch 402, size=5
+01-27 13:49:09:300 I/LoadArticleUseCase(718) : Bookmark has no article [type=Article]
+01-27 13:49:09:301 I/LoadArticleUseCase(691) : Bookmark has no article [type=Article]
+01-27 13:49:09:301 I/LoadArticleUseCase(717) : Bookmark has no article [type=Article]
+01-27 13:49:09:302 I/LoadArticleUseCase(718) : Bookmark has no article [type=Article]
+01-27 13:49:09:417 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:09:915 D/BatchArticleLoadWorker(718) : Processing batch 403, size=5
+01-27 13:49:09:923 I/LoadArticleUseCase(720) : Bookmark has no article [type=Article]
+01-27 13:49:09:923 I/LoadArticleUseCase(718) : Bookmark has no article [type=Article]
+01-27 13:49:09:923 I/LoadArticleUseCase(719) : Bookmark has no article [type=Article]
+01-27 13:49:09:923 I/LoadArticleUseCase(717) : Bookmark has no article [type=Article]
+01-27 13:49:10:157 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:10:655 D/BatchArticleLoadWorker(717) : Processing batch 404, size=5
+01-27 13:49:10:663 I/LoadArticleUseCase(718) : Bookmark has no article [type=Article]
+01-27 13:49:10:917 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:10:951 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:11:323 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:11:818 D/BatchArticleLoadWorker(720) : Processing batch 405, size=5
+01-27 13:49:11:824 I/LoadArticleUseCase(718) : Bookmark has no article [type=Article]
+01-27 13:49:11:825 I/LoadArticleUseCase(685) : Bookmark has no article [type=Article]
+01-27 13:49:11:825 I/LoadArticleUseCase(719) : Bookmark has no article [type=Article]
+01-27 13:49:11:825 I/LoadArticleUseCase(717) : Bookmark has no article [type=Article]
+01-27 13:49:11:826 I/LoadArticleUseCase(718) : Bookmark has no article [type=Article]
+01-27 13:49:12:331 D/BatchArticleLoadWorker(718) : Processing batch 406, size=5
+01-27 13:49:12:339 I/LoadArticleUseCase(720) : Bookmark has no article [type=Article]
+01-27 13:49:12:424 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:12:454 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:12:458 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:12:460 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:12:964 D/BatchArticleLoadWorker(691) : Processing batch 407, size=5
+01-27 13:49:13:102 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:13:112 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:13:178 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:13:196 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:13:219 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:13:722 D/BatchArticleLoadWorker(717) : Processing batch 408, size=5
+01-27 13:49:13:732 I/LoadArticleUseCase(691) : Bookmark has no article [type=Article]
+01-27 13:49:13:732 I/LoadArticleUseCase(719) : Bookmark has no article [type=Article]
+01-27 13:49:13:732 I/LoadArticleUseCase(685) : Bookmark has no article [type=Article]
+01-27 13:49:13:822 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:13:863 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:14:365 D/BatchArticleLoadWorker(685) : Processing batch 409, size=5
+01-27 13:49:14:373 I/LoadArticleUseCase(719) : Bookmark has no article [type=Article]
+01-27 13:49:14:373 I/LoadArticleUseCase(685) : Bookmark has no article [type=Article]
+01-27 13:49:14:610 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:14:612 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:15:113 D/BatchArticleLoadWorker(685) : Processing batch 410, size=5
+01-27 13:49:15:120 I/LoadArticleUseCase(719) : Bookmark has no article [type=Article]
+01-27 13:49:15:120 I/LoadArticleUseCase(717) : Bookmark has no article [type=Article]
+01-27 13:49:15:214 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:15:230 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:15:236 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:15:735 D/BatchArticleLoadWorker(685) : Processing batch 411, size=5
+01-27 13:49:15:743 I/LoadArticleUseCase(717) : Bookmark has no article [type=Article]
+01-27 13:49:15:743 I/LoadArticleUseCase(717) : Bookmark has no article [type=Article]
+01-27 13:49:15:744 I/LoadArticleUseCase(718) : Bookmark has no article [type=Article]
+01-27 13:49:15:745 I/LoadArticleUseCase(720) : Bookmark has no article [type=Article]
+01-27 13:49:15:891 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:16:393 D/BatchArticleLoadWorker(720) : Processing batch 412, size=5
+01-27 13:49:16:401 I/LoadArticleUseCase(717) : Bookmark has no article [type=Article]
+01-27 13:49:16:402 I/LoadArticleUseCase(691) : Bookmark has no article [type=Article]
+01-27 13:49:16:502 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:16:525 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:16:526 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:17:027 D/BatchArticleLoadWorker(717) : Processing batch 413, size=5
+01-27 13:49:17:037 I/LoadArticleUseCase(720) : Bookmark has no article [type=Article]
+01-27 13:49:17:037 I/LoadArticleUseCase(685) : Bookmark has no article [type=Article]
+01-27 13:49:17:037 I/LoadArticleUseCase(691) : Bookmark has no article [type=Article]
+01-27 13:49:17:201 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:17:302 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:17:802 D/BatchArticleLoadWorker(719) : Processing batch 414, size=5
+01-27 13:49:17:809 I/LoadArticleUseCase(717) : Bookmark has no article [type=Article]
+01-27 13:49:17:810 I/LoadArticleUseCase(720) : Bookmark has no article [type=Article]
+01-27 13:49:18:034 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:18:084 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:18:154 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:18:656 D/BatchArticleLoadWorker(720) : Processing batch 415, size=5
+01-27 13:49:18:660 I/LoadArticleUseCase(691) : Bookmark has no article [type=Article]
+01-27 13:49:18:660 I/LoadArticleUseCase(718) : Bookmark has no article [type=Article]
+01-27 13:49:18:661 I/LoadArticleUseCase(719) : Bookmark has no article [type=Article]
+01-27 13:49:18:751 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:18:806 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:19:300 D/BatchArticleLoadWorker(719) : Processing batch 416, size=5
+01-27 13:49:19:307 I/LoadArticleUseCase(718) : Bookmark has no article [type=Article]
+01-27 13:49:19:556 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:19:656 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:19:659 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:19:665 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:20:166 D/BatchArticleLoadWorker(718) : Processing batch 417, size=5
+01-27 13:49:20:174 I/LoadArticleUseCase(717) : Bookmark has no article [type=Article]
+01-27 13:49:20:274 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:20:275 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:20:285 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:20:295 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:20:792 D/BatchArticleLoadWorker(718) : Processing batch 418, size=5
+01-27 13:49:20:801 I/LoadArticleUseCase(691) : Bookmark has no article [type=Article]
+01-27 13:49:20:988 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:21:044 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:21:083 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:21:092 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:21:588 D/BatchArticleLoadWorker(719) : Processing batch 419, size=5
+01-27 13:49:21:598 I/LoadArticleUseCase(691) : Bookmark has no article [type=Article]
+01-27 13:49:21:693 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:21:715 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:21:716 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:21:914 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:22:414 D/BatchArticleLoadWorker(691) : Processing batch 420, size=5
+01-27 13:49:22:423 I/LoadArticleUseCase(691) : Bookmark has no article [type=Article]
+01-27 13:49:22:424 I/LoadArticleUseCase(718) : Bookmark has no article [type=Article]
+01-27 13:49:22:740 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:23:236 D/BatchArticleLoadWorker(718) : Processing batch 421, size=5
+01-27 13:49:23:247 I/LoadArticleUseCase(685) : Bookmark has no article [type=Article]
+01-27 13:49:23:247 I/LoadArticleUseCase(719) : Bookmark has no article [type=Article]
+01-27 13:49:23:247 I/LoadArticleUseCase(720) : Bookmark has no article [type=Article]
+01-27 13:49:23:340 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:23:364 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:23:864 D/BatchArticleLoadWorker(720) : Processing batch 422, size=5
+01-27 13:49:24:063 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:24:134 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:24:193 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:24:201 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:24:211 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:24:708 D/BatchArticleLoadWorker(691) : Processing batch 423, size=5
+01-27 13:49:24:717 I/LoadArticleUseCase(685) : Bookmark has no article [type=Article]
+01-27 13:49:24:716 I/LoadArticleUseCase(719) : Bookmark has no article [type=Article]
+01-27 13:49:24:717 I/LoadArticleUseCase(691) : Bookmark has no article [type=Article]
+01-27 13:49:24:823 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:24:829 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:25:332 D/BatchArticleLoadWorker(691) : Processing batch 424, size=5
+01-27 13:49:25:340 I/LoadArticleUseCase(685) : Bookmark has no article [type=Article]
+01-27 13:49:25:340 I/LoadArticleUseCase(717) : Bookmark has no article [type=Article]
+01-27 13:49:25:341 I/LoadArticleUseCase(718) : Bookmark has no article [type=Article]
+01-27 13:49:25:340 I/LoadArticleUseCase(720) : Bookmark has no article [type=Article]
+01-27 13:49:25:493 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:25:994 D/BatchArticleLoadWorker(720) : Processing batch 425, size=5
+01-27 13:49:26:003 I/LoadArticleUseCase(719) : Bookmark has no article [type=Article]
+01-27 13:49:26:004 I/LoadArticleUseCase(685) : Bookmark has no article [type=Article]
+01-27 13:49:26:102 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:26:136 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:26:139 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:26:632 D/BatchArticleLoadWorker(691) : Processing batch 426, size=5
+01-27 13:49:26:645 I/LoadArticleUseCase(719) : Bookmark has no article [type=Article]
+01-27 13:49:26:646 I/LoadArticleUseCase(720) : Bookmark has no article [type=Article]
+01-27 13:49:26:845 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:26:896 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:27:417 D/BatchArticleLoadWorker(720) : Processing batch 427, size=5
+01-27 13:49:27:425 I/LoadArticleUseCase(685) : Bookmark has no article [type=Article]
+01-27 13:49:27:426 I/LoadArticleUseCase(691) : Bookmark has no article [type=Article]
+01-27 13:49:27:426 I/LoadArticleUseCase(719) : Bookmark has no article [type=Article]
+01-27 13:49:27:426 I/LoadArticleUseCase(720) : Bookmark has no article [type=Article]
+01-27 13:49:27:519 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:28:021 D/BatchArticleLoadWorker(717) : Processing batch 428, size=5
+01-27 13:49:28:029 I/LoadArticleUseCase(719) : Bookmark has no article [type=Article]
+01-27 13:49:28:029 I/LoadArticleUseCase(717) : Bookmark has no article [type=Article]
+01-27 13:49:28:029 I/LoadArticleUseCase(720) : Bookmark has no article [type=Article]
+01-27 13:49:28:123 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:28:152 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:28:652 D/BatchArticleLoadWorker(720) : Processing batch 429, size=5
+01-27 13:49:28:661 I/LoadArticleUseCase(718) : Bookmark has no article [type=Article]
+01-27 13:49:28:768 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:28:880 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:28:882 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:29:386 D/BatchArticleLoadWorker(718) : Processing batch 430, size=5
+01-27 13:49:29:393 I/LoadArticleUseCase(691) : Bookmark has no article [type=Article]
+01-27 13:49:29:513 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:29:518 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:29:521 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:30:024 D/BatchArticleLoadWorker(720) : Processing batch 431, size=5
+01-27 13:49:30:033 I/LoadArticleUseCase(720) : Bookmark has no article [type=Article]
+01-27 13:49:30:033 I/LoadArticleUseCase(691) : Bookmark has no article [type=Article]
+01-27 13:49:30:208 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:30:292 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:30:298 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:30:800 D/BatchArticleLoadWorker(719) : Processing batch 432, size=5
+01-27 13:49:30:805 I/LoadArticleUseCase(691) : Bookmark has no article [type=Article]
+01-27 13:49:30:805 I/LoadArticleUseCase(685) : Bookmark has no article [type=Article]
+01-27 13:49:30:806 I/LoadArticleUseCase(720) : Bookmark has no article [type=Article]
+01-27 13:49:30:898 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:31:422 D/BatchArticleLoadWorker(720) : Processing batch 433, size=5
+01-27 13:49:31:430 I/LoadArticleUseCase(718) : Bookmark has no article [type=Article]
+01-27 13:49:31:430 I/LoadArticleUseCase(719) : Bookmark has no article [type=Article]
+01-27 13:49:31:431 I/LoadArticleUseCase(685) : Bookmark has no article [type=Article]
+01-27 13:49:31:638 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:32:140 D/BatchArticleLoadWorker(720) : Processing batch 434, size=5
+01-27 13:49:32:147 I/LoadArticleUseCase(718) : Bookmark has no article [type=Article]
+01-27 13:49:32:148 I/LoadArticleUseCase(720) : Bookmark has no article [type=Article]
+01-27 13:49:32:241 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:32:341 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:32:841 D/BatchArticleLoadWorker(685) : Processing batch 435, size=5
+01-27 13:49:32:849 I/LoadArticleUseCase(685) : Bookmark has no article [type=Article]
+01-27 13:49:32:850 I/LoadArticleUseCase(720) : Bookmark has no article [type=Article]
+01-27 13:49:32:849 I/LoadArticleUseCase(691) : Bookmark has no article [type=Article]
+01-27 13:49:32:849 I/LoadArticleUseCase(717) : Bookmark has no article [type=Article]
+01-27 13:49:32:849 I/LoadArticleUseCase(718) : Bookmark has no article [type=Article]
+01-27 13:49:33:355 D/BatchArticleLoadWorker(718) : Processing batch 436, size=5
+01-27 13:49:33:362 I/LoadArticleUseCase(720) : Bookmark has no article [type=Article]
+01-27 13:49:33:587 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:33:652 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:33:683 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:33:684 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:34:187 D/BatchArticleLoadWorker(685) : Processing batch 437, size=5
+01-27 13:49:34:197 I/LoadArticleUseCase(719) : Bookmark has no article [type=Article]
+01-27 13:49:34:198 I/LoadArticleUseCase(720) : Bookmark has no article [type=Article]
+01-27 13:49:34:198 I/LoadArticleUseCase(717) : Bookmark has no article [type=Article]
+01-27 13:49:34:294 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:34:354 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:34:854 D/BatchArticleLoadWorker(717) : Processing batch 438, size=5
+01-27 13:49:34:860 I/LoadArticleUseCase(719) : Bookmark has no article [type=Article]
+01-27 13:49:34:861 I/LoadArticleUseCase(691) : Bookmark has no article [type=Article]
+01-27 13:49:34:861 I/LoadArticleUseCase(717) : Bookmark has no article [type=Article]
+01-27 13:49:34:861 I/LoadArticleUseCase(720) : Bookmark has no article [type=Article]
+01-27 13:49:35:025 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:35:527 D/BatchArticleLoadWorker(720) : Processing batch 439, size=5
+01-27 13:49:35:535 I/LoadArticleUseCase(720) : Bookmark has no article [type=Article]
+01-27 13:49:35:668 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:35:690 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:36:192 D/BatchArticleLoadWorker(717) : Processing batch 440, size=5
+01-27 13:49:36:202 I/LoadArticleUseCase(717) : Bookmark has no article [type=Article]
+01-27 13:49:36:203 I/LoadArticleUseCase(720) : Bookmark has no article [type=Article]
+01-27 13:49:36:414 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:36:415 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:36:918 D/BatchArticleLoadWorker(720) : Processing batch 441, size=5
+01-27 13:49:36:924 I/LoadArticleUseCase(685) : Bookmark has no article [type=Article]
+01-27 13:49:36:924 I/LoadArticleUseCase(685) : Bookmark has no article [type=Article]
+01-27 13:49:37:067 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:37:217 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:37:222 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:37:723 D/BatchArticleLoadWorker(720) : Processing batch 442, size=5
+01-27 13:49:37:732 I/LoadArticleUseCase(718) : Bookmark has no article [type=Article]
+01-27 13:49:37:867 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:37:892 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:37:892 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:37:893 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:38:397 D/BatchArticleLoadWorker(717) : Processing batch 443, size=5
+01-27 13:49:38:407 I/LoadArticleUseCase(717) : Bookmark has no article [type=Article]
+01-27 13:49:38:407 I/LoadArticleUseCase(691) : Bookmark has no article [type=Article]
+01-27 13:49:38:635 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:38:637 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:38:661 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:39:164 D/BatchArticleLoadWorker(717) : Processing batch 444, size=5
+01-27 13:49:39:174 I/LoadArticleUseCase(719) : Bookmark has no article [type=Article]
+01-27 13:49:39:268 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:39:295 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:39:317 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:39:318 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:39:818 D/BatchArticleLoadWorker(719) : Processing batch 445, size=5
+01-27 13:49:39:823 I/LoadArticleUseCase(718) : Bookmark has no article [type=Article]
+01-27 13:49:39:823 I/LoadArticleUseCase(720) : Bookmark has no article [type=Article]
+01-27 13:49:39:963 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:39:988 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:39:990 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:40:494 D/BatchArticleLoadWorker(720) : Processing batch 446, size=5
+01-27 13:49:40:507 I/LoadArticleUseCase(685) : Bookmark has no article [type=Article]
+01-27 13:49:40:610 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:40:629 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:40:767 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:40:773 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:41:274 D/BatchArticleLoadWorker(691) : Processing batch 447, size=5
+01-27 13:49:41:282 I/LoadArticleUseCase(720) : Bookmark has no article [type=Article]
+01-27 13:49:41:473 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:41:535 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:41:564 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:41:602 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:42:103 D/BatchArticleLoadWorker(691) : Processing batch 448, size=5
+01-27 13:49:42:112 I/LoadArticleUseCase(685) : Bookmark has no article [type=Article]
+01-27 13:49:42:218 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:42:244 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:42:245 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:42:246 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:42:748 D/BatchArticleLoadWorker(691) : Processing batch 449, size=5
+01-27 13:49:42:755 I/LoadArticleUseCase(685) : Bookmark has no article [type=Article]
+01-27 13:49:42:755 I/LoadArticleUseCase(718) : Bookmark has no article [type=Article]
+01-27 13:49:42:903 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:42:971 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:43:016 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:43:516 D/BatchArticleLoadWorker(718) : Processing batch 450, size=5
+01-27 13:49:43:524 I/LoadArticleUseCase(685) : Bookmark has no article [type=Article]
+01-27 13:49:44:037 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:44:039 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:44:043 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:44:543 D/BatchArticleLoadWorker(717) : Processing batch 451, size=5
+01-27 13:49:44:551 I/LoadArticleUseCase(718) : Bookmark has no article [type=Article]
+01-27 13:49:44:552 I/LoadArticleUseCase(691) : Bookmark has no article [type=Article]
+01-27 13:49:45:403 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:45:700 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:45:702 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:46:205 D/BatchArticleLoadWorker(691) : Processing batch 452, size=5
+01-27 13:49:46:405 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:46:410 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:46:425 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:46:459 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:46:962 D/BatchArticleLoadWorker(720) : Processing batch 453, size=5
+01-27 13:49:46:970 I/LoadArticleUseCase(717) : Bookmark has no article [type=Article]
+01-27 13:49:46:971 I/LoadArticleUseCase(719) : Bookmark has no article [type=Article]
+01-27 13:49:47:224 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:47:226 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:47:930 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:48:430 D/BatchArticleLoadWorker(717) : Processing batch 454, size=5
+01-27 13:49:48:440 I/LoadArticleUseCase(685) : Bookmark has no article [type=Article]
+01-27 13:49:48:440 I/LoadArticleUseCase(718) : Bookmark has no article [type=Article]
+01-27 13:49:49:148 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:49:153 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:49:660 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:50:159 D/BatchArticleLoadWorker(691) : Processing batch 455, size=5
+01-27 13:49:50:167 I/LoadArticleUseCase(691) : Bookmark has no article [type=Article]
+01-27 13:49:50:166 I/LoadArticleUseCase(685) : Bookmark has no article [type=Article]
+01-27 13:49:50:169 I/LoadArticleUseCase(719) : Bookmark has no article [type=Article]
+01-27 13:49:50:169 I/LoadArticleUseCase(718) : Bookmark has no article [type=Article]
+01-27 13:49:50:169 I/LoadArticleUseCase(720) : Bookmark has no article [type=Article]
+01-27 13:49:50:675 D/BatchArticleLoadWorker(720) : Processing batch 456, size=5
+01-27 13:49:50:684 I/LoadArticleUseCase(718) : Bookmark has no article [type=Article]
+01-27 13:49:50:684 I/LoadArticleUseCase(685) : Bookmark has no article [type=Article]
+01-27 13:49:50:683 I/LoadArticleUseCase(719) : Bookmark has no article [type=Article]
+01-27 13:49:51:355 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:51:363 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:51:862 D/BatchArticleLoadWorker(719) : Processing batch 457, size=5
+01-27 13:49:51:867 I/LoadArticleUseCase(720) : Bookmark has no article [type=Article]
+01-27 13:49:51:867 I/LoadArticleUseCase(691) : Bookmark has no article [type=Article]
+01-27 13:49:51:979 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:51:982 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:52:648 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:53:146 D/BatchArticleLoadWorker(718) : Processing batch 458, size=5
+01-27 13:49:53:376 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:54:289 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:54:295 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:54:299 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:54:302 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:54:804 D/BatchArticleLoadWorker(685) : Processing batch 459, size=5
+01-27 13:49:54:814 I/LoadArticleUseCase(720) : Bookmark has no article [type=Article]
+01-27 13:49:54:819 I/LoadArticleUseCase(718) : Bookmark has no article [type=Article]
+01-27 13:49:54:986 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:55:064 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:55:188 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:55:689 D/BatchArticleLoadWorker(718) : Processing batch 460, size=5
+01-27 13:49:55:693 I/LoadArticleUseCase(691) : Bookmark has no article [type=Article]
+01-27 13:49:55:692 I/LoadArticleUseCase(720) : Bookmark has no article [type=Article]
+01-27 13:49:55:693 I/LoadArticleUseCase(717) : Bookmark has no article [type=Article]
+01-27 13:49:55:693 I/LoadArticleUseCase(685) : Bookmark has no article [type=Article]
+01-27 13:49:55:693 I/LoadArticleUseCase(719) : Bookmark has no article [type=Article]
+01-27 13:49:56:199 D/BatchArticleLoadWorker(717) : Processing batch 461, size=5
+01-27 13:49:56:207 I/LoadArticleUseCase(718) : Bookmark has no article [type=Article]
+01-27 13:49:56:207 I/LoadArticleUseCase(691) : Bookmark has no article [type=Article]
+01-27 13:49:56:207 I/LoadArticleUseCase(685) : Bookmark has no article [type=Article]
+01-27 13:49:56:207 I/LoadArticleUseCase(720) : Bookmark has no article [type=Article]
+01-27 13:49:56:207 I/LoadArticleUseCase(717) : Bookmark has no article [type=Article]
+01-27 13:49:56:713 D/BatchArticleLoadWorker(717) : Processing batch 462, size=5
+01-27 13:49:56:718 I/LoadArticleUseCase(719) : Bookmark has no article [type=Article]
+01-27 13:49:56:718 I/LoadArticleUseCase(719) : Bookmark has no article [type=Article]
+01-27 13:49:56:719 I/LoadArticleUseCase(717) : Bookmark has no article [type=Article]
+01-27 13:49:56:864 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:56:890 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:57:385 D/BatchArticleLoadWorker(685) : Processing batch 463, size=5
+01-27 13:49:57:392 I/LoadArticleUseCase(685) : Bookmark has no article [type=Article]
+01-27 13:49:57:393 I/LoadArticleUseCase(717) : Bookmark has no article [type=Article]
+01-27 13:49:57:762 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:57:785 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:58:290 D/BatchArticleLoadWorker(720) : Processing batch 464, size=5
+01-27 13:49:58:298 I/LoadArticleUseCase(691) : Bookmark has no article [type=Article]
+01-27 13:49:58:397 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:58:420 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:58:442 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:58:940 D/BatchArticleLoadWorker(685) : Processing batch 465, size=5
+01-27 13:49:58:947 I/LoadArticleUseCase(717) : Bookmark has no article [type=Article]
+01-27 13:49:58:948 I/LoadArticleUseCase(717) : Bookmark has no article [type=Article]
+01-27 13:49:58:949 I/LoadArticleUseCase(719) : Bookmark has no article [type=Article]
+01-27 13:49:59:078 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:59:165 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:49:59:667 D/BatchArticleLoadWorker(719) : Processing batch 466, size=5
+01-27 13:49:59:676 I/LoadArticleUseCase(718) : Bookmark has no article [type=Article]
+01-27 13:49:59:676 I/LoadArticleUseCase(685) : Bookmark has no article [type=Article]
+01-27 13:49:59:676 I/LoadArticleUseCase(717) : Bookmark has no article [type=Article]
+01-27 13:49:59:922 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:50:00:423 D/BatchArticleLoadWorker(717) : Processing batch 467, size=5
+01-27 13:50:00:434 I/LoadArticleUseCase(719) : Bookmark has no article [type=Article]
+01-27 13:50:00:434 I/LoadArticleUseCase(718) : Bookmark has no article [type=Article]
+01-27 13:50:00:528 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:50:00:545 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:50:01:065 D/BatchArticleLoadWorker(719) : Processing batch 468, size=5
+01-27 13:50:01:075 I/LoadArticleUseCase(717) : Bookmark has no article [type=Article]
+01-27 13:50:01:076 I/LoadArticleUseCase(719) : Bookmark has no article [type=Article]
+01-27 13:50:01:076 I/LoadArticleUseCase(718) : Bookmark has no article [type=Article]
+01-27 13:50:01:332 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:50:01:443 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:50:01:942 D/BatchArticleLoadWorker(718) : Processing batch 469, size=5
+01-27 13:50:01:950 I/LoadArticleUseCase(718) : Bookmark has no article [type=Article]
+01-27 13:50:01:950 I/LoadArticleUseCase(720) : Bookmark has no article [type=Article]
+01-27 13:50:01:951 I/LoadArticleUseCase(685) : Bookmark has no article [type=Article]
+01-27 13:50:02:039 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:50:02:086 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:50:02:587 D/BatchArticleLoadWorker(685) : Processing batch 470, size=5
+01-27 13:50:02:774 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:50:02:879 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:50:02:884 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:50:02:887 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:50:02:891 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:50:03:395 D/BatchArticleLoadWorker(717) : Processing batch 471, size=5
+01-27 13:50:03:403 I/LoadArticleUseCase(718) : Bookmark has no article [type=Article]
+01-27 13:50:03:403 I/LoadArticleUseCase(719) : Bookmark has no article [type=Article]
+01-27 13:50:03:403 I/LoadArticleUseCase(691) : Bookmark has no article [type=Article]
+01-27 13:50:03:530 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:50:03:531 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:50:04:034 D/BatchArticleLoadWorker(719) : Processing batch 472, size=5
+01-27 13:50:04:135 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:50:04:223 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:50:04:225 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:50:04:228 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:50:04:252 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:50:04:754 D/BatchArticleLoadWorker(718) : Processing batch 473, size=5
+01-27 13:50:04:763 I/LoadArticleUseCase(719) : Bookmark has no article [type=Article]
+01-27 13:50:04:763 I/LoadArticleUseCase(717) : Bookmark has no article [type=Article]
+01-27 13:50:04:764 I/LoadArticleUseCase(685) : Bookmark has no article [type=Article]
+01-27 13:50:04:862 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:50:04:886 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:50:05:383 D/BatchArticleLoadWorker(685) : Processing batch 474, size=5
+01-27 13:50:05:388 I/LoadArticleUseCase(685) : Bookmark has no article [type=Article]
+01-27 13:50:05:388 I/LoadArticleUseCase(720) : Bookmark has no article [type=Article]
+01-27 13:50:05:482 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:50:05:538 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:50:05:541 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:50:06:044 D/BatchArticleLoadWorker(720) : Processing batch 475, size=5
+01-27 13:50:06:052 I/LoadArticleUseCase(719) : Bookmark has no article [type=Picture]
+01-27 13:50:06:143 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:50:06:188 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:50:06:194 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:50:06:196 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:50:06:688 D/BatchArticleLoadWorker(719) : Processing batch 476, size=5
+01-27 13:50:06:696 I/LoadArticleUseCase(719) : Bookmark has no article [type=Article]
+01-27 13:50:06:696 I/LoadArticleUseCase(717) : Bookmark has no article [type=Article]
+01-27 13:50:06:795 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:50:06:852 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:50:06:855 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:50:07:356 D/BatchArticleLoadWorker(720) : Processing batch 477, size=5
+01-27 13:50:07:363 I/LoadArticleUseCase(717) : Bookmark has no article [type=Article]
+01-27 13:50:07:362 I/LoadArticleUseCase(691) : Bookmark has no article [type=Article]
+01-27 13:50:07:365 I/LoadArticleUseCase(685) : Bookmark has no article [type=Article]
+01-27 13:50:07:481 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:50:07:499 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:50:07:999 D/BatchArticleLoadWorker(685) : Processing batch 478, size=5
+01-27 13:50:08:007 I/LoadArticleUseCase(717) : Bookmark has no article [type=Article]
+01-27 13:50:08:007 I/LoadArticleUseCase(720) : Bookmark has no article [type=Article]
+01-27 13:50:08:007 I/LoadArticleUseCase(691) : Bookmark has no article [type=Article]
+01-27 13:50:08:007 I/LoadArticleUseCase(685) : Bookmark has no article [type=Article]
+01-27 13:50:08:592 D/BatchArticleLoadWorker(685) : Processing batch 479, size=5
+01-27 13:50:08:602 I/LoadArticleUseCase(718) : Bookmark has no article [type=Article]
+01-27 13:50:08:603 I/LoadArticleUseCase(685) : Bookmark has no article [type=Article]
+01-27 13:50:08:727 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:50:08:729 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:50:08:730 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:50:09:233 D/BatchArticleLoadWorker(719) : Processing batch 480, size=5
+01-27 13:50:09:244 I/LoadArticleUseCase(718) : Bookmark has no article [type=Article]
+01-27 13:50:09:243 I/LoadArticleUseCase(717) : Bookmark has no article [type=Article]
+01-27 13:50:09:243 I/LoadArticleUseCase(720) : Bookmark has no article [type=Article]
+01-27 13:50:09:244 I/LoadArticleUseCase(691) : Bookmark has no article [type=Article]
+01-27 13:50:09:345 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:50:09:845 D/BatchArticleLoadWorker(691) : Processing batch 481, size=5
+01-27 13:50:09:854 I/LoadArticleUseCase(719) : Bookmark has no article [type=Article]
+01-27 13:50:09:856 I/LoadArticleUseCase(691) : Bookmark has no article [type=Article]
+01-27 13:50:09:950 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:50:09:976 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:50:10:011 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:50:10:513 D/BatchArticleLoadWorker(691) : Processing batch 482, size=5
+01-27 13:50:10:521 I/LoadArticleUseCase(717) : Bookmark has no article [type=Article]
+01-27 13:50:10:521 I/LoadArticleUseCase(720) : Bookmark has no article [type=Article]
+01-27 13:50:10:521 I/LoadArticleUseCase(718) : Bookmark has no article [type=Article]
+01-27 13:50:10:522 I/LoadArticleUseCase(719) : Bookmark has no article [type=Article]
+01-27 13:50:11:247 D/BatchArticleLoadWorker(718) : Processing batch 483, size=5
+01-27 13:50:11:253 I/LoadArticleUseCase(685) : Bookmark has no article [type=Article]
+01-27 13:50:11:253 I/LoadArticleUseCase(718) : Bookmark has no article [type=Article]
+01-27 13:50:11:362 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:50:11:376 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:50:11:380 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:50:11:875 D/BatchArticleLoadWorker(719) : Processing batch 484, size=5
+01-27 13:50:11:884 I/LoadArticleUseCase(691) : Bookmark has no article [type=Article]
+01-27 13:50:11:884 I/LoadArticleUseCase(718) : Bookmark has no article [type=Article]
+01-27 13:50:11:884 I/LoadArticleUseCase(720) : Bookmark has no article [type=Article]
+01-27 13:50:11:982 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:50:12:051 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:50:12:551 D/BatchArticleLoadWorker(719) : Processing batch 485, size=5
+01-27 13:50:12:561 I/LoadArticleUseCase(720) : Bookmark has no article [type=Article]
+01-27 13:50:12:561 I/LoadArticleUseCase(685) : Bookmark has no article [type=Article]
+01-27 13:50:12:650 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:50:12:682 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:50:12:760 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:50:13:259 D/BatchArticleLoadWorker(717) : Processing batch 486, size=5
+01-27 13:50:13:270 I/LoadArticleUseCase(691) : Bookmark has no article [type=Picture]
+01-27 13:50:13:270 I/LoadArticleUseCase(685) : Bookmark has no article [type=Picture]
+01-27 13:50:13:441 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:50:13:518 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:50:13:608 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:50:14:109 D/BatchArticleLoadWorker(685) : Processing batch 487, size=5
+01-27 13:50:14:118 I/LoadArticleUseCase(717) : Bookmark has no article [type=Article]
+01-27 13:50:14:119 I/LoadArticleUseCase(719) : Bookmark has no article [type=Article]
+01-27 13:50:14:248 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:50:14:251 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:50:14:262 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:50:14:755 D/BatchArticleLoadWorker(719) : Processing batch 488, size=5
+01-27 13:50:14:768 I/LoadArticleUseCase(685) : Bookmark has no article [type=Article]
+01-27 13:50:14:768 I/LoadArticleUseCase(691) : Bookmark has no article [type=Article]
+01-27 13:50:14:872 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:50:14:924 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:50:14:959 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:50:15:461 D/BatchArticleLoadWorker(719) : Processing batch 489, size=5
+01-27 13:50:15:470 I/LoadArticleUseCase(720) : Bookmark has no article [type=Article]
+01-27 13:50:15:598 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:50:15:601 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:50:15:603 D/SyncSettingsViewModel$uiState(2) : changed
+01-27 13:50:16:107 D/BatchArticleLoadWorker(717) : Processing batch 490, size=1
+01-27 13:50:16:117 I/LoadArticleUseCase(720) : Bookmark has no article [type=Article]
+01-27 13:50:16:120 I/BatchArticleLoadWorker(720) : BatchArticleLoadWorker completed successfully
+01-27 13:52:23:749 D/LogViewViewModel(2) : refresh
+01-27 13:52:23:754 D/LogViewViewModel$onRefresh(2) : file=/data/user/0/com.mydeck.app/files/logs/MyDeckAppLog.0
+01-27 13:52:27:098 I/APP-INFO(2) : versionName=0.8.0
+01-27 13:52:27:099 I/APP-INFO(2) : versionCode=800
+01-27 13:52:27:099 I/APP-INFO(2) : flavor=githubRelease
+01-27 13:52:38:588 I/APP-INFO(2) : versionName=0.8.0
+01-27 13:52:38:589 I/APP-INFO(2) : versionCode=800
+01-27 13:52:38:589 I/APP-INFO(2) : flavor=githubRelease
