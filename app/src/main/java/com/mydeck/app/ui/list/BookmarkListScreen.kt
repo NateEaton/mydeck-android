@@ -14,13 +14,9 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Menu
-import androidx.compose.material.icons.outlined.Bookmarks
-import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Favorite
-import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Inventory2
-import androidx.compose.material.icons.outlined.Movie
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.TaskAlt
 import androidx.compose.material3.AlertDialog
@@ -97,13 +93,9 @@ fun BookmarkListScreen(navHostController: NavHostController) {
     val isLoading by viewModel.loadBookmarksIsRunning.collectAsState()
 
     // UI event handlers (pass filter update functions)
-    val onClickAll = { viewModel.onClickAll() }
-    val onClickFilterUnread: () -> Unit = { viewModel.onClickUnread() }
+    val onClickFilterMyList: () -> Unit = { viewModel.onClickMyList() }
     val onClickFilterArchive: () -> Unit = { viewModel.onClickArchive() }
     val onClickFilterFavorite: () -> Unit = { viewModel.onClickFavorite() }
-    val onClickFilterArticles: () -> Unit = { viewModel.onClickArticles() }
-    val onClickFilterPictures: () -> Unit = { viewModel.onClickPictures() }
-    val onClickFilterVideos: () -> Unit = { viewModel.onClickVideos() }
     val onClickSettings: () -> Unit = { viewModel.onClickSettings() }
     val onClickBookmark: (String) -> Unit = { bookmarkId -> viewModel.onClickBookmark(bookmarkId) }
     val onClickDelete: (String) -> Unit = { bookmarkId -> viewModel.onDeleteBookmark(bookmarkId) }
@@ -159,46 +151,22 @@ fun BookmarkListScreen(navHostController: NavHostController) {
                     NavigationDrawerItem(
                         label = { Text(
                             style = Typography.labelLarge,
-                            text = stringResource(id = R.string.all)
-                        ) },
-                        icon = { Icon(Icons.Outlined.Bookmarks, contentDescription = null) },
-                        badge = {
-                            bookmarkCounts.value.total.let { count ->
-                                if (count > 0) {
-                                    Badge(containerColor = MaterialTheme.colorScheme.secondaryContainer) {
-                                        Text(
-                                            text = count.toString()
-                                        )
-                                    }
-                                }
-                            }
-                        },
-                        selected = filterState.value == BookmarkListViewModel.FilterState(),
-                        onClick = {
-                            onClickAll()
-                            scope.launch { drawerState.close() }
-                        }
-                    )
-                    NavigationDrawerItem(
-                        label = { Text(
-                            style = Typography.labelLarge,
-                            text = stringResource(id = R.string.unread)
+                            text = stringResource(id = R.string.my_list)
                         ) },
                         icon = { Icon(Icons.Outlined.TaskAlt, contentDescription = null)},
                         badge = {
-                            bookmarkCounts.value.unread.let { count ->
-                                if (count > 0) {
-                                    Badge(containerColor = MaterialTheme.colorScheme.secondaryContainer) {
-                                        Text(
-                                            text = count.toString()
-                                        )
-                                    }
+                            val myListCount = bookmarkCounts.value.total - bookmarkCounts.value.archived
+                            if (myListCount > 0) {
+                                Badge(containerColor = MaterialTheme.colorScheme.secondaryContainer) {
+                                    Text(
+                                        text = myListCount.toString()
+                                    )
                                 }
                             }
                         },
-                        selected = filterState.value.unread == true,
+                        selected = filterState.value.archived == false,
                         onClick = {
-                            onClickFilterUnread()
+                            onClickFilterMyList()
                             scope.launch { drawerState.close() }
                         }
                     )
@@ -252,76 +220,6 @@ fun BookmarkListScreen(navHostController: NavHostController) {
                     NavigationDrawerItem(
                         label = { Text(
                             style = Typography.labelLarge,
-                            text = stringResource(id = R.string.articles)
-                        ) },
-                        icon = { Icon(Icons.Outlined.Description, contentDescription = null) },
-                        badge = {
-                            bookmarkCounts.value.article.let { count ->
-                                if (count > 0) {
-                                    Badge(containerColor = MaterialTheme.colorScheme.secondaryContainer) {
-                                        Text(
-                                            text = count.toString()
-                                        )
-                                    }
-                                }
-                            }
-                        },
-                        selected = filterState.value.type == Bookmark.Type.Article,
-                        onClick = {
-                            onClickFilterArticles()
-                            scope.launch { drawerState.close() }
-                        }
-                    )
-                    NavigationDrawerItem(
-                        label = { Text(
-                            style = Typography.labelLarge,
-                            text = stringResource(id = R.string.videos)
-                        ) },
-                        icon = { Icon(Icons.Outlined.Movie, contentDescription = null) },
-                        badge = {
-                            bookmarkCounts.value.video.let { count ->
-                                if (count > 0) {
-                                    Badge(containerColor = MaterialTheme.colorScheme.secondaryContainer) {
-                                        Text(
-                                            text = count.toString()
-                                        )
-                                    }
-                                }
-                            }
-                        },
-                        selected = filterState.value.type == Bookmark.Type.Video,
-                        onClick = {
-                            onClickFilterVideos()
-                            scope.launch { drawerState.close() }
-                        }
-                    )
-                    NavigationDrawerItem(
-                        label = { Text(
-                            style = Typography.labelLarge,
-                            text = stringResource(id = R.string.pictures)
-                        ) },
-                        icon = { Icon(Icons.Outlined.Image, contentDescription = null) },
-                        badge = {
-                            bookmarkCounts.value.picture.let { count ->
-                                if (count > 0) {
-                                    Badge(containerColor = MaterialTheme.colorScheme.secondaryContainer) {
-                                        Text(
-                                            text = count.toString()
-                                        )
-                                    }
-                                }
-                            }
-                        },
-                        selected = filterState.value.type == Bookmark.Type.Picture,
-                        onClick = {
-                            onClickFilterPictures()
-                            scope.launch { drawerState.close() }
-                        }
-                    )
-                    HorizontalDivider()
-                    NavigationDrawerItem(
-                        label = { Text(
-                            style = Typography.labelLarge,
                             text = stringResource(id = R.string.settings)
                         ) },
                         icon = { Icon(Icons.Outlined.Settings, contentDescription = null) },
@@ -350,8 +248,16 @@ fun BookmarkListScreen(navHostController: NavHostController) {
         Scaffold(
             snackbarHost = { SnackbarHost(snackbarHostState) },
             topBar = {
+                // Determine the current view title based on filter state
+                val currentViewTitle = when {
+                    filterState.value.archived == false -> stringResource(id = R.string.my_list)
+                    filterState.value.archived == true -> stringResource(id = R.string.archive)
+                    filterState.value.favorite == true -> stringResource(id = R.string.favorites)
+                    else -> stringResource(id = R.string.my_list) // Default to My List
+                }
+
                 TopAppBar(
-                    title = { Text(stringResource(id = R.string.bookmarks)) },
+                    title = { Text(currentViewTitle) },
                     navigationIcon = {
                         IconButton(
                             onClick = { scope.launch { drawerState.open() } }

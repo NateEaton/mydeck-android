@@ -48,7 +48,7 @@ class BookmarkListViewModel @Inject constructor(
     private val _openUrlEvent = MutableStateFlow<String>("")
     val openUrlEvent = _openUrlEvent.asStateFlow()
 
-    private val _filterState = MutableStateFlow(FilterState())
+    private val _filterState = MutableStateFlow(FilterState(archived = false))
     val filterState: StateFlow<FilterState> = _filterState.asStateFlow()
 
     private val _uiState = MutableStateFlow<UiState>(UiState.Empty(R.string.list_view_empty_not_loaded_yet))
@@ -156,9 +156,9 @@ class BookmarkListViewModel @Inject constructor(
         _filterState.value = FilterState()
     }
 
-    fun onClickUnread() {
-        Timber.d("onClickUnread")
-        setUnreadFilter(true)
+    fun onClickMyList() {
+        Timber.d("onClickMyList")
+        setArchivedFilter(false)
     }
 
     fun onClickArchive() {
