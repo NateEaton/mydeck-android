@@ -92,20 +92,26 @@ class LoadBookmarksUseCase @Inject constructor(
     }
 
     private fun enqueueBatchArticleLoader() {
-        val constraints = Constraints.Builder()
-            .setRequiredNetworkType(NetworkType.CONNECTED)
-            .setRequiresBatteryNotLow(true)
-            .build()
+        try {
+            val constraints = Constraints.Builder()
+                .setRequiredNetworkType(NetworkType.CONNECTED)
+                .setRequiresBatteryNotLow(true)
+                .build()
 
-        val request = OneTimeWorkRequestBuilder<BatchArticleLoadWorker>()
-            .setConstraints(constraints)
-            .build()
+            val request = OneTimeWorkRequestBuilder<BatchArticleLoadWorker>()
+                .setConstraints(constraints)
+                .build()
 
-        workManager.enqueueUniqueWork(
-            BatchArticleLoadWorker.UNIQUE_WORK_NAME,
-            ExistingWorkPolicy.KEEP,
-            request
-        )
+            workManager.enqueueUniqueWork(
+                BatchArticleLoadWorker.UNIQUE_WORK_NAME,
+                ExistingWorkPolicy.KEEP,
+                request
+            )
+            Timber.d("Batch article loader enqueued successfully")
+        } catch (e: Exception) {
+            // Gracefully handle failures (e.g., in unit tests or if WorkManager unavailable)
+            Timber.w(e, "Failed to enqueue batch article loader")
+        }
     }
 
     companion object {
