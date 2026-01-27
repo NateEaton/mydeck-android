@@ -67,6 +67,10 @@ class BookmarkListViewModelTest {
         every { bookmarkRepository.observeBookmarkListItems(any(), any(), any(), any(), any()) } returns flowOf(
             emptyList()
         ) // No bookmarks initially
+        // Mock the default filter state (archived = false) for My List view
+        every { bookmarkRepository.observeBookmarkListItems(null, null, false, null, any()) } returns flowOf(
+            emptyList()
+        )
         every { savedStateHandle.get<String>(any()) } returns null // no sharedUrl initially
         every { workManager.getWorkInfosForUniqueWorkFlow(any()) } returns workInfoFlow
         every { bookmarkRepository.observeAllBookmarkCounts() } returns flowOf(BookmarkCounts())
@@ -124,7 +128,7 @@ class BookmarkListViewModelTest {
     }
 
     @Test
-    fun `onClickUnread sets unread filter`() = runTest {
+    fun `onClickMyList sets archived filter to false`() = runTest {
         coEvery { settingsDataStore.isInitialSyncPerformed() } returns false
         viewModel = BookmarkListViewModel(
             updateBookmarkUseCase,
@@ -134,9 +138,9 @@ class BookmarkListViewModelTest {
             settingsDataStore,
             savedStateHandle
         )
-        viewModel.onClickUnread()
+        viewModel.onClickMyList()
         assertEquals(
-            BookmarkListViewModel.FilterState(unread = true),
+            BookmarkListViewModel.FilterState(archived = false),
             viewModel.filterState.first()
         )
     }
@@ -306,9 +310,9 @@ class BookmarkListViewModelTest {
         val bookmarkFlow = MutableStateFlow(expectedBookmarks)
         coEvery {
             bookmarkRepository.observeBookmarkListItems(
-                type = Bookmark.Type.Article,
-                unread = true,
-                archived = null,
+                type = null,
+                unread = null,
+                archived = false,
                 favorite = null,
                 state = Bookmark.State.LOADED
             )
@@ -324,8 +328,7 @@ class BookmarkListViewModelTest {
             savedStateHandle
         )
 
-        viewModel.onClickArticles()
-        viewModel.onClickUnread()
+        viewModel.onClickMyList()
 
         val uiStates = viewModel.uiState.take(2).toList()
         val empty = uiStates[0]
@@ -556,7 +559,7 @@ class BookmarkListViewModelTest {
                 bookmarkRepository.observeBookmarkListItems(
                     type = null,
                     unread = null,
-                    archived = null,
+                    archived = false,
                     favorite = null,
                     state = Bookmark.State.LOADED
                 )
@@ -628,7 +631,7 @@ class BookmarkListViewModelTest {
             bookmarkRepository.observeBookmarkListItems(
                     type = null,
                     unread = null,
-                    archived = null,
+                    archived = false,
                     favorite = null,
                     state = Bookmark.State.LOADED
                 )
