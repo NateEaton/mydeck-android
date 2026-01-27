@@ -36,8 +36,7 @@ class LoadBookmarksUseCaseTest {
             bookmarkRepository,
             readeckApi,
             mockk(relaxed = true),  // workManager
-            settingsDataStore,
-            mockk(relaxed = true)   // context
+            settingsDataStore
         )
     }
 
