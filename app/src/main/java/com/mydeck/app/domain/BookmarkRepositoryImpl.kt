@@ -328,6 +328,50 @@ class BookmarkRepositoryImpl @Inject constructor(
         }
     }
 
+    override suspend fun performDeltaSync(since: kotlinx.datetime.Instant?): BookmarkRepository.SyncResult = withContext(dispatcher) {
+        try {
+            val sinceParam = since?.toString()  // ISO 8601 format
+            Timber.d("Starting delta sync with since=$sinceParam")
+
+            val response = readeckApi.getSyncStatus(sinceParam)
+
+            if (!response.isSuccessful) {
+                Timber.e("Sync status failed with code: ${response.code()}")
+                return@withContext BookmarkRepository.SyncResult.Error(
+                    errorMessage = "Sync status failed",
+                    code = response.code()
+                )
+            }
+
+            val syncStatuses = response.body() ?: emptyList()
+            Timber.d("Received ${syncStatuses.size} sync status entries")
+
+            // Separate updated and deleted bookmarks
+            val deletedIds = syncStatuses
+                .filter { it.status == "deleted" }
+                .map { it.id }
+
+            val updatedIds = syncStatuses
+                .filter { it.status == "ok" }
+                .map { it.id }
+
+            // Delete locally removed bookmarks
+            deletedIds.forEach { id ->
+                bookmarkDao.deleteBookmark(id)
+            }
+
+            Timber.i("Delta sync complete: ${deletedIds.size} deleted, ${updatedIds.size} updated")
+
+            BookmarkRepository.SyncResult.Success(countDeleted = deletedIds.size)
+        } catch (e: IOException) {
+            Timber.e(e, "Network error during delta sync: ${e.message}")
+            BookmarkRepository.SyncResult.NetworkError(errorMessage = "Network error during delta sync", ex = e)
+        } catch (e: Exception) {
+            Timber.e(e, "Delta sync failed: ${e.message}")
+            BookmarkRepository.SyncResult.Error(errorMessage = "Delta sync failed: ${e.message}", ex = e)
+        }
+    }
+
     override fun observeAllBookmarkCounts(): Flow<BookmarkCounts> {
         return bookmarkDao.observeAllBookmarkCounts().map { entity ->
             if (entity != null) {

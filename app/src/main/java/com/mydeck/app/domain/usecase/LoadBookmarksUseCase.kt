@@ -1,15 +1,15 @@
 package com.mydeck.app.domain.usecase
 
+import android.content.Context
 import androidx.room.Transaction
-import androidx.work.Data
-import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import com.mydeck.app.domain.BookmarkRepository
 import com.mydeck.app.domain.mapper.toDomain
 import com.mydeck.app.io.prefs.SettingsDataStore
 import com.mydeck.app.io.rest.ReadeckApi
 import com.mydeck.app.io.rest.model.BookmarkDto
-import com.mydeck.app.worker.LoadArticleWorker
+import com.mydeck.app.worker.BatchArticleLoadWorker
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toInstant
 import timber.log.Timber
@@ -19,7 +19,8 @@ class LoadBookmarksUseCase @Inject constructor(
     private val bookmarkRepository: BookmarkRepository,
     private val readeckApi: ReadeckApi,
     private val workManager: WorkManager,
-    private val settingsDataStore: SettingsDataStore
+    private val settingsDataStore: SettingsDataStore,
+    @ApplicationContext private val context: Context
 ) {
 
     sealed class UseCaseResult<out DataType : Any> {
@@ -59,12 +60,6 @@ class LoadBookmarksUseCase @Inject constructor(
                     Timber.d("totalCount=$totalCount")
 
                     bookmarkRepository.insertBookmarks(bookmarks)
-                    bookmarks.forEach {
-                        val request = OneTimeWorkRequestBuilder<LoadArticleWorker>().setInputData(
-                            Data.Builder().putString(LoadArticleWorker.PARAM_BOOKMARK_ID, it.id).build()
-                        ).build()
-                        workManager.enqueue(request)
-                    }
 
                     // Find the latest created timestamp in the current page
                     val latestBookmark = bookmarks.maxByOrNull { it.created }
@@ -84,6 +79,10 @@ class LoadBookmarksUseCase @Inject constructor(
                     return UseCaseResult.Error(Exception("Unsuccessful response: ${response.code()}"))
                 }
             }
+
+            // Enqueue batch article loader after bookmark sync completes
+            BatchArticleLoadWorker.enqueue(context)
+
             return UseCaseResult.Success(Unit)
         } catch (e: Exception) {
             Timber.e(e, "Error loading bookmarks")

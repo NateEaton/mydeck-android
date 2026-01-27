@@ -92,7 +92,7 @@ other{}
     <string name="settings_sync_full_sync_heading">Background Synchronization</string>
     <string name="settings_sync_auto_full_sync_title">Background Synchronization</string>
     <string name="settings_sync_auto_full_button">Synchronize now</string>
-    <string name="settings_sync_support_text">To keep your bookmark list up-to-date, the app occasionally checks for and removes bookmarks you\'ve deleted on the Readedeck server. Since this process requires downloading all your bookmark data, it runs automatically in the background. This helps ensure your app accurately reflects your current Readedeck bookmarks without you having to manually delete them.</string>
+    <string name="settings_sync_support_text">To keep your bookmark list up-to-date, the app periodically syncs with the Readeck server to detect new, updated, and deleted bookmarks. Article content is downloaded in the background for offline reading.</string>
     <string name="settings_sync_dialog_support_text">How often should the synchronization be performed in the background?</string>
     <string name="auto_sync_timeframe_manual">Manual</string>
     <string name="auto_sync_timeframe_01_hours">Every hour</string>
@@ -111,6 +111,10 @@ other{}
     <string name="auto_sync_notification_rationale_dialog_title">Notification Permission Required</string>
     <string name="auto_sync_notification_rationale_dialog_text">To notify you about background sync failures, we need permission to send notifications.  Please grant this permission.</string>
     <string name="auto_sync_notification_rationale_dialog_grant_button">Grant Permission</string>
+    <string name="sync_status_heading">Sync Status</string>
+    <string name="sync_status_bookmarks">Articles downloaded: %1$d / %2$d</string>
+    <string name="sync_status_last_sync">Last sync: %1$s</string>
+    <string name="sync_status_never">Last sync: Never</string>
     <string name="list_view_empty_not_loaded_yet">Bookmarks have not been loaded yet.</string>
     <string name="list_view_empty_error_loading_bookmarks">An error has occurred while loading bookmarks.</string>
     <string name="list_view_empty_nothing_to_see">No bookmarks have been found.</string>

@@ -23,6 +23,8 @@ import com.mydeck.app.MainActivity
 import com.mydeck.app.R
 import com.mydeck.app.domain.BookmarkRepository
 import com.mydeck.app.domain.BookmarkRepository.SyncResult
+import com.mydeck.app.io.prefs.SettingsDataStore
+import kotlinx.datetime.Clock
 import timber.log.Timber
 
 @HiltWorker
@@ -30,22 +32,37 @@ class FullSyncWorker @AssistedInject constructor(
     @Assisted appContext: Context,
     @Assisted val workerParams: WorkerParameters,
     val bookmarkRepository: BookmarkRepository,
+    val settingsDataStore: SettingsDataStore,
 ) : CoroutineWorker(appContext, workerParams) {
     override suspend fun doWork(): Result {
         try {
             Timber.d("Start Work")
-            val syncResult = bookmarkRepository.performFullSync()
+            val lastSyncTimestamp = settingsDataStore.getLastSyncTimestamp()
+
+            // Use delta sync if we have a previous timestamp, otherwise full sync
+            val syncResult = if (lastSyncTimestamp != null) {
+                Timber.d("Performing delta sync since=$lastSyncTimestamp")
+                bookmarkRepository.performDeltaSync(lastSyncTimestamp)
+            } else {
+                Timber.d("Performing full sync (no previous timestamp)")
+                bookmarkRepository.performFullSync()
+            }
+
             val workResult = when (syncResult) {
                 is SyncResult.Error -> Result.failure()
                 is SyncResult.NetworkError -> Result.retry()
-                is SyncResult.Success -> Result.success(
-                    Data.Builder().putInt(OUTPUT_DATA_COUNT, syncResult.countDeleted).build()
-                )
+                is SyncResult.Success -> {
+                    // Save the current timestamp after successful sync
+                    settingsDataStore.saveLastSyncTimestamp(Clock.System.now())
+                    Result.success(
+                        Data.Builder().putInt(OUTPUT_DATA_COUNT, syncResult.countDeleted).build()
+                    )
+                }
             }
             showNotification(syncResult)
             return workResult
         } catch (e: Exception) {
-            Timber.e(e, "Error performing full sync")
+            Timber.e(e, "Error performing sync")
             return Result.failure()
         }
     }
