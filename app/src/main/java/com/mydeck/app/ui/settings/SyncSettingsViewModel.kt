@@ -80,11 +80,8 @@ class SyncSettingsViewModel @Inject constructor(
         autoSyncTimeframe,
         showDialog,
         workInfo,
-        fullSyncUseCase.syncIsRunning,
-        syncStatusCounts,
-        lastSyncTimestamp
-    ) { autoSyncEnabled, autoSyncTimeframe, showDialog, workInfo, syncIsRunning, counts, lastSync ->
-        Timber.d("changed")
+        fullSyncUseCase.syncIsRunning
+    ) { autoSyncEnabled, autoSyncTimeframe, showDialog, workInfo, syncIsRunning ->
         val next = workInfo?.let {
             if (it.state == WorkInfo.State.ENQUEUED) {
                 it.nextScheduleTimeMillis
@@ -92,9 +89,20 @@ class SyncSettingsViewModel @Inject constructor(
                 null
             }
         }
-        Timber.d("workInfo=$workInfo")
 
         Timber.d("enabled=$autoSyncEnabled, timeFrame=$autoSyncTimeframe")
+        Timber.d("workInfo=$workInfo")
+
+        Triple(autoSyncEnabled, autoSyncTimeframe, Pair(showDialog, Pair(next, syncIsRunning)))
+    }.combine(syncStatusCounts) { triple, counts ->
+        Pair(triple, counts)
+    }.combine(lastSyncTimestamp) { pair, lastSync ->
+        val (triple, counts) = pair
+        val (autoSyncEnabled, autoSyncTimeframe, rest) = triple
+        val (showDialog, nextAndSync) = rest
+        val (next, syncIsRunning) = nextAndSync
+
+        Timber.d("changed")
         SyncSettingsUiState(
             autoSyncEnabled = autoSyncEnabled,
             autoSyncTimeframe = autoSyncTimeframe,
