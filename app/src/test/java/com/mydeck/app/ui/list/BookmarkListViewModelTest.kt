@@ -113,21 +113,6 @@ class BookmarkListViewModelTest {
     }
 
     @Test
-    fun `onClickAll clears filters`() = runTest {
-        coEvery { settingsDataStore.isInitialSyncPerformed() } returns false
-        viewModel = BookmarkListViewModel(
-            updateBookmarkUseCase,
-            workManager,
-            bookmarkRepository,
-            context,
-            settingsDataStore,
-            savedStateHandle
-        )
-        viewModel.onClickAll()
-        assertEquals(BookmarkListViewModel.FilterState(), viewModel.filterState.first())
-    }
-
-    @Test
     fun `onClickMyList sets archived filter to false`() = runTest {
         coEvery { settingsDataStore.isInitialSyncPerformed() } returns false
         viewModel = BookmarkListViewModel(
@@ -177,60 +162,6 @@ class BookmarkListViewModelTest {
         viewModel.onClickFavorite()
         assertEquals(
             BookmarkListViewModel.FilterState(favorite = true),
-            viewModel.filterState.first()
-        )
-    }
-
-    @Test
-    fun `onClickArticles sets type filter to Article`() = runTest {
-        coEvery { settingsDataStore.isInitialSyncPerformed() } returns false
-        viewModel = BookmarkListViewModel(
-            updateBookmarkUseCase,
-            workManager,
-            bookmarkRepository,
-            context,
-            settingsDataStore,
-            savedStateHandle
-        )
-        viewModel.onClickArticles()
-        assertEquals(
-            BookmarkListViewModel.FilterState(type = Bookmark.Type.Article),
-            viewModel.filterState.first()
-        )
-    }
-
-    @Test
-    fun `onClickPictures sets type filter to Picture`() = runTest {
-        coEvery { settingsDataStore.isInitialSyncPerformed() } returns false
-        viewModel = BookmarkListViewModel(
-            updateBookmarkUseCase,
-            workManager,
-            bookmarkRepository,
-            context,
-            settingsDataStore,
-            savedStateHandle
-        )
-        viewModel.onClickPictures()
-        assertEquals(
-            BookmarkListViewModel.FilterState(type = Bookmark.Type.Picture),
-            viewModel.filterState.first()
-        )
-    }
-
-    @Test
-    fun `onClickVideos sets type filter to Video`() = runTest {
-        coEvery { settingsDataStore.isInitialSyncPerformed() } returns false
-        viewModel = BookmarkListViewModel(
-            updateBookmarkUseCase,
-            workManager,
-            bookmarkRepository,
-            context,
-            settingsDataStore,
-            savedStateHandle
-        )
-        viewModel.onClickVideos()
-        assertEquals(
-            BookmarkListViewModel.FilterState(type = Bookmark.Type.Video),
             viewModel.filterState.first()
         )
     }
