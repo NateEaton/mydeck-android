@@ -51,6 +51,7 @@ class SyncSettingsViewModel @Inject constructor(
     val navigationEvent: StateFlow<NavigationEvent?> = _navigationEvent.asStateFlow()
     private val autoSyncEnabled = MutableStateFlow(false)
     private val autoSyncTimeframe = MutableStateFlow(AutoSyncTimeframe.MANUAL)
+    private val syncOnAppOpenEnabled = MutableStateFlow(false)
     private val showDialog = MutableStateFlow<Dialog?>(null)
     private val workInfo: Flow<WorkInfo?> = fullSyncUseCase.workInfoFlow.map { workInfoList ->
         workInfoList.firstOrNull()?.let {
@@ -68,6 +69,7 @@ class SyncSettingsViewModel @Inject constructor(
         viewModelScope.launch {
             autoSyncEnabled.value = settingsDataStore.isAutoSyncEnabled()
             autoSyncTimeframe.value = settingsDataStore.getAutoSyncTimeframe()
+            syncOnAppOpenEnabled.value = settingsDataStore.isSyncOnAppOpenEnabled()
             settingsDataStore.getLastSyncTimestamp()?.let {
                 lastSyncTimestamp.value = dateFormat.format(Date(it.toEpochMilliseconds()))
             }
@@ -97,7 +99,10 @@ class SyncSettingsViewModel @Inject constructor(
     }.combine(syncStatusCounts) { triple, counts ->
         Pair(triple, counts)
     }.combine(lastSyncTimestamp) { pair, lastSync ->
-        val (triple, counts) = pair
+        Pair(pair, lastSync)
+    }.combine(syncOnAppOpenEnabled) { pair, syncOnOpen ->
+        val (innerPair, lastSync) = pair
+        val (triple, counts) = innerPair
         val (autoSyncEnabled, autoSyncTimeframe, rest) = triple
         val (showDialog, nextAndSync) = rest
         val (next, syncIsRunning) = nextAndSync
@@ -113,7 +118,8 @@ class SyncSettingsViewModel @Inject constructor(
             autoSyncButtonEnabled = syncIsRunning.not(),
             totalBookmarks = counts.total,
             bookmarksWithContent = counts.withContent,
-            lastSyncTimestamp = lastSync
+            lastSyncTimestamp = lastSync,
+            syncOnAppOpenEnabled = syncOnOpen
         )
     }
         .stateIn(
@@ -127,7 +133,8 @@ class SyncSettingsViewModel @Inject constructor(
                     showDialog = null,
                     autoSyncTimeframeLabel = AutoSyncTimeframe.MANUAL.toLabelResource(),
                     nextAutoSyncRun = null,
-                    autoSyncButtonEnabled = false
+                    autoSyncButtonEnabled = false,
+                    syncOnAppOpenEnabled = false
                 )
         )
 
@@ -178,6 +185,14 @@ class SyncSettingsViewModel @Inject constructor(
 
     fun onRationaleDialogConfirm() {
         showDialog.value = Dialog.PermissionRequest
+    }
+
+    fun onClickSyncOnAppOpenSwitch(enabled: Boolean) {
+        Timber.d("onClickSyncOnAppOpenSwitch [enabled=$enabled]")
+        viewModelScope.launch {
+            settingsDataStore.setSyncOnAppOpenEnabled(enabled)
+            syncOnAppOpenEnabled.value = settingsDataStore.isSyncOnAppOpenEnabled()
+        }
     }
 
     fun onNavigationEventConsumed() {
@@ -234,7 +249,8 @@ data class SyncSettingsUiState(
     val autoSyncButtonEnabled: Boolean,
     val totalBookmarks: Int = 0,
     val bookmarksWithContent: Int = 0,
-    val lastSyncTimestamp: String? = null
+    val lastSyncTimestamp: String? = null,
+    val syncOnAppOpenEnabled: Boolean = false
 )
 
 enum class Dialog {

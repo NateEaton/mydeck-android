@@ -114,6 +114,8 @@ other{}
     <string name="auto_sync_notification_rationale_dialog_title">Notification Permission Required</string>
     <string name="auto_sync_notification_rationale_dialog_text">To notify you about background sync failures, we need permission to send notifications.  Please grant this permission.</string>
     <string name="auto_sync_notification_rationale_dialog_grant_button">Grant Permission</string>
+    <string name="settings_sync_on_app_open_title">Sync on App Open</string>
+    <string name="settings_sync_on_app_open_subtitle">Automatically sync when the app is opened</string>
     <string name="sync_status_heading">Sync Status</string>
     <string name="sync_status_bookmarks">Bookmarks with content: %1$d / %2$d</string>
     <string name="sync_status_last_sync">Last sync: %1$s</string>

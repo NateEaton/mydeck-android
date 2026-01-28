@@ -32,4 +32,6 @@ interface SettingsDataStore {
     suspend fun getTheme(): Theme
     suspend fun  getZoomFactor(): Int
     suspend fun  saveZoomFactor(zoomFactor: Int)
+    suspend fun setSyncOnAppOpenEnabled(isEnabled: Boolean)
+    suspend fun isSyncOnAppOpenEnabled(): Boolean
 }

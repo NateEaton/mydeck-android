@@ -14,6 +14,7 @@ import com.mydeck.app.domain.BookmarkRepository
 import com.mydeck.app.domain.model.Bookmark
 import com.mydeck.app.domain.model.BookmarkCounts
 import com.mydeck.app.domain.model.BookmarkListItem
+import com.mydeck.app.domain.usecase.FullSyncUseCase
 import com.mydeck.app.domain.usecase.UpdateBookmarkUseCase
 import com.mydeck.app.io.prefs.SettingsDataStore
 import com.mydeck.app.util.extractUrlAndTitle
@@ -35,6 +36,7 @@ import javax.inject.Inject
 @HiltViewModel
 class BookmarkListViewModel @Inject constructor(
     private val updateBookmarkUseCase: UpdateBookmarkUseCase,
+    private val fullSyncUseCase: FullSyncUseCase,
     workManager: WorkManager,
     private val bookmarkRepository: BookmarkRepository,
     @ApplicationContext private val context: Context, // Inject Context
@@ -122,6 +124,14 @@ class BookmarkListViewModel @Inject constructor(
             if (!settingsDataStore.isInitialSyncPerformed()) {
                 Timber.d("loadBookmarks")
                 loadBookmarks() // Start incremental sync when the ViewModel is created
+            }
+        }
+
+        // Trigger sync on app open if enabled
+        viewModelScope.launch {
+            if (settingsDataStore.isSyncOnAppOpenEnabled()) {
+                Timber.d("Sync on app open is enabled, triggering full sync")
+                fullSyncUseCase.performFullSync()
             }
         }
     }
