@@ -42,12 +42,18 @@ class FullSyncWorker @AssistedInject constructor(
             val lastSyncTimestamp = settingsDataStore.getLastSyncTimestamp()
 
             // Step 1: Handle deletions via delta sync or full sync
-            val syncResult = if (lastSyncTimestamp != null) {
+            var syncResult = if (lastSyncTimestamp != null) {
                 Timber.d("Performing delta sync since=$lastSyncTimestamp")
                 bookmarkRepository.performDeltaSync(lastSyncTimestamp)
             } else {
                 Timber.d("Performing full sync (no previous timestamp)")
                 bookmarkRepository.performFullSync()
+            }
+
+            // If delta sync failed with an error (e.g., HTTP 500), fall back to full sync
+            if (syncResult is SyncResult.Error && lastSyncTimestamp != null) {
+                Timber.w("Delta sync failed, falling back to full sync")
+                syncResult = bookmarkRepository.performFullSync()
             }
 
             // Check if deletion sync failed

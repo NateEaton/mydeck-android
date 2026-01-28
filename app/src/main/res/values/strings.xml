@@ -59,6 +59,9 @@ other{}
     <string name="settings_logs_subtitle">View and Send Logfiles</string>
     <string name="log_view_share_title">Send Logs</string>
     <string name="log_view_no_log_file_found">No log file found</string>
+    <string name="log_view_refresh">Refresh Logs</string>
+    <string name="log_view_clear_logs">Clear Logs</string>
+    <string name="log_view_logs_cleared">Logs cleared</string>
     <string name="settings_sync">Synchronization</string>
     <string name="settings_sync_subtitle">Synchronization Settings</string>
     <string name="settings_ui">User Interface</string>
