@@ -72,7 +72,7 @@ class FullSyncWorker @AssistedInject constructor(
             val workResult = when (loadResult) {
                 is LoadBookmarksUseCase.UseCaseResult.Error -> {
                     Timber.e(loadResult.exception, "Failed to load updated bookmarks")
-                    showNotification(SyncResult.Error("Failed to load bookmarks", ex = loadResult.exception))
+                    showNotification(SyncResult.Error("Failed to load bookmarks", ex = loadResult.exception as? Exception))
                     Result.failure()
                 }
                 is LoadBookmarksUseCase.UseCaseResult.Success -> {
