@@ -30,6 +30,8 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.Job
 import timber.log.Timber
 import javax.inject.Inject
 
@@ -73,6 +75,10 @@ class BookmarkListViewModel @Inject constructor(
         MutableStateFlow<CreateBookmarkUiState>(CreateBookmarkUiState.Closed)
     val createBookmarkUiState: StateFlow<CreateBookmarkUiState> =
         _createBookmarkUiState.asStateFlow()
+
+    // State for pending deletion (for undo functionality)
+    private var pendingDeletionJob: Job? = null
+    private var pendingDeletionBookmarkId: String? = null
 
     val loadBookmarkExceptionHandler = CoroutineExceptionHandler { _, ex ->
         Timber.e(ex, "Error loading bookmarks")
@@ -253,14 +259,39 @@ class BookmarkListViewModel @Inject constructor(
     }
 
     fun onDeleteBookmark(bookmarkId: String) {
-        updateBookmark {
-            updateBookmarkUseCase.deleteBookmark(bookmarkId)
+        // Cancel any existing pending deletion
+        pendingDeletionJob?.cancel()
+
+        // Store the bookmark ID for potential undo
+        pendingDeletionBookmarkId = bookmarkId
+
+        // Start a new deletion job with 10-second delay
+        pendingDeletionJob = viewModelScope.launch {
+            try {
+                // Wait 10 seconds before actually deleting
+                delay(10000)
+
+                // After delay, perform the actual deletion
+                updateBookmark {
+                    updateBookmarkUseCase.deleteBookmark(bookmarkId)
+                }
+
+                // Clear pending deletion state
+                pendingDeletionBookmarkId = null
+                pendingDeletionJob = null
+            } catch (e: Exception) {
+                // If cancelled or error, just log it
+                Timber.d("Deletion cancelled or failed: ${e.message}")
+            }
         }
     }
 
     fun onCancelDeleteBookmark() {
-        // TODO: Implement undo delete functionality
-        // For now, this is a no-op as the delete is immediate
+        // Cancel the pending deletion job
+        pendingDeletionJob?.cancel()
+        pendingDeletionJob = null
+        pendingDeletionBookmarkId = null
+        Timber.d("Delete bookmark cancelled")
     }
 
     fun onToggleMarkReadBookmark(bookmarkId: String, isRead: Boolean) {

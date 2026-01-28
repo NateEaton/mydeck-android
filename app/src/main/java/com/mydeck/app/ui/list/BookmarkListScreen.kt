@@ -516,6 +516,7 @@ fun BookmarkListViewPreview() {
             "threethousendtwohundretandfive"
         ),
         isRead = true,
+        readProgress = 100,
         iconSrc = "https://picsum.photos/seed/picsum/640/480",
         imageSrc = "https://picsum.photos/seed/picsum/640/480",
         thumbnailSrc = "https://picsum.photos/seed/picsum/640/480",

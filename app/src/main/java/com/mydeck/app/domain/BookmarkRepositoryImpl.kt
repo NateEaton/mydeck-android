@@ -95,6 +95,7 @@ class BookmarkRepositoryImpl @Inject constructor(
                     isMarked = listItem.isMarked,
                     isArchived = listItem.isArchived,
                     isRead = listItem.readProgress == 100,
+                    readProgress = listItem.readProgress,
                     thumbnailSrc = listItem.thumbnailSrc,
                     iconSrc = listItem.iconSrc,
                     imageSrc = listItem.imageSrc,
@@ -308,6 +309,47 @@ class BookmarkRepositoryImpl @Inject constructor(
                 BookmarkRepository.UpdateResult.NetworkError("Network error: ${e.message}", ex = e)
             } catch (e: Exception) {
                 Timber.e(e, "Unexpected error while Update Labels: ${e.message}")
+                BookmarkRepository.UpdateResult.Error(
+                    "An unexpected error occurred: ${e.message}",
+                    ex = e
+                )
+            }
+        }
+    }
+
+    override suspend fun updateReadProgress(
+        bookmarkId: String,
+        progress: Int
+    ): BookmarkRepository.UpdateResult {
+        return withContext(dispatcher) {
+            try {
+                val response = readeckApi.editBookmark(
+                    id = bookmarkId,
+                    body = EditBookmarkDto(
+                        readProgress = progress.coerceIn(0, 100)
+                    )
+                )
+
+                if (response.isSuccessful) {
+                    // Update local database with new progress
+                    bookmarkDao.updateReadProgress(bookmarkId, progress.coerceIn(0, 100))
+                    Timber.i("Update Read Progress successful")
+                    BookmarkRepository.UpdateResult.Success
+                } else {
+                    val code = response.code()
+                    val errorBodyString = response.errorBody()?.string()
+                    Timber.w("Error while Update Read Progress [code=$code, body=$errorBodyString]")
+                    val errorState = handleStatusMessage(code, errorBodyString)
+                    BookmarkRepository.UpdateResult.Error(
+                        errorMessage = errorState.message,
+                        code = errorState.status
+                    )
+                }
+            } catch (e: IOException) {
+                Timber.e(e, "Network error while Update Read Progress: ${e.message}")
+                BookmarkRepository.UpdateResult.NetworkError("Network error: ${e.message}", ex = e)
+            } catch (e: Exception) {
+                Timber.e(e, "Unexpected error while Update Read Progress: ${e.message}")
                 BookmarkRepository.UpdateResult.Error(
                     "An unexpected error occurred: ${e.message}",
                     ex = e

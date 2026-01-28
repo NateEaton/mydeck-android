@@ -69,6 +69,23 @@ class BookmarkDetailViewModel @Inject constructor(
     private val zoomFactor: Flow<Int> = settingsDataStore.zoomFactorFlow
     private val updateState = MutableStateFlow<UpdateBookmarkState?>(null)
 
+    init {
+        // Mark bookmark as started reading when detail view is opened
+        if (bookmarkId != null) {
+            viewModelScope.launch {
+                try {
+                    val bookmark = bookmarkRepository.getBookmarkById(bookmarkId)
+                    // Only mark as started (progress=1) if not already started or read
+                    if (bookmark.readProgress == 0) {
+                        bookmarkRepository.updateReadProgress(bookmarkId, 1)
+                    }
+                } catch (e: Exception) {
+                    Timber.e(e, "Error marking bookmark as started: ${e.message}")
+                }
+            }
+        }
+    }
+
     @OptIn(ExperimentalEncodingApi::class)
     val uiState = combine(
         bookmarkRepository.observeBookmark(bookmarkId!!),

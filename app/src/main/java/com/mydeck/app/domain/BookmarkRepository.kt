@@ -29,6 +29,7 @@ interface BookmarkRepository {
     suspend fun deleteBookmark(id: String): UpdateResult
     suspend fun createBookmark(title: String, url: String): String
     suspend fun updateBookmark(bookmarkId: String, isFavorite: Boolean?, isArchived: Boolean?, isRead: Boolean?): UpdateResult
+    suspend fun updateReadProgress(bookmarkId: String, progress: Int): UpdateResult
     suspend fun updateLabels(bookmarkId: String, labels: List<String>): UpdateResult
     suspend fun performFullSync(): SyncResult
     suspend fun performDeltaSync(since: kotlinx.datetime.Instant?): SyncResult

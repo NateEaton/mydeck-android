@@ -18,6 +18,7 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Grade
 import androidx.compose.material.icons.filled.Inventory2
+import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.Grade
 import androidx.compose.material.icons.outlined.Inventory2
 import androidx.compose.material3.Card
@@ -88,10 +89,15 @@ fun BookmarkCard(
                         .height(150.dp)
                 )
 
-                // Show checkmark icon if bookmark is read
-                if (bookmark.isRead) {
+                // Show checkmark icon based on read progress
+                // Outline if started (0 < progress < 100), filled if completed (progress == 100)
+                if (bookmark.readProgress > 0) {
                     Icon(
-                        imageVector = Icons.Filled.CheckCircle,
+                        imageVector = if (bookmark.readProgress == 100) {
+                            Icons.Filled.CheckCircle
+                        } else {
+                            Icons.Outlined.CheckCircle
+                        },
                         contentDescription = stringResource(R.string.action_mark_read),
                         tint = Color.White.copy(alpha = 0.7f),
                         modifier = Modifier
@@ -242,6 +248,7 @@ fun BookmarkCardPreview() {
             "threethousendtwohundretandfive"
         ),
         isRead = true,
+        readProgress = 100,
         iconSrc = "https://picsum.photos/seed/picsum/640/480",
         imageSrc = "https://picsum.photos/seed/picsum/640/480",
         thumbnailSrc = "https://picsum.photos/seed/picsum/640/480",
