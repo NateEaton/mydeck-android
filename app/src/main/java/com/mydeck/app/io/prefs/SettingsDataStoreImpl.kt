@@ -35,6 +35,7 @@ class SettingsDataStoreImpl @Inject constructor(@ApplicationContext private val 
     private val KEY_THEME = stringPreferencesKey("theme")
     private val KEY_ZOOM_FACTOR = intPreferencesKey("zoom_factor")
     private val KEY_SYNC_ON_APP_OPEN = booleanPreferencesKey("sync_on_app_open")
+    private val KEY_SYNC_NOTIFICATIONS_ENABLED = booleanPreferencesKey("sync_notifications_enabled")
 
     override fun saveUsername(username: String) {
         Timber.d("saveUsername")
@@ -151,6 +152,16 @@ class SettingsDataStoreImpl @Inject constructor(@ApplicationContext private val 
 
     override suspend fun isSyncOnAppOpenEnabled(): Boolean {
         return encryptedSharedPreferences.getBoolean(KEY_SYNC_ON_APP_OPEN.name, false)
+    }
+
+    override suspend fun setSyncNotificationsEnabled(isEnabled: Boolean) {
+        encryptedSharedPreferences.edit {
+            putBoolean(KEY_SYNC_NOTIFICATIONS_ENABLED.name, isEnabled)
+        }
+    }
+
+    override suspend fun isSyncNotificationsEnabled(): Boolean {
+        return encryptedSharedPreferences.getBoolean(KEY_SYNC_NOTIFICATIONS_ENABLED.name, true)
     }
 
     override val tokenFlow = getStringFlow(KEY_TOKEN.name, null)

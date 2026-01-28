@@ -121,12 +121,25 @@ class FullSyncWorker @AssistedInject constructor(
         }
     }
 
-    private fun showNotification(syncResult: SyncResult) {
+    private suspend fun showNotification(syncResult: SyncResult) {
+        // Skip notification for manual sync (user triggered from settings page)
+        val isManualSync = inputData.getBoolean(INPUT_IS_MANUAL_SYNC, false)
+        if (isManualSync) {
+            Timber.d("Skipping notification for manual sync")
+            return
+        }
+
+        // Check if notifications are enabled in settings
+        if (!settingsDataStore.isSyncNotificationsEnabled()) {
+            Timber.d("Sync notifications are disabled")
+            return
+        }
+
         createNotificationChannel()
 
         val contentText = when (syncResult) {
             is SyncResult.Success -> {
-                applicationContext.getString(R.string.auto_sync_notification_success, syncResult.countDeleted)
+                applicationContext.getString(R.string.auto_sync_notification_success)
             }
             else -> {
                 applicationContext.getString(R.string.auto_sync_notification_failure)
@@ -192,5 +205,6 @@ class FullSyncWorker @AssistedInject constructor(
         const val TAG = "full_sync"
         const val OUTPUT_DATA_COUNT = "count"
         const val NOTIFICATION_ID = 0
+        const val INPUT_IS_MANUAL_SYNC = "is_manual_sync"
     }
 }

@@ -52,6 +52,7 @@ class SyncSettingsViewModel @Inject constructor(
     private val autoSyncEnabled = MutableStateFlow(false)
     private val autoSyncTimeframe = MutableStateFlow(AutoSyncTimeframe.MANUAL)
     private val syncOnAppOpenEnabled = MutableStateFlow(false)
+    private val syncNotificationsEnabled = MutableStateFlow(true)
     private val showDialog = MutableStateFlow<Dialog?>(null)
     private val workInfo: Flow<WorkInfo?> = fullSyncUseCase.workInfoFlow.map { workInfoList ->
         workInfoList.firstOrNull()?.let {
@@ -70,6 +71,7 @@ class SyncSettingsViewModel @Inject constructor(
             autoSyncEnabled.value = settingsDataStore.isAutoSyncEnabled()
             autoSyncTimeframe.value = settingsDataStore.getAutoSyncTimeframe()
             syncOnAppOpenEnabled.value = settingsDataStore.isSyncOnAppOpenEnabled()
+            syncNotificationsEnabled.value = settingsDataStore.isSyncNotificationsEnabled()
             settingsDataStore.getLastSyncTimestamp()?.let {
                 lastSyncTimestamp.value = dateFormat.format(Date(it.toEpochMilliseconds()))
             }
@@ -101,8 +103,11 @@ class SyncSettingsViewModel @Inject constructor(
     }.combine(lastSyncTimestamp) { pair, lastSync ->
         Pair(pair, lastSync)
     }.combine(syncOnAppOpenEnabled) { pair, syncOnOpen ->
-        val (innerPair, lastSync) = pair
-        val (triple, counts) = innerPair
+        Pair(pair, syncOnOpen)
+    }.combine(syncNotificationsEnabled) { pair, notificationsEnabled ->
+        val (innerPair, syncOnOpen) = pair
+        val (pairWithCounts, lastSync) = innerPair
+        val (triple, counts) = pairWithCounts
         val (autoSyncEnabled, autoSyncTimeframe, rest) = triple
         val (showDialog, nextAndSync) = rest
         val (next, syncIsRunning) = nextAndSync
@@ -119,7 +124,8 @@ class SyncSettingsViewModel @Inject constructor(
             totalBookmarks = counts.total,
             bookmarksWithContent = counts.withContent,
             lastSyncTimestamp = lastSync,
-            syncOnAppOpenEnabled = syncOnOpen
+            syncOnAppOpenEnabled = syncOnOpen,
+            syncNotificationsEnabled = notificationsEnabled
         )
     }
         .stateIn(
@@ -134,7 +140,8 @@ class SyncSettingsViewModel @Inject constructor(
                     autoSyncTimeframeLabel = AutoSyncTimeframe.MANUAL.toLabelResource(),
                     nextAutoSyncRun = null,
                     autoSyncButtonEnabled = false,
-                    syncOnAppOpenEnabled = false
+                    syncOnAppOpenEnabled = false,
+                    syncNotificationsEnabled = true
                 )
         )
 
@@ -195,6 +202,14 @@ class SyncSettingsViewModel @Inject constructor(
         }
     }
 
+    fun onClickSyncNotificationsSwitch(enabled: Boolean) {
+        Timber.d("onClickSyncNotificationsSwitch [enabled=$enabled]")
+        viewModelScope.launch {
+            settingsDataStore.setSyncNotificationsEnabled(enabled)
+            syncNotificationsEnabled.value = settingsDataStore.isSyncNotificationsEnabled()
+        }
+    }
+
     fun onNavigationEventConsumed() {
         _navigationEvent.update { null } // Reset the event
     }
@@ -250,7 +265,8 @@ data class SyncSettingsUiState(
     val totalBookmarks: Int = 0,
     val bookmarksWithContent: Int = 0,
     val lastSyncTimestamp: String? = null,
-    val syncOnAppOpenEnabled: Boolean = false
+    val syncOnAppOpenEnabled: Boolean = false,
+    val syncNotificationsEnabled: Boolean = true
 )
 
 enum class Dialog {

@@ -59,6 +59,8 @@ fun SyncSettingsScreen(
         { value -> viewModel.onClickAutoSyncSwitch(value) }
     val onClickSyncOnAppOpenSwitch: (value: Boolean) -> Unit =
         { value -> viewModel.onClickSyncOnAppOpenSwitch(value) }
+    val onClickSyncNotificationsSwitch: (value: Boolean) -> Unit =
+        { value -> viewModel.onClickSyncNotificationsSwitch(value) }
     val snackbarHostState = remember { SnackbarHostState() }
     val notificationPermissionState = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
         rememberPermissionState(Manifest.permission.POST_NOTIFICATIONS)
@@ -113,6 +115,7 @@ fun SyncSettingsScreen(
         onClickAutoSync = onClickAutoSync,
         onClickAutoSyncSwitch = onClickAutoSyncSwitch,
         onClickSyncOnAppOpenSwitch = onClickSyncOnAppOpenSwitch,
+        onClickSyncNotificationsSwitch = onClickSyncNotificationsSwitch,
         settingsUiState = settingsUiState
     )
 }
@@ -127,6 +130,7 @@ fun SyncSettingsView(
     onClickAutoSync: () -> Unit,
     onClickAutoSyncSwitch: (Boolean) -> Unit,
     onClickSyncOnAppOpenSwitch: (Boolean) -> Unit,
+    onClickSyncNotificationsSwitch: (Boolean) -> Unit,
     onClickBack: () -> Unit,
 ) {
     Scaffold(
@@ -211,6 +215,24 @@ fun SyncSettingsView(
                         onCheckedChange = { onClickSyncOnAppOpenSwitch(it) })
                 }
             }
+            Row(
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(stringResource(R.string.settings_sync_notifications_title))
+                    Text(
+                        text = stringResource(R.string.settings_sync_notifications_subtitle),
+                        style = Typography.bodySmall
+                    )
+                }
+                Row {
+                    Switch(
+                        checked = settingsUiState.syncNotificationsEnabled,
+                        onCheckedChange = { onClickSyncNotificationsSwitch(it) })
+                }
+            }
             Spacer(modifier = Modifier.height(16.dp))
             Text(
                 text = stringResource(R.string.sync_status_heading),
@@ -264,6 +286,7 @@ fun SyncSettingsScreenViewPreview() {
         onClickAutoSync = {},
         onClickAutoSyncSwitch = {},
         onClickSyncOnAppOpenSwitch = {},
+        onClickSyncNotificationsSwitch = {},
         onClickDoFullSyncNow = {},
         settingsUiState = settingsUiState
     )

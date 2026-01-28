@@ -133,7 +133,23 @@ class BookmarkRepositoryImpl @Inject constructor(
         val createBookmarkDto = CreateBookmarkDto(title = title, url = url)
         val response = readeckApi.createBookmark(createBookmarkDto)
         if (response.isSuccessful) {
-            return response.headers()[ReadeckApi.Header.BOOKMARK_ID]!!
+            val bookmarkId = response.headers()[ReadeckApi.Header.BOOKMARK_ID]!!
+
+            // Fetch the full bookmark from server and insert into local database
+            try {
+                val bookmarkResponse = readeckApi.getBookmarkById(bookmarkId)
+                if (bookmarkResponse.isSuccessful && bookmarkResponse.body() != null) {
+                    val bookmark = bookmarkResponse.body()!!.toDomain()
+                    insertBookmarks(listOf(bookmark))
+                    Timber.d("Bookmark created and inserted locally: $bookmarkId")
+                } else {
+                    Timber.w("Failed to fetch created bookmark: ${bookmarkResponse.code()}")
+                }
+            } catch (e: Exception) {
+                Timber.w(e, "Failed to fetch and insert created bookmark locally")
+            }
+
+            return bookmarkId
         } else {
             throw Exception("Failed to create bookmark")
         }

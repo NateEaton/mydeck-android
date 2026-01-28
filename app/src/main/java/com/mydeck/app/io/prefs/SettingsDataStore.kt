@@ -34,4 +34,6 @@ interface SettingsDataStore {
     suspend fun  saveZoomFactor(zoomFactor: Int)
     suspend fun setSyncOnAppOpenEnabled(isEnabled: Boolean)
     suspend fun isSyncOnAppOpenEnabled(): Boolean
+    suspend fun setSyncNotificationsEnabled(isEnabled: Boolean)
+    suspend fun isSyncNotificationsEnabled(): Boolean
 }

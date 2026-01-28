@@ -47,6 +47,9 @@ interface ReadeckApi {
     @GET("bookmarks/{id}/article")
     suspend fun getArticle(@Path("id") id: String): Response<String>
 
+    @GET("bookmarks/{id}")
+    suspend fun getBookmarkById(@Path("id") id: String): Response<BookmarkDto>
+
     @POST("bookmarks")
     suspend fun createBookmark(
         @Body body: CreateBookmarkDto
