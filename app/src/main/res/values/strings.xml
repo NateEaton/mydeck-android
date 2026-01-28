@@ -145,4 +145,14 @@ other{}
     <string name="about_license_title">License</string>
     <string name="about_license_text">MyDeck is licensed under the MIT License. Source code is available on GitHub.</string>
     <string name="about_license_readeck">Readeck server is licensed under the AGPL-3.0 license.</string>
+
+    <!-- Bookmark Details Dialog -->
+    <string name="detail_dialog_title">Bookmark Details</string>
+    <string name="detail_type">Type</string>
+    <string name="detail_language">Language</string>
+    <string name="detail_word_count">Word Count</string>
+    <string name="detail_reading_time">Reading Time</string>
+    <string name="detail_minutes_short">min</string>
+    <string name="detail_labels">Labels</string>
+    <string name="detail_label_placeholder">Add labels (comma-separated)</string>
 </resources>

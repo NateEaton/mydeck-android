@@ -258,6 +258,11 @@ class BookmarkListViewModel @Inject constructor(
         }
     }
 
+    fun onCancelDeleteBookmark() {
+        // TODO: Implement undo delete functionality
+        // For now, this is a no-op as the delete is immediate
+    }
+
     fun onToggleMarkReadBookmark(bookmarkId: String, isRead: Boolean) {
         updateBookmark {
             updateBookmarkUseCase.updateIsRead(

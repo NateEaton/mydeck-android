@@ -98,8 +98,19 @@ fun BookmarkListScreen(navHostController: NavHostController) {
     val onClickFilterFavorite: () -> Unit = { viewModel.onClickFavorite() }
     val onClickSettings: () -> Unit = { viewModel.onClickSettings() }
     val onClickBookmark: (String) -> Unit = { bookmarkId -> viewModel.onClickBookmark(bookmarkId) }
-    val onClickDelete: (String) -> Unit = { bookmarkId -> viewModel.onDeleteBookmark(bookmarkId) }
-    val onClickMarkRead: (String, Boolean) -> Unit = { bookmarkId, isRead -> viewModel.onToggleMarkReadBookmark(bookmarkId, isRead) }
+    val onClickDelete: (String) -> Unit = { bookmarkId ->
+        viewModel.onDeleteBookmark(bookmarkId)
+        scope.launch {
+            val result = snackbarHostState.showSnackbar(
+                message = "Bookmark deleted",
+                actionLabel = "UNDO",
+                duration = SnackbarDuration.Long
+            )
+            if (result == androidx.compose.material3.SnackbarResult.ActionPerformed) {
+                viewModel.onCancelDeleteBookmark()
+            }
+        }
+    }
     val onClickFavorite: (String, Boolean) -> Unit = { bookmarkId, isFavorite -> viewModel.onToggleFavoriteBookmark(bookmarkId, isFavorite) }
     val onClickArchive: (String, Boolean) -> Unit = { bookmarkId, isArchived -> viewModel.onToggleArchiveBookmark(bookmarkId, isArchived) }
     val onClickOpenInBrowser: (String) -> Unit = { url -> viewModel.onClickOpenInBrowser(url) }
@@ -315,7 +326,6 @@ fun BookmarkListScreen(navHostController: NavHostController) {
                             onClickDelete = onClickDelete,
                             onClickArchive = onClickArchive,
                             onClickFavorite = onClickFavorite,
-                            onClickMarkRead = onClickMarkRead,
                             onClickOpenInBrowser = onClickOpenInBrowser,
                             onClickShareBookmark = onClickShareBookmark
                         )
@@ -461,7 +471,6 @@ fun BookmarkListView(
     bookmarks: List<BookmarkListItem>,
     onClickBookmark: (String) -> Unit,
     onClickDelete: (String) -> Unit,
-    onClickMarkRead: (String, Boolean) -> Unit,
     onClickFavorite: (String, Boolean) -> Unit,
     onClickArchive: (String, Boolean) -> Unit,
     onClickOpenInBrowser: (String) -> Unit,
@@ -475,7 +484,6 @@ fun BookmarkListView(
                 onClickDelete = onClickDelete,
                 onClickArchive = onClickArchive,
                 onClickFavorite = onClickFavorite,
-                onClickMarkRead = onClickMarkRead,
                 onClickOpenUrl = onClickOpenInBrowser,
                 onClickShareBookmark = onClickShareBookmark
             )
@@ -523,7 +531,6 @@ fun BookmarkListViewPreview() {
         onClickDelete = {},
         onClickArchive = { _, _ -> },
         onClickFavorite = { _, _ -> },
-        onClickMarkRead = { _, _ -> },
         onClickOpenInBrowser = {},
         onClickShareBookmark = {_ -> }
     )

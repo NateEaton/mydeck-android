@@ -100,7 +100,12 @@ class BookmarkDetailViewModel @Inject constructor(
                         is com.mydeck.app.domain.model.Bookmark.Type.Picture -> Bookmark.Type.PHOTO
                         is com.mydeck.app.domain.model.Bookmark.Type.Video -> Bookmark.Type.VIDEO
                     },
-                    articleContent = bookmark.articleContent
+                    articleContent = bookmark.articleContent,
+                    lang = bookmark.lang,
+                    wordCount = bookmark.wordCount,
+                    readingTime = bookmark.readingTime,
+                    description = bookmark.description,
+                    labels = bookmark.labels
                 ),
                 updateBookmarkState = updateState,
                 template = template,
@@ -142,6 +147,19 @@ class BookmarkDetailViewModel @Inject constructor(
                 bookmarkId = bookmarkId,
                 isRead = isRead
             )
+        }
+    }
+
+    fun onUpdateLabels(bookmarkId: String, labels: List<String>) {
+        updateBookmark {
+            // For now, we'll handle labels through the repository directly
+            // This should be implemented in UpdateBookmarkUseCase.updateLabels()
+            val result = bookmarkRepository.updateLabels(bookmarkId, labels)
+            when (result) {
+                is BookmarkRepository.UpdateResult.Success -> UpdateBookmarkUseCase.Result.Success
+                is BookmarkRepository.UpdateResult.Error -> UpdateBookmarkUseCase.Result.GenericError(result.errorMessage)
+                is BookmarkRepository.UpdateResult.NetworkError -> UpdateBookmarkUseCase.Result.NetworkError(result.errorMessage)
+            }
         }
     }
 
@@ -244,7 +262,12 @@ class BookmarkDetailViewModel @Inject constructor(
         val isArchived: Boolean,
         val isRead: Boolean,
         val type: Type,
-        val articleContent: String?
+        val articleContent: String?,
+        val lang: String,
+        val wordCount: Int?,
+        val readingTime: Int?,
+        val description: String,
+        val labels: List<String>
     ) {
         enum class Type {
             ARTICLE, PHOTO, VIDEO
