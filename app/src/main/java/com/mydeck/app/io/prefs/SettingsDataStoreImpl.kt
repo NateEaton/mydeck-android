@@ -28,11 +28,14 @@ class SettingsDataStoreImpl @Inject constructor(@ApplicationContext private val 
     private val KEY_URL = stringPreferencesKey("url")
     private val KEY_PASSWORD = stringPreferencesKey("password")
     private val KEY_LAST_BOOKMARK_TIMESTAMP = stringPreferencesKey("lastBookmarkTimestamp")
+    private val KEY_LAST_SYNC_TIMESTAMP = stringPreferencesKey("lastSyncTimestamp")
     private val KEY_INITIAL_SYNC_PERFORMED = "initial_sync_performed"
     private val KEY_AUTOSYNC_ENABLED = booleanPreferencesKey("autosync_enabled")
     private val KEY_AUTOSYNC_TIMEFRAME = stringPreferencesKey("autosync_timeframe")
     private val KEY_THEME = stringPreferencesKey("theme")
     private val KEY_ZOOM_FACTOR = intPreferencesKey("zoom_factor")
+    private val KEY_SYNC_ON_APP_OPEN = booleanPreferencesKey("sync_on_app_open")
+    private val KEY_SYNC_NOTIFICATIONS_ENABLED = booleanPreferencesKey("sync_notifications_enabled")
 
     override fun saveUsername(username: String) {
         Timber.d("saveUsername")
@@ -70,6 +73,18 @@ class SettingsDataStoreImpl @Inject constructor(@ApplicationContext private val 
 
     override suspend fun getLastBookmarkTimestamp(): Instant? {
         return encryptedSharedPreferences.getString(KEY_LAST_BOOKMARK_TIMESTAMP.name, null)?.let {
+            Instant.parse(it)
+        }
+    }
+
+    override suspend fun saveLastSyncTimestamp(timestamp: Instant) {
+        encryptedSharedPreferences.edit {
+            putString(KEY_LAST_SYNC_TIMESTAMP.name, timestamp.toString())
+        }
+    }
+
+    override suspend fun getLastSyncTimestamp(): Instant? {
+        return encryptedSharedPreferences.getString(KEY_LAST_SYNC_TIMESTAMP.name, null)?.let {
             Instant.parse(it)
         }
     }
@@ -127,6 +142,26 @@ class SettingsDataStoreImpl @Inject constructor(@ApplicationContext private val 
         encryptedSharedPreferences.edit {
             putInt(KEY_ZOOM_FACTOR.name, zoomFactor.coerceIn(25, 400))
         }
+    }
+
+    override suspend fun setSyncOnAppOpenEnabled(isEnabled: Boolean) {
+        encryptedSharedPreferences.edit {
+            putBoolean(KEY_SYNC_ON_APP_OPEN.name, isEnabled)
+        }
+    }
+
+    override suspend fun isSyncOnAppOpenEnabled(): Boolean {
+        return encryptedSharedPreferences.getBoolean(KEY_SYNC_ON_APP_OPEN.name, false)
+    }
+
+    override suspend fun setSyncNotificationsEnabled(isEnabled: Boolean) {
+        encryptedSharedPreferences.edit {
+            putBoolean(KEY_SYNC_NOTIFICATIONS_ENABLED.name, isEnabled)
+        }
+    }
+
+    override suspend fun isSyncNotificationsEnabled(): Boolean {
+        return encryptedSharedPreferences.getBoolean(KEY_SYNC_NOTIFICATIONS_ENABLED.name, true)
     }
 
     override val tokenFlow = getStringFlow(KEY_TOKEN.name, null)

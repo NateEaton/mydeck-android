@@ -9,6 +9,7 @@ import com.mydeck.app.domain.BookmarkRepository
 import com.mydeck.app.domain.model.Bookmark
 import com.mydeck.app.domain.model.BookmarkCounts
 import com.mydeck.app.domain.model.BookmarkListItem
+import com.mydeck.app.domain.usecase.FullSyncUseCase
 import com.mydeck.app.domain.usecase.UpdateBookmarkUseCase
 import com.mydeck.app.io.prefs.SettingsDataStore
 import io.mockk.coEvery
@@ -46,6 +47,7 @@ class BookmarkListViewModelTest {
     private lateinit var viewModel: BookmarkListViewModel
     private lateinit var savedStateHandle: SavedStateHandle
     private lateinit var updateBookmarkUseCase: UpdateBookmarkUseCase
+    private lateinit var fullSyncUseCase: FullSyncUseCase
     private lateinit var workManager : WorkManager
 
     private lateinit var workInfoFlow: Flow<List<WorkInfo>>
@@ -58,12 +60,15 @@ class BookmarkListViewModelTest {
         context = mockk()
         savedStateHandle = mockk()
         updateBookmarkUseCase = mockk()
+        fullSyncUseCase = mockk()
         workManager = mockk()
 
         workInfoFlow = flowOf(emptyList())
 
         // Default Mocking Behavior
         coEvery { settingsDataStore.isInitialSyncPerformed() } returns true // Assume sync is done
+        coEvery { settingsDataStore.isSyncOnAppOpenEnabled() } returns false // Disable sync on app open by default
+        every { fullSyncUseCase.performFullSync() } returns Unit
         every { bookmarkRepository.observeBookmarkListItems(any(), any(), any(), any(), any()) } returns flowOf(
             emptyList()
         ) // No bookmarks initially
@@ -86,6 +91,7 @@ class BookmarkListViewModelTest {
         coEvery { settingsDataStore.isInitialSyncPerformed() } returns false
         viewModel = BookmarkListViewModel(
             updateBookmarkUseCase,
+            fullSyncUseCase,
             workManager,
             bookmarkRepository,
             context,
@@ -102,6 +108,7 @@ class BookmarkListViewModelTest {
         coEvery { settingsDataStore.isInitialSyncPerformed() } returns false
         viewModel = BookmarkListViewModel(
             updateBookmarkUseCase,
+            fullSyncUseCase,
             workManager,
             bookmarkRepository,
             context,
@@ -117,6 +124,7 @@ class BookmarkListViewModelTest {
         coEvery { settingsDataStore.isInitialSyncPerformed() } returns false
         viewModel = BookmarkListViewModel(
             updateBookmarkUseCase,
+            fullSyncUseCase,
             workManager,
             bookmarkRepository,
             context,
@@ -135,6 +143,7 @@ class BookmarkListViewModelTest {
         coEvery { settingsDataStore.isInitialSyncPerformed() } returns false
         viewModel = BookmarkListViewModel(
             updateBookmarkUseCase,
+            fullSyncUseCase,
             workManager,
             bookmarkRepository,
             context,
@@ -153,6 +162,7 @@ class BookmarkListViewModelTest {
         coEvery { settingsDataStore.isInitialSyncPerformed() } returns false
         viewModel = BookmarkListViewModel(
             updateBookmarkUseCase,
+            fullSyncUseCase,
             workManager,
             bookmarkRepository,
             context,
@@ -171,6 +181,7 @@ class BookmarkListViewModelTest {
         coEvery { settingsDataStore.isInitialSyncPerformed() } returns false
         viewModel = BookmarkListViewModel(
             updateBookmarkUseCase,
+            fullSyncUseCase,
             workManager,
             bookmarkRepository,
             context,
@@ -189,6 +200,7 @@ class BookmarkListViewModelTest {
         coEvery { settingsDataStore.isInitialSyncPerformed() } returns false
         viewModel = BookmarkListViewModel(
             updateBookmarkUseCase,
+            fullSyncUseCase,
             workManager,
             bookmarkRepository,
             context,
@@ -208,6 +220,7 @@ class BookmarkListViewModelTest {
         coEvery { settingsDataStore.isInitialSyncPerformed() } returns false
         viewModel = BookmarkListViewModel(
             updateBookmarkUseCase,
+            fullSyncUseCase,
             workManager,
             bookmarkRepository,
             context,
@@ -252,6 +265,7 @@ class BookmarkListViewModelTest {
         coEvery { settingsDataStore.isInitialSyncPerformed() } returns false
         viewModel = BookmarkListViewModel(
             updateBookmarkUseCase,
+            fullSyncUseCase,
             workManager,
             bookmarkRepository,
             context,
@@ -278,6 +292,7 @@ class BookmarkListViewModelTest {
         coEvery { settingsDataStore.isInitialSyncPerformed() } returns false
         viewModel = BookmarkListViewModel(
             updateBookmarkUseCase,
+            fullSyncUseCase,
             workManager,
             bookmarkRepository,
             context,
@@ -293,6 +308,7 @@ class BookmarkListViewModelTest {
         coEvery { settingsDataStore.isInitialSyncPerformed() } returns false
         viewModel = BookmarkListViewModel(
             updateBookmarkUseCase,
+            fullSyncUseCase,
             workManager,
             bookmarkRepository,
             context,
@@ -310,6 +326,7 @@ class BookmarkListViewModelTest {
             coEvery { settingsDataStore.isInitialSyncPerformed() } returns false
             viewModel = BookmarkListViewModel(
                 updateBookmarkUseCase,
+                fullSyncUseCase,
                 workManager,
                 bookmarkRepository,
                 context,
@@ -335,6 +352,7 @@ class BookmarkListViewModelTest {
             coEvery { settingsDataStore.isInitialSyncPerformed() } returns false
             viewModel = BookmarkListViewModel(
                 updateBookmarkUseCase,
+                fullSyncUseCase,
                 workManager,
                 bookmarkRepository,
                 context,
@@ -359,6 +377,7 @@ class BookmarkListViewModelTest {
         coEvery { settingsDataStore.isInitialSyncPerformed() } returns false
         viewModel = BookmarkListViewModel(
             updateBookmarkUseCase,
+            fullSyncUseCase,
             workManager,
             bookmarkRepository,
             context,
@@ -381,6 +400,7 @@ class BookmarkListViewModelTest {
         coEvery { settingsDataStore.isInitialSyncPerformed() } returns false
         viewModel = BookmarkListViewModel(
             updateBookmarkUseCase,
+            fullSyncUseCase,
             workManager,
             bookmarkRepository,
             context,
@@ -408,6 +428,7 @@ class BookmarkListViewModelTest {
         coEvery { settingsDataStore.isInitialSyncPerformed() } returns false
         viewModel = BookmarkListViewModel(
             updateBookmarkUseCase,
+            fullSyncUseCase,
             workManager,
             bookmarkRepository,
             context,
@@ -441,6 +462,7 @@ class BookmarkListViewModelTest {
         coEvery { settingsDataStore.isInitialSyncPerformed() } returns false
         viewModel = BookmarkListViewModel(
             updateBookmarkUseCase,
+            fullSyncUseCase,
             workManager,
             bookmarkRepository,
             context,
@@ -464,6 +486,7 @@ class BookmarkListViewModelTest {
             coEvery { settingsDataStore.isInitialSyncPerformed() } returns false
             viewModel = BookmarkListViewModel(
                 updateBookmarkUseCase,
+                fullSyncUseCase,
                 workManager,
                 bookmarkRepository,
                 context,
@@ -505,6 +528,7 @@ class BookmarkListViewModelTest {
 
             viewModel = BookmarkListViewModel(
                 updateBookmarkUseCase,
+                fullSyncUseCase,
                 workManager,
                 bookmarkRepository,
                 context,
@@ -570,6 +594,7 @@ class BookmarkListViewModelTest {
 
             viewModel = BookmarkListViewModel(
                 updateBookmarkUseCase,
+                fullSyncUseCase,
                 workManager,
                 bookmarkRepository,
                 context,
@@ -635,6 +660,7 @@ class BookmarkListViewModelTest {
 
             viewModel = BookmarkListViewModel(
                 updateBookmarkUseCase,
+                fullSyncUseCase,
                 workManager,
                 bookmarkRepository,
                 context,
@@ -699,6 +725,7 @@ class BookmarkListViewModelTest {
 
             viewModel = BookmarkListViewModel(
                 updateBookmarkUseCase,
+                fullSyncUseCase,
                 workManager,
                 bookmarkRepository,
                 context,
@@ -764,6 +791,7 @@ class BookmarkListViewModelTest {
 
             viewModel = BookmarkListViewModel(
                 updateBookmarkUseCase,
+                fullSyncUseCase,
                 workManager,
                 bookmarkRepository,
                 context,
@@ -829,6 +857,7 @@ class BookmarkListViewModelTest {
 
             viewModel = BookmarkListViewModel(
                 updateBookmarkUseCase,
+                fullSyncUseCase,
                 workManager,
                 bookmarkRepository,
                 context,
@@ -894,6 +923,7 @@ class BookmarkListViewModelTest {
 
             viewModel = BookmarkListViewModel(
                 updateBookmarkUseCase,
+                fullSyncUseCase,
                 workManager,
                 bookmarkRepository,
                 context,
@@ -959,6 +989,7 @@ class BookmarkListViewModelTest {
 
             viewModel = BookmarkListViewModel(
                 updateBookmarkUseCase,
+                fullSyncUseCase,
                 workManager,
                 bookmarkRepository,
                 context,
@@ -1024,6 +1055,7 @@ class BookmarkListViewModelTest {
 
             viewModel = BookmarkListViewModel(
                 updateBookmarkUseCase,
+                fullSyncUseCase,
                 workManager,
                 bookmarkRepository,
                 context,

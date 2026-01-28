@@ -38,3 +38,16 @@ fun logAppInfo() {
     Timber.tag("APP-INFO")
     Timber.i("flavor=${BuildConfig.FLAVOR}")
 }
+
+fun clearLogFiles(): Boolean {
+    val tree = Timber.forest().firstOrNull { it is FileLoggerTree } as FileLoggerTree?
+    return tree?.files?.all { file ->
+        try {
+            file.writeText("")
+            true
+        } catch (e: Exception) {
+            Log.e("LOGDIR", "Failed to clear log file: ${file.name}", e)
+            false
+        }
+    } ?: false
+}

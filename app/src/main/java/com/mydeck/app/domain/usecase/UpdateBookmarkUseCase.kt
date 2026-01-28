@@ -1,14 +1,10 @@
 package com.mydeck.app.domain.usecase
 
-import android.content.Context
-import dagger.hilt.android.qualifiers.ApplicationContext
 import com.mydeck.app.domain.BookmarkRepository
-import com.mydeck.app.worker.LoadBookmarksWorker
 import javax.inject.Inject
 
 class UpdateBookmarkUseCase @Inject constructor(
-    private val bookmarkRepository: BookmarkRepository,
-    @ApplicationContext private val context: Context
+    private val bookmarkRepository: BookmarkRepository
 ) {
     suspend fun updateIsFavorite(bookmarkId: String, isFavorite: Boolean): Result {
         return handleResult(bookmarkRepository.updateBookmark(
@@ -43,10 +39,7 @@ class UpdateBookmarkUseCase @Inject constructor(
 
     private fun handleResult(result: BookmarkRepository.UpdateResult): Result {
         return when(result) {
-            is BookmarkRepository.UpdateResult.Success -> {
-                LoadBookmarksWorker.enqueue(context, isInitialLoad = false)
-                Result.Success
-            }
+            is BookmarkRepository.UpdateResult.Success -> Result.Success
             is BookmarkRepository.UpdateResult.Error -> Result.GenericError(result.errorMessage)
             is BookmarkRepository.UpdateResult.NetworkError -> Result.NetworkError(result.errorMessage)
         }

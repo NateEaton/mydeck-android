@@ -9,6 +9,7 @@ import com.mydeck.app.io.rest.model.StatusMessageDto
 import com.mydeck.app.io.rest.model.EditBookmarkDto
 import com.mydeck.app.io.rest.model.EditBookmarkErrorDto
 import com.mydeck.app.io.rest.model.EditBookmarkResponseDto
+import com.mydeck.app.io.rest.model.SyncStatusDto
 import kotlinx.datetime.Instant
 import retrofit2.Response
 import retrofit2.http.GET
@@ -29,6 +30,11 @@ interface ReadeckApi {
         @Query("sort") sortOrder: SortOrder
     ): Response<List<BookmarkDto>>
 
+    @GET("bookmarks/sync")
+    suspend fun getSyncStatus(
+        @Query("since") since: String?  // ISO 8601 formatted timestamp
+    ): Response<List<SyncStatusDto>>
+
     @POST("auth")
     suspend fun authenticate(
         @Body body: AuthenticationRequestDto
@@ -40,6 +46,9 @@ interface ReadeckApi {
     @Headers("Content-Type: text/html")
     @GET("bookmarks/{id}/article")
     suspend fun getArticle(@Path("id") id: String): Response<String>
+
+    @GET("bookmarks/{id}")
+    suspend fun getBookmarkById(@Path("id") id: String): Response<BookmarkDto>
 
     @POST("bookmarks")
     suspend fun createBookmark(

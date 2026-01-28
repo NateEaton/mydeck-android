@@ -133,7 +133,23 @@ class BookmarkRepositoryImpl @Inject constructor(
         val createBookmarkDto = CreateBookmarkDto(title = title, url = url)
         val response = readeckApi.createBookmark(createBookmarkDto)
         if (response.isSuccessful) {
-            return response.headers()[ReadeckApi.Header.BOOKMARK_ID]!!
+            val bookmarkId = response.headers()[ReadeckApi.Header.BOOKMARK_ID]!!
+
+            // Fetch the full bookmark from server and insert into local database
+            try {
+                val bookmarkResponse = readeckApi.getBookmarkById(bookmarkId)
+                if (bookmarkResponse.isSuccessful && bookmarkResponse.body() != null) {
+                    val bookmark = bookmarkResponse.body()!!.toDomain()
+                    insertBookmarks(listOf(bookmark))
+                    Timber.d("Bookmark created and inserted locally: $bookmarkId")
+                } else {
+                    Timber.w("Failed to fetch created bookmark: ${bookmarkResponse.code()}")
+                }
+            } catch (e: Exception) {
+                Timber.w(e, "Failed to fetch and insert created bookmark locally")
+            }
+
+            return bookmarkId
         } else {
             throw Exception("Failed to create bookmark")
         }
@@ -157,6 +173,10 @@ class BookmarkRepositoryImpl @Inject constructor(
                         )
                     )
                 if (response.isSuccessful) {
+                    // Update local database to reflect the change immediately
+                    isFavorite?.let { bookmarkDao.updateIsMarked(bookmarkId, it) }
+                    isArchived?.let { bookmarkDao.updateIsArchived(bookmarkId, it) }
+                    isRead?.let { bookmarkDao.updateReadProgress(bookmarkId, if (it) 100 else 0) }
                     Timber.i("Update Bookmark successful")
                     BookmarkRepository.UpdateResult.Success
                 } else {
@@ -325,6 +345,50 @@ class BookmarkRepositoryImpl @Inject constructor(
         } catch (e: Exception) {
             Timber.e(e, "Full sync failed")
             BookmarkRepository.SyncResult.NetworkError(errorMessage = "Network error during full sync", ex = e)
+        }
+    }
+
+    override suspend fun performDeltaSync(since: kotlinx.datetime.Instant?): BookmarkRepository.SyncResult = withContext(dispatcher) {
+        try {
+            val sinceParam = since?.toString()  // ISO 8601 format
+            Timber.d("Starting delta sync with since=$sinceParam")
+
+            val response = readeckApi.getSyncStatus(sinceParam)
+
+            if (!response.isSuccessful) {
+                Timber.e("Sync status failed with code: ${response.code()}")
+                return@withContext BookmarkRepository.SyncResult.Error(
+                    errorMessage = "Sync status failed",
+                    code = response.code()
+                )
+            }
+
+            val syncStatuses = response.body() ?: emptyList()
+            Timber.d("Received ${syncStatuses.size} sync status entries")
+
+            // Separate updated and deleted bookmarks
+            val deletedIds = syncStatuses
+                .filter { it.status == "deleted" }
+                .map { it.id }
+
+            val updatedIds = syncStatuses
+                .filter { it.status == "ok" }
+                .map { it.id }
+
+            // Delete locally removed bookmarks
+            deletedIds.forEach { id ->
+                bookmarkDao.deleteBookmark(id)
+            }
+
+            Timber.i("Delta sync complete: ${deletedIds.size} deleted, ${updatedIds.size} updated")
+
+            BookmarkRepository.SyncResult.Success(countDeleted = deletedIds.size)
+        } catch (e: IOException) {
+            Timber.e(e, "Network error during delta sync: ${e.message}")
+            BookmarkRepository.SyncResult.NetworkError(errorMessage = "Network error during delta sync", ex = e)
+        } catch (e: Exception) {
+            Timber.e(e, "Delta sync failed: ${e.message}")
+            BookmarkRepository.SyncResult.Error(errorMessage = "Delta sync failed: ${e.message}", ex = e)
         }
     }
 

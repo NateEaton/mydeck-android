@@ -1,6 +1,7 @@
 package com.mydeck.app.domain.usecase
 
 import androidx.work.Constraints
+import androidx.work.Data
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.ExistingWorkPolicy
 import androidx.work.NetworkType
@@ -27,9 +28,14 @@ class FullSyncUseCase @Inject constructor(
             .setRequiredNetworkType(NetworkType.CONNECTED)
             .build()
 
+        val inputData = Data.Builder()
+            .putBoolean(FullSyncWorker.INPUT_IS_MANUAL_SYNC, true)
+            .build()
+
         val request = OneTimeWorkRequestBuilder<FullSyncWorker>()
             .setConstraints(constraints)
             .addTag(FullSyncWorker.TAG)
+            .setInputData(inputData)
             .build()
         workManager.enqueueUniqueWork(
             FullSyncWorker.UNIQUE_NAME_MANUAL,

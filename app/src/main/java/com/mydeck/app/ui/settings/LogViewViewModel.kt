@@ -9,6 +9,7 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import com.mydeck.app.R
+import com.mydeck.app.util.clearLogFiles
 import com.mydeck.app.util.getLatestLogFile
 import com.mydeck.app.util.logAppInfo
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -59,6 +60,14 @@ class LogViewViewModel @Inject constructor(
         _navigationEvent.update { NavigationEvent.ShowShareDialog }
     }
 
+    fun onClearLogs() {
+        viewModelScope.launch {
+            clearLogFiles()
+            onRefresh()
+            _navigationEvent.update { NavigationEvent.LogsCleared }
+        }
+    }
+
     fun onNavigationEventConsumed() {
         _navigationEvent.update { null }
     }
@@ -66,6 +75,7 @@ class LogViewViewModel @Inject constructor(
     sealed class NavigationEvent {
         data object NavigateBack : NavigationEvent()
         data object ShowShareDialog : NavigationEvent()
+        data object LogsCleared : NavigationEvent()
     }
 
     sealed class UiState {

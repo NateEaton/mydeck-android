@@ -7,8 +7,10 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -55,6 +57,10 @@ fun SyncSettingsScreen(
     val onClickAutoSync: () -> Unit = { viewModel.onClickAutoSync() }
     val onClickAutoSyncSwitch: (value: Boolean) -> Unit =
         { value -> viewModel.onClickAutoSyncSwitch(value) }
+    val onClickSyncOnAppOpenSwitch: (value: Boolean) -> Unit =
+        { value -> viewModel.onClickSyncOnAppOpenSwitch(value) }
+    val onClickSyncNotificationsSwitch: (value: Boolean) -> Unit =
+        { value -> viewModel.onClickSyncNotificationsSwitch(value) }
     val snackbarHostState = remember { SnackbarHostState() }
     val notificationPermissionState = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
         rememberPermissionState(Manifest.permission.POST_NOTIFICATIONS)
@@ -108,6 +114,8 @@ fun SyncSettingsScreen(
         onClickDoFullSyncNow = onClickDoFullSyncNow,
         onClickAutoSync = onClickAutoSync,
         onClickAutoSyncSwitch = onClickAutoSyncSwitch,
+        onClickSyncOnAppOpenSwitch = onClickSyncOnAppOpenSwitch,
+        onClickSyncNotificationsSwitch = onClickSyncNotificationsSwitch,
         settingsUiState = settingsUiState
     )
 }
@@ -121,6 +129,8 @@ fun SyncSettingsView(
     onClickDoFullSyncNow: () -> Unit,
     onClickAutoSync: () -> Unit,
     onClickAutoSyncSwitch: (Boolean) -> Unit,
+    onClickSyncOnAppOpenSwitch: (Boolean) -> Unit,
+    onClickSyncNotificationsSwitch: (Boolean) -> Unit,
     onClickBack: () -> Unit,
 ) {
     Scaffold(
@@ -187,6 +197,61 @@ fun SyncSettingsView(
                         onCheckedChange = { onClickAutoSyncSwitch(it) })
                 }
             }
+            Row(
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(stringResource(R.string.settings_sync_on_app_open_title))
+                    Text(
+                        text = stringResource(R.string.settings_sync_on_app_open_subtitle),
+                        style = Typography.bodySmall
+                    )
+                }
+                Row {
+                    Switch(
+                        checked = settingsUiState.syncOnAppOpenEnabled,
+                        onCheckedChange = { onClickSyncOnAppOpenSwitch(it) })
+                }
+            }
+            Row(
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(stringResource(R.string.settings_sync_notifications_title))
+                    Text(
+                        text = stringResource(R.string.settings_sync_notifications_subtitle),
+                        style = Typography.bodySmall
+                    )
+                }
+                Row {
+                    Switch(
+                        checked = settingsUiState.syncNotificationsEnabled,
+                        onCheckedChange = { onClickSyncNotificationsSwitch(it) })
+                }
+            }
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = stringResource(R.string.sync_status_heading),
+                style = Typography.titleSmall
+            )
+            Text(
+                text = stringResource(
+                    R.string.sync_status_bookmarks,
+                    settingsUiState.bookmarksWithContent,
+                    settingsUiState.totalBookmarks
+                ),
+                style = Typography.bodySmall
+            )
+            Text(
+                text = settingsUiState.lastSyncTimestamp?.let {
+                    stringResource(R.string.sync_status_last_sync, it)
+                } ?: stringResource(R.string.sync_status_never),
+                style = Typography.bodySmall
+            )
             Box(
                 modifier = Modifier.fillMaxWidth(),
                 contentAlignment = Alignment.Center
@@ -220,6 +285,8 @@ fun SyncSettingsScreenViewPreview() {
         onClickBack = {},
         onClickAutoSync = {},
         onClickAutoSyncSwitch = {},
+        onClickSyncOnAppOpenSwitch = {},
+        onClickSyncNotificationsSwitch = {},
         onClickDoFullSyncNow = {},
         settingsUiState = settingsUiState
     )

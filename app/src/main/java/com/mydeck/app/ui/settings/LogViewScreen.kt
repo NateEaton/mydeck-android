@@ -11,6 +11,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.CircularProgressIndicator
@@ -44,6 +45,7 @@ fun LogViewScreen(navController: NavHostController) {
 
     val shareTitleText = stringResource(R.string.log_view_share_title)
     val shareErrorText = stringResource(R.string.log_view_no_log_file_found)
+    val logsClearedText = stringResource(R.string.log_view_logs_cleared)
 
     LaunchedEffect(key1 = navigationEvent.value) {
         navigationEvent.value?.let { event ->
@@ -69,7 +71,12 @@ fun LogViewScreen(navController: NavHostController) {
                             Toast.makeText(context, shareErrorText, Toast.LENGTH_SHORT).show()
                         }
                     }
+                }
 
+                LogViewViewModel.NavigationEvent.LogsCleared -> {
+                    scope.launch {
+                        Toast.makeText(context, logsClearedText, Toast.LENGTH_SHORT).show()
+                    }
                 }
             }
             viewModel.onNavigationEventConsumed()
@@ -80,7 +87,8 @@ fun LogViewScreen(navController: NavHostController) {
         uiState = uiState.value,
         onClickBack = { viewModel.onClickBack() },
         onShareLogs = { viewModel.onShareLogs() },
-        onRefresh = { viewModel.onRefresh() }
+        onRefresh = { viewModel.onRefresh() },
+        onClearLogs = { viewModel.onClearLogs() }
     )
 }
 
@@ -90,7 +98,8 @@ fun LogViewScreenView(
     uiState: LogViewViewModel.UiState,
     onClickBack: () -> Unit,
     onShareLogs: () -> Unit,
-    onRefresh: () -> Unit
+    onRefresh: () -> Unit,
+    onClearLogs: () -> Unit
 ) {
     val scrollState = rememberScrollState()
 
@@ -116,7 +125,13 @@ fun LogViewScreenView(
                     IconButton(onClick = onRefresh) {
                         Icon(
                             imageVector = Icons.Filled.Refresh,
-                            contentDescription = stringResource(id = R.string.log_view_send_logs)
+                            contentDescription = stringResource(id = R.string.log_view_refresh)
+                        )
+                    }
+                    IconButton(onClick = onClearLogs) {
+                        Icon(
+                            imageVector = Icons.Filled.Delete,
+                            contentDescription = stringResource(id = R.string.log_view_clear_logs)
                         )
                     }
                 }
@@ -167,6 +182,7 @@ fun LogViewScreenPreview() {
         ),
         onClickBack = {},
         onShareLogs = {},
-        onRefresh = {}
+        onRefresh = {},
+        onClearLogs = {}
     )
 }

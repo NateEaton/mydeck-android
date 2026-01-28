@@ -23,6 +23,9 @@ import com.mydeck.app.MainActivity
 import com.mydeck.app.R
 import com.mydeck.app.domain.BookmarkRepository
 import com.mydeck.app.domain.BookmarkRepository.SyncResult
+import com.mydeck.app.domain.usecase.LoadBookmarksUseCase
+import com.mydeck.app.io.prefs.SettingsDataStore
+import kotlinx.datetime.Clock
 import timber.log.Timber
 
 @HiltWorker
@@ -30,22 +33,66 @@ class FullSyncWorker @AssistedInject constructor(
     @Assisted appContext: Context,
     @Assisted val workerParams: WorkerParameters,
     val bookmarkRepository: BookmarkRepository,
+    val settingsDataStore: SettingsDataStore,
+    val loadBookmarksUseCase: LoadBookmarksUseCase,
 ) : CoroutineWorker(appContext, workerParams) {
     override suspend fun doWork(): Result {
         try {
             Timber.d("Start Work")
-            val syncResult = bookmarkRepository.performFullSync()
-            val workResult = when (syncResult) {
-                is SyncResult.Error -> Result.failure()
-                is SyncResult.NetworkError -> Result.retry()
-                is SyncResult.Success -> Result.success(
-                    Data.Builder().putInt(OUTPUT_DATA_COUNT, syncResult.countDeleted).build()
-                )
+            val lastSyncTimestamp = settingsDataStore.getLastSyncTimestamp()
+
+            // Step 1: Handle deletions via delta sync or full sync
+            var syncResult = if (lastSyncTimestamp != null) {
+                Timber.d("Performing delta sync since=$lastSyncTimestamp")
+                bookmarkRepository.performDeltaSync(lastSyncTimestamp)
+            } else {
+                Timber.d("Performing full sync (no previous timestamp)")
+                bookmarkRepository.performFullSync()
             }
-            showNotification(syncResult)
+
+            // If delta sync failed with an error (e.g., HTTP 500), fall back to full sync
+            if (syncResult is SyncResult.Error && lastSyncTimestamp != null) {
+                Timber.w("Delta sync failed, falling back to full sync")
+                syncResult = bookmarkRepository.performFullSync()
+            }
+
+            // Check if deletion sync failed
+            when (syncResult) {
+                is SyncResult.Error -> {
+                    showNotification(syncResult)
+                    return Result.failure()
+                }
+                is SyncResult.NetworkError -> {
+                    showNotification(syncResult)
+                    return Result.retry()
+                }
+                is SyncResult.Success -> {
+                    Timber.d("Deletion sync successful: ${syncResult.countDeleted} deleted")
+                }
+            }
+
+            // Step 2: Fetch updated/new bookmarks (this also triggers article content loading)
+            Timber.d("Fetching updated bookmarks")
+            val loadResult = loadBookmarksUseCase.execute()
+
+            val workResult = when (loadResult) {
+                is LoadBookmarksUseCase.UseCaseResult.Error -> {
+                    Timber.e(loadResult.exception, "Failed to load updated bookmarks")
+                    showNotification(SyncResult.Error("Failed to load bookmarks", ex = loadResult.exception as? Exception))
+                    Result.failure()
+                }
+                is LoadBookmarksUseCase.UseCaseResult.Success -> {
+                    // Save the current timestamp after successful sync
+                    settingsDataStore.saveLastSyncTimestamp(Clock.System.now())
+                    showNotification(syncResult)
+                    Result.success(
+                        Data.Builder().putInt(OUTPUT_DATA_COUNT, (syncResult as SyncResult.Success).countDeleted).build()
+                    )
+                }
+            }
             return workResult
         } catch (e: Exception) {
-            Timber.e(e, "Error performing full sync")
+            Timber.e(e, "Error performing sync")
             return Result.failure()
         }
     }
@@ -74,12 +121,25 @@ class FullSyncWorker @AssistedInject constructor(
         }
     }
 
-    private fun showNotification(syncResult: SyncResult) {
+    private suspend fun showNotification(syncResult: SyncResult) {
+        // Skip notification for manual sync (user triggered from settings page)
+        val isManualSync = inputData.getBoolean(INPUT_IS_MANUAL_SYNC, false)
+        if (isManualSync) {
+            Timber.d("Skipping notification for manual sync")
+            return
+        }
+
+        // Check if notifications are enabled in settings
+        if (!settingsDataStore.isSyncNotificationsEnabled()) {
+            Timber.d("Sync notifications are disabled")
+            return
+        }
+
         createNotificationChannel()
 
         val contentText = when (syncResult) {
             is SyncResult.Success -> {
-                applicationContext.getString(R.string.auto_sync_notification_success, syncResult.countDeleted)
+                applicationContext.getString(R.string.auto_sync_notification_success)
             }
             else -> {
                 applicationContext.getString(R.string.auto_sync_notification_failure)
@@ -145,5 +205,6 @@ class FullSyncWorker @AssistedInject constructor(
         const val TAG = "full_sync"
         const val OUTPUT_DATA_COUNT = "count"
         const val NOTIFICATION_ID = 0
+        const val INPUT_IS_MANUAL_SYNC = "is_manual_sync"
     }
 }
