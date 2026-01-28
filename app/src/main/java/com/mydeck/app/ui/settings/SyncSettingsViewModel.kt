@@ -17,6 +17,7 @@ import com.mydeck.app.R
 import com.mydeck.app.domain.BookmarkRepository
 import com.mydeck.app.domain.model.AutoSyncTimeframe
 import com.mydeck.app.domain.usecase.FullSyncUseCase
+import com.mydeck.app.io.db.dao.BookmarkDao
 import com.mydeck.app.io.prefs.SettingsDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -37,6 +38,7 @@ import javax.inject.Inject
 @HiltViewModel
 class SyncSettingsViewModel @Inject constructor(
     private val bookmarkRepository: BookmarkRepository,
+    private val bookmarkDao: BookmarkDao,
     private val settingsDataStore: SettingsDataStore,
     private val fullSyncUseCase: FullSyncUseCase,
     @ApplicationContext private val context: Context,
@@ -56,16 +58,30 @@ class SyncSettingsViewModel @Inject constructor(
         }
     }
 
+    private val syncStatusCounts = bookmarkDao.observeSyncStatus()
+        .map { it ?: BookmarkDao.SyncStatusCounts(0, 0) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), BookmarkDao.SyncStatusCounts(0, 0))
+
+    private val lastSyncTimestamp = MutableStateFlow<String?>(null)
+
     init {
         viewModelScope.launch {
             autoSyncEnabled.value = settingsDataStore.isAutoSyncEnabled()
             autoSyncTimeframe.value = settingsDataStore.getAutoSyncTimeframe()
+            settingsDataStore.getLastSyncTimestamp()?.let {
+                lastSyncTimestamp.value = dateFormat.format(Date(it.toEpochMilliseconds()))
+            }
         }
     }
 
 
-    val uiState = combine(autoSyncEnabled, autoSyncTimeframe, showDialog, workInfo, fullSyncUseCase.syncIsRunning) { autoSyncEnabled, autoSyncTimeframe, showDialog, workInfo, syncIsRunning ->
-        Timber.d("changed")
+    val uiState = combine(
+        autoSyncEnabled,
+        autoSyncTimeframe,
+        showDialog,
+        workInfo,
+        fullSyncUseCase.syncIsRunning
+    ) { autoSyncEnabled, autoSyncTimeframe, showDialog, workInfo, syncIsRunning ->
         val next = workInfo?.let {
             if (it.state == WorkInfo.State.ENQUEUED) {
                 it.nextScheduleTimeMillis
@@ -73,9 +89,20 @@ class SyncSettingsViewModel @Inject constructor(
                 null
             }
         }
-        Timber.d("workInfo=$workInfo")
 
         Timber.d("enabled=$autoSyncEnabled, timeFrame=$autoSyncTimeframe")
+        Timber.d("workInfo=$workInfo")
+
+        Triple(autoSyncEnabled, autoSyncTimeframe, Pair(showDialog, Pair(next, syncIsRunning)))
+    }.combine(syncStatusCounts) { triple, counts ->
+        Pair(triple, counts)
+    }.combine(lastSyncTimestamp) { pair, lastSync ->
+        val (triple, counts) = pair
+        val (autoSyncEnabled, autoSyncTimeframe, rest) = triple
+        val (showDialog, nextAndSync) = rest
+        val (next, syncIsRunning) = nextAndSync
+
+        Timber.d("changed")
         SyncSettingsUiState(
             autoSyncEnabled = autoSyncEnabled,
             autoSyncTimeframe = autoSyncTimeframe,
@@ -83,7 +110,10 @@ class SyncSettingsViewModel @Inject constructor(
             showDialog = showDialog,
             autoSyncTimeframeLabel = autoSyncTimeframe.toLabelResource(),
             nextAutoSyncRun = next?.let { dateFormat.format(Date(it)) },
-            autoSyncButtonEnabled = syncIsRunning.not()
+            autoSyncButtonEnabled = syncIsRunning.not(),
+            totalBookmarks = counts.total,
+            bookmarksWithContent = counts.withContent,
+            lastSyncTimestamp = lastSync
         )
     }
         .stateIn(
@@ -201,7 +231,10 @@ data class SyncSettingsUiState(
     @StringRes
     val autoSyncTimeframeLabel: Int,
     val nextAutoSyncRun: String?,
-    val autoSyncButtonEnabled: Boolean
+    val autoSyncButtonEnabled: Boolean,
+    val totalBookmarks: Int = 0,
+    val bookmarksWithContent: Int = 0,
+    val lastSyncTimestamp: String? = null
 )
 
 enum class Dialog {

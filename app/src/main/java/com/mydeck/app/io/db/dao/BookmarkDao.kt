@@ -225,6 +225,25 @@ interface BookmarkDao {
     )
     fun observeAllBookmarkCounts(): Flow<BookmarkCountsEntity?>
 
+    @Query("""
+        SELECT
+            (SELECT COUNT(*) FROM bookmarks) AS total,
+            (SELECT COUNT(*) FROM article_content) AS withContent
+    """)
+    fun observeSyncStatus(): Flow<SyncStatusCounts?>
+
+    @Query("""
+        SELECT b.id FROM bookmarks b
+        WHERE NOT EXISTS (SELECT 1 FROM article_content ac WHERE ac.bookmarkId = b.id)
+        ORDER BY b.created DESC
+    """)
+    suspend fun getBookmarkIdsWithoutContent(): List<String>
+
+    data class SyncStatusCounts(
+        val total: Int,
+        val withContent: Int
+    )
+
     @Query("UPDATE bookmarks SET isMarked = :isMarked WHERE id = :id")
     suspend fun updateIsMarked(id: String, isMarked: Boolean)
 
