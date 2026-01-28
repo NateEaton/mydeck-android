@@ -130,20 +130,8 @@ fun SettingScreenView(
                 onClick = onClickAccount,
                 testTag = SettingsScreenTestTags.SETTINGS_ITEM_ACCOUNT
             )
-            SettingItem(
-                icon = Icons.Filled.List,
-                title = stringResource(R.string.settings_open_source_libraries),
-                subtitle = stringResource(R.string.settings_open_source_libraries_subtitle),
-                onClick = onClickOpenSourceLibraries,
-                testTag = SettingsScreenTestTags.SETTINGS_ITEM_OPEN_SOURCE
-            )
-            SettingItem(
-                icon = Icons.Filled.Info,
-                title = stringResource(R.string.settings_logs),
-                subtitle = stringResource(R.string.settings_logs_subtitle),
-                onClick = onClickLogs,
-                testTag = SettingsScreenTestTags.SETTINGS_ITEM_LOGS
-            )
+
+
             SettingItem(
                 icon = Icons.Filled.Sync,
                 title = stringResource(R.string.settings_sync),
@@ -151,12 +139,20 @@ fun SettingScreenView(
                 onClick = onClickSync,
                 testTag = SettingsScreenTestTags.SETTINGS_ITEM_SYNC
             )
+
             SettingItem(
                 icon = Icons.Filled.Visibility,
                 title = stringResource(R.string.settings_ui),
                 subtitle = stringResource(R.string.settings_ui_subtitle),
                 onClick = onClickUi,
                 testTag = SettingsScreenTestTags.SETTINGS_ITEM_UI
+            )
+            SettingItem(
+                icon = Icons.Filled.Info,
+                title = stringResource(R.string.settings_logs),
+                subtitle = stringResource(R.string.settings_logs_subtitle),
+                onClick = onClickLogs,
+                testTag = SettingsScreenTestTags.SETTINGS_ITEM_LOGS
             )
         }
     }

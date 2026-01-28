@@ -95,9 +95,10 @@ other{}
     <string name="settings_sync_full_sync_heading">Background Synchronization</string>
     <string name="settings_sync_auto_full_sync_title">Background Synchronization</string>
     <string name="settings_sync_auto_full_button">Synchronize now</string>
-    <string name="settings_sync_support_text">To keep your bookmark list up-to-date, the app periodically syncs with the Readeck server to detect new, updated, and deleted bookmarks. Article content is downloaded in the background for offline reading.</string>
+    <string name="settings_sync_support_text">To keep your bookmark list up-to-date, the app periodically syncs with the Readeck server to detect new, updated, and deleted bookmarks. Article content is downloaded in the background for offline reading.\n\nYou can manually sync on the list page to refresh from server, too, but would need to use \'Synchronize now\' button to sync deletes from the server.</string>
     <string name="settings_sync_dialog_support_text">How often should the synchronization be performed in the background?</string>
-    <string name="auto_sync_timeframe_manual">Manual</string>
+    <string name="auto_sync_timeframe_label">Schedule</string>
+    <string name="auto_sync_timeframe_manual">Manual</string>>
     <string name="auto_sync_timeframe_01_hours">Every hour</string>
     <string name="auto_sync_timeframe_06_hours">Every 6 hours</string>
     <string name="auto_sync_timeframe_12_hours">Every 12 hours</string>

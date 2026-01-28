@@ -23,6 +23,7 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -169,34 +170,87 @@ fun SyncSettingsView(
                 text = stringResource(R.string.settings_sync_support_text),
                 style = Typography.bodySmall
             )
+
+            // Background Sync Master Switch
             Row(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.clickable(enabled = true, onClick = onClickAutoSync)
+                modifier = Modifier.fillMaxWidth()
             ) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(stringResource(R.string.settings_sync_auto_full_sync_title))
+                    Text(text = stringResource(R.string.settings_sync_auto_full_sync_title))
+                }
+                Switch(
+                    checked = settingsUiState.autoSyncEnabled,
+                    onCheckedChange = { onClickAutoSyncSwitch(it) }
+                )
+            }
+
+            // Grouped Options (Indented)
+            Column(
+                modifier = Modifier.padding(start = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                // Schedule Option
+                val contentAlpha = if (settingsUiState.autoSyncEnabled) 1f else 0.5f
+                Row(
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(enabled = settingsUiState.autoSyncEnabled, onClick = onClickAutoSync)
+                        .padding(vertical = 8.dp)
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = stringResource(R.string.auto_sync_timeframe_label),
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = contentAlpha)
+                        )
+                         val nextRunMsg = settingsUiState.nextAutoSyncRun?.let {
+                            stringResource(
+                                R.string.auto_sync_next_run,
+                                settingsUiState.nextAutoSyncRun
+                            )
+                        } ?: stringResource(R.string.auto_sync_next_run_null)
+                        Text(
+                            text = nextRunMsg,
+                            style = Typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = contentAlpha)
+                        )
+                    }
                     Text(
                         text = stringResource(settingsUiState.autoSyncTimeframeLabel),
-                        style = Typography.bodySmall
-                    )
-                    val nextRunMsg = settingsUiState.nextAutoSyncRun?.let {
-                        stringResource(
-                            R.string.auto_sync_next_run,
-                            settingsUiState.nextAutoSyncRun
-                        )
-                    } ?: stringResource(R.string.auto_sync_next_run_null)
-                    Text(
-                        text = nextRunMsg,
-                        style = Typography.bodySmall
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = contentAlpha)
                     )
                 }
-                Row {
+
+                // Notifications Option
+                Row(
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = stringResource(R.string.settings_sync_notifications_title),
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = contentAlpha)
+                        )
+                        Text(
+                            text = stringResource(R.string.settings_sync_notifications_subtitle),
+                            style = Typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = contentAlpha)
+                        )
+                    }
                     Switch(
-                        checked = settingsUiState.autoSyncEnabled,
-                        onCheckedChange = { onClickAutoSyncSwitch(it) })
+                        checked = settingsUiState.syncNotificationsEnabled,
+                        onCheckedChange = { onClickSyncNotificationsSwitch(it) },
+                        enabled = settingsUiState.autoSyncEnabled
+                    )
                 }
             }
+
+            // Sync on App Open (Independent)
             Row(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
@@ -213,24 +267,6 @@ fun SyncSettingsView(
                     Switch(
                         checked = settingsUiState.syncOnAppOpenEnabled,
                         onCheckedChange = { onClickSyncOnAppOpenSwitch(it) })
-                }
-            }
-            Row(
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(stringResource(R.string.settings_sync_notifications_title))
-                    Text(
-                        text = stringResource(R.string.settings_sync_notifications_subtitle),
-                        style = Typography.bodySmall
-                    )
-                }
-                Row {
-                    Switch(
-                        checked = settingsUiState.syncNotificationsEnabled,
-                        onCheckedChange = { onClickSyncNotificationsSwitch(it) })
                 }
             }
             Spacer(modifier = Modifier.height(16.dp))

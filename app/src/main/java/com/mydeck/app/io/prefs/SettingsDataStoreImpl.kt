@@ -151,7 +151,7 @@ class SettingsDataStoreImpl @Inject constructor(@ApplicationContext private val 
     }
 
     override suspend fun isSyncOnAppOpenEnabled(): Boolean {
-        return encryptedSharedPreferences.getBoolean(KEY_SYNC_ON_APP_OPEN.name, false)
+        return encryptedSharedPreferences.getBoolean(KEY_SYNC_ON_APP_OPEN.name, true)
     }
 
     override suspend fun setSyncNotificationsEnabled(isEnabled: Boolean) {

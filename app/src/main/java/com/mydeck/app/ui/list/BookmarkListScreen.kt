@@ -14,7 +14,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Menu
-import androidx.compose.material.icons.outlined.Favorite
+import androidx.compose.material.icons.filled.Grade
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Inventory2
 import androidx.compose.material.icons.outlined.Settings
@@ -198,7 +198,7 @@ fun BookmarkListScreen(navHostController: NavHostController) {
                             style = Typography.labelLarge,
                             text = stringResource(id = R.string.favorites)
                         ) },
-                        icon = { Icon(Icons.Outlined.Favorite, contentDescription = null) },
+                        icon = { Icon(Icons.Filled.Grade, contentDescription = null) },
                         badge = {
                             bookmarkCounts.value.favorite.let { count ->
                                 if (count > 0) {
