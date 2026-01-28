@@ -32,6 +32,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.CancellationException
 import timber.log.Timber
 import javax.inject.Inject
 
@@ -279,9 +280,13 @@ class BookmarkListViewModel @Inject constructor(
                 // Clear pending deletion state
                 pendingDeletionBookmarkId = null
                 pendingDeletionJob = null
+            } catch (e: CancellationException) {
+                // Job was cancelled (undo was clicked), just rethrow
+                Timber.d("Deletion cancelled by user")
+                throw e
             } catch (e: Exception) {
-                // If cancelled or error, just log it
-                Timber.d("Deletion cancelled or failed: ${e.message}")
+                // Some other error occurred
+                Timber.e(e, "Error deleting bookmark: ${e.message}")
             }
         }
     }
