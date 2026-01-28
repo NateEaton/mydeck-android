@@ -224,4 +224,13 @@ interface BookmarkDao {
         """
     )
     fun observeAllBookmarkCounts(): Flow<BookmarkCountsEntity?>
+
+    @Query("UPDATE bookmarks SET isMarked = :isMarked WHERE id = :id")
+    suspend fun updateIsMarked(id: String, isMarked: Boolean)
+
+    @Query("UPDATE bookmarks SET isArchived = :isArchived WHERE id = :id")
+    suspend fun updateIsArchived(id: String, isArchived: Boolean)
+
+    @Query("UPDATE bookmarks SET readProgress = :readProgress WHERE id = :id")
+    suspend fun updateReadProgress(id: String, readProgress: Int)
 }

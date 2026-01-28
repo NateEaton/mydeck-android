@@ -157,6 +157,10 @@ class BookmarkRepositoryImpl @Inject constructor(
                         )
                     )
                 if (response.isSuccessful) {
+                    // Update local database to reflect the change immediately
+                    isFavorite?.let { bookmarkDao.updateIsMarked(bookmarkId, it) }
+                    isArchived?.let { bookmarkDao.updateIsArchived(bookmarkId, it) }
+                    isRead?.let { bookmarkDao.updateReadProgress(bookmarkId, if (it) 100 else 0) }
                     Timber.i("Update Bookmark successful")
                     BookmarkRepository.UpdateResult.Success
                 } else {
