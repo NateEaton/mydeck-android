@@ -112,7 +112,7 @@ other{}
     <string name="auto_sync_notification_rationale_dialog_text">To notify you about background sync failures, we need permission to send notifications.  Please grant this permission.</string>
     <string name="auto_sync_notification_rationale_dialog_grant_button">Grant Permission</string>
     <string name="sync_status_heading">Sync Status</string>
-    <string name="sync_status_bookmarks">Articles downloaded: %1$d / %2$d</string>
+    <string name="sync_status_bookmarks">Bookmarks with content: %1$d / %2$d</string>
     <string name="sync_status_last_sync">Last sync: %1$s</string>
     <string name="sync_status_never">Last sync: Never</string>
     <string name="list_view_empty_not_loaded_yet">Bookmarks have not been loaded yet.</string>
