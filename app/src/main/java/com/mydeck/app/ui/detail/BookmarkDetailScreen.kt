@@ -363,13 +363,16 @@ fun BookmarkDetailArticle(
                     }
                 },
                 update = {
-                    it.loadDataWithBaseURL(
-                        null,
-                        content.value!!,
-                        "text/html",
-                        "utf-8",
-                        null
-                    )
+                    if (content.value != null && it.tag as? String != content.value) {
+                        it.loadDataWithBaseURL(
+                            null,
+                            content.value!!,
+                            "text/html",
+                            "utf-8",
+                            null
+                        )
+                        it.tag = content.value
+                    }
                     // Update reference and zoom
                     webViewRef.value = it
                     it.settings.textZoom = uiState.zoomFactor
