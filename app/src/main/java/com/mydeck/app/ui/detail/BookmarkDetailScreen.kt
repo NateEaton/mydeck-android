@@ -4,6 +4,7 @@ import android.icu.text.MessageFormat
 import android.view.View
 import android.webkit.WebView
 import androidx.compose.foundation.clickable
+import androidx.compose.ui.draw.alpha
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -43,6 +44,8 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -75,6 +78,7 @@ import com.mydeck.app.ui.components.ErrorPlaceholderImage
 import com.mydeck.app.util.openUrlInCustomTab
 import com.mydeck.app.ui.components.ShareBookmarkChooser
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 @Composable
@@ -94,12 +98,25 @@ fun BookmarkDetailScreen(navHostController: NavController, bookmarkId: String?) 
 
     val onClickOpenUrl: (String) -> Unit = { viewModel.onClickOpenUrl(it) }
     val onClickShareBookmark: (String) -> Unit = { url -> viewModel.onClickShareBookmark(url) }
-    val onClickDeleteBookmark: (String) -> Unit = { viewModel.deleteBookmark(it) }
     val onClickToggleRead: (String, Boolean) -> Unit = { id, isRead -> viewModel.onToggleRead(id, isRead) }
     val onUpdateLabels: (String, List<String>) -> Unit = { id, labels -> viewModel.onUpdateLabels(id, labels) }
     val snackbarHostState = remember { SnackbarHostState() }
     val uiState = viewModel.uiState.collectAsState().value
     var showDetailsDialog by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+    val onClickDeleteBookmark: (String) -> Unit = { id ->
+        viewModel.deleteBookmark(id)
+        scope.launch {
+            val result = snackbarHostState.showSnackbar(
+                message = "Bookmark deleted",
+                actionLabel = "UNDO",
+                duration = SnackbarDuration.Long
+            )
+            if (result == SnackbarResult.ActionPerformed) {
+                viewModel.onCancelDeleteBookmark()
+            }
+        }
+    }
 
     LaunchedEffect(key1 = navigationEvent.value) {
         navigationEvent.value?.let { event ->
@@ -142,33 +159,32 @@ fun BookmarkDetailScreen(navHostController: NavController, bookmarkId: String?) 
                         onUpdateLabels(uiState.bookmark.bookmarkId, newLabels)
                     }
                 )
-            } else {
-                BookmarkDetailScreen(
-                    modifier = Modifier,
-                    snackbarHostState = snackbarHostState,
-                    onClickBack = onClickBack,
-                    onClickToggleFavorite = onClickToggleFavorite,
-                    onClickToggleArchive = onClickToggleArchive,
-                    onClickToggleRead = onClickToggleRead,
-                    onClickShareBookmark = onClickShareBookmark,
-                    onClickDeleteBookmark = onClickDeleteBookmark,
-                    uiState = uiState,
-                    onClickOpenUrl = onClickOpenUrl,
-                    onClickIncreaseZoomFactor = onClickIncreaseZoomFactor,
-                    onClickDecreaseZoomFactor = onClickDecreaseZoomFactor,
-                    onShowDetails = { showDetailsDialog = true },
-                    onScrollProgressChanged = { progress ->
-                        viewModel.onScrollProgressChanged(progress)
-                    },
-                    initialReadProgress = viewModel.getInitialReadProgress()
-                )
-                // Consumes a shareIntent and creates the corresponding share dialog
-                ShareBookmarkChooser(
-                    context = LocalContext.current,
-                    intent = viewModel.shareIntent.collectAsState().value,
-                    onShareIntentConsumed = { viewModel.onShareIntentConsumed() }
-                )
             }
+            BookmarkDetailScreen(
+                modifier = Modifier,
+                snackbarHostState = snackbarHostState,
+                onClickBack = onClickBack,
+                onClickToggleFavorite = onClickToggleFavorite,
+                onClickToggleArchive = onClickToggleArchive,
+                onClickToggleRead = onClickToggleRead,
+                onClickShareBookmark = onClickShareBookmark,
+                onClickDeleteBookmark = onClickDeleteBookmark,
+                uiState = uiState,
+                onClickOpenUrl = onClickOpenUrl,
+                onClickIncreaseZoomFactor = onClickIncreaseZoomFactor,
+                onClickDecreaseZoomFactor = onClickDecreaseZoomFactor,
+                onShowDetails = { showDetailsDialog = true },
+                onScrollProgressChanged = { progress ->
+                    viewModel.onScrollProgressChanged(progress)
+                },
+                initialReadProgress = viewModel.getInitialReadProgress()
+            )
+            // Consumes a shareIntent and creates the corresponding share dialog
+            ShareBookmarkChooser(
+                context = LocalContext.current,
+                intent = viewModel.shareIntent.collectAsState().value,
+                onShareIntentConsumed = { viewModel.onShareIntentConsumed() }
+            )
         }
 
         is BookmarkDetailViewModel.UiState.Loading -> {
@@ -274,7 +290,8 @@ fun BookmarkDetailContent(
     initialReadProgress: Int = 0
 ) {
     val scrollState = rememberScrollState()
-    var hasRestoredPosition by remember { mutableStateOf(false) }
+    val needsRestore = initialReadProgress > 0 && initialReadProgress < 100
+    var hasRestoredPosition by remember { mutableStateOf(!needsRestore) }
     var lastReportedProgress by remember { mutableStateOf(-1) }
 
     // Restore scroll position when content is loaded (using initial progress, not reactive)
@@ -306,7 +323,8 @@ fun BookmarkDetailContent(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .verticalScroll(scrollState),
+            .verticalScroll(scrollState)
+            .alpha(if (hasRestoredPosition) 1f else 0f),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         BookmarkDetailHeader(
