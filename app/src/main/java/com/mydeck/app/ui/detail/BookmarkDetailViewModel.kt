@@ -12,8 +12,12 @@ import com.mydeck.app.domain.usecase.UpdateBookmarkUseCase
 import com.mydeck.app.io.AssetLoader
 import com.mydeck.app.io.prefs.SettingsDataStore
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -78,6 +82,8 @@ class BookmarkDetailViewModel @Inject constructor(
     private var bookmarkType: com.mydeck.app.domain.model.Bookmark.Type? = null
 
     // Pending deletion state (for undo functionality)
+    // Uses a separate scope so deletion survives ViewModel clearing (e.g. user navigates back)
+    private val deletionScope = CoroutineScope(Dispatchers.IO)
     private var pendingDeletionJob: Job? = null
     private val _pendingDeletion = MutableStateFlow(false)
     val pendingDeletion: StateFlow<Boolean> = _pendingDeletion.asStateFlow()
@@ -128,7 +134,8 @@ class BookmarkDetailViewModel @Inject constructor(
 
     private fun saveCurrentProgress() {
         if (bookmarkId != null && currentScrollProgress > 0) {
-            viewModelScope.launch {
+            // Use deletionScope so save completes even if viewModelScope is cancelled
+            deletionScope.launch {
                 try {
                     bookmarkRepository.updateReadProgress(bookmarkId, currentScrollProgress)
                     Timber.d("Saved final read progress: $currentScrollProgress%")
@@ -284,7 +291,7 @@ class BookmarkDetailViewModel @Inject constructor(
 
         _pendingDeletion.value = true
 
-        pendingDeletionJob = viewModelScope.launch {
+        pendingDeletionJob = deletionScope.launch {
             try {
                 delay(10000)
 

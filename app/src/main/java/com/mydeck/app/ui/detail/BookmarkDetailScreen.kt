@@ -151,15 +151,6 @@ fun BookmarkDetailScreen(navHostController: NavController, bookmarkId: String?) 
                     viewModel.onUpdateBookmarkStateConsumed()
                 }
             }
-            if (showDetailsDialog) {
-                BookmarkDetailsDialog(
-                    bookmark = uiState.bookmark,
-                    onDismissRequest = { showDetailsDialog = false },
-                    onLabelsUpdate = { newLabels ->
-                        onUpdateLabels(uiState.bookmark.bookmarkId, newLabels)
-                    }
-                )
-            }
             BookmarkDetailScreen(
                 modifier = Modifier,
                 snackbarHostState = snackbarHostState,
@@ -185,6 +176,15 @@ fun BookmarkDetailScreen(navHostController: NavController, bookmarkId: String?) 
                 intent = viewModel.shareIntent.collectAsState().value,
                 onShareIntentConsumed = { viewModel.onShareIntentConsumed() }
             )
+            if (showDetailsDialog) {
+                BookmarkDetailsDialog(
+                    bookmark = uiState.bookmark,
+                    onDismissRequest = { showDetailsDialog = false },
+                    onLabelsUpdate = { newLabels ->
+                        onUpdateLabels(uiState.bookmark.bookmarkId, newLabels)
+                    }
+                )
+            }
         }
 
         is BookmarkDetailViewModel.UiState.Loading -> {
