@@ -1,118 +1,164 @@
-# Research: How Other Readeck Clients Handle Bookmark Creation Delays
+# Research: Bookmark Creation, Sync API Issues, and Incremental Ingestion Strategy
 
-## Background
+## Part 1: The 500 Error on the Sync Endpoint
 
-When a bookmark is created via `POST /api/bookmarks`, the Readeck server returns **HTTP 202 Accepted** with a `bookmark-id` header. The server then asynchronously extracts the page content. For long articles (10-20+ minutes reading time), this extraction can take **15-20 seconds**. During that time the bookmark exists on the server but has `state: 2` (LOADING) and `loaded: false`.
+### The Problem
 
-MyDeck's current approach: after creating the bookmark, it immediately fetches it once via `GET /bookmarks/{id}` and inserts it into the local database. If extraction hasn't finished, the bookmark is inserted with `state: LOADING`. Since the bookmark list filters by `state == LOADED`, the bookmark either doesn't appear at all, or appears in an incomplete/invalid state.
+Calls to `GET /api/bookmarks/sync?since={timestamp}` return HTTP 500 Internal Server Error. The Eckard client (Flutter/Dart) reports the same issue. The AI Studio analysis identifies the likely cause: **sub-second timestamp precision causes a server-side SQL error when the Readeck instance uses SQLite**.
 
-## Clients Researched
+### Evidence: Both Clients Send Sub-Second Timestamps
 
-### 1. Eckard (Flutter/Dart — codeberg.org/gollyhatch/eckard)
+**MyDeck (Kotlin):**
+```kotlin
+// BookmarkRepositoryImpl.kt:447
+val sinceParam = since?.toString()  // Instant.toString() → "2025-04-03T19:00:13.646333268Z"
+```
+`kotlinx.datetime.Instant.toString()` produces RFC 3339 with nanosecond precision.
 
-**Eckard solves this problem with a polling loop.**
-
-After `POST /api/bookmarks` returns the bookmark ID, Eckard enters a **blocking poll loop** that waits for the server to finish extraction before inserting the bookmark locally:
-
+**Eckard (Dart):**
 ```dart
-// new_bookmark_screen.dart, lines 98-133
-API.saveNewBookmark(url, title: title, labels: labels)
-    .then((String bookmarkID) async {
-        Bookmark? bookmark;
-        try {
-            while (true) {
-                bookmark = await API.getBookmark(bookmarkID);
-                if (bookmark.isLoaded || bookmark.errors.isNotEmpty) {
-                    break;
-                }
-                await Future.delayed(Duration(seconds: 1));
-            }
+// api.dart:245
+final String sinceString = Uri.encodeComponent(since.toIso8601String());
+// DateTime.toIso8601String() → "2025-04-03T19:00:13.000Z"
+```
+Dart's `toIso8601String()` produces millisecond precision.
 
-            bookmark.synced = DateTime.now();
-            db.storeBookmark(bookmark);
-            Navigator.of(context).pop();
-            Navigator.push(context, MaterialPageRoute(
-                builder: (context) => BookmarkView(bookmark!),
-            ));
-        } catch (error) {
-            setState(() {
-                this.error = error.toString();
-                savingInProgress = false;
-            });
-        }
-    });
+Both send sub-second fractions. The Readeck server (Go) passes this timestamp into a SQL query. When the backend is **SQLite** (as on your NAS), the timestamp comparison fails because SQLite's datetime functions don't handle fractional seconds the same way PostgreSQL does.
+
+### The Fix
+
+**Strip sub-second precision before sending the `since` parameter.** Truncate to whole seconds.
+
+**In `BookmarkRepositoryImpl.performDeltaSync()`:**
+```kotlin
+// CURRENT
+val sinceParam = since?.toString()
+
+// FIX: Truncate to seconds to avoid SQLite timestamp parsing errors
+val sinceParam = since?.let {
+    // Truncate to seconds: "2025-04-03T19:00:13Z" (no fractional part)
+    val truncated = Instant.fromEpochSeconds(it.epochSeconds)
+    truncated.toString()  // Produces "2025-04-03T19:00:13Z"
+}
 ```
 
-**How it works:**
-1. POST to create bookmark → server returns bookmark ID
-2. Show a `CircularProgressIndicator` (full-screen spinner)
-3. Every 1 second, `GET /bookmarks/{bookmarkID}` to check status
-4. Loop exits when `bookmark.isLoaded == true` OR `bookmark.errors.isNotEmpty`
-5. Only then is the bookmark stored locally and the user navigated to view it
+`Instant.fromEpochSeconds(it.epochSeconds)` drops the nanosecond component entirely, producing a clean `"2025-04-03T19:00:13Z"` string.
 
-**UX:** The user sees a loading spinner for the entire duration (potentially 15-20 seconds). Simple but reliable — the bookmark is never in an invalid state locally.
+### Validation
 
-**Limitations:**
-- No timeout — if the server never finishes, the spinner runs forever
-- No progress indication beyond the spinner
-- User can't navigate away during the wait (though they can press back)
+After applying this fix:
+1. `GET /api/bookmarks/sync?since=2025-04-03T19:00:13Z` should return a JSON array of sync status objects instead of a 500 error.
+2. If it still 500s with no `since` parameter at all (i.e., `GET /api/bookmarks/sync`), the issue is something else entirely (e.g., server bug with the empty-since case). Test both.
 
-### 2. ReadeckApp (Kotlin/Android — github.com/jensomato/ReadeckApp)
+---
 
-**ReadeckApp does NOT solve this problem.** It uses a fire-and-forget approach:
+## Part 2: POST /bookmarks/sync — Empty Payload Guard
+
+The AI Studio doc identifies a second 500 trigger: calling `POST /api/bookmarks/sync` with an empty ID list causes a SQL syntax error (`IN ()`).
+
+**Current code in `BookmarkRepositoryImpl`:** The `performDeltaSync()` method currently only calls `GET /bookmarks/sync` and processes deletions. It does not yet call `POST /bookmarks/sync` for bulk content download. When it is implemented, add this guard:
 
 ```kotlin
-// BookmarkRepositoryImpl.kt
-override suspend fun createBookmark(title: String, url: String): String {
-    val response = readeckApi.createBookmark(CreateBookmarkDto(title = title, url = url))
-    if (response.isSuccessful) {
-        return response.headers()[ReadeckApi.Header.BOOKMARK_ID]!!
-    } else {
-        throw Exception("Failed to create bookmark")
-    }
+// Never call POST /bookmarks/sync with empty IDs
+if (updatedIds.isNotEmpty()) {
+    val contentResponse = readeckApi.syncContent(SyncContentRequest(ids = updatedIds))
+    // ... process streamed response
 }
 ```
 
-After creation, the returned bookmark ID is **discarded** — no immediate fetch, no polling. The bookmark only appears locally on the next sync (pull-to-refresh or auto-sync). The list view filters by `state = Bookmark.State.LOADED`, so bookmarks still being extracted are hidden.
+---
 
-**UX:** User creates a bookmark, sees a "Success" toast, but the bookmark doesn't appear in the list until they manually pull-to-refresh AND the server has finished extraction.
+## Part 3: Incremental Bookmark Ingestion Strategy
 
-### 3. readeck_related_app (Flutter/Dart — github.com/linkalls/readeck_related_app)
+### Goal
 
-**This client also does NOT solve the problem.** It takes a slightly better approach than ReadeckApp — it immediately fetches the bookmark after creation — but doesn't wait for extraction to complete:
+When the user adds a URL, show the bookmark in the list as quickly as possible, even before the server finishes content extraction. Provide a visual indicator that content is still loading, and allow the user to trigger content download manually.
 
-```dart
-// readeck_api_client.dart
-Future<BookmarkInfo> createBookmark(BookmarkCreate bookmarkCreate) async {
-    final response = await _makeRawRequest(() => _httpClient.post(...));
-    if (response.statusCode == 202) {
-        final bookmarkId = response.headers['bookmark-id'];
-        if (bookmarkId != null) {
-            return getBookmark(bookmarkId);  // single fetch, no polling
-        }
-    }
-}
+### How the Readeck API Supports This
+
+From the API documentation:
+1. `POST /api/bookmarks` returns immediately with the bookmark object. The response includes the `bookmark-id` header. The bookmark object itself may have `state: 2` (LOADING) and empty content if extraction is still running.
+2. `GET /api/bookmarks/{id}` returns the bookmark's current state. Once extraction completes, `state` changes to `0` (LOADED) and `has_article` becomes true.
+3. `GET /api/bookmarks/{id}/article` returns the article HTML content.
+
+### Proposed Three-Phase Flow
+
+#### Phase 1: Create and Insert Metadata Immediately
+
+After `POST /api/bookmarks` succeeds:
+
+1. Extract the `bookmark-id` from response headers.
+2. Immediately call `GET /api/bookmarks/{id}` to fetch whatever metadata the server has (title, site name, description, state, etc.).
+3. Insert the bookmark into the local database **regardless of state**. Even if `state == LOADING`, insert it.
+4. Return success to the UI.
+
+**Key change:** The bookmark list currently filters by `state == LOADED`. To show LOADING bookmarks, either:
+- **Option A:** Remove the state filter entirely and handle LOADING/ERROR states in the UI.
+- **Option B:** Insert the bookmark with `state = LOADED` locally as an optimistic override, but track that content is missing separately (via the `article_content` table being empty).
+
+**Recommendation:** Option B is simpler. The bookmark already has a separate `article_content` table. A bookmark with metadata in `bookmarks` but no row in `article_content` naturally represents "metadata present, content pending." No filter changes needed.
+
+#### Phase 2: Poll for Metadata Completion
+
+If the initial fetch returned `state: LOADING` (state == 2):
+
+1. Schedule a polling task (coroutine or WorkManager) that calls `GET /api/bookmarks/{id}` every 2 seconds, up to 30 attempts (60 seconds max).
+2. On each poll, check:
+   - If `state == 0` (LOADED): Update the local bookmark metadata (title may have changed, `has_article` is now true). Move to Phase 3.
+   - If `state == 1` (ERROR): Update the local bookmark with error state. Stop polling.
+3. If timeout: Stop polling. The bookmark remains in the list with whatever metadata it has. The next sync will update it.
+
+**Why poll metadata, not content?** The metadata call (`GET /bookmarks/{id}`) is lightweight. We just need to know when `has_article` flips to true so we know content is available for download.
+
+#### Phase 3: Content Download (On-Demand or Automatic)
+
+Once the bookmark's `has_article == true`:
+
+1. **Automatic:** Enqueue a `LoadArticleWorker` to fetch `GET /api/bookmarks/{id}/article` and store in `article_content`. This is what the app already does during sync.
+2. **On-demand (download button):** If the user taps before auto-download completes, trigger the same `LoadArticleUseCase.execute(bookmarkId)` immediately.
+
+### UI Changes
+
+#### List View: Download Indicator
+
+For any bookmark in the local DB that has no corresponding row in `article_content`:
+
+- Show a **download icon** (e.g., `Icons.Default.CloudDownload`) on the bookmark card.
+- Tapping the icon triggers `LoadArticleUseCase.execute(bookmarkId)`.
+- Once content is fetched, the icon disappears (the `article_content` row now exists).
+- If the bookmark's server-side `state` is still LOADING (extraction not done), show a **spinner** instead of the download icon — content isn't available yet.
+
+**Implementation approach:**
+
+The list item entity (`BookmarkListItemEntity`) currently doesn't include content status. Add a field:
+
+```kotlin
+data class BookmarkListItemEntity(
+    // ... existing fields ...
+    val hasLocalContent: Boolean  // true if article_content row exists
+)
 ```
 
-After creating, the Flutter UI calls `loadBookmarks(reset: true)` to refresh the entire list. If extraction hasn't finished, the bookmark appears with `loaded: false` and incomplete metadata.
+Update the DAO query:
+```sql
+SELECT b.id, ...,
+    EXISTS (SELECT 1 FROM article_content ac WHERE ac.bookmarkId = b.id) AS hasLocalContent
+FROM bookmarks b
+WHERE ...
+```
 
-## Comparison
+#### Detail View: Content Not Yet Available
 
-| Aspect | Eckard | ReadeckApp | readeck_related_app | MyDeck (current) |
-|--------|--------|------------|---------------------|------------------|
-| Polls for readiness | Yes (1s interval) | No | No | No |
-| Shows loading state | Spinner until ready | Toast only | No indication | No indication |
-| Bookmark inserted when | Fully loaded | Next sync | Immediately (may be incomplete) | Immediately (may be incomplete) |
-| Handles long extraction | Yes (waits indefinitely) | No | No | No |
-| Handles extraction errors | Yes (checks `errors`) | N/A | No | No |
+If the user opens a bookmark that has no local content:
+- Show the header (title, site, description) from metadata.
+- In place of the article body, show either:
+  - "Content is being downloaded..." with a progress indicator (if download is in progress).
+  - A "Download Article" button (if not yet started).
+- After content is fetched, recompose to show the full article.
 
-## Recommended Solution for MyDeck
+The existing `BookmarkDetailContent` already handles `articleContent == null` with `EmptyBookmarkDetailArticle()`. Enhance that to include a download action.
 
-Eckard's polling approach is the only one that reliably handles the extraction delay. Adapt it for MyDeck:
-
-### Implementation Outline
-
-**In `BookmarkRepositoryImpl.createBookmark()`:**
+### Revised `createBookmark()` Implementation
 
 ```kotlin
 override suspend fun createBookmark(title: String, url: String): String {
@@ -124,45 +170,107 @@ override suspend fun createBookmark(title: String, url: String): String {
 
     val bookmarkId = response.headers()[ReadeckApi.Header.BOOKMARK_ID]!!
 
-    // Poll until the server finishes content extraction
-    val maxAttempts = 60  // 60 seconds max wait
-    var attempts = 0
-    while (attempts < maxAttempts) {
+    // Phase 1: Fetch and insert metadata immediately
+    try {
         val bookmarkResponse = readeckApi.getBookmarkById(bookmarkId)
         if (bookmarkResponse.isSuccessful && bookmarkResponse.body() != null) {
             val bookmark = bookmarkResponse.body()!!.toDomain()
+            insertBookmarks(listOf(bookmark))
+            Timber.d("Bookmark created and inserted locally: $bookmarkId")
 
-            if (bookmark.state == Bookmark.State.LOADED ||
-                bookmark.state == Bookmark.State.ERROR) {
-                // Extraction finished (success or failure) — insert locally
-                insertBookmarks(listOf(bookmark))
-                return bookmarkId
+            // Phase 2: If not yet loaded, poll in the background
+            if (bookmark.state == Bookmark.State.LOADING) {
+                pollForBookmarkReady(bookmarkId)
+            } else if (bookmark.hasArticle) {
+                // Phase 3: Content available, enqueue download
+                enqueueArticleDownload(bookmarkId)
             }
         }
-
-        delay(1000)  // wait 1 second before next poll
-        attempts++
-    }
-
-    // Timed out — insert whatever we have (state = LOADING)
-    // so the user at least sees it after a sync
-    val finalResponse = readeckApi.getBookmarkById(bookmarkId)
-    if (finalResponse.isSuccessful && finalResponse.body() != null) {
-        insertBookmarks(listOf(finalResponse.body()!!.toDomain()))
+    } catch (e: Exception) {
+        Timber.w(e, "Failed to fetch created bookmark metadata")
     }
 
     return bookmarkId
 }
+
+private fun pollForBookmarkReady(bookmarkId: String) {
+    // Launch in application scope (not viewModelScope) so it survives navigation
+    applicationScope.launch {
+        var attempts = 0
+        val maxAttempts = 30
+        val delayMs = 2000L
+
+        while (attempts < maxAttempts) {
+            delay(delayMs)
+            attempts++
+
+            try {
+                val response = readeckApi.getBookmarkById(bookmarkId)
+                if (response.isSuccessful && response.body() != null) {
+                    val bookmark = response.body()!!.toDomain()
+                    insertBookmarks(listOf(bookmark))  // Update local metadata
+
+                    when (bookmark.state) {
+                        Bookmark.State.LOADED -> {
+                            if (bookmark.hasArticle) {
+                                enqueueArticleDownload(bookmarkId)
+                            }
+                            return@launch  // Done
+                        }
+                        Bookmark.State.ERROR -> {
+                            Timber.w("Bookmark extraction failed: $bookmarkId")
+                            return@launch  // Done (with error)
+                        }
+                        else -> { /* still loading, continue polling */ }
+                    }
+                }
+            } catch (e: Exception) {
+                Timber.w(e, "Poll attempt $attempts failed for $bookmarkId")
+            }
+        }
+
+        Timber.w("Polling timed out for bookmark $bookmarkId")
+    }
+}
+
+private fun enqueueArticleDownload(bookmarkId: String) {
+    val request = OneTimeWorkRequestBuilder<LoadArticleWorker>()
+        .setInputData(
+            Data.Builder()
+                .putString(LoadArticleWorker.PARAM_BOOKMARK_ID, bookmarkId)
+                .build()
+        )
+        .setConstraints(
+            Constraints.Builder()
+                .setRequiredNetworkType(NetworkType.CONNECTED)
+                .build()
+        )
+        .build()
+    workManager.enqueue(request)
+}
 ```
 
-**In `BookmarkListViewModel.createBookmark()`:**
+**Note on `applicationScope`:** The repository needs access to a coroutine scope that outlives any single ViewModel. Inject a `@Singleton`-scoped `CoroutineScope` via Hilt:
 
-The ViewModel already shows a loading state (`CreateBookmarkUiState.Loading`). Since the repository call now blocks until extraction is done (or timeout), the UI spinner naturally stays visible for the full duration. Consider adding a message like "Waiting for server to process article..." to the loading state.
+```kotlin
+@Module
+@InstallIn(SingletonComponent::class)
+object AppModule {
+    @Provides
+    @Singleton
+    fun provideApplicationScope(): CoroutineScope =
+        CoroutineScope(SupervisorJob() + Dispatchers.IO)
+}
+```
 
-### Key Design Decisions
+### Comparison with Other Clients
 
-1. **Timeout**: 60 seconds is a reasonable upper bound. Eckard has no timeout, which could hang forever.
-2. **Poll interval**: 1 second, matching Eckard. Could use exponential backoff (1s, 2s, 4s...) but the simplicity of fixed 1s is fine for this use case.
-3. **On timeout**: Insert the bookmark in whatever state it's in. The next sync will update it when extraction completes.
-4. **Error state**: If the server returns `state: ERROR`, insert it anyway so the user can see the error and delete/retry.
-5. **List filtering**: The existing `state == LOADED` filter means LOADING bookmarks won't appear in the list. This is correct — if the poll times out, the bookmark will appear after the next sync once extraction completes.
+| Approach | Eckard | ReadeckApp | Proposed (MyDeck) |
+|----------|--------|------------|-------------------|
+| After POST | Poll until LOADED (blocking UI) | Fire-and-forget | Insert metadata immediately |
+| Bookmark visible | Only after fully loaded | After next sync | Immediately |
+| Content available | Immediately (waited for it) | After sync + article worker | After background poll + download |
+| Download icon | N/A | N/A | Yes — tap to fetch content |
+| Timeout handling | None (infinite loop) | N/A | 60s timeout, graceful fallback |
+
+This approach combines the reliability of Eckard's polling with the responsiveness of an optimistic UI. The user sees the bookmark immediately, content downloads in the background, and a download button provides manual override if needed.
