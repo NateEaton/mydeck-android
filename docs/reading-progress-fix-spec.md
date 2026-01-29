@@ -1,109 +1,215 @@
-# Spec: Fix Reading Progress to Track Current Position, Not Furthest Read
+# Spec: Align Reading Progress Tracking with Native Readeck Behavior
 
 ## Problem Statement
 
-The app tracks reading progress as a percentage (0–100) and restores scroll position when the user reopens an article. The current implementation always restores to the **furthest point the user has ever scrolled to**, rather than the **position they were at when they last closed the article**.
+The app's reading progress tracking does not match the behavior of the native Readeck web client. There are two specific issues:
 
-**Example:** A user scrolls to 60% of an article, then scrolls back to the top (0%) and exits. When they reopen the article, it jumps to 60% instead of staying at 0%.
+1. **Opening an article immediately sets progress to 1%** — even if the user doesn't scroll. The native Readeck client does not update progress until the user actually scrolls.
+2. **Progress is not reliably saved on exit** — `onCleared()` launches a coroutine in `viewModelScope`, which is already cancelled at that point. The save may silently fail.
 
-## Root Cause
+Additionally, the current implementation is missing several behaviors from the native client: completion locking, proper mark-as-unread reset, and automatic `is_read` flagging at 100%.
 
-In `BookmarkDetailViewModel`, the `onScrollProgressChanged` callback unconditionally updates `currentScrollProgress` with whatever the current scroll percentage is:
+## Reference: Native Readeck Behavior
+
+The native Readeck web client (v0.17+, refined in v0.21) implements these rules:
+
+### Data Model
+- **`read_progress`** (float, 0.0–1.0): Scroll position as a fraction. The app uses integers 0–100 internally and converts at the API boundary.
+- **`is_read`** (boolean): Whether the article is marked as completed. Derived from `readProgress == 100` via `Bookmark.isRead()`.
+
+### Scroll Tracking Rules
+1. **Calculate progress on scroll:** `P = scrollTop / (scrollHeight - clientHeight)`, clamped to [0, 100].
+2. **Completion threshold:** When P >= 100 (user reaches bottom), set `read_progress = 100` and `is_read = true`.
+3. **Lock on completion:** Once `is_read` is true, **stop updating progress from scroll events**. Scrolling back up after reaching the bottom must NOT reduce progress from 100.
+4. **No update without scroll:** Opening an article must NOT change progress. Only actual scroll events update it.
+5. **Sync on exit only:** Send the PATCH to the server only when the user exits the article, not on every scroll.
+
+### Mark as Read/Unread Rules
+- **Mark as Read (manual):** Set `read_progress = 100`, `is_read = true`, disable scroll tracking.
+- **Mark as Unread:** Set `read_progress = 0`, `is_read = false`, **re-enable scroll tracking**.
+
+## Current Code Analysis
+
+All changes are in `BookmarkDetailViewModel.kt` (`app/src/main/java/com/mydeck/app/ui/detail/BookmarkDetailViewModel.kt`).
+
+### Issue 1: Progress set on open (line 98-100)
 
 ```kotlin
-// BookmarkDetailViewModel.kt
-fun onScrollProgressChanged(progress: Int) {
-    currentScrollProgress = progress.coerceIn(0, 100)
+// init block, lines 95-104
+is com.mydeck.app.domain.model.Bookmark.Type.Article -> {
+    if (bookmark.readProgress == 0) {
+        currentScrollProgress = 1  // ← BUG: sets progress before user scrolls
+    } else {
+        currentScrollProgress = bookmark.readProgress
+    }
 }
 ```
 
-This value is saved to the database and API when the user exits (`onCleared()` or `onClickBack()`). So the *current position* is saved correctly on exit — **this part is fine.**
+When a fresh article (0% progress) is opened, `currentScrollProgress` is immediately set to 1. On exit, `saveCurrentProgress()` persists this value. The article now shows as "in progress" even though the user never scrolled.
 
-The actual bug is in `BookmarkDetailContent` (the composable). The `LaunchedEffect` that tracks scroll position fires for every scroll change, and the ViewModel stores whatever value comes in. This means when the user scrolls back to 0% and exits, `currentScrollProgress` should be 0. Let me re-examine whether the issue is actually upstream.
-
-**After deeper analysis, the real issue is a race condition in `onCleared()`:**
+### Issue 2: Save fails silently on ViewModel teardown (lines 113-131)
 
 ```kotlin
 override fun onCleared() {
     super.onCleared()
-    saveCurrentProgress()  // launches a coroutine in viewModelScope
+    saveCurrentProgress()  // launches coroutine in viewModelScope
 }
 
 private fun saveCurrentProgress() {
-    if (bookmarkId != null && currentScrollProgress > 0) {  // ← BUG: skips saving 0%
-        viewModelScope.launch {
+    if (bookmarkId != null && currentScrollProgress > 0) {
+        viewModelScope.launch {  // ← viewModelScope is cancelled during onCleared()
             bookmarkRepository.updateReadProgress(bookmarkId, currentScrollProgress)
         }
     }
 }
 ```
 
-**There are two bugs here:**
+`viewModelScope` is cancelled when `onCleared()` runs. Any coroutine launched in it may be cancelled before the network/DB call completes. This means progress saves on app kill or system-initiated destruction are unreliable.
 
-1. **The `> 0` guard prevents saving 0% progress.** If the user scrolls back to the top (0%), the save is skipped entirely, so the previously-saved furthest-read progress remains in the database.
-
-2. **`viewModelScope.launch` in `onCleared()` may not complete.** When `onCleared()` is called, `viewModelScope` is cancelled, so coroutines launched within it may be cancelled before the network call and DB write finish.
-
-## Affected Files
-
-| File | Role |
-|------|------|
-| `app/.../ui/detail/BookmarkDetailViewModel.kt` | ViewModel — tracks progress locally, saves on exit |
-| `app/.../ui/detail/BookmarkDetailScreen.kt` | Composable — detects scroll position, reports to ViewModel |
-| `app/.../domain/BookmarkRepositoryImpl.kt` | Repository — persists progress to API + local DB |
-| `app/.../io/db/dao/BookmarkDao.kt` | DAO — local DB update query |
-| `app/.../io/rest/ReadeckApi.kt` | API — PATCH endpoint for progress |
-
-## Proposed Solution
-
-### Change 1: Remove the `> 0` guard in `saveCurrentProgress()`
-
-The condition `currentScrollProgress > 0` prevents saving when the user has scrolled back to the top. Change it to allow saving 0%.
-
-**File:** `BookmarkDetailViewModel.kt`
+### Issue 3: No completion lock (line 229-232)
 
 ```kotlin
-// BEFORE
-private fun saveCurrentProgress() {
-    if (bookmarkId != null && currentScrollProgress > 0) {
-        viewModelScope.launch { ... }
-    }
+fun onScrollProgressChanged(progress: Int) {
+    currentScrollProgress = progress.coerceIn(0, 100)
 }
+```
 
-// AFTER
-private fun saveCurrentProgress() {
-    if (bookmarkId != null) {
-        // Save even if progress is 0 — user may have scrolled back to top
-        viewModelScope.launch { ... }
+This unconditionally accepts any progress value. If the user scrolls to the bottom (100%) and then scrolls back up, progress drops below 100. The native client locks progress at 100 once the bottom is reached.
+
+### Issue 4: Mark as Unread doesn't reset progress correctly (lines 234-244)
+
+```kotlin
+fun onToggleRead(bookmarkId: String, isRead: Boolean) {
+    viewModelScope.launch {
+        val newProgress = if (isRead) 100 else 0
+        bookmarkRepository.updateReadProgress(bookmarkId, newProgress)
+        currentScrollProgress = newProgress
     }
 }
 ```
 
-### Change 2: Ensure the save completes even when the ViewModel is being cleared
+This sets progress to 0 when marking unread, which is correct. But it doesn't re-enable scroll tracking if it was previously locked (once we add the lock).
 
-`viewModelScope` is cancelled when `onCleared()` runs, so a coroutine launched there may never finish. Use a scope that outlives the ViewModel. The standard Android pattern is to use `NonCancellable`:
+## Proposed Changes
 
-**File:** `BookmarkDetailViewModel.kt`
+All changes are in `BookmarkDetailViewModel.kt`. No other files need modification.
+
+### Change 1: Add `isReadLocked` state and remove premature progress initialization
+
+Add a new field to track whether scroll updates should be ignored (completion lock):
 
 ```kotlin
-// BEFORE
+// CURRENT (lines 72-75)
+private var currentScrollProgress = 0
+private var initialReadProgress = 0
+private var bookmarkType: com.mydeck.app.domain.model.Bookmark.Type? = null
+
+// PROPOSED
+private var currentScrollProgress = 0
+private var initialReadProgress = 0
+private var bookmarkType: com.mydeck.app.domain.model.Bookmark.Type? = null
+private var isReadLocked = false  // true when article has been completed; disables scroll tracking
+```
+
+### Change 2: Fix init block — don't set progress on open, initialize lock state
+
+```kotlin
+// CURRENT (lines 95-104)
+is com.mydeck.app.domain.model.Bookmark.Type.Article -> {
+    if (bookmark.readProgress == 0) {
+        currentScrollProgress = 1
+    } else {
+        currentScrollProgress = bookmark.readProgress
+    }
+}
+
+// PROPOSED
+is com.mydeck.app.domain.model.Bookmark.Type.Article -> {
+    currentScrollProgress = bookmark.readProgress
+    // If article was already completed, lock scroll tracking
+    // so scrolling back up doesn't reduce progress from 100
+    isReadLocked = bookmark.isRead()  // isRead() returns readProgress == 100
+}
+```
+
+This ensures:
+- A fresh article (0%) stays at 0% until the user scrolls.
+- A completed article (100%) has scroll tracking locked immediately.
+
+### Change 3: Add completion lock to `onScrollProgressChanged`
+
+```kotlin
+// CURRENT (lines 229-232)
+fun onScrollProgressChanged(progress: Int) {
+    currentScrollProgress = progress.coerceIn(0, 100)
+}
+
+// PROPOSED
+fun onScrollProgressChanged(progress: Int) {
+    // Once article is marked read, ignore further scroll updates
+    // (matches native Readeck behavior: lock on completion)
+    if (isReadLocked) return
+
+    val clamped = progress.coerceIn(0, 100)
+    currentScrollProgress = clamped
+
+    // Auto-complete: when user reaches the bottom, lock tracking
+    if (clamped >= 100) {
+        isReadLocked = true
+    }
+}
+```
+
+### Change 4: Fix `onToggleRead` to manage lock state
+
+```kotlin
+// CURRENT (lines 234-244)
+fun onToggleRead(bookmarkId: String, isRead: Boolean) {
+    viewModelScope.launch {
+        val newProgress = if (isRead) 100 else 0
+        bookmarkRepository.updateReadProgress(bookmarkId, newProgress)
+        currentScrollProgress = newProgress
+    }
+}
+
+// PROPOSED
+fun onToggleRead(bookmarkId: String, isRead: Boolean) {
+    viewModelScope.launch {
+        val newProgress = if (isRead) 100 else 0
+        bookmarkRepository.updateReadProgress(bookmarkId, newProgress)
+        currentScrollProgress = newProgress
+        isReadLocked = isRead  // Lock on "mark read", unlock on "mark unread"
+    }
+}
+```
+
+### Change 5: Fix save reliability — use a non-cancellable scope in `onCleared()`
+
+```kotlin
+// CURRENT (lines 113-131)
 override fun onCleared() {
     super.onCleared()
     saveCurrentProgress()
 }
 
 private fun saveCurrentProgress() {
-    if (bookmarkId != null) {
+    if (bookmarkId != null && currentScrollProgress > 0) {
         viewModelScope.launch {
-            bookmarkRepository.updateReadProgress(bookmarkId, currentScrollProgress)
+            try {
+                bookmarkRepository.updateReadProgress(bookmarkId, currentScrollProgress)
+                Timber.d("Saved final read progress: $currentScrollProgress%")
+            } catch (e: Exception) {
+                Timber.e(e, "Error saving final progress: ${e.message}")
+            }
         }
     }
 }
 
-// AFTER
+// PROPOSED
 override fun onCleared() {
     super.onCleared()
-    // Use a coroutine scope that won't be cancelled when the ViewModel is cleared
+    // viewModelScope is cancelled during onCleared(), so use an independent scope
+    // to ensure the save completes even during ViewModel teardown
     kotlinx.coroutines.CoroutineScope(
         kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.IO
     ).launch {
@@ -112,7 +218,7 @@ override fun onCleared() {
 }
 
 private suspend fun saveCurrentProgress() {
-    if (bookmarkId != null) {
+    if (bookmarkId != null && currentScrollProgress > 0) {
         try {
             bookmarkRepository.updateReadProgress(bookmarkId, currentScrollProgress)
             Timber.d("Saved final read progress: $currentScrollProgress%")
@@ -123,83 +229,63 @@ private suspend fun saveCurrentProgress() {
 }
 ```
 
-Alternatively, if the project uses Hilt and has an application-scoped `CoroutineScope` available for injection, that is the cleaner approach — inject it and use it for fire-and-forget saves.
+Note: The `> 0` guard is intentionally kept — this matches native Readeck behavior where opening an article without scrolling does not update progress.
 
-### Change 3: Also save eagerly in `onClickBack()`
-
-`onClickBack()` already calls `saveCurrentProgress()`, but it then immediately triggers navigation. The save should complete before navigation or use the same `NonCancellable` pattern:
-
-**File:** `BookmarkDetailViewModel.kt`
+### Change 6: Make `onClickBack()` await the save before navigating
 
 ```kotlin
-// BEFORE
+// CURRENT (lines 291-295)
 fun onClickBack() {
     saveCurrentProgress()
     _navigationEvent.update { NavigationEvent.NavigateBack }
 }
 
-// AFTER
+// PROPOSED
 fun onClickBack() {
     viewModelScope.launch {
-        saveCurrentProgress()  // now a suspend function — completes before navigation
+        saveCurrentProgress()  // now suspend — completes before navigation
         _navigationEvent.update { NavigationEvent.NavigateBack }
     }
 }
 ```
 
-### Change 4: Handle the init special case for 0% articles
-
-In `init`, there's logic that sets `currentScrollProgress = 1` when the stored progress is 0. This is problematic — if a user reads an article, scrolls back to 0%, and exits, the next open will set `currentScrollProgress = 1` and on exit will save 1% instead of 0%. Remove this special case:
-
-**File:** `BookmarkDetailViewModel.kt`
-
-```kotlin
-// BEFORE (in init block)
-is com.mydeck.app.domain.model.Bookmark.Type.Article -> {
-    if (bookmark.readProgress == 0) {
-        currentScrollProgress = 1  // ← forces non-zero, prevents saving 0 later
-    } else {
-        currentScrollProgress = bookmark.readProgress
-    }
-}
-
-// AFTER
-is com.mydeck.app.domain.model.Bookmark.Type.Article -> {
-    currentScrollProgress = bookmark.readProgress
-}
-```
-
 ## Summary of All Changes
 
-| # | File | Change | Why |
-|---|------|--------|-----|
-| 1 | `BookmarkDetailViewModel.kt` | Remove `> 0` guard in `saveCurrentProgress()` | Allows saving 0% when user scrolled to top |
-| 2 | `BookmarkDetailViewModel.kt` | Use non-cancellable scope in `onCleared()` | Ensures save completes even during teardown |
-| 3 | `BookmarkDetailViewModel.kt` | Make `onClickBack()` await save before navigating | Prevents race between save and navigation |
-| 4 | `BookmarkDetailViewModel.kt` | Remove `currentScrollProgress = 1` special case in init | Eliminates false non-zero value that masks the bug |
+| # | Change | Lines | Purpose |
+|---|--------|-------|---------|
+| 1 | Add `isReadLocked` field | 75 | Tracks whether scroll updates should be ignored |
+| 2 | Fix init — remove `= 1` special case, initialize lock | 95-104 | Don't set progress on open; lock if already read |
+| 3 | Add completion lock to `onScrollProgressChanged` | 229-232 | Ignore scroll after reaching 100%; auto-lock at bottom |
+| 4 | Fix `onToggleRead` to manage lock | 234-244 | Lock on "mark read", unlock + reset on "mark unread" |
+| 5 | Use non-cancellable scope in `onCleared()` | 113-131 | Ensure save completes during teardown |
+| 6 | Await save in `onClickBack()` | 291-295 | Prevent race between save and navigation |
 
 ## What This Does NOT Change
 
-- **How progress is tracked during scrolling** — the `LaunchedEffect` in `BookmarkDetailContent` continues to report the current scroll percentage. No changes needed there.
-- **How progress is restored on article open** — `initialReadProgress` is loaded from the DB in `init` and passed to the composable. The `LaunchedEffect` that restores scroll position is correct as-is.
-- **The API contract** — `PATCH /bookmarks/{id}` with `read_progress` remains unchanged.
-- **The "mark as read/unread" feature** — `onToggleRead()` sets progress to 100 or 0 explicitly and is unaffected.
+- **Scroll position restoration** — `initialReadProgress` is loaded from DB in init and passed to `BookmarkDetailContent`. The composable's `LaunchedEffect` restores position correctly as-is.
+- **The scroll calculation in `BookmarkDetailContent`** — the `LaunchedEffect` at lines 285-298 continues to compute `(scrollValue / maxValue) * 100` and report it. No changes needed.
+- **Photos/videos** — auto-marked as 100% on open (lines 87-94), unaffected.
+- **The `> 0` guard in `saveCurrentProgress()`** — intentionally kept. Matches native behavior: opening without scrolling does not create a server update.
+- **API contract** — `PATCH /bookmarks/{id}` with `read_progress` (integer 0-100). Note: if the API expects float 0.0-1.0, a conversion would be needed in `BookmarkRepositoryImpl.updateReadProgress()`, but current code sends integers and it works.
 
-## Edge Cases to Verify
+## Behavior Matrix (After Changes)
 
-1. **User opens article, doesn't scroll, exits** → progress should remain at whatever it was before (0% for new, or the restored value for previously-read)
-2. **User scrolls to 60%, exits** → progress saved as 60%, restored to 60% on reopen
-3. **User scrolls to 60%, scrolls back to 0%, exits** → progress saved as 0%, article opens at top on reopen
-4. **User scrolls to 100% (bottom)** → progress saved as 100%, article shows as "read" in list
-5. **App is killed (process death) while reading** → `onCleared()` fires, save should complete via non-cancellable scope
-6. **Photos and videos** → auto-marked as 100%, unaffected by these changes
-7. **Network error during save** → caught by try/catch, logged, no crash. Progress is lost for that session but the previous value remains in DB.
+| Scenario | Progress Saved | is_read | Lock State |
+|----------|---------------|---------|------------|
+| Open article, don't scroll, exit | No save (stays at DB value) | Unchanged | Unchanged |
+| Scroll to 50%, exit | 50 | false | Unlocked |
+| Scroll to 100% (bottom), exit | 100 | true (via isRead()) | Locked |
+| Scroll to 100%, scroll back to 30%, exit | 100 (locked) | true | Locked |
+| Mark as Read manually | 100 | true | Locked |
+| Mark as Unread | 0 | false | Unlocked |
+| Mark as Unread, scroll to 40%, exit | 40 | false | Unlocked |
 
 ## Testing Plan
 
-1. Open an unread article → verify it starts at the top
-2. Scroll to ~50%, exit → reopen → verify it restores to ~50%
-3. Scroll to ~50%, scroll back to top, exit → reopen → verify it starts at top (0%)
-4. Scroll to bottom (100%), exit → verify article shows as "read" in list
-5. Open a "read" article, scroll to top, exit → reopen → verify it starts at top
-6. Force-kill the app while reading at ~30% → reopen → verify progress is ~30%
+1. **Fresh article:** Open → don't scroll → exit → reopen → verify starts at top, progress still 0%
+2. **Partial read:** Scroll to ~50% → exit → reopen → verify restores to ~50%
+3. **Completion lock:** Scroll to bottom → scroll back to top → exit → reopen → verify restores to 100%, shown as "read"
+4. **Mark as Read:** Tap "mark read" at 30% → verify progress jumps to 100% → scroll up → exit → reopen → verify still 100%
+5. **Mark as Unread:** Mark a completed article unread → verify progress resets to 0% → scroll to 40% → exit → verify saves 40%
+6. **App kill:** Scroll to ~30% → force-kill app → reopen → verify progress is ~30% (tests non-cancellable scope)
+7. **Photos/videos:** Open photo bookmark → verify auto-marked 100% → unaffected by any changes
