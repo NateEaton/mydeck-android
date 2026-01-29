@@ -20,6 +20,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Grade
 import androidx.compose.material.icons.filled.Info
@@ -27,6 +28,7 @@ import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.TextDecrease
 import androidx.compose.material.icons.filled.TextIncrease
+import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.Grade
 import androidx.compose.material.icons.outlined.Inventory2
 import androidx.compose.material.icons.outlined.Share
@@ -94,6 +96,7 @@ fun BookmarkDetailScreen(navHostController: NavController, bookmarkId: String?) 
     val onClickOpenUrl: (String) -> Unit = { viewModel.onClickOpenUrl(it) }
     val onClickShareBookmark: (String) -> Unit = { url -> viewModel.onClickShareBookmark(url) }
     val onClickDeleteBookmark: (String) -> Unit = { viewModel.deleteBookmark(it) }
+    val onClickToggleRead: (String, Boolean) -> Unit = { id, isRead -> viewModel.onToggleRead(id, isRead) }
     val onUpdateLabels: (String, List<String>) -> Unit = { id, labels -> viewModel.onUpdateLabels(id, labels) }
     val snackbarHostState = remember { SnackbarHostState() }
     val uiState = viewModel.uiState.collectAsState().value
@@ -153,6 +156,7 @@ fun BookmarkDetailScreen(navHostController: NavController, bookmarkId: String?) 
                     onClickBack = onClickBack,
                     onClickToggleFavorite = onClickToggleFavorite,
                     onClickToggleArchive = onClickToggleArchive,
+                    onClickToggleRead = onClickToggleRead,
                     onClickShareBookmark = onClickShareBookmark,
                     onClickDeleteBookmark = onClickDeleteBookmark,
                     uiState = uiState,
@@ -161,8 +165,9 @@ fun BookmarkDetailScreen(navHostController: NavController, bookmarkId: String?) 
                     onClickDecreaseZoomFactor = onClickDecreaseZoomFactor,
                     onShowDetails = { showDetailsDialog = true },
                     onScrollProgressChanged = { progress ->
-                        viewModel.onScrollProgressChanged(uiState.bookmark.bookmarkId, progress)
-                    }
+                        viewModel.onScrollProgressChanged(progress)
+                    },
+                    initialReadProgress = viewModel.getInitialReadProgress()
                 )
                 // Consumes a shareIntent and creates the corresponding share dialog
                 ShareBookmarkChooser(
@@ -198,13 +203,15 @@ fun BookmarkDetailScreen(
     uiState: BookmarkDetailViewModel.UiState.Success,
     onClickToggleFavorite: (String, Boolean) -> Unit,
     onClickToggleArchive: (String, Boolean) -> Unit,
+    onClickToggleRead: (String, Boolean) -> Unit,
     onClickDeleteBookmark: (String) -> Unit,
     onClickOpenUrl: (String) -> Unit,
     onClickShareBookmark: (String) -> Unit,
     onClickIncreaseZoomFactor: () -> Unit,
     onClickDecreaseZoomFactor: () -> Unit,
     onShowDetails: () -> Unit = {},
-    onScrollProgressChanged: (Int) -> Unit = {}
+    onScrollProgressChanged: (Int) -> Unit = {},
+    initialReadProgress: Int = 0
 ) {
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -233,6 +240,7 @@ fun BookmarkDetailScreen(
                 uiState = uiState,
                 onClickToggleFavorite = onClickToggleFavorite,
                 onClickToggleArchive = onClickToggleArchive,
+                onClickToggleRead = onClickToggleRead,
                 onClickShareBookmark = onClickShareBookmark,
                 onClickDeleteBookmark = onClickDeleteBookmark,
                 onClickIncreaseZoomFactor = onClickIncreaseZoomFactor,
@@ -245,7 +253,8 @@ fun BookmarkDetailScreen(
             modifier = Modifier.padding(padding),
             uiState = uiState,
             onClickOpenUrl = onClickOpenUrl,
-            onScrollProgressChanged = onScrollProgressChanged
+            onScrollProgressChanged = onScrollProgressChanged,
+            initialReadProgress = initialReadProgress
         )
     }
 }
@@ -255,21 +264,22 @@ fun BookmarkDetailContent(
     modifier: Modifier = Modifier,
     uiState: BookmarkDetailViewModel.UiState.Success,
     onClickOpenUrl: (String) -> Unit,
-    onScrollProgressChanged: (Int) -> Unit = {}
+    onScrollProgressChanged: (Int) -> Unit = {},
+    initialReadProgress: Int = 0
 ) {
     val scrollState = rememberScrollState()
     var hasRestoredPosition by remember { mutableStateOf(false) }
 
-    // Restore scroll position when content is loaded
+    // Restore scroll position when content is loaded (using initial progress, not reactive)
     LaunchedEffect(scrollState.maxValue) {
-        if (!hasRestoredPosition && scrollState.maxValue > 0 && uiState.bookmark.readProgress > 0 && uiState.bookmark.readProgress < 100) {
-            val targetPosition = (scrollState.maxValue * uiState.bookmark.readProgress / 100f).toInt()
+        if (!hasRestoredPosition && scrollState.maxValue > 0 && initialReadProgress > 0 && initialReadProgress < 100) {
+            val targetPosition = (scrollState.maxValue * initialReadProgress / 100f).toInt()
             scrollState.scrollTo(targetPosition)
             hasRestoredPosition = true
         }
     }
 
-    // Track scroll progress and report changes
+    // Track scroll progress and report changes (only depends on scroll value, not bookmark updates)
     LaunchedEffect(scrollState.value, scrollState.maxValue) {
         if (scrollState.maxValue > 0) {
             val progress = ((scrollState.value.toFloat() / scrollState.maxValue.toFloat()) * 100).toInt()
@@ -455,6 +465,7 @@ fun BookmarkDetailMenu(
     uiState: BookmarkDetailViewModel.UiState.Success,
     onClickToggleFavorite: (String, Boolean) -> Unit,
     onClickToggleArchive: (String, Boolean) -> Unit,
+    onClickToggleRead: (String, Boolean) -> Unit,
     onClickShareBookmark: (String) -> Unit,
     onClickDeleteBookmark: (String) -> Unit,
     onClickIncreaseZoomFactor: () -> Unit,
@@ -496,6 +507,19 @@ fun BookmarkDetailMenu(
                     Icon(
                         imageVector = if (uiState.bookmark.isFavorite) Icons.Filled.Grade else Icons.Outlined.Grade,
                         contentDescription = stringResource(R.string.action_favorite)
+                    )
+                }
+            )
+            DropdownMenuItem(
+                text = { Text(if (uiState.bookmark.isRead) stringResource(R.string.action_mark_unread) else stringResource(R.string.action_mark_read)) },
+                onClick = {
+                    onClickToggleRead(uiState.bookmark.bookmarkId, !uiState.bookmark.isRead)
+                    expanded = false
+                },
+                leadingIcon = {
+                    Icon(
+                        imageVector = if (uiState.bookmark.isRead) Icons.Filled.CheckCircle else Icons.Outlined.CheckCircle,
+                        contentDescription = if (uiState.bookmark.isRead) stringResource(R.string.action_mark_unread) else stringResource(R.string.action_mark_read)
                     )
                 }
             )
@@ -586,6 +610,7 @@ fun BookmarkDetailScreenPreview() {
         onClickBack = {},
         onClickDeleteBookmark = {},
         onClickToggleFavorite = { _, _ -> },
+        onClickToggleRead = { _, _ -> },
         onClickShareBookmark = {_ -> },
         onClickIncreaseZoomFactor = { },
         onClickDecreaseZoomFactor = { },

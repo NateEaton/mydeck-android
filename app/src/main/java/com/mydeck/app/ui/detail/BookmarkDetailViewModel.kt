@@ -69,18 +69,63 @@ class BookmarkDetailViewModel @Inject constructor(
     private val zoomFactor: Flow<Int> = settingsDataStore.zoomFactorFlow
     private val updateState = MutableStateFlow<UpdateBookmarkState?>(null)
 
+    // Local tracking of scroll progress (not immediately persisted)
+    private var currentScrollProgress = 0
+    private var initialReadProgress = 0
+    private var bookmarkType: com.mydeck.app.domain.model.Bookmark.Type? = null
+
     init {
-        // Mark bookmark as started reading when detail view is opened
+        // Load initial progress and handle type-specific behavior
         if (bookmarkId != null) {
             viewModelScope.launch {
                 try {
                     val bookmark = bookmarkRepository.getBookmarkById(bookmarkId)
-                    // Only mark as started (progress=1) if not already started or read
-                    if (bookmark.readProgress == 0) {
-                        bookmarkRepository.updateReadProgress(bookmarkId, 1)
+                    initialReadProgress = bookmark.readProgress
+                    bookmarkType = bookmark.type
+
+                    // For photos and videos, auto-mark as 100% when opened
+                    when (bookmark.type) {
+                        is com.mydeck.app.domain.model.Bookmark.Type.Picture,
+                        is com.mydeck.app.domain.model.Bookmark.Type.Video -> {
+                            if (bookmark.readProgress < 100) {
+                                bookmarkRepository.updateReadProgress(bookmarkId, 100)
+                                currentScrollProgress = 100
+                            }
+                        }
+                        is com.mydeck.app.domain.model.Bookmark.Type.Article -> {
+                            // Only mark as started (progress=1) if not already started or read
+                            if (bookmark.readProgress == 0) {
+                                bookmarkRepository.updateReadProgress(bookmarkId, 1)
+                                currentScrollProgress = 1
+                                initialReadProgress = 1
+                            } else {
+                                currentScrollProgress = bookmark.readProgress
+                            }
+                        }
                     }
                 } catch (e: Exception) {
-                    Timber.e(e, "Error marking bookmark as started: ${e.message}")
+                    Timber.e(e, "Error initializing bookmark progress: ${e.message}")
+                }
+            }
+        }
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        // Save final progress when leaving the detail view
+        saveCurrentProgress()
+    }
+
+    fun getInitialReadProgress(): Int = initialReadProgress
+
+    private fun saveCurrentProgress() {
+        if (bookmarkId != null && currentScrollProgress > 0) {
+            viewModelScope.launch {
+                try {
+                    bookmarkRepository.updateReadProgress(bookmarkId, currentScrollProgress)
+                    Timber.d("Saved final read progress: $currentScrollProgress%")
+                } catch (e: Exception) {
+                    Timber.e(e, "Error saving final progress: ${e.message}")
                 }
             }
         }
@@ -181,18 +226,20 @@ class BookmarkDetailViewModel @Inject constructor(
         }
     }
 
-    private var lastProgressUpdate = 0
-    fun onScrollProgressChanged(bookmarkId: String, progress: Int) {
-        // Only update if progress has changed by at least 5% to avoid excessive API calls
-        if (kotlin.math.abs(progress - lastProgressUpdate) >= 5 || progress == 100) {
-            lastProgressUpdate = progress
-            viewModelScope.launch {
-                try {
-                    bookmarkRepository.updateReadProgress(bookmarkId, progress)
-                    Timber.d("Updated read progress to $progress%")
-                } catch (e: Exception) {
-                    Timber.e(e, "Error updating read progress: ${e.message}")
-                }
+    fun onScrollProgressChanged(progress: Int) {
+        // Track progress locally, don't immediately persist
+        currentScrollProgress = progress.coerceIn(0, 100)
+    }
+
+    fun onToggleRead(bookmarkId: String, isRead: Boolean) {
+        viewModelScope.launch {
+            try {
+                val newProgress = if (isRead) 100 else 0
+                bookmarkRepository.updateReadProgress(bookmarkId, newProgress)
+                currentScrollProgress = newProgress
+                Timber.d("Manually set read progress to $newProgress%")
+            } catch (e: Exception) {
+                Timber.e(e, "Error updating read state: ${e.message}")
             }
         }
     }
@@ -242,6 +289,8 @@ class BookmarkDetailViewModel @Inject constructor(
     }
 
     fun onClickBack() {
+        // Save progress before navigating back
+        saveCurrentProgress()
         _navigationEvent.update { NavigationEvent.NavigateBack }
     }
 
