@@ -23,7 +23,7 @@ import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Grade
-import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.TextDecrease
@@ -36,7 +36,6 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -121,16 +120,10 @@ fun BookmarkDetailScreen(navHostController: NavController, bookmarkId: String?) 
 
     when (uiState) {
         is BookmarkDetailViewModel.UiState.Success -> {
-            val successMessage = stringResource(R.string.update_successful)
             LaunchedEffect(key1 = uiState) {
                 uiState.updateBookmarkState?.let {
                     when (it) {
-                        is BookmarkDetailViewModel.UpdateBookmarkState.Success -> {
-                            snackbarHostState.showSnackbar(
-                                message = successMessage,
-                                duration = SnackbarDuration.Short
-                            )
-                        }
+                        is BookmarkDetailViewModel.UpdateBookmarkState.Success -> { }
                         is BookmarkDetailViewModel.UpdateBookmarkState.Error -> {
                             snackbarHostState.showSnackbar(
                                 message = it.message,
@@ -218,13 +211,7 @@ fun BookmarkDetailScreen(
         modifier = modifier,
         topBar = {
             TopAppBar(
-                title = {
-                    Text(
-                        text = uiState.bookmark.title,
-                        overflow = TextOverflow.Ellipsis,
-                        maxLines = 1
-                    )
-                },
+                title = { },
                 navigationIcon = {
                     IconButton(onClick = onClickBack) {
                         Icon(
@@ -232,20 +219,39 @@ fun BookmarkDetailScreen(
                             contentDescription = stringResource(R.string.back)
                         )
                     }
+                },
+                actions = {
+                    IconButton(onClick = {
+                        onClickToggleFavorite(uiState.bookmark.bookmarkId, !uiState.bookmark.isFavorite)
+                    }) {
+                        Icon(
+                            imageVector = if (uiState.bookmark.isFavorite) Icons.Filled.Grade else Icons.Outlined.Grade,
+                            contentDescription = stringResource(R.string.action_favorite)
+                        )
+                    }
+                    IconButton(onClick = {
+                        onClickToggleArchive(uiState.bookmark.bookmarkId, !uiState.bookmark.isArchived)
+                    }) {
+                        Icon(
+                            imageVector = if (uiState.bookmark.isArchived) Icons.Filled.Inventory2 else Icons.Outlined.Inventory2,
+                            contentDescription = stringResource(R.string.action_archive)
+                        )
+                    }
+                    IconButton(onClick = { onShowDetails() }) {
+                        Icon(
+                            imageVector = Icons.Outlined.Info,
+                            contentDescription = stringResource(R.string.detail_dialog_title)
+                        )
+                    }
+                    BookmarkDetailMenu(
+                        uiState = uiState,
+                        onClickToggleRead = onClickToggleRead,
+                        onClickShareBookmark = onClickShareBookmark,
+                        onClickDeleteBookmark = onClickDeleteBookmark,
+                        onClickIncreaseZoomFactor = onClickIncreaseZoomFactor,
+                        onClickDecreaseZoomFactor = onClickDecreaseZoomFactor,
+                    )
                 }
-            )
-        },
-        floatingActionButton = {
-            BookmarkDetailMenu(
-                uiState = uiState,
-                onClickToggleFavorite = onClickToggleFavorite,
-                onClickToggleArchive = onClickToggleArchive,
-                onClickToggleRead = onClickToggleRead,
-                onClickShareBookmark = onClickShareBookmark,
-                onClickDeleteBookmark = onClickDeleteBookmark,
-                onClickIncreaseZoomFactor = onClickIncreaseZoomFactor,
-                onClickDecreaseZoomFactor = onClickDecreaseZoomFactor,
-                onShowDetails = onShowDetails
             )
         }
     ) { padding ->
@@ -473,66 +479,22 @@ fun BookmarkDetailHeader(
 @Composable
 fun BookmarkDetailMenu(
     uiState: BookmarkDetailViewModel.UiState.Success,
-    onClickToggleFavorite: (String, Boolean) -> Unit,
-    onClickToggleArchive: (String, Boolean) -> Unit,
     onClickToggleRead: (String, Boolean) -> Unit,
     onClickShareBookmark: (String) -> Unit,
     onClickDeleteBookmark: (String) -> Unit,
     onClickIncreaseZoomFactor: () -> Unit,
     onClickDecreaseZoomFactor: () -> Unit,
-    onShowDetails: () -> Unit = {}
 ) {
     var expanded by remember { mutableStateOf(false) }
 
-    Box(
-        contentAlignment = Alignment.BottomEnd
-    ) {
-        FloatingActionButton(onClick = { expanded = true }) {
+    Box {
+        IconButton(onClick = { expanded = true }) {
             Icon(Icons.Filled.MoreVert, contentDescription = "Actions")
         }
         DropdownMenu(
             expanded = expanded,
             onDismissRequest = { expanded = false }
         ) {
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.detail_dialog_title)) },
-                onClick = {
-                    onShowDetails()
-                    expanded = false
-                },
-                leadingIcon = {
-                    Icon(
-                        imageVector = Icons.Filled.Info,
-                        contentDescription = stringResource(R.string.detail_dialog_title)
-                    )
-                }
-            )
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.action_favorite)) },
-                onClick = {
-                    onClickToggleFavorite(uiState.bookmark.bookmarkId, !uiState.bookmark.isFavorite)
-                    expanded = false
-                },
-                leadingIcon = {
-                    Icon(
-                        imageVector = if (uiState.bookmark.isFavorite) Icons.Filled.Grade else Icons.Outlined.Grade,
-                        contentDescription = stringResource(R.string.action_favorite)
-                    )
-                }
-            )
-            DropdownMenuItem(
-                text = { Text(if (uiState.bookmark.isRead) stringResource(R.string.action_mark_unread) else stringResource(R.string.action_mark_read)) },
-                onClick = {
-                    onClickToggleRead(uiState.bookmark.bookmarkId, !uiState.bookmark.isRead)
-                    expanded = false
-                },
-                leadingIcon = {
-                    Icon(
-                        imageVector = if (uiState.bookmark.isRead) Icons.Filled.CheckCircle else Icons.Outlined.CheckCircle,
-                        contentDescription = if (uiState.bookmark.isRead) stringResource(R.string.action_mark_unread) else stringResource(R.string.action_mark_read)
-                    )
-                }
-            )
             DropdownMenuItem(
                 text = { Text(stringResource(R.string.action_increase_text_size)) },
                 onClick = {
@@ -558,15 +520,15 @@ fun BookmarkDetailMenu(
                 }
             )
             DropdownMenuItem(
-                text = { Text(stringResource(R.string.action_archive)) },
+                text = { Text(stringResource(R.string.action_mark_read)) },
                 onClick = {
-                    onClickToggleArchive(uiState.bookmark.bookmarkId, !uiState.bookmark.isArchived)
+                    onClickToggleRead(uiState.bookmark.bookmarkId, !uiState.bookmark.isRead)
                     expanded = false
                 },
                 leadingIcon = {
                     Icon(
-                        imageVector = if (uiState.bookmark.isArchived) Icons.Filled.Inventory2 else Icons.Outlined.Inventory2,
-                        contentDescription = stringResource(R.string.action_archive)
+                        imageVector = if (uiState.bookmark.isRead) Icons.Filled.CheckCircle else Icons.Outlined.CheckCircle,
+                        contentDescription = stringResource(R.string.action_mark_read)
                     )
                 }
             )
@@ -582,7 +544,6 @@ fun BookmarkDetailMenu(
                         contentDescription = stringResource(R.string.action_share)
                     )
                 }
-
             )
             DropdownMenuItem(
                 text = { Text(stringResource(R.string.action_delete)) },
