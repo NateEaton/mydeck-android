@@ -122,7 +122,8 @@ class BookmarkDetailViewModel @Inject constructor(
                     wordCount = bookmark.wordCount,
                     readingTime = bookmark.readingTime,
                     description = bookmark.description,
-                    labels = bookmark.labels
+                    labels = bookmark.labels,
+                    readProgress = bookmark.readProgress
                 ),
                 updateBookmarkState = updateState,
                 template = template,
@@ -300,7 +301,8 @@ class BookmarkDetailViewModel @Inject constructor(
         val wordCount: Int?,
         val readingTime: Int?,
         val description: String,
-        val labels: List<String>
+        val labels: List<String>,
+        val readProgress: Int
     ) {
         enum class Type {
             ARTICLE, PHOTO, VIDEO

@@ -257,10 +257,33 @@ fun BookmarkDetailContent(
     onClickOpenUrl: (String) -> Unit,
     onScrollProgressChanged: (Int) -> Unit = {}
 ) {
+    val scrollState = rememberScrollState()
+    var hasRestoredPosition by remember { mutableStateOf(false) }
+
+    // Restore scroll position when content is loaded
+    LaunchedEffect(scrollState.maxValue) {
+        if (!hasRestoredPosition && scrollState.maxValue > 0 && uiState.bookmark.readProgress > 0 && uiState.bookmark.readProgress < 100) {
+            val targetPosition = (scrollState.maxValue * uiState.bookmark.readProgress / 100f).toInt()
+            scrollState.scrollTo(targetPosition)
+            hasRestoredPosition = true
+        }
+    }
+
+    // Track scroll progress and report changes
+    LaunchedEffect(scrollState.value, scrollState.maxValue) {
+        if (scrollState.maxValue > 0) {
+            val progress = ((scrollState.value.toFloat() / scrollState.maxValue.toFloat()) * 100).toInt()
+            onScrollProgressChanged(progress.coerceIn(0, 100))
+        } else if (scrollState.maxValue == 0) {
+            // Content fits on screen, consider it fully read
+            onScrollProgressChanged(100)
+        }
+    }
+
     Column(
         modifier = modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState()),
+            .verticalScroll(scrollState),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         BookmarkDetailHeader(
@@ -271,8 +294,7 @@ fun BookmarkDetailContent(
         if (uiState.bookmark.articleContent != null) {
             BookmarkDetailArticle(
                 modifier = Modifier,
-                uiState = uiState,
-                onScrollProgressChanged = onScrollProgressChanged
+                uiState = uiState
             )
         } else {
             EmptyBookmarkDetailArticle(
@@ -295,8 +317,7 @@ fun EmptyBookmarkDetailArticle(
 @Composable
 fun BookmarkDetailArticle(
     modifier: Modifier,
-    uiState: BookmarkDetailViewModel.UiState.Success,
-    onScrollProgressChanged: (Int) -> Unit = {}
+    uiState: BookmarkDetailViewModel.UiState.Success
 ) {
     val isSystemInDarkMode = isSystemInDarkTheme()
     val content = remember(isSystemInDarkMode, uiState.template) {
@@ -322,44 +343,6 @@ fun BookmarkDetailArticle(
                         isHorizontalScrollBarEnabled = false
                         settings.textZoom = uiState.zoomFactor
                         webViewRef.value = this
-
-                        // Add scroll listener to track reading progress
-                        webViewClient = object : android.webkit.WebViewClient() {
-                            override fun onPageFinished(view: WebView?, url: String?) {
-                                super.onPageFinished(view, url)
-                                // Enable JavaScript temporarily to inject scroll listener
-                                view?.settings?.javaScriptEnabled = true
-                                view?.evaluateJavascript(
-                                    """
-                                    (function() {
-                                        function updateProgress() {
-                                            var scrollTop = window.pageYOffset || document.documentElement.scrollTop;
-                                            var scrollHeight = document.documentElement.scrollHeight;
-                                            var clientHeight = document.documentElement.clientHeight;
-                                            var scrollPercent = 0;
-                                            if (scrollHeight > clientHeight) {
-                                                scrollPercent = Math.round((scrollTop / (scrollHeight - clientHeight)) * 100);
-                                            }
-                                            Android.onScrollProgress(scrollPercent);
-                                        }
-                                        window.addEventListener('scroll', updateProgress);
-                                        updateProgress(); // Call once immediately
-                                    })();
-                                    """.trimIndent(),
-                                    null
-                                )
-                                // Disable JavaScript again for security
-                                view?.settings?.javaScriptEnabled = false
-                            }
-                        }
-
-                        // Add JavaScript interface to receive scroll progress
-                        addJavascriptInterface(object {
-                            @android.webkit.JavascriptInterface
-                            fun onScrollProgress(progress: Int) {
-                                onScrollProgressChanged(progress.coerceIn(0, 100))
-                            }
-                        }, "Android")
                     }
                 },
                 update = {
@@ -675,5 +658,6 @@ private val sampleBookmark = BookmarkDetailViewModel.Bookmark(
     wordCount = 1500,
     readingTime = 7,
     description = "This is a sample description",
-    labels = listOf("tech", "android", "kotlin")
+    labels = listOf("tech", "android", "kotlin"),
+    readProgress = 0
 )

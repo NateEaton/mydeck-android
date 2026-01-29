@@ -279,7 +279,8 @@ fun BookmarkDetailsDialogPreview() {
         wordCount = 1500,
         readingTime = 7,
         description = "This is a sample description for the bookmark",
-        labels = listOf("tech", "android", "kotlin")
+        labels = listOf("tech", "android", "kotlin"),
+        readProgress = 0
     )
 
     BookmarkDetailsDialog(
