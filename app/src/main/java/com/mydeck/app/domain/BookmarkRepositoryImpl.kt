@@ -137,14 +137,26 @@ class BookmarkRepositoryImpl @Inject constructor(
             val bookmarkId = response.headers()[ReadeckApi.Header.BOOKMARK_ID]!!
 
             // Fetch the full bookmark from server and insert into local database
+            // Poll until state is LOADED since the server may still be processing
             try {
-                val bookmarkResponse = readeckApi.getBookmarkById(bookmarkId)
-                if (bookmarkResponse.isSuccessful && bookmarkResponse.body() != null) {
-                    val bookmark = bookmarkResponse.body()!!.toDomain()
-                    insertBookmarks(listOf(bookmark))
-                    Timber.d("Bookmark created and inserted locally: $bookmarkId")
-                } else {
-                    Timber.w("Failed to fetch created bookmark: ${bookmarkResponse.code()}")
+                val maxAttempts = 5
+                val delayMs = longArrayOf(1000, 2000, 3000, 5000, 8000)
+                for (attempt in 0 until maxAttempts) {
+                    val bookmarkResponse = readeckApi.getBookmarkById(bookmarkId)
+                    if (bookmarkResponse.isSuccessful && bookmarkResponse.body() != null) {
+                        val bookmark = bookmarkResponse.body()!!.toDomain()
+                        insertBookmarks(listOf(bookmark))
+                        if (bookmark.state == Bookmark.State.LOADED) {
+                            Timber.d("Bookmark created and inserted locally: $bookmarkId (attempt ${attempt + 1})")
+                            break
+                        }
+                        Timber.d("Bookmark state is ${bookmark.state}, retrying (attempt ${attempt + 1}/$maxAttempts)")
+                    } else {
+                        Timber.w("Failed to fetch created bookmark: ${bookmarkResponse.code()}")
+                    }
+                    if (attempt < maxAttempts - 1) {
+                        kotlinx.coroutines.delay(delayMs[attempt])
+                    }
                 }
             } catch (e: Exception) {
                 Timber.w(e, "Failed to fetch and insert created bookmark locally")
