@@ -93,11 +93,11 @@ class BookmarkDetailViewModel @Inject constructor(
                             }
                         }
                         is com.mydeck.app.domain.model.Bookmark.Type.Article -> {
-                            // Only mark as started (progress=1) if not already started or read
+                            // For articles, just track locally - don't update DB yet
+                            // This prevents triggering Flow updates and recomposition loops
                             if (bookmark.readProgress == 0) {
-                                bookmarkRepository.updateReadProgress(bookmarkId, 1)
+                                // Start at 1% locally (will be saved on exit)
                                 currentScrollProgress = 1
-                                initialReadProgress = 1
                             } else {
                                 currentScrollProgress = bookmark.readProgress
                             }
