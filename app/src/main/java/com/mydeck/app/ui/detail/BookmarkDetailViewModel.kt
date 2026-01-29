@@ -69,6 +69,68 @@ class BookmarkDetailViewModel @Inject constructor(
     private val zoomFactor: Flow<Int> = settingsDataStore.zoomFactorFlow
     private val updateState = MutableStateFlow<UpdateBookmarkState?>(null)
 
+    // Local tracking of scroll progress (not immediately persisted)
+    private var currentScrollProgress = 0
+    private var initialReadProgress = 0
+    private var bookmarkType: com.mydeck.app.domain.model.Bookmark.Type? = null
+
+    init {
+        // Load initial progress and handle type-specific behavior
+        if (bookmarkId != null) {
+            viewModelScope.launch {
+                try {
+                    val bookmark = bookmarkRepository.getBookmarkById(bookmarkId)
+                    initialReadProgress = bookmark.readProgress
+                    bookmarkType = bookmark.type
+
+                    // For photos and videos, auto-mark as 100% when opened
+                    when (bookmark.type) {
+                        is com.mydeck.app.domain.model.Bookmark.Type.Picture,
+                        is com.mydeck.app.domain.model.Bookmark.Type.Video -> {
+                            if (bookmark.readProgress < 100) {
+                                bookmarkRepository.updateReadProgress(bookmarkId, 100)
+                                currentScrollProgress = 100
+                            }
+                        }
+                        is com.mydeck.app.domain.model.Bookmark.Type.Article -> {
+                            // For articles, just track locally - don't update DB yet
+                            // This prevents triggering Flow updates and recomposition loops
+                            if (bookmark.readProgress == 0) {
+                                // Start at 1% locally (will be saved on exit)
+                                currentScrollProgress = 1
+                            } else {
+                                currentScrollProgress = bookmark.readProgress
+                            }
+                        }
+                    }
+                } catch (e: Exception) {
+                    Timber.e(e, "Error initializing bookmark progress: ${e.message}")
+                }
+            }
+        }
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        // Save final progress when leaving the detail view
+        saveCurrentProgress()
+    }
+
+    fun getInitialReadProgress(): Int = initialReadProgress
+
+    private fun saveCurrentProgress() {
+        if (bookmarkId != null && currentScrollProgress > 0) {
+            viewModelScope.launch {
+                try {
+                    bookmarkRepository.updateReadProgress(bookmarkId, currentScrollProgress)
+                    Timber.d("Saved final read progress: $currentScrollProgress%")
+                } catch (e: Exception) {
+                    Timber.e(e, "Error saving final progress: ${e.message}")
+                }
+            }
+        }
+    }
+
     @OptIn(ExperimentalEncodingApi::class)
     val uiState = combine(
         bookmarkRepository.observeBookmark(bookmarkId!!),
@@ -100,7 +162,13 @@ class BookmarkDetailViewModel @Inject constructor(
                         is com.mydeck.app.domain.model.Bookmark.Type.Picture -> Bookmark.Type.PHOTO
                         is com.mydeck.app.domain.model.Bookmark.Type.Video -> Bookmark.Type.VIDEO
                     },
-                    articleContent = bookmark.articleContent
+                    articleContent = bookmark.articleContent,
+                    lang = bookmark.lang,
+                    wordCount = bookmark.wordCount,
+                    readingTime = bookmark.readingTime,
+                    description = bookmark.description,
+                    labels = bookmark.labels,
+                    readProgress = bookmark.readProgress
                 ),
                 updateBookmarkState = updateState,
                 template = template,
@@ -142,6 +210,37 @@ class BookmarkDetailViewModel @Inject constructor(
                 bookmarkId = bookmarkId,
                 isRead = isRead
             )
+        }
+    }
+
+    fun onUpdateLabels(bookmarkId: String, labels: List<String>) {
+        updateBookmark {
+            // For now, we'll handle labels through the repository directly
+            // This should be implemented in UpdateBookmarkUseCase.updateLabels()
+            val result = bookmarkRepository.updateLabels(bookmarkId, labels)
+            when (result) {
+                is BookmarkRepository.UpdateResult.Success -> UpdateBookmarkUseCase.Result.Success
+                is BookmarkRepository.UpdateResult.Error -> UpdateBookmarkUseCase.Result.GenericError(result.errorMessage)
+                is BookmarkRepository.UpdateResult.NetworkError -> UpdateBookmarkUseCase.Result.NetworkError(result.errorMessage)
+            }
+        }
+    }
+
+    fun onScrollProgressChanged(progress: Int) {
+        // Track progress locally, don't immediately persist
+        currentScrollProgress = progress.coerceIn(0, 100)
+    }
+
+    fun onToggleRead(bookmarkId: String, isRead: Boolean) {
+        viewModelScope.launch {
+            try {
+                val newProgress = if (isRead) 100 else 0
+                bookmarkRepository.updateReadProgress(bookmarkId, newProgress)
+                currentScrollProgress = newProgress
+                Timber.d("Manually set read progress to $newProgress%")
+            } catch (e: Exception) {
+                Timber.e(e, "Error updating read state: ${e.message}")
+            }
         }
     }
 
@@ -190,6 +289,8 @@ class BookmarkDetailViewModel @Inject constructor(
     }
 
     fun onClickBack() {
+        // Save progress before navigating back
+        saveCurrentProgress()
         _navigationEvent.update { NavigationEvent.NavigateBack }
     }
 
@@ -244,7 +345,13 @@ class BookmarkDetailViewModel @Inject constructor(
         val isArchived: Boolean,
         val isRead: Boolean,
         val type: Type,
-        val articleContent: String?
+        val articleContent: String?,
+        val lang: String,
+        val wordCount: Int?,
+        val readingTime: Int?,
+        val description: String,
+        val labels: List<String>,
+        val readProgress: Int
     ) {
         enum class Type {
             ARTICLE, PHOTO, VIDEO

@@ -14,7 +14,7 @@ data class EditBookmarkResponseDto(
     val isDeleted: Boolean? = null,
     @SerialName("is_marked")
     val isMarked: Boolean? = null,
-    val labels: String? = null,
+    val labels: List<String>? = null,
     @SerialName("read_anchor")
     val readAnchor: String? = null,
     @SerialName("read_progress")

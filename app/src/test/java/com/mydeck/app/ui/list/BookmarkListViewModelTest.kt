@@ -246,6 +246,7 @@ class BookmarkListViewModelTest {
                 isArchived = false,
                 labels = emptyList(),
                 isRead = false,
+                readProgress = 0,
                 thumbnailSrc = "",
                 iconSrc = "",
                 imageSrc = ""
@@ -1103,6 +1104,7 @@ class BookmarkListViewModelTest {
             isArchived = false,
             labels = emptyList(),
             isRead = false,
+            readProgress = 0,
             thumbnailSrc = "",
             iconSrc = "",
             imageSrc = ""

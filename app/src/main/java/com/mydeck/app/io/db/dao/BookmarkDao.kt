@@ -252,4 +252,7 @@ interface BookmarkDao {
 
     @Query("UPDATE bookmarks SET readProgress = :readProgress WHERE id = :id")
     suspend fun updateReadProgress(id: String, readProgress: Int)
+
+    @Query("UPDATE bookmarks SET labels = :labels WHERE id = :id")
+    suspend fun updateLabels(id: String, labels: String)
 }
