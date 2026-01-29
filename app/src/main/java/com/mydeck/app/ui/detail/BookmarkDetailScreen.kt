@@ -159,7 +159,10 @@ fun BookmarkDetailScreen(navHostController: NavController, bookmarkId: String?) 
                     onClickOpenUrl = onClickOpenUrl,
                     onClickIncreaseZoomFactor = onClickIncreaseZoomFactor,
                     onClickDecreaseZoomFactor = onClickDecreaseZoomFactor,
-                    onShowDetails = { showDetailsDialog = true }
+                    onShowDetails = { showDetailsDialog = true },
+                    onScrollProgressChanged = { progress ->
+                        viewModel.onScrollProgressChanged(uiState.bookmark.bookmarkId, progress)
+                    }
                 )
                 // Consumes a shareIntent and creates the corresponding share dialog
                 ShareBookmarkChooser(
@@ -200,7 +203,8 @@ fun BookmarkDetailScreen(
     onClickShareBookmark: (String) -> Unit,
     onClickIncreaseZoomFactor: () -> Unit,
     onClickDecreaseZoomFactor: () -> Unit,
-    onShowDetails: () -> Unit = {}
+    onShowDetails: () -> Unit = {},
+    onScrollProgressChanged: (Int) -> Unit = {}
 ) {
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -240,7 +244,8 @@ fun BookmarkDetailScreen(
         BookmarkDetailContent(
             modifier = Modifier.padding(padding),
             uiState = uiState,
-            onClickOpenUrl = onClickOpenUrl
+            onClickOpenUrl = onClickOpenUrl,
+            onScrollProgressChanged = onScrollProgressChanged
         )
     }
 }
@@ -249,7 +254,8 @@ fun BookmarkDetailScreen(
 fun BookmarkDetailContent(
     modifier: Modifier = Modifier,
     uiState: BookmarkDetailViewModel.UiState.Success,
-    onClickOpenUrl: (String) -> Unit
+    onClickOpenUrl: (String) -> Unit,
+    onScrollProgressChanged: (Int) -> Unit = {}
 ) {
     Column(
         modifier = modifier
@@ -263,7 +269,11 @@ fun BookmarkDetailContent(
             onClickOpenUrl = onClickOpenUrl
         )
         if (uiState.bookmark.articleContent != null) {
-            BookmarkDetailArticle(modifier = Modifier, uiState = uiState)
+            BookmarkDetailArticle(
+                modifier = Modifier,
+                uiState = uiState,
+                onScrollProgressChanged = onScrollProgressChanged
+            )
         } else {
             EmptyBookmarkDetailArticle(
                 modifier = Modifier
@@ -285,7 +295,8 @@ fun EmptyBookmarkDetailArticle(
 @Composable
 fun BookmarkDetailArticle(
     modifier: Modifier,
-    uiState: BookmarkDetailViewModel.UiState.Success
+    uiState: BookmarkDetailViewModel.UiState.Success,
+    onScrollProgressChanged: (Int) -> Unit = {}
 ) {
     val isSystemInDarkMode = isSystemInDarkTheme()
     val content = remember(isSystemInDarkMode, uiState.template) {
@@ -311,6 +322,44 @@ fun BookmarkDetailArticle(
                         isHorizontalScrollBarEnabled = false
                         settings.textZoom = uiState.zoomFactor
                         webViewRef.value = this
+
+                        // Add scroll listener to track reading progress
+                        webViewClient = object : android.webkit.WebViewClient() {
+                            override fun onPageFinished(view: WebView?, url: String?) {
+                                super.onPageFinished(view, url)
+                                // Enable JavaScript temporarily to inject scroll listener
+                                view?.settings?.javaScriptEnabled = true
+                                view?.evaluateJavascript(
+                                    """
+                                    (function() {
+                                        function updateProgress() {
+                                            var scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+                                            var scrollHeight = document.documentElement.scrollHeight;
+                                            var clientHeight = document.documentElement.clientHeight;
+                                            var scrollPercent = 0;
+                                            if (scrollHeight > clientHeight) {
+                                                scrollPercent = Math.round((scrollTop / (scrollHeight - clientHeight)) * 100);
+                                            }
+                                            Android.onScrollProgress(scrollPercent);
+                                        }
+                                        window.addEventListener('scroll', updateProgress);
+                                        updateProgress(); // Call once immediately
+                                    })();
+                                    """.trimIndent(),
+                                    null
+                                )
+                                // Disable JavaScript again for security
+                                view?.settings?.javaScriptEnabled = false
+                            }
+                        }
+
+                        // Add JavaScript interface to receive scroll progress
+                        addJavascriptInterface(object {
+                            @android.webkit.JavascriptInterface
+                            fun onScrollProgress(progress: Int) {
+                                onScrollProgressChanged(progress.coerceIn(0, 100))
+                            }
+                        }, "Android")
                     }
                 },
                 update = {

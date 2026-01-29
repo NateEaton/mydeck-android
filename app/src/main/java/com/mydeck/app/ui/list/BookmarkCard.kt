@@ -1,6 +1,7 @@
 package com.mydeck.app.ui.list
 
 import android.content.Context
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -33,8 +34,13 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -89,22 +95,29 @@ fun BookmarkCard(
                         .height(150.dp)
                 )
 
-                // Show checkmark icon based on read progress
-                // Outline if started (0 < progress < 100), filled if completed (progress == 100)
+                // Show progress indicator based on read progress
                 if (bookmark.readProgress > 0) {
-                    Icon(
-                        imageVector = if (bookmark.readProgress == 100) {
-                            Icons.Filled.CheckCircle
-                        } else {
-                            Icons.Outlined.CheckCircle
-                        },
-                        contentDescription = stringResource(R.string.action_mark_read),
-                        tint = Color.White.copy(alpha = 0.7f),
-                        modifier = Modifier
-                            .align(Alignment.TopEnd)
-                            .padding(top = 8.dp, end = 8.dp)
-                            .size(24.dp)
-                    )
+                    if (bookmark.readProgress == 100) {
+                        // Show checkmark with circle for completed
+                        Icon(
+                            imageVector = Icons.Filled.CheckCircle,
+                            contentDescription = stringResource(R.string.action_mark_read),
+                            tint = Color.White.copy(alpha = 0.7f),
+                            modifier = Modifier
+                                .align(Alignment.TopEnd)
+                                .padding(top = 8.dp, end = 8.dp)
+                                .size(24.dp)
+                        )
+                    } else {
+                        // Show circular progress indicator that grows clockwise
+                        CircularProgressIndicator(
+                            progress = bookmark.readProgress,
+                            modifier = Modifier
+                                .align(Alignment.TopEnd)
+                                .padding(top = 8.dp, end = 8.dp)
+                                .size(24.dp)
+                        )
+                    }
                 }
             }
 
@@ -223,6 +236,43 @@ fun BookmarkCard(
 
             }
         }
+    }
+}
+
+@Composable
+fun CircularProgressIndicator(
+    progress: Int,
+    modifier: Modifier = Modifier
+) {
+    val progressColor = Color.White.copy(alpha = 0.7f)
+
+    Canvas(modifier = modifier) {
+        val strokeWidth = 3.dp.toPx()
+        val diameter = size.minDimension
+        val radius = (diameter - strokeWidth) / 2f
+        val topLeft = Offset(
+            x = (size.width - diameter) / 2f + strokeWidth / 2f,
+            y = (size.height - diameter) / 2f + strokeWidth / 2f
+        )
+        val arcSize = Size(diameter - strokeWidth, diameter - strokeWidth)
+
+        // Calculate sweep angle based on progress (0-100)
+        // Start at -90 degrees (12 o'clock position) and sweep clockwise
+        val sweepAngle = (progress / 100f) * 360f
+
+        // Draw the circular arc
+        drawArc(
+            color = progressColor,
+            startAngle = -90f,
+            sweepAngle = sweepAngle,
+            useCenter = false,
+            topLeft = topLeft,
+            size = arcSize,
+            style = Stroke(
+                width = strokeWidth,
+                cap = StrokeCap.Round
+            )
+        )
     }
 }
 

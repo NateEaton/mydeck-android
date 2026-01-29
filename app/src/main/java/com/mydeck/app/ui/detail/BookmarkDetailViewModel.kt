@@ -180,6 +180,22 @@ class BookmarkDetailViewModel @Inject constructor(
         }
     }
 
+    private var lastProgressUpdate = 0
+    fun onScrollProgressChanged(bookmarkId: String, progress: Int) {
+        // Only update if progress has changed by at least 5% to avoid excessive API calls
+        if (kotlin.math.abs(progress - lastProgressUpdate) >= 5 || progress == 100) {
+            lastProgressUpdate = progress
+            viewModelScope.launch {
+                try {
+                    bookmarkRepository.updateReadProgress(bookmarkId, progress)
+                    Timber.d("Updated read progress to $progress%")
+                } catch (e: Exception) {
+                    Timber.e(e, "Error updating read progress: ${e.message}")
+                }
+            }
+        }
+    }
+
     private fun updateBookmark(update: suspend () -> UpdateBookmarkUseCase.Result) {
         viewModelScope.launch {
             val state = when (val result = update()) {
