@@ -164,7 +164,7 @@ fun BookmarkListScreen(navHostController: NavHostController) {
                             style = Typography.labelLarge,
                             text = stringResource(id = R.string.my_list)
                         ) },
-                        icon = { Icon(Icons.Outlined.TaskAlt, contentDescription = null)},
+                        icon = { Icon(imageVector = Icons.Outlined.TaskAlt, contentDescription = null)},
                         badge = {
                             val myListCount = bookmarkCounts.value.total - bookmarkCounts.value.archived
                             if (myListCount > 0) {
@@ -186,7 +186,7 @@ fun BookmarkListScreen(navHostController: NavHostController) {
                             style = Typography.labelLarge,
                             text = stringResource(id = R.string.archive)
                         ) },
-                        icon = { Icon(Icons.Outlined.Inventory2, contentDescription = null) },
+                        icon = { Icon(imageVector = Icons.Outlined.Inventory2, contentDescription = null) },
                         badge = {
                             bookmarkCounts.value.archived.let { count ->
                                 if (count > 0) {
@@ -209,7 +209,7 @@ fun BookmarkListScreen(navHostController: NavHostController) {
                             style = Typography.labelLarge,
                             text = stringResource(id = R.string.favorites)
                         ) },
-                        icon = { Icon(Icons.Filled.Grade, contentDescription = null) },
+                        icon = { Icon(imageVector = Icons.Filled.Grade, contentDescription = null) },
                         badge = {
                             bookmarkCounts.value.favorite.let { count ->
                                 if (count > 0) {
@@ -233,7 +233,7 @@ fun BookmarkListScreen(navHostController: NavHostController) {
                             style = Typography.labelLarge,
                             text = stringResource(id = R.string.settings)
                         ) },
-                        icon = { Icon(Icons.Outlined.Settings, contentDescription = null) },
+                        icon = { Icon(imageVector = Icons.Outlined.Settings, contentDescription = null) },
                         selected = false,
                         onClick = {
                             onClickSettings()
@@ -245,7 +245,7 @@ fun BookmarkListScreen(navHostController: NavHostController) {
                             style = Typography.labelLarge,
                             text = stringResource(id = R.string.about_title)
                         ) },
-                        icon = { Icon(Icons.Outlined.Info, contentDescription = null) },
+                        icon = { Icon(imageVector = Icons.Outlined.Info, contentDescription = null) },
                         selected = false,
                         onClick = {
                             viewModel.onClickAbout()
@@ -274,7 +274,7 @@ fun BookmarkListScreen(navHostController: NavHostController) {
                             onClick = { scope.launch { drawerState.open() } }
                         ) {
                             Icon(
-                                Icons.Filled.Menu,
+                                imageVector = Icons.Filled.Menu,
                                 contentDescription = stringResource(id = R.string.menu)
                             )
                         }
@@ -284,7 +284,7 @@ fun BookmarkListScreen(navHostController: NavHostController) {
             floatingActionButton = {
                 FloatingActionButton(onClick = { viewModel.openCreateBookmarkDialog() }) {
                     Icon(
-                        Icons.Filled.Add,
+                        imageVector = Icons.Filled.Add,
                         contentDescription = stringResource(id = R.string.add_bookmark)
                     )
                 }

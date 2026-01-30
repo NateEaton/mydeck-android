@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -321,13 +322,14 @@ fun BookmarkDetailContent(
         }
     }
 
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .verticalScroll(scrollState)
-            .alpha(if (hasRestoredPosition) 1f else 0f),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
+    Box(modifier = modifier) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(scrollState)
+                .alpha(if (hasRestoredPosition) 1f else 0f),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
         BookmarkDetailHeader(
             modifier = Modifier,
             uiState = uiState,
@@ -342,9 +344,17 @@ fun BookmarkDetailContent(
             EmptyBookmarkDetailArticle(
                 modifier = Modifier
             )
+            }
         }
+        com.mydeck.app.ui.components.VerticalScrollbar(
+            modifier = Modifier
+                .align(Alignment.CenterEnd)
+                .fillMaxHeight(),
+            scrollState = scrollState
+        )
     }
-}
+    }
+
 
 @Composable
 fun EmptyBookmarkDetailArticle(
