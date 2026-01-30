@@ -141,22 +141,10 @@ class BookmarkRepositoryImpl @Inject constructor(
             try {
                 val maxAttempts = 5
                 val delayMs = longArrayOf(1000, 2000, 3000, 5000, 8000)
-                for (attempt in 0 until maxAttempts) {
-                    val bookmarkResponse = readeckApi.getBookmarkById(bookmarkId)
-                    if (bookmarkResponse.isSuccessful && bookmarkResponse.body() != null) {
-                        val bookmark = bookmarkResponse.body()!!.toDomain()
-                        insertBookmarks(listOf(bookmark))
-                        if (bookmark.state == Bookmark.State.LOADED) {
-                            Timber.d("Bookmark created and inserted locally: $bookmarkId (attempt ${attempt + 1})")
-                            break
-                        }
-                        Timber.d("Bookmark state is ${bookmark.state}, retrying (attempt ${attempt + 1}/$maxAttempts)")
-                    } else {
-                        Timber.w("Failed to fetch created bookmark: ${bookmarkResponse.code()}")
-                    }
-                    if (attempt < maxAttempts - 1) {
-                        kotlinx.coroutines.delay(delayMs[attempt])
-                    }
+                val bookmarkResponse = readeckApi.getBookmarkById(bookmarkId)
+                if (bookmarkResponse.isSuccessful && bookmarkResponse.body() != null) {
+                    val bookmark = bookmarkResponse.body()!!.toDomain()
+                    insertBookmarks(listOf(bookmark))
                 }
             } catch (e: Exception) {
                 Timber.w(e, "Failed to fetch and insert created bookmark locally")
