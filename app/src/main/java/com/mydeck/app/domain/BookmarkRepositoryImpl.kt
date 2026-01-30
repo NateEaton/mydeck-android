@@ -14,6 +14,7 @@ import com.mydeck.app.io.rest.model.CreateBookmarkDto
 import com.mydeck.app.io.rest.model.EditBookmarkDto
 import com.mydeck.app.io.rest.model.EditBookmarkErrorDto
 import com.mydeck.app.io.rest.model.StatusMessageDto
+import com.mydeck.app.io.rest.model.SyncContentRequestDto
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -443,7 +444,10 @@ class BookmarkRepositoryImpl @Inject constructor(
 
     override suspend fun performDeltaSync(since: kotlinx.datetime.Instant?): BookmarkRepository.SyncResult = withContext(dispatcher) {
         try {
-            val sinceParam = since?.toString()  // ISO 8601 format
+            val sinceParam = since?.let {
+                // Truncate to seconds to avoid SQLite timestamp parsing errors on server
+                kotlinx.datetime.Instant.fromEpochSeconds(it.epochSeconds).toString()
+            }
             Timber.d("Starting delta sync with since=$sinceParam")
 
             val response = readeckApi.getSyncStatus(sinceParam)
@@ -471,6 +475,22 @@ class BookmarkRepositoryImpl @Inject constructor(
             // Delete locally removed bookmarks
             deletedIds.forEach { id ->
                 bookmarkDao.deleteBookmark(id)
+            }
+
+            // Fetch content for updated bookmarks
+            if (updatedIds.isNotEmpty()) {
+                val contentResponse = readeckApi.syncContent(SyncContentRequestDto(ids = updatedIds))
+                if (contentResponse.isSuccessful) {
+                    val bookmarks = contentResponse.body()
+                    if (bookmarks != null) {
+                        Timber.d("Fetched ${bookmarks.size} bookmarks content")
+                        bookmarkDao.insertBookmarksWithArticleContent(bookmarks.map { it.toDomain().toEntity() })
+                    }
+                } else {
+                     Timber.e("Sync content failed with code: ${contentResponse.code()}")
+                     // We don't fail the whole sync here, as deletions might have succeeded.
+                     // But strictly speaking, it is a partial failure.
+                 }
             }
 
             Timber.i("Delta sync complete: ${deletedIds.size} deleted, ${updatedIds.size} updated")

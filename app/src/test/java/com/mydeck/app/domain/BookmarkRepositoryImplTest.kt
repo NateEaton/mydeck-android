@@ -10,6 +10,8 @@ import com.mydeck.app.io.rest.model.ImageResource
 import com.mydeck.app.io.rest.model.Resource
 import com.mydeck.app.io.rest.model.Resources
 import com.mydeck.app.io.rest.model.StatusMessageDto
+import com.mydeck.app.io.rest.model.SyncContentRequestDto
+import com.mydeck.app.io.rest.model.SyncStatusDto
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
@@ -425,6 +427,69 @@ class BookmarkRepositoryImplTest {
         assertTrue(result is BookmarkRepository.SyncResult.NetworkError)
         assertEquals("Network error during full sync", (result as BookmarkRepository.SyncResult.NetworkError).errorMessage)
         assertTrue((result as BookmarkRepository.SyncResult.NetworkError).ex is IOException)
+    }
+
+
+    @Test
+    fun `performDeltaSync truncates sub-second precision`() = runTest {
+        // Arrange
+        val instantWithNanos = kotlinx.datetime.Instant.parse("2023-10-27T10:00:00.123456789Z")
+        val expectedTruncatedString = "2023-10-27T10:00:00Z"
+        
+        coEvery { readeckApi.getSyncStatus(any()) } returns Response.success(emptyList())
+
+        // Act
+        val result = bookmarkRepositoryImpl.performDeltaSync(instantWithNanos)
+
+        // Assert
+        assertTrue(result is BookmarkRepository.SyncResult.Success)
+        coVerify { readeckApi.getSyncStatus(expectedTruncatedString) }
+    }
+
+
+    @Test
+    fun `performDeltaSync calls syncContent when updates exist`() = runTest {
+        // Arrange
+        val since = kotlinx.datetime.Instant.parse("2023-10-27T10:00:00Z")
+        val updatedId = "123"
+        val syncStatusList = listOf(SyncStatusDto(id = updatedId, status = "ok", updated = since.toString()))
+        
+        coEvery { readeckApi.getSyncStatus(any()) } returns Response.success(syncStatusList)
+        // Mock syncContent to return success with a bookmark
+        val bookmarkList = listOf(bookmarkDto.copy(id = updatedId))
+        coEvery { readeckApi.syncContent(any()) } returns Response.success(bookmarkList)
+        coEvery { bookmarkDao.insertBookmarksWithArticleContent(any()) } returns Unit
+
+        // Act
+        val result = bookmarkRepositoryImpl.performDeltaSync(since)
+
+        // Assert
+        assertTrue(result is BookmarkRepository.SyncResult.Success)
+        // Verify syncContent WAS called with the correct ID
+        coVerify { readeckApi.syncContent(SyncContentRequestDto(listOf(updatedId))) }
+        // Verify we inserted the result
+        coVerify { bookmarkDao.insertBookmarksWithArticleContent(any()) }
+    }
+
+    @Test
+    fun `performDeltaSync does NOT call syncContent when no updates`() = runTest {
+        // Arrange
+        val since = kotlinx.datetime.Instant.parse("2023-10-27T10:00:00Z")
+        // Only deleted items, no "ok" (updated) items
+        val syncStatusList = listOf(SyncStatusDto(id = "999", status = "deleted", updated = since.toString()))
+        
+        coEvery { readeckApi.getSyncStatus(any()) } returns Response.success(syncStatusList)
+        coEvery { bookmarkDao.deleteBookmark("999") } returns Unit
+
+        // Act
+        val result = bookmarkRepositoryImpl.performDeltaSync(since)
+
+        // Assert
+        assertTrue(result is BookmarkRepository.SyncResult.Success)
+        // Verify syncContent was NOT called
+        coVerify(exactly = 0) { readeckApi.syncContent(any()) }
+        // Verify deletion happened
+        coVerify { bookmarkDao.deleteBookmark("999") }
     }
 
     private val editBookmarkResponseDto = EditBookmarkResponseDto(
