@@ -80,6 +80,7 @@ class BookmarkDetailViewModel @Inject constructor(
     private var currentScrollProgress = 0
     private var initialReadProgress = 0
     private var bookmarkType: com.mydeck.app.domain.model.Bookmark.Type? = null
+    private var isReadLocked = false // true when article has been completed; disables scroll tracking
 
     // Pending deletion state (for undo functionality)
     // Uses a separate scope so deletion survives ViewModel clearing (e.g. user navigates back)
@@ -107,14 +108,10 @@ class BookmarkDetailViewModel @Inject constructor(
                             }
                         }
                         is com.mydeck.app.domain.model.Bookmark.Type.Article -> {
-                            // For articles, just track locally - don't update DB yet
-                            // This prevents triggering Flow updates and recomposition loops
-                            if (bookmark.readProgress == 0) {
-                                // Start at 1% locally (will be saved on exit)
-                                currentScrollProgress = 1
-                            } else {
-                                currentScrollProgress = bookmark.readProgress
-                            }
+                            currentScrollProgress = bookmark.readProgress
+                            // If article was already completed, lock scroll tracking
+                            // so scrolling back up doesn't reduce progress from 100
+                            isReadLocked = bookmark.isRead()
                         }
                     }
                 } catch (e: Exception) {
@@ -127,21 +124,24 @@ class BookmarkDetailViewModel @Inject constructor(
     override fun onCleared() {
         super.onCleared()
         // Save final progress when leaving the detail view
-        saveCurrentProgress()
+        // viewModelScope is cancelled during onCleared(), so use an independent scope
+        // to ensure the save completes even during ViewModel teardown
+        CoroutineScope(
+            kotlinx.coroutines.SupervisorJob() + Dispatchers.IO
+        ).launch {
+            saveCurrentProgress()
+        }
     }
 
     fun getInitialReadProgress(): Int = currentScrollProgress.takeIf { it > 0 } ?: initialReadProgress
 
-    private fun saveCurrentProgress() {
+    private suspend fun saveCurrentProgress() {
         if (bookmarkId != null && currentScrollProgress > 0) {
-            // Use deletionScope so save completes even if viewModelScope is cancelled
-            deletionScope.launch {
-                try {
-                    bookmarkRepository.updateReadProgress(bookmarkId, currentScrollProgress)
-                    Timber.d("Saved final read progress: $currentScrollProgress%")
-                } catch (e: Exception) {
-                    Timber.e(e, "Error saving final progress: ${e.message}")
-                }
+            try {
+                bookmarkRepository.updateReadProgress(bookmarkId, currentScrollProgress)
+                Timber.d("Saved final read progress: $currentScrollProgress%")
+            } catch (e: Exception) {
+                Timber.e(e, "Error saving final progress: ${e.message}")
             }
         }
     }
@@ -242,8 +242,17 @@ class BookmarkDetailViewModel @Inject constructor(
     }
 
     fun onScrollProgressChanged(progress: Int) {
-        // Track progress locally, don't immediately persist
-        currentScrollProgress = progress.coerceIn(0, 100)
+        // Once article is marked read, ignore further scroll updates
+        // (matches native Readeck behavior: lock on completion)
+        if (isReadLocked) return
+
+        val clamped = progress.coerceIn(0, 100)
+        currentScrollProgress = clamped
+
+        // Auto-complete: when user reaches the bottom, lock tracking
+        if (clamped >= 100) {
+            isReadLocked = true
+        }
     }
 
     fun onToggleRead(bookmarkId: String, isRead: Boolean) {
@@ -252,6 +261,7 @@ class BookmarkDetailViewModel @Inject constructor(
                 val newProgress = if (isRead) 100 else 0
                 bookmarkRepository.updateReadProgress(bookmarkId, newProgress)
                 currentScrollProgress = newProgress
+                isReadLocked = isRead // Lock on "mark read", unlock on "mark unread"
                 Timber.d("Manually set read progress to $newProgress%")
             } catch (e: Exception) {
                 Timber.e(e, "Error updating read state: ${e.message}")
@@ -329,8 +339,10 @@ class BookmarkDetailViewModel @Inject constructor(
 
     fun onClickBack() {
         // Save progress before navigating back
-        saveCurrentProgress()
-        _navigationEvent.update { NavigationEvent.NavigateBack }
+        viewModelScope.launch {
+            saveCurrentProgress()
+            _navigationEvent.update { NavigationEvent.NavigateBack }
+        }
     }
 
     fun onClickChangeZoomFactor(value: Int) {

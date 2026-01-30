@@ -290,13 +290,13 @@ fun BookmarkDetailContent(
     initialReadProgress: Int = 0
 ) {
     val scrollState = rememberScrollState()
-    val needsRestore = initialReadProgress > 0 && initialReadProgress < 100
+    val needsRestore = initialReadProgress > 0 && initialReadProgress <= 100
     var hasRestoredPosition by remember { mutableStateOf(!needsRestore) }
     var lastReportedProgress by remember { mutableStateOf(-1) }
 
     // Restore scroll position when content is loaded (using initial progress, not reactive)
     LaunchedEffect(scrollState.maxValue) {
-        if (!hasRestoredPosition && scrollState.maxValue > 0 && initialReadProgress > 0 && initialReadProgress < 100) {
+        if (!hasRestoredPosition && scrollState.maxValue > 0 && initialReadProgress > 0 && initialReadProgress <= 100) {
             val targetPosition = (scrollState.maxValue * initialReadProgress / 100f).toInt()
             scrollState.scrollTo(targetPosition)
             hasRestoredPosition = true
@@ -309,8 +309,9 @@ fun BookmarkDetailContent(
         val progress = if (scrollState.maxValue > 0) {
             ((scrollState.value.toFloat() / scrollState.maxValue.toFloat()) * 100).toInt().coerceIn(0, 100)
         } else {
-            // Content fits on screen, consider it fully read
-            100
+            // Content fits on screen or is loading.
+            // Returning 0 prevents premature 'read' lock on long articles that are still loading.
+            0
         }
 
         // Only report if progress changed
