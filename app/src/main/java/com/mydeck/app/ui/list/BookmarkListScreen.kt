@@ -13,8 +13,10 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Grade
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Inventory2
 import androidx.compose.material.icons.outlined.Settings
@@ -84,6 +86,8 @@ fun BookmarkListScreen(navHostController: NavHostController) {
 
     // Collect filter states
     val filterState = viewModel.filterState.collectAsState()
+    val isSearchActive = viewModel.isSearchActive.collectAsState()
+    val searchQuery = viewModel.searchQuery.collectAsState()
 
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
@@ -268,15 +272,47 @@ fun BookmarkListScreen(navHostController: NavHostController) {
                 }
 
                 TopAppBar(
-                    title = { Text(currentViewTitle) },
-                    navigationIcon = {
-                        IconButton(
-                            onClick = { scope.launch { drawerState.open() } }
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.Menu,
-                                contentDescription = stringResource(id = R.string.menu)
+                    title = {
+                        if (isSearchActive.value) {
+                            OutlinedTextField(
+                                value = searchQuery.value,
+                                onValueChange = { viewModel.onSearchQueryChange(it) },
+                                placeholder = { Text(stringResource(R.string.search_bookmarks)) },
+                                leadingIcon = {
+                                    Icon(Icons.Filled.Search, contentDescription = null)
+                                },
+                                singleLine = true,
+                                modifier = Modifier.fillMaxWidth()
                             )
+                        } else {
+                            Text(currentViewTitle)
+                        }
+                    },
+                    navigationIcon = {
+                        if (isSearchActive.value) {
+                            IconButton(onClick = { viewModel.onSearchActiveChange(false) }) {
+                                Icon(Icons.Filled.Clear, contentDescription = stringResource(R.string.close_search))
+                            }
+                        } else {
+                            IconButton(
+                                onClick = { scope.launch { drawerState.open() } }
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Menu,
+                                    contentDescription = stringResource(id = R.string.menu)
+                                )
+                            }
+                        }
+                    },
+                    actions = {
+                        if (!isSearchActive.value) {
+                            IconButton(onClick = { viewModel.onSearchActiveChange(true) }) {
+                                Icon(Icons.Filled.Search, contentDescription = stringResource(R.string.search))
+                            }
+                        } else if (searchQuery.value.isNotEmpty()) {
+                            IconButton(onClick = { viewModel.onClearSearch() }) {
+                                Icon(Icons.Filled.Clear, contentDescription = stringResource(R.string.clear_search))
+                            }
                         }
                     }
                 )

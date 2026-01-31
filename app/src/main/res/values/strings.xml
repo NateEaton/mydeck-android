@@ -156,4 +156,11 @@ other{}
     <string name="detail_minutes_short">min</string>
     <string name="detail_labels">Labels</string>
     <string name="detail_label_placeholder">Add labels (comma-separated)</string>
+
+    <!-- Search -->
+    <string name="search_bookmarks">Search bookmarks</string>
+    <string name="search">Search</string>
+    <string name="close_search">Close search</string>
+    <string name="clear_search">Clear search</string>
+    <string name="search_no_results">No results found</string>
 </resources>
