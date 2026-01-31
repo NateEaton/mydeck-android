@@ -2,6 +2,7 @@ package com.mydeck.app.ui.list
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -698,7 +699,7 @@ fun BookmarkListViewPreview() {
         imageSrc = "https://picsum.photos/seed/picsum/640/480",
         thumbnailSrc = "https://picsum.photos/seed/picsum/640/480",
         readingTime = 8,
-        created = kotlinx.datetime.Clock.System.now(),
+        created = kotlinx.datetime.Clock.System.now().toLocalDateTime(kotlinx.datetime.TimeZone.currentSystemDefault()),
         wordCount = 2000
     )
     val bookmarks = listOf(sampleBookmark)

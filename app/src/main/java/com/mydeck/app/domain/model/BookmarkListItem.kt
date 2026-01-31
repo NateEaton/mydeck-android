@@ -1,6 +1,6 @@
 package com.mydeck.app.domain.model
 
-import java.time.LocalDateTime
+import kotlinx.datetime.LocalDateTime
 
 data class BookmarkListItem(
     val id: String,

@@ -125,7 +125,7 @@ class BookmarkRepositoryImpl @Inject constructor(
                         BookmarkEntity.Type.VIDEO -> Bookmark.Type.Video
                     },
                     readingTime = listItem.readingTime,
-                    created = listItem.created.toLocalDateTime(TimeZone.currentSystemDefault()),
+                    created = listItem.created.toLocalDateTime(kotlinx.datetime.TimeZone.currentSystemDefault()),
                     wordCount = listItem.wordCount
                 )
             }
@@ -182,7 +182,7 @@ class BookmarkRepositoryImpl @Inject constructor(
                         BookmarkEntity.Type.VIDEO -> Bookmark.Type.Video
                     },
                     readingTime = listItem.readingTime,
-                    created = listItem.created.toLocalDateTime(TimeZone.currentSystemDefault()),
+                    created = listItem.created.toLocalDateTime(kotlinx.datetime.TimeZone.currentSystemDefault()),
                     wordCount = listItem.wordCount
                 )
             }
