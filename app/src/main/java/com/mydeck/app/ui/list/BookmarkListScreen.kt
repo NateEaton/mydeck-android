@@ -13,6 +13,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Grade
@@ -287,13 +288,28 @@ fun BookmarkListScreen(navHostController: NavHostController) {
                             OutlinedTextField(
                                 value = searchQuery.value,
                                 onValueChange = { viewModel.onSearchQueryChange(it) },
-                                placeholder = { Text(stringResource(R.string.search_bookmarks)) },
+                                placeholder = {
+                                    Text(
+                                        stringResource(R.string.search_bookmarks),
+                                        style = MaterialTheme.typography.bodyMedium
+                                    )
+                                },
                                 leadingIcon = {
                                     Icon(Icons.Filled.Search, contentDescription = null)
                                 },
+                                trailingIcon = {
+                                    if (searchQuery.value.isNotEmpty()) {
+                                        IconButton(onClick = { viewModel.onClearSearch() }) {
+                                            Icon(Icons.Filled.Clear, contentDescription = stringResource(R.string.clear_search))
+                                        }
+                                    }
+                                },
                                 singleLine = true,
+                                textStyle = MaterialTheme.typography.bodyMedium,
+                                shape = MaterialTheme.shapes.small,
                                 modifier = Modifier
                                     .fillMaxWidth()
+                                    .height(44.dp)
                                     .focusRequester(searchFocusRequester)
                             )
                         } else {
@@ -303,7 +319,7 @@ fun BookmarkListScreen(navHostController: NavHostController) {
                     navigationIcon = {
                         if (isSearchActive.value) {
                             IconButton(onClick = { viewModel.onSearchActiveChange(false) }) {
-                                Icon(Icons.Filled.Clear, contentDescription = stringResource(R.string.close_search))
+                                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.close_search))
                             }
                         } else {
                             IconButton(
@@ -320,10 +336,6 @@ fun BookmarkListScreen(navHostController: NavHostController) {
                         if (!isSearchActive.value) {
                             IconButton(onClick = { viewModel.onSearchActiveChange(true) }) {
                                 Icon(Icons.Filled.Search, contentDescription = stringResource(R.string.search))
-                            }
-                        } else if (searchQuery.value.isNotEmpty()) {
-                            IconButton(onClick = { viewModel.onClearSearch() }) {
-                                Icon(Icons.Filled.Clear, contentDescription = stringResource(R.string.clear_search))
                             }
                         }
                     }
