@@ -1,5 +1,11 @@
 package com.mydeck.app.domain
 
+import androidx.work.Constraints
+import androidx.work.Data
+import androidx.work.NetworkType
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
+import com.mydeck.app.coroutine.ApplicationScope
 import com.mydeck.app.coroutine.IoDispatcher
 import com.mydeck.app.domain.mapper.toDomain
 import com.mydeck.app.domain.mapper.toEntity
@@ -15,10 +21,14 @@ import com.mydeck.app.io.rest.model.EditBookmarkDto
 import com.mydeck.app.io.rest.model.EditBookmarkErrorDto
 import com.mydeck.app.io.rest.model.StatusMessageDto
 import com.mydeck.app.io.rest.model.SyncContentRequestDto
+import com.mydeck.app.worker.LoadArticleWorker
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
@@ -30,6 +40,9 @@ class BookmarkRepositoryImpl @Inject constructor(
     private val bookmarkDao: BookmarkDao,
     private val readeckApi: ReadeckApi,
     private val json: Json,
+    private val workManager: WorkManager,
+    @ApplicationScope
+    private val applicationScope: CoroutineScope,
     @IoDispatcher
     private val dispatcher: CoroutineDispatcher = Dispatchers.IO
 ) : BookmarkRepository {
@@ -134,27 +147,91 @@ class BookmarkRepositoryImpl @Inject constructor(
     override suspend fun createBookmark(title: String, url: String): String {
         val createBookmarkDto = CreateBookmarkDto(title = title, url = url)
         val response = readeckApi.createBookmark(createBookmarkDto)
-        if (response.isSuccessful) {
-            val bookmarkId = response.headers()[ReadeckApi.Header.BOOKMARK_ID]!!
-
-            // Fetch the full bookmark from server and insert into local database
-            // Poll until state is LOADED since the server may still be processing
-            try {
-                val maxAttempts = 5
-                val delayMs = longArrayOf(1000, 2000, 3000, 5000, 8000)
-                val bookmarkResponse = readeckApi.getBookmarkById(bookmarkId)
-                if (bookmarkResponse.isSuccessful && bookmarkResponse.body() != null) {
-                    val bookmark = bookmarkResponse.body()!!.toDomain()
-                    insertBookmarks(listOf(bookmark))
-                }
-            } catch (e: Exception) {
-                Timber.w(e, "Failed to fetch and insert created bookmark locally")
-            }
-
-            return bookmarkId
-        } else {
+        if (!response.isSuccessful) {
             throw Exception("Failed to create bookmark")
         }
+
+        val bookmarkId = response.headers()[ReadeckApi.Header.BOOKMARK_ID]!!
+
+        // Phase 1: Fetch and insert metadata immediately
+        try {
+            val bookmarkResponse = readeckApi.getBookmarkById(bookmarkId)
+            if (bookmarkResponse.isSuccessful && bookmarkResponse.body() != null) {
+                val bookmark = bookmarkResponse.body()!!.toDomain()
+                insertBookmarks(listOf(bookmark))
+                Timber.d("Bookmark created and inserted locally: $bookmarkId")
+
+                // Phase 2: If not yet loaded, poll in the background
+                if (bookmark.state == Bookmark.State.LOADING) {
+                    pollForBookmarkReady(bookmarkId)
+                } else if (bookmark.hasArticle) {
+                    // Phase 3: Content available, enqueue download
+                    enqueueArticleDownload(bookmarkId)
+                }
+            }
+        } catch (e: Exception) {
+            Timber.w(e, "Failed to fetch created bookmark metadata")
+        }
+
+        return bookmarkId
+    }
+
+    private fun pollForBookmarkReady(bookmarkId: String) {
+        // Launch in application scope so it survives navigation
+        applicationScope.launch {
+            var attempts = 0
+            val maxAttempts = 30
+            val delayMs = 2000L
+
+            while (attempts < maxAttempts) {
+                delay(delayMs)
+                attempts++
+
+                try {
+                    val response = readeckApi.getBookmarkById(bookmarkId)
+                    if (response.isSuccessful && response.body() != null) {
+                        val bookmark = response.body()!!.toDomain()
+                        insertBookmarks(listOf(bookmark))  // Update local metadata
+
+                        when (bookmark.state) {
+                            Bookmark.State.LOADED -> {
+                                Timber.d("Bookmark loaded after $attempts polls: $bookmarkId")
+                                if (bookmark.hasArticle) {
+                                    enqueueArticleDownload(bookmarkId)
+                                }
+                                return@launch  // Done
+                            }
+                            Bookmark.State.ERROR -> {
+                                Timber.w("Bookmark extraction failed: $bookmarkId")
+                                return@launch  // Done (with error)
+                            }
+                            else -> { /* still loading, continue polling */ }
+                        }
+                    }
+                } catch (e: Exception) {
+                    Timber.w(e, "Poll attempt $attempts failed for $bookmarkId")
+                }
+            }
+
+            Timber.w("Polling timed out for bookmark $bookmarkId after $maxAttempts attempts")
+        }
+    }
+
+    private fun enqueueArticleDownload(bookmarkId: String) {
+        val request = OneTimeWorkRequestBuilder<LoadArticleWorker>()
+            .setInputData(
+                Data.Builder()
+                    .putString(LoadArticleWorker.PARAM_BOOKMARK_ID, bookmarkId)
+                    .build()
+            )
+            .setConstraints(
+                Constraints.Builder()
+                    .setRequiredNetworkType(NetworkType.CONNECTED)
+                    .build()
+            )
+            .build()
+        workManager.enqueue(request)
+        Timber.d("Article download enqueued for bookmark: $bookmarkId")
     }
 
     override suspend fun updateBookmark(
