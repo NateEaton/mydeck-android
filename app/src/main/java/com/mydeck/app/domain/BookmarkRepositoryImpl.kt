@@ -30,6 +30,9 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.datetime.Clock
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
 import timber.log.Timber
@@ -153,26 +156,69 @@ class BookmarkRepositoryImpl @Inject constructor(
 
         val bookmarkId = response.headers()[ReadeckApi.Header.BOOKMARK_ID]!!
 
-        // Phase 1: Fetch and insert metadata immediately
-        try {
-            val bookmarkResponse = readeckApi.getBookmarkById(bookmarkId)
-            if (bookmarkResponse.isSuccessful && bookmarkResponse.body() != null) {
-                val bookmark = bookmarkResponse.body()!!.toDomain()
-                insertBookmarks(listOf(bookmark))
-                Timber.d("Bookmark created and inserted locally: $bookmarkId")
+        // Create and insert skeleton bookmark immediately for instant feedback
+        val now = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
+        val skeletonBookmark = Bookmark(
+            id = bookmarkId,
+            href = "/bookmarks/$bookmarkId",
+            created = now,
+            updated = now,
+            state = Bookmark.State.LOADING,
+            loaded = false,
+            url = url,
+            title = title.ifEmpty { url }, // Use URL as title if title is empty
+            siteName = "",
+            site = "",
+            authors = emptyList(),
+            lang = "",
+            textDirection = "",
+            documentTpe = "",
+            type = Bookmark.Type.Article,
+            hasArticle = false,
+            description = "",
+            isDeleted = false,
+            isMarked = false,
+            isArchived = false,
+            labels = emptyList(),
+            readProgress = 0,
+            wordCount = null,
+            readingTime = null,
+            article = Bookmark.Resource(""),
+            articleContent = null,
+            icon = Bookmark.ImageResource("", 0, 0),
+            image = Bookmark.ImageResource("", 0, 0),
+            log = Bookmark.Resource(""),
+            props = Bookmark.Resource(""),
+            thumbnail = Bookmark.ImageResource("", 0, 0)
+        )
+        insertBookmarks(listOf(skeletonBookmark))
+        Timber.d("Skeleton bookmark inserted immediately: $bookmarkId")
 
-                // Phase 2: If not yet loaded, poll in the background
-                if (bookmark.state == Bookmark.State.LOADING) {
-                    pollForBookmarkReady(bookmarkId)
-                } else if (bookmark.hasArticle) {
-                    // Phase 3: Content available, enqueue download
-                    enqueueArticleDownload(bookmarkId)
+        // Launch metadata fetch in background - don't block on it
+        // This will update the skeleton with real data when available
+        applicationScope.launch {
+            try {
+                // Phase 1: Fetch and insert real metadata
+                val bookmarkResponse = readeckApi.getBookmarkById(bookmarkId)
+                if (bookmarkResponse.isSuccessful && bookmarkResponse.body() != null) {
+                    val bookmark = bookmarkResponse.body()!!.toDomain()
+                    insertBookmarks(listOf(bookmark))
+                    Timber.d("Bookmark metadata updated: $bookmarkId")
+
+                    // Phase 2: If not yet loaded, continue polling
+                    if (bookmark.state == Bookmark.State.LOADING) {
+                        pollForBookmarkReady(bookmarkId)
+                    } else if (bookmark.hasArticle) {
+                        // Phase 3: Content available, enqueue download
+                        enqueueArticleDownload(bookmarkId)
+                    }
                 }
+            } catch (e: Exception) {
+                Timber.w(e, "Failed to fetch created bookmark metadata")
             }
-        } catch (e: Exception) {
-            Timber.w(e, "Failed to fetch created bookmark metadata")
         }
 
+        // Return immediately - spinner stops, card already visible
         return bookmarkId
     }
 
