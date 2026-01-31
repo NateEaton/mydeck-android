@@ -156,54 +156,15 @@ class BookmarkRepositoryImpl @Inject constructor(
 
         val bookmarkId = response.headers()[ReadeckApi.Header.BOOKMARK_ID]!!
 
-        // Create and insert skeleton bookmark immediately for instant card display
-        val now = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
-        val skeletonBookmark = Bookmark(
-            id = bookmarkId,
-            href = "/bookmarks/$bookmarkId",
-            created = now,
-            updated = now,
-            state = Bookmark.State.LOADING,
-            loaded = false,
-            url = url,
-            title = title.ifEmpty { url }, // Use URL as title if title is empty
-            siteName = "",
-            site = "",
-            authors = emptyList(),
-            lang = "",
-            textDirection = "",
-            documentTpe = "",
-            type = Bookmark.Type.Article,
-            hasArticle = false,
-            description = "",
-            isDeleted = false,
-            isMarked = false,
-            isArchived = false,
-            labels = emptyList(),
-            readProgress = 0,
-            wordCount = null,
-            readingTime = null,
-            article = Bookmark.Resource(""),
-            articleContent = null,
-            icon = Bookmark.ImageResource("", 0, 0),
-            image = Bookmark.ImageResource("", 0, 0),
-            log = Bookmark.Resource(""),
-            props = Bookmark.Resource(""),
-            thumbnail = Bookmark.ImageResource("", 0, 0)
-        )
-        insertBookmarks(listOf(skeletonBookmark))
-        Timber.d("Skeleton bookmark inserted immediately: $bookmarkId")
-
-        // Fetch metadata before returning - this keeps spinner going
-        // while card is visible with loading indicator in thumbnail area
+        // Fetch and insert bookmark metadata
         try {
             val bookmarkResponse = readeckApi.getBookmarkById(bookmarkId)
             if (bookmarkResponse.isSuccessful && bookmarkResponse.body() != null) {
                 val bookmark = bookmarkResponse.body()!!.toDomain()
                 insertBookmarks(listOf(bookmark))
-                Timber.d("Bookmark metadata updated: $bookmarkId")
+                Timber.d("Bookmark created and inserted locally: $bookmarkId")
 
-                // If still loading, continue polling in background
+                // If not yet loaded, poll in the background
                 if (bookmark.state == Bookmark.State.LOADING) {
                     pollForBookmarkReady(bookmarkId)
                 } else if (bookmark.hasArticle) {
@@ -212,10 +173,9 @@ class BookmarkRepositoryImpl @Inject constructor(
                 }
             }
         } catch (e: Exception) {
-            Timber.w(e, "Failed to fetch created bookmark metadata")
+            Timber.w(e, "Failed to fetch and insert created bookmark")
         }
 
-        // Return now - card is visible with full metadata, spinner can stop
         return bookmarkId
     }
 
