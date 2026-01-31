@@ -148,7 +148,7 @@ other{}
     <string name="about_project_original_repo">Original ReadeckApp Repository</string>
     <string name="about_project_readeck_repo">Readeck Server</string>
     <string name="about_license_title">License</string>
-    <string name="about_license_text">MyDeck is licensed under the MIT License. Source code is available on GitHub.</string>
+    <string name="about_license_text">MyDeck is licensed under the GNU General Public License v3 (GPLv3). Source code is available on GitHub.</string>
     <string name="about_license_readeck">Readeck server is licensed under the AGPL-3.0 license.</string>
 
     <!-- Bookmark Details Dialog -->

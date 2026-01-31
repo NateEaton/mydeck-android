@@ -155,8 +155,7 @@ fun AboutScreenContent(
 
             Text(
                 text = stringResource(R.string.about_credits_fork),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.fillMaxWidth()
             )
             // FORK_INFO_END
