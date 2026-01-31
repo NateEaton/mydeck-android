@@ -54,6 +54,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
@@ -271,6 +273,14 @@ fun BookmarkListScreen(navHostController: NavHostController) {
                     else -> stringResource(id = R.string.my_list) // Default to My List
                 }
 
+                val searchFocusRequester = remember { FocusRequester() }
+
+                LaunchedEffect(isSearchActive.value) {
+                    if (isSearchActive.value) {
+                        searchFocusRequester.requestFocus()
+                    }
+                }
+
                 TopAppBar(
                     title = {
                         if (isSearchActive.value) {
@@ -282,7 +292,9 @@ fun BookmarkListScreen(navHostController: NavHostController) {
                                     Icon(Icons.Filled.Search, contentDescription = null)
                                 },
                                 singleLine = true,
-                                modifier = Modifier.fillMaxWidth()
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .focusRequester(searchFocusRequester)
                             )
                         } else {
                             Text(currentViewTitle)
