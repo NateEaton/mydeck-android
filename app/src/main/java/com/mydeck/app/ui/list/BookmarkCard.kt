@@ -56,8 +56,6 @@ import coil3.request.ImageRequest
 import coil3.request.crossfade
 import kotlinx.datetime.Clock
 import kotlinx.datetime.TimeZone
-import kotlinx.datetime.atZone
-import kotlinx.datetime.toLocalDateTime
 import com.mydeck.app.R
 import com.mydeck.app.domain.model.Bookmark
 import com.mydeck.app.domain.model.BookmarkListItem
@@ -568,7 +566,7 @@ fun BookmarkCardPreview() {
         imageSrc = "https://picsum.photos/seed/picsum/640/480",
         thumbnailSrc = "https://picsum.photos/seed/picsum/640/480",
         readingTime = 8,
-        created = Clock.System.now().atZone(TimeZone.currentSystemDefault()).toLocalDateTime(),
+        created = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()),
         wordCount = 2000
     )
     CompositionLocalProvider(LocalAsyncImagePreviewHandler provides previewHandler) {
