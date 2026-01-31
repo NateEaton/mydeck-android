@@ -8,6 +8,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import com.mydeck.app.domain.BookmarkRepository
 import com.mydeck.app.domain.model.Template
 import com.mydeck.app.domain.model.Theme
+import com.mydeck.app.domain.usecase.LoadArticleUseCase
 import com.mydeck.app.domain.usecase.UpdateBookmarkUseCase
 import com.mydeck.app.io.AssetLoader
 import com.mydeck.app.io.prefs.SettingsDataStore
@@ -43,6 +44,7 @@ class BookmarkDetailViewModel @Inject constructor(
     private val bookmarkRepository: BookmarkRepository,
     private val assetLoader: AssetLoader,
     private val settingsDataStore: SettingsDataStore,
+    private val loadArticleUseCase: LoadArticleUseCase,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
     private val _navigationEvent = MutableStateFlow<NavigationEvent?>(null)
@@ -53,6 +55,9 @@ class BookmarkDetailViewModel @Inject constructor(
 
     private val _shareIntent = MutableStateFlow<Intent?>(null)
     val shareIntent: StateFlow<Intent?> = _shareIntent.asStateFlow()
+
+    private val _isLoadingArticle = MutableStateFlow(false)
+    val isLoadingArticle: StateFlow<Boolean> = _isLoadingArticle.asStateFlow()
 
     private val bookmarkId: String? = savedStateHandle["bookmarkId"]
     private val template: Flow<Template?> = settingsDataStore.themeFlow.map {
@@ -361,6 +366,22 @@ class BookmarkDetailViewModel @Inject constructor(
 
     fun onOpenUrlEventConsumed() {
         _openUrlEvent.value = ""
+    }
+
+    fun onRefreshArticleContent() {
+        if (bookmarkId == null) return
+
+        viewModelScope.launch {
+            _isLoadingArticle.value = true
+            try {
+                loadArticleUseCase.execute(bookmarkId)
+                Timber.d("Article content refreshed for bookmark: $bookmarkId")
+            } catch (e: Exception) {
+                Timber.e(e, "Error refreshing article content: ${e.message}")
+            } finally {
+                _isLoadingArticle.value = false
+            }
+        }
     }
 
     private fun formatLocalDateTimeWithDateFormat(localDateTime: LocalDateTime): String {
