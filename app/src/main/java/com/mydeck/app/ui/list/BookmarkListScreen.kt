@@ -1,5 +1,6 @@
 package com.mydeck.app.ui.list
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -517,12 +518,16 @@ fun BookmarkListScreen(navHostController: NavHostController) {
                     onDismissRequest = { showSortDialog = false },
                     title = { Text("Sort by") },
                     text = {
-                        Column {
-                            SortOption.values().forEach { option ->
+                        LazyColumn(modifier = Modifier.fillMaxWidth()) {
+                            items(SortOption.values()) { option ->
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .padding(vertical = 8.dp),
+                                        .clickable {
+                                            viewModel.onSortOptionSelected(option)
+                                            showSortDialog = false
+                                        }
+                                        .padding(vertical = 8.dp, horizontal = 16.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     RadioButton(
@@ -708,6 +713,7 @@ fun BookmarkListViewPreview() {
     val navController = rememberNavController()
     BookmarkListView(
         modifier = Modifier,
+        layoutMode = LayoutMode.CARD,
         bookmarks = bookmarks,
         onClickBookmark = {},
         onClickDelete = {},
