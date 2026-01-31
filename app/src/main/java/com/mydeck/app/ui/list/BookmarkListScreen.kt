@@ -492,7 +492,7 @@ fun BookmarkListScreen(navHostController: NavHostController) {
                     title = { Text("Select Layout") },
                     text = {
                         Column {
-                            LayoutMode.values().forEach { mode ->
+                            LayoutMode.entries.forEach { mode ->
                                 Button(
                                     onClick = {
                                         viewModel.onLayoutModeSelected(mode)
@@ -522,7 +522,7 @@ fun BookmarkListScreen(navHostController: NavHostController) {
                     title = { Text("Sort by") },
                     text = {
                         LazyColumn(modifier = Modifier.fillMaxWidth()) {
-                            items(SortOption.values()) { option ->
+                            items(SortOption.entries) { option ->
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
