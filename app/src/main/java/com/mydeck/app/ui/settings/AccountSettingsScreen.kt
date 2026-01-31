@@ -23,6 +23,8 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -133,6 +135,12 @@ fun AccountSettingsView(
     val urlFocusRequester = remember { FocusRequester() }
     var showSignOutDialog by remember { mutableStateOf(false) }
 
+    // Create TextFieldValue for URL field with cursor at the end
+    val urlValue = remember(settingsUiState.url) {
+        val url = settingsUiState.url ?: ""
+        TextFieldValue(text = url, selection = TextRange(url.length))
+    }
+
     // Request focus on URL field when screen opens
     LaunchedEffect(Unit) {
         urlFocusRequester.requestFocus()
@@ -197,9 +205,9 @@ fun AccountSettingsView(
         ) {
             item {
                 OutlinedTextField(
-                    value = settingsUiState.url ?: "",
+                    value = urlValue,
                     placeholder = { Text(stringResource(R.string.account_settings_url_placeholder)) },
-                    onValueChange = { onUrlChanged(it) },
+                    onValueChange = { textFieldValue -> onUrlChanged(textFieldValue.text) },
                     label = { Text(stringResource(R.string.account_settings_url_label)) },
                     modifier = Modifier
                         .fillMaxWidth()

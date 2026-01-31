@@ -81,11 +81,10 @@ class AccountSettingsViewModel @Inject constructor(
             it.copy(allowUnencryptedConnection = allow)
         }
         uiState.value.url?.apply {
-            // Update protocol prefix based on allow setting
+            // Swap protocol prefix when toggling unencrypted connections
             val updatedUrl = when {
-                allow && this.startsWith("https://") -> this // https still works with unencrypted allowed
-                !allow && this.startsWith("http://") -> "https://${this.substringAfter("http://")}" // Replace http with https
-                this == "https://" || this == "http://" -> if (allow) "http://" else "https://" // Just the prefix
+                allow && this.startsWith("https://") -> "http://${this.substringAfter("https://")}" // Swap https to http
+                !allow && this.startsWith("http://") -> "https://${this.substringAfter("http://")}" // Swap http to https
                 else -> this
             }
             validateUrl(updatedUrl)
