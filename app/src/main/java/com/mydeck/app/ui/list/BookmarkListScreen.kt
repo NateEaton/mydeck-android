@@ -289,10 +289,7 @@ fun BookmarkListScreen(navHostController: NavHostController) {
                                 value = searchQuery.value,
                                 onValueChange = { viewModel.onSearchQueryChange(it) },
                                 placeholder = {
-                                    Text(
-                                        stringResource(R.string.search_bookmarks),
-                                        style = MaterialTheme.typography.bodyMedium
-                                    )
+                                    Text(stringResource(R.string.search_bookmarks))
                                 },
                                 leadingIcon = {
                                     Icon(Icons.Filled.Search, contentDescription = null)
@@ -305,11 +302,8 @@ fun BookmarkListScreen(navHostController: NavHostController) {
                                     }
                                 },
                                 singleLine = true,
-                                textStyle = MaterialTheme.typography.bodyMedium,
-                                shape = MaterialTheme.shapes.small,
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .height(44.dp)
                                     .focusRequester(searchFocusRequester)
                             )
                         } else {
