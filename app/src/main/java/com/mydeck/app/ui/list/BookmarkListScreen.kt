@@ -77,6 +77,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import kotlinx.datetime.Clock
+import kotlinx.datetime.TimeZone
 import com.mydeck.app.R
 import com.mydeck.app.domain.model.Bookmark
 import com.mydeck.app.domain.model.BookmarkListItem
@@ -704,7 +705,7 @@ fun BookmarkListViewPreview() {
         imageSrc = "https://picsum.photos/seed/picsum/640/480",
         thumbnailSrc = "https://picsum.photos/seed/picsum/640/480",
         readingTime = 8,
-        created = kotlinx.datetime.Clock.System.now().toLocalDateTime(kotlinx.datetime.TimeZone.currentSystemDefault()),
+        created = Clock.System.now().atZone(TimeZone.currentSystemDefault()).toLocalDateTime(),
         wordCount = 2000
     )
     val bookmarks = listOf(sampleBookmark)
