@@ -44,11 +44,16 @@ import com.mydeck.app.ui.settings.SettingsScreen
 import com.mydeck.app.ui.settings.SyncSettingsScreen
 import com.mydeck.app.ui.settings.UiSettingsScreen
 import com.mydeck.app.ui.theme.MyDeckTheme
+import com.mydeck.app.io.prefs.SettingsDataStore
 import kotlinx.coroutines.launch
 import timber.log.Timber
+import javax.inject.Inject
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+
+    @Inject
+    lateinit var settingsDataStore: SettingsDataStore
 
     private lateinit var intentState: MutableState<Intent?>
 
@@ -92,7 +97,7 @@ class MainActivity : ComponentActivity() {
             }
 
             MyDeckTheme(theme = themeValue) {
-                MyDeckNavHost(navController)
+                MyDeckNavHost(navController, settingsDataStore)
             }
         }
     }
@@ -105,8 +110,16 @@ class MainActivity : ComponentActivity() {
 
 @SuppressLint("WrongStartDestinationType")
 @Composable
-fun MyDeckNavHost(navController: NavHostController) {
-    NavHost(navController = navController, startDestination = BookmarkListRoute()) {
+fun MyDeckNavHost(navController: NavHostController, settingsDataStore: SettingsDataStore? = null) {
+    // Determine start destination based on auth state
+    val token = settingsDataStore?.tokenFlow?.collectAsState()?.value
+    val startDestination: Any = if (token.isNullOrBlank()) {
+        AccountSettingsRoute
+    } else {
+        BookmarkListRoute()
+    }
+
+    NavHost(navController = navController, startDestination = startDestination) {
         composable<BookmarkListRoute> { BookmarkListScreen(navController) }
         composable<SettingsRoute> { SettingsScreen(navController) }
         composable<AccountSettingsRoute> { AccountSettingsScreen(navController) }

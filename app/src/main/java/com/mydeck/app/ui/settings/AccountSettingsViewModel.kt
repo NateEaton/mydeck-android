@@ -1,5 +1,6 @@
 package com.mydeck.app.ui.settings
 
+import androidx.compose.ui.focus.FocusRequester
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -24,7 +25,7 @@ class AccountSettingsViewModel @Inject constructor(
     private val _navigationEvent = MutableStateFlow<NavigationEvent?>(null)
     val navigationEvent: StateFlow<NavigationEvent?> = _navigationEvent.asStateFlow()
     private val _uiState =
-        MutableStateFlow(AccountSettingsUiState("", "", "", false, null, null, null, null, false))
+        MutableStateFlow(AccountSettingsUiState("", "", "", false, null, null, null, null, false, false))
     val uiState = _uiState.asStateFlow()
 
     init {
@@ -32,16 +33,23 @@ class AccountSettingsViewModel @Inject constructor(
             val url = settingsDataStore.urlFlow.value
             val username = settingsDataStore.usernameFlow.value
             val password = settingsDataStore.passwordFlow.value
+            val token = settingsDataStore.tokenFlow.value
+            val isLoggedIn = !token.isNullOrBlank()
+
+            // Auto-populate URL with protocol if empty
+            val populatedUrl = if (url.isNullOrBlank()) "https://" else url
+
             _uiState.value = AccountSettingsUiState(
-                url = url,
+                url = populatedUrl,
                 username = username,
                 password = password,
-                loginEnabled = isValidUrl(url) && !username.isNullOrBlank() && !password.isNullOrBlank(),
+                loginEnabled = isValidUrl(populatedUrl) && !username.isNullOrBlank() && !password.isNullOrBlank(),
                 urlError = null,
                 usernameError = null,
                 passwordError = null,
                 authenticationResult = null,
-                allowUnencryptedConnection = false
+                allowUnencryptedConnection = false,
+                isLoggedIn = isLoggedIn
             )
         }
     }
@@ -59,9 +67,13 @@ class AccountSettingsViewModel @Inject constructor(
                 _uiState.value.password!!
             )
             _uiState.update {
-                it.copy(authenticationResult = result)
+                it.copy(authenticationResult = result, isLoggedIn = result is AuthenticationResult.Success)
             }
             Timber.d("result=$result")
+            // Navigate to BookmarkList on successful authentication
+            if (result is AuthenticationResult.Success) {
+                _navigationEvent.update { NavigationEvent.NavigateToBookmarkList }
+            }
         }
     }
 
@@ -69,7 +81,16 @@ class AccountSettingsViewModel @Inject constructor(
         _uiState.update {
             it.copy(allowUnencryptedConnection = allow)
         }
-        uiState.value.url?.apply { validateUrl(this) }
+        uiState.value.url?.apply {
+            // Update protocol prefix based on allow setting
+            val updatedUrl = when {
+                allow && this.startsWith("https://") -> this // https still works with unencrypted allowed
+                !allow && this.startsWith("http://") -> "https://${this.substringAfter("http://")}" // Replace http with https
+                this == "https://" || this == "http://" -> if (allow) "http://" else "https://" // Just the prefix
+                else -> this
+            }
+            validateUrl(updatedUrl)
+        }
     }
 
     fun onUrlChanged(value: String) {
@@ -133,8 +154,33 @@ class AccountSettingsViewModel @Inject constructor(
         _navigationEvent.update { NavigationEvent.NavigateBack }
     }
 
+    fun signOut() {
+        viewModelScope.launch {
+            try {
+                settingsDataStore.clearCredentials()
+                // Reset the UI state
+                _uiState.value = AccountSettingsUiState(
+                    url = "https://",
+                    username = "",
+                    password = "",
+                    loginEnabled = false,
+                    urlError = null,
+                    usernameError = null,
+                    passwordError = null,
+                    authenticationResult = null,
+                    allowUnencryptedConnection = false,
+                    isLoggedIn = false
+                )
+                Timber.d("Signed out successfully")
+            } catch (e: Exception) {
+                Timber.e(e, "Error signing out")
+            }
+        }
+    }
+
     sealed class NavigationEvent {
         data object NavigateBack : NavigationEvent()
+        data object NavigateToBookmarkList : NavigationEvent()
     }
 
     private fun isValidUrl(url: String?): Boolean {
@@ -157,5 +203,6 @@ data class AccountSettingsUiState(
     val usernameError: Int?,
     val passwordError: Int?,
     val authenticationResult: AuthenticationResult?,
-    val allowUnencryptedConnection: Boolean = false
+    val allowUnencryptedConnection: Boolean = false,
+    val isLoggedIn: Boolean = false
 )

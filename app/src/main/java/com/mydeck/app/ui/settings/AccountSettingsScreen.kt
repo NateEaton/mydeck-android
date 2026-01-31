@@ -1,7 +1,9 @@
 package com.mydeck.app.ui.settings
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -9,10 +11,16 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.focus.FocusManager
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
@@ -35,14 +43,21 @@ fun AccountSettingsScreen(
     val onLoginClicked: () -> Unit = { viewModel.login() }
     val onAllowUnencryptedConnectionChanged: (Boolean) -> Unit = { allow -> viewModel.onAllowUnencryptedConnectionChanged(allow) }
     val onClickBack: () -> Unit = { viewModel.onClickBack() }
+    val onSignOut: () -> Unit = { viewModel.signOut() }
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+    val isStartDestination = navHostController.previousBackStackEntry == null
 
     LaunchedEffect(key1 = navigationEvent.value) {
         navigationEvent.value?.let { event ->
             when (event) {
                 is AccountSettingsViewModel.NavigationEvent.NavigateBack -> {
                     navHostController.popBackStack()
+                }
+                is AccountSettingsViewModel.NavigationEvent.NavigateToBookmarkList -> {
+                    navHostController.navigate(com.mydeck.app.ui.navigation.BookmarkListRoute()) {
+                        popUpTo(com.mydeck.app.ui.navigation.AccountSettingsRoute) { inclusive = true }
+                    }
                 }
             }
             viewModel.onNavigationEventConsumed() // Consume the event
@@ -92,7 +107,9 @@ fun AccountSettingsScreen(
         onPasswordChanged = onPasswordChanged,
         onLoginClicked = onLoginClicked,
         onClickBack = onClickBack,
-        onAllowUnencryptedConnectionChanged = onAllowUnencryptedConnectionChanged
+        onAllowUnencryptedConnectionChanged = onAllowUnencryptedConnectionChanged,
+        onSignOut = onSignOut,
+        isStartDestination = isStartDestination
     )
 }
 
@@ -107,30 +124,68 @@ fun AccountSettingsView(
     onPasswordChanged: (String) -> Unit,
     onLoginClicked: () -> Unit,
     onClickBack: () -> Unit,
-    onAllowUnencryptedConnectionChanged: (Boolean) -> Unit
+    onAllowUnencryptedConnectionChanged: (Boolean) -> Unit,
+    onSignOut: () -> Unit,
+    isStartDestination: Boolean = false
 ) {
     val keyboardController = LocalSoftwareKeyboardController.current
+    val focusManager = LocalFocusManager.current
+    val urlFocusRequester = remember { FocusRequester() }
+    var showSignOutDialog by remember { mutableStateOf(false) }
+
+    // Request focus on URL field when screen opens
+    LaunchedEffect(Unit) {
+        urlFocusRequester.requestFocus()
+    }
+
+    if (showSignOutDialog) {
+        AlertDialog(
+            onDismissRequest = { showSignOutDialog = false },
+            title = { Text(stringResource(R.string.account_settings_sign_out_confirm_title)) },
+            text = { Text(stringResource(R.string.account_settings_sign_out_confirm_message)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showSignOutDialog = false
+                        onSignOut()
+                    }
+                ) {
+                    Text(stringResource(R.string.account_settings_sign_out), color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showSignOutDialog = false }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            }
+        )
+    }
+
     Scaffold(
         modifier = modifier,
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.accountsettings_topbar_title)) },
-                navigationIcon = {
-                    IconButton(
-                        onClick = onClickBack,
-                        modifier = Modifier.testTag(AccountSettingsScreenTestTags.BACK_BUTTON)
-                    ) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(R.string.back)
-                        )
+                navigationIcon = if (!isStartDestination) {
+                    {
+                        IconButton(
+                            onClick = onClickBack,
+                            modifier = Modifier.testTag(AccountSettingsScreenTestTags.BACK_BUTTON)
+                        ) {
+                            Icon(
+                                Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = stringResource(R.string.back)
+                            )
+                        }
                     }
+                } else {
+                    null
                 }
             )
         }
     ) { padding ->
-        Column(
+        LazyColumn(
             modifier = Modifier
                 .padding(padding)
                 .padding(16.dp)
@@ -138,72 +193,126 @@ fun AccountSettingsView(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            OutlinedTextField(
-                value = settingsUiState.url ?: "",
-                placeholder = { Text(stringResource(R.string.account_settings_url_placeholder)) },
-                onValueChange = { onUrlChanged(it) },
-                label = { Text(stringResource(R.string.account_settings_url_label)) },
-                modifier = Modifier.fillMaxWidth(),
-                isError = settingsUiState.urlError != null,
-                supportingText = {
-                    settingsUiState.urlError?.let {
-                        Text(text = stringResource(it))
+            item {
+                OutlinedTextField(
+                    value = settingsUiState.url ?: "",
+                    placeholder = { Text(stringResource(R.string.account_settings_url_placeholder)) },
+                    onValueChange = { onUrlChanged(it) },
+                    label = { Text(stringResource(R.string.account_settings_url_label)) },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .focusRequester(urlFocusRequester),
+                    singleLine = true,
+                    isError = settingsUiState.urlError != null,
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+                    keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(FocusDirection.Down) }),
+                    supportingText = {
+                        settingsUiState.urlError?.let {
+                            Text(text = stringResource(it))
+                        }
                     }
-                }
-            )
-            OutlinedTextField(
-                value = settingsUiState.username ?: "",
-                placeholder = { Text(stringResource(R.string.account_settings_username_placeholder)) },
-                onValueChange = { onUsernameChanged(it) },
-                label = { Text(stringResource(R.string.account_settings_username_label)) },
-                modifier = Modifier.fillMaxWidth(),
-                isError = settingsUiState.usernameError != null,
-                supportingText = {
-                    settingsUiState.usernameError?.let {
-                        Text(text = stringResource(it))
-                    }
-                }
-            )
-            OutlinedTextField(
-                value = settingsUiState.password ?: "",
-                placeholder = { Text(stringResource(R.string.account_settings_password_placeholder)) },
-                onValueChange = { onPasswordChanged(it) },
-                label = { Text(stringResource(R.string.account_settings_password_label)) },
-                visualTransformation = PasswordVisualTransformation(),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                modifier = Modifier.fillMaxWidth(),
-                isError = settingsUiState.passwordError != null,
-                supportingText = {
-                    settingsUiState.passwordError?.let {
-                        Text(text = stringResource(it))
-                    }
-                }
-            )
-            Row(
-                modifier = Modifier
-                    .height(56.dp)
-                    .selectable(
-                        selected = settingsUiState.allowUnencryptedConnection,
-                        onClick = { onAllowUnencryptedConnectionChanged(settingsUiState.allowUnencryptedConnection.not()) },
-                        role = Role.Checkbox
-                    ),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                Checkbox(
-                    checked = settingsUiState.allowUnencryptedConnection,
-                    onCheckedChange = null
                 )
-                Text(text = stringResource(R.string.account_settings_allow_unencrypted))
             }
-            Button(
-                onClick = {
-                    keyboardController?.hide()
-                    onLoginClicked.invoke()
-                },
-                enabled = settingsUiState.loginEnabled
-            ) {
-                Text(stringResource(R.string.account_settings_login))
+            item {
+                OutlinedTextField(
+                    value = settingsUiState.username ?: "",
+                    placeholder = { Text(stringResource(R.string.account_settings_username_placeholder)) },
+                    onValueChange = { onUsernameChanged(it) },
+                    label = { Text(stringResource(R.string.account_settings_username_label)) },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    isError = settingsUiState.usernameError != null,
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+                    keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(FocusDirection.Down) }),
+                    supportingText = {
+                        settingsUiState.usernameError?.let {
+                            Text(text = stringResource(it))
+                        }
+                    }
+                )
+            }
+            item {
+                OutlinedTextField(
+                    value = settingsUiState.password ?: "",
+                    placeholder = { Text(stringResource(R.string.account_settings_password_placeholder)) },
+                    onValueChange = { onPasswordChanged(it) },
+                    label = { Text(stringResource(R.string.account_settings_password_label)) },
+                    visualTransformation = PasswordVisualTransformation(),
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    isError = settingsUiState.passwordError != null,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done),
+                    keyboardActions = KeyboardActions(
+                        onDone = {
+                            keyboardController?.hide()
+                            if (settingsUiState.loginEnabled) {
+                                onLoginClicked()
+                            }
+                        }
+                    ),
+                    supportingText = {
+                        settingsUiState.passwordError?.let {
+                            Text(text = stringResource(it))
+                        }
+                    }
+                )
+            }
+            item {
+                Row(
+                    modifier = Modifier
+                        .height(56.dp)
+                        .selectable(
+                            selected = settingsUiState.allowUnencryptedConnection,
+                            onClick = { onAllowUnencryptedConnectionChanged(settingsUiState.allowUnencryptedConnection.not()) },
+                            role = Role.Checkbox
+                        ),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Checkbox(
+                        checked = settingsUiState.allowUnencryptedConnection,
+                        onCheckedChange = null
+                    )
+                    Text(text = stringResource(R.string.account_settings_allow_unencrypted))
+                }
+            }
+            item {
+                Button(
+                    onClick = {
+                        keyboardController?.hide()
+                        onLoginClicked.invoke()
+                    },
+                    enabled = settingsUiState.loginEnabled,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(stringResource(R.string.account_settings_login))
+                }
+            }
+            // Sign-out section (only show when logged in)
+            if (settingsUiState.isLoggedIn) {
+                item {
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
+                }
+                item {
+                    Text(
+                        text = stringResource(R.string.account_settings_sign_out_warning),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+                item {
+                    OutlinedButton(
+                        onClick = { showSignOutDialog = true },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = MaterialTheme.colorScheme.error
+                        ),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.error)
+                    ) {
+                        Text(stringResource(R.string.account_settings_sign_out))
+                    }
+                }
             }
         }
     }
@@ -220,7 +329,9 @@ fun AccountSettingsScreenViewPreview() {
         urlError = R.string.account_settings_url_error,
         usernameError = null,
         passwordError = null,
-        authenticationResult = null
+        authenticationResult = null,
+        allowUnencryptedConnection = false,
+        isLoggedIn = true
     )
     AccountSettingsView(
         modifier = Modifier,
@@ -231,7 +342,9 @@ fun AccountSettingsScreenViewPreview() {
         onPasswordChanged = {},
         onLoginClicked = {},
         onClickBack = {},
-        onAllowUnencryptedConnectionChanged = {}
+        onAllowUnencryptedConnectionChanged = {},
+        onSignOut = {},
+        isStartDestination = false
     )
 }
 

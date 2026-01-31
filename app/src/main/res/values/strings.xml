@@ -8,15 +8,19 @@
     <string name="account_settings_topbar_title">Readeck URL</string>
     <string name="account_settings_url_placeholder">https://readeck.example.com/api</string>
     <string name="account_settings_url_label">Readeck URL</string>
-    <string name="account_settings_username_placeholder">username</string>
-    <string name="account_settings_username_label">Username</string>
+    <string name="account_settings_username_placeholder">email@example.com</string>
+    <string name="account_settings_username_label">Email Address</string>
     <string name="account_settings_password_label">Password</string>
     <string name="account_settings_password_placeholder">password</string>
     <string name="account_settings_login">Login</string>
     <string name="account_settings_url_error">Invalid URL</string>
-    <string name="account_settings_username_error">Username cannot be empty</string>
+    <string name="account_settings_username_error">Email address cannot be empty</string>
     <string name="account_settings_password_error">Password cannot be empty</string>
     <string name="account_settings_allow_unencrypted">Allow unencrypted connections</string>
+    <string name="account_settings_sign_out_warning">Signing out will clear all local data including saved bookmarks.</string>
+    <string name="account_settings_sign_out">Sign Out</string>
+    <string name="account_settings_sign_out_confirm_title">Sign out?</string>
+    <string name="account_settings_sign_out_confirm_message">This will clear all local data including saved bookmarks.</string>
     <string name="sync_settings_topbar_title">Synchronization Settings</string>
     <string name="authors" translatable="true">
 {count, plural,
