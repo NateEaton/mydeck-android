@@ -277,9 +277,7 @@ fun BookmarkDetailScreen(
             uiState = uiState,
             onClickOpenUrl = onClickOpenUrl,
             onScrollProgressChanged = onScrollProgressChanged,
-            initialReadProgress = initialReadProgress,
-            onRefreshArticleContent = { viewModel.onRefreshArticleContent() },
-            isLoadingArticle = viewModel.isLoadingArticle.collectAsState().value
+            initialReadProgress = initialReadProgress
         )
     }
 }
@@ -290,9 +288,7 @@ fun BookmarkDetailContent(
     uiState: BookmarkDetailViewModel.UiState.Success,
     onClickOpenUrl: (String) -> Unit,
     onScrollProgressChanged: (Int) -> Unit = {},
-    initialReadProgress: Int = 0,
-    onRefreshArticleContent: () -> Unit = {},
-    isLoadingArticle: Boolean = false
+    initialReadProgress: Int = 0
 ) {
     val scrollState = rememberScrollState()
     val needsRestore = initialReadProgress > 0 && initialReadProgress <= 100
@@ -346,9 +342,7 @@ fun BookmarkDetailContent(
             )
         } else {
             EmptyBookmarkDetailArticle(
-                modifier = Modifier,
-                onRefreshArticleContent = onRefreshArticleContent,
-                isLoadingArticle = isLoadingArticle
+                modifier = Modifier
             )
             }
         }
@@ -364,43 +358,12 @@ fun BookmarkDetailContent(
 
 @Composable
 fun EmptyBookmarkDetailArticle(
-    modifier: Modifier,
-    onRefreshArticleContent: () -> Unit = {},
-    isLoadingArticle: Boolean = false
+    modifier: Modifier
 ) {
-    Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(32.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        Text(
-            text = stringResource(R.string.detail_view_no_content),
-            textAlign = TextAlign.Center,
-            style = MaterialTheme.typography.bodyLarge
-        )
-        Spacer(modifier = Modifier.height(16.dp))
-        if (isLoadingArticle) {
-            CircularProgressIndicator()
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = "Downloading article...",
-                style = MaterialTheme.typography.bodySmall
-            )
-        } else {
-            androidx.compose.material3.Button(
-                onClick = onRefreshArticleContent
-            ) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.OpenInNew,
-                    contentDescription = "Download article"
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("Download Article")
-            }
-        }
-    }
+    Text(
+        modifier = modifier,
+        text = stringResource(R.string.detail_view_no_content)
+    )
 }
 
 @Composable
