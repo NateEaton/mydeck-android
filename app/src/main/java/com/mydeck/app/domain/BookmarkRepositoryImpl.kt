@@ -443,66 +443,14 @@ class BookmarkRepositoryImpl @Inject constructor(
     }
 
     override suspend fun performDeltaSync(since: kotlinx.datetime.Instant?): BookmarkRepository.SyncResult = withContext(dispatcher) {
-        try {
-            val sinceParam = since?.let {
-                // Truncate to seconds to avoid SQLite timestamp parsing errors on server
-                kotlinx.datetime.Instant.fromEpochSeconds(it.epochSeconds).toString()
-            }
-            Timber.d("Starting delta sync with since=$sinceParam")
-
-            val response = readeckApi.getSyncStatus(sinceParam)
-
-            if (!response.isSuccessful) {
-                Timber.e("Sync status failed with code: ${response.code()}")
-                return@withContext BookmarkRepository.SyncResult.Error(
-                    errorMessage = "Sync status failed",
-                    code = response.code()
-                )
-            }
-
-            val syncStatuses = response.body() ?: emptyList()
-            Timber.d("Received ${syncStatuses.size} sync status entries")
-
-            // Separate updated and deleted bookmarks
-            val deletedIds = syncStatuses
-                .filter { it.status == "deleted" }
-                .map { it.id }
-
-            val updatedIds = syncStatuses
-                .filter { it.status == "ok" }
-                .map { it.id }
-
-            // Delete locally removed bookmarks
-            deletedIds.forEach { id ->
-                bookmarkDao.deleteBookmark(id)
-            }
-
-            // Fetch content for updated bookmarks
-            if (updatedIds.isNotEmpty()) {
-                val contentResponse = readeckApi.syncContent(SyncContentRequestDto(ids = updatedIds))
-                if (contentResponse.isSuccessful) {
-                    val bookmarks = contentResponse.body()
-                    if (bookmarks != null) {
-                        Timber.d("Fetched ${bookmarks.size} bookmarks content")
-                        bookmarkDao.insertBookmarksWithArticleContent(bookmarks.map { it.toDomain().toEntity() })
-                    }
-                } else {
-                     Timber.e("Sync content failed with code: ${contentResponse.code()}")
-                     // We don't fail the whole sync here, as deletions might have succeeded.
-                     // But strictly speaking, it is a partial failure.
-                 }
-            }
-
-            Timber.i("Delta sync complete: ${deletedIds.size} deleted, ${updatedIds.size} updated")
-
-            BookmarkRepository.SyncResult.Success(countDeleted = deletedIds.size)
-        } catch (e: IOException) {
-            Timber.e(e, "Network error during delta sync: ${e.message}")
-            BookmarkRepository.SyncResult.NetworkError(errorMessage = "Network error during delta sync", ex = e)
-        } catch (e: Exception) {
-            Timber.e(e, "Delta sync failed: ${e.message}")
-            BookmarkRepository.SyncResult.Error(errorMessage = "Delta sync failed: ${e.message}", ex = e)
-        }
+        // DEPRECATED: The /api/bookmarks/sync endpoint has a server-side bug with SQLite.
+        // This method is kept for future use if/when the server bug is fixed.
+        // For now, always return an error to trigger fallback to full sync.
+        Timber.w("Delta sync is disabled due to server-side SQLite compatibility issue")
+        return@withContext BookmarkRepository.SyncResult.Error(
+            errorMessage = "Delta sync disabled - server endpoint incompatible with SQLite",
+            code = 500
+        )
     }
 
     override fun observeAllBookmarkCounts(): Flow<BookmarkCounts> {
