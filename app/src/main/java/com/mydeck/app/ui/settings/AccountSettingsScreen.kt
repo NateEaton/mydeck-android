@@ -165,23 +165,24 @@ fun AccountSettingsView(
         modifier = modifier,
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
+            val navigationIconFn: (@Composable () -> Unit)? = if (!isStartDestination) {
+                @Composable {
+                    IconButton(
+                        onClick = onClickBack,
+                        modifier = Modifier.testTag(AccountSettingsScreenTestTags.BACK_BUTTON)
+                    ) {
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = stringResource(R.string.back)
+                        )
+                    }
+                }
+            } else {
+                null
+            }
             TopAppBar(
                 title = { Text(stringResource(R.string.accountsettings_topbar_title)) },
-                navigationIcon = if (!isStartDestination) {
-                    {
-                        IconButton(
-                            onClick = onClickBack,
-                            modifier = Modifier.testTag(AccountSettingsScreenTestTags.BACK_BUTTON)
-                        ) {
-                            Icon(
-                                Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = stringResource(R.string.back)
-                            )
-                        }
-                    }
-                } else {
-                    null
-                }
+                navigationIcon = navigationIconFn
             )
         }
     ) { padding ->

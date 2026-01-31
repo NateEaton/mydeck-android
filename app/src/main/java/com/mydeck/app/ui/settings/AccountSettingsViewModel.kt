@@ -1,6 +1,5 @@
 package com.mydeck.app.ui.settings
 
-import androidx.compose.ui.focus.FocusRequester
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -43,7 +42,7 @@ class AccountSettingsViewModel @Inject constructor(
                 url = populatedUrl,
                 username = username,
                 password = password,
-                loginEnabled = isValidUrl(populatedUrl) && !username.isNullOrBlank() && !password.isNullOrBlank(),
+                loginEnabled = isValidUrlForCurrentSettings(populatedUrl) && !username.isNullOrBlank() && !password.isNullOrBlank(),
                 urlError = null,
                 usernameError = null,
                 passwordError = null,
@@ -98,8 +97,8 @@ class AccountSettingsViewModel @Inject constructor(
     }
 
     private fun validateUrl(value: String) {
-        val isValidUrl = isValidUrl(value)
-        val urlError = if (!isValidUrl && value.isNotEmpty()) {
+        val isUrlValid = isValidUrlForCurrentSettings(value)
+        val urlError = if (!isUrlValid && value.isNotEmpty()) {
             R.string.account_settings_url_error // Use resource ID
         } else {
             null
@@ -108,7 +107,7 @@ class AccountSettingsViewModel @Inject constructor(
             it.copy(
                 url = value,
                 urlError = urlError,
-                loginEnabled = isValidUrl && !it.username.isNullOrBlank() && !it.password.isNullOrBlank(),
+                loginEnabled = isUrlValid && !it.username.isNullOrBlank() && !it.password.isNullOrBlank(),
                 authenticationResult = null // Clear any previous result
             )
         }
@@ -124,7 +123,7 @@ class AccountSettingsViewModel @Inject constructor(
             it.copy(
                 username = value,
                 usernameError = usernameError,
-                loginEnabled = isValidUrl(uiState.value.url) && !value.isBlank() && !it.password.isNullOrBlank(),
+                loginEnabled = isValidUrlForCurrentSettings(uiState.value.url) && !value.isBlank() && !it.password.isNullOrBlank(),
                 authenticationResult = null // Clear any previous result
             )
         }
@@ -140,7 +139,7 @@ class AccountSettingsViewModel @Inject constructor(
             it.copy(
                 password = value,
                 passwordError = passwordError,
-                loginEnabled = isValidUrl(uiState.value.url) && !it.username.isNullOrBlank() && !value.isBlank(),
+                loginEnabled = isValidUrlForCurrentSettings(uiState.value.url) && !it.username.isNullOrBlank() && !value.isBlank(),
                 authenticationResult = null // Clear any previous result
             )
         }
@@ -183,7 +182,7 @@ class AccountSettingsViewModel @Inject constructor(
         data object NavigateToBookmarkList : NavigationEvent()
     }
 
-    private fun isValidUrl(url: String?): Boolean {
+    private fun isValidUrlForCurrentSettings(url: String?): Boolean {
         val allowUnencrypted = _uiState.value.allowUnencryptedConnection
         return if (allowUnencrypted) {
             url.isValidUrl() // Any URL is valid if unencrypted is allowed
