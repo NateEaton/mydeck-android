@@ -20,12 +20,15 @@ import com.mydeck.app.io.prefs.SettingsDataStore
 import com.mydeck.app.util.extractUrlAndTitle
 import com.mydeck.app.util.isValidUrl
 import com.mydeck.app.worker.LoadBookmarksWorker
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.flow.map
@@ -36,6 +39,7 @@ import kotlinx.coroutines.CancellationException
 import timber.log.Timber
 import javax.inject.Inject
 
+@OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class BookmarkListViewModel @Inject constructor(
     private val updateBookmarkUseCase: UpdateBookmarkUseCase,
@@ -55,6 +59,12 @@ class BookmarkListViewModel @Inject constructor(
 
     private val _filterState = MutableStateFlow(FilterState(archived = false))
     val filterState: StateFlow<FilterState> = _filterState.asStateFlow()
+
+    private val _searchQuery = MutableStateFlow("")
+    val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
+
+    private val _isSearchActive = MutableStateFlow(false)
+    val isSearchActive: StateFlow<Boolean> = _isSearchActive.asStateFlow()
 
     private val _uiState = MutableStateFlow<UiState>(UiState.Empty(R.string.list_view_empty_not_loaded_yet))
     val uiState: StateFlow<UiState> = _uiState.asStateFlow()
@@ -111,22 +121,42 @@ class BookmarkListViewModel @Inject constructor(
         }
 
         viewModelScope.launch(loadBookmarkExceptionHandler) {
-            filterState.collectLatest { filterState ->
-                bookmarkRepository.observeBookmarkListItems(
-                    type = filterState.type,
-                    unread = filterState.unread,
-                    archived = filterState.archived,
-                    favorite = filterState.favorite,
-                    state = Bookmark.State.LOADED
-                ).collectLatest {
-                    _uiState.value = if (it.isEmpty()) {
-                        UiState.Empty(R.string.list_view_empty_nothing_to_see)
+            combine(_filterState, _searchQuery) { filter, query ->
+                Pair(filter, query)
+            }.flatMapLatest { (filter, query) ->
+                if (query.isNotBlank()) {
+                    delay(300) // debounce
+                    bookmarkRepository.searchBookmarkListItems(
+                        searchQuery = query,
+                        type = filter.type,
+                        unread = filter.unread,
+                        archived = filter.archived,
+                        favorite = filter.favorite,
+                        state = Bookmark.State.LOADED
+                    )
+                } else {
+                    bookmarkRepository.observeBookmarkListItems(
+                        type = filter.type,
+                        unread = filter.unread,
+                        archived = filter.archived,
+                        favorite = filter.favorite,
+                        state = Bookmark.State.LOADED
+                    )
+                }
+            }.collectLatest {
+                _uiState.value = if (it.isEmpty()) {
+                    if (_searchQuery.value.isNotBlank()) {
+                        UiState.Empty(R.string.search_no_results)
                     } else {
-                        UiState.Success( bookmarks = it, updateBookmarkState = null)
+                        UiState.Empty(R.string.list_view_empty_nothing_to_see)
                     }
+                } else {
+                    UiState.Success(bookmarks = it, updateBookmarkState = null)
                 }
             }
+        }
 
+        viewModelScope.launch(loadBookmarkExceptionHandler) {
             // Check if the initial sync has been performed
             if (!settingsDataStore.isInitialSyncPerformed()) {
                 Timber.d("loadBookmarks")
@@ -171,6 +201,21 @@ class BookmarkListViewModel @Inject constructor(
 
     private fun clearFilters() {
         _filterState.value = FilterState()
+    }
+
+    fun onSearchQueryChange(query: String) {
+        _searchQuery.value = query
+    }
+
+    fun onSearchActiveChange(active: Boolean) {
+        _isSearchActive.value = active
+        if (!active) {
+            _searchQuery.value = ""
+        }
+    }
+
+    fun onClearSearch() {
+        _searchQuery.value = ""
     }
 
     fun onClickMyList() {

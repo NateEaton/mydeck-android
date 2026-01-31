@@ -13,8 +13,11 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Grade
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Inventory2
 import androidx.compose.material.icons.outlined.Settings
@@ -52,6 +55,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
@@ -84,6 +89,8 @@ fun BookmarkListScreen(navHostController: NavHostController) {
 
     // Collect filter states
     val filterState = viewModel.filterState.collectAsState()
+    val isSearchActive = viewModel.isSearchActive.collectAsState()
+    val searchQuery = viewModel.searchQuery.collectAsState()
 
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
@@ -267,16 +274,63 @@ fun BookmarkListScreen(navHostController: NavHostController) {
                     else -> stringResource(id = R.string.my_list) // Default to My List
                 }
 
+                val searchFocusRequester = remember { FocusRequester() }
+
+                LaunchedEffect(isSearchActive.value) {
+                    if (isSearchActive.value) {
+                        searchFocusRequester.requestFocus()
+                    }
+                }
+
                 TopAppBar(
-                    title = { Text(currentViewTitle) },
-                    navigationIcon = {
-                        IconButton(
-                            onClick = { scope.launch { drawerState.open() } }
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.Menu,
-                                contentDescription = stringResource(id = R.string.menu)
+                    title = {
+                        if (isSearchActive.value) {
+                            OutlinedTextField(
+                                value = searchQuery.value,
+                                onValueChange = { viewModel.onSearchQueryChange(it) },
+                                placeholder = {
+                                    Text(stringResource(R.string.search_bookmarks))
+                                },
+                                leadingIcon = {
+                                    Icon(Icons.Filled.Search, contentDescription = null)
+                                },
+                                trailingIcon = {
+                                    if (searchQuery.value.isNotEmpty()) {
+                                        IconButton(onClick = { viewModel.onClearSearch() }) {
+                                            Icon(Icons.Filled.Clear, contentDescription = stringResource(R.string.clear_search))
+                                        }
+                                    }
+                                },
+                                singleLine = true,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .focusRequester(searchFocusRequester)
                             )
+                        } else {
+                            Text(currentViewTitle)
+                        }
+                    },
+                    navigationIcon = {
+                        if (isSearchActive.value) {
+                            IconButton(onClick = { viewModel.onSearchActiveChange(false) }) {
+                                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.close_search))
+                            }
+                        } else {
+                            IconButton(
+                                onClick = { scope.launch { drawerState.open() } }
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Menu,
+                                    contentDescription = stringResource(id = R.string.menu)
+                                )
+                            }
+                        }
+                    },
+                    actions = {
+                        if (!isSearchActive.value) {
+                            IconButton(onClick = { viewModel.onSearchActiveChange(true) }) {
+                                Icon(Icons.Filled.Search, contentDescription = stringResource(R.string.search))
+                            }
                         }
                     }
                 )

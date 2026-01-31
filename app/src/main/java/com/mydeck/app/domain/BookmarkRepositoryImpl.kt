@@ -127,6 +127,58 @@ class BookmarkRepositoryImpl @Inject constructor(
         }
     }
 
+    override fun searchBookmarkListItems(
+        searchQuery: String,
+        type: Bookmark.Type?,
+        unread: Boolean?,
+        archived: Boolean?,
+        favorite: Boolean?,
+        state: Bookmark.State?
+    ): Flow<List<BookmarkListItem>> {
+        return bookmarkDao.searchBookmarkListItems(
+            searchQuery = searchQuery,
+            type = type?.let {
+                when (it) {
+                    Bookmark.Type.Article -> BookmarkEntity.Type.ARTICLE
+                    Bookmark.Type.Picture -> BookmarkEntity.Type.PHOTO
+                    Bookmark.Type.Video -> BookmarkEntity.Type.VIDEO
+                }
+            },
+            isUnread = unread,
+            isArchived = archived,
+            isFavorite = favorite,
+            state = state?.let {
+                when (it) {
+                    Bookmark.State.LOADED -> BookmarkEntity.State.LOADED
+                    Bookmark.State.ERROR -> BookmarkEntity.State.ERROR
+                    Bookmark.State.LOADING -> BookmarkEntity.State.LOADING
+                }
+            }
+        ).map { listItems ->
+            listItems.map { listItem ->
+                BookmarkListItem(
+                    id = listItem.id,
+                    url = listItem.url,
+                    title = listItem.title,
+                    siteName = listItem.siteName,
+                    isMarked = listItem.isMarked,
+                    isArchived = listItem.isArchived,
+                    isRead = listItem.readProgress == 100,
+                    readProgress = listItem.readProgress,
+                    thumbnailSrc = listItem.thumbnailSrc,
+                    iconSrc = listItem.iconSrc,
+                    imageSrc = listItem.imageSrc,
+                    labels = listItem.labels,
+                    type = when (listItem.type) {
+                        BookmarkEntity.Type.ARTICLE -> Bookmark.Type.Article
+                        BookmarkEntity.Type.PHOTO -> Bookmark.Type.Picture
+                        BookmarkEntity.Type.VIDEO -> Bookmark.Type.Video
+                    }
+                )
+            }
+        }
+    }
+
     override suspend fun insertBookmarks(bookmarks: List<Bookmark>) {
         bookmarkDao.insertBookmarksWithArticleContent(bookmarks.map { it.toEntity() })
     }

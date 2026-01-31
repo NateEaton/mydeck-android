@@ -22,7 +22,8 @@ Global full-text search feature that allows users to search across all bookmarks
 - **Action Icons:** Search icon is replaced with a Clear icon (X) when search query is not empty
 
 ### Search Input
-- **Text Field:** Full-width TextField in TopAppBar
+- **Text Field:** Full-width `OutlinedTextField` in TopAppBar (provides a visible outlined border around the search box)
+- **Leading Icon:** Magnifying glass icon (`Icons.Filled.Search`) displayed to the left of the text entry field
 - **Placeholder:** "Search bookmarks" (string resource: `R.string.search_bookmarks`)
 - **Single Line:** Yes
 - **Real-time:** Search executes as user types with debounce delay
@@ -220,10 +221,13 @@ fun searchBookmarkListItems(
 ```kotlin
 title = {
     if (isSearchActive.value) {
-        TextField(
+        OutlinedTextField(
             value = searchQuery.value,
             onValueChange = { viewModel.onSearchQueryChange(it) },
             placeholder = { Text(stringResource(R.string.search_bookmarks)) },
+            leadingIcon = {
+                Icon(Icons.Filled.Search, contentDescription = null)
+            },
             singleLine = true,
             modifier = Modifier.fillMaxWidth()
         )

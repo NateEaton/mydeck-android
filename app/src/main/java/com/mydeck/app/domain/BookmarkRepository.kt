@@ -33,6 +33,15 @@ interface BookmarkRepository {
     suspend fun updateLabels(bookmarkId: String, labels: List<String>): UpdateResult
     suspend fun performFullSync(): SyncResult
     suspend fun performDeltaSync(since: kotlinx.datetime.Instant?): SyncResult
+    fun searchBookmarkListItems(
+        searchQuery: String,
+        type: Bookmark.Type? = null,
+        unread: Boolean? = null,
+        archived: Boolean? = null,
+        favorite: Boolean? = null,
+        state: Bookmark.State? = null
+    ): Flow<List<BookmarkListItem>>
+
     fun observeAllBookmarkCounts(): Flow<BookmarkCounts>
     sealed class UpdateResult {
         data object Success: UpdateResult()

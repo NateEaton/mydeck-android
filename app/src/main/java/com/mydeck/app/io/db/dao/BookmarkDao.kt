@@ -255,4 +255,59 @@ interface BookmarkDao {
 
     @Query("UPDATE bookmarks SET labels = :labels WHERE id = :id")
     suspend fun updateLabels(id: String, labels: String)
+
+    fun searchBookmarkListItems(
+        searchQuery: String,
+        type: BookmarkEntity.Type? = null,
+        isUnread: Boolean? = null,
+        isArchived: Boolean? = null,
+        isFavorite: Boolean? = null,
+        state: BookmarkEntity.State? = null
+    ): Flow<List<BookmarkListItemEntity>> {
+        val args = mutableListOf<Any>()
+        val sqlQuery = buildString {
+            append("""SELECT id, url, title, siteName, isMarked, isArchived,
+            readProgress, icon_src AS iconSrc, image_src AS imageSrc,
+            labels, thumbnail_src AS thumbnailSrc, type
+            FROM bookmarks WHERE 1=1""")
+
+            if (searchQuery.isNotBlank()) {
+                append(" AND (title LIKE ? COLLATE NOCASE OR labels LIKE ? COLLATE NOCASE OR siteName LIKE ? COLLATE NOCASE)")
+                val pattern = "%$searchQuery%"
+                args.add(pattern)
+                args.add(pattern)
+                args.add(pattern)
+            }
+
+            state?.let {
+                append(" AND state = ?")
+                args.add(it.value)
+            }
+
+            type?.let {
+                append(" AND type = ?")
+                args.add(it.value)
+            }
+
+            if (isUnread == true) {
+                append(" AND readProgress < 100")
+            } else if (isUnread == false) {
+                append(" AND readProgress = 100")
+            }
+
+            isArchived?.let {
+                append(" AND isArchived = ?")
+                args.add(it)
+            }
+
+            isFavorite?.let {
+                append(" AND isMarked = ?")
+                args.add(it)
+            }
+
+            append(" ORDER BY created DESC")
+        }.let { SimpleSQLiteQuery(it, args.toTypedArray()) }
+        Timber.d("searchQuery=${sqlQuery.sql}")
+        return getBookmarkListItemsByFiltersDynamic(sqlQuery)
+    }
 }
