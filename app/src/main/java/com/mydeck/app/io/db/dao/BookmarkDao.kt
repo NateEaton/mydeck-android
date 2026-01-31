@@ -83,7 +83,8 @@ interface BookmarkDao {
         isUnread: Boolean? = null,
         isArchived: Boolean? = null,
         isFavorite: Boolean? = null,
-        state: BookmarkEntity.State? = null
+        state: BookmarkEntity.State? = null,
+        orderBy: String = "created DESC"
     ): Flow<List<BookmarkEntity>> {
         val args = mutableListOf<Any>()
         val sqlQuery = buildString {
@@ -114,7 +115,7 @@ interface BookmarkDao {
                 append(" AND isMarked = ?")
                 args.add(it)
             }
-            append(" ORDER BY created DESC")
+            append(" ORDER BY $orderBy")
         }.let { SimpleSQLiteQuery(it, args.toTypedArray()) }
         Timber.d("query=${sqlQuery.sql}")
         return getBookmarksByFiltersDynamic(sqlQuery)
@@ -140,7 +141,8 @@ interface BookmarkDao {
         isUnread: Boolean? = null,
         isArchived: Boolean? = null,
         isFavorite: Boolean? = null,
-        state: BookmarkEntity.State? = null
+        state: BookmarkEntity.State? = null,
+        orderBy: String = "created DESC"
     ): Flow<List<BookmarkListItemEntity>> {
         val args = mutableListOf<Any>()
         val sqlQuery = buildString {
@@ -156,7 +158,10 @@ interface BookmarkDao {
             image_src AS imageSrc,
             labels,
             thumbnail_src AS thumbnailSrc,
-            type
+            type,
+            readingTime,
+            created,
+            wordCount
             """)
 
             append(" FROM bookmarks WHERE 1=1")
@@ -186,7 +191,7 @@ interface BookmarkDao {
                 append(" AND isMarked = ?")
                 args.add(it)
             }
-            append(" ORDER BY created DESC")
+            append(" ORDER BY $orderBy")
         }.let { SimpleSQLiteQuery(it, args.toTypedArray()) }
         Timber.d("query=${sqlQuery.sql}")
         return getBookmarkListItemsByFiltersDynamic(sqlQuery)
@@ -262,13 +267,15 @@ interface BookmarkDao {
         isUnread: Boolean? = null,
         isArchived: Boolean? = null,
         isFavorite: Boolean? = null,
-        state: BookmarkEntity.State? = null
+        state: BookmarkEntity.State? = null,
+        orderBy: String = "created DESC"
     ): Flow<List<BookmarkListItemEntity>> {
         val args = mutableListOf<Any>()
         val sqlQuery = buildString {
             append("""SELECT id, url, title, siteName, isMarked, isArchived,
             readProgress, icon_src AS iconSrc, image_src AS imageSrc,
-            labels, thumbnail_src AS thumbnailSrc, type
+            labels, thumbnail_src AS thumbnailSrc, type,
+            readingTime, created, wordCount
             FROM bookmarks WHERE 1=1""")
 
             if (searchQuery.isNotBlank()) {
@@ -305,7 +312,7 @@ interface BookmarkDao {
                 args.add(it)
             }
 
-            append(" ORDER BY created DESC")
+            append(" ORDER BY $orderBy")
         }.let { SimpleSQLiteQuery(it, args.toTypedArray()) }
         Timber.d("searchQuery=${sqlQuery.sql}")
         return getBookmarkListItemsByFiltersDynamic(sqlQuery)

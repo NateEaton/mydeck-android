@@ -14,6 +14,8 @@ import com.mydeck.app.domain.BookmarkRepository
 import com.mydeck.app.domain.model.Bookmark
 import com.mydeck.app.domain.model.BookmarkCounts
 import com.mydeck.app.domain.model.BookmarkListItem
+import com.mydeck.app.domain.model.LayoutMode
+import com.mydeck.app.domain.model.SortOption
 import com.mydeck.app.domain.usecase.FullSyncUseCase
 import com.mydeck.app.domain.usecase.UpdateBookmarkUseCase
 import com.mydeck.app.io.prefs.SettingsDataStore
@@ -65,6 +67,12 @@ class BookmarkListViewModel @Inject constructor(
 
     private val _isSearchActive = MutableStateFlow(false)
     val isSearchActive: StateFlow<Boolean> = _isSearchActive.asStateFlow()
+
+    private val _layoutMode = MutableStateFlow(LayoutMode.CARD)
+    val layoutMode: StateFlow<LayoutMode> = _layoutMode.asStateFlow()
+
+    private val _sortOption = MutableStateFlow(SortOption.NEWEST_ADDED)
+    val sortOption: StateFlow<SortOption> = _sortOption.asStateFlow()
 
     private val _uiState = MutableStateFlow<UiState>(UiState.Empty(R.string.list_view_empty_not_loaded_yet))
     val uiState: StateFlow<UiState> = _uiState.asStateFlow()
@@ -121,9 +129,9 @@ class BookmarkListViewModel @Inject constructor(
         }
 
         viewModelScope.launch(loadBookmarkExceptionHandler) {
-            combine(_filterState, _searchQuery) { filter, query ->
-                Pair(filter, query)
-            }.flatMapLatest { (filter, query) ->
+            combine(_filterState, _searchQuery, _sortOption) { filter, query, sort ->
+                Triple(filter, query, sort)
+            }.flatMapLatest { (filter, query, sort) ->
                 if (query.isNotBlank()) {
                     delay(300) // debounce
                     bookmarkRepository.searchBookmarkListItems(
@@ -132,7 +140,8 @@ class BookmarkListViewModel @Inject constructor(
                         unread = filter.unread,
                         archived = filter.archived,
                         favorite = filter.favorite,
-                        state = Bookmark.State.LOADED
+                        state = Bookmark.State.LOADED,
+                        orderBy = sort.sqlOrderBy
                     )
                 } else {
                     bookmarkRepository.observeBookmarkListItems(
@@ -140,7 +149,8 @@ class BookmarkListViewModel @Inject constructor(
                         unread = filter.unread,
                         archived = filter.archived,
                         favorite = filter.favorite,
-                        state = Bookmark.State.LOADED
+                        state = Bookmark.State.LOADED,
+                        orderBy = sort.sqlOrderBy
                     )
                 }
             }.collectLatest {
@@ -169,6 +179,25 @@ class BookmarkListViewModel @Inject constructor(
             if (settingsDataStore.isSyncOnAppOpenEnabled()) {
                 Timber.d("Sync on app open is enabled, triggering full sync")
                 fullSyncUseCase.performFullSync()
+            }
+        }
+
+        // Load persisted layout mode and sort option
+        viewModelScope.launch {
+            settingsDataStore.getLayoutMode()?.let { layoutModeStr ->
+                try {
+                    _layoutMode.value = LayoutMode.valueOf(layoutModeStr)
+                } catch (e: IllegalArgumentException) {
+                    Timber.w("Invalid layout mode: $layoutModeStr, using default")
+                }
+            }
+
+            settingsDataStore.getSortOption()?.let { sortOptionStr ->
+                try {
+                    _sortOption.value = SortOption.valueOf(sortOptionStr)
+                } catch (e: IllegalArgumentException) {
+                    Timber.w("Invalid sort option: $sortOptionStr, using default")
+                }
             }
         }
     }
@@ -439,6 +468,20 @@ class BookmarkListViewModel @Inject constructor(
                 _createBookmarkUiState.value =
                     CreateBookmarkUiState.Error(e.message ?: "Unknown error")
             }
+        }
+    }
+
+    fun onLayoutModeSelected(mode: LayoutMode) {
+        _layoutMode.value = mode
+        viewModelScope.launch {
+            settingsDataStore.saveLayoutMode(mode.name)
+        }
+    }
+
+    fun onSortOptionSelected(option: SortOption) {
+        _sortOption.value = option
+        viewModelScope.launch {
+            settingsDataStore.saveSortOption(option.name)
         }
     }
 
