@@ -156,7 +156,7 @@ class BookmarkRepositoryImpl @Inject constructor(
 
         val bookmarkId = response.headers()[ReadeckApi.Header.BOOKMARK_ID]!!
 
-        // Create and insert skeleton bookmark immediately for instant feedback
+        // Create and insert skeleton bookmark immediately for instant card display
         val now = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
         val skeletonBookmark = Bookmark(
             id = bookmarkId,
@@ -194,31 +194,28 @@ class BookmarkRepositoryImpl @Inject constructor(
         insertBookmarks(listOf(skeletonBookmark))
         Timber.d("Skeleton bookmark inserted immediately: $bookmarkId")
 
-        // Launch metadata fetch in background - don't block on it
-        // This will update the skeleton with real data when available
-        applicationScope.launch {
-            try {
-                // Phase 1: Fetch and insert real metadata
-                val bookmarkResponse = readeckApi.getBookmarkById(bookmarkId)
-                if (bookmarkResponse.isSuccessful && bookmarkResponse.body() != null) {
-                    val bookmark = bookmarkResponse.body()!!.toDomain()
-                    insertBookmarks(listOf(bookmark))
-                    Timber.d("Bookmark metadata updated: $bookmarkId")
+        // Fetch metadata before returning - this keeps spinner going
+        // while card is visible with loading indicator in thumbnail area
+        try {
+            val bookmarkResponse = readeckApi.getBookmarkById(bookmarkId)
+            if (bookmarkResponse.isSuccessful && bookmarkResponse.body() != null) {
+                val bookmark = bookmarkResponse.body()!!.toDomain()
+                insertBookmarks(listOf(bookmark))
+                Timber.d("Bookmark metadata updated: $bookmarkId")
 
-                    // Phase 2: If not yet loaded, continue polling
-                    if (bookmark.state == Bookmark.State.LOADING) {
-                        pollForBookmarkReady(bookmarkId)
-                    } else if (bookmark.hasArticle) {
-                        // Phase 3: Content available, enqueue download
-                        enqueueArticleDownload(bookmarkId)
-                    }
+                // If still loading, continue polling in background
+                if (bookmark.state == Bookmark.State.LOADING) {
+                    pollForBookmarkReady(bookmarkId)
+                } else if (bookmark.hasArticle) {
+                    // Content available, enqueue download
+                    enqueueArticleDownload(bookmarkId)
                 }
-            } catch (e: Exception) {
-                Timber.w(e, "Failed to fetch created bookmark metadata")
             }
+        } catch (e: Exception) {
+            Timber.w(e, "Failed to fetch created bookmark metadata")
         }
 
-        // Return immediately - spinner stops, card already visible
+        // Return now - card is visible with full metadata, spinner can stop
         return bookmarkId
     }
 
