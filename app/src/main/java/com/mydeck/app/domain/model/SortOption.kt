@@ -1,9 +1,12 @@
 package com.mydeck.app.domain.model
 
 enum class SortOption(val sqlOrderBy: String, val displayName: String) {
-    NEWEST_ADDED("created DESC", "Newest Saved"),
-    OLDEST_ADDED("created ASC", "Oldest Saved"),
-    LONGEST_ARTICLE("readingTime DESC", "Longest Articles"),
-    SHORTEST_ARTICLE("readingTime ASC", "Shortest Articles"),
-    READ_PROGRESS("readProgress ASC", "Read Progress")
+    ADDED_NEWEST("created DESC", "Added, newest first"),
+    ADDED_OLDEST("created ASC", "Added, oldest first"),
+    TITLE_A_TO_Z("title COLLATE NOCASE ASC", "Title, A to Z"),
+    TITLE_Z_TO_A("title COLLATE NOCASE DESC", "Title, Z to A"),
+    SITE_A_TO_Z("siteName COLLATE NOCASE ASC", "Site Name, A to Z"),
+    SITE_Z_TO_A("siteName COLLATE NOCASE DESC", "Site Name, Z to A"),
+    DURATION_SHORTEST("readingTime ASC", "Duration, shortest first"),
+    DURATION_LONGEST("readingTime DESC", "Duration, longest first")
 }

@@ -2,6 +2,7 @@ package com.mydeck.app.ui.list
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -20,10 +21,11 @@ import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Grade
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Sort
 import androidx.compose.material.icons.filled.GridView
+import androidx.compose.material.icons.filled.Apps
+import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.automirrored.filled.ViewList
-import androidx.compose.material.icons.filled.ViewHeadline
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Inventory2
 import androidx.compose.material.icons.outlined.Settings
@@ -109,9 +111,8 @@ fun BookmarkListScreen(navHostController: NavHostController) {
     val layoutMode = viewModel.layoutMode.collectAsState()
     val sortOption = viewModel.sortOption.collectAsState()
 
-    var showOverflowMenu by remember { androidx.compose.runtime.mutableStateOf(false) }
-    var showLayoutDialog by remember { androidx.compose.runtime.mutableStateOf(false) }
-    var showSortDialog by remember { androidx.compose.runtime.mutableStateOf(false) }
+    var showLayoutMenu by remember { androidx.compose.runtime.mutableStateOf(false) }
+    var showSortMenu by remember { androidx.compose.runtime.mutableStateOf(false) }
 
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
@@ -349,24 +350,61 @@ fun BookmarkListScreen(navHostController: NavHostController) {
                     },
                     actions = {
                         if (!isSearchActive.value) {
+                            // Sort button with dropdown
+                            Box {
+                                IconButton(onClick = { showSortMenu = true }) {
+                                    Icon(Icons.Filled.Sort, contentDescription = "Sort")
+                                }
+                                DropdownMenu(
+                                    expanded = showSortMenu,
+                                    onDismissRequest = { showSortMenu = false }
+                                ) {
+                                    SortOption.entries.forEach { option ->
+                                        DropdownMenuItem(
+                                            text = { Text(option.displayName) },
+                                            onClick = {
+                                                viewModel.onSortOptionSelected(option)
+                                                showSortMenu = false
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+
+                            // Layout button with dropdown
+                            Box {
+                                IconButton(onClick = { showLayoutMenu = true }) {
+                                    Icon(Icons.Filled.GridView, contentDescription = "Layout")
+                                }
+                                DropdownMenu(
+                                    expanded = showLayoutMenu,
+                                    onDismissRequest = { showLayoutMenu = false }
+                                ) {
+                                    LayoutMode.entries.forEach { mode ->
+                                        DropdownMenuItem(
+                                            leadingIcon = {
+                                                Icon(
+                                                    imageVector = when (mode) {
+                                                        LayoutMode.GRID -> Icons.Filled.Apps
+                                                        LayoutMode.COMPACT -> Icons.AutoMirrored.Filled.List
+                                                        LayoutMode.MOSAIC -> Icons.Filled.GridView
+                                                    },
+                                                    contentDescription = null
+                                                )
+                                            },
+                                            text = { Text(mode.displayName) },
+                                            onClick = {
+                                                viewModel.onLayoutModeSelected(mode)
+                                                showLayoutMenu = false
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+
+                            // Search button
                             IconButton(onClick = { viewModel.onSearchActiveChange(true) }) {
                                 Icon(Icons.Filled.Search, contentDescription = stringResource(R.string.search))
-                            }
-                            IconButton(onClick = { showOverflowMenu = true }) {
-                                Icon(Icons.Default.MoreVert, contentDescription = "More options")
-                            }
-                            DropdownMenu(
-                                expanded = showOverflowMenu,
-                                onDismissRequest = { showOverflowMenu = false }
-                            ) {
-                                DropdownMenuItem(
-                                    text = { Text("Layout") },
-                                    onClick = { showLayoutDialog = true; showOverflowMenu = false }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text("Sort") },
-                                    onClick = { showSortDialog = true; showOverflowMenu = false }
-                                )
                             }
                         }
                     }
@@ -483,76 +521,6 @@ fun BookmarkListScreen(navHostController: NavHostController) {
                 }
             }
 
-            // Layout Picker Dialog
-            if (showLayoutDialog) {
-                AlertDialog(
-                    onDismissRequest = { showLayoutDialog = false },
-                    title = { Text("Select Layout") },
-                    text = {
-                        Column {
-                            LayoutMode.entries.forEach { mode ->
-                                Button(
-                                    onClick = {
-                                        viewModel.onLayoutModeSelected(mode)
-                                        showLayoutDialog = false
-                                    },
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(vertical = 4.dp)
-                                ) {
-                                    Text(mode.name)
-                                }
-                            }
-                        }
-                    },
-                    confirmButton = {
-                        TextButton(onClick = { showLayoutDialog = false }) {
-                            Text("Cancel")
-                        }
-                    }
-                )
-            }
-
-            // Sort Picker Dialog
-            if (showSortDialog) {
-                AlertDialog(
-                    onDismissRequest = { showSortDialog = false },
-                    title = { Text("Sort by") },
-                    text = {
-                        LazyColumn(modifier = Modifier.fillMaxWidth()) {
-                            items(SortOption.entries) { option ->
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .clickable {
-                                            viewModel.onSortOptionSelected(option)
-                                            showSortDialog = false
-                                        }
-                                        .padding(vertical = 8.dp, horizontal = 16.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    RadioButton(
-                                        selected = sortOption.value == option,
-                                        onClick = {
-                                            viewModel.onSortOptionSelected(option)
-                                            showSortDialog = false
-                                        }
-                                    )
-                                    Text(
-                                        option.displayName,
-                                        modifier = Modifier.padding(start = 8.dp)
-                                    )
-                                }
-                            }
-                        }
-                    },
-                    confirmButton = {
-                        TextButton(onClick = { showSortDialog = false }) {
-                            Text("Close")
-                        }
-                    }
-                )
-            }
         }
     }
 }
@@ -631,7 +599,7 @@ fun EmptyScreen(
 @Composable
 fun BookmarkListView(
     modifier: Modifier = Modifier,
-    layoutMode: LayoutMode = LayoutMode.CARD,
+    layoutMode: LayoutMode = LayoutMode.GRID,
     bookmarks: List<BookmarkListItem>,
     onClickBookmark: (String) -> Unit,
     onClickDelete: (String) -> Unit,
@@ -643,7 +611,7 @@ fun BookmarkListView(
     LazyColumn(modifier = modifier) {
         items(bookmarks) { bookmark ->
             when (layoutMode) {
-                LayoutMode.CARD -> BookmarkCard(
+                LayoutMode.GRID -> BookmarkMagazineView(
                     bookmark = bookmark,
                     onClickCard = onClickBookmark,
                     onClickDelete = onClickDelete,
@@ -652,7 +620,7 @@ fun BookmarkListView(
                     onClickOpenUrl = onClickOpenInBrowser,
                     onClickShareBookmark = onClickShareBookmark
                 )
-                LayoutMode.MAGAZINE -> BookmarkMagazineView(
+                LayoutMode.COMPACT -> BookmarkListItemView(
                     bookmark = bookmark,
                     onClickCard = onClickBookmark,
                     onClickDelete = onClickDelete,
@@ -661,7 +629,7 @@ fun BookmarkListView(
                     onClickOpenUrl = onClickOpenInBrowser,
                     onClickShareBookmark = onClickShareBookmark
                 )
-                LayoutMode.LIST -> BookmarkListItemView(
+                LayoutMode.MOSAIC -> BookmarkCard(
                     bookmark = bookmark,
                     onClickCard = onClickBookmark,
                     onClickDelete = onClickDelete,
@@ -714,7 +682,7 @@ fun BookmarkListViewPreview() {
     val navController = rememberNavController()
     BookmarkListView(
         modifier = Modifier,
-        layoutMode = LayoutMode.CARD,
+        layoutMode = LayoutMode.GRID,
         bookmarks = bookmarks,
         onClickBookmark = {},
         onClickDelete = {},
