@@ -675,7 +675,8 @@ fun BookmarkListViewPreview() {
         thumbnailSrc = "https://picsum.photos/seed/picsum/640/480",
         readingTime = 8,
         created = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()),
-        wordCount = 2000
+        wordCount = 2000,
+        published = null
     )
     val bookmarks = listOf(sampleBookmark)
 
