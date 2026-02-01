@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -120,26 +121,32 @@ fun BookmarkCard(
 
             // Show progress indicator based on read progress
             if (bookmark.readProgress > 0) {
-                if (bookmark.readProgress == 100) {
-                    // Show checkmark with circle for completed
-                    Icon(
-                        imageVector = Icons.Filled.CheckCircle,
-                        contentDescription = stringResource(R.string.action_mark_read),
-                        tint = Color.White.copy(alpha = 0.7f),
-                        modifier = Modifier
-                            .align(Alignment.TopEnd)
-                            .padding(top = 8.dp, end = 8.dp)
-                            .size(24.dp)
-                    )
-                } else {
-                    // Show circular progress indicator that grows clockwise
-                    CircularProgressIndicator(
-                        progress = bookmark.readProgress,
-                        modifier = Modifier
-                            .align(Alignment.TopEnd)
-                            .padding(top = 8.dp, end = 8.dp)
-                            .size(24.dp)
-                    )
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(top = 8.dp, end = 8.dp)
+                        .size(28.dp)
+                        .background(
+                            color = Color.Gray.copy(alpha = 0.5f),
+                            shape = androidx.compose.foundation.shape.CircleShape
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (bookmark.readProgress == 100) {
+                        // Show checkmark with circle for completed
+                        Icon(
+                            imageVector = Icons.Filled.CheckCircle,
+                            contentDescription = stringResource(R.string.action_mark_read),
+                            tint = Color.White.copy(alpha = 0.7f),
+                            modifier = Modifier.size(24.dp)
+                        )
+                    } else {
+                        // Show circular progress indicator that grows clockwise
+                        CircularProgressIndicator(
+                            progress = bookmark.readProgress,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
                 }
             }
 
@@ -285,24 +292,33 @@ fun BookmarkMagazineView(
                 )
                 // Read progress indicator
                 if (bookmark.readProgress > 0 && bookmark.readProgress < 100) {
-                    Canvas(
+                    Box(
                         modifier = Modifier
-                            .size(24.dp)
+                            .size(28.dp)
                             .align(Alignment.TopEnd)
                             .padding(4.dp)
+                            .background(
+                                color = Color.Gray.copy(alpha = 0.5f),
+                                shape = CircleShape
+                            ),
+                        contentAlignment = Alignment.Center
                     ) {
-                        val progressColor = Color.White.copy(alpha = 0.7f)
-                        val strokeWidth = 2.dp.toPx()
-                        val diameter = size.minDimension
-                        val sweepAngle = (bookmark.readProgress / 100f) * 360f
-                        drawArc(
-                            color = progressColor,
-                            startAngle = -90f,
-                            sweepAngle = sweepAngle,
-                            useCenter = false,
-                            size = Size(diameter - strokeWidth, diameter - strokeWidth),
-                            style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
-                        )
+                        Canvas(
+                            modifier = Modifier.size(20.dp)
+                        ) {
+                            val progressColor = Color.White.copy(alpha = 0.7f)
+                            val strokeWidth = 2.dp.toPx()
+                            val diameter = size.minDimension
+                            val sweepAngle = (bookmark.readProgress / 100f) * 360f
+                            drawArc(
+                                color = progressColor,
+                                startAngle = -90f,
+                                sweepAngle = sweepAngle,
+                                useCenter = false,
+                                size = Size(diameter - strokeWidth, diameter - strokeWidth),
+                                style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
+                            )
+                        }
                     }
                 }
             }
@@ -495,20 +511,30 @@ fun BookmarkListItemView(
                 } else {
                     Color.LightGray // Dark theme - light icon
                 }
-                Canvas(
-                    modifier = Modifier.size(16.dp)
+                Box(
+                    modifier = Modifier
+                        .size(20.dp)
+                        .background(
+                            color = Color.Gray.copy(alpha = 0.3f),
+                            shape = CircleShape
+                        ),
+                    contentAlignment = Alignment.Center
                 ) {
-                    val strokeWidth = 2.dp.toPx()
-                    val diameter = size.minDimension
-                    val sweepAngle = (bookmark.readProgress / 100f) * 360f
-                    drawArc(
-                        color = progressColor,
-                        startAngle = -90f,
-                        sweepAngle = sweepAngle,
-                        useCenter = false,
-                        size = Size(diameter - strokeWidth, diameter - strokeWidth),
-                        style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
-                    )
+                    Canvas(
+                        modifier = Modifier.size(14.dp)
+                    ) {
+                        val strokeWidth = 2.dp.toPx()
+                        val diameter = size.minDimension
+                        val sweepAngle = (bookmark.readProgress / 100f) * 360f
+                        drawArc(
+                            color = progressColor,
+                            startAngle = -90f,
+                            sweepAngle = sweepAngle,
+                            useCenter = false,
+                            size = Size(diameter - strokeWidth, diameter - strokeWidth),
+                            style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
+                        )
+                    }
                 }
                 Spacer(Modifier.width(8.dp))
             }
