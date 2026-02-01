@@ -1022,7 +1022,8 @@ fun BookmarkListView(
                     onClickArchive = onClickArchive,
                     onClickFavorite = onClickFavorite,
                     onClickOpenUrl = onClickOpenInBrowser,
-                    onClickShareBookmark = onClickShareBookmark
+                    onClickShareBookmark = onClickShareBookmark,
+                    onClickLabel = { label -> viewModel.onClickLabel(label) }
                 )
                 LayoutMode.COMPACT -> BookmarkListItemView(
                     bookmark = bookmark,
@@ -1031,7 +1032,8 @@ fun BookmarkListView(
                     onClickArchive = onClickArchive,
                     onClickFavorite = onClickFavorite,
                     onClickOpenUrl = onClickOpenInBrowser,
-                    onClickShareBookmark = onClickShareBookmark
+                    onClickShareBookmark = onClickShareBookmark,
+                    onClickLabel = { label -> viewModel.onClickLabel(label) }
                 )
                 LayoutMode.MOSAIC -> BookmarkCard(
                     bookmark = bookmark,
@@ -1040,7 +1042,8 @@ fun BookmarkListView(
                     onClickArchive = onClickArchive,
                     onClickFavorite = onClickFavorite,
                     onClickOpenUrl = onClickOpenInBrowser,
-                    onClickShareBookmark = onClickShareBookmark
+                    onClickShareBookmark = onClickShareBookmark,
+                    onClickLabel = { label -> viewModel.onClickLabel(label) }
                 )
             }
         }
