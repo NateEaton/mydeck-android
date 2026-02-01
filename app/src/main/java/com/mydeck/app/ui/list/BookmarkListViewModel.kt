@@ -68,10 +68,10 @@ class BookmarkListViewModel @Inject constructor(
     private val _isSearchActive = MutableStateFlow(false)
     val isSearchActive: StateFlow<Boolean> = _isSearchActive.asStateFlow()
 
-    private val _layoutMode = MutableStateFlow(LayoutMode.CARD)
+    private val _layoutMode = MutableStateFlow(LayoutMode.GRID)
     val layoutMode: StateFlow<LayoutMode> = _layoutMode.asStateFlow()
 
-    private val _sortOption = MutableStateFlow(SortOption.NEWEST_ADDED)
+    private val _sortOption = MutableStateFlow(SortOption.ADDED_NEWEST)
     val sortOption: StateFlow<SortOption> = _sortOption.asStateFlow()
 
     private val _uiState = MutableStateFlow<UiState>(UiState.Empty(R.string.list_view_empty_not_loaded_yet))
