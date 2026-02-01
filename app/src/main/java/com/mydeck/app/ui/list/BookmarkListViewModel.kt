@@ -21,6 +21,7 @@ import com.mydeck.app.domain.usecase.UpdateBookmarkUseCase
 import com.mydeck.app.io.prefs.SettingsDataStore
 import com.mydeck.app.util.extractUrlAndTitle
 import com.mydeck.app.util.isValidUrl
+import com.mydeck.app.util.MAX_TITLE_LENGTH
 import com.mydeck.app.worker.LoadBookmarksWorker
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.CoroutineExceptionHandler
@@ -417,13 +418,24 @@ class BookmarkListViewModel @Inject constructor(
     }
 
     // Create Bookmark Dialog
-    fun openCreateBookmarkDialog() {
-        _createBookmarkUiState.value = CreateBookmarkUiState.Open(
-            title = "",
-            url = "",
-            urlError = null,
-            isCreateEnabled = false
-        )
+    fun openCreateBookmarkDialog(clipboardText: String? = null) {
+        val sharedText = clipboardText?.extractUrlAndTitle()
+
+        _createBookmarkUiState.value = if (sharedText != null) {
+            CreateBookmarkUiState.Open(
+                title = sharedText.title?.take(MAX_TITLE_LENGTH) ?: "",
+                url = sharedText.url,
+                urlError = null,
+                isCreateEnabled = true
+            )
+        } else {
+            CreateBookmarkUiState.Open(
+                title = "",
+                url = "",
+                urlError = null,
+                isCreateEnabled = false
+            )
+        }
     }
 
     fun closeCreateBookmarkDialog() {
@@ -455,14 +467,23 @@ class BookmarkListViewModel @Inject constructor(
         }
     }
 
+    fun updateCreateBookmarkLabels(labels: List<String>) {
+        _createBookmarkUiState.update {
+            (it as? CreateBookmarkUiState.Open)?.copy(
+                labels = labels
+            ) ?: it
+        }
+    }
+
     fun createBookmark() {
         viewModelScope.launch {
             val url = (_createBookmarkUiState.value as CreateBookmarkUiState.Open).url
             val title = (_createBookmarkUiState.value as CreateBookmarkUiState.Open).title
+            val labels = (_createBookmarkUiState.value as CreateBookmarkUiState.Open).labels
 
             _createBookmarkUiState.value = CreateBookmarkUiState.Loading
             try {
-                bookmarkRepository.createBookmark(title = title, url = url)
+                bookmarkRepository.createBookmark(title = title, url = url, labels = labels)
                 _createBookmarkUiState.value = CreateBookmarkUiState.Success
             } catch (e: Exception) {
                 _createBookmarkUiState.value =
@@ -515,7 +536,8 @@ class BookmarkListViewModel @Inject constructor(
             val title: String,
             val url: String,
             val urlError: Int?,
-            val isCreateEnabled: Boolean
+            val isCreateEnabled: Boolean,
+            val labels: List<String> = emptyList()
         ) : CreateBookmarkUiState()
 
         data object Loading : CreateBookmarkUiState()

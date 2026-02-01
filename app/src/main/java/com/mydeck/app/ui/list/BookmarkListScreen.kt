@@ -2,6 +2,8 @@ package com.mydeck.app.ui.list
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -10,14 +12,19 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Grade
 import androidx.compose.material.icons.filled.Search
@@ -32,6 +39,7 @@ import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.TaskAlt
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.DropdownMenu
@@ -70,8 +78,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
@@ -422,7 +433,13 @@ fun BookmarkListScreen(navHostController: NavHostController) {
                 )
             },
             floatingActionButton = {
-                FloatingActionButton(onClick = { viewModel.openCreateBookmarkDialog() }) {
+                val clipboardManager = LocalClipboardManager.current
+                FloatingActionButton(
+                    onClick = {
+                        val clipboardText = clipboardManager.getText()?.text
+                        viewModel.openCreateBookmarkDialog(clipboardText)
+                    }
+                ) {
                     Icon(
                         imageVector = Icons.Filled.Add,
                         contentDescription = stringResource(id = R.string.add_bookmark)
@@ -489,8 +506,10 @@ fun BookmarkListScreen(navHostController: NavHostController) {
                         url = createBookmarkUiState.url,
                         urlError = createBookmarkUiState.urlError,
                         isCreateEnabled = createBookmarkUiState.isCreateEnabled,
+                        labels = createBookmarkUiState.labels,
                         onTitleChange = { viewModel.updateCreateBookmarkTitle(it) },
                         onUrlChange = { viewModel.updateCreateBookmarkUrl(it) },
+                        onLabelsChange = { viewModel.updateCreateBookmarkLabels(it) },
                         onCreateBookmark = { viewModel.createBookmark() }
                     )
                 }
@@ -536,6 +555,7 @@ fun BookmarkListScreen(navHostController: NavHostController) {
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun CreateBookmarkDialog(
     onDismiss: () -> Unit,
@@ -543,15 +563,21 @@ fun CreateBookmarkDialog(
     url: String,
     urlError: Int?,
     isCreateEnabled: Boolean,
+    labels: List<String>,
     onTitleChange: (String) -> Unit,
     onUrlChange: (String) -> Unit,
+    onLabelsChange: (List<String>) -> Unit,
     onCreateBookmark: () -> Unit
 ) {
+    var newLabelInput by remember { mutableStateOf("") }
+    val keyboardController = LocalSoftwareKeyboardController.current
+
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(id = R.string.add_new_bookmark)) },
         text = {
-            Column {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                // URL field
                 OutlinedTextField(
                     value = url,
                     onValueChange = { onUrlChange(it) },
@@ -561,18 +587,56 @@ fun CreateBookmarkDialog(
                         urlError?.let {
                             Text(text = stringResource(it))
                         }
-                    }
+                    },
+                    modifier = Modifier.fillMaxWidth()
                 )
+
+                // Title field
                 OutlinedTextField(
                     value = title,
                     onValueChange = { onTitleChange(it) },
-                    label = { Text(stringResource(id = R.string.title)) }
+                    label = { Text(stringResource(id = R.string.title)) },
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                // Labels Section
+                CreateBookmarkLabelsSection(
+                    labels = labels,
+                    newLabelInput = newLabelInput,
+                    onNewLabelChange = { newLabelInput = it },
+                    onAddLabel = {
+                        if (newLabelInput.isNotBlank()) {
+                            // Split on commas and trim each label
+                            val newLabels = newLabelInput.split(',')
+                                .map { it.trim() }
+                                .filter { it.isNotBlank() && !labels.contains(it) }
+
+                            if (newLabels.isNotEmpty()) {
+                                onLabelsChange(labels + newLabels)
+                            }
+                            newLabelInput = ""
+                            keyboardController?.hide()
+                        }
+                    },
+                    onRemoveLabel = { label ->
+                        onLabelsChange(labels.filter { it != label })
+                    }
                 )
             }
         },
         confirmButton = {
             Button(
                 onClick = {
+                    // Process any pending label input before creating
+                    if (newLabelInput.isNotBlank()) {
+                        val newLabels = newLabelInput.split(',')
+                            .map { it.trim() }
+                            .filter { it.isNotBlank() && !labels.contains(it) }
+
+                        if (newLabels.isNotEmpty()) {
+                            onLabelsChange(labels + newLabels)
+                        }
+                    }
                     onCreateBookmark()
                 },
                 enabled = isCreateEnabled
@@ -586,6 +650,90 @@ fun CreateBookmarkDialog(
             }
         }
     )
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun CreateBookmarkLabelsSection(
+    labels: List<String>,
+    newLabelInput: String,
+    onNewLabelChange: (String) -> Unit,
+    onAddLabel: () -> Unit,
+    onRemoveLabel: (String) -> Unit
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Text(
+            text = stringResource(R.string.detail_labels),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+
+        // Existing labels
+        if (labels.isNotEmpty()) {
+            FlowRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                labels.forEach { label ->
+                    LabelChip(
+                        label = label,
+                        onRemove = { onRemoveLabel(label) }
+                    )
+                }
+            }
+        }
+
+        // Input field for new label
+        OutlinedTextField(
+            value = newLabelInput,
+            onValueChange = onNewLabelChange,
+            placeholder = { Text(stringResource(R.string.detail_label_placeholder)) },
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+            keyboardActions = KeyboardActions(
+                onDone = { onAddLabel() }
+            ),
+            textStyle = MaterialTheme.typography.bodySmall
+        )
+    }
+}
+
+@Composable
+private fun LabelChip(
+    label: String,
+    onRemove: () -> Unit = {}
+) {
+    Card(
+        modifier = Modifier.padding(4.dp),
+        shape = RoundedCornerShape(16.dp)
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelSmall,
+                modifier = Modifier.weight(1f, fill = false)
+            )
+            IconButton(
+                onClick = onRemove,
+                modifier = Modifier.size(20.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Close,
+                    contentDescription = "Remove label",
+                    modifier = Modifier.size(16.dp)
+                )
+            }
+        }
+    }
 }
 
 @Composable
