@@ -77,7 +77,7 @@ fun BookmarkCard(
         modifier = Modifier
             .fillMaxWidth()
             .padding(8.dp)
-            .height(300.dp)
+            .height(270.dp)
             .clickable { onClickCard(bookmark.id) },
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
@@ -90,13 +90,31 @@ fun BookmarkCard(
                 contentScale = ContentScale.Crop,
                 error = {
                     ErrorPlaceholderImage(
-                        modifier = Modifier.fillMaxWidth().height(300.dp),
+                        modifier = Modifier.fillMaxWidth().height(270.dp),
                         imageContentDescription = stringResource(R.string.common_bookmark_image_content_description)
                     )
                 },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(300.dp)
+                    .height(270.dp)
+            )
+
+            // Gradient overlay on bottom third for text readability
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(270.dp)
+                    .align(Alignment.BottomCenter)
+                    .background(
+                        brush = androidx.compose.ui.graphics.Brush.verticalGradient(
+                            colors = listOf(
+                                Color.Transparent,
+                                Color.Black.copy(alpha = 0.7f)
+                            ),
+                            startY = 0f,
+                            endY = Float.POSITIVE_INFINITY
+                        )
+                    )
             )
 
             // Show progress indicator based on read progress
