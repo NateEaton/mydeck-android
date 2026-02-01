@@ -117,6 +117,7 @@ fun BookmarkListScreen(navHostController: NavHostController) {
     val uiState = viewModel.uiState.collectAsState().value
     val createBookmarkUiState = viewModel.createBookmarkUiState.collectAsState().value
     val bookmarkCounts = viewModel.bookmarkCounts.collectAsState()
+    val labelsWithCounts = viewModel.labelsWithCounts.collectAsState()
 
     // Collect filter states
     val filterState = viewModel.filterState.collectAsState()
