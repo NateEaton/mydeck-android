@@ -1,5 +1,6 @@
 package com.mydeck.app.ui.list
 
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -13,15 +14,20 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Close
@@ -35,10 +41,14 @@ import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.automirrored.filled.ViewList
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Inventory2
+import androidx.compose.material.icons.outlined.Label
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.TaskAlt
 import androidx.compose.material3.AlertDialog
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DrawerValue
@@ -57,11 +67,14 @@ import androidx.compose.material3.NavigationDrawerItem
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SuggestionChip
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
@@ -115,6 +128,7 @@ fun BookmarkListScreen(navHostController: NavHostController) {
     val uiState = viewModel.uiState.collectAsState().value
     val createBookmarkUiState = viewModel.createBookmarkUiState.collectAsState().value
     val bookmarkCounts = viewModel.bookmarkCounts.collectAsState()
+    val labelsWithCounts = viewModel.labelsWithCounts.collectAsState()
 
     // Collect filter states
     val filterState = viewModel.filterState.collectAsState()
@@ -125,6 +139,12 @@ fun BookmarkListScreen(navHostController: NavHostController) {
 
     var showLayoutMenu by remember { androidx.compose.runtime.mutableStateOf(false) }
     var showSortMenu by remember { androidx.compose.runtime.mutableStateOf(false) }
+
+    // Label edit/delete state
+    var isEditingLabel by remember { mutableStateOf(false) }
+    var editedLabelName by remember { mutableStateOf("") }
+    var pendingDeleteLabel by remember { mutableStateOf<String?>(null) }
+    var deleteLabelJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
 
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
@@ -272,6 +292,27 @@ fun BookmarkListScreen(navHostController: NavHostController) {
                     NavigationDrawerItem(
                         label = { Text(
                             style = Typography.labelLarge,
+                            text = stringResource(id = R.string.labels)
+                        ) },
+                        icon = { Icon(Icons.Outlined.Label, contentDescription = null) },
+                        badge = {
+                            if (labelsWithCounts.value.isNotEmpty()) {
+                                Badge(containerColor = MaterialTheme.colorScheme.secondaryContainer) {
+                                    Text(
+                                        text = labelsWithCounts.value.size.toString()
+                                    )
+                                }
+                            }
+                        },
+                        selected = filterState.value.viewingLabelsList || filterState.value.label != null,
+                        onClick = {
+                            viewModel.onClickLabelsView()
+                            scope.launch { drawerState.close() }
+                        }
+                    )
+                    NavigationDrawerItem(
+                        label = { Text(
+                            style = Typography.labelLarge,
                             text = stringResource(id = R.string.settings)
                         ) },
                         icon = { Icon(imageVector = Icons.Outlined.Settings, contentDescription = null) },
@@ -302,6 +343,8 @@ fun BookmarkListScreen(navHostController: NavHostController) {
             topBar = {
                 // Determine the current view title based on filter state
                 val currentViewTitle = when {
+                    filterState.value.viewingLabelsList -> stringResource(id = R.string.bookmark_labels)
+                    filterState.value.label != null -> "${stringResource(id = R.string.labels)} / ${filterState.value.label}"
                     filterState.value.archived == false -> stringResource(id = R.string.my_list)
                     filterState.value.archived == true -> stringResource(id = R.string.archive)
                     filterState.value.favorite == true -> stringResource(id = R.string.favorites)
@@ -340,6 +383,35 @@ fun BookmarkListScreen(navHostController: NavHostController) {
                                     .fillMaxWidth()
                                     .focusRequester(searchFocusRequester)
                             )
+                        } else if (filterState.value.label != null) {
+                            // Show label icon + name or edit field when filtering by label
+                            if (isEditingLabel) {
+                                TextField(
+                                    value = editedLabelName,
+                                    onValueChange = { editedLabelName = it },
+                                    singleLine = true,
+                                    colors = TextFieldDefaults.colors(
+                                        focusedContainerColor = MaterialTheme.colorScheme.surface,
+                                        unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                                        focusedIndicatorColor = MaterialTheme.colorScheme.primary,
+                                        unfocusedIndicatorColor = MaterialTheme.colorScheme.outline
+                                    ),
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                            } else {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Icon(
+                                        Icons.Outlined.Label,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                    Spacer(Modifier.width(8.dp))
+                                    Text(filterState.value.label!!, modifier = Modifier.weight(1f))
+                                }
+                            }
                         } else {
                             Text(currentViewTitle)
                         }
@@ -362,6 +434,38 @@ fun BookmarkListScreen(navHostController: NavHostController) {
                     },
                     actions = {
                         if (!isSearchActive.value) {
+                            // Edit/Check label button when filtering by label
+                            if (filterState.value.label != null) {
+                                if (isEditingLabel) {
+                                    IconButton(
+                                        onClick = {
+                                            // Save the edited label
+                                            if (editedLabelName.isNotBlank() && editedLabelName != filterState.value.label) {
+                                                viewModel.onRenameLabel(filterState.value.label!!, editedLabelName)
+                                            }
+                                            isEditingLabel = false
+                                        }
+                                    ) {
+                                        Icon(
+                                            Icons.Filled.Check,
+                                            contentDescription = "Save"
+                                        )
+                                    }
+                                } else {
+                                    IconButton(
+                                        onClick = {
+                                            editedLabelName = filterState.value.label ?: ""
+                                            isEditingLabel = true
+                                        }
+                                    ) {
+                                        Icon(
+                                            Icons.Filled.Edit,
+                                            contentDescription = stringResource(id = R.string.edit_label)
+                                        )
+                                    }
+                                }
+                            }
+
                             // Sort button with dropdown
                             Box {
                                 IconButton(onClick = { showSortMenu = true }) {
@@ -447,53 +551,127 @@ fun BookmarkListScreen(navHostController: NavHostController) {
                 }
             }
         ) { padding ->
-            PullToRefreshBox(
-                isRefreshing = isLoading,
-                onRefresh = { viewModel.onPullToRefresh() },
-                state = pullToRefreshState,
+            Column(
                 modifier = Modifier
                     .padding(padding)
                     .fillMaxWidth()
             ) {
-                when (uiState) {
-                    is BookmarkListViewModel.UiState.Empty -> {
-                        EmptyScreen(messageResource = uiState.messageResource)
-                    }
-                    is BookmarkListViewModel.UiState.Success -> {
-                        LaunchedEffect(key1 = uiState.updateBookmarkState) {
-                            uiState.updateBookmarkState?.let { result ->
-                                val message = when (result) {
-                                    is BookmarkListViewModel.UpdateBookmarkState.Success -> {
-                                        "success"
-                                    }
+                // Delete label button when filtering by label
+                if (filterState.value.label != null && !isEditingLabel) {
+                    val labelDeletedMessageFormat = stringResource(R.string.label_deleted)
+                    val currentLabel = filterState.value.label!!
 
-                                    is BookmarkListViewModel.UpdateBookmarkState.Error -> {
-                                        result.message
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                        horizontalArrangement = Arrangement.Start
+                    ) {
+                        OutlinedButton(
+                            onClick = {
+                                // Cancel any existing delete operation
+                                deleteLabelJob?.cancel()
+
+                                // Set pending delete
+                                pendingDeleteLabel = currentLabel
+
+                                // Show snackbar with undo option
+                                scope.launch {
+                                    val result = snackbarHostState.showSnackbar(
+                                        message = labelDeletedMessageFormat.format(currentLabel),
+                                        actionLabel = "UNDO",
+                                        duration = SnackbarDuration.Long
+                                    )
+
+                                    if (result == androidx.compose.material3.SnackbarResult.ActionPerformed) {
+                                        // User clicked undo, cancel the deletion
+                                        deleteLabelJob?.cancel()
+                                        pendingDeleteLabel = null
                                     }
                                 }
-                                snackbarHostState.showSnackbar(
-                                    message = message,
-                                    duration = SnackbarDuration.Short
-                                )
-                            }
+
+                                // Schedule the actual deletion after 10 seconds
+                                deleteLabelJob = scope.launch {
+                                    kotlinx.coroutines.delay(10000)
+                                    if (pendingDeleteLabel == currentLabel) {
+                                        viewModel.onDeleteLabel(currentLabel)
+                                        pendingDeleteLabel = null
+                                    }
+                                }
+                            },
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.error),
+                            shape = RectangleShape,
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                contentColor = MaterialTheme.colorScheme.error
+                            )
+                        ) {
+                            Icon(
+                                Icons.Filled.Delete,
+                                contentDescription = null,
+                                modifier = Modifier.padding(end = 4.dp)
+                            )
+                            Text(stringResource(id = R.string.delete_label))
                         }
-                        BookmarkListView(
-                            layoutMode = layoutMode.value,
-                            bookmarks = uiState.bookmarks,
-                            onClickBookmark = onClickBookmark,
-                            onClickDelete = onClickDelete,
-                            onClickArchive = onClickArchive,
-                            onClickFavorite = onClickFavorite,
-                            onClickOpenInBrowser = onClickOpenInBrowser,
-                            onClickShareBookmark = onClickShareBookmark
-                        )
-                        // Consumes a shareIntent and creates the corresponding share dialog
-                        ShareBookmarkChooser(
-                            context = LocalContext.current,
-                            intent = viewModel.shareIntent.collectAsState().value,
-                            onShareIntentConsumed = { viewModel.onShareIntentConsumed() }
-                        )
                     }
+                }
+
+                PullToRefreshBox(
+                    isRefreshing = isLoading,
+                    onRefresh = { viewModel.onPullToRefresh() },
+                    state = pullToRefreshState,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    // Show labels list if viewing labels, otherwise show bookmarks list
+                    if (filterState.value.viewingLabelsList) {
+                    LabelsListView(
+                        labels = labelsWithCounts.value,
+                        onLabelSelected = { label ->
+                            viewModel.onClickLabel(label)
+                        }
+                    )
+                } else {
+                    when (uiState) {
+                        is BookmarkListViewModel.UiState.Empty -> {
+                            EmptyScreen(messageResource = uiState.messageResource)
+                        }
+                        is BookmarkListViewModel.UiState.Success -> {
+                            LaunchedEffect(key1 = uiState.updateBookmarkState) {
+                                uiState.updateBookmarkState?.let { result ->
+                                    val message = when (result) {
+                                        is BookmarkListViewModel.UpdateBookmarkState.Success -> {
+                                            "success"
+                                        }
+
+                                        is BookmarkListViewModel.UpdateBookmarkState.Error -> {
+                                            result.message
+                                        }
+                                    }
+                                    snackbarHostState.showSnackbar(
+                                        message = message,
+                                        duration = SnackbarDuration.Short
+                                    )
+                                }
+                            }
+                            BookmarkListView(
+                                layoutMode = layoutMode.value,
+                                bookmarks = uiState.bookmarks,
+                                onClickBookmark = onClickBookmark,
+                                onClickDelete = onClickDelete,
+                                onClickArchive = onClickArchive,
+                                onClickFavorite = onClickFavorite,
+                                onClickOpenInBrowser = onClickOpenInBrowser,
+                                onClickShareBookmark = onClickShareBookmark,
+                                onClickLabel = { label -> viewModel.onClickLabel(label) }
+                            )
+                            // Consumes a shareIntent and creates the corresponding share dialog
+                            ShareBookmarkChooser(
+                                context = LocalContext.current,
+                                intent = viewModel.shareIntent.collectAsState().value,
+                                onShareIntentConsumed = { viewModel.onShareIntentConsumed() }
+                            )
+                        }
+                    }
+                }
                 }
             }
 
@@ -756,6 +934,75 @@ fun EmptyScreen(
 }
 
 @Composable
+fun LabelsListView(
+    modifier: Modifier = Modifier,
+    labels: Map<String, Int>,
+    onLabelSelected: (String) -> Unit
+) {
+    if (labels.isEmpty()) {
+        Column(
+            modifier = modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Text(
+                text = stringResource(R.string.list_view_empty_nothing_to_see),
+                style = MaterialTheme.typography.bodyMedium
+            )
+        }
+    } else {
+        LazyColumn(
+            modifier = modifier.fillMaxWidth()
+        ) {
+            item {
+                Text(
+                    text = stringResource(R.string.labels_description),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
+                )
+            }
+            items(
+                items = labels.entries.sortedBy { it.key }.toList(),
+                key = { it.key }
+            ) { (label, count) ->
+                NavigationDrawerItem(
+                    modifier = Modifier
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                        .border(
+                            width = 1.dp,
+                            color = MaterialTheme.colorScheme.outlineVariant,
+                            shape = MaterialTheme.shapes.medium
+                        ),
+                    label = {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(label)
+                            Badge(
+                                containerColor = MaterialTheme.colorScheme.surfaceVariant
+                            ) {
+                                Text(count.toString())
+                            }
+                        }
+                    },
+                    selected = false,
+                    onClick = {
+                        onLabelSelected(label)
+                    }
+                )
+            }
+        }
+    }
+}
+
+@Composable
 fun BookmarkListView(
     modifier: Modifier = Modifier,
     layoutMode: LayoutMode = LayoutMode.GRID,
@@ -765,7 +1012,8 @@ fun BookmarkListView(
     onClickFavorite: (String, Boolean) -> Unit,
     onClickArchive: (String, Boolean) -> Unit,
     onClickOpenInBrowser: (String) -> Unit,
-    onClickShareBookmark: (String) -> Unit
+    onClickShareBookmark: (String) -> Unit,
+    onClickLabel: (String) -> Unit = {}
 ) {
     LazyColumn(modifier = modifier) {
         items(bookmarks) { bookmark ->
@@ -777,7 +1025,8 @@ fun BookmarkListView(
                     onClickArchive = onClickArchive,
                     onClickFavorite = onClickFavorite,
                     onClickOpenUrl = onClickOpenInBrowser,
-                    onClickShareBookmark = onClickShareBookmark
+                    onClickShareBookmark = onClickShareBookmark,
+                    onClickLabel = onClickLabel
                 )
                 LayoutMode.COMPACT -> BookmarkListItemView(
                     bookmark = bookmark,
@@ -786,7 +1035,8 @@ fun BookmarkListView(
                     onClickArchive = onClickArchive,
                     onClickFavorite = onClickFavorite,
                     onClickOpenUrl = onClickOpenInBrowser,
-                    onClickShareBookmark = onClickShareBookmark
+                    onClickShareBookmark = onClickShareBookmark,
+                    onClickLabel = onClickLabel
                 )
                 LayoutMode.MOSAIC -> BookmarkCard(
                     bookmark = bookmark,
@@ -795,7 +1045,8 @@ fun BookmarkListView(
                     onClickArchive = onClickArchive,
                     onClickFavorite = onClickFavorite,
                     onClickOpenUrl = onClickOpenInBrowser,
-                    onClickShareBookmark = onClickShareBookmark
+                    onClickShareBookmark = onClickShareBookmark,
+                    onClickLabel = onClickLabel
                 )
             }
         }
@@ -849,6 +1100,7 @@ fun BookmarkListViewPreview() {
         onClickArchive = { _, _ -> },
         onClickFavorite = { _, _ -> },
         onClickOpenInBrowser = {},
-        onClickShareBookmark = {_ -> }
+        onClickShareBookmark = {_ -> },
+        onClickLabel = {}
     )
 }

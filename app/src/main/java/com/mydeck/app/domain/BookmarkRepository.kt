@@ -19,6 +19,7 @@ interface BookmarkRepository {
         unread: Boolean? = null,
         archived: Boolean? = null,
         favorite: Boolean? = null,
+        label: String? = null,
         state: Bookmark.State? = null,
         orderBy: String = "created DESC"
     ): Flow<List<BookmarkListItem>>
@@ -40,11 +41,15 @@ interface BookmarkRepository {
         unread: Boolean? = null,
         archived: Boolean? = null,
         favorite: Boolean? = null,
+        label: String? = null,
         state: Bookmark.State? = null,
         orderBy: String = "created DESC"
     ): Flow<List<BookmarkListItem>>
 
     fun observeAllBookmarkCounts(): Flow<BookmarkCounts>
+    fun observeAllLabelsWithCounts(): Flow<Map<String, Int>>
+    suspend fun renameLabel(oldLabel: String, newLabel: String): UpdateResult
+    suspend fun deleteLabel(label: String): UpdateResult
     sealed class UpdateResult {
         data object Success: UpdateResult()
         data class Error(val errorMessage: String, val code: Int? = null, val ex: Exception? = null): UpdateResult()

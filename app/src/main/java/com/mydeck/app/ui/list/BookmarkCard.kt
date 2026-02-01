@@ -8,6 +8,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -30,6 +32,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SuggestionChip
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -65,6 +68,7 @@ import com.mydeck.app.domain.model.Bookmark
 import com.mydeck.app.domain.model.BookmarkListItem
 import com.mydeck.app.ui.components.ErrorPlaceholderImage
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun BookmarkCard(
     bookmark: BookmarkListItem,
@@ -73,7 +77,8 @@ fun BookmarkCard(
     onClickFavorite: (String, Boolean) -> Unit,
     onClickShareBookmark: (String) -> Unit,
     onClickArchive: (String, Boolean) -> Unit,
-    onClickOpenUrl: (String) -> Unit
+    onClickOpenUrl: (String) -> Unit,
+    onClickLabel: (String) -> Unit = {}
 ) {
     Card(
         modifier = Modifier
@@ -166,33 +171,38 @@ fun BookmarkCard(
                     color = Color.White
                 )
 
-                // Labels Row
+                // Labels Row with clickable chips
                 if (bookmark.labels.isNotEmpty()) {
                     Row(
-                        modifier = Modifier.padding(top = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 8.dp),
+                        verticalAlignment = Alignment.Top
                     ) {
                         Icon(
                             painter = painterResource(R.drawable.ic_label_24px),
                             contentDescription = "labels",
+                            modifier = Modifier.padding(top = 4.dp),
                             tint = Color.White
                         )
                         Spacer(Modifier.width(8.dp))
-                        val labels = bookmark.labels.fold("") { acc, label ->
-                            if (acc.isNotEmpty()) {
-                                "$acc, $label"
-                            } else {
-                                label
+                        FlowRow(
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            bookmark.labels.forEach { label ->
+                                SuggestionChip(
+                                    onClick = { onClickLabel(label) },
+                                    label = {
+                                        Text(
+                                            text = label,
+                                            style = MaterialTheme.typography.labelMedium
+                                        )
+                                    }
+                                )
                             }
                         }
-                        Text(
-                            text = labels,
-                            style = MaterialTheme.typography.labelLarge,
-                            modifier = Modifier.padding(end = 4.dp),
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            color = Color.White
-                        )
                     }
                 }
 
@@ -252,6 +262,7 @@ fun BookmarkCard(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun BookmarkMagazineView(
     bookmark: BookmarkListItem,
@@ -260,7 +271,8 @@ fun BookmarkMagazineView(
     onClickFavorite: (String, Boolean) -> Unit,
     onClickShareBookmark: (String) -> Unit,
     onClickArchive: (String, Boolean) -> Unit,
-    onClickOpenUrl: (String) -> Unit
+    onClickOpenUrl: (String) -> Unit,
+    onClickLabel: (String) -> Unit = {}
 ) {
     Card(
         modifier = Modifier
@@ -452,6 +464,7 @@ fun BookmarkMagazineView(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun BookmarkListItemView(
     bookmark: BookmarkListItem,
@@ -460,7 +473,8 @@ fun BookmarkListItemView(
     onClickFavorite: (String, Boolean) -> Unit,
     onClickShareBookmark: (String) -> Unit,
     onClickArchive: (String, Boolean) -> Unit,
-    onClickOpenUrl: (String) -> Unit
+    onClickOpenUrl: (String) -> Unit,
+    onClickLabel: (String) -> Unit = {}
 ) {
     Column(
         modifier = Modifier
