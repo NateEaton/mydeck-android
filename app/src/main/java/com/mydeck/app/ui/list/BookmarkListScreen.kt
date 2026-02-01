@@ -362,7 +362,12 @@ fun BookmarkListScreen(navHostController: NavHostController) {
                                 ) {
                                     SortOption.entries.forEach { option ->
                                         DropdownMenuItem(
-                                            text = { Text(option.displayName) },
+                                            text = {
+                                                Text(
+                                                    text = option.displayName,
+                                                    fontWeight = if (option == sortOption.value) androidx.compose.ui.text.font.FontWeight.Bold else androidx.compose.ui.text.font.FontWeight.Normal
+                                                )
+                                            },
                                             onClick = {
                                                 viewModel.onSortOptionSelected(option)
                                                 showSortMenu = false
@@ -393,7 +398,12 @@ fun BookmarkListScreen(navHostController: NavHostController) {
                                                     contentDescription = null
                                                 )
                                             },
-                                            text = { Text(mode.displayName) },
+                                            text = {
+                                                Text(
+                                                    text = mode.displayName,
+                                                    fontWeight = if (mode == layoutMode.value) androidx.compose.ui.text.font.FontWeight.Bold else androidx.compose.ui.text.font.FontWeight.Normal
+                                                )
+                                            },
                                             onClick = {
                                                 viewModel.onLayoutModeSelected(mode)
                                                 showLayoutMenu = false
