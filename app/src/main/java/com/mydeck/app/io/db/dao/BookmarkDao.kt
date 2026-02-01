@@ -36,6 +36,11 @@ interface BookmarkDao {
     @Query("SELECT * from bookmarks WHERE type = 'article'")
     fun getArticles(): Flow<List<BookmarkEntity>>
 
+    @Query("""
+        SELECT labels FROM bookmarks WHERE state = 0 AND labels != '' AND labels IS NOT NULL
+    """)
+    fun observeAllLabels(): Flow<List<String>>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertBookmarks(bookmarks: List<BookmarkEntity>)
 
@@ -141,6 +146,7 @@ interface BookmarkDao {
         isUnread: Boolean? = null,
         isArchived: Boolean? = null,
         isFavorite: Boolean? = null,
+        label: String? = null,
         state: BookmarkEntity.State? = null,
         orderBy: String = "created DESC"
     ): Flow<List<BookmarkListItemEntity>> {
@@ -192,6 +198,12 @@ interface BookmarkDao {
                 append(" AND isMarked = ?")
                 args.add(it)
             }
+
+            label?.let {
+                append(" AND labels LIKE ?")
+                args.add("%$it%")
+            }
+
             append(" ORDER BY $orderBy")
         }.let { SimpleSQLiteQuery(it, args.toTypedArray()) }
         Timber.d("query=${sqlQuery.sql}")
@@ -268,6 +280,7 @@ interface BookmarkDao {
         isUnread: Boolean? = null,
         isArchived: Boolean? = null,
         isFavorite: Boolean? = null,
+        label: String? = null,
         state: BookmarkEntity.State? = null,
         orderBy: String = "created DESC"
     ): Flow<List<BookmarkListItemEntity>> {
@@ -311,6 +324,11 @@ interface BookmarkDao {
             isFavorite?.let {
                 append(" AND isMarked = ?")
                 args.add(it)
+            }
+
+            label?.let {
+                append(" AND labels LIKE ?")
+                args.add("%$it%")
             }
 
             append(" ORDER BY $orderBy")

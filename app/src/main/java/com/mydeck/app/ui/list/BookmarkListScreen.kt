@@ -1,5 +1,6 @@
 package com.mydeck.app.ui.list
 
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -35,6 +36,7 @@ import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.automirrored.filled.ViewList
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Inventory2
+import androidx.compose.material.icons.outlined.Label
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.TaskAlt
 import androidx.compose.material3.AlertDialog
@@ -272,6 +274,27 @@ fun BookmarkListScreen(navHostController: NavHostController) {
                     NavigationDrawerItem(
                         label = { Text(
                             style = Typography.labelLarge,
+                            text = stringResource(id = R.string.labels)
+                        ) },
+                        icon = { Icon(Icons.Outlined.Label, contentDescription = null) },
+                        badge = {
+                            if (labelsWithCounts.value.isNotEmpty()) {
+                                Badge(containerColor = MaterialTheme.colorScheme.secondaryContainer) {
+                                    Text(
+                                        text = labelsWithCounts.value.size.toString()
+                                    )
+                                }
+                            }
+                        },
+                        selected = filterState.value.viewingLabelsList || filterState.value.label != null,
+                        onClick = {
+                            viewModel.onClickLabelsView()
+                            scope.launch { drawerState.close() }
+                        }
+                    )
+                    NavigationDrawerItem(
+                        label = { Text(
+                            style = Typography.labelLarge,
                             text = stringResource(id = R.string.settings)
                         ) },
                         icon = { Icon(imageVector = Icons.Outlined.Settings, contentDescription = null) },
@@ -302,6 +325,8 @@ fun BookmarkListScreen(navHostController: NavHostController) {
             topBar = {
                 // Determine the current view title based on filter state
                 val currentViewTitle = when {
+                    filterState.value.viewingLabelsList -> stringResource(id = R.string.bookmark_labels)
+                    filterState.value.label != null -> "${stringResource(id = R.string.labels)} / ${filterState.value.label}"
                     filterState.value.archived == false -> stringResource(id = R.string.my_list)
                     filterState.value.archived == true -> stringResource(id = R.string.archive)
                     filterState.value.favorite == true -> stringResource(id = R.string.favorites)
@@ -455,44 +480,54 @@ fun BookmarkListScreen(navHostController: NavHostController) {
                     .padding(padding)
                     .fillMaxWidth()
             ) {
-                when (uiState) {
-                    is BookmarkListViewModel.UiState.Empty -> {
-                        EmptyScreen(messageResource = uiState.messageResource)
-                    }
-                    is BookmarkListViewModel.UiState.Success -> {
-                        LaunchedEffect(key1 = uiState.updateBookmarkState) {
-                            uiState.updateBookmarkState?.let { result ->
-                                val message = when (result) {
-                                    is BookmarkListViewModel.UpdateBookmarkState.Success -> {
-                                        "success"
-                                    }
-
-                                    is BookmarkListViewModel.UpdateBookmarkState.Error -> {
-                                        result.message
-                                    }
-                                }
-                                snackbarHostState.showSnackbar(
-                                    message = message,
-                                    duration = SnackbarDuration.Short
-                                )
-                            }
+                // Show labels list if viewing labels, otherwise show bookmarks list
+                if (filterState.value.viewingLabelsList) {
+                    LabelsListView(
+                        labels = labelsWithCounts.value,
+                        onLabelSelected = { label ->
+                            viewModel.onClickLabel(label)
                         }
-                        BookmarkListView(
-                            layoutMode = layoutMode.value,
-                            bookmarks = uiState.bookmarks,
-                            onClickBookmark = onClickBookmark,
-                            onClickDelete = onClickDelete,
-                            onClickArchive = onClickArchive,
-                            onClickFavorite = onClickFavorite,
-                            onClickOpenInBrowser = onClickOpenInBrowser,
-                            onClickShareBookmark = onClickShareBookmark
-                        )
-                        // Consumes a shareIntent and creates the corresponding share dialog
-                        ShareBookmarkChooser(
-                            context = LocalContext.current,
-                            intent = viewModel.shareIntent.collectAsState().value,
-                            onShareIntentConsumed = { viewModel.onShareIntentConsumed() }
-                        )
+                    )
+                } else {
+                    when (uiState) {
+                        is BookmarkListViewModel.UiState.Empty -> {
+                            EmptyScreen(messageResource = uiState.messageResource)
+                        }
+                        is BookmarkListViewModel.UiState.Success -> {
+                            LaunchedEffect(key1 = uiState.updateBookmarkState) {
+                                uiState.updateBookmarkState?.let { result ->
+                                    val message = when (result) {
+                                        is BookmarkListViewModel.UpdateBookmarkState.Success -> {
+                                            "success"
+                                        }
+
+                                        is BookmarkListViewModel.UpdateBookmarkState.Error -> {
+                                            result.message
+                                        }
+                                    }
+                                    snackbarHostState.showSnackbar(
+                                        message = message,
+                                        duration = SnackbarDuration.Short
+                                    )
+                                }
+                            }
+                            BookmarkListView(
+                                layoutMode = layoutMode.value,
+                                bookmarks = uiState.bookmarks,
+                                onClickBookmark = onClickBookmark,
+                                onClickDelete = onClickDelete,
+                                onClickArchive = onClickArchive,
+                                onClickFavorite = onClickFavorite,
+                                onClickOpenInBrowser = onClickOpenInBrowser,
+                                onClickShareBookmark = onClickShareBookmark
+                            )
+                            // Consumes a shareIntent and creates the corresponding share dialog
+                            ShareBookmarkChooser(
+                                context = LocalContext.current,
+                                intent = viewModel.shareIntent.collectAsState().value,
+                                onShareIntentConsumed = { viewModel.onShareIntentConsumed() }
+                            )
+                        }
                     }
                 }
             }
@@ -751,6 +786,75 @@ fun EmptyScreen(
             modifier = Modifier.fillMaxSize()
         ) {
             Text(stringResource(id = messageResource))
+        }
+    }
+}
+
+@Composable
+fun LabelsListView(
+    modifier: Modifier = Modifier,
+    labels: Map<String, Int>,
+    onLabelSelected: (String) -> Unit
+) {
+    if (labels.isEmpty()) {
+        Column(
+            modifier = modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Text(
+                text = stringResource(R.string.list_view_empty_nothing_to_see),
+                style = MaterialTheme.typography.bodyMedium
+            )
+        }
+    } else {
+        LazyColumn(
+            modifier = modifier.fillMaxWidth()
+        ) {
+            item {
+                Text(
+                    text = stringResource(R.string.labels_description),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
+                )
+            }
+            items(
+                items = labels.entries.sortedBy { it.key }.toList(),
+                key = { it.key }
+            ) { (label, count) ->
+                NavigationDrawerItem(
+                    modifier = Modifier
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                        .border(
+                            width = 1.dp,
+                            color = MaterialTheme.colorScheme.outlineVariant,
+                            shape = MaterialTheme.shapes.medium
+                        ),
+                    label = {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(label)
+                            Badge(
+                                containerColor = MaterialTheme.colorScheme.surfaceVariant
+                            ) {
+                                Text(count.toString())
+                            }
+                        }
+                    },
+                    selected = false,
+                    onClick = {
+                        onLabelSelected(label)
+                    }
+                )
+            }
         }
     }
 }

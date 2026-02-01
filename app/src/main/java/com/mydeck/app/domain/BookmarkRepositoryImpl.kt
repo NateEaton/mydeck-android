@@ -82,6 +82,7 @@ class BookmarkRepositoryImpl @Inject constructor(
         unread: Boolean?,
         archived: Boolean?,
         favorite: Boolean?,
+        label: String?,
         state: Bookmark.State?,
         orderBy: String
     ): Flow<List<BookmarkListItem>> {
@@ -96,6 +97,7 @@ class BookmarkRepositoryImpl @Inject constructor(
             isUnread = unread,
             isArchived = archived,
             isFavorite = favorite,
+            label = label,
             state = state?.let {
                 when (it) {
                     Bookmark.State.LOADED -> BookmarkEntity.State.LOADED
@@ -139,6 +141,7 @@ class BookmarkRepositoryImpl @Inject constructor(
         unread: Boolean?,
         archived: Boolean?,
         favorite: Boolean?,
+        label: String?,
         state: Bookmark.State?,
         orderBy: String
     ): Flow<List<BookmarkListItem>> {
@@ -154,6 +157,7 @@ class BookmarkRepositoryImpl @Inject constructor(
             isUnread = unread,
             isArchived = archived,
             isFavorite = favorite,
+            label = label,
             state = state?.let {
                 when (it) {
                     Bookmark.State.LOADED -> BookmarkEntity.State.LOADED
@@ -614,4 +618,22 @@ class BookmarkRepositoryImpl @Inject constructor(
             }
         }
     }
+
+    override fun observeAllLabelsWithCounts(): Flow<Map<String, Int>> =
+        bookmarkDao.observeAllLabels().map { labelsStringList ->
+            val labelCounts = mutableMapOf<String, Int>()
+
+            // Parse each labels string and count occurrences
+            for (labelsString in labelsStringList) {
+                if (labelsString.isNotEmpty()) {
+                    // Split by comma to get individual labels
+                    val labels = labelsString.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+                    for (label in labels) {
+                        labelCounts[label] = (labelCounts[label] ?: 0) + 1
+                    }
+                }
+            }
+
+            labelCounts.toMap()
+        }
 }

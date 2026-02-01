@@ -112,6 +112,13 @@ class BookmarkListViewModel @Inject constructor(
             initialValue = BookmarkCounts()
         )
 
+    val labelsWithCounts: StateFlow<Map<String, Int>> = bookmarkRepository.observeAllLabelsWithCounts()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyMap()
+        )
+
     init {
         savedStateHandle.get<String>("sharedText").takeIf { it != null }?.let {
             val sharedText = it.extractUrlAndTitle()
@@ -141,6 +148,7 @@ class BookmarkListViewModel @Inject constructor(
                         unread = filter.unread,
                         archived = filter.archived,
                         favorite = filter.favorite,
+                        label = filter.label,
                         state = Bookmark.State.LOADED,
                         orderBy = sort.sqlOrderBy
                     )
@@ -150,6 +158,7 @@ class BookmarkListViewModel @Inject constructor(
                         unread = filter.unread,
                         archived = filter.archived,
                         favorite = filter.favorite,
+                        label = filter.label,
                         state = Bookmark.State.LOADED,
                         orderBy = sort.sqlOrderBy
                     )
@@ -276,6 +285,26 @@ class BookmarkListViewModel @Inject constructor(
     fun onClickVideos() {
         Timber.d("onClickVideos")
         setTypeFilter(Bookmark.Type.Video)
+    }
+
+    fun onClickLabelsView() {
+        Timber.d("onClickLabelsView")
+        setLabelsListView()
+    }
+
+    private fun setLabelsListView() {
+        // Show the labels list view
+        _filterState.value = FilterState(viewingLabelsList = true)
+    }
+
+    fun onClickLabel(label: String) {
+        Timber.d("onClickLabel: $label")
+        setLabelFilter(label)
+    }
+
+    private fun setLabelFilter(label: String?) {
+        // Clear all other filters when selecting a label filter
+        _filterState.value = FilterState(label = label)
     }
 
     fun onClickSettings() {
@@ -516,7 +545,9 @@ class BookmarkListViewModel @Inject constructor(
         val type: Bookmark.Type? = null,
         val unread: Boolean? = null,
         val archived: Boolean? = null,
-        val favorite: Boolean? = null
+        val favorite: Boolean? = null,
+        val label: String? = null,
+        val viewingLabelsList: Boolean = false
     )
 
     sealed class UiState {
