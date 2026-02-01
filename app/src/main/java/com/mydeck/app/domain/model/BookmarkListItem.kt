@@ -18,5 +18,6 @@ data class BookmarkListItem(
     val type: Bookmark.Type,
     val readingTime: Int?,
     val created: LocalDateTime,
-    val wordCount: Int?
+    val wordCount: Int?,
+    val published: LocalDateTime?
 )

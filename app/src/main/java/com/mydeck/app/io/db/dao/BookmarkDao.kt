@@ -161,7 +161,8 @@ interface BookmarkDao {
             type,
             readingTime,
             created,
-            wordCount
+            wordCount,
+            published
             """)
 
             append(" FROM bookmarks WHERE 1=1")
@@ -275,7 +276,7 @@ interface BookmarkDao {
             append("""SELECT id, url, title, siteName, isMarked, isArchived,
             readProgress, icon_src AS iconSrc, image_src AS imageSrc,
             labels, thumbnail_src AS thumbnailSrc, type,
-            readingTime, created, wordCount
+            readingTime, created, wordCount, published
             FROM bookmarks WHERE 1=1""")
 
             if (searchQuery.isNotBlank()) {

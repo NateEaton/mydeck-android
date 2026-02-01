@@ -249,7 +249,11 @@ class BookmarkListViewModelTest {
                 readProgress = 0,
                 thumbnailSrc = "",
                 iconSrc = "",
-                imageSrc = ""
+                imageSrc = "",
+                readingTime = null,
+                created = kotlinx.datetime.Clock.System.now().toLocalDateTime(kotlinx.datetime.TimeZone.currentSystemDefault()),
+                wordCount = null,
+                published = null
             )
         )
         val bookmarkFlow = MutableStateFlow(expectedBookmarks)

@@ -126,7 +126,8 @@ class BookmarkRepositoryImpl @Inject constructor(
                     },
                     readingTime = listItem.readingTime,
                     created = listItem.created.toLocalDateTime(kotlinx.datetime.TimeZone.currentSystemDefault()),
-                    wordCount = listItem.wordCount
+                    wordCount = listItem.wordCount,
+                    published = listItem.published?.toLocalDateTime(kotlinx.datetime.TimeZone.currentSystemDefault())
                 )
             }
         }
@@ -183,7 +184,8 @@ class BookmarkRepositoryImpl @Inject constructor(
                     },
                     readingTime = listItem.readingTime,
                     created = listItem.created.toLocalDateTime(kotlinx.datetime.TimeZone.currentSystemDefault()),
-                    wordCount = listItem.wordCount
+                    wordCount = listItem.wordCount,
+                    published = listItem.published?.toLocalDateTime(kotlinx.datetime.TimeZone.currentSystemDefault())
                 )
             }
         }

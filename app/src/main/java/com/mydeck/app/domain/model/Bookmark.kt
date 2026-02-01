@@ -27,6 +27,7 @@ data class Bookmark(
     val readProgress: Int,
     val wordCount: Int?,
     val readingTime: Int?,
+    val published: LocalDateTime?,
     val article: Resource,
     val articleContent: String?,
     val icon: ImageResource,

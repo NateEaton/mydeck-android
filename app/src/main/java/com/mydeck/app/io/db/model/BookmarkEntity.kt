@@ -41,6 +41,7 @@ data class BookmarkEntity(
     val readProgress: Int,
     val wordCount: Int?,
     val readingTime: Int?,
+    val published: Instant?,
 
     // Embedded Resources
     @Embedded(prefix = "article_")

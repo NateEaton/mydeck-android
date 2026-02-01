@@ -40,7 +40,8 @@ data class BookmarkDto(
     @SerialName("word_count")
     val wordCount: Int? = null,
     @SerialName("reading_time")
-    val readingTime: Int? = null
+    val readingTime: Int? = null,
+    val published: Instant? = null
 )
 
 @Serializable

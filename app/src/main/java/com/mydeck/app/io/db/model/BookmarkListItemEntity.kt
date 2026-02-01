@@ -17,5 +17,6 @@ data class BookmarkListItemEntity(
     val type: BookmarkEntity.Type,
     val readingTime: Int?,
     val created: Instant,
-    val wordCount: Int?
+    val wordCount: Int?,
+    val published: Instant?
 )
