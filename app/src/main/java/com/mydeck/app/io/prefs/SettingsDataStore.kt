@@ -38,4 +38,8 @@ interface SettingsDataStore {
     suspend fun isSyncOnAppOpenEnabled(): Boolean
     suspend fun setSyncNotificationsEnabled(isEnabled: Boolean)
     suspend fun isSyncNotificationsEnabled(): Boolean
+    suspend fun saveLayoutMode(layoutMode: String)
+    suspend fun getLayoutMode(): String?
+    suspend fun saveSortOption(sortOption: String)
+    suspend fun getSortOption(): String?
 }

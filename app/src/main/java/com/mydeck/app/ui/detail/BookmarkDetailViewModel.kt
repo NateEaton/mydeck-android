@@ -183,7 +183,8 @@ class BookmarkDetailViewModel @Inject constructor(
                     readingTime = bookmark.readingTime,
                     description = bookmark.description,
                     labels = bookmark.labels,
-                    readProgress = bookmark.readProgress
+                    readProgress = bookmark.readProgress,
+                    debugInfo = buildDebugInfo(bookmark)
                 ),
                 updateBookmarkState = updateState,
                 template = template,
@@ -402,7 +403,8 @@ class BookmarkDetailViewModel @Inject constructor(
         val readingTime: Int?,
         val description: String,
         val labels: List<String>,
-        val readProgress: Int
+        val readProgress: Int,
+        val debugInfo: String = ""
     ) {
         enum class Type {
             ARTICLE, PHOTO, VIDEO
@@ -441,5 +443,58 @@ class BookmarkDetailViewModel @Inject constructor(
     sealed class UpdateBookmarkState {
         data object Success : UpdateBookmarkState()
         data class Error(val message: String) : UpdateBookmarkState()
+    }
+
+    private fun buildDebugInfo(bookmark: com.mydeck.app.domain.model.Bookmark): String {
+        return buildString {
+            appendLine("=== BOOKMARK DEBUG INFO ===")
+            appendLine()
+            appendLine("ID: ${bookmark.id}")
+            appendLine("State: ${bookmark.state}")
+            appendLine("Loaded: ${bookmark.loaded}")
+            appendLine("Has Article: ${bookmark.hasArticle}")
+            appendLine("Is Deleted: ${bookmark.isDeleted}")
+            appendLine()
+            appendLine("Timestamps:")
+            appendLine("  Created: ${bookmark.created}")
+            appendLine("  Updated: ${bookmark.updated}")
+            appendLine("  Published: ${bookmark.published ?: "N/A"}")
+            appendLine()
+            appendLine("URLs & Resources:")
+            appendLine("  URL: ${bookmark.url}")
+            appendLine("  HREF: ${bookmark.href}")
+            appendLine("  Site: ${bookmark.site}")
+            appendLine("  Site Name: ${bookmark.siteName}")
+            appendLine("  Article Resource: ${bookmark.article.src}")
+            appendLine("  Icon: ${bookmark.icon.src} (${bookmark.icon.width}x${bookmark.icon.height})")
+            appendLine("  Image: ${bookmark.image.src} (${bookmark.image.width}x${bookmark.image.height})")
+            appendLine("  Thumbnail: ${bookmark.thumbnail.src} (${bookmark.thumbnail.width}x${bookmark.thumbnail.height})")
+            appendLine("  Log: ${bookmark.log.src}")
+            appendLine("  Props: ${bookmark.props.src}")
+            appendLine()
+            appendLine("Content Info:")
+            appendLine("  Type: ${bookmark.type}")
+            appendLine("  Document Type: ${bookmark.documentTpe}")
+            appendLine("  Language: ${bookmark.lang}")
+            appendLine("  Text Direction: ${bookmark.textDirection}")
+            appendLine("  Word Count: ${bookmark.wordCount ?: "N/A"}")
+            appendLine("  Reading Time: ${bookmark.readingTime ?: "N/A"} min")
+            appendLine("  Read Progress: ${bookmark.readProgress}%")
+            appendLine("  Has Article Content: ${bookmark.articleContent != null}")
+            if (bookmark.articleContent != null) {
+                appendLine("  Article Content Length: ${bookmark.articleContent.length} chars")
+            }
+            appendLine()
+            appendLine("Metadata:")
+            appendLine("  Authors: ${if (bookmark.authors.isEmpty()) "None" else bookmark.authors.joinToString(", ")}")
+            appendLine("  Labels: ${if (bookmark.labels.isEmpty()) "None" else bookmark.labels.joinToString(", ")}")
+            appendLine("  Is Marked: ${bookmark.isMarked}")
+            appendLine("  Is Archived: ${bookmark.isArchived}")
+            appendLine()
+            if (bookmark.description.isNotBlank()) {
+                appendLine("Description:")
+                appendLine(bookmark.description)
+            }
+        }
     }
 }

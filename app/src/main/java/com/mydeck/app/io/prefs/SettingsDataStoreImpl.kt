@@ -37,6 +37,8 @@ class SettingsDataStoreImpl @Inject constructor(@ApplicationContext private val 
     private val KEY_ZOOM_FACTOR = intPreferencesKey("zoom_factor")
     private val KEY_SYNC_ON_APP_OPEN = booleanPreferencesKey("sync_on_app_open")
     private val KEY_SYNC_NOTIFICATIONS_ENABLED = booleanPreferencesKey("sync_notifications_enabled")
+    private val KEY_LAYOUT_MODE = stringPreferencesKey("layout_mode")
+    private val KEY_SORT_OPTION = stringPreferencesKey("sort_option")
 
     override fun saveUsername(username: String) {
         Timber.d("saveUsername")
@@ -228,5 +230,25 @@ class SettingsDataStoreImpl @Inject constructor(@ApplicationContext private val 
 
         encryptedSharedPreferences.registerOnSharedPreferenceChangeListener(listener) // Register the listener
         return state.asStateFlow()
+    }
+
+    override suspend fun saveLayoutMode(layoutMode: String) {
+        encryptedSharedPreferences.edit {
+            putString(KEY_LAYOUT_MODE.name, layoutMode)
+        }
+    }
+
+    override suspend fun getLayoutMode(): String? {
+        return encryptedSharedPreferences.getString(KEY_LAYOUT_MODE.name, null)
+    }
+
+    override suspend fun saveSortOption(sortOption: String) {
+        encryptedSharedPreferences.edit {
+            putString(KEY_SORT_OPTION.name, sortOption)
+        }
+    }
+
+    override suspend fun getSortOption(): String? {
+        return encryptedSharedPreferences.getString(KEY_SORT_OPTION.name, null)
     }
 }

@@ -19,7 +19,8 @@ interface BookmarkRepository {
         unread: Boolean? = null,
         archived: Boolean? = null,
         favorite: Boolean? = null,
-        state: Bookmark.State? = null
+        state: Bookmark.State? = null,
+        orderBy: String = "created DESC"
     ): Flow<List<BookmarkListItem>>
 
     suspend fun insertBookmarks(bookmarks: List<Bookmark>)
@@ -39,7 +40,8 @@ interface BookmarkRepository {
         unread: Boolean? = null,
         archived: Boolean? = null,
         favorite: Boolean? = null,
-        state: Bookmark.State? = null
+        state: Bookmark.State? = null,
+        orderBy: String = "created DESC"
     ): Flow<List<BookmarkListItem>>
 
     fun observeAllBookmarkCounts(): Flow<BookmarkCounts>

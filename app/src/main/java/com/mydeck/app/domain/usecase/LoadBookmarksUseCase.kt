@@ -95,7 +95,6 @@ class LoadBookmarksUseCase @Inject constructor(
         try {
             val constraints = Constraints.Builder()
                 .setRequiredNetworkType(NetworkType.CONNECTED)
-                .setRequiresBatteryNotLow(true)
                 .build()
 
             val request = OneTimeWorkRequestBuilder<BatchArticleLoadWorker>()

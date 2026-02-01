@@ -1,7 +1,10 @@
 package com.mydeck.app.ui.list
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -18,6 +21,11 @@ import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Grade
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Sort
+import androidx.compose.material.icons.filled.GridView
+import androidx.compose.material.icons.filled.Apps
+import androidx.compose.material.icons.automirrored.filled.List
+import androidx.compose.material.icons.automirrored.filled.ViewList
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Inventory2
 import androidx.compose.material.icons.outlined.Settings
@@ -26,11 +34,14 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DrawerValue
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalDrawerSheet
 import androidx.compose.material3.ModalNavigationDrawer
@@ -51,8 +62,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -65,9 +78,14 @@ import androidx.compose.ui.window.Dialog
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
+import kotlinx.datetime.Clock
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
 import com.mydeck.app.R
 import com.mydeck.app.domain.model.Bookmark
 import com.mydeck.app.domain.model.BookmarkListItem
+import com.mydeck.app.domain.model.LayoutMode
+import com.mydeck.app.domain.model.SortOption
 import com.mydeck.app.ui.components.ShareBookmarkChooser
 import com.mydeck.app.ui.navigation.AboutRoute
 import com.mydeck.app.ui.navigation.BookmarkDetailRoute
@@ -91,6 +109,11 @@ fun BookmarkListScreen(navHostController: NavHostController) {
     val filterState = viewModel.filterState.collectAsState()
     val isSearchActive = viewModel.isSearchActive.collectAsState()
     val searchQuery = viewModel.searchQuery.collectAsState()
+    val layoutMode = viewModel.layoutMode.collectAsState()
+    val sortOption = viewModel.sortOption.collectAsState()
+
+    var showLayoutMenu by remember { androidx.compose.runtime.mutableStateOf(false) }
+    var showSortMenu by remember { androidx.compose.runtime.mutableStateOf(false) }
 
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
@@ -328,6 +351,69 @@ fun BookmarkListScreen(navHostController: NavHostController) {
                     },
                     actions = {
                         if (!isSearchActive.value) {
+                            // Sort button with dropdown
+                            Box {
+                                IconButton(onClick = { showSortMenu = true }) {
+                                    Icon(Icons.Filled.Sort, contentDescription = "Sort")
+                                }
+                                DropdownMenu(
+                                    expanded = showSortMenu,
+                                    onDismissRequest = { showSortMenu = false }
+                                ) {
+                                    SortOption.entries.forEach { option ->
+                                        DropdownMenuItem(
+                                            text = {
+                                                Text(
+                                                    text = option.displayName,
+                                                    fontWeight = if (option == sortOption.value) androidx.compose.ui.text.font.FontWeight.Bold else androidx.compose.ui.text.font.FontWeight.Normal
+                                                )
+                                            },
+                                            onClick = {
+                                                viewModel.onSortOptionSelected(option)
+                                                showSortMenu = false
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+
+                            // Layout button with dropdown
+                            Box {
+                                IconButton(onClick = { showLayoutMenu = true }) {
+                                    Icon(Icons.Filled.GridView, contentDescription = "Layout")
+                                }
+                                DropdownMenu(
+                                    expanded = showLayoutMenu,
+                                    onDismissRequest = { showLayoutMenu = false }
+                                ) {
+                                    LayoutMode.entries.forEach { mode ->
+                                        DropdownMenuItem(
+                                            leadingIcon = {
+                                                Icon(
+                                                    imageVector = when (mode) {
+                                                        LayoutMode.GRID -> Icons.Filled.Apps
+                                                        LayoutMode.COMPACT -> Icons.AutoMirrored.Filled.List
+                                                        LayoutMode.MOSAIC -> Icons.Filled.GridView
+                                                    },
+                                                    contentDescription = null
+                                                )
+                                            },
+                                            text = {
+                                                Text(
+                                                    text = mode.displayName,
+                                                    fontWeight = if (mode == layoutMode.value) androidx.compose.ui.text.font.FontWeight.Bold else androidx.compose.ui.text.font.FontWeight.Normal
+                                                )
+                                            },
+                                            onClick = {
+                                                viewModel.onLayoutModeSelected(mode)
+                                                showLayoutMenu = false
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+
+                            // Search button
                             IconButton(onClick = { viewModel.onSearchActiveChange(true) }) {
                                 Icon(Icons.Filled.Search, contentDescription = stringResource(R.string.search))
                             }
@@ -375,6 +461,7 @@ fun BookmarkListScreen(navHostController: NavHostController) {
                             }
                         }
                         BookmarkListView(
+                            layoutMode = layoutMode.value,
                             bookmarks = uiState.bookmarks,
                             onClickBookmark = onClickBookmark,
                             onClickDelete = onClickDelete,
@@ -444,6 +531,7 @@ fun BookmarkListScreen(navHostController: NavHostController) {
                     // Do nothing when the dialog is closed
                 }
             }
+
         }
     }
 }
@@ -522,6 +610,7 @@ fun EmptyScreen(
 @Composable
 fun BookmarkListView(
     modifier: Modifier = Modifier,
+    layoutMode: LayoutMode = LayoutMode.GRID,
     bookmarks: List<BookmarkListItem>,
     onClickBookmark: (String) -> Unit,
     onClickDelete: (String) -> Unit,
@@ -532,15 +621,35 @@ fun BookmarkListView(
 ) {
     LazyColumn(modifier = modifier) {
         items(bookmarks) { bookmark ->
-            BookmarkCard(
-                bookmark = bookmark,
-                onClickCard = onClickBookmark,
-                onClickDelete = onClickDelete,
-                onClickArchive = onClickArchive,
-                onClickFavorite = onClickFavorite,
-                onClickOpenUrl = onClickOpenInBrowser,
-                onClickShareBookmark = onClickShareBookmark
-            )
+            when (layoutMode) {
+                LayoutMode.GRID -> BookmarkMagazineView(
+                    bookmark = bookmark,
+                    onClickCard = onClickBookmark,
+                    onClickDelete = onClickDelete,
+                    onClickArchive = onClickArchive,
+                    onClickFavorite = onClickFavorite,
+                    onClickOpenUrl = onClickOpenInBrowser,
+                    onClickShareBookmark = onClickShareBookmark
+                )
+                LayoutMode.COMPACT -> BookmarkListItemView(
+                    bookmark = bookmark,
+                    onClickCard = onClickBookmark,
+                    onClickDelete = onClickDelete,
+                    onClickArchive = onClickArchive,
+                    onClickFavorite = onClickFavorite,
+                    onClickOpenUrl = onClickOpenInBrowser,
+                    onClickShareBookmark = onClickShareBookmark
+                )
+                LayoutMode.MOSAIC -> BookmarkCard(
+                    bookmark = bookmark,
+                    onClickCard = onClickBookmark,
+                    onClickDelete = onClickDelete,
+                    onClickArchive = onClickArchive,
+                    onClickFavorite = onClickFavorite,
+                    onClickOpenUrl = onClickOpenInBrowser,
+                    onClickShareBookmark = onClickShareBookmark
+                )
+            }
         }
     }
 }
@@ -574,6 +683,10 @@ fun BookmarkListViewPreview() {
         iconSrc = "https://picsum.photos/seed/picsum/640/480",
         imageSrc = "https://picsum.photos/seed/picsum/640/480",
         thumbnailSrc = "https://picsum.photos/seed/picsum/640/480",
+        readingTime = 8,
+        created = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()),
+        wordCount = 2000,
+        published = null
     )
     val bookmarks = listOf(sampleBookmark)
 
@@ -581,6 +694,7 @@ fun BookmarkListViewPreview() {
     val navController = rememberNavController()
     BookmarkListView(
         modifier = Modifier,
+        layoutMode = LayoutMode.GRID,
         bookmarks = bookmarks,
         onClickBookmark = {},
         onClickDelete = {},

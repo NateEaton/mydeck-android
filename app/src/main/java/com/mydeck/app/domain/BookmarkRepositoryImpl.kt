@@ -82,7 +82,8 @@ class BookmarkRepositoryImpl @Inject constructor(
         unread: Boolean?,
         archived: Boolean?,
         favorite: Boolean?,
-        state: Bookmark.State?
+        state: Bookmark.State?,
+        orderBy: String
     ): Flow<List<BookmarkListItem>> {
         return bookmarkDao.getBookmarkListItemsByFilters(
             type = type?.let {
@@ -101,7 +102,8 @@ class BookmarkRepositoryImpl @Inject constructor(
                     Bookmark.State.ERROR -> BookmarkEntity.State.ERROR
                     Bookmark.State.LOADING -> BookmarkEntity.State.LOADING
                 }
-            }
+            },
+            orderBy = orderBy
         ).map { listItems ->
             listItems.map { listItem ->
                 BookmarkListItem(
@@ -121,7 +123,11 @@ class BookmarkRepositoryImpl @Inject constructor(
                         BookmarkEntity.Type.ARTICLE -> Bookmark.Type.Article
                         BookmarkEntity.Type.PHOTO -> Bookmark.Type.Picture
                         BookmarkEntity.Type.VIDEO -> Bookmark.Type.Video
-                    }
+                    },
+                    readingTime = listItem.readingTime,
+                    created = listItem.created.toLocalDateTime(kotlinx.datetime.TimeZone.currentSystemDefault()),
+                    wordCount = listItem.wordCount,
+                    published = listItem.published?.toLocalDateTime(kotlinx.datetime.TimeZone.currentSystemDefault())
                 )
             }
         }
@@ -133,7 +139,8 @@ class BookmarkRepositoryImpl @Inject constructor(
         unread: Boolean?,
         archived: Boolean?,
         favorite: Boolean?,
-        state: Bookmark.State?
+        state: Bookmark.State?,
+        orderBy: String
     ): Flow<List<BookmarkListItem>> {
         return bookmarkDao.searchBookmarkListItems(
             searchQuery = searchQuery,
@@ -153,7 +160,8 @@ class BookmarkRepositoryImpl @Inject constructor(
                     Bookmark.State.ERROR -> BookmarkEntity.State.ERROR
                     Bookmark.State.LOADING -> BookmarkEntity.State.LOADING
                 }
-            }
+            },
+            orderBy = orderBy
         ).map { listItems ->
             listItems.map { listItem ->
                 BookmarkListItem(
@@ -173,7 +181,11 @@ class BookmarkRepositoryImpl @Inject constructor(
                         BookmarkEntity.Type.ARTICLE -> Bookmark.Type.Article
                         BookmarkEntity.Type.PHOTO -> Bookmark.Type.Picture
                         BookmarkEntity.Type.VIDEO -> Bookmark.Type.Video
-                    }
+                    },
+                    readingTime = listItem.readingTime,
+                    created = listItem.created.toLocalDateTime(kotlinx.datetime.TimeZone.currentSystemDefault()),
+                    wordCount = listItem.wordCount,
+                    published = listItem.published?.toLocalDateTime(kotlinx.datetime.TimeZone.currentSystemDefault())
                 )
             }
         }

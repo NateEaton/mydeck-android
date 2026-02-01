@@ -1,5 +1,7 @@
 package com.mydeck.app.domain.model
 
+import kotlinx.datetime.LocalDateTime
+
 data class BookmarkListItem(
     val id: String,
     val url: String,
@@ -13,5 +15,9 @@ data class BookmarkListItem(
     val iconSrc: String,
     val imageSrc: String,
     val labels: List<String>,
-    val type: Bookmark.Type
+    val type: Bookmark.Type,
+    val readingTime: Int?,
+    val created: LocalDateTime,
+    val wordCount: Int?,
+    val published: LocalDateTime?
 )
