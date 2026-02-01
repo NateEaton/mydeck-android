@@ -89,6 +89,8 @@ private fun findFirstUrlInLine(line: String): String? {
 
 private val URL_REGEX = """(https?://[^\s]+)""".toRegex()
 
+const val MAX_TITLE_LENGTH = 500
+
 fun openUrlInCustomTab(context: Context, url: String) {
     if(url.isValidUrl()) {
         try {

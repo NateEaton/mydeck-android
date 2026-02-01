@@ -21,6 +21,7 @@ import com.mydeck.app.domain.usecase.UpdateBookmarkUseCase
 import com.mydeck.app.io.prefs.SettingsDataStore
 import com.mydeck.app.util.extractUrlAndTitle
 import com.mydeck.app.util.isValidUrl
+import com.mydeck.app.util.MAX_TITLE_LENGTH
 import com.mydeck.app.worker.LoadBookmarksWorker
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.CoroutineExceptionHandler
@@ -417,13 +418,24 @@ class BookmarkListViewModel @Inject constructor(
     }
 
     // Create Bookmark Dialog
-    fun openCreateBookmarkDialog() {
-        _createBookmarkUiState.value = CreateBookmarkUiState.Open(
-            title = "",
-            url = "",
-            urlError = null,
-            isCreateEnabled = false
-        )
+    fun openCreateBookmarkDialog(clipboardText: String? = null) {
+        val sharedText = clipboardText?.extractUrlAndTitle()
+
+        _createBookmarkUiState.value = if (sharedText != null) {
+            CreateBookmarkUiState.Open(
+                title = sharedText.title?.take(MAX_TITLE_LENGTH) ?: "",
+                url = sharedText.url,
+                urlError = null,
+                isCreateEnabled = true
+            )
+        } else {
+            CreateBookmarkUiState.Open(
+                title = "",
+                url = "",
+                urlError = null,
+                isCreateEnabled = false
+            )
+        }
     }
 
     fun closeCreateBookmarkDialog() {
