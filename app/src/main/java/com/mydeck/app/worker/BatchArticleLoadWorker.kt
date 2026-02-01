@@ -75,7 +75,6 @@ class BatchArticleLoadWorker @AssistedInject constructor(
         fun enqueue(context: Context) {
             val constraints = Constraints.Builder()
                 .setRequiredNetworkType(NetworkType.CONNECTED)
-                .setRequiresBatteryNotLow(true)
                 .build()
 
             val request = OneTimeWorkRequestBuilder<BatchArticleLoadWorker>()
