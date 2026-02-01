@@ -48,6 +48,8 @@ interface BookmarkRepository {
 
     fun observeAllBookmarkCounts(): Flow<BookmarkCounts>
     fun observeAllLabelsWithCounts(): Flow<Map<String, Int>>
+    suspend fun renameLabel(oldLabel: String, newLabel: String): UpdateResult
+    suspend fun deleteLabel(label: String): UpdateResult
     sealed class UpdateResult {
         data object Success: UpdateResult()
         data class Error(val errorMessage: String, val code: Int? = null, val ex: Exception? = null): UpdateResult()

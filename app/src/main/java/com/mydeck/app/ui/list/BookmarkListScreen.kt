@@ -17,12 +17,16 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RectangleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Close
@@ -40,7 +44,10 @@ import androidx.compose.material.icons.outlined.Label
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.TaskAlt
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.BorderStroke
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DrawerValue
@@ -59,11 +66,14 @@ import androidx.compose.material3.NavigationDrawerItem
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SuggestionChip
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
@@ -128,6 +138,12 @@ fun BookmarkListScreen(navHostController: NavHostController) {
 
     var showLayoutMenu by remember { androidx.compose.runtime.mutableStateOf(false) }
     var showSortMenu by remember { androidx.compose.runtime.mutableStateOf(false) }
+
+    // Label edit/delete state
+    var isEditingLabel by remember { mutableStateOf(false) }
+    var editedLabelName by remember { mutableStateOf("") }
+    var pendingDeleteLabel by remember { mutableStateOf<String?>(null) }
+    var deleteLabelJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
 
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
@@ -366,6 +382,35 @@ fun BookmarkListScreen(navHostController: NavHostController) {
                                     .fillMaxWidth()
                                     .focusRequester(searchFocusRequester)
                             )
+                        } else if (filterState.value.label != null) {
+                            // Show label icon + name or edit field when filtering by label
+                            if (isEditingLabel) {
+                                TextField(
+                                    value = editedLabelName,
+                                    onValueChange = { editedLabelName = it },
+                                    singleLine = true,
+                                    colors = TextFieldDefaults.colors(
+                                        focusedContainerColor = MaterialTheme.colorScheme.surface,
+                                        unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                                        focusedIndicatorColor = MaterialTheme.colorScheme.primary,
+                                        unfocusedIndicatorColor = MaterialTheme.colorScheme.outline
+                                    ),
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                            } else {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Icon(
+                                        Icons.Outlined.Label,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                    Spacer(Modifier.width(8.dp))
+                                    Text(filterState.value.label!!, modifier = Modifier.weight(1f))
+                                }
+                            }
                         } else {
                             Text(currentViewTitle)
                         }
@@ -388,6 +433,38 @@ fun BookmarkListScreen(navHostController: NavHostController) {
                     },
                     actions = {
                         if (!isSearchActive.value) {
+                            // Edit/Check label button when filtering by label
+                            if (filterState.value.label != null) {
+                                if (isEditingLabel) {
+                                    IconButton(
+                                        onClick = {
+                                            // Save the edited label
+                                            if (editedLabelName.isNotBlank() && editedLabelName != filterState.value.label) {
+                                                viewModel.onRenameLabel(filterState.value.label!!, editedLabelName)
+                                            }
+                                            isEditingLabel = false
+                                        }
+                                    ) {
+                                        Icon(
+                                            Icons.Filled.Check,
+                                            contentDescription = "Save"
+                                        )
+                                    }
+                                } else {
+                                    IconButton(
+                                        onClick = {
+                                            editedLabelName = filterState.value.label ?: ""
+                                            isEditingLabel = true
+                                        }
+                                    ) {
+                                        Icon(
+                                            Icons.Filled.Edit,
+                                            contentDescription = stringResource(id = R.string.edit_label)
+                                        )
+                                    }
+                                }
+                            }
+
                             // Sort button with dropdown
                             Box {
                                 IconButton(onClick = { showSortMenu = true }) {
@@ -473,16 +550,78 @@ fun BookmarkListScreen(navHostController: NavHostController) {
                 }
             }
         ) { padding ->
-            PullToRefreshBox(
-                isRefreshing = isLoading,
-                onRefresh = { viewModel.onPullToRefresh() },
-                state = pullToRefreshState,
+            Column(
                 modifier = Modifier
                     .padding(padding)
                     .fillMaxWidth()
             ) {
-                // Show labels list if viewing labels, otherwise show bookmarks list
-                if (filterState.value.viewingLabelsList) {
+                // Delete label button when filtering by label
+                if (filterState.value.label != null && !isEditingLabel) {
+                    val labelDeletedMessageFormat = stringResource(R.string.label_deleted)
+                    val currentLabel = filterState.value.label!!
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                        horizontalArrangement = Arrangement.Start
+                    ) {
+                        OutlinedButton(
+                            onClick = {
+                                // Cancel any existing delete operation
+                                deleteLabelJob?.cancel()
+
+                                // Set pending delete
+                                pendingDeleteLabel = currentLabel
+
+                                // Show snackbar with undo option
+                                scope.launch {
+                                    val result = snackbarHostState.showSnackbar(
+                                        message = labelDeletedMessageFormat.format(currentLabel),
+                                        actionLabel = "UNDO",
+                                        duration = SnackbarDuration.Long
+                                    )
+
+                                    if (result == androidx.compose.material3.SnackbarResult.ActionPerformed) {
+                                        // User clicked undo, cancel the deletion
+                                        deleteLabelJob?.cancel()
+                                        pendingDeleteLabel = null
+                                    }
+                                }
+
+                                // Schedule the actual deletion after 10 seconds
+                                deleteLabelJob = scope.launch {
+                                    kotlinx.coroutines.delay(10000)
+                                    if (pendingDeleteLabel == currentLabel) {
+                                        viewModel.onDeleteLabel(currentLabel)
+                                        pendingDeleteLabel = null
+                                    }
+                                }
+                            },
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.error),
+                            shape = RectangleShape,
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                contentColor = MaterialTheme.colorScheme.error
+                            )
+                        ) {
+                            Icon(
+                                Icons.Filled.Delete,
+                                contentDescription = null,
+                                modifier = Modifier.padding(end = 4.dp)
+                            )
+                            Text(stringResource(id = R.string.delete_label))
+                        }
+                    }
+                }
+
+                PullToRefreshBox(
+                    isRefreshing = isLoading,
+                    onRefresh = { viewModel.onPullToRefresh() },
+                    state = pullToRefreshState,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    // Show labels list if viewing labels, otherwise show bookmarks list
+                    if (filterState.value.viewingLabelsList) {
                     LabelsListView(
                         labels = labelsWithCounts.value,
                         onLabelSelected = { label ->
@@ -530,6 +669,7 @@ fun BookmarkListScreen(navHostController: NavHostController) {
                             )
                         }
                     }
+                }
                 }
             }
 
