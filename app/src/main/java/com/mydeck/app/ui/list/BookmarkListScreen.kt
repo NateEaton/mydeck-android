@@ -18,7 +18,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RectangleShape
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -660,7 +660,8 @@ fun BookmarkListScreen(navHostController: NavHostController) {
                                 onClickArchive = onClickArchive,
                                 onClickFavorite = onClickFavorite,
                                 onClickOpenInBrowser = onClickOpenInBrowser,
-                                onClickShareBookmark = onClickShareBookmark
+                                onClickShareBookmark = onClickShareBookmark,
+                                onClickLabel = { label -> viewModel.onClickLabel(label) }
                             )
                             // Consumes a shareIntent and creates the corresponding share dialog
                             ShareBookmarkChooser(
@@ -1011,7 +1012,8 @@ fun BookmarkListView(
     onClickFavorite: (String, Boolean) -> Unit,
     onClickArchive: (String, Boolean) -> Unit,
     onClickOpenInBrowser: (String) -> Unit,
-    onClickShareBookmark: (String) -> Unit
+    onClickShareBookmark: (String) -> Unit,
+    onClickLabel: (String) -> Unit = {}
 ) {
     LazyColumn(modifier = modifier) {
         items(bookmarks) { bookmark ->
@@ -1024,7 +1026,7 @@ fun BookmarkListView(
                     onClickFavorite = onClickFavorite,
                     onClickOpenUrl = onClickOpenInBrowser,
                     onClickShareBookmark = onClickShareBookmark,
-                    onClickLabel = { label -> viewModel.onClickLabel(label) }
+                    onClickLabel = onClickLabel
                 )
                 LayoutMode.COMPACT -> BookmarkListItemView(
                     bookmark = bookmark,
@@ -1034,7 +1036,7 @@ fun BookmarkListView(
                     onClickFavorite = onClickFavorite,
                     onClickOpenUrl = onClickOpenInBrowser,
                     onClickShareBookmark = onClickShareBookmark,
-                    onClickLabel = { label -> viewModel.onClickLabel(label) }
+                    onClickLabel = onClickLabel
                 )
                 LayoutMode.MOSAIC -> BookmarkCard(
                     bookmark = bookmark,
@@ -1044,7 +1046,7 @@ fun BookmarkListView(
                     onClickFavorite = onClickFavorite,
                     onClickOpenUrl = onClickOpenInBrowser,
                     onClickShareBookmark = onClickShareBookmark,
-                    onClickLabel = { label -> viewModel.onClickLabel(label) }
+                    onClickLabel = onClickLabel
                 )
             }
         }
@@ -1098,6 +1100,7 @@ fun BookmarkListViewPreview() {
         onClickArchive = { _, _ -> },
         onClickFavorite = { _, _ -> },
         onClickOpenInBrowser = {},
-        onClickShareBookmark = {_ -> }
+        onClickShareBookmark = {_ -> },
+        onClickLabel = {}
     )
 }
