@@ -467,14 +467,23 @@ class BookmarkListViewModel @Inject constructor(
         }
     }
 
+    fun updateCreateBookmarkLabels(labels: List<String>) {
+        _createBookmarkUiState.update {
+            (it as? CreateBookmarkUiState.Open)?.copy(
+                labels = labels
+            ) ?: it
+        }
+    }
+
     fun createBookmark() {
         viewModelScope.launch {
             val url = (_createBookmarkUiState.value as CreateBookmarkUiState.Open).url
             val title = (_createBookmarkUiState.value as CreateBookmarkUiState.Open).title
+            val labels = (_createBookmarkUiState.value as CreateBookmarkUiState.Open).labels
 
             _createBookmarkUiState.value = CreateBookmarkUiState.Loading
             try {
-                bookmarkRepository.createBookmark(title = title, url = url)
+                bookmarkRepository.createBookmark(title = title, url = url, labels = labels)
                 _createBookmarkUiState.value = CreateBookmarkUiState.Success
             } catch (e: Exception) {
                 _createBookmarkUiState.value =
@@ -527,7 +536,8 @@ class BookmarkListViewModel @Inject constructor(
             val title: String,
             val url: String,
             val urlError: Int?,
-            val isCreateEnabled: Boolean
+            val isCreateEnabled: Boolean,
+            val labels: List<String> = emptyList()
         ) : CreateBookmarkUiState()
 
         data object Loading : CreateBookmarkUiState()

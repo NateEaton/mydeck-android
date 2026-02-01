@@ -211,8 +211,8 @@ class BookmarkRepositoryImpl @Inject constructor(
         bookmarkDao.deleteAllBookmarks()
     }
 
-    override suspend fun createBookmark(title: String, url: String): String {
-        val createBookmarkDto = CreateBookmarkDto(title = title, url = url)
+    override suspend fun createBookmark(title: String, url: String, labels: List<String>): String {
+        val createBookmarkDto = CreateBookmarkDto(labels = labels, title = title, url = url)
         val response = readeckApi.createBookmark(createBookmarkDto)
         if (!response.isSuccessful) {
             throw Exception("Failed to create bookmark")
