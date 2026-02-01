@@ -214,22 +214,22 @@ class BookmarkListViewModel @Inject constructor(
 
     // Filter update functions
     private fun setTypeFilter(type: Bookmark.Type?) {
-        _filterState.value = _filterState.value.copy(type = type)
+        _filterState.value = _filterState.value.copy(type = type, label = null)
     }
 
     private fun setUnreadFilter(unread: Boolean?) {
         _filterState.value =
-            _filterState.value.copy(unread = unread, archived = null, favorite = null)
+            _filterState.value.copy(unread = unread, archived = null, favorite = null, label = null)
     }
 
     private fun setArchivedFilter(archived: Boolean?) {
         _filterState.value =
-            _filterState.value.copy(archived = archived, unread = null, favorite = null)
+            _filterState.value.copy(archived = archived, unread = null, favorite = null, label = null)
     }
 
     private fun setFavoriteFilter(favorite: Boolean?) {
         _filterState.value =
-            _filterState.value.copy(favorite = favorite, unread = null, archived = null)
+            _filterState.value.copy(favorite = favorite, unread = null, archived = null, label = null)
     }
 
     // UI event handlers (already present, but need modification)
