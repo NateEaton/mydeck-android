@@ -403,8 +403,13 @@ fun BookmarkDetailArticle(
                 },
                 update = {
                     if (content.value != null && it.tag as? String != content.value) {
+                        val baseUrl = if (uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.VIDEO) {
+                            uiState.bookmark.url
+                        } else {
+                            null
+                        }
                         it.loadDataWithBaseURL(
-                            null,
+                            baseUrl,
                             content.value!!,
                             "text/html",
                             "utf-8",
