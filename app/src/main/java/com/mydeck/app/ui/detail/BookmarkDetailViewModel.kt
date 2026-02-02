@@ -99,6 +99,7 @@ class BookmarkDetailViewModel @Inject constructor(
                     bookmarkType = bookmark.type
 
                     // For photos and videos, auto-mark as 100% when opened
+                    // and refresh from API to ensure embed data is available
                     when (bookmark.type) {
                         is com.mydeck.app.domain.model.Bookmark.Type.Picture,
                         is com.mydeck.app.domain.model.Bookmark.Type.Video -> {
@@ -106,6 +107,9 @@ class BookmarkDetailViewModel @Inject constructor(
                                 bookmarkRepository.updateReadProgress(bookmarkId, 100)
                                 currentScrollProgress = 100
                             }
+                            // Refresh from API to get embed and other fields
+                            // that may not have been present during initial sync
+                            bookmarkRepository.refreshBookmarkFromApi(bookmarkId)
                         }
                         is com.mydeck.app.domain.model.Bookmark.Type.Article -> {
                             currentScrollProgress = bookmark.readProgress
@@ -485,6 +489,8 @@ class BookmarkDetailViewModel @Inject constructor(
             appendLine("  Word Count: ${bookmark.wordCount ?: "N/A"}")
             appendLine("  Reading Time: ${bookmark.readingTime ?: "N/A"} min")
             appendLine("  Read Progress: ${bookmark.readProgress}%")
+            appendLine("  Embed: ${bookmark.embed ?: "N/A"}")
+            appendLine("  Embed Hostname: ${bookmark.embedHostname ?: "N/A"}")
             appendLine("  Has Article Content: ${bookmark.articleContent != null}")
             if (bookmark.articleContent != null) {
                 appendLine("  Article Content Length: ${bookmark.articleContent.length} chars")

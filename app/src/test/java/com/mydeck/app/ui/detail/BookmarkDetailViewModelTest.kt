@@ -51,6 +51,8 @@ class BookmarkDetailViewModelTest {
         updateBookmarkUseCase = mockk()
         settingsDataStore = mockk()
         every { bookmarkRepository.observeBookmark(any()) } returns MutableStateFlow(sampleBookmark)
+        coEvery { bookmarkRepository.getBookmarkById(any()) } returns sampleBookmark
+        coEvery { bookmarkRepository.refreshBookmarkFromApi(any()) } returns Unit
         every { assetLoader.loadAsset("html_template_light.html") } returns htmlTemplate
         every { savedStateHandle.get<String>("bookmarkId") } returns "123"
         every { settingsDataStore.themeFlow } returns MutableStateFlow(Theme.LIGHT.name)
