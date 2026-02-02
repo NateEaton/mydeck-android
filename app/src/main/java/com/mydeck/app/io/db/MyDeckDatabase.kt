@@ -12,7 +12,7 @@ import com.mydeck.app.io.db.model.RemoteBookmarkIdEntity
 
 @Database(
     entities = [BookmarkEntity::class, ArticleContentEntity::class, RemoteBookmarkIdEntity::class],
-    version = 3,
+    version = 4,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
@@ -54,10 +54,17 @@ abstract class MyDeckDatabase : RoomDatabase() {
         val MIGRATION_2_3 = object : Migration(2, 3) {
             override fun migrate(database: SupportSQLiteDatabase) {
                 database.execSQL(
-                    """                                                                                                                                     
-                    CREATE TABLE IF NOT EXISTS `remote_bookmark_ids` ( `id` TEXT NOT NULL, PRIMARY KEY(`id`))                                                            
+                    """
+                    CREATE TABLE IF NOT EXISTS `remote_bookmark_ids` ( `id` TEXT NOT NULL, PRIMARY KEY(`id`))
                 """
                 )
+            }
+        }
+
+        val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL("ALTER TABLE bookmarks ADD COLUMN embed TEXT")
+                database.execSQL("ALTER TABLE bookmarks ADD COLUMN embedHostname TEXT")
             }
         }
     }

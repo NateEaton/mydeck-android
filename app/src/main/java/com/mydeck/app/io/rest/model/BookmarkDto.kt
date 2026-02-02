@@ -41,7 +41,10 @@ data class BookmarkDto(
     val wordCount: Int? = null,
     @SerialName("reading_time")
     val readingTime: Int? = null,
-    val published: Instant? = null
+    val published: Instant? = null,
+    val embed: String? = null,
+    @SerialName("embed_hostname")
+    val embedHostname: String? = null
 )
 
 @Serializable

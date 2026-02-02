@@ -28,6 +28,8 @@ data class Bookmark(
     val wordCount: Int?,
     val readingTime: Int?,
     val published: LocalDateTime?,
+    val embed: String?,
+    val embedHostname: String?,
     val article: Resource,
     val articleContent: String?,
     val icon: ImageResource,

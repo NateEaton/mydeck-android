@@ -20,7 +20,8 @@ object DatabaseModule {
         return Room.databaseBuilder(context, MyDeckDatabase::class.java, "readeck.db")
             .addMigrations(
                 MyDeckDatabase.MIGRATION_1_2,
-                MyDeckDatabase.MIGRATION_2_3
+                MyDeckDatabase.MIGRATION_2_3,
+                MyDeckDatabase.MIGRATION_3_4
             )
             .build()
     }

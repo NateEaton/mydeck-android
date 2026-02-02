@@ -178,6 +178,7 @@ class BookmarkDetailViewModel @Inject constructor(
                         is com.mydeck.app.domain.model.Bookmark.Type.Video -> Bookmark.Type.VIDEO
                     },
                     articleContent = bookmark.articleContent,
+                    embed = bookmark.embed,
                     lang = bookmark.lang,
                     wordCount = bookmark.wordCount,
                     readingTime = bookmark.readingTime,
@@ -398,6 +399,7 @@ class BookmarkDetailViewModel @Inject constructor(
         val isRead: Boolean,
         val type: Type,
         val articleContent: String?,
+        val embed: String?,
         val lang: String,
         val wordCount: Int?,
         val readingTime: Int?,
@@ -422,13 +424,16 @@ class BookmarkDetailViewModel @Inject constructor(
             }
             return when (type) {
                 Type.PHOTO -> {
-                    htmlTemplate.replace("%s", """<img src="$imgSrc"/>""")
+                    val textPart = articleContent ?: ""
+                    val imagePart = """<img src="$imgSrc"/>"""
+                    htmlTemplate.replace("%s", textPart + imagePart)
                 }
 
                 Type.VIDEO -> {
-                    articleContent?.let {
-                        htmlTemplate.replace("%s", it)
-                    }
+                    val textPart = articleContent ?: ""
+                    val embedPart = embed ?: ""
+                    val content = textPart + embedPart
+                    if (content.isNotEmpty()) htmlTemplate.replace("%s", content) else null
                 }
 
                 Type.ARTICLE -> {

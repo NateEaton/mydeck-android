@@ -59,7 +59,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.res.stringResource
@@ -70,12 +69,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
-import coil3.compose.SubcomposeAsyncImage
-import coil3.request.ImageRequest
-import coil3.request.crossfade
 import com.mydeck.app.R
 import com.mydeck.app.domain.model.Template
-import com.mydeck.app.ui.components.ErrorPlaceholderImage
 import com.mydeck.app.util.openUrlInCustomTab
 import com.mydeck.app.ui.components.ShareBookmarkChooser
 import kotlinx.coroutines.Dispatchers
@@ -335,7 +330,12 @@ fun BookmarkDetailContent(
             uiState = uiState,
             onClickOpenUrl = onClickOpenUrl
         )
-        if (uiState.bookmark.articleContent != null) {
+        val hasContent = when (uiState.bookmark.type) {
+            BookmarkDetailViewModel.Bookmark.Type.PHOTO -> true
+            BookmarkDetailViewModel.Bookmark.Type.VIDEO -> uiState.bookmark.articleContent != null || uiState.bookmark.embed != null
+            BookmarkDetailViewModel.Bookmark.Type.ARTICLE -> uiState.bookmark.articleContent != null
+        }
+        if (hasContent) {
             BookmarkDetailArticle(
                 modifier = Modifier,
                 uiState = uiState
@@ -386,7 +386,10 @@ fun BookmarkDetailArticle(
                 modifier = Modifier.padding(0.dp),
                 factory = { context ->
                     WebView(context).apply {
-                        settings.javaScriptEnabled = false
+                        val isVideo = uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.VIDEO
+                        settings.javaScriptEnabled = isVideo
+                        settings.domStorageEnabled = isVideo
+                        settings.mediaPlaybackRequiresUserGesture = true
                         settings.useWideViewPort = false
                         settings.loadWithOverviewMode = false
                         setLayerType(View.LAYER_TYPE_HARDWARE, null)
@@ -445,21 +448,6 @@ fun BookmarkDetailHeader(
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         // Header Section Start
-        SubcomposeAsyncImage(
-            model = ImageRequest.Builder(LocalContext.current).data(uiState.bookmark.imgSrc)
-                .crossfade(true).build(),
-            contentDescription = stringResource(R.string.common_bookmark_image_content_description),
-            contentScale = ContentScale.FillWidth,
-            error = {
-                ErrorPlaceholderImage(
-                    modifier = Modifier.fillMaxWidth().height(200.dp),
-                    imageContentDescription = stringResource(R.string.common_bookmark_image_content_description)
-                )
-            },
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(200.dp)
-        )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
             modifier = Modifier
@@ -679,6 +667,7 @@ private val sampleBookmark = BookmarkDetailViewModel.Bookmark(
     isRead = false,
     type = BookmarkDetailViewModel.Bookmark.Type.ARTICLE,
     articleContent = "articleContent",
+    embed = null,
     lang = "en",
     wordCount = 1500,
     readingTime = 7,
