@@ -376,6 +376,7 @@ fun BookmarkDetailsDialogPreview() {
         isRead = false,
         type = BookmarkDetailViewModel.Bookmark.Type.ARTICLE,
         articleContent = null,
+        embed = null,
         lang = "English",
         wordCount = 1500,
         readingTime = 7,

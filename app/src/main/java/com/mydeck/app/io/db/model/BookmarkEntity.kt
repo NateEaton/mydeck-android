@@ -42,6 +42,8 @@ data class BookmarkEntity(
     val wordCount: Int?,
     val readingTime: Int?,
     val published: Instant?,
+    val embed: String?,
+    val embedHostname: String?,
 
     // Embedded Resources
     @Embedded(prefix = "article_")

@@ -51,6 +51,8 @@ class BookmarkDetailViewModelTest {
         updateBookmarkUseCase = mockk()
         settingsDataStore = mockk()
         every { bookmarkRepository.observeBookmark(any()) } returns MutableStateFlow(sampleBookmark)
+        coEvery { bookmarkRepository.getBookmarkById(any()) } returns sampleBookmark
+        coEvery { bookmarkRepository.refreshBookmarkFromApi(any()) } returns Unit
         every { assetLoader.loadAsset("html_template_light.html") } returns htmlTemplate
         every { savedStateHandle.get<String>("bookmarkId") } returns "123"
         every { settingsDataStore.themeFlow } returns MutableStateFlow(Theme.LIGHT.name)
@@ -91,6 +93,9 @@ class BookmarkDetailViewModelTest {
             readProgress = 0,
             wordCount = 0,
             readingTime = 0,
+            published = null,
+            embed = null,
+            embedHostname = null,
             article = Bookmark.Resource(""),
             articleContent = "Test Article Content",
             icon = Bookmark.ImageResource("", 0, 0),
@@ -153,6 +158,9 @@ class BookmarkDetailViewModelTest {
             readProgress = 0,
             wordCount = 0,
             readingTime = 0,
+            published = null,
+            embed = null,
+            embedHostname = null,
             article = Bookmark.Resource(""),
             articleContent = "Test Article Content",
             icon = Bookmark.ImageResource("", 0, 0),
@@ -203,6 +211,9 @@ class BookmarkDetailViewModelTest {
             readProgress = 0,
             wordCount = 0,
             readingTime = 0,
+            published = null,
+            embed = null,
+            embedHostname = null,
             article = Bookmark.Resource(""),
             articleContent = "Test Article Content",
             icon = Bookmark.ImageResource("", 0, 0),
@@ -478,6 +489,8 @@ class BookmarkDetailViewModelTest {
         readProgress = 0,
         wordCount = 0,
         readingTime = 0,
+        embed = null,
+        embedHostname = null,
         article = Bookmark.Resource(""),
         articleContent = "Test Article Content",
         icon = Bookmark.ImageResource("", 0, 0),

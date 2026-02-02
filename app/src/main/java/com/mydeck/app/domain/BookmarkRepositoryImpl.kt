@@ -203,6 +203,21 @@ class BookmarkRepositoryImpl @Inject constructor(
         return bookmarkDao.getBookmarkById(id).toDomain()
     }
 
+    override suspend fun refreshBookmarkFromApi(id: String) {
+        withContext(dispatcher) {
+            try {
+                val response = readeckApi.getBookmarkById(id)
+                if (response.isSuccessful && response.body() != null) {
+                    val bookmark = response.body()!!.toDomain()
+                    insertBookmarks(listOf(bookmark))
+                    Timber.d("Refreshed bookmark from API: $id")
+                }
+            } catch (e: Exception) {
+                Timber.w(e, "Failed to refresh bookmark from API: $id")
+            }
+        }
+    }
+
     override fun observeBookmark(id: String): Flow<Bookmark?> {
         return bookmarkDao.observeBookmarkWithArticleContent(id).map {
             it?.let {
