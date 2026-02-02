@@ -424,13 +424,13 @@ class BookmarkDetailViewModel @Inject constructor(
             }
             return when (type) {
                 Type.PHOTO -> {
-                    val textPart = articleContent ?: ""
+                    val textPart = articleContent ?: description.takeIf { it.isNotBlank() }?.let { "<p>$it</p>" } ?: ""
                     val imagePart = """<img src="$imgSrc"/>"""
                     htmlTemplate.replace("%s", textPart + imagePart)
                 }
 
                 Type.VIDEO -> {
-                    val textPart = articleContent ?: ""
+                    val textPart = articleContent ?: description.takeIf { it.isNotBlank() }?.let { "<p>$it</p>" } ?: ""
                     val embedPart = embed ?: ""
                     val content = textPart + embedPart
                     if (content.isNotEmpty()) htmlTemplate.replace("%s", content) else null

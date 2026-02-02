@@ -286,7 +286,8 @@ fun BookmarkDetailContent(
     initialReadProgress: Int = 0
 ) {
     val scrollState = rememberScrollState()
-    val needsRestore = initialReadProgress > 0 && initialReadProgress <= 100
+    val isArticle = uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.ARTICLE
+    val needsRestore = isArticle && initialReadProgress > 0 && initialReadProgress <= 100
     var hasRestoredPosition by remember { mutableStateOf(!needsRestore) }
     var lastReportedProgress by remember { mutableStateOf(-1) }
 
@@ -372,11 +373,11 @@ fun BookmarkDetailArticle(
     uiState: BookmarkDetailViewModel.UiState.Success
 ) {
     val isSystemInDarkMode = isSystemInDarkTheme()
-    val content = remember(isSystemInDarkMode, uiState.template) {
+    val content = remember(uiState.bookmark.bookmarkId, isSystemInDarkMode, uiState.template) {
         mutableStateOf<String?>(null)
     }
     val webViewRef = remember { mutableStateOf<WebView?>(null) }
-    LaunchedEffect(isSystemInDarkMode, uiState.template) {
+    LaunchedEffect(uiState.bookmark.bookmarkId, isSystemInDarkMode, uiState.template) {
         content.value = getTemplate(uiState, isSystemInDarkMode)
         webViewRef.value?.settings?.textZoom = uiState.zoomFactor
     }
