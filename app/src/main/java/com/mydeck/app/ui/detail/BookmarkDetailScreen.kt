@@ -286,8 +286,9 @@ fun BookmarkDetailContent(
     initialReadProgress: Int = 0
 ) {
     val scrollState = rememberScrollState()
+    val hasArticleContent = uiState.bookmark.articleContent != null
     val isArticle = uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.ARTICLE
-    val needsRestore = isArticle && initialReadProgress > 0 && initialReadProgress <= 100
+    val needsRestore = isArticle && hasArticleContent && initialReadProgress > 0 && initialReadProgress <= 100
     var hasRestoredPosition by remember { mutableStateOf(!needsRestore) }
     var lastReportedProgress by remember { mutableStateOf(-1) }
 
