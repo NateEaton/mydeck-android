@@ -265,6 +265,7 @@ fun BookmarkListScreen(navHostController: NavHostController) {
                             scope.launch { drawerState.close() }
                         }
                     )
+                    HorizontalDivider()
                     NavigationDrawerItem(
                         label = { Text(
                             style = Typography.labelLarge,
@@ -288,7 +289,6 @@ fun BookmarkListScreen(navHostController: NavHostController) {
                             scope.launch { drawerState.close() }
                         }
                     )
-                    HorizontalDivider()
                     NavigationDrawerItem(
                         label = { Text(
                             style = Typography.labelLarge,
@@ -310,6 +310,7 @@ fun BookmarkListScreen(navHostController: NavHostController) {
                             scope.launch { drawerState.close() }
                         }
                     )
+                    HorizontalDivider()
                     NavigationDrawerItem(
                         label = { Text(
                             style = Typography.labelLarge,

@@ -8,6 +8,8 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -24,6 +26,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -134,6 +137,7 @@ fun AccountSettingsView(
     val focusManager = LocalFocusManager.current
     val urlFocusRequester = remember { FocusRequester() }
     var showSignOutDialog by remember { mutableStateOf(false) }
+    var passwordVisible by remember { mutableStateOf(false) }
 
     // Create TextFieldValue for URL field with cursor at the end
     val urlValue = remember(settingsUiState.url) {
@@ -247,7 +251,19 @@ fun AccountSettingsView(
                     placeholder = { Text(stringResource(R.string.account_settings_password_placeholder)) },
                     onValueChange = { onPasswordChanged(it) },
                     label = { Text(stringResource(R.string.account_settings_password_label)) },
-                    visualTransformation = PasswordVisualTransformation(),
+                    visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                    trailingIcon = {
+                        val image = if (passwordVisible)
+                            Icons.Filled.Visibility
+                        else Icons.Filled.VisibilityOff
+
+                        // Please provide localized description if available
+                        val description = if (passwordVisible) "Hide password" else "Show password"
+
+                        IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                            Icon(imageVector = image, description)
+                        }
+                    },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                     isError = settingsUiState.passwordError != null,
