@@ -127,7 +127,8 @@ fun MyDeckNavHost(navController: NavHostController, settingsDataStore: SettingsD
             val route = backStackEntry.toRoute<BookmarkDetailRoute>()
             BookmarkDetailScreen(
                 navController,
-                route.bookmarkId
+                route.bookmarkId,
+                showOriginal = route.showOriginal
             )
         }
         composable<OpenSourceLibrariesRoute> {

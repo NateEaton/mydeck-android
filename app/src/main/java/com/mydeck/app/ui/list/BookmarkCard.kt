@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Movie
@@ -79,7 +80,8 @@ fun BookmarkCard(
     onClickFavorite: (String, Boolean) -> Unit,
     onClickShareBookmark: (String) -> Unit,
     onClickArchive: (String, Boolean) -> Unit,
-    onClickLabel: (String) -> Unit = {}
+    onClickLabel: (String) -> Unit = {},
+    onClickOpenUrl: (String) -> Unit = {}
 ) {
     Card(
         modifier = Modifier
@@ -259,6 +261,21 @@ fun BookmarkCard(
                                 tint = Color.White
                             )
                         }
+
+                        // Open Original Button
+                        IconButton(
+                            onClick = { onClickOpenUrl(bookmark.id) },
+                            modifier = Modifier
+                                .width(48.dp)
+                                .height(48.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.OpenInNew,
+                                contentDescription = stringResource(R.string.action_view_original),
+                                tint = Color.White,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
                     }
 
                     // Delete Button (right side)
@@ -289,7 +306,8 @@ fun BookmarkMagazineView(
     onClickFavorite: (String, Boolean) -> Unit,
     onClickShareBookmark: (String) -> Unit,
     onClickArchive: (String, Boolean) -> Unit,
-    onClickLabel: (String) -> Unit = {}
+    onClickLabel: (String) -> Unit = {},
+    onClickOpenUrl: (String) -> Unit = {}
 ) {
     Card(
         modifier = Modifier
@@ -480,6 +498,16 @@ fun BookmarkMagazineView(
                                 modifier = Modifier.size(20.dp)
                             )
                         }
+                        IconButton(
+                            onClick = { onClickOpenUrl(bookmark.id) },
+                            modifier = Modifier.size(36.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.OpenInNew,
+                                contentDescription = stringResource(R.string.action_view_original),
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
                     }
                     IconButton(
                         onClick = { onClickDelete(bookmark.id) },
@@ -507,7 +535,8 @@ fun BookmarkListItemView(
     onClickFavorite: (String, Boolean) -> Unit,
     onClickShareBookmark: (String) -> Unit,
     onClickArchive: (String, Boolean) -> Unit,
-    onClickLabel: (String) -> Unit = {}
+    onClickLabel: (String) -> Unit = {},
+    onClickOpenUrl: (String) -> Unit = {}
 ) {
     Column(
         modifier = Modifier
@@ -651,6 +680,16 @@ fun BookmarkListItemView(
                     Icon(
                         imageVector = if (bookmark.isArchived) Icons.Filled.Inventory2 else Icons.Outlined.Inventory2,
                         contentDescription = stringResource(R.string.action_archive),
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+                IconButton(
+                    onClick = { onClickOpenUrl(bookmark.id) },
+                    modifier = Modifier.size(32.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.OpenInNew,
+                        contentDescription = stringResource(R.string.action_view_original),
                         modifier = Modifier.size(18.dp)
                     )
                 }
