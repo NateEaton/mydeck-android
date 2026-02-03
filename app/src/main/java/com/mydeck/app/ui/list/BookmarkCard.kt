@@ -217,9 +217,17 @@ fun BookmarkCard(
                                     label = {
                                         Text(
                                             text = label,
-                                            style = MaterialTheme.typography.labelMedium
+                                            style = MaterialTheme.typography.labelMedium,
+                                            color = Color.White
                                         )
-                                    }
+                                    },
+                                    colors = androidx.compose.material3.ChipDefaults.suggestionChipColors(
+                                        containerColor = Color.White.copy(alpha = 0.2f),
+                                        labelColor = Color.White
+                                    ),
+                                    border = androidx.compose.material3.ChipDefaults.outlinedChipBorder(
+                                        borderColor = Color.White.copy(alpha = 0.3f)
+                                    )
                                 )
                             }
                         }

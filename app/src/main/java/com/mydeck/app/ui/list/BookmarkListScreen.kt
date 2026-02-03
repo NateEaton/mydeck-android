@@ -11,10 +11,12 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -145,6 +147,7 @@ fun BookmarkListScreen(navHostController: NavHostController) {
     var editedLabelName by remember { mutableStateOf("") }
     var pendingDeleteLabel by remember { mutableStateOf<String?>(null) }
     var deleteLabelJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
+    val labelEditFocusRequester = remember { FocusRequester() }
 
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
@@ -503,13 +506,20 @@ fun BookmarkListScreen(navHostController: NavHostController) {
                     val labelDeletedMessageFormat = stringResource(R.string.label_deleted)
                     val currentLabel = filterState.value.label!!
 
+                    // Focus on edit field when entering edit mode and set cursor at end
+                    LaunchedEffect(isEditingLabel) {
+                        if (isEditingLabel) {
+                            labelEditFocusRequester.requestFocus()
+                        }
+                    }
+
                     Column(
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 16.dp, vertical = 8.dp),
+                                .padding(horizontal = 16.dp, vertical = 4.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
@@ -527,9 +537,21 @@ fun BookmarkListScreen(navHostController: NavHostController) {
                                         focusedIndicatorColor = MaterialTheme.colorScheme.primary,
                                         unfocusedIndicatorColor = MaterialTheme.colorScheme.outline,
                                         focusedTextColor = MaterialTheme.colorScheme.onSurface,
-                                        unfocusedTextColor = MaterialTheme.colorScheme.onSurface
+                                        unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                                        focusedLabelColor = MaterialTheme.colorScheme.primary
                                     ),
-                                    modifier = Modifier.weight(1f)
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .focusRequester(labelEditFocusRequester),
+                                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                                    keyboardActions = KeyboardActions(
+                                        onDone = {
+                                            if (editedLabelName.isNotBlank() && editedLabelName != currentLabel) {
+                                                viewModel.onRenameLabel(currentLabel, editedLabelName)
+                                            }
+                                            isEditingLabel = false
+                                        }
+                                    )
                                 )
                                 IconButton(
                                     onClick = {
@@ -548,11 +570,22 @@ fun BookmarkListScreen(navHostController: NavHostController) {
                                     )
                                 }
                             } else {
-                                Text(
-                                    currentLabel,
-                                    modifier = Modifier.weight(1f),
-                                    style = MaterialTheme.typography.titleMedium
-                                )
+                                Box(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .border(
+                                            width = 1.dp,
+                                            color = MaterialTheme.colorScheme.outline,
+                                            shape = RoundedCornerShape(8.dp)
+                                        )
+                                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                                    contentAlignment = Alignment.CenterStart
+                                ) {
+                                    Text(
+                                        currentLabel,
+                                        style = MaterialTheme.typography.titleMedium
+                                    )
+                                }
                                 IconButton(
                                     onClick = {
                                         editedLabelName = currentLabel
