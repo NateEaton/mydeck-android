@@ -346,8 +346,8 @@ fun BookmarkListScreen(navHostController: NavHostController) {
             topBar = {
                 // Determine the current view title based on filter state
                 val currentViewTitle = when {
-                    filterState.value.viewingLabelsList -> stringResource(id = R.string.bookmark_labels)
-                    filterState.value.label != null -> stringResource(id = R.string.labels)
+                    filterState.value.viewingLabelsList -> stringResource(id = R.string.select_label)
+                    filterState.value.label != null -> "Label:"
                     filterState.value.archived == false -> stringResource(id = R.string.my_list)
                     filterState.value.archived == true -> stringResource(id = R.string.archive)
                     filterState.value.favorite == true -> stringResource(id = R.string.favorites)
@@ -407,7 +407,7 @@ fun BookmarkListScreen(navHostController: NavHostController) {
                         }
                     },
                     actions = {
-                        if (!isSearchActive.value) {
+                        if (!isSearchActive.value && !filterState.value.viewingLabelsList) {
                             // Sort button with dropdown
                             Box {
                                 IconButton(onClick = { showSortMenu = true }) {
@@ -509,7 +509,7 @@ fun BookmarkListScreen(navHostController: NavHostController) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 16.dp, vertical = 12.dp),
+                                .padding(horizontal = 16.dp, vertical = 8.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
@@ -518,11 +518,16 @@ fun BookmarkListScreen(navHostController: NavHostController) {
                                     value = editedLabelName,
                                     onValueChange = { editedLabelName = it },
                                     singleLine = true,
+                                    textStyle = MaterialTheme.typography.titleMedium.copy(
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    ),
                                     colors = TextFieldDefaults.colors(
                                         focusedContainerColor = MaterialTheme.colorScheme.surface,
                                         unfocusedContainerColor = MaterialTheme.colorScheme.surface,
                                         focusedIndicatorColor = MaterialTheme.colorScheme.primary,
-                                        unfocusedIndicatorColor = MaterialTheme.colorScheme.outline
+                                        unfocusedIndicatorColor = MaterialTheme.colorScheme.outline,
+                                        focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                                        unfocusedTextColor = MaterialTheme.colorScheme.onSurface
                                     ),
                                     modifier = Modifier
                                         .weight(1f)
@@ -600,8 +605,7 @@ fun BookmarkListScreen(navHostController: NavHostController) {
                                     Icon(
                                         Icons.Filled.Delete,
                                         contentDescription = stringResource(id = R.string.delete_label),
-                                        modifier = Modifier.size(20.dp),
-                                        tint = MaterialTheme.colorScheme.error
+                                        modifier = Modifier.size(20.dp)
                                     )
                                 }
                             }
