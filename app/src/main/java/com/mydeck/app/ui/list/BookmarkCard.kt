@@ -29,9 +29,10 @@ import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.Grade
 import androidx.compose.material.icons.outlined.Inventory2
-import androidx.compose.foundation.BorderStroke
+import androidx.compose.material3.BorderStroke
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ChipDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -222,11 +223,11 @@ fun BookmarkCard(
                                             color = Color.White
                                         )
                                     },
-                                    colors = androidx.compose.material3.ChipDefaults.suggestionChipColors(
+                                    colors = ChipDefaults.suggestionChipColors(
                                         containerColor = Color.White.copy(alpha = 0.2f),
                                         labelColor = Color.White
                                     ),
-                                    border = androidx.compose.material3.BorderStroke(
+                                    border = BorderStroke(
                                         width = 1.dp,
                                         color = Color.White.copy(alpha = 0.3f)
                                     )
