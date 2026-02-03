@@ -29,10 +29,10 @@ import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.Grade
 import androidx.compose.material.icons.outlined.Inventory2
-import androidx.compose.material3.BorderStroke
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ChipDefaults
+import androidx.compose.material3.SuggestionChipDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -72,7 +72,6 @@ import com.mydeck.app.R
 import com.mydeck.app.domain.model.Bookmark
 import com.mydeck.app.domain.model.BookmarkListItem
 import com.mydeck.app.ui.components.ErrorPlaceholderImage
-
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun BookmarkCard(
@@ -223,7 +222,7 @@ fun BookmarkCard(
                                             color = Color.White
                                         )
                                     },
-                                    colors = ChipDefaults.suggestionChipColors(
+                                    colors = SuggestionChipDefaults.suggestionChipColors(
                                         containerColor = Color.White.copy(alpha = 0.2f),
                                         labelColor = Color.White
                                     ),
