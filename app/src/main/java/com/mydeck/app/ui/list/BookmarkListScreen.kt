@@ -174,7 +174,6 @@ fun BookmarkListScreen(navHostController: NavHostController) {
     }
     val onClickFavorite: (String, Boolean) -> Unit = { bookmarkId, isFavorite -> viewModel.onToggleFavoriteBookmark(bookmarkId, isFavorite) }
     val onClickArchive: (String, Boolean) -> Unit = { bookmarkId, isArchived -> viewModel.onToggleArchiveBookmark(bookmarkId, isArchived) }
-    val onClickOpenInBrowser: (String) -> Unit = { url -> viewModel.onClickOpenInBrowser(url) }
     val onClickShareBookmark: (String) -> Unit = { url -> viewModel.onClickShareBookmark(url) }
 
     LaunchedEffect(key1 = navigationEvent.value) {
@@ -660,7 +659,6 @@ fun BookmarkListScreen(navHostController: NavHostController) {
                                 onClickDelete = onClickDelete,
                                 onClickArchive = onClickArchive,
                                 onClickFavorite = onClickFavorite,
-                                onClickOpenInBrowser = onClickOpenInBrowser,
                                 onClickShareBookmark = onClickShareBookmark,
                                 onClickLabel = { label -> viewModel.onClickLabel(label) }
                             )
@@ -1012,7 +1010,6 @@ fun BookmarkListView(
     onClickDelete: (String) -> Unit,
     onClickFavorite: (String, Boolean) -> Unit,
     onClickArchive: (String, Boolean) -> Unit,
-    onClickOpenInBrowser: (String) -> Unit,
     onClickShareBookmark: (String) -> Unit,
     onClickLabel: (String) -> Unit = {}
 ) {
@@ -1025,7 +1022,6 @@ fun BookmarkListView(
                     onClickDelete = onClickDelete,
                     onClickArchive = onClickArchive,
                     onClickFavorite = onClickFavorite,
-                    onClickOpenUrl = onClickOpenInBrowser,
                     onClickShareBookmark = onClickShareBookmark,
                     onClickLabel = onClickLabel
                 )
@@ -1035,7 +1031,6 @@ fun BookmarkListView(
                     onClickDelete = onClickDelete,
                     onClickArchive = onClickArchive,
                     onClickFavorite = onClickFavorite,
-                    onClickOpenUrl = onClickOpenInBrowser,
                     onClickShareBookmark = onClickShareBookmark,
                     onClickLabel = onClickLabel
                 )
@@ -1045,7 +1040,6 @@ fun BookmarkListView(
                     onClickDelete = onClickDelete,
                     onClickArchive = onClickArchive,
                     onClickFavorite = onClickFavorite,
-                    onClickOpenUrl = onClickOpenInBrowser,
                     onClickShareBookmark = onClickShareBookmark,
                     onClickLabel = onClickLabel
                 )
@@ -1100,7 +1094,6 @@ fun BookmarkListViewPreview() {
         onClickDelete = {},
         onClickArchive = { _, _ -> },
         onClickFavorite = { _, _ -> },
-        onClickOpenInBrowser = {},
         onClickShareBookmark = {_ -> },
         onClickLabel = {}
     )

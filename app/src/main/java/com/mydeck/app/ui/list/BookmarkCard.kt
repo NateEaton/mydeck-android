@@ -18,8 +18,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.OpenInNew
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Movie
+import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Grade
 import androidx.compose.material.icons.filled.Inventory2
@@ -77,14 +79,13 @@ fun BookmarkCard(
     onClickFavorite: (String, Boolean) -> Unit,
     onClickShareBookmark: (String) -> Unit,
     onClickArchive: (String, Boolean) -> Unit,
-    onClickOpenUrl: (String) -> Unit,
     onClickLabel: (String) -> Unit = {}
 ) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .padding(8.dp)
-            .height(270.dp)
+            .height(200.dp)
             .clickable { onClickCard(bookmark.id) },
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
@@ -103,14 +104,32 @@ fun BookmarkCard(
                 },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(270.dp)
+                    .height(200.dp)
             )
+
+            // Type icon overlay
+            if (bookmark.type is Bookmark.Type.Video || bookmark.type is Bookmark.Type.Picture) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .padding(8.dp)
+                        .background(Color.Black.copy(alpha = 0.3f), CircleShape)
+                        .padding(8.dp)
+                ) {
+                    Icon(
+                        imageVector = if (bookmark.type is Bookmark.Type.Video) Icons.Filled.Movie else Icons.Filled.Image,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+            }
 
             // Gradient overlay on bottom third for text readability
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(270.dp)
+                    .height(200.dp)
                     .align(Alignment.BottomCenter)
                     .background(
                         brush = androidx.compose.ui.graphics.Brush.verticalGradient(
@@ -138,12 +157,12 @@ fun BookmarkCard(
                     contentAlignment = Alignment.Center
                 ) {
                     if (bookmark.readProgress == 100) {
-                        // Show checkmark with circle for completed
+                        // Show bold checkmark for completed
                         Icon(
-                            imageVector = Icons.Filled.CheckCircle,
+                            imageVector = Icons.Filled.Check,
                             contentDescription = stringResource(R.string.action_mark_read),
-                            tint = Color.White.copy(alpha = 0.7f),
-                            modifier = Modifier.size(24.dp)
+                            tint = Color.White,
+                            modifier = Modifier.size(20.dp)
                         )
                     } else {
                         // Show circular progress indicator that grows clockwise
@@ -176,13 +195,12 @@ fun BookmarkCard(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(top = 8.dp),
-                        verticalAlignment = Alignment.Top
+                            .padding(top = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(
                             painter = painterResource(R.drawable.ic_label_24px),
                             contentDescription = "labels",
-                            modifier = Modifier.padding(top = 4.dp),
                             tint = Color.White
                         )
                         Spacer(Modifier.width(8.dp))
@@ -210,7 +228,7 @@ fun BookmarkCard(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(top = 8.dp),
+                        .padding(top = 0.dp),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Row(horizontalArrangement = Arrangement.Start) {
@@ -271,7 +289,6 @@ fun BookmarkMagazineView(
     onClickFavorite: (String, Boolean) -> Unit,
     onClickShareBookmark: (String) -> Unit,
     onClickArchive: (String, Boolean) -> Unit,
-    onClickOpenUrl: (String) -> Unit,
     onClickLabel: (String) -> Unit = {}
 ) {
     Card(
@@ -302,8 +319,26 @@ fun BookmarkMagazineView(
                         .width(100.dp)
                         .height(80.dp)
                 )
+
+                // Type icon overlay for Grid
+                if (bookmark.type is Bookmark.Type.Video || bookmark.type is Bookmark.Type.Picture) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopStart)
+                            .padding(6.dp)
+                            .background(Color.Black.copy(alpha = 0.3f), CircleShape)
+                            .padding(4.dp)
+                    ) {
+                        Icon(
+                            imageVector = if (bookmark.type is Bookmark.Type.Video) Icons.Filled.Movie else Icons.Filled.Image,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                }
                 // Read progress indicator
-                if (bookmark.readProgress > 0 && bookmark.readProgress < 100) {
+                if (bookmark.readProgress > 0) {
                     Box(
                         modifier = Modifier
                             .size(28.dp)
@@ -315,21 +350,30 @@ fun BookmarkMagazineView(
                             ),
                         contentAlignment = Alignment.Center
                     ) {
-                        Canvas(
-                            modifier = Modifier.size(20.dp)
-                        ) {
-                            val progressColor = Color.White.copy(alpha = 0.7f)
-                            val strokeWidth = 2.dp.toPx()
-                            val diameter = size.minDimension
-                            val sweepAngle = (bookmark.readProgress / 100f) * 360f
-                            drawArc(
-                                color = progressColor,
-                                startAngle = -90f,
-                                sweepAngle = sweepAngle,
-                                useCenter = false,
-                                size = Size(diameter - strokeWidth, diameter - strokeWidth),
-                                style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
+                        if (bookmark.readProgress == 100) {
+                            Icon(
+                                imageVector = Icons.Filled.Check,
+                                contentDescription = stringResource(R.string.action_mark_read),
+                                tint = Color.White,
+                                modifier = Modifier.size(16.dp)
                             )
+                        } else {
+                            Canvas(
+                                modifier = Modifier.size(20.dp)
+                            ) {
+                                val progressColor = Color.White
+                                val strokeWidth = 2.dp.toPx()
+                                val diameter = size.minDimension
+                                val sweepAngle = (bookmark.readProgress / 100f) * 360f
+                                drawArc(
+                                    color = progressColor,
+                                    startAngle = -90f,
+                                    sweepAngle = sweepAngle,
+                                    useCenter = false,
+                                    size = Size(diameter - strokeWidth, diameter - strokeWidth),
+                                    style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
+                                )
+                            }
                         }
                     }
                 }
@@ -436,16 +480,6 @@ fun BookmarkMagazineView(
                                 modifier = Modifier.size(20.dp)
                             )
                         }
-                        IconButton(
-                            onClick = { onClickOpenUrl(bookmark.url) },
-                            modifier = Modifier.size(36.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.OpenInNew,
-                                contentDescription = stringResource(R.string.action_open_in_browser),
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
                     }
                     IconButton(
                         onClick = { onClickDelete(bookmark.id) },
@@ -473,7 +507,6 @@ fun BookmarkListItemView(
     onClickFavorite: (String, Boolean) -> Unit,
     onClickShareBookmark: (String) -> Unit,
     onClickArchive: (String, Boolean) -> Unit,
-    onClickOpenUrl: (String) -> Unit,
     onClickLabel: (String) -> Unit = {}
 ) {
     Column(
@@ -621,16 +654,6 @@ fun BookmarkListItemView(
                         modifier = Modifier.size(18.dp)
                     )
                 }
-                IconButton(
-                    onClick = { onClickOpenUrl(bookmark.url) },
-                    modifier = Modifier.size(32.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.OpenInNew,
-                        contentDescription = stringResource(R.string.action_open_in_browser),
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
             }
             IconButton(
                 onClick = { onClickDelete(bookmark.id) },
@@ -652,7 +675,7 @@ fun CircularProgressIndicator(
     progress: Int,
     modifier: Modifier = Modifier
 ) {
-    val progressColor = Color.White.copy(alpha = 0.7f)
+    val progressColor = Color.White
 
     Canvas(modifier = modifier) {
         val strokeWidth = 3.dp.toPx()
@@ -722,7 +745,6 @@ fun BookmarkCardPreview() {
             onClickDelete = {},
             onClickFavorite = { _, _ -> },
             onClickArchive = { _, _ -> },
-            onClickOpenUrl = {},
             onClickShareBookmark = {_ -> }
         )
     }

@@ -49,9 +49,9 @@ class BookmarkListViewModel @Inject constructor(
     private val fullSyncUseCase: FullSyncUseCase,
     workManager: WorkManager,
     private val bookmarkRepository: BookmarkRepository,
-    @ApplicationContext private val context: Context, // Inject Context
-    private val settingsDataStore: SettingsDataStore, // Inject SettingsDataStore
-    savedStateHandle: SavedStateHandle
+    @ApplicationContext private val context: Context,
+    private val settingsDataStore: SettingsDataStore,
+    private val savedStateHandle: SavedStateHandle
 ) : ViewModel() {
     private val _navigationEvent =
         MutableStateFlow<NavigationEvent?>(null) // Using StateFlow for navigation events
@@ -360,12 +360,8 @@ class BookmarkListViewModel @Inject constructor(
     }
 
     fun onClickBookmark(bookmarkId: String) {
-        Timber.d("onClickSettings")
+        Timber.d("onClickBookmark")
         _navigationEvent.update { NavigationEvent.NavigateToBookmarkDetail(bookmarkId) }
-    }
-
-    fun onClickOpenInBrowser(url: String){
-        _openUrlEvent.value = url
     }
 
     fun onNavigationEventConsumed() {
