@@ -646,7 +646,7 @@ fun BookmarkDetailMenu(
                 }
 
                 DropdownMenuItem(
-                    text = { Text(stringResource(labelRes.first)) },
+                    text = { Text(stringResource(labelRes)) },
                     onClick = {
                         val newMode = if (contentMode == ContentMode.READER) ContentMode.ORIGINAL else ContentMode.READER
                         onContentModeChange(newMode)
@@ -654,8 +654,8 @@ fun BookmarkDetailMenu(
                     },
                     leadingIcon = {
                         Icon(
-                            imageVector = labelRes.second,
-                            contentDescription = stringResource(labelRes.first)
+                            imageVector = icon,
+                            contentDescription = stringResource(labelRes)
                         )
                     }
                 )
