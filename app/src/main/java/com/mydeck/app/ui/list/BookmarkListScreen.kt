@@ -347,7 +347,7 @@ fun BookmarkListScreen(navHostController: NavHostController) {
                 // Determine the current view title based on filter state
                 val currentViewTitle = when {
                     filterState.value.viewingLabelsList -> stringResource(id = R.string.bookmark_labels)
-                    filterState.value.label != null -> "${stringResource(id = R.string.labels)} / ${filterState.value.label}"
+                    filterState.value.label != null -> stringResource(id = R.string.labels)
                     filterState.value.archived == false -> stringResource(id = R.string.my_list)
                     filterState.value.archived == true -> stringResource(id = R.string.archive)
                     filterState.value.favorite == true -> stringResource(id = R.string.favorites)
@@ -386,35 +386,6 @@ fun BookmarkListScreen(navHostController: NavHostController) {
                                     .fillMaxWidth()
                                     .focusRequester(searchFocusRequester)
                             )
-                        } else if (filterState.value.label != null) {
-                            // Show label icon + name or edit field when filtering by label
-                            if (isEditingLabel) {
-                                TextField(
-                                    value = editedLabelName,
-                                    onValueChange = { editedLabelName = it },
-                                    singleLine = true,
-                                    colors = TextFieldDefaults.colors(
-                                        focusedContainerColor = MaterialTheme.colorScheme.surface,
-                                        unfocusedContainerColor = MaterialTheme.colorScheme.surface,
-                                        focusedIndicatorColor = MaterialTheme.colorScheme.primary,
-                                        unfocusedIndicatorColor = MaterialTheme.colorScheme.outline
-                                    ),
-                                    modifier = Modifier.fillMaxWidth()
-                                )
-                            } else {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    modifier = Modifier.fillMaxWidth()
-                                ) {
-                                    Icon(
-                                        Icons.Outlined.Label,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                    Spacer(Modifier.width(8.dp))
-                                    Text(filterState.value.label!!, modifier = Modifier.weight(1f))
-                                }
-                            }
                         } else {
                             Text(currentViewTitle)
                         }
@@ -437,38 +408,6 @@ fun BookmarkListScreen(navHostController: NavHostController) {
                     },
                     actions = {
                         if (!isSearchActive.value) {
-                            // Edit/Check label button when filtering by label
-                            if (filterState.value.label != null) {
-                                if (isEditingLabel) {
-                                    IconButton(
-                                        onClick = {
-                                            // Save the edited label
-                                            if (editedLabelName.isNotBlank() && editedLabelName != filterState.value.label) {
-                                                viewModel.onRenameLabel(filterState.value.label!!, editedLabelName)
-                                            }
-                                            isEditingLabel = false
-                                        }
-                                    ) {
-                                        Icon(
-                                            Icons.Filled.Check,
-                                            contentDescription = "Save"
-                                        )
-                                    }
-                                } else {
-                                    IconButton(
-                                        onClick = {
-                                            editedLabelName = filterState.value.label ?: ""
-                                            isEditingLabel = true
-                                        }
-                                    ) {
-                                        Icon(
-                                            Icons.Filled.Edit,
-                                            contentDescription = stringResource(id = R.string.edit_label)
-                                        )
-                                    }
-                                }
-                            }
-
                             // Sort button with dropdown
                             Box {
                                 IconButton(onClick = { showSortMenu = true }) {
@@ -559,62 +498,115 @@ fun BookmarkListScreen(navHostController: NavHostController) {
                     .padding(padding)
                     .fillMaxWidth()
             ) {
-                // Delete label button when filtering by label
-                if (filterState.value.label != null && !isEditingLabel) {
+                // Subheader with label name, edit icon, and delete icon when filtering by label
+                if (filterState.value.label != null) {
                     val labelDeletedMessageFormat = stringResource(R.string.label_deleted)
                     val currentLabel = filterState.value.label!!
 
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 8.dp),
-                        horizontalArrangement = Arrangement.Start
+                    Column(
+                        modifier = Modifier.fillMaxWidth()
                     ) {
-                        OutlinedButton(
-                            onClick = {
-                                // Cancel any existing delete operation
-                                deleteLabelJob?.cancel()
-
-                                // Set pending delete
-                                pendingDeleteLabel = currentLabel
-
-                                // Show snackbar with undo option
-                                scope.launch {
-                                    val result = snackbarHostState.showSnackbar(
-                                        message = labelDeletedMessageFormat.format(currentLabel),
-                                        actionLabel = "UNDO",
-                                        duration = SnackbarDuration.Long
-                                    )
-
-                                    if (result == androidx.compose.material3.SnackbarResult.ActionPerformed) {
-                                        // User clicked undo, cancel the deletion
-                                        deleteLabelJob?.cancel()
-                                        pendingDeleteLabel = null
-                                    }
-                                }
-
-                                // Schedule the actual deletion after 10 seconds
-                                deleteLabelJob = scope.launch {
-                                    kotlinx.coroutines.delay(10000)
-                                    if (pendingDeleteLabel == currentLabel) {
-                                        viewModel.onDeleteLabel(currentLabel)
-                                        pendingDeleteLabel = null
-                                    }
-                                }
-                            },
-                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.error),
-                            shape = RectangleShape,
-                            colors = ButtonDefaults.outlinedButtonColors(
-                                contentColor = MaterialTheme.colorScheme.error
-                            )
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 12.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(
-                                Icons.Filled.Delete,
-                                contentDescription = null,
-                                modifier = Modifier.padding(end = 4.dp)
-                            )
-                            Text(stringResource(id = R.string.delete_label))
+                            if (isEditingLabel) {
+                                TextField(
+                                    value = editedLabelName,
+                                    onValueChange = { editedLabelName = it },
+                                    singleLine = true,
+                                    colors = TextFieldDefaults.colors(
+                                        focusedContainerColor = MaterialTheme.colorScheme.surface,
+                                        unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                                        focusedIndicatorColor = MaterialTheme.colorScheme.primary,
+                                        unfocusedIndicatorColor = MaterialTheme.colorScheme.outline
+                                    ),
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .height(40.dp)
+                                )
+                                IconButton(
+                                    onClick = {
+                                        // Save the edited label
+                                        if (editedLabelName.isNotBlank() && editedLabelName != currentLabel) {
+                                            viewModel.onRenameLabel(currentLabel, editedLabelName)
+                                        }
+                                        isEditingLabel = false
+                                    },
+                                    modifier = Modifier.size(40.dp)
+                                ) {
+                                    Icon(
+                                        Icons.Filled.Check,
+                                        contentDescription = "Save",
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                            } else {
+                                Text(
+                                    currentLabel,
+                                    modifier = Modifier.weight(1f),
+                                    style = MaterialTheme.typography.titleMedium
+                                )
+                                IconButton(
+                                    onClick = {
+                                        editedLabelName = currentLabel
+                                        isEditingLabel = true
+                                    },
+                                    modifier = Modifier.size(40.dp)
+                                ) {
+                                    Icon(
+                                        Icons.Filled.Edit,
+                                        contentDescription = stringResource(id = R.string.edit_label),
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                                IconButton(
+                                    onClick = {
+                                        // Cancel any existing delete operation
+                                        deleteLabelJob?.cancel()
+
+                                        // Set pending delete
+                                        pendingDeleteLabel = currentLabel
+
+                                        // Show snackbar with undo option
+                                        scope.launch {
+                                            val result = snackbarHostState.showSnackbar(
+                                                message = labelDeletedMessageFormat.format(currentLabel),
+                                                actionLabel = "UNDO",
+                                                duration = SnackbarDuration.Long
+                                            )
+
+                                            if (result == androidx.compose.material3.SnackbarResult.ActionPerformed) {
+                                                // User clicked undo, cancel the deletion
+                                                deleteLabelJob?.cancel()
+                                                pendingDeleteLabel = null
+                                            }
+                                        }
+
+                                        // Schedule the actual deletion after 10 seconds
+                                        deleteLabelJob = scope.launch {
+                                            kotlinx.coroutines.delay(10000)
+                                            if (pendingDeleteLabel == currentLabel) {
+                                                viewModel.onDeleteLabel(currentLabel)
+                                                pendingDeleteLabel = null
+                                            }
+                                        }
+                                    },
+                                    modifier = Modifier.size(40.dp)
+                                ) {
+                                    Icon(
+                                        Icons.Filled.Delete,
+                                        contentDescription = stringResource(id = R.string.delete_label),
+                                        modifier = Modifier.size(20.dp),
+                                        tint = MaterialTheme.colorScheme.error
+                                    )
+                                }
+                            }
                         }
+                        HorizontalDivider()
                     }
                 }
 
