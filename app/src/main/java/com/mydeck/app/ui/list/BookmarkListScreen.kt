@@ -347,7 +347,7 @@ fun BookmarkListScreen(navHostController: NavHostController) {
                 // Determine the current view title based on filter state
                 val currentViewTitle = when {
                     filterState.value.viewingLabelsList -> stringResource(id = R.string.select_label)
-                    filterState.value.label != null -> "Label:"
+                    filterState.value.label != null -> "Label..."
                     filterState.value.archived == false -> stringResource(id = R.string.my_list)
                     filterState.value.archived == true -> stringResource(id = R.string.archive)
                     filterState.value.favorite == true -> stringResource(id = R.string.favorites)
@@ -529,9 +529,7 @@ fun BookmarkListScreen(navHostController: NavHostController) {
                                         focusedTextColor = MaterialTheme.colorScheme.onSurface,
                                         unfocusedTextColor = MaterialTheme.colorScheme.onSurface
                                     ),
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .height(40.dp)
+                                    modifier = Modifier.weight(1f)
                                 )
                                 IconButton(
                                     onClick = {
