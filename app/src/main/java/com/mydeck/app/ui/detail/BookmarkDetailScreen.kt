@@ -25,6 +25,8 @@ import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Grade
+import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.MoreVert
@@ -333,20 +335,11 @@ fun BookmarkDetailContent(
     Box(modifier = modifier) {
         if (contentMode == ContentMode.ORIGINAL) {
             // Original mode: no outer scroll, WebView handles its own scrolling
-            Column(
+            // Header is not shown in Original mode - full content experience
+            BookmarkDetailOriginalWebView(
                 modifier = Modifier.fillMaxSize(),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                BookmarkDetailHeader(
-                    modifier = Modifier,
-                    uiState = uiState,
-                    onClickOpenUrl = onClickOpenUrl
-                )
-                BookmarkDetailOriginalWebView(
-                    modifier = Modifier.fillMaxSize(),
-                    uiState = uiState
-                )
-            }
+                uiState = uiState
+            )
         } else {
             // Reader mode: scrollable Column for article content
             Column(
@@ -626,16 +619,34 @@ fun BookmarkDetailMenu(
                     )
                 }
             )
-            if (uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.ARTICLE) {
+            // View Original/Content toggle for all bookmark types
+            if (uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.ARTICLE ||
+                uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.PHOTO ||
+                uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.VIDEO) {
+
+                val (labelRes, icon) = when {
+                    contentMode == ContentMode.READER && uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.ARTICLE -> {
+                        Pair(R.string.action_view_original, Icons.AutoMirrored.Filled.OpenInNew)
+                    }
+                    contentMode == ContentMode.ORIGINAL && uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.ARTICLE -> {
+                        Pair(R.string.action_view_article, Icons.Outlined.Description)
+                    }
+                    contentMode == ContentMode.READER && uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.PHOTO -> {
+                        Pair(R.string.action_view_photo, Icons.Filled.Image)
+                    }
+                    contentMode == ContentMode.ORIGINAL && uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.PHOTO -> {
+                        Pair(R.string.action_view_article, Icons.Outlined.Description)
+                    }
+                    contentMode == ContentMode.READER && uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.VIDEO -> {
+                        Pair(R.string.action_view_video, Icons.Filled.Movie)
+                    }
+                    else -> { // contentMode == ContentMode.ORIGINAL && VIDEO
+                        Pair(R.string.action_view_article, Icons.Outlined.Description)
+                    }
+                }
+
                 DropdownMenuItem(
-                    text = {
-                        Text(
-                            if (contentMode == ContentMode.READER)
-                                stringResource(R.string.action_view_original)
-                            else
-                                stringResource(R.string.action_view_article)
-                        )
-                    },
+                    text = { Text(stringResource(labelRes.first)) },
                     onClick = {
                         val newMode = if (contentMode == ContentMode.READER) ContentMode.ORIGINAL else ContentMode.READER
                         onContentModeChange(newMode)
@@ -643,11 +654,8 @@ fun BookmarkDetailMenu(
                     },
                     leadingIcon = {
                         Icon(
-                            imageVector = if (contentMode == ContentMode.READER)
-                                Icons.AutoMirrored.Filled.OpenInNew
-                            else
-                                Icons.Outlined.Description,
-                            contentDescription = stringResource(R.string.action_view_original)
+                            imageVector = labelRes.second,
+                            contentDescription = stringResource(labelRes.first)
                         )
                     }
                 )
