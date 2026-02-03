@@ -625,23 +625,19 @@ fun BookmarkDetailMenu(
                 uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.VIDEO) {
 
                 val (labelRes, icon) = when {
-                    contentMode == ContentMode.READER && uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.ARTICLE -> {
+                    contentMode == ContentMode.READER -> {
+                        // In Reader mode, always show "View Original" with OpenInNew icon
                         Pair(R.string.action_view_original, Icons.AutoMirrored.Filled.OpenInNew)
                     }
-                    contentMode == ContentMode.ORIGINAL && uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.ARTICLE -> {
+                    // In Original mode, show type-specific label with type-specific icon
+                    uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.ARTICLE -> {
                         Pair(R.string.action_view_article, Icons.Outlined.Description)
                     }
-                    contentMode == ContentMode.READER && uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.PHOTO -> {
+                    uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.PHOTO -> {
                         Pair(R.string.action_view_photo, Icons.Filled.Image)
                     }
-                    contentMode == ContentMode.ORIGINAL && uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.PHOTO -> {
-                        Pair(R.string.action_view_article, Icons.Outlined.Description)
-                    }
-                    contentMode == ContentMode.READER && uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.VIDEO -> {
+                    else -> { // VIDEO
                         Pair(R.string.action_view_video, Icons.Filled.Movie)
-                    }
-                    else -> { // contentMode == ContentMode.ORIGINAL && VIDEO
-                        Pair(R.string.action_view_article, Icons.Outlined.Description)
                     }
                 }
 
