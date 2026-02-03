@@ -78,7 +78,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 @Composable
-fun BookmarkDetailScreen(navHostController: NavController, bookmarkId: String?) {
+fun BookmarkDetailScreen(navHostController: NavController, bookmarkId: String?, showOriginal: Boolean = false) {
     val viewModel: BookmarkDetailViewModel = hiltViewModel()
     val navigationEvent = viewModel.navigationEvent.collectAsState()
     val openUrlEvent = viewModel.openUrlEvent.collectAsState()
@@ -99,6 +99,7 @@ fun BookmarkDetailScreen(navHostController: NavController, bookmarkId: String?) 
     val snackbarHostState = remember { SnackbarHostState() }
     val uiState = viewModel.uiState.collectAsState().value
     var showDetailsDialog by remember { mutableStateOf(false) }
+    var contentMode by remember { mutableStateOf(if (showOriginal) ContentMode.ORIGINAL else ContentMode.READER) }
     val scope = rememberCoroutineScope()
     val onClickDeleteBookmark: (String) -> Unit = { id ->
         viewModel.deleteBookmark(id)
@@ -164,7 +165,9 @@ fun BookmarkDetailScreen(navHostController: NavController, bookmarkId: String?) 
                 onScrollProgressChanged = { progress ->
                     viewModel.onScrollProgressChanged(progress)
                 },
-                initialReadProgress = viewModel.getInitialReadProgress()
+                initialReadProgress = viewModel.getInitialReadProgress(),
+                contentMode = contentMode,
+                onContentModeChange = { contentMode = it }
             )
             // Consumes a shareIntent and creates the corresponding share dialog
             ShareBookmarkChooser(
@@ -216,7 +219,9 @@ fun BookmarkDetailScreen(
     onClickDecreaseZoomFactor: () -> Unit,
     onShowDetails: () -> Unit = {},
     onScrollProgressChanged: (Int) -> Unit = {},
-    initialReadProgress: Int = 0
+    initialReadProgress: Int = 0,
+    contentMode: ContentMode = ContentMode.READER,
+    onContentModeChange: (ContentMode) -> Unit = {}
 ) {
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -262,6 +267,8 @@ fun BookmarkDetailScreen(
                         onClickDeleteBookmark = onClickDeleteBookmark,
                         onClickIncreaseZoomFactor = onClickIncreaseZoomFactor,
                         onClickDecreaseZoomFactor = onClickDecreaseZoomFactor,
+                        contentMode = contentMode,
+                        onContentModeChange = onContentModeChange
                     )
                 }
             )
@@ -272,7 +279,8 @@ fun BookmarkDetailScreen(
             uiState = uiState,
             onClickOpenUrl = onClickOpenUrl,
             onScrollProgressChanged = onScrollProgressChanged,
-            initialReadProgress = initialReadProgress
+            initialReadProgress = initialReadProgress,
+            contentMode = contentMode
         )
     }
 }
@@ -283,7 +291,8 @@ fun BookmarkDetailContent(
     uiState: BookmarkDetailViewModel.UiState.Success,
     onClickOpenUrl: (String) -> Unit,
     onScrollProgressChanged: (Int) -> Unit = {},
-    initialReadProgress: Int = 0
+    initialReadProgress: Int = 0,
+    contentMode: ContentMode = ContentMode.READER
 ) {
     val scrollState = rememberScrollState()
     val hasArticleContent = uiState.bookmark.articleContent != null
@@ -332,21 +341,31 @@ fun BookmarkDetailContent(
             uiState = uiState,
             onClickOpenUrl = onClickOpenUrl
         )
-        val hasContent = when (uiState.bookmark.type) {
-            BookmarkDetailViewModel.Bookmark.Type.PHOTO -> true
-            BookmarkDetailViewModel.Bookmark.Type.VIDEO -> uiState.bookmark.articleContent != null || uiState.bookmark.embed != null
-            BookmarkDetailViewModel.Bookmark.Type.ARTICLE -> uiState.bookmark.articleContent != null
-        }
-        if (hasContent) {
-            BookmarkDetailArticle(
+
+        if (contentMode == ContentMode.ORIGINAL) {
+            // Show original WebView
+            BookmarkDetailOriginalWebView(
                 modifier = Modifier,
                 uiState = uiState
             )
         } else {
-            EmptyBookmarkDetailArticle(
-                modifier = Modifier
-            )
+            // Show reader content
+            val hasContent = when (uiState.bookmark.type) {
+                BookmarkDetailViewModel.Bookmark.Type.PHOTO -> true
+                BookmarkDetailViewModel.Bookmark.Type.VIDEO -> uiState.bookmark.articleContent != null || uiState.bookmark.embed != null
+                BookmarkDetailViewModel.Bookmark.Type.ARTICLE -> uiState.bookmark.articleContent != null
             }
+            if (hasContent) {
+                BookmarkDetailArticle(
+                    modifier = Modifier,
+                    uiState = uiState
+                )
+            } else {
+                EmptyBookmarkDetailArticle(
+                    modifier = Modifier
+                )
+            }
+        }
         }
         com.mydeck.app.ui.components.VerticalScrollbar(
             modifier = Modifier
@@ -430,6 +449,34 @@ fun BookmarkDetailArticle(
     }
 }
 
+@Composable
+fun BookmarkDetailOriginalWebView(
+    modifier: Modifier = Modifier,
+    uiState: BookmarkDetailViewModel.UiState.Success
+) {
+    Box(modifier = modifier.fillMaxWidth()) {
+        if (!LocalInspectionMode.current) {
+            AndroidView(
+                modifier = Modifier.padding(0.dp),
+                factory = { context ->
+                    WebView(context).apply {
+                        settings.javaScriptEnabled = true
+                        settings.domStorageEnabled = true
+                        settings.mediaPlaybackRequiresUserGesture = false
+                        settings.useWideViewPort = true
+                        settings.loadWithOverviewMode = true
+                        setLayerType(View.LAYER_TYPE_HARDWARE, null)
+                        settings.defaultTextEncodingName = "utf-8"
+                        isVerticalScrollBarEnabled = false
+                        isHorizontalScrollBarEnabled = false
+                        loadUrl(uiState.bookmark.url)
+                    }
+                }
+            )
+        }
+    }
+}
+
 suspend fun getTemplate(uiState: BookmarkDetailViewModel.UiState.Success, isSystemInDarkMode: Boolean): String? {
     return withContext(Dispatchers.IO) {
         uiState.bookmark.getContent(uiState.template, isSystemInDarkMode)
@@ -508,6 +555,8 @@ fun BookmarkDetailMenu(
     onClickDeleteBookmark: (String) -> Unit,
     onClickIncreaseZoomFactor: () -> Unit,
     onClickDecreaseZoomFactor: () -> Unit,
+    contentMode: ContentMode = ContentMode.READER,
+    onContentModeChange: (ContentMode) -> Unit = {}
 ) {
     var expanded by remember { mutableStateOf(false) }
 
@@ -556,6 +605,29 @@ fun BookmarkDetailMenu(
                     )
                 }
             )
+            if (uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.ARTICLE) {
+                DropdownMenuItem(
+                    text = {
+                        Text(
+                            if (contentMode == ContentMode.READER)
+                                stringResource(R.string.action_view_original)
+                            else
+                                stringResource(R.string.action_view_article)
+                        )
+                    },
+                    onClick = {
+                        val newMode = if (contentMode == ContentMode.READER) ContentMode.ORIGINAL else ContentMode.READER
+                        onContentModeChange(newMode)
+                        expanded = false
+                    },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.OpenInNew,
+                            contentDescription = stringResource(R.string.action_view_original)
+                        )
+                    }
+                )
+            }
             DropdownMenuItem(
                 text = { Text(stringResource(R.string.action_share)) },
                 onClick = {
@@ -682,3 +754,8 @@ private val sampleBookmark = BookmarkDetailViewModel.Bookmark(
     labels = listOf("tech", "android", "kotlin"),
     readProgress = 0
 )
+
+enum class ContentMode {
+    READER,
+    ORIGINAL
+}

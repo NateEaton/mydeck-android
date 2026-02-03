@@ -175,6 +175,9 @@ fun BookmarkListScreen(navHostController: NavHostController) {
     val onClickFavorite: (String, Boolean) -> Unit = { bookmarkId, isFavorite -> viewModel.onToggleFavoriteBookmark(bookmarkId, isFavorite) }
     val onClickArchive: (String, Boolean) -> Unit = { bookmarkId, isArchived -> viewModel.onToggleArchiveBookmark(bookmarkId, isArchived) }
     val onClickShareBookmark: (String) -> Unit = { url -> viewModel.onClickShareBookmark(url) }
+    val onClickOpenUrl: (String) -> Unit = { bookmarkId ->
+        viewModel.onClickBookmarkOpenOriginal(bookmarkId)
+    }
 
     LaunchedEffect(key1 = navigationEvent.value) {
         navigationEvent.value?.let { event ->
@@ -190,7 +193,7 @@ fun BookmarkListScreen(navHostController: NavHostController) {
                 }
 
                 is BookmarkListViewModel.NavigationEvent.NavigateToBookmarkDetail -> {
-                    navHostController.navigate(BookmarkDetailRoute(event.bookmarkId))
+                    navHostController.navigate(BookmarkDetailRoute(event.bookmarkId, event.showOriginal))
                 }
             }
             viewModel.onNavigationEventConsumed() // Consume the event
@@ -660,7 +663,8 @@ fun BookmarkListScreen(navHostController: NavHostController) {
                                 onClickArchive = onClickArchive,
                                 onClickFavorite = onClickFavorite,
                                 onClickShareBookmark = onClickShareBookmark,
-                                onClickLabel = { label -> viewModel.onClickLabel(label) }
+                                onClickLabel = { label -> viewModel.onClickLabel(label) },
+                                onClickOpenUrl = onClickOpenUrl
                             )
                             // Consumes a shareIntent and creates the corresponding share dialog
                             ShareBookmarkChooser(
@@ -1011,7 +1015,8 @@ fun BookmarkListView(
     onClickFavorite: (String, Boolean) -> Unit,
     onClickArchive: (String, Boolean) -> Unit,
     onClickShareBookmark: (String) -> Unit,
-    onClickLabel: (String) -> Unit = {}
+    onClickLabel: (String) -> Unit = {},
+    onClickOpenUrl: (String) -> Unit = {}
 ) {
     LazyColumn(modifier = modifier) {
         items(bookmarks) { bookmark ->
@@ -1023,7 +1028,8 @@ fun BookmarkListView(
                     onClickArchive = onClickArchive,
                     onClickFavorite = onClickFavorite,
                     onClickShareBookmark = onClickShareBookmark,
-                    onClickLabel = onClickLabel
+                    onClickLabel = onClickLabel,
+                    onClickOpenUrl = onClickOpenUrl
                 )
                 LayoutMode.COMPACT -> BookmarkListItemView(
                     bookmark = bookmark,
@@ -1032,7 +1038,8 @@ fun BookmarkListView(
                     onClickArchive = onClickArchive,
                     onClickFavorite = onClickFavorite,
                     onClickShareBookmark = onClickShareBookmark,
-                    onClickLabel = onClickLabel
+                    onClickLabel = onClickLabel,
+                    onClickOpenUrl = onClickOpenUrl
                 )
                 LayoutMode.MOSAIC -> BookmarkCard(
                     bookmark = bookmark,
@@ -1041,7 +1048,8 @@ fun BookmarkListView(
                     onClickArchive = onClickArchive,
                     onClickFavorite = onClickFavorite,
                     onClickShareBookmark = onClickShareBookmark,
-                    onClickLabel = onClickLabel
+                    onClickLabel = onClickLabel,
+                    onClickOpenUrl = onClickOpenUrl
                 )
             }
         }

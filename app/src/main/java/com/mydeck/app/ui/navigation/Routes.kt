@@ -6,7 +6,10 @@ import kotlinx.serialization.Serializable
 data class BookmarkListRoute(val sharedText: String? = null)
 
 @Serializable
-data class BookmarkDetailRoute(val bookmarkId: String)
+data class BookmarkDetailRoute(
+    val bookmarkId: String,
+    val showOriginal: Boolean = false
+)
 
 @Serializable
 object AccountSettingsRoute

@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Movie
@@ -79,7 +80,8 @@ fun BookmarkCard(
     onClickFavorite: (String, Boolean) -> Unit,
     onClickShareBookmark: (String) -> Unit,
     onClickArchive: (String, Boolean) -> Unit,
-    onClickLabel: (String) -> Unit = {}
+    onClickLabel: (String) -> Unit = {},
+    onClickOpenUrl: (String) -> Unit = {}
 ) {
     Card(
         modifier = Modifier
@@ -232,6 +234,21 @@ fun BookmarkCard(
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Row(horizontalArrangement = Arrangement.Start) {
+                        // Open Original Button
+                        IconButton(
+                            onClick = { onClickOpenUrl(bookmark.id) },
+                            modifier = Modifier
+                                .width(48.dp)
+                                .height(48.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.OpenInNew,
+                                contentDescription = stringResource(R.string.action_view_original),
+                                tint = Color.White,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+
                         // Favorite Button
                         IconButton(
                             onClick = { onClickFavorite(bookmark.id, !bookmark.isMarked) },
@@ -289,7 +306,8 @@ fun BookmarkMagazineView(
     onClickFavorite: (String, Boolean) -> Unit,
     onClickShareBookmark: (String) -> Unit,
     onClickArchive: (String, Boolean) -> Unit,
-    onClickLabel: (String) -> Unit = {}
+    onClickLabel: (String) -> Unit = {},
+    onClickOpenUrl: (String) -> Unit = {}
 ) {
     Card(
         modifier = Modifier
@@ -461,6 +479,16 @@ fun BookmarkMagazineView(
                 ) {
                     Row(horizontalArrangement = Arrangement.Start) {
                         IconButton(
+                            onClick = { onClickOpenUrl(bookmark.id) },
+                            modifier = Modifier.size(36.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.OpenInNew,
+                                contentDescription = stringResource(R.string.action_view_original),
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                        IconButton(
                             onClick = { onClickFavorite(bookmark.id, !bookmark.isMarked) },
                             modifier = Modifier.size(36.dp)
                         ) {
@@ -507,7 +535,8 @@ fun BookmarkListItemView(
     onClickFavorite: (String, Boolean) -> Unit,
     onClickShareBookmark: (String) -> Unit,
     onClickArchive: (String, Boolean) -> Unit,
-    onClickLabel: (String) -> Unit = {}
+    onClickLabel: (String) -> Unit = {},
+    onClickOpenUrl: (String) -> Unit = {}
 ) {
     Column(
         modifier = Modifier
@@ -634,6 +663,16 @@ fun BookmarkListItemView(
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Row(horizontalArrangement = Arrangement.Start) {
+                IconButton(
+                    onClick = { onClickOpenUrl(bookmark.id) },
+                    modifier = Modifier.size(32.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.OpenInNew,
+                        contentDescription = stringResource(R.string.action_view_original),
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
                 IconButton(
                     onClick = { onClickFavorite(bookmark.id, !bookmark.isMarked) },
                     modifier = Modifier.size(32.dp)

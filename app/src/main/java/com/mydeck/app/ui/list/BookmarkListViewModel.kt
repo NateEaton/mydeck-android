@@ -364,6 +364,11 @@ class BookmarkListViewModel @Inject constructor(
         _navigationEvent.update { NavigationEvent.NavigateToBookmarkDetail(bookmarkId) }
     }
 
+    fun onClickBookmarkOpenOriginal(bookmarkId: String) {
+        Timber.d("onClickBookmarkOpenOriginal")
+        _navigationEvent.update { NavigationEvent.NavigateToBookmarkDetail(bookmarkId, showOriginal = true) }
+    }
+
     fun onNavigationEventConsumed() {
         _navigationEvent.update { null } // Reset the event
     }
@@ -576,7 +581,7 @@ class BookmarkListViewModel @Inject constructor(
     sealed class NavigationEvent {
         data object NavigateToSettings : NavigationEvent()
         data object NavigateToAbout : NavigationEvent()
-        data class NavigateToBookmarkDetail(val bookmarkId: String) : NavigationEvent()
+        data class NavigateToBookmarkDetail(val bookmarkId: String, val showOriginal: Boolean = false) : NavigationEvent()
     }
 
     data class FilterState(
