@@ -31,10 +31,12 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.TextDecrease
 import androidx.compose.material.icons.filled.TextIncrease
 import androidx.compose.material.icons.outlined.CheckCircle
+import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Grade
 import androidx.compose.material.icons.outlined.Inventory2
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -454,10 +456,24 @@ fun BookmarkDetailOriginalWebView(
     modifier: Modifier = Modifier,
     uiState: BookmarkDetailViewModel.UiState.Success
 ) {
-    Box(modifier = modifier.fillMaxWidth()) {
+    var loadingProgress by remember { mutableStateOf(0) }
+
+    Column(modifier = modifier.fillMaxWidth()) {
+        // Show progress indicator while loading
+        if (loadingProgress < 100) {
+            LinearProgressIndicator(
+                progress = { loadingProgress / 100f },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(3.dp)
+            )
+        }
+
         if (!LocalInspectionMode.current) {
             AndroidView(
-                modifier = Modifier.padding(0.dp),
+                modifier = Modifier
+                    .padding(0.dp)
+                    .weight(1f),
                 factory = { context ->
                     WebView(context).apply {
                         settings.javaScriptEnabled = true
@@ -469,6 +485,15 @@ fun BookmarkDetailOriginalWebView(
                         settings.defaultTextEncodingName = "utf-8"
                         isVerticalScrollBarEnabled = false
                         isHorizontalScrollBarEnabled = false
+
+                        // Track loading progress
+                        webChromeClient = object : android.webkit.WebChromeClient() {
+                            override fun onProgressChanged(view: WebView?, newProgress: Int) {
+                                super.onProgressChanged(view, newProgress)
+                                loadingProgress = newProgress
+                            }
+                        }
+
                         loadUrl(uiState.bookmark.url)
                     }
                 }
@@ -521,26 +546,10 @@ fun BookmarkDetailHeader(
             style = MaterialTheme.typography.titleMedium,
             textAlign = TextAlign.Center,
         )
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center,
-            modifier = Modifier.clickable {
-                onClickOpenUrl(uiState.bookmark.url)
-            }
-        ) {
-            Text(
-                text = uiState.bookmark.siteName,
-                style = MaterialTheme.typography.titleMedium,
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Icon(
-                Icons.AutoMirrored.Filled.OpenInNew,
-                contentDescription = stringResource(R.string.action_open_in_browser),
-                modifier = Modifier
-                    .height(16.dp)
-                    .width(16.dp)
-            )
-        }
+        Text(
+            text = uiState.bookmark.siteName,
+            style = MaterialTheme.typography.titleMedium,
+        )
 
         Spacer(modifier = Modifier.height(16.dp))
         // Header Section End
@@ -622,7 +631,10 @@ fun BookmarkDetailMenu(
                     },
                     leadingIcon = {
                         Icon(
-                            imageVector = Icons.AutoMirrored.Filled.OpenInNew,
+                            imageVector = if (contentMode == ContentMode.READER)
+                                Icons.AutoMirrored.Filled.OpenInNew
+                            else
+                                Icons.Outlined.Description,
                             contentDescription = stringResource(R.string.action_view_original)
                         )
                     }

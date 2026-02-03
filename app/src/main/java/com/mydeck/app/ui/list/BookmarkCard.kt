@@ -234,21 +234,6 @@ fun BookmarkCard(
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Row(horizontalArrangement = Arrangement.Start) {
-                        // Open Original Button
-                        IconButton(
-                            onClick = { onClickOpenUrl(bookmark.id) },
-                            modifier = Modifier
-                                .width(48.dp)
-                                .height(48.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.OpenInNew,
-                                contentDescription = stringResource(R.string.action_view_original),
-                                tint = Color.White,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-
                         // Favorite Button
                         IconButton(
                             onClick = { onClickFavorite(bookmark.id, !bookmark.isMarked) },
@@ -274,6 +259,21 @@ fun BookmarkCard(
                                 imageVector = if (bookmark.isArchived) Icons.Filled.Inventory2 else Icons.Outlined.Inventory2,
                                 contentDescription = stringResource(R.string.action_archive),
                                 tint = Color.White
+                            )
+                        }
+
+                        // Open Original Button
+                        IconButton(
+                            onClick = { onClickOpenUrl(bookmark.id) },
+                            modifier = Modifier
+                                .width(48.dp)
+                                .height(48.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.OpenInNew,
+                                contentDescription = stringResource(R.string.action_view_original),
+                                tint = Color.White,
+                                modifier = Modifier.size(20.dp)
                             )
                         }
                     }
@@ -479,16 +479,6 @@ fun BookmarkMagazineView(
                 ) {
                     Row(horizontalArrangement = Arrangement.Start) {
                         IconButton(
-                            onClick = { onClickOpenUrl(bookmark.id) },
-                            modifier = Modifier.size(36.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.OpenInNew,
-                                contentDescription = stringResource(R.string.action_view_original),
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-                        IconButton(
                             onClick = { onClickFavorite(bookmark.id, !bookmark.isMarked) },
                             modifier = Modifier.size(36.dp)
                         ) {
@@ -505,6 +495,16 @@ fun BookmarkMagazineView(
                             Icon(
                                 imageVector = if (bookmark.isArchived) Icons.Filled.Inventory2 else Icons.Outlined.Inventory2,
                                 contentDescription = stringResource(R.string.action_archive),
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                        IconButton(
+                            onClick = { onClickOpenUrl(bookmark.id) },
+                            modifier = Modifier.size(36.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.OpenInNew,
+                                contentDescription = stringResource(R.string.action_view_original),
                                 modifier = Modifier.size(20.dp)
                             )
                         }
@@ -664,16 +664,6 @@ fun BookmarkListItemView(
         ) {
             Row(horizontalArrangement = Arrangement.Start) {
                 IconButton(
-                    onClick = { onClickOpenUrl(bookmark.id) },
-                    modifier = Modifier.size(32.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.OpenInNew,
-                        contentDescription = stringResource(R.string.action_view_original),
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
-                IconButton(
                     onClick = { onClickFavorite(bookmark.id, !bookmark.isMarked) },
                     modifier = Modifier.size(32.dp)
                 ) {
@@ -690,6 +680,16 @@ fun BookmarkListItemView(
                     Icon(
                         imageVector = if (bookmark.isArchived) Icons.Filled.Inventory2 else Icons.Outlined.Inventory2,
                         contentDescription = stringResource(R.string.action_archive),
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+                IconButton(
+                    onClick = { onClickOpenUrl(bookmark.id) },
+                    modifier = Modifier.size(32.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.OpenInNew,
+                        contentDescription = stringResource(R.string.action_view_original),
                         modifier = Modifier.size(18.dp)
                     )
                 }
