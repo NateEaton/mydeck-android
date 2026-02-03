@@ -331,50 +331,62 @@ fun BookmarkDetailContent(
     }
 
     Box(modifier = modifier) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(scrollState)
-                .alpha(if (hasRestoredPosition) 1f else 0f),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-        BookmarkDetailHeader(
-            modifier = Modifier,
-            uiState = uiState,
-            onClickOpenUrl = onClickOpenUrl
-        )
-
         if (contentMode == ContentMode.ORIGINAL) {
-            // Show original WebView
-            BookmarkDetailOriginalWebView(
-                modifier = Modifier,
-                uiState = uiState
-            )
-        } else {
-            // Show reader content
-            val hasContent = when (uiState.bookmark.type) {
-                BookmarkDetailViewModel.Bookmark.Type.PHOTO -> true
-                BookmarkDetailViewModel.Bookmark.Type.VIDEO -> uiState.bookmark.articleContent != null || uiState.bookmark.embed != null
-                BookmarkDetailViewModel.Bookmark.Type.ARTICLE -> uiState.bookmark.articleContent != null
-            }
-            if (hasContent) {
-                BookmarkDetailArticle(
+            // Original mode: no outer scroll, WebView handles its own scrolling
+            Column(
+                modifier = Modifier.fillMaxSize(),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                BookmarkDetailHeader(
                     modifier = Modifier,
+                    uiState = uiState,
+                    onClickOpenUrl = onClickOpenUrl
+                )
+                BookmarkDetailOriginalWebView(
+                    modifier = Modifier.fillMaxSize(),
                     uiState = uiState
                 )
-            } else {
-                EmptyBookmarkDetailArticle(
-                    modifier = Modifier
-                )
             }
+        } else {
+            // Reader mode: scrollable Column for article content
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(scrollState)
+                    .alpha(if (hasRestoredPosition) 1f else 0f),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                BookmarkDetailHeader(
+                    modifier = Modifier,
+                    uiState = uiState,
+                    onClickOpenUrl = onClickOpenUrl
+                )
+
+                val hasContent = when (uiState.bookmark.type) {
+                    BookmarkDetailViewModel.Bookmark.Type.PHOTO -> true
+                    BookmarkDetailViewModel.Bookmark.Type.VIDEO -> uiState.bookmark.articleContent != null || uiState.bookmark.embed != null
+                    BookmarkDetailViewModel.Bookmark.Type.ARTICLE -> uiState.bookmark.articleContent != null
+                }
+                if (hasContent) {
+                    BookmarkDetailArticle(
+                        modifier = Modifier,
+                        uiState = uiState
+                    )
+                } else {
+                    EmptyBookmarkDetailArticle(
+                        modifier = Modifier
+                    )
+                }
+            }
+
+            // Scrollbar for reader mode
+            com.mydeck.app.ui.components.VerticalScrollbar(
+                modifier = Modifier
+                    .align(Alignment.CenterEnd)
+                    .fillMaxHeight(),
+                scrollState = scrollState
+            )
         }
-        }
-        com.mydeck.app.ui.components.VerticalScrollbar(
-            modifier = Modifier
-                .align(Alignment.CenterEnd)
-                .fillMaxHeight(),
-            scrollState = scrollState
-        )
     }
     }
 
@@ -458,22 +470,22 @@ fun BookmarkDetailOriginalWebView(
 ) {
     var loadingProgress by remember { mutableStateOf(0) }
 
-    Column(modifier = modifier.fillMaxWidth()) {
+    Column(modifier = modifier) {
         // Show progress indicator while loading
         if (loadingProgress < 100) {
             LinearProgressIndicator(
                 progress = { loadingProgress / 100f },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(3.dp)
+                    .height(4.dp)
             )
         }
 
         if (!LocalInspectionMode.current) {
             AndroidView(
                 modifier = Modifier
-                    .padding(0.dp)
-                    .weight(1f),
+                    .fillMaxWidth()
+                    .fillMaxHeight(),
                 factory = { context ->
                     WebView(context).apply {
                         settings.javaScriptEnabled = true
