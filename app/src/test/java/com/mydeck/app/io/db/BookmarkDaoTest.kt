@@ -94,6 +94,7 @@ class BookmarkDaoTest {
                     isDeleted = false,
                     isMarked = false,
                     isArchived = false,
+                    isLocalDeleted = false,
                     labels = listOf("label1", "label2"),
                     readProgress = index * 3,
                     wordCount = 100 + index * 10,

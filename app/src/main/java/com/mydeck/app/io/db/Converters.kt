@@ -1,6 +1,7 @@
 package com.mydeck.app.io.db
 
 import androidx.room.TypeConverter
+import com.mydeck.app.io.db.model.ActionType
 import com.mydeck.app.io.db.model.BookmarkEntity
 import kotlinx.datetime.Instant
 
@@ -61,5 +62,15 @@ class Converters {
             BookmarkEntity.Type.VIDEO.value -> BookmarkEntity.Type.VIDEO
             else -> throw IllegalStateException("$stateValue can not be converted to BookmarkEntity.Type")
         }
+    }
+
+    @TypeConverter
+    fun fromActionType(actionType: ActionType): String {
+        return actionType.name
+    }
+
+    @TypeConverter
+    fun toActionType(value: String): ActionType {
+        return ActionType.valueOf(value)
     }
 }

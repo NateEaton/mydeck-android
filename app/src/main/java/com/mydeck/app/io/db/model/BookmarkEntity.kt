@@ -37,6 +37,7 @@ data class BookmarkEntity(
     val isDeleted: Boolean,
     val isMarked: Boolean,
     val isArchived: Boolean,
+    val isLocalDeleted: Boolean = false,
     val labels: List<String>,
     val readProgress: Int,
     val wordCount: Int?,

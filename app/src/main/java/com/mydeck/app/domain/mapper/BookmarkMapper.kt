@@ -43,6 +43,7 @@ fun Bookmark.toEntity(): BookmarkWithArticleContent = BookmarkWithArticleContent
         isDeleted = isDeleted,
         isMarked = isMarked,
         isArchived = isArchived,
+        isLocalDeleted = false,
         labels = labels,
         readProgress = readProgress,
         wordCount = wordCount,
