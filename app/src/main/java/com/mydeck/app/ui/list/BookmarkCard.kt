@@ -74,7 +74,7 @@ import com.mydeck.app.domain.model.BookmarkListItem
 import com.mydeck.app.ui.components.ErrorPlaceholderImage
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun BookmarkCard(
+fun BookmarkMosaicCard(
     bookmark: BookmarkListItem,
     onClickCard: (String) -> Unit,
     onClickDelete: (String) -> Unit,
@@ -115,8 +115,6 @@ fun BookmarkCard(
                 Box(
                     modifier = Modifier
                         .align(Alignment.TopStart)
-                        .padding(8.dp)
-                        .background(Color.Black.copy(alpha = 0.3f), CircleShape)
                         .padding(8.dp)
                 ) {
                     Icon(
@@ -309,7 +307,7 @@ fun BookmarkCard(
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun BookmarkMagazineView(
+fun BookmarkGridCard(
     bookmark: BookmarkListItem,
     onClickCard: (String) -> Unit,
     onClickDelete: (String) -> Unit,
@@ -354,8 +352,6 @@ fun BookmarkMagazineView(
                         modifier = Modifier
                             .align(Alignment.TopStart)
                             .padding(6.dp)
-                            .background(Color.Black.copy(alpha = 0.3f), CircleShape)
-                            .padding(4.dp)
                     ) {
                         Icon(
                             imageVector = if (bookmark.type is Bookmark.Type.Video) Icons.Filled.Movie else Icons.Filled.Image,
@@ -538,7 +534,7 @@ fun BookmarkMagazineView(
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun BookmarkListItemView(
+fun BookmarkCompactCard(
     bookmark: BookmarkListItem,
     onClickCard: (String) -> Unit,
     onClickDelete: (String) -> Unit,
@@ -788,7 +784,7 @@ fun BookmarkCardPreview() {
         published = null
     )
     CompositionLocalProvider(LocalAsyncImagePreviewHandler provides previewHandler) {
-        BookmarkCard(
+        BookmarkMosaicCard(
             bookmark = sampleBookmark,
             onClickCard = {},
             onClickDelete = {},
