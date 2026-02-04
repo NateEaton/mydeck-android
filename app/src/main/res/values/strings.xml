@@ -168,6 +168,7 @@ other{}
 
     <!-- Labels View -->
     <string name="bookmark_labels">Bookmark labels</string>
+    <string name="select_label">Select Label</string>
     <string name="labels_description">Select a label to view bookmarks</string>
     <string name="edit_label">Edit label</string>
     <string name="delete_label">Delete label</string>
