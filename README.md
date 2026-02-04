@@ -16,13 +16,42 @@ MyDeck is based on [ReadeckApp](https://github.com/jensomato/ReadeckApp) by jens
 
 As required by the GNU GPL v3, here are the major modifications made to the original ReadeckApp:
 
+**UI & Navigation:**
 * Rebranding as MyDeck
-* Replace All and Unread views with My List view that shows all unarchived bookmarks
-* Remove (for now) the Article, Photo and Video menu options
+* Pocket-like sidebar navigation: My List, Archive, Favorites views (replacing All/Unread)
 * Revise header to show view name
 * Add About menu option / dialog
+* Add dedicated Labels view to browse and filter by labels
+* Multiple bookmark list layouts: Grid, Compact, and Mosaic views
+* List sorting functionality
+* Shift reading view menu options from FAB to header
 
-This list will be updated as the refactor progresses.
+**Bookmark Management:**
+* Full label management system: add, edit, and remove labels on individual bookmarks
+* Inline action icons on bookmark cards (replacing 3-dot overflow menu)
+* Reading time displayed on bookmark cards
+* Bookmark details dialog showing metadata (type, language, word count, reading time, authors, description)
+* Interactive labels section in details dialog with add/remove capabilities
+* Label filtering: click any label to filter bookmarks by that label
+* Clickable label chips on bookmark cards for quick filtering
+* Auto-populate URL field when adding bookmarks using clipboard contents
+* Account page automatically displays if not signed in
+
+**Content & Reading:**
+* Full support for Article, Photo, and Video bookmark types
+* Dual content view modes: Article (Readeck-extracted content) and Original (embedded web view)
+* Content view toggle in reading view header
+* Embedded content support for photos and videos via iframe embeds
+* Improved reading view for photo and video content with fallback descriptions
+
+**Search & Discovery:**
+* Global full-text search across bookmark titles, site names, and labels
+* Search clears automatically when returning to list view
+
+**Planned Features (In Development):**
+* Revised sync model: decoupled bookmark metadata sync from content sync with configurable content policies (Automatic, Manual, Date Range)
+* Enhanced sync status reporting and offline indicators
+* Wi-Fi-only and battery-saver aware content downloads
 
 ## License
 
