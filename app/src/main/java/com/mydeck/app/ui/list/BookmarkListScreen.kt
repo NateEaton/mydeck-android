@@ -1046,7 +1046,7 @@ fun BookmarkListView(
     LazyColumn(modifier = modifier) {
         items(bookmarks) { bookmark ->
             when (layoutMode) {
-                LayoutMode.GRID -> BookmarkMagazineView(
+                LayoutMode.GRID -> BookmarkGridCard(
                     bookmark = bookmark,
                     onClickCard = onClickBookmark,
                     onClickDelete = onClickDelete,
@@ -1056,7 +1056,7 @@ fun BookmarkListView(
                     onClickLabel = onClickLabel,
                     onClickOpenUrl = onClickOpenUrl
                 )
-                LayoutMode.COMPACT -> BookmarkListItemView(
+                LayoutMode.COMPACT -> BookmarkCompactCard(
                     bookmark = bookmark,
                     onClickCard = onClickBookmark,
                     onClickDelete = onClickDelete,
@@ -1066,7 +1066,7 @@ fun BookmarkListView(
                     onClickLabel = onClickLabel,
                     onClickOpenUrl = onClickOpenUrl
                 )
-                LayoutMode.MOSAIC -> BookmarkCard(
+                LayoutMode.MOSAIC -> BookmarkMosaicCard(
                     bookmark = bookmark,
                     onClickCard = onClickBookmark,
                     onClickDelete = onClickDelete,

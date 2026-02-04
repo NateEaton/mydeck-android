@@ -74,7 +74,7 @@ import com.mydeck.app.domain.model.BookmarkListItem
 import com.mydeck.app.ui.components.ErrorPlaceholderImage
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun BookmarkCard(
+fun BookmarkMosaicCard(
     bookmark: BookmarkListItem,
     onClickCard: (String) -> Unit,
     onClickDelete: (String) -> Unit,
@@ -307,7 +307,7 @@ fun BookmarkCard(
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun BookmarkMagazineView(
+fun BookmarkGridCard(
     bookmark: BookmarkListItem,
     onClickCard: (String) -> Unit,
     onClickDelete: (String) -> Unit,
@@ -534,7 +534,7 @@ fun BookmarkMagazineView(
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun BookmarkListItemView(
+fun BookmarkCompactCard(
     bookmark: BookmarkListItem,
     onClickCard: (String) -> Unit,
     onClickDelete: (String) -> Unit,
@@ -784,7 +784,7 @@ fun BookmarkCardPreview() {
         published = null
     )
     CompositionLocalProvider(LocalAsyncImagePreviewHandler provides previewHandler) {
-        BookmarkCard(
+        BookmarkMosaicCard(
             bookmark = sampleBookmark,
             onClickCard = {},
             onClickDelete = {},
