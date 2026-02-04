@@ -189,7 +189,12 @@ class BookmarkDetailViewModel @Inject constructor(
                     description = bookmark.description,
                     labels = bookmark.labels,
                     readProgress = bookmark.readProgress,
-                    debugInfo = buildDebugInfo(bookmark)
+                    debugInfo = buildDebugInfo(bookmark),
+                    hasContent = when (bookmark.type) {
+                        is com.mydeck.app.domain.model.Bookmark.Type.Article -> !bookmark.articleContent.isNullOrBlank()
+                        is com.mydeck.app.domain.model.Bookmark.Type.Video -> !bookmark.articleContent.isNullOrBlank() || !bookmark.embed.isNullOrBlank()
+                        is com.mydeck.app.domain.model.Bookmark.Type.Picture -> true
+                    }
                 ),
                 updateBookmarkState = updateState,
                 template = template,
@@ -410,7 +415,8 @@ class BookmarkDetailViewModel @Inject constructor(
         val description: String,
         val labels: List<String>,
         val readProgress: Int,
-        val debugInfo: String = ""
+        val debugInfo: String = "",
+        val hasContent: Boolean
     ) {
         enum class Type {
             ARTICLE, PHOTO, VIDEO

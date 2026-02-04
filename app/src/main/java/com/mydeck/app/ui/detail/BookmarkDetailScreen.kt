@@ -39,6 +39,7 @@ import androidx.compose.material.icons.outlined.Inventory2
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -103,7 +104,6 @@ fun BookmarkDetailScreen(navHostController: NavController, bookmarkId: String?, 
     val snackbarHostState = remember { SnackbarHostState() }
     val uiState = viewModel.uiState.collectAsState().value
     var showDetailsDialog by remember { mutableStateOf(false) }
-    var contentMode by remember { mutableStateOf(if (showOriginal) ContentMode.ORIGINAL else ContentMode.READER) }
     val scope = rememberCoroutineScope()
     val onClickDeleteBookmark: (String) -> Unit = { id ->
         viewModel.deleteBookmark(id)
@@ -138,6 +138,13 @@ fun BookmarkDetailScreen(navHostController: NavController, bookmarkId: String?, 
 
     when (uiState) {
         is BookmarkDetailViewModel.UiState.Success -> {
+            var contentMode by remember(uiState.bookmark.bookmarkId) {
+                mutableStateOf(
+                    if (showOriginal || !uiState.bookmark.hasContent) ContentMode.ORIGINAL
+                    else ContentMode.READER
+                )
+            }
+
             LaunchedEffect(key1 = uiState) {
                 uiState.updateBookmarkState?.let {
                     when (it) {
@@ -355,11 +362,7 @@ fun BookmarkDetailContent(
                     onClickOpenUrl = onClickOpenUrl
                 )
 
-                val hasContent = when (uiState.bookmark.type) {
-                    BookmarkDetailViewModel.Bookmark.Type.PHOTO -> true
-                    BookmarkDetailViewModel.Bookmark.Type.VIDEO -> uiState.bookmark.articleContent != null || uiState.bookmark.embed != null
-                    BookmarkDetailViewModel.Bookmark.Type.ARTICLE -> uiState.bookmark.articleContent != null
-                }
+                val hasContent = uiState.bookmark.hasContent
                 if (hasContent) {
                     BookmarkDetailArticle(
                         modifier = Modifier,
@@ -641,8 +644,12 @@ fun BookmarkDetailMenu(
                     }
                 }
 
+                val isReaderMode = contentMode == ContentMode.READER
+                val isEnabled = if (isReaderMode) true else uiState.bookmark.hasContent
+
                 DropdownMenuItem(
                     text = { Text(stringResource(labelRes)) },
+                    enabled = isEnabled,
                     onClick = {
                         val newMode = if (contentMode == ContentMode.READER) ContentMode.ORIGINAL else ContentMode.READER
                         onContentModeChange(newMode)
@@ -651,7 +658,8 @@ fun BookmarkDetailMenu(
                     leadingIcon = {
                         Icon(
                             imageVector = icon,
-                            contentDescription = stringResource(labelRes)
+                            contentDescription = stringResource(labelRes),
+                            tint = if (isEnabled) LocalContentColor.current else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
                         )
                     }
                 )
@@ -780,7 +788,8 @@ private val sampleBookmark = BookmarkDetailViewModel.Bookmark(
     readingTime = 7,
     description = "This is a sample description",
     labels = listOf("tech", "android", "kotlin"),
-    readProgress = 0
+    readProgress = 0,
+    hasContent = true
 )
 
 enum class ContentMode {
