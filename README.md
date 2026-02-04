@@ -18,18 +18,24 @@ As required by the GNU GPL v3, here are the major modifications made to the orig
 
 **UI & Navigation:**
 * Rebranding as MyDeck
-* Replace All and Unread views with My List view that shows all unarchived bookmarks
+* Pocket-like sidebar navigation: My List, Archive, Favorites views (replacing All/Unread)
 * Revise header to show view name
 * Add About menu option / dialog
 * Add dedicated Labels view to browse and filter by labels
-* Add filtered list view with advanced filtering options (read status, archived, favorites, content availability, error status)
+* Multiple bookmark list layouts: Grid, Compact, and Mosaic views
+* List sorting functionality
+* Shift reading view menu options from FAB to header
 
 **Bookmark Management:**
 * Full label management system: add, edit, and remove labels on individual bookmarks
+* Inline action icons on bookmark cards (replacing 3-dot overflow menu)
+* Reading time displayed on bookmark cards
 * Bookmark details dialog showing metadata (type, language, word count, reading time, authors, description)
 * Interactive labels section in details dialog with add/remove capabilities
 * Label filtering: click any label to filter bookmarks by that label
 * Clickable label chips on bookmark cards for quick filtering
+* Auto-populate URL field when adding bookmarks using clipboard contents
+* Account page automatically displays if not signed in
 
 **Content & Reading:**
 * Full support for Article, Photo, and Video bookmark types
@@ -40,8 +46,6 @@ As required by the GNU GPL v3, here are the major modifications made to the orig
 
 **Search & Discovery:**
 * Global full-text search across bookmark titles, site names, and labels
-* Gmail-style search operators: `is:error`, `is:loaded`, `is:loading`, `is:empty`, `has:content`, `has:no-content`
-* Real-time search with debounce (300ms)
 * Search clears automatically when returning to list view
 
 **Planned Features (In Development):**
