@@ -116,8 +116,6 @@ fun BookmarkCard(
                     modifier = Modifier
                         .align(Alignment.TopStart)
                         .padding(8.dp)
-                        .background(Color.Black.copy(alpha = 0.3f), CircleShape)
-                        .padding(8.dp)
                 ) {
                     Icon(
                         imageVector = if (bookmark.type is Bookmark.Type.Video) Icons.Filled.Movie else Icons.Filled.Image,
@@ -354,8 +352,6 @@ fun BookmarkMagazineView(
                         modifier = Modifier
                             .align(Alignment.TopStart)
                             .padding(6.dp)
-                            .background(Color.Black.copy(alpha = 0.3f), CircleShape)
-                            .padding(4.dp)
                     ) {
                         Icon(
                             imageVector = if (bookmark.type is Bookmark.Type.Video) Icons.Filled.Movie else Icons.Filled.Image,
