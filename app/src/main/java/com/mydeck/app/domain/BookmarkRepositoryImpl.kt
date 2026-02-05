@@ -226,6 +226,20 @@ class BookmarkRepositoryImpl @Inject constructor(
         }
     }
 
+    override suspend fun updateContentState(
+        bookmarkId: String,
+        status: Bookmark.ContentStatus,
+        failureReason: String?
+    ) {
+        val dbStatus = when (status) {
+            Bookmark.ContentStatus.NOT_ATTEMPTED -> BookmarkEntity.ContentStatus.NOT_ATTEMPTED
+            Bookmark.ContentStatus.DOWNLOADED -> BookmarkEntity.ContentStatus.DOWNLOADED
+            Bookmark.ContentStatus.DIRTY -> BookmarkEntity.ContentStatus.DIRTY
+            Bookmark.ContentStatus.PERMANENT_NO_CONTENT -> BookmarkEntity.ContentStatus.PERMANENT_NO_CONTENT
+        }
+        bookmarkDao.updateContentState(bookmarkId, dbStatus, failureReason)
+    }
+
     override suspend fun deleteAllBookmarks() {
         bookmarkDao.deleteAllBookmarks()
     }

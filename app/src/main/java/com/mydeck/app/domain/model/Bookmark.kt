@@ -19,6 +19,8 @@ data class Bookmark(
     val documentTpe: String,
     val type: Type,
     val hasArticle: Boolean,
+    val contentStatus: ContentStatus,
+    val contentFailureReason: String?,
     val description: String,
     val isDeleted: Boolean,
     val isMarked: Boolean,
@@ -58,5 +60,11 @@ data class Bookmark(
         LOADED,
         ERROR,
         LOADING
+    }
+    enum class ContentStatus {
+        NOT_ATTEMPTED,
+        DOWNLOADED,
+        DIRTY,
+        PERMANENT_NO_CONTENT
     }
 }

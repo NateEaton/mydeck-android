@@ -12,7 +12,7 @@ import com.mydeck.app.io.db.model.RemoteBookmarkIdEntity
 
 @Database(
     entities = [BookmarkEntity::class, ArticleContentEntity::class, RemoteBookmarkIdEntity::class],
-    version = 4,
+    version = 5,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
@@ -65,6 +65,34 @@ abstract class MyDeckDatabase : RoomDatabase() {
             override fun migrate(database: SupportSQLiteDatabase) {
                 database.execSQL("ALTER TABLE bookmarks ADD COLUMN embed TEXT")
                 database.execSQL("ALTER TABLE bookmarks ADD COLUMN embedHostname TEXT")
+            }
+        }
+
+        val MIGRATION_4_5 = object : Migration(4, 5) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL(
+                    "ALTER TABLE bookmarks ADD COLUMN contentStatus INTEGER NOT NULL DEFAULT 0"
+                )
+                database.execSQL(
+                    "ALTER TABLE bookmarks ADD COLUMN contentFailureReason TEXT"
+                )
+
+                database.execSQL(
+                    """
+                        UPDATE bookmarks
+                        SET contentStatus = 1
+                        WHERE id IN (SELECT bookmarkId FROM article_content)
+                    """
+                )
+
+                database.execSQL(
+                    """
+                        UPDATE bookmarks
+                        SET contentStatus = 3, contentFailureReason = 'media'
+                        WHERE contentStatus != 1
+                        AND (hasArticle = 0 OR type != 'article')
+                    """
+                )
             }
         }
     }

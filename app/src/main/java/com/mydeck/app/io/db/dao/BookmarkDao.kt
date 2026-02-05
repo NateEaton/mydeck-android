@@ -57,6 +57,13 @@ interface BookmarkDao {
     @Update
     suspend fun updateBookmark(bookmarkEntity: BookmarkEntity)
 
+    @Query("UPDATE bookmarks SET contentStatus = :status, contentFailureReason = :reason WHERE id = :id")
+    suspend fun updateContentState(
+        id: String,
+        status: BookmarkEntity.ContentStatus,
+        reason: String?
+    )
+
     @Transaction
     suspend fun upsertBookmark(bookmarkEntity: BookmarkEntity) {
         val rowId = insertBookmarkIgnore(bookmarkEntity)
@@ -70,7 +77,19 @@ interface BookmarkDao {
         with(bookmarkWithArticleContent) {
             val rowId = insertBookmarkIgnore(bookmark)
             if (rowId == -1L) {
-                updateBookmark(bookmark)
+                val existing = getBookmarkById(bookmark.id)
+                val resolvedStatus = resolveContentStatus(existing, bookmark)
+                val resolvedFailureReason = resolveContentFailureReason(
+                    existing = existing,
+                    incoming = bookmark,
+                    resolvedStatus = resolvedStatus
+                )
+                updateBookmark(
+                    bookmark.copy(
+                        contentStatus = resolvedStatus,
+                        contentFailureReason = resolvedFailureReason
+                    )
+                )
             }
             articleContent?.run { insertArticleContent(this) }
         }
@@ -260,13 +279,17 @@ interface BookmarkDao {
     @Query("""
         SELECT
             (SELECT COUNT(*) FROM bookmarks) AS total,
-            (SELECT COUNT(*) FROM article_content) AS withContent
+            (SELECT COUNT(*) FROM bookmarks WHERE contentStatus = 1) AS withContent
     """)
     fun observeSyncStatus(): Flow<SyncStatusCounts?>
 
     @Query("""
         SELECT b.id FROM bookmarks b
-        WHERE NOT EXISTS (SELECT 1 FROM article_content ac WHERE ac.bookmarkId = b.id)
+        WHERE b.hasArticle = 1
+        AND b.contentStatus IN (
+            0,
+            2
+        )
         ORDER BY b.created DESC
     """)
     suspend fun getBookmarkIdsWithoutContent(): List<String>
@@ -275,6 +298,39 @@ interface BookmarkDao {
         val total: Int,
         val withContent: Int
     )
+
+    private fun resolveContentStatus(
+        existing: BookmarkEntity,
+        incoming: BookmarkEntity
+    ): BookmarkEntity.ContentStatus {
+        return when {
+            incoming.contentStatus == BookmarkEntity.ContentStatus.DOWNLOADED ->
+                incoming.contentStatus
+            existing.contentStatus == BookmarkEntity.ContentStatus.DOWNLOADED ->
+                existing.contentStatus
+            incoming.contentStatus == BookmarkEntity.ContentStatus.PERMANENT_NO_CONTENT ->
+                incoming.contentStatus
+            existing.contentStatus == BookmarkEntity.ContentStatus.PERMANENT_NO_CONTENT ->
+                existing.contentStatus
+            incoming.contentStatus == BookmarkEntity.ContentStatus.DIRTY ->
+                incoming.contentStatus
+            existing.contentStatus == BookmarkEntity.ContentStatus.DIRTY ->
+                existing.contentStatus
+            else -> incoming.contentStatus
+        }
+    }
+
+    private fun resolveContentFailureReason(
+        existing: BookmarkEntity,
+        incoming: BookmarkEntity,
+        resolvedStatus: BookmarkEntity.ContentStatus
+    ): String? {
+        return if (resolvedStatus == existing.contentStatus) {
+            existing.contentFailureReason
+        } else {
+            incoming.contentFailureReason
+        }
+    }
 
     @Query("UPDATE bookmarks SET isMarked = :isMarked WHERE id = :id")
     suspend fun updateIsMarked(id: String, isMarked: Boolean)

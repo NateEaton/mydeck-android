@@ -28,6 +28,11 @@ interface BookmarkRepository {
     suspend fun getBookmarkById(id: String): Bookmark
     suspend fun refreshBookmarkFromApi(id: String)
     fun observeBookmark(id: String): Flow<Bookmark?>
+    suspend fun updateContentState(
+        bookmarkId: String,
+        status: Bookmark.ContentStatus,
+        failureReason: String? = null
+    )
     suspend fun deleteAllBookmarks()
     suspend fun deleteBookmark(id: String): UpdateResult
     suspend fun createBookmark(title: String, url: String, labels: List<String> = emptyList()): String

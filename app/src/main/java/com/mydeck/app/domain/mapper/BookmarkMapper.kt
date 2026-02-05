@@ -39,6 +39,13 @@ fun Bookmark.toEntity(): BookmarkWithArticleContent = BookmarkWithArticleContent
             Bookmark.Type.Video -> BookmarkEntity.Type.VIDEO
         },
         hasArticle = hasArticle,
+        contentStatus = when (contentStatus) {
+            Bookmark.ContentStatus.NOT_ATTEMPTED -> BookmarkEntity.ContentStatus.NOT_ATTEMPTED
+            Bookmark.ContentStatus.DOWNLOADED -> BookmarkEntity.ContentStatus.DOWNLOADED
+            Bookmark.ContentStatus.DIRTY -> BookmarkEntity.ContentStatus.DIRTY
+            Bookmark.ContentStatus.PERMANENT_NO_CONTENT -> BookmarkEntity.ContentStatus.PERMANENT_NO_CONTENT
+        },
+        contentFailureReason = contentFailureReason,
         description = description,
         isDeleted = isDeleted,
         isMarked = isMarked,
@@ -95,6 +102,13 @@ fun BookmarkEntity.toDomain(): Bookmark = Bookmark(
         BookmarkEntity.Type.VIDEO -> Bookmark.Type.Video
     },
     hasArticle = hasArticle,
+    contentStatus = when (contentStatus) {
+        BookmarkEntity.ContentStatus.NOT_ATTEMPTED -> Bookmark.ContentStatus.NOT_ATTEMPTED
+        BookmarkEntity.ContentStatus.DOWNLOADED -> Bookmark.ContentStatus.DOWNLOADED
+        BookmarkEntity.ContentStatus.DIRTY -> Bookmark.ContentStatus.DIRTY
+        BookmarkEntity.ContentStatus.PERMANENT_NO_CONTENT -> Bookmark.ContentStatus.PERMANENT_NO_CONTENT
+    },
+    contentFailureReason = contentFailureReason,
     description = description,
     isDeleted = isDeleted,
     isMarked = isMarked,
@@ -152,6 +166,8 @@ fun BookmarkDto.toDomain(): Bookmark = Bookmark(
         else -> Bookmark.Type.Article
     },
     hasArticle = hasArticle,
+    contentStatus = resolveContentStatus(hasArticle, type),
+    contentFailureReason = resolveContentFailureReason(hasArticle, type),
     description = description,
     isDeleted = isDeleted,
     isMarked = isMarked,
@@ -171,6 +187,28 @@ fun BookmarkDto.toDomain(): Bookmark = Bookmark(
     thumbnail = resources.thumbnail.toDomain(),
     articleContent = null
 )
+
+private fun resolveContentStatus(
+    hasArticle: Boolean,
+    type: String
+): Bookmark.ContentStatus {
+    return if (!hasArticle || type.equals("photo", true) || type.equals("video", true)) {
+        Bookmark.ContentStatus.PERMANENT_NO_CONTENT
+    } else {
+        Bookmark.ContentStatus.NOT_ATTEMPTED
+    }
+}
+
+private fun resolveContentFailureReason(
+    hasArticle: Boolean,
+    type: String
+): String? {
+    return if (!hasArticle || type.equals("photo", true) || type.equals("video", true)) {
+        "media"
+    } else {
+        null
+    }
+}
 
 fun ResourceDto?.toDomain(): Bookmark.Resource = Bookmark.Resource(
     src = this?.src ?: ""
