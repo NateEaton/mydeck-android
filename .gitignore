@@ -14,3 +14,4 @@ local.properties
 /.kotlin/
 .attach_pid*
 app/backup-icons/
+.vscode/
