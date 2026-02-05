@@ -1,8 +1,11 @@
 package com.mydeck.app.domain
 
+import androidx.work.WorkManager
+import androidx.work.WorkRequest
 import com.mydeck.app.io.db.dao.BookmarkDao
 import com.mydeck.app.io.rest.ReadeckApi
 import com.mydeck.app.io.rest.model.BookmarkDto
+import com.mydeck.app.io.rest.model.CreateBookmarkDto
 import com.mydeck.app.io.rest.model.EditBookmarkDto
 import com.mydeck.app.io.rest.model.EditBookmarkErrorDto
 import com.mydeck.app.io.rest.model.EditBookmarkResponseDto
@@ -18,6 +21,7 @@ import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
@@ -40,16 +44,27 @@ class BookmarkRepositoryImplTest {
     private lateinit var bookmarkDao: BookmarkDao
     private lateinit var readeckApi: ReadeckApi
     private lateinit var json: Json
+    private lateinit var workManager: WorkManager
+    private lateinit var testScope: TestScope
     private lateinit var bookmarkRepositoryImpl: BookmarkRepositoryImpl
     private val testDispatcher = StandardTestDispatcher()
 
     @Before
     fun setUp() {
-        Dispatchers.setMain(testDispatcher) // Use Unconfined for immediate execution
+        Dispatchers.setMain(testDispatcher)
         bookmarkDao = mockk(relaxed = true)
         readeckApi = mockk()
         json = Json { ignoreUnknownKeys = false }
-        bookmarkRepositoryImpl = BookmarkRepositoryImpl(bookmarkDao, readeckApi, json, testDispatcher)
+        workManager = mockk(relaxed = true)
+        testScope = TestScope(testDispatcher)
+        bookmarkRepositoryImpl = BookmarkRepositoryImpl(
+            bookmarkDao = bookmarkDao,
+            readeckApi = readeckApi,
+            json = json,
+            workManager = workManager,
+            applicationScope = testScope,
+            dispatcher = testDispatcher
+        )
     }
 
     @After
@@ -198,7 +213,7 @@ class BookmarkRepositoryImplTest {
 
         // Assert
         assertTrue(result is BookmarkRepository.UpdateResult.Error)
-        assertTrue((result as BookmarkRepository.UpdateResult.Error).errorMessage!!.contains("Failed to parse error"))
+        assertTrue((result as BookmarkRepository.UpdateResult.Error).errorMessage.contains("Failed to parse error"))
         assertEquals(400, result.code)
     }
 
@@ -426,70 +441,98 @@ class BookmarkRepositoryImplTest {
         // Assert
         assertTrue(result is BookmarkRepository.SyncResult.NetworkError)
         assertEquals("Network error during full sync", (result as BookmarkRepository.SyncResult.NetworkError).errorMessage)
-        assertTrue((result as BookmarkRepository.SyncResult.NetworkError).ex is IOException)
+        assertTrue(result.ex is IOException)
     }
 
 
     @Test
-    fun `performDeltaSync truncates sub-second precision`() = runTest {
-        // Arrange
-        val instantWithNanos = kotlinx.datetime.Instant.parse("2023-10-27T10:00:00.123456789Z")
-        val expectedTruncatedString = "2023-10-27T10:00:00Z"
-        
-        coEvery { readeckApi.getSyncStatus(any()) } returns Response.success(emptyList())
-
-        // Act
-        val result = bookmarkRepositoryImpl.performDeltaSync(instantWithNanos)
-
-        // Assert
-        assertTrue(result is BookmarkRepository.SyncResult.Success)
-        coVerify { readeckApi.getSyncStatus(expectedTruncatedString) }
-    }
-
-
-    @Test
-    fun `performDeltaSync calls syncContent when updates exist`() = runTest {
+    fun `performDeltaSync returns error because it is disabled`() = runTest {
         // Arrange
         val since = kotlinx.datetime.Instant.parse("2023-10-27T10:00:00Z")
-        val updatedId = "123"
-        val syncStatusList = listOf(SyncStatusDto(id = updatedId, status = "ok", updated = since.toString()))
-        
-        coEvery { readeckApi.getSyncStatus(any()) } returns Response.success(syncStatusList)
-        // Mock syncContent to return success with a bookmark
-        val bookmarkList = listOf(bookmarkDto.copy(id = updatedId))
-        coEvery { readeckApi.syncContent(any()) } returns Response.success(bookmarkList)
-        coEvery { bookmarkDao.insertBookmarksWithArticleContent(any()) } returns Unit
 
         // Act
         val result = bookmarkRepositoryImpl.performDeltaSync(since)
 
         // Assert
-        assertTrue(result is BookmarkRepository.SyncResult.Success)
-        // Verify syncContent WAS called with the correct ID
-        coVerify { readeckApi.syncContent(SyncContentRequestDto(listOf(updatedId))) }
-        // Verify we inserted the result
+        assertTrue(result is BookmarkRepository.SyncResult.Error)
+        assertTrue((result as BookmarkRepository.SyncResult.Error).errorMessage.contains("Delta sync disabled"))
+    }
+
+    @Test
+    fun `createBookmark successful`() = runTest {
+        // Arrange
+        val title = "Test Bookmark"
+        val url = "https://example.com"
+        val labels = listOf("test", "bookmark")
+        val bookmarkId = "new-bookmark-id"
+        
+        val createBookmarkDto = CreateBookmarkDto(labels = labels, title = title, url = url)
+        val headers = Headers.Builder()
+            .add(ReadeckApi.Header.BOOKMARK_ID, bookmarkId)
+            .build()
+        coEvery { readeckApi.createBookmark(createBookmarkDto) } returns Response.success(StatusMessageDto(200, "Created"), headers)
+        
+        val bookmarkResponse = Response.success(bookmarkDto.copy(
+            id = bookmarkId,
+            state = 1, // LOADED
+            hasArticle = true
+        ))
+        coEvery { readeckApi.getBookmarkById(bookmarkId) } returns bookmarkResponse
+        
+        // Act
+        val result = bookmarkRepositoryImpl.createBookmark(title, url, labels)
+        
+        // Assert
+        assertEquals(bookmarkId, result)
+        coVerify { readeckApi.createBookmark(createBookmarkDto) }
+        coVerify { readeckApi.getBookmarkById(bookmarkId) }
+        coVerify { bookmarkDao.insertBookmarksWithArticleContent(any()) }
+        coVerify { workManager.enqueue(any<WorkRequest>()) }
+    }
+
+    @Test
+    fun `refreshBookmarkFromApi successful`() = runTest {
+        // Arrange
+        val bookmarkId = "test-bookmark-id"
+        val updatedBookmark = bookmarkDto.copy(title = "Updated Title")
+        val response = Response.success(updatedBookmark)
+        
+        coEvery { readeckApi.getBookmarkById(bookmarkId) } returns response
+        
+        // Act
+        bookmarkRepositoryImpl.refreshBookmarkFromApi(bookmarkId)
+        
+        // Assert
+        coVerify { readeckApi.getBookmarkById(bookmarkId) }
         coVerify { bookmarkDao.insertBookmarksWithArticleContent(any()) }
     }
 
     @Test
-    fun `performDeltaSync does NOT call syncContent when no updates`() = runTest {
+    fun `updateReadProgress successful`() = runTest {
         // Arrange
-        val since = kotlinx.datetime.Instant.parse("2023-10-27T10:00:00Z")
-        // Only deleted items, no "ok" (updated) items
-        val syncStatusList = listOf(SyncStatusDto(id = "999", status = "deleted", updated = since.toString()))
+        val bookmarkId = "test-bookmark-id"
+        val progress = 75
+        val response = Response.success(editBookmarkResponseDto)
         
-        coEvery { readeckApi.getSyncStatus(any()) } returns Response.success(syncStatusList)
-        coEvery { bookmarkDao.deleteBookmark("999") } returns Unit
-
+        coEvery { 
+            readeckApi.editBookmark(
+                id = bookmarkId,
+                body = EditBookmarkDto(readProgress = progress)
+            )
+        } returns response
+        
         // Act
-        val result = bookmarkRepositoryImpl.performDeltaSync(since)
-
+        val result = bookmarkRepositoryImpl.updateReadProgress(bookmarkId, progress)
+        
         // Assert
-        assertTrue(result is BookmarkRepository.SyncResult.Success)
-        // Verify syncContent was NOT called
-        coVerify(exactly = 0) { readeckApi.syncContent(any()) }
-        // Verify deletion happened
-        coVerify { bookmarkDao.deleteBookmark("999") }
+        assertTrue(result is BookmarkRepository.UpdateResult.Success)
+        coVerify { 
+            readeckApi.editBookmark(
+                id = bookmarkId,
+                body = EditBookmarkDto(readProgress = progress)
+            )
+        }
+        coVerify { bookmarkDao.updateReadProgress(bookmarkId, progress) }
     }
 
     private val editBookmarkResponseDto = EditBookmarkResponseDto(

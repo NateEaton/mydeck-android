@@ -1,6 +1,6 @@
 package com.mydeck.app.util
 
-import android.util.Log
+
 import com.mydeck.app.BuildConfig
 import com.mydeck.app.LOGDIR
 import fr.bipi.treessence.file.FileLoggerTree
@@ -15,15 +15,15 @@ fun getLatestLogFile(): File? {
 fun createLogDir(parentDir: File): File? {
     val logdir = File(parentDir, LOGDIR)
     return if (logdir.isDirectory) {
-        Log.i("LOGDIR", "logdir $logdir already exists")
+        Timber.tag("LOGDIR").i("logdir $logdir already exists")
         logdir
     } else {
         logdir.mkdirs().let {
             if (it) {
-                Log.i("LOGDIR", "logdir $logdir created")
+                Timber.tag("LOGDIR").i("logdir $logdir created")
                 logdir
             } else {
-                Log.w("LOGDIR", "logdir $logdir not created")
+                Timber.tag("LOGDIR").w("logdir $logdir not created")
                 null
             }
         }
@@ -46,7 +46,7 @@ fun clearLogFiles(): Boolean {
             file.writeText("")
             true
         } catch (e: Exception) {
-            Log.e("LOGDIR", "Failed to clear log file: ${file.name}", e)
+            Timber.tag("LOGDIR").e(e, "Failed to clear log file: ${file.name}")
             false
         }
     } ?: false

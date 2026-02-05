@@ -1,7 +1,7 @@
 package com.mydeck.app
 
 import android.app.Application
-import android.util.Log
+
 import dagger.hilt.android.HiltAndroidApp
 import com.mydeck.app.util.createLogDir
 import fr.bipi.treessence.context.GlobalContext.startTimber
@@ -25,7 +25,7 @@ class MyDeckApplication : Application() {
                 debugTree()
                 logDir?.let {
                     fileTree {
-                        level = Log.DEBUG
+                        level = 3 // Log.DEBUG
                         fileName = LOGFILE
                         dir = it.absolutePath
                         fileLimit = 2
@@ -35,7 +35,7 @@ class MyDeckApplication : Application() {
             } else {
                 logDir?.let {
                     fileTree {
-                        level = Log.INFO
+                        level = 4 // Log.INFO
                         fileName = LOGFILE
                         dir = it.absolutePath
                         fileLimit = 2
