@@ -8,7 +8,7 @@ junitVersion = "1.2.1"
 espressoCore = "3.5.0"
 lifecycleRuntimeKtx = "2.8.7"
 activityCompose = "1.10.1"
-composeBom = "2025.03.00"
+composeBom = "2025.04.01"
 retrofit = "2.11.0"
 daggerHilt = "2.55"
 androidHilt = "1.2.0"
@@ -16,7 +16,7 @@ kotlinxSerializationJson = "1.8.0"
 kotlinxDateTime = "0.6.1"
 mockk = "1.13.16"
 coroutinesTest = "1.10.1"
-room = "2.6.1"
+room = "2.7.1"
 robolectric = "4.14"
 ksp = "2.0.0-1.0.24"
 timber = "5.0.1"
@@ -66,7 +66,7 @@ androidx-material-icons = { group = "androidx.compose.material", name = "materia
 retrofit = { group = "com.squareup.retrofit2", name = "retrofit", version.ref = "retrofit" }
 retrofit-converter-kotlinx-serialization = { group = "com.squareup.retrofit2", name = "converter-kotlinx-serialization", version.ref = "retrofit" }
 retrofit-converter-scalars = { group = "com.squareup.retrofit2", name = "converter-scalars", version.ref = "retrofit" }
-retrofit-response-type-keeper = { group = "com.squareup.retrofit2", name = "response-type-keeper", version.ref = "retrofit" }
+
 dagger-hilt-android = { group = "com.google.dagger", name = "hilt-android", version.ref = "daggerHilt" }
 dagger-hilt-android-compiler = { group = "com.google.dagger", name = "hilt-android-compiler", version.ref = "daggerHilt" }
 dagger-hilt-compiler = { group = "com.google.dagger", name = "hilt-compiler", version.ref = "daggerHilt" }
@@ -108,7 +108,7 @@ desugar-jdk-libs = { group ="com.android.tools" ,name = "desugar_jdk_libs", vers
 android-application = { id = "com.android.application", version.ref = "agp" }
 kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
-kotlin-kapt = { id = "org.jetbrains.kotlin.kapt", version.ref = "kotlin" }
+
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin"}
 dagger-hilt = { id = "com.google.dagger.hilt.android", version.ref = "daggerHilt" }
 androidx-room = { id = "androidx.room", version.ref = "room" }

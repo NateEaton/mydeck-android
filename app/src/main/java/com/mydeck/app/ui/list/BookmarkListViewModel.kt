@@ -384,7 +384,7 @@ class BookmarkListViewModel @Inject constructor(
             } catch (e: Exception) {
                 // Handle errors (e.g., show error message)
                 _uiState.value = UiState.Empty(R.string.list_view_empty_error_loading_bookmarks)
-                println("Error loading bookmarks: ${e.message}")
+                Timber.e(e, "Error loading bookmarks: ${e.message}")
             }
         }
     }

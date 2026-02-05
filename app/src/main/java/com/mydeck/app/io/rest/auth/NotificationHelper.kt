@@ -12,6 +12,7 @@ class NotificationHelperImpl(
     private val notificationManager: NotificationManagerCompat
 ) : NotificationHelper {
 
+    @android.annotation.SuppressLint("MissingPermission")
     override fun showUnauthorizedNotification() {
         NotificationUtil.showUnauthorizedNotification(context, notificationManager)
     }
