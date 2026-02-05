@@ -4,10 +4,10 @@ import androidx.room.Dao
 import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
-import androidx.room.OnConflictStrategy.Companion.REPLACE
 import androidx.room.Query
 import androidx.room.RawQuery
 import androidx.room.Transaction
+import androidx.room.Update
 import androidx.sqlite.db.SimpleSQLiteQuery
 import androidx.sqlite.db.SupportSQLiteQuery
 import com.mydeck.app.io.db.model.BookmarkEntity
@@ -45,22 +45,36 @@ interface BookmarkDao {
     suspend fun insertBookmarks(bookmarks: List<BookmarkEntity>)
 
     @Transaction
-    suspend fun insertBookmarkWithArticleContent(bookmarkWithArticleContent: BookmarkWithArticleContent) {
-        with(bookmarkWithArticleContent) {
-            insertBookmark(bookmark)
-            articleContent?.run { insertArticleContent(this) }
-        }
-    }
-
-    @Transaction
     suspend fun insertBookmarksWithArticleContent(bookmarks: List<BookmarkWithArticleContent>) {
         bookmarks.forEach {
             insertBookmarkWithArticleContent(it)
         }
     }
 
-    @Insert(onConflict = REPLACE)
-    suspend fun insertBookmark(bookmarkEntity: BookmarkEntity)
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertBookmarkIgnore(bookmarkEntity: BookmarkEntity): Long
+
+    @Update
+    suspend fun updateBookmark(bookmarkEntity: BookmarkEntity)
+
+    @Transaction
+    suspend fun upsertBookmark(bookmarkEntity: BookmarkEntity) {
+        val rowId = insertBookmarkIgnore(bookmarkEntity)
+        if (rowId == -1L) {
+            updateBookmark(bookmarkEntity)
+        }
+    }
+
+    @Transaction
+    suspend fun insertBookmarkWithArticleContent(bookmarkWithArticleContent: BookmarkWithArticleContent) {
+        with(bookmarkWithArticleContent) {
+            val rowId = insertBookmarkIgnore(bookmark)
+            if (rowId == -1L) {
+                updateBookmark(bookmark)
+            }
+            articleContent?.run { insertArticleContent(this) }
+        }
+    }
 
     @Query("SELECT * FROM bookmarks ORDER BY updated DESC LIMIT 1")
     suspend fun getLastUpdatedBookmark(): BookmarkEntity?

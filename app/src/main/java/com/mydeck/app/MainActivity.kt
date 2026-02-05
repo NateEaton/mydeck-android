@@ -23,8 +23,10 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
+import androidx.lifecycle.lifecycleScope
 import dagger.hilt.android.AndroidEntryPoint
 import com.mydeck.app.domain.model.Theme
+import com.mydeck.app.domain.usecase.FullSyncUseCase
 import com.mydeck.app.ui.detail.BookmarkDetailScreen
 import com.mydeck.app.ui.list.BookmarkListScreen
 import com.mydeck.app.ui.navigation.AccountSettingsRoute
@@ -55,11 +57,24 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var settingsDataStore: SettingsDataStore
 
+    @Inject
+    lateinit var fullSyncUseCase: FullSyncUseCase
+
     private lateinit var intentState: MutableState<Intent?>
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+
+        if (savedInstanceState == null) {
+            lifecycleScope.launch {
+                if (settingsDataStore.isSyncOnAppOpenEnabled()) {
+                    Timber.d("App Open: Triggering Full Sync")
+                    fullSyncUseCase.performFullSync()
+                }
+            }
+        }
+
         setContent {
             val viewModel = hiltViewModel<MainViewModel>()
             val theme = viewModel.theme.collectAsState()
