@@ -69,4 +69,5 @@ other{}
     <string name="notification_channel_sync_description">Erros na sincronización</string>
     <string name="notification_authentication_error_title">Require autenticación</string>
     <string name="notification_authentication_error_message">Comproba as túas credenciais.</string>
+    <string name="action_retry_content">Retry content</string>
 </resources>

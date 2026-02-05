@@ -100,4 +100,5 @@ other{}
     <string name="auto_sync_notification_rationale_dialog_title">Benachrichtigungen Berechtigung benötigt</string>
     <string name="auto_sync_notification_rationale_dialog_text">Um Sie über Fehler bei der Hintergrundsynchronisierung zu informieren, benötigen wir die Berechtigung, Ihnen Benachrichtigungen zu senden. Bitte erteilen Sie diese Berechtigung.</string>
     <string name="auto_sync_notification_rationale_dialog_grant_button">Erteilen</string>
+    <string name="action_retry_content">Retry content</string>
 </resources>

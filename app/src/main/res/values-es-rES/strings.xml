@@ -107,4 +107,5 @@ other{}
     <string name="auto_sync_notification_failure">Falló la sincronización en segundo plano.</string>
     <string name="auto_sync_notification_running">La sincronización en segundo plano está en proceso.</string>
     <string name="auto_sync_notification_channel">Sincronización en segundo plano</string>
+    <string name="action_retry_content">Retry content</string>
 </resources>
