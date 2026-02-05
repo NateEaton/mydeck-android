@@ -6,7 +6,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import com.mydeck.app.domain.BookmarkRepository
-import com.mydeck.app.domain.model.Bookmark
+import com.mydeck.app.domain.model.Bookmark as DomainBookmark
 import com.mydeck.app.domain.model.Template
 import com.mydeck.app.domain.model.Theme
 import com.mydeck.app.domain.usecase.LoadArticleUseCase
@@ -221,15 +221,15 @@ class BookmarkDetailViewModel @Inject constructor(
             initialValue = UiState.Loading
         )
 
-    private fun maybeFetchContent(bookmark: Bookmark) {
-        if (bookmark.type != Bookmark.Type.Article) {
+    private fun maybeFetchContent(bookmark: DomainBookmark) {
+        if (bookmark.type != DomainBookmark.Type.Article) {
             return
         }
         if (!bookmark.articleContent.isNullOrBlank()) {
             return
         }
-        if (bookmark.contentStatus == Bookmark.ContentStatus.PERMANENT_NO_CONTENT ||
-            bookmark.contentStatus == Bookmark.ContentStatus.DOWNLOADED
+        if (bookmark.contentStatus == DomainBookmark.ContentStatus.PERMANENT_NO_CONTENT ||
+            bookmark.contentStatus == DomainBookmark.ContentStatus.DOWNLOADED
         ) {
             return
         }
