@@ -245,6 +245,20 @@ class BookmarkDetailViewModel @Inject constructor(
         }
     }
 
+    fun onRetryContent() {
+        val id = bookmarkId ?: return
+        if (contentFetchJob?.isActive == true) {
+            return
+        }
+        contentFetchJob = viewModelScope.launch {
+            try {
+                loadArticleUseCase.execute(id)
+            } catch (e: Exception) {
+                Timber.w(e, "Failed to retry article content [id=$id]")
+            }
+        }
+    }
+
     fun onToggleFavorite(bookmarkId: String, isFavorite: Boolean) {
         updateBookmark {
             updateBookmarkUseCase.updateIsFavorite(

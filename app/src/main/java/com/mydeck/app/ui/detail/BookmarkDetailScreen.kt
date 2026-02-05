@@ -37,6 +37,7 @@ import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Grade
 import androidx.compose.material.icons.outlined.Inventory2
 import androidx.compose.material.icons.outlined.Share
+import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.LocalContentColor
@@ -101,6 +102,7 @@ fun BookmarkDetailScreen(navHostController: NavController, bookmarkId: String?, 
     val onClickShareBookmark: (String) -> Unit = { url -> viewModel.onClickShareBookmark(url) }
     val onClickToggleRead: (String, Boolean) -> Unit = { id, isRead -> viewModel.onToggleRead(id, isRead) }
     val onUpdateLabels: (String, List<String>) -> Unit = { id, labels -> viewModel.onUpdateLabels(id, labels) }
+    val onRetryContent: () -> Unit = { viewModel.onRetryContent() }
     val snackbarHostState = remember { SnackbarHostState() }
     val uiState = viewModel.uiState.collectAsState().value
     var showDetailsDialog by remember { mutableStateOf(false) }
@@ -172,6 +174,7 @@ fun BookmarkDetailScreen(navHostController: NavController, bookmarkId: String?, 
                 onClickOpenUrl = onClickOpenUrl,
                 onClickIncreaseZoomFactor = onClickIncreaseZoomFactor,
                 onClickDecreaseZoomFactor = onClickDecreaseZoomFactor,
+                onRetryContent = onRetryContent,
                 onShowDetails = { showDetailsDialog = true },
                 onScrollProgressChanged = { progress ->
                     viewModel.onScrollProgressChanged(progress)
@@ -228,6 +231,7 @@ fun BookmarkDetailScreen(
     onClickShareBookmark: (String) -> Unit,
     onClickIncreaseZoomFactor: () -> Unit,
     onClickDecreaseZoomFactor: () -> Unit,
+    onRetryContent: () -> Unit,
     onShowDetails: () -> Unit = {},
     onScrollProgressChanged: (Int) -> Unit = {},
     initialReadProgress: Int = 0,
@@ -291,7 +295,8 @@ fun BookmarkDetailScreen(
             onClickOpenUrl = onClickOpenUrl,
             onScrollProgressChanged = onScrollProgressChanged,
             initialReadProgress = initialReadProgress,
-            contentMode = contentMode
+            contentMode = contentMode,
+            onRetryContent = onRetryContent
         )
     }
 }
@@ -303,7 +308,8 @@ fun BookmarkDetailContent(
     onClickOpenUrl: (String) -> Unit,
     onScrollProgressChanged: (Int) -> Unit = {},
     initialReadProgress: Int = 0,
-    contentMode: ContentMode = ContentMode.READER
+    contentMode: ContentMode = ContentMode.READER,
+    onRetryContent: () -> Unit
 ) {
     val scrollState = rememberScrollState()
     val hasArticleContent = uiState.bookmark.articleContent != null
@@ -370,7 +376,8 @@ fun BookmarkDetailContent(
                     )
                 } else {
                     EmptyBookmarkDetailArticle(
-                        modifier = Modifier
+                        modifier = Modifier,
+                        onRetryContent = onRetryContent
                     )
                 }
             }
@@ -389,12 +396,21 @@ fun BookmarkDetailContent(
 
 @Composable
 fun EmptyBookmarkDetailArticle(
-    modifier: Modifier
+    modifier: Modifier,
+    onRetryContent: () -> Unit
 ) {
-    Text(
+    Column(
         modifier = modifier,
-        text = stringResource(R.string.detail_view_no_content)
-    )
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            text = stringResource(R.string.detail_view_no_content)
+        )
+        Spacer(modifier = Modifier.height(12.dp))
+        Button(onClick = onRetryContent) {
+            Text(stringResource(R.string.action_retry_content))
+        }
+    }
 }
 
 @Composable
@@ -718,6 +734,7 @@ fun BookmarkDetailScreenPreview() {
         onClickIncreaseZoomFactor = { },
         onClickDecreaseZoomFactor = { },
         onClickToggleArchive = { _, _ -> },
+        onRetryContent = {},
         uiState = BookmarkDetailViewModel.UiState.Success(
             bookmark = sampleBookmark,
             updateBookmarkState = null,
@@ -740,7 +757,8 @@ private fun BookmarkDetailContentPreview() {
                 template = Template.SimpleTemplate("template"),
                 zoomFactor = 100
             ),
-            onClickOpenUrl = {}
+            onClickOpenUrl = {},
+            onRetryContent = {}
         )
     }
 }
