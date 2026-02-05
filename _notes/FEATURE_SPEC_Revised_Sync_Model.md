@@ -422,11 +422,13 @@ It is a **refactor**, not a rewrite, and leverages existing infrastructure while
 
 ### 13.2 Scope of Change
 
-* Introduce a dedicated **BookmarkSyncWorker** (metadata only).
+* Introduce a dedicated **BookmarkSyncWorker** (metadata only), **or** repurpose **FullSyncWorker** as metadata-only until the rename lands.
 * Update existing **FullSyncWorker** usages:
 
   * Metadata sync only, or
   * Replace call sites with BookmarkSyncWorker.
+* Preserve the **upsert (IGNORE + UPDATE)** strategy for bookmarks to avoid cascading deletes of stored article content.
+* Ensure **deleted bookmarks are removed explicitly** by comparing remote IDs and deleting missing locals on every metadata sync.
 * Keep existing interval configuration (app-open periodic sync).
 * Ensure pull-to-refresh and app-open sync perform metadata-only updates.
 
@@ -444,7 +446,12 @@ It is a **refactor**, not a rewrite, and leverages existing infrastructure while
 
    * Ensure bookmark sync cannot enqueue LoadArticleWorker or batch loaders.
    * Verify no implicit content fetch in sync use cases.
-4. **Wire triggers**
+4. **Always perform deletion detection during metadata sync**
+
+   * Fetch the full set of remote IDs (paging as needed).
+   * Remove local bookmarks missing from the remote set.
+   * Do not rely on REPLACE-based upserts to handle deletions.
+5. **Wire triggers**
 
    * Login sync -> BookmarkSyncWorker
    * App open periodic sync -> BookmarkSyncWorker

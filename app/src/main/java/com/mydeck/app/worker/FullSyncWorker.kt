@@ -27,7 +27,6 @@ import com.mydeck.app.domain.usecase.LoadBookmarksUseCase
 import com.mydeck.app.io.prefs.SettingsDataStore
 import kotlinx.datetime.Clock
 import timber.log.Timber
-import kotlin.time.Duration.Companion.hours
 
 @HiltWorker
 class FullSyncWorker @AssistedInject constructor(
@@ -40,25 +39,9 @@ class FullSyncWorker @AssistedInject constructor(
     override suspend fun doWork(): Result {
         try {
             Timber.d("Start Work")
-            val lastSyncTimestamp = settingsDataStore.getLastSyncTimestamp()
-            val lastFullSyncTimestamp = settingsDataStore.getLastFullSyncTimestamp()
-
-            // Step 1: Determine if we need a full sync for deletion detection
-            val needsFullSync = lastFullSyncTimestamp == null ||
-                Clock.System.now() - lastFullSyncTimestamp > FULL_SYNC_INTERVAL
-
-            var syncResult = if (needsFullSync) {
-                Timber.d("Performing full sync for deletion detection")
-                val result = bookmarkRepository.performFullSync()
-                if (result is SyncResult.Success) {
-                    settingsDataStore.saveLastFullSyncTimestamp(Clock.System.now())
-                }
-                result
-            } else {
-                // Skip deletion detection - we did a full sync recently
-                Timber.d("Skipping deletion check (last full sync was recent)")
-                SyncResult.Success(countDeleted = 0)
-            }
+            // Step 1: Perform full sync for deletion detection
+            Timber.d("Performing full sync for deletion detection")
+            val syncResult = bookmarkRepository.performFullSync()
 
             // Check if deletion sync failed
             when (syncResult) {
@@ -75,9 +58,9 @@ class FullSyncWorker @AssistedInject constructor(
                 }
             }
 
-            // Step 2: Fetch updated/new bookmarks (this also triggers article content loading)
+            // Step 2: Fetch updated/new bookmarks (metadata-only)
             Timber.d("Fetching updated bookmarks")
-            val loadResult = loadBookmarksUseCase.execute()
+            val loadResult = loadBookmarksUseCase.execute(allowContentSync = false)
 
             val workResult = when (loadResult) {
                 is LoadBookmarksUseCase.UseCaseResult.Error -> {
@@ -210,6 +193,5 @@ class FullSyncWorker @AssistedInject constructor(
         const val OUTPUT_DATA_COUNT = "count"
         const val NOTIFICATION_ID = 0
         const val INPUT_IS_MANUAL_SYNC = "is_manual_sync"
-        val FULL_SYNC_INTERVAL = 24.hours  // Run full sync once per day
     }
 }

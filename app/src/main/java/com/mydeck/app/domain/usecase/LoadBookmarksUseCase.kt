@@ -30,7 +30,11 @@ class LoadBookmarksUseCase @Inject constructor(
     }
 
     @Transaction
-    suspend fun execute(pageSize: Int = DEFAULT_PAGE_SIZE, initialOffset: Int = 0): UseCaseResult<Unit> {
+    suspend fun execute(
+        pageSize: Int = DEFAULT_PAGE_SIZE,
+        initialOffset: Int = 0,
+        allowContentSync: Boolean = false
+    ): UseCaseResult<Unit> {
         Timber.d("execute(pageSize=$pageSize, initialOffset=$initialOffset")
 
         var offset = initialOffset
@@ -81,8 +85,10 @@ class LoadBookmarksUseCase @Inject constructor(
                 }
             }
 
-            // Enqueue batch article loader after bookmark sync completes
-            enqueueBatchArticleLoader()
+            if (allowContentSync) {
+                // Enqueue batch article loader after bookmark sync completes
+                enqueueBatchArticleLoader()
+            }
 
             return UseCaseResult.Success(Unit)
         } catch (e: Exception) {

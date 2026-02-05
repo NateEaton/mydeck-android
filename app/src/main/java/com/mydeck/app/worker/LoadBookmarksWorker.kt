@@ -50,7 +50,7 @@ class LoadBookmarksWorker @AssistedInject constructor(
             }
         }
 
-        return when (val result = loadBookmarksUseCase.execute()) {
+        return when (val result = loadBookmarksUseCase.execute(allowContentSync = false)) {
             is LoadBookmarksUseCase.UseCaseResult.Success -> {
                 Result.success()
             }
