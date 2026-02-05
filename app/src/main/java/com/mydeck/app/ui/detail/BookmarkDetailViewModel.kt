@@ -6,8 +6,10 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import com.mydeck.app.domain.BookmarkRepository
+import com.mydeck.app.domain.model.Bookmark
 import com.mydeck.app.domain.model.Template
 import com.mydeck.app.domain.model.Theme
+import com.mydeck.app.domain.usecase.LoadArticleUseCase
 import com.mydeck.app.domain.usecase.UpdateBookmarkUseCase
 import com.mydeck.app.io.AssetLoader
 import com.mydeck.app.io.prefs.SettingsDataStore
@@ -23,6 +25,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -41,6 +44,7 @@ import kotlin.io.encoding.ExperimentalEncodingApi
 class BookmarkDetailViewModel @Inject constructor(
     private val updateBookmarkUseCase: UpdateBookmarkUseCase,
     private val bookmarkRepository: BookmarkRepository,
+    private val loadArticleUseCase: LoadArticleUseCase,
     private val assetLoader: AssetLoader,
     private val settingsDataStore: SettingsDataStore,
     savedStateHandle: SavedStateHandle
@@ -81,6 +85,7 @@ class BookmarkDetailViewModel @Inject constructor(
     private var initialReadProgress = 0
     private var bookmarkType: com.mydeck.app.domain.model.Bookmark.Type? = null
     private var isReadLocked = false // true when article has been completed; disables scroll tracking
+    private var contentFetchJob: Job? = null
 
     // Pending deletion state (for undo functionality)
     // Uses a separate scope so deletion survives ViewModel clearing (e.g. user navigates back)
@@ -120,6 +125,14 @@ class BookmarkDetailViewModel @Inject constructor(
                     }
                 } catch (e: Exception) {
                     Timber.e(e, "Error initializing bookmark progress: ${e.message}")
+                }
+            }
+
+            viewModelScope.launch {
+                bookmarkRepository.observeBookmark(bookmarkId).collect { bookmark ->
+                    if (bookmark != null) {
+                        maybeFetchContent(bookmark)
+                    }
                 }
             }
         }
@@ -207,6 +220,30 @@ class BookmarkDetailViewModel @Inject constructor(
             started = SharingStarted.WhileSubscribed(5000),
             initialValue = UiState.Loading
         )
+
+    private fun maybeFetchContent(bookmark: Bookmark) {
+        if (bookmark.type != Bookmark.Type.Article) {
+            return
+        }
+        if (!bookmark.articleContent.isNullOrBlank()) {
+            return
+        }
+        if (bookmark.contentStatus == Bookmark.ContentStatus.PERMANENT_NO_CONTENT ||
+            bookmark.contentStatus == Bookmark.ContentStatus.DOWNLOADED
+        ) {
+            return
+        }
+        if (contentFetchJob?.isActive == true) {
+            return
+        }
+        contentFetchJob = viewModelScope.launch {
+            try {
+                loadArticleUseCase.execute(bookmark.id)
+            } catch (e: Exception) {
+                Timber.w(e, "Failed to load article content [id=${bookmark.id}]")
+            }
+        }
+    }
 
     fun onToggleFavorite(bookmarkId: String, isFavorite: Boolean) {
         updateBookmark {
