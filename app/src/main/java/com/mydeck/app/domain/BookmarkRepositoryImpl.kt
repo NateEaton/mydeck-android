@@ -670,7 +670,7 @@ class BookmarkRepositoryImpl @Inject constructor(
 
                     // Update locally
                     val updatedBookmark = bookmark.copy(labels = updatedLabels)
-                    bookmarkDao.insertBookmark(updatedBookmark)
+                    bookmarkDao.upsertBookmark(updatedBookmark)
 
                     // Update on server - use addLabels and removeLabels
                     try {
@@ -720,7 +720,7 @@ class BookmarkRepositoryImpl @Inject constructor(
 
                     // Update locally
                     val updatedBookmark = bookmark.copy(labels = updatedLabels)
-                    bookmarkDao.insertBookmark(updatedBookmark)
+                    bookmarkDao.upsertBookmark(updatedBookmark)
 
                     // Update on server - use removeLabels
                     try {
