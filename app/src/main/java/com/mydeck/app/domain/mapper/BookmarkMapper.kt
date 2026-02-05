@@ -192,8 +192,10 @@ private fun resolveContentStatus(
     hasArticle: Boolean,
     type: String
 ): Bookmark.ContentStatus {
-    return if (!hasArticle || type.equals("photo", true) || type.equals("video", true)) {
+    return if (type.equals("photo", true) || type.equals("video", true)) {
         Bookmark.ContentStatus.PERMANENT_NO_CONTENT
+    } else if (!hasArticle) {
+        Bookmark.ContentStatus.NOT_ATTEMPTED
     } else {
         Bookmark.ContentStatus.NOT_ATTEMPTED
     }
@@ -203,7 +205,7 @@ private fun resolveContentFailureReason(
     hasArticle: Boolean,
     type: String
 ): String? {
-    return if (!hasArticle || type.equals("photo", true) || type.equals("video", true)) {
+    return if (type.equals("photo", true) || type.equals("video", true)) {
         "media"
     } else {
         null
