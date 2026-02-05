@@ -1,9 +1,11 @@
 package com.mydeck.app.domain
 
 import androidx.work.WorkManager
+import androidx.work.WorkRequest
 import com.mydeck.app.io.db.dao.BookmarkDao
 import com.mydeck.app.io.rest.ReadeckApi
 import com.mydeck.app.io.rest.model.BookmarkDto
+import com.mydeck.app.io.rest.model.CreateBookmarkDto
 import com.mydeck.app.io.rest.model.EditBookmarkDto
 import com.mydeck.app.io.rest.model.EditBookmarkErrorDto
 import com.mydeck.app.io.rest.model.EditBookmarkResponseDto
@@ -454,6 +456,83 @@ class BookmarkRepositoryImplTest {
         // Assert
         assertTrue(result is BookmarkRepository.SyncResult.Error)
         assertTrue((result as BookmarkRepository.SyncResult.Error).errorMessage.contains("Delta sync disabled"))
+    }
+
+    @Test
+    fun `createBookmark successful`() = runTest {
+        // Arrange
+        val title = "Test Bookmark"
+        val url = "https://example.com"
+        val labels = listOf("test", "bookmark")
+        val bookmarkId = "new-bookmark-id"
+        
+        val createBookmarkDto = CreateBookmarkDto(labels = labels, title = title, url = url)
+        val headers = Headers.Builder()
+            .add(ReadeckApi.Header.BOOKMARK_ID, bookmarkId)
+            .build()
+        coEvery { readeckApi.createBookmark(createBookmarkDto) } returns Response.success(StatusMessageDto(200, "Created"), headers)
+        
+        val bookmarkResponse = Response.success(bookmarkDto.copy(
+            id = bookmarkId,
+            state = 1, // LOADED
+            hasArticle = true
+        ))
+        coEvery { readeckApi.getBookmarkById(bookmarkId) } returns bookmarkResponse
+        
+        // Act
+        val result = bookmarkRepositoryImpl.createBookmark(title, url, labels)
+        
+        // Assert
+        assertEquals(bookmarkId, result)
+        coVerify { readeckApi.createBookmark(createBookmarkDto) }
+        coVerify { readeckApi.getBookmarkById(bookmarkId) }
+        coVerify { bookmarkDao.insertBookmarksWithArticleContent(any()) }
+        coVerify { workManager.enqueue(any<WorkRequest>()) }
+    }
+
+    @Test
+    fun `refreshBookmarkFromApi successful`() = runTest {
+        // Arrange
+        val bookmarkId = "test-bookmark-id"
+        val updatedBookmark = bookmarkDto.copy(title = "Updated Title")
+        val response = Response.success(updatedBookmark)
+        
+        coEvery { readeckApi.getBookmarkById(bookmarkId) } returns response
+        
+        // Act
+        bookmarkRepositoryImpl.refreshBookmarkFromApi(bookmarkId)
+        
+        // Assert
+        coVerify { readeckApi.getBookmarkById(bookmarkId) }
+        coVerify { bookmarkDao.insertBookmarksWithArticleContent(any()) }
+    }
+
+    @Test
+    fun `updateReadProgress successful`() = runTest {
+        // Arrange
+        val bookmarkId = "test-bookmark-id"
+        val progress = 75
+        val response = Response.success(editBookmarkResponseDto)
+        
+        coEvery { 
+            readeckApi.editBookmark(
+                id = bookmarkId,
+                body = EditBookmarkDto(readProgress = progress)
+            )
+        } returns response
+        
+        // Act
+        val result = bookmarkRepositoryImpl.updateReadProgress(bookmarkId, progress)
+        
+        // Assert
+        assertTrue(result is BookmarkRepository.UpdateResult.Success)
+        coVerify { 
+            readeckApi.editBookmark(
+                id = bookmarkId,
+                body = EditBookmarkDto(readProgress = progress)
+            )
+        }
+        coVerify { bookmarkDao.updateReadProgress(bookmarkId, progress) }
     }
 
     private val editBookmarkResponseDto = EditBookmarkResponseDto(

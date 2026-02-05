@@ -22,5 +22,5 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
       # TEMPORARILY DISABLED - Tests need to be updated
-      # - name: Run Unit-Tests with Gradle
-      #   run: ./gradlew testGithubReleaseDebugUnitTest
+      - name: Run tests
+        run: ./gradlew testGithubReleaseDebugUnitTest testGithubSnapshotDebugUnitTest
