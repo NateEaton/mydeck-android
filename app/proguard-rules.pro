@@ -22,3 +22,7 @@
 
 # Keep all network DTOs to prevent R8/ProGuard from stripping them
 -keep class com.mydeck.app.io.rest.model.** { *; }
+
+# Helpful for Retrofit / JSON reflection frameworks
+-keepattributes *Annotation*
+-keepattributes Signature

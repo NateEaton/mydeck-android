@@ -1,5 +1,4 @@
 plugins {
-
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
@@ -15,9 +14,7 @@ android {
     compileSdk = 35
 
     dependenciesInfo {
-        // Disables dependency metadata when building APKs.
         includeInApk = false
-        // Disables dependency metadata when building Android App Bundles.
         includeInBundle = false
     }
 
@@ -32,30 +29,24 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         buildConfigField("long", "BUILD_TIME", "${System.currentTimeMillis()}L")
-
-        javaCompileOptions {
-            annotationProcessorOptions {
-                arguments["room.schemaLocation"] = "$projectDir/schemas".toString()
-            }
-        }
     }
+
     signingConfigs {
         create("release") {
-            val appKeystoreFile = System.getenv()["KEYSTORE"] ?: "none"
-            val appKeyAlias = System.getenv()["KEY_ALIAS"]
-            val appKeystorePassword = System.getenv()["KEYSTORE_PASSWORD"]
-            val appKeyPassword = System.getenv()["KEY_PASSWORD"]
-
-            keyAlias = appKeyAlias
-            storeFile = file(appKeystoreFile)
-            storePassword = appKeystorePassword
-            keyPassword = appKeyPassword
+            val appKeystoreFile = System.getenv("KEYSTORE")
+            if (appKeystoreFile != null && file(appKeystoreFile).exists()) {
+                storeFile = file(appKeystoreFile)
+                storePassword = System.getenv("KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("KEY_ALIAS")
+                keyPassword = System.getenv("KEY_PASSWORD")
+            }
             enableV1Signing = true
             enableV2Signing = true
             enableV3Signing = true
             enableV4Signing = true
         }
     }
+
     buildTypes {
         release {
             isMinifyEnabled = true
@@ -71,61 +62,73 @@ android {
             isShrinkResources = false
             isDebuggable = true
         }
-        applicationVariants.all {
-            outputs.all {
-                if (outputFile != null && (outputFile.name.endsWith(".apk") || outputFile.name.endsWith(".aab"))) {
-                    val extension = if (outputFile.name.endsWith(".apk")) "apk" else "aab"
-                    val newName = "MyDeck-${versionName}.${extension}"
-                    (this as? com.android.build.gradle.internal.api.BaseVariantOutputImpl)?.outputFileName = newName
-                }
-            }
-        }
     }
+
     flavorDimensions += "version"
     productFlavors {
         create("githubSnapshot") {
             dimension = "version"
             applicationIdSuffix = ".snapshot"
-            versionName = System.getenv()["SNAPSHOT_VERSION_NAME"] ?: "${defaultConfig.versionName}-snapshot"
-            versionCode = System.getenv()["SNAPSHOT_VERSION_CODE"]?.toInt() ?: defaultConfig.versionCode
-            signingConfig = signingConfigs.getByName("release")
+            versionName = System.getenv("SNAPSHOT_VERSION_NAME") ?: "${defaultConfig.versionName}-snapshot"
+            versionCode = System.getenv("SNAPSHOT_VERSION_CODE")?.toInt() ?: defaultConfig.versionCode
+            if (signingConfigs.getByName("release").storeFile != null) {
+                signingConfig = signingConfigs.getByName("release")
+            }
         }
         create("githubRelease") {
             dimension = "version"
-            versionName = System.getenv()["RELEASE_VERSION_NAME"] ?: defaultConfig.versionName
-            versionCode = System.getenv()["RELEASE_VERSION_CODE"]?.toInt() ?: defaultConfig.versionCode
-            signingConfig = signingConfigs.getByName("release")
+            versionName = System.getenv("RELEASE_VERSION_NAME") ?: defaultConfig.versionName
+            versionCode = System.getenv("RELEASE_VERSION_CODE")?.toInt() ?: defaultConfig.versionCode
+            if (signingConfigs.getByName("release").storeFile != null) {
+                signingConfig = signingConfigs.getByName("release")
+            }
         }
     }
+
     buildFeatures {
         buildConfig = true
+        compose = true
+        viewBinding = true
     }
+
     compileOptions {
         isCoreLibraryDesugaringEnabled = true
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
+
     kotlinOptions {
         jvmTarget = "17"
     }
-    buildFeatures {
-        compose = true
-        viewBinding = true
-    }
+
     room {
         schemaDirectory("$projectDir/schemas")
     }
+
     testOptions {
         unitTests {
             isIncludeAndroidResources = true
         }
     }
+
     sourceSets {
         getByName("debug").assets.srcDirs(files("$projectDir/schemas"))
     }
+
     lint {
-        // baseline = file("lint-baseline.xml")
-        disable += setOf("MissingTranslation", "UnusedResources", "IconXmlAndPng", "IconDuplicates", "EnsureInitializerMetadata", "ExtraTranslation")
+        abortOnError = true
+        baseline = file("lint-baseline.xml")
+    }
+
+    applicationVariants.all {
+        val variant = this
+        outputs.all {
+            val output = this
+            if (output is com.android.build.gradle.internal.api.ApkVariantOutputImpl) {
+                val newName = "MyDeck-${variant.versionName}.apk"
+                output.outputFileName = newName
+            }
+        }
     }
 }
 
@@ -142,6 +145,7 @@ dependencies {
     implementation(libs.androidx.junit)
     implementation(libs.androidx.ui.test.junit4.android)
     implementation(libs.androidx.browser)
+    
     // hilt
     ksp(libs.dagger.hilt.android.compiler)
     ksp(libs.androidx.hilt.compiler)
@@ -165,18 +169,21 @@ dependencies {
     implementation(libs.androidx.navigation.fragment.ktx)
     implementation(libs.androidx.navigation.ui.ktx)
     implementation(libs.androidx.navigation.compose)
-    annotationProcessor(libs.androidx.room.compiler)
+    
     testImplementation(libs.junit)
     testImplementation(libs.mockk)
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.androidx.room.testing)
     testImplementation(libs.robolectric)
+    
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.ui.test.junit4)
+    
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
+    
     implementation(libs.kotlin.serialization.json)
     implementation(libs.kotlinx.datetime)
     ksp(libs.androidx.room.compiler)
