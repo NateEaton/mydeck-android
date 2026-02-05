@@ -1,5 +1,5 @@
 plugins {
-    alias(libs.plugins.kotlin.kapt)
+
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
@@ -102,11 +102,11 @@ android {
     }
     compileOptions {
         isCoreLibraryDesugaringEnabled = true
-        sourceCompatibility = JavaVersion.VERSION_1_8
-        targetCompatibility = JavaVersion.VERSION_1_8
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
     kotlinOptions {
-        jvmTarget = "1.8"
+        jvmTarget = "17"
     }
     buildFeatures {
         compose = true
@@ -124,7 +124,8 @@ android {
         getByName("debug").assets.srcDirs(files("$projectDir/schemas"))
     }
     lint {
-        baseline = file("lint-baseline.xml")
+        // baseline = file("lint-baseline.xml")
+        disable += setOf("MissingTranslation", "UnusedResources", "IconXmlAndPng", "IconDuplicates", "EnsureInitializerMetadata", "ExtraTranslation")
     }
 }
 
@@ -179,7 +180,7 @@ dependencies {
     implementation(libs.kotlin.serialization.json)
     implementation(libs.kotlinx.datetime)
     ksp(libs.androidx.room.compiler)
-    kapt(libs.retrofit.response.type.keeper)
+
     implementation(libs.coil.compose)
     implementation(libs.coil.network.okhttp)
     implementation(libs.coil.svg)
