@@ -410,3 +410,313 @@ This design:
 
 It is a **refactor**, not a rewrite, and leverages existing infrastructure while significantly improving clarity, efficiency, and user trust.
 
+---
+
+## 13. Phase 1 Implementation Plan (Bookmark Metadata Sync Isolation)
+
+### 13.1 Goals
+
+* Ship **metadata-only** bookmark sync as a standalone worker.
+* Ensure **no content fetch** is triggered during bookmark sync.
+* Preserve current trigger points and intervals for metadata sync.
+
+### 13.2 Scope of Change
+
+* Introduce a dedicated **BookmarkSyncWorker** (metadata only).
+* Update existing **FullSyncWorker** usages:
+
+  * Metadata sync only, or
+  * Replace call sites with BookmarkSyncWorker.
+* Keep existing interval configuration (app-open periodic sync).
+* Ensure pull-to-refresh and app-open sync perform metadata-only updates.
+
+### 13.3 Implementation Steps
+
+1. **Create BookmarkSyncWorker**
+
+   * Keep API surface minimal: metadata fetch, insert/update/delete only.
+   * Reuse existing sync interval configuration.
+2. **Retire FullSyncWorker in metadata contexts**
+
+   * Replace call sites that only need list updates (app open, pull-to-refresh).
+   * If FullSyncWorker remains for legacy reasons, guard it to run metadata-only.
+3. **Guard content fetch paths**
+
+   * Ensure bookmark sync cannot enqueue LoadArticleWorker or batch loaders.
+   * Verify no implicit content fetch in sync use cases.
+4. **Wire triggers**
+
+   * Login sync -> BookmarkSyncWorker
+   * App open periodic sync -> BookmarkSyncWorker
+   * Pull-to-refresh -> BookmarkSyncWorker
+
+### 13.4 Expected Behavior
+
+* On login, app open, pull-to-refresh:
+
+  * Fetch bookmark IDs + metadata
+  * Insert new bookmarks
+  * Remove deleted bookmarks
+  * Update metadata fields only
+* No content fetch as part of metadata sync, regardless of settings.
+
+### 13.5 Out of Scope (Phase 1)
+
+* Content policy evaluation (Automatic / Manual / Date Range)
+* Content dirty/permanent-no-content tracking
+* Reading view on-demand fetch changes
+* Settings UI changes
+* Sync status reporting changes
+
+### 13.6 Acceptance Checklist
+
+* Metadata sync completes without triggering any content download.
+* Existing periodic sync interval continues to schedule metadata-only work.
+* Pull-to-refresh and app-open sync still update bookmark lists.
+
+---
+
+## 14. Phase 2 Implementation Plan (Content State Tracking)
+
+### 14.1 Goals
+
+* Introduce explicit content states: downloaded, dirty (retryable), permanent no-content.
+* Ensure content immutability: no re-fetch once downloaded.
+* Enable reliable retry flows based on dirty state.
+
+### 14.2 Scope of Change
+
+* Extend bookmark storage to track content state and failure reason.
+* Map server responses to permanent no-content categories.
+* Update content download flows to set dirty on transient failures.
+
+### 14.3 Implementation Steps
+
+1. **Define content state model**
+
+   * Add fields for content presence, dirty flag, and permanent-no-content reason.
+   * Map to existing Readeck flags where possible.
+2. **Update content fetch pipeline**
+
+   * On success: mark content downloaded (immutable).
+   * On transient failure: mark dirty.
+   * On permanent failure: mark permanent no-content with reason.
+3. **Adjust retry logic**
+
+   * Allow retries only for dirty content.
+   * Block retries for permanent no-content.
+4. **Backfill for existing data**
+
+   * Default existing downloaded content to downloaded state.
+   * Leave unknown/no content as unattempted.
+
+### 14.4 Out of Scope (Phase 2)
+
+* Content sync policy evaluation
+* Settings UI changes
+* Reading view UX changes
+* Sync status reporting
+
+### 14.5 Acceptance Checklist
+
+* Content download outcomes correctly populate state fields.
+* Dirty content is retryable; permanent no-content is not.
+* Downloaded content is never re-fetched.
+
+---
+
+## 15. Phase 3 Implementation Plan (Content Sync Policy Layer)
+
+### 15.1 Goals
+
+* Centralize policy evaluation for Automatic, Manual, and Date Range modes.
+* Apply Wi-Fi and battery constraints consistently.
+* Prepare for permission prompts in later phases.
+
+### 15.2 Scope of Change
+
+* Add a policy evaluator (single source of truth).
+* Route batch content downloads through policy checks.
+* Store selected policy and date range parameters.
+
+### 15.3 Implementation Steps
+
+1. **Create policy evaluator**
+
+   * Inputs: user settings, connectivity, battery saver, policy mode.
+   * Outputs: allowed/blocked with reason.
+2. **Wire policy into batch content flows**
+
+   * Gate any background or bulk fetch through evaluator.
+3. **Add date range parameters**
+
+   * Persist selected date range for download requests.
+4. **Add policy-specific logging**
+
+   * Record why content fetch is skipped (for later UI surfacing).
+
+### 15.4 Out of Scope (Phase 3)
+
+* Reading view UX changes
+* Settings UI implementation
+* Sync status reporting
+* Permission prompts
+
+### 15.5 Acceptance Checklist
+
+* All content batch fetches are blocked/allowed by policy.
+* Wi-Fi and battery constraints are enforced consistently.
+* Date range parameters are stored for later download execution.
+
+---
+
+## 16. Phase 4 Implementation Plan (Reading View Fetch + Retry)
+
+### 16.1 Goals
+
+* On-demand content fetch when opening a bookmark.
+* Show retry affordance when fetch fails.
+* Switch to Original view when content is permanently unavailable.
+
+### 16.2 Scope of Change
+
+* Update reading view load flow to consult content state.
+* Add retry trigger that respects policy constraints.
+* Provide fallback to WebView on permanent no-content.
+
+### 16.3 Implementation Steps
+
+1. **Gate reading view load**
+
+   * If content present: render article view.
+   * If no content: attempt fetch (subject to constraints).
+2. **Handle fetch failures**
+
+   * Mark dirty and expose retry UI.
+   * Record failure reason.
+3. **Handle permanent no-content**
+
+   * Switch to Original view automatically.
+   * Disable retry for permanent failures.
+
+### 16.4 Out of Scope (Phase 4)
+
+* Settings UI changes
+* Sync status reporting
+* Background date range download flow
+
+### 16.5 Acceptance Checklist
+
+* Opening a bookmark fetches missing content once.
+* Failed fetches show retry with constraints respected.
+* Permanent no-content switches to Original view.
+
+---
+
+## 17. Phase 5 Implementation Plan (Settings UX + Sync Status)
+
+### 17.1 Goals
+
+* Implement the revised Settings → Sync UI.
+* Provide visible sync status metrics for bookmarks and content.
+
+### 17.2 Scope of Change
+
+* Add sections for Bookmark Sync, Content Sync policy, and Constraints.
+* Add date range picker and Download button.
+* Add sync status block with counts.
+
+### 17.3 Implementation Steps
+
+1. **Settings UI wiring**
+
+   * Bookmark sync interval selection.
+   * Content sync policy radio group.
+2. **Date range UI**
+
+   * Persist date inputs and allow Download action.
+3. **Constraints toggles**
+
+   * Wi-Fi only and battery saver settings.
+4. **Sync status block**
+
+   * Hook to live metrics (bookmark counts, content states).
+
+### 17.4 Out of Scope (Phase 5)
+
+* Permission prompt flows
+* Offline indicator
+
+### 17.5 Acceptance Checklist
+
+* Settings UI reflects saved policy and constraint values.
+* Download action is present for Date Range mode.
+* Sync status metrics render and update.
+
+---
+
+## 18. Phase 6 Implementation Plan (Permissions + Offline Indicator)
+
+### 18.1 Goals
+
+* Prompt for background permission only when required.
+* Surface offline/online indicator in navigation drawer.
+
+### 18.2 Scope of Change
+
+* Add permission prompt flow for Automatic and Date Range download.
+* Add offline indicator with long-press tooltip.
+
+### 18.3 Implementation Steps
+
+1. **Permission gating**
+
+   * Prompt on Automatic selection and Date Range download.
+   * Ensure prompt only once per scenario.
+2. **Offline indicator UI**
+
+   * Icon-only in drawer header.
+   * Tooltip text for offline/unreachable state.
+
+### 18.4 Out of Scope (Phase 6)
+
+* Migration cleanup tasks
+
+### 18.5 Acceptance Checklist
+
+* Permission prompts appear only in specified scenarios.
+* Offline indicator updates based on connectivity and server reachability.
+
+---
+
+## 19. Phase 7 Implementation Plan (Migration + Cleanup)
+
+### 19.1 Goals
+
+* Remove legacy sync assumptions.
+* Ensure compatibility for existing users and settings.
+
+### 19.2 Scope of Change
+
+* Remove manual sync button (if still present).
+* Migrate any stored settings to new policy model.
+* Validate no re-fetch of existing content.
+
+### 19.3 Implementation Steps
+
+1. **Cleanup legacy UI**
+
+   * Remove or hide manual Sync Now button.
+2. **Settings migration**
+
+   * Map existing intervals to bookmark sync frequency.
+   * Set content policy default for existing users.
+3. **Content migration validation**
+
+   * Confirm existing downloaded content remains intact.
+
+### 19.4 Acceptance Checklist
+
+* Manual Sync Now is removed or hidden.
+* Existing settings map correctly to new model.
+* No re-fetch of previously downloaded content occurs.
