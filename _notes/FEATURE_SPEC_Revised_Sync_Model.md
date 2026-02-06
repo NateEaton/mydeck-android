@@ -1418,3 +1418,13 @@ Reuse the existing `NotificationRationaleDialog` pattern from `SyncSettingsScree
 <string name="background_sync_rationale_title">Background Downloads</string>
 <string name="background_sync_rationale_body">Content downloads may continue while the app is in the background. This allows your bookmarks to be ready for offline reading.</string>
 ```
+
+## Appendix C: Post-Implementation Cleanup Notes
+
+The following minor items were identified during Phase 2 code review and should be addressed in a separate cleanup pass:
+
+1. **Remove `@Transaction` from `LoadBookmarksUseCase.execute()`** — This annotation holds a database transaction open for the duration of the method, which includes paginated API calls in a loop. The transaction could be held for seconds or minutes. Since the method doesn't require atomicity across the full loop (each page is independently inserted), the annotation should be removed.
+
+2. **Remove dead `isContentLoading` variable in `BookmarkDetailScreen.kt`** — Line 145 computes `val isContentLoading = contentLoadState is ContentLoadState.Loading` but the variable is never referenced. It was likely intended to influence the initial `contentMode` selection but was never wired up. Remove it to avoid confusion.
+
+3. **Add parameter validation logging to `DateRangeContentSyncWorker`** — The worker accepts `fromEpoch`/`toEpoch` from input data with a default of `0` but doesn't log a warning when both are 0 (which would indicate the caller forgot to set params). The query would return nothing so it fails safely, but a log warning would aid debugging.
