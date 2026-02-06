@@ -57,7 +57,10 @@ data class BookmarkEntity(
     @Embedded(prefix = "props_")
     val props: ResourceEntity,
     @Embedded(prefix = "thumbnail_")
-    val thumbnail: ImageResourceEntity
+    val thumbnail: ImageResourceEntity,
+
+    val contentState: ContentState = ContentState.NOT_ATTEMPTED,
+    val contentFailureReason: String? = null
 ) {
     enum class Type(val value: String) {
         ARTICLE("article"),
@@ -68,5 +71,11 @@ data class BookmarkEntity(
         LOADED(0),
         ERROR(1),
         LOADING(2)
+    }
+    enum class ContentState(val value: Int) {
+        NOT_ATTEMPTED(0),
+        DOWNLOADED(1),
+        DIRTY(2),
+        PERMANENT_NO_CONTENT(3)
     }
 }

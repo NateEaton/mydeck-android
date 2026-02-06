@@ -36,7 +36,9 @@ data class Bookmark(
     val image: ImageResource,
     val log: Resource,
     val props: Resource,
-    val thumbnail: ImageResource
+    val thumbnail: ImageResource,
+    val contentState: ContentState = ContentState.NOT_ATTEMPTED,
+    val contentFailureReason: String? = null
 ) {
     fun isRead(): Boolean {
         return readProgress == 100
@@ -58,5 +60,11 @@ data class Bookmark(
         LOADED,
         ERROR,
         LOADING
+    }
+    enum class ContentState {
+        NOT_ATTEMPTED,
+        DOWNLOADED,
+        DIRTY,
+        PERMANENT_NO_CONTENT
     }
 }

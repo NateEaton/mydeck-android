@@ -55,7 +55,14 @@ fun Bookmark.toEntity(): BookmarkWithArticleContent = BookmarkWithArticleContent
         image = image.toEntity(),
         log = log.toEntity(),
         props = props.toEntity(),
-        thumbnail = thumbnail.toEntity()
+        thumbnail = thumbnail.toEntity(),
+        contentState = when (contentState) {
+            Bookmark.ContentState.NOT_ATTEMPTED -> BookmarkEntity.ContentState.NOT_ATTEMPTED
+            Bookmark.ContentState.DOWNLOADED -> BookmarkEntity.ContentState.DOWNLOADED
+            Bookmark.ContentState.DIRTY -> BookmarkEntity.ContentState.DIRTY
+            Bookmark.ContentState.PERMANENT_NO_CONTENT -> BookmarkEntity.ContentState.PERMANENT_NO_CONTENT
+        },
+        contentFailureReason = contentFailureReason
     ),
     articleContent = articleContent?.let { ArticleContentEntity(bookmarkId = id, content = it) }
 )
@@ -112,7 +119,14 @@ fun BookmarkEntity.toDomain(): Bookmark = Bookmark(
     log = log.toDomain(),
     props = props.toDomain(),
     thumbnail = thumbnail.toDomain(),
-    articleContent = null // Article content will be fetched separately
+    articleContent = null, // Article content will be fetched separately
+    contentState = when (contentState) {
+        BookmarkEntity.ContentState.NOT_ATTEMPTED -> Bookmark.ContentState.NOT_ATTEMPTED
+        BookmarkEntity.ContentState.DOWNLOADED -> Bookmark.ContentState.DOWNLOADED
+        BookmarkEntity.ContentState.DIRTY -> Bookmark.ContentState.DIRTY
+        BookmarkEntity.ContentState.PERMANENT_NO_CONTENT -> Bookmark.ContentState.PERMANENT_NO_CONTENT
+    },
+    contentFailureReason = contentFailureReason
 )
 
 fun ResourceEntity.toDomain(): Bookmark.Resource = Bookmark.Resource(
@@ -169,7 +183,9 @@ fun BookmarkDto.toDomain(): Bookmark = Bookmark(
     log = resources.log.toDomain(),
     props = resources.props.toDomain(),
     thumbnail = resources.thumbnail.toDomain(),
-    articleContent = null
+    articleContent = null,
+    contentState = Bookmark.ContentState.NOT_ATTEMPTED,
+    contentFailureReason = null
 )
 
 fun ResourceDto?.toDomain(): Bookmark.Resource = Bookmark.Resource(

@@ -12,7 +12,7 @@ import com.mydeck.app.io.db.model.RemoteBookmarkIdEntity
 
 @Database(
     entities = [BookmarkEntity::class, ArticleContentEntity::class, RemoteBookmarkIdEntity::class],
-    version = 4,
+    version = 5,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
@@ -65,6 +65,32 @@ abstract class MyDeckDatabase : RoomDatabase() {
             override fun migrate(database: SupportSQLiteDatabase) {
                 database.execSQL("ALTER TABLE bookmarks ADD COLUMN embed TEXT")
                 database.execSQL("ALTER TABLE bookmarks ADD COLUMN embedHostname TEXT")
+            }
+        }
+
+        val MIGRATION_4_5 = object : Migration(4, 5) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                // Add content state tracking columns
+                database.execSQL("ALTER TABLE bookmarks ADD COLUMN contentState INTEGER NOT NULL DEFAULT 0")
+                database.execSQL("ALTER TABLE bookmarks ADD COLUMN contentFailureReason TEXT")
+
+                // Backfill: mark bookmarks that already have downloaded content
+                database.execSQL("""
+                    UPDATE bookmarks SET contentState = 1
+                    WHERE EXISTS (SELECT 1 FROM article_content WHERE article_content.bookmarkId = bookmarks.id)
+                """)
+
+                // Backfill: mark non-article types as permanent no content
+                database.execSQL("""
+                    UPDATE bookmarks SET contentState = 3, contentFailureReason = 'Non-article type'
+                    WHERE type IN ('photo', 'video') AND contentState = 0
+                """)
+
+                // Backfill: mark articles with no server-side article as permanent no content
+                database.execSQL("""
+                    UPDATE bookmarks SET contentState = 3, contentFailureReason = 'No article available on server'
+                    WHERE hasArticle = 0 AND type = 'article' AND contentState = 0
+                """)
             }
         }
     }
