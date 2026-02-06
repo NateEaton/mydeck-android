@@ -183,7 +183,10 @@ fun BookmarkDetailScreen(navHostController: NavController, bookmarkId: String?, 
                 },
                 initialReadProgress = viewModel.getInitialReadProgress(),
                 contentMode = contentMode,
-                onContentModeChange = { contentMode = it }
+                onContentModeChange = { contentMode = it },
+                contentLoadState = contentLoadState,
+                onRetryContentFetch = { viewModel.retryContentFetch() },
+                onSwitchToOriginal = { contentMode = ContentMode.ORIGINAL }
             )
             // Consumes a shareIntent and creates the corresponding share dialog
             ShareBookmarkChooser(
@@ -237,7 +240,10 @@ fun BookmarkDetailScreen(
     onScrollProgressChanged: (Int) -> Unit = {},
     initialReadProgress: Int = 0,
     contentMode: ContentMode = ContentMode.READER,
-    onContentModeChange: (ContentMode) -> Unit = {}
+    onContentModeChange: (ContentMode) -> Unit = {},
+    contentLoadState: ContentLoadState = ContentLoadState.Idle,
+    onRetryContentFetch: () -> Unit = {},
+    onSwitchToOriginal: () -> Unit = {}
 ) {
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -298,8 +304,8 @@ fun BookmarkDetailScreen(
             initialReadProgress = initialReadProgress,
             contentMode = contentMode,
             contentLoadState = contentLoadState,
-            onRetryContentFetch = { viewModel.retryContentFetch() },
-            onSwitchToOriginal = { contentMode = ContentMode.ORIGINAL }
+            onRetryContentFetch = onRetryContentFetch,
+            onSwitchToOriginal = onSwitchToOriginal
         )
     }
 }
