@@ -549,8 +549,7 @@ fun BookmarkDetailOriginalWebView(
                                     errorMessage = when (error?.errorCode) {
                                         ERROR_HOST_LOOKUP,
                                         ERROR_CONNECT,
-                                        ERROR_TIMEOUT,
-                                        ERROR_INTERNET_DISCONNECTED -> {
+                                        ERROR_TIMEOUT -> {
                                             context.getString(R.string.webview_error_offline)
                                         }
                                         else -> context.getString(R.string.webview_error_unavailable)
