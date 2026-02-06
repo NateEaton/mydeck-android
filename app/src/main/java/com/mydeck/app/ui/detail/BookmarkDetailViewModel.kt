@@ -6,8 +6,10 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import com.mydeck.app.domain.BookmarkRepository
+import com.mydeck.app.domain.model.Bookmark.ContentState
 import com.mydeck.app.domain.model.Template
 import com.mydeck.app.domain.model.Theme
+import com.mydeck.app.domain.usecase.LoadArticleUseCase
 import com.mydeck.app.domain.usecase.UpdateBookmarkUseCase
 import com.mydeck.app.io.AssetLoader
 import com.mydeck.app.io.prefs.SettingsDataStore
@@ -43,6 +45,7 @@ class BookmarkDetailViewModel @Inject constructor(
     private val bookmarkRepository: BookmarkRepository,
     private val assetLoader: AssetLoader,
     private val settingsDataStore: SettingsDataStore,
+    private val loadArticleUseCase: LoadArticleUseCase,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
     private val _navigationEvent = MutableStateFlow<NavigationEvent?>(null)
@@ -82,6 +85,10 @@ class BookmarkDetailViewModel @Inject constructor(
     private var bookmarkType: com.mydeck.app.domain.model.Bookmark.Type? = null
     private var isReadLocked = false // true when article has been completed; disables scroll tracking
 
+    // Content loading state for on-demand fetch
+    private val _contentLoadState = MutableStateFlow<ContentLoadState>(ContentLoadState.Idle)
+    val contentLoadState: StateFlow<ContentLoadState> = _contentLoadState.asStateFlow()
+
     // Pending deletion state (for undo functionality)
     // Uses a separate scope so deletion survives ViewModel clearing (e.g. user navigates back)
     private val deletionScope = CoroutineScope(Dispatchers.IO)
@@ -116,6 +123,12 @@ class BookmarkDetailViewModel @Inject constructor(
                             // If article was already completed, lock scroll tracking
                             // so scrolling back up doesn't reduce progress from 100
                             isReadLocked = bookmark.isRead()
+
+                            // If no content downloaded, attempt on-demand fetch
+                            if (bookmark.contentState != ContentState.DOWNLOADED &&
+                                bookmark.contentState != ContentState.PERMANENT_NO_CONTENT) {
+                                fetchContentOnDemand(bookmarkId)
+                            }
                         }
                     }
                 } catch (e: Exception) {
@@ -381,6 +394,36 @@ class BookmarkDetailViewModel @Inject constructor(
         val timeZone = TimeZone.currentSystemDefault()
         val epochMillis = localDateTime.toInstant(timeZone).toEpochMilliseconds()
         return dateFormat.format(Date(epochMillis))
+    }
+
+    private fun fetchContentOnDemand(bookmarkId: String) {
+        viewModelScope.launch {
+            _contentLoadState.value = ContentLoadState.Loading
+            val result = loadArticleUseCase.execute(bookmarkId)
+            _contentLoadState.value = when (result) {
+                is LoadArticleUseCase.Result.Success -> ContentLoadState.Loaded
+                is LoadArticleUseCase.Result.AlreadyDownloaded -> ContentLoadState.Loaded
+                is LoadArticleUseCase.Result.TransientFailure -> ContentLoadState.Failed(
+                    reason = result.reason,
+                    canRetry = true
+                )
+                is LoadArticleUseCase.Result.PermanentFailure -> ContentLoadState.Failed(
+                    reason = result.reason,
+                    canRetry = false
+                )
+            }
+        }
+    }
+
+    fun retryContentFetch() {
+        bookmarkId?.let { fetchContentOnDemand(it) }
+    }
+
+    sealed class ContentLoadState {
+        data object Idle : ContentLoadState()
+        data object Loading : ContentLoadState()
+        data object Loaded : ContentLoadState()
+        data class Failed(val reason: String, val canRetry: Boolean) : ContentLoadState()
     }
 
     sealed class NavigationEvent {
