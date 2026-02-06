@@ -2,7 +2,12 @@ package com.mydeck.app.ui.detail
 
 import android.icu.text.MessageFormat
 import android.view.View
+import android.net.http.SslError
+import android.webkit.WebResourceError
+import android.webkit.WebResourceRequest
+import android.webkit.WebResourceResponse
 import android.webkit.WebView
+import android.webkit.WebViewClient
 import androidx.compose.foundation.clickable
 import androidx.compose.ui.draw.alpha
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -142,9 +147,14 @@ fun BookmarkDetailScreen(navHostController: NavController, bookmarkId: String?, 
         is BookmarkDetailViewModel.UiState.Success -> {
             var contentMode by remember(uiState.bookmark.bookmarkId) {
                 mutableStateOf(
-                    if (showOriginal || !uiState.bookmark.hasContent) ContentMode.ORIGINAL
-                    else ContentMode.READER
+                    if (showOriginal) ContentMode.ORIGINAL else ContentMode.READER
                 )
+            }
+            var userSelectedContentMode by remember(uiState.bookmark.bookmarkId) { mutableStateOf(false) }
+            LaunchedEffect(uiState.bookmark.hasContent) {
+                if (!userSelectedContentMode && uiState.bookmark.hasContent) {
+                    contentMode = ContentMode.READER
+                }
             }
 
             LaunchedEffect(key1 = uiState) {
@@ -181,7 +191,10 @@ fun BookmarkDetailScreen(navHostController: NavController, bookmarkId: String?, 
                 },
                 initialReadProgress = viewModel.getInitialReadProgress(),
                 contentMode = contentMode,
-                onContentModeChange = { contentMode = it }
+                onContentModeChange = {
+                    userSelectedContentMode = true
+                    contentMode = it
+                }
             )
             // Consumes a shareIntent and creates the corresponding share dialog
             ShareBookmarkChooser(
@@ -481,6 +494,9 @@ fun BookmarkDetailOriginalWebView(
     uiState: BookmarkDetailViewModel.UiState.Success
 ) {
     var loadingProgress by remember { mutableStateOf(0) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+    var errorDetail by remember { mutableStateOf<String?>(null) }
+    val webViewRef = remember { mutableStateOf<WebView?>(null) }
 
     Column(modifier = modifier) {
         // Show progress indicator while loading
@@ -493,7 +509,18 @@ fun BookmarkDetailOriginalWebView(
             )
         }
 
-        if (!LocalInspectionMode.current) {
+        if (errorMessage != null) {
+            WebViewErrorState(
+                message = errorMessage ?: "",
+                detail = errorDetail,
+                onRetry = {
+                    errorMessage = null
+                    errorDetail = null
+                    loadingProgress = 0
+                    webViewRef.value?.loadUrl(uiState.bookmark.url)
+                }
+            )
+        } else if (!LocalInspectionMode.current) {
             AndroidView(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -510,6 +537,58 @@ fun BookmarkDetailOriginalWebView(
                         isVerticalScrollBarEnabled = false
                         isHorizontalScrollBarEnabled = false
 
+                        webViewRef.value = this
+
+                        webViewClient = object : WebViewClient() {
+                            override fun onReceivedError(
+                                view: WebView?,
+                                request: WebResourceRequest?,
+                                error: WebResourceError?
+                            ) {
+                                if (request?.isForMainFrame == true) {
+                                    errorMessage = when (error?.errorCode) {
+                                        ERROR_HOST_LOOKUP,
+                                        ERROR_CONNECT,
+                                        ERROR_TIMEOUT,
+                                        ERROR_INTERNET_DISCONNECTED -> {
+                                            context.getString(R.string.webview_error_offline)
+                                        }
+                                        else -> context.getString(R.string.webview_error_unavailable)
+                                    }
+                                    errorDetail = error?.description?.toString()
+                                    view?.stopLoading()
+                                    view?.loadUrl("about:blank")
+                                }
+                            }
+
+                            override fun onReceivedHttpError(
+                                view: WebView?,
+                                request: WebResourceRequest?,
+                                errorResponse: WebResourceResponse?
+                            ) {
+                                if (request?.isForMainFrame == true) {
+                                    errorMessage = context.getString(R.string.webview_error_unavailable)
+                                    errorDetail = errorResponse?.reasonPhrase
+                                    view?.stopLoading()
+                                    view?.loadUrl("about:blank")
+                                }
+                            }
+
+                            override fun onReceivedSslError(
+                                view: WebView?,
+                                handler: android.webkit.SslErrorHandler?,
+                                error: SslError?
+                            ) {
+                                if (view != null) {
+                                    errorMessage = context.getString(R.string.webview_error_unavailable)
+                                    errorDetail = error?.toString()
+                                    view.stopLoading()
+                                    view.loadUrl("about:blank")
+                                }
+                                handler?.cancel()
+                            }
+                        }
+
                         // Track loading progress
                         webChromeClient = object : android.webkit.WebChromeClient() {
                             override fun onProgressChanged(view: WebView?, newProgress: Int) {
@@ -522,6 +601,38 @@ fun BookmarkDetailOriginalWebView(
                     }
                 }
             )
+        }
+    }
+}
+
+@Composable
+private fun WebViewErrorState(
+    message: String,
+    detail: String?,
+    onRetry: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            text = message,
+            style = MaterialTheme.typography.titleMedium,
+            textAlign = TextAlign.Center
+        )
+        detail?.let {
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = it,
+                style = MaterialTheme.typography.bodyMedium,
+                textAlign = TextAlign.Center
+            )
+        }
+        Spacer(modifier = Modifier.height(16.dp))
+        Button(onClick = onRetry) {
+            Text(stringResource(R.string.action_retry_page))
         }
     }
 }
