@@ -32,6 +32,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.material.icons.filled.Grade
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Sort
@@ -136,6 +137,7 @@ fun BookmarkListScreen(navHostController: NavHostController) {
     val searchQuery = viewModel.searchQuery.collectAsState()
     val layoutMode = viewModel.layoutMode.collectAsState()
     val sortOption = viewModel.sortOption.collectAsState()
+    val isOnline = viewModel.isOnline.collectAsState()
 
     var showLayoutMenu by remember { androidx.compose.runtime.mutableStateOf(false) }
     var showSortMenu by remember { androidx.compose.runtime.mutableStateOf(false) }
@@ -217,11 +219,24 @@ fun BookmarkListScreen(navHostController: NavHostController) {
                         .verticalScroll(rememberScrollState())
                 ) {
                     Spacer(Modifier.height(12.dp))
-                    Text(
-                        stringResource(id = R.string.app_name),
+                    Row(
                         modifier = Modifier.padding(16.dp),
-                        style = MaterialTheme.typography.titleLarge
-                    )
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            stringResource(id = R.string.app_name),
+                            style = MaterialTheme.typography.titleLarge
+                        )
+                        if (!isOnline.value) {
+                            Spacer(Modifier.width(8.dp))
+                            Icon(
+                                imageVector = Icons.Default.CloudOff,
+                                contentDescription = stringResource(R.string.offline_tooltip),
+                                modifier = Modifier.size(18.dp),
+                                tint = MaterialTheme.colorScheme.error
+                            )
+                        }
+                    }
                     HorizontalDivider()
                     NavigationDrawerItem(
                         label = { Text(

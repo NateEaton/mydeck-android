@@ -16,6 +16,7 @@ import com.mydeck.app.domain.model.BookmarkCounts
 import com.mydeck.app.domain.model.BookmarkListItem
 import com.mydeck.app.domain.model.LayoutMode
 import com.mydeck.app.domain.model.SortOption
+import com.mydeck.app.domain.sync.ConnectivityMonitor
 import com.mydeck.app.domain.usecase.FullSyncUseCase
 import com.mydeck.app.domain.usecase.UpdateBookmarkUseCase
 import com.mydeck.app.io.prefs.SettingsDataStore
@@ -51,8 +52,16 @@ class BookmarkListViewModel @Inject constructor(
     private val bookmarkRepository: BookmarkRepository,
     @ApplicationContext private val context: Context,
     private val settingsDataStore: SettingsDataStore,
-    private val savedStateHandle: SavedStateHandle
+    private val savedStateHandle: SavedStateHandle,
+    connectivityMonitor: ConnectivityMonitor
 ) : ViewModel() {
+
+    val isOnline: StateFlow<Boolean> = connectivityMonitor.observeConnectivity()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = true
+        )
     private val _navigationEvent =
         MutableStateFlow<NavigationEvent?>(null) // Using StateFlow for navigation events
     val navigationEvent: StateFlow<NavigationEvent?> = _navigationEvent.asStateFlow()
@@ -184,12 +193,10 @@ class BookmarkListViewModel @Inject constructor(
             }
         }
 
-        // Trigger sync on app open if enabled
+        // Trigger sync on app open (always on - toggle removed in Phase 3)
         viewModelScope.launch {
-            if (settingsDataStore.isSyncOnAppOpenEnabled()) {
-                Timber.d("Sync on app open is enabled, triggering full sync")
-                fullSyncUseCase.performFullSync()
-            }
+            Timber.d("Triggering full sync on app open")
+            fullSyncUseCase.performFullSync()
         }
 
         // Load persisted layout mode and sort option

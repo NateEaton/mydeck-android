@@ -141,8 +141,6 @@ fun BookmarkDetailScreen(navHostController: NavController, bookmarkId: String?, 
 
     when (uiState) {
         is BookmarkDetailViewModel.UiState.Success -> {
-            // Start in READER mode if: not forced to original, AND either has content or content is loading
-            val isContentLoading = contentLoadState is ContentLoadState.Loading
             var contentMode by remember(uiState.bookmark.bookmarkId) {
                 mutableStateOf(
                     if (showOriginal) ContentMode.ORIGINAL

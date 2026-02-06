@@ -340,6 +340,31 @@ interface BookmarkDao {
     @Query("UPDATE bookmarks SET contentState = :state, contentFailureReason = :reason WHERE id = :id")
     suspend fun updateContentState(id: String, state: Int, reason: String?)
 
+    data class DetailedSyncStatusCounts(
+        val total: Int,
+        val unread: Int,
+        val archived: Int,
+        val favorites: Int,
+        val contentDownloaded: Int,
+        val contentAvailable: Int,
+        val contentDirty: Int,
+        val permanentNoContent: Int
+    )
+
+    @Query("""
+        SELECT
+            (SELECT COUNT(*) FROM bookmarks WHERE state = 0) AS total,
+            (SELECT COUNT(*) FROM bookmarks WHERE readProgress < 100 AND state = 0) AS unread,
+            (SELECT COUNT(*) FROM bookmarks WHERE isArchived = 1 AND state = 0) AS archived,
+            (SELECT COUNT(*) FROM bookmarks WHERE isMarked = 1 AND state = 0) AS favorites,
+            (SELECT COUNT(*) FROM bookmarks WHERE contentState = 1) AS contentDownloaded,
+            (SELECT COUNT(*) FROM bookmarks WHERE contentState = 0 AND hasArticle = 1) AS contentAvailable,
+            (SELECT COUNT(*) FROM bookmarks WHERE contentState = 2) AS contentDirty,
+            (SELECT COUNT(*) FROM bookmarks WHERE contentState = 3) AS permanentNoContent
+        FROM bookmarks LIMIT 1
+    """)
+    fun observeDetailedSyncStatus(): Flow<DetailedSyncStatusCounts?>
+
     @Query("""
         SELECT b.id FROM bookmarks b
         WHERE b.contentState IN (0, 2)

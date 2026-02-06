@@ -1,6 +1,5 @@
 package com.mydeck.app.domain.usecase
 
-import androidx.room.Transaction
 import androidx.work.Constraints
 import androidx.work.ExistingWorkPolicy
 import androidx.work.NetworkType
@@ -31,7 +30,6 @@ class LoadBookmarksUseCase @Inject constructor(
         data class Error(val exception: Throwable) : UseCaseResult<Nothing>()
     }
 
-    @Transaction
     suspend fun execute(pageSize: Int = DEFAULT_PAGE_SIZE, initialOffset: Int = 0): UseCaseResult<Unit> {
         Timber.d("execute(pageSize=$pageSize, initialOffset=$initialOffset")
 

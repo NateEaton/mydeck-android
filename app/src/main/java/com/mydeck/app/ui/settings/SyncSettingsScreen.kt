@@ -2,9 +2,9 @@ package com.mydeck.app.ui.settings
 
 import android.Manifest
 import android.os.Build
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -12,38 +12,58 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
-import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.rememberPermissionState
 import com.mydeck.app.R
 import com.mydeck.app.domain.model.AutoSyncTimeframe
+import com.mydeck.app.domain.sync.ContentSyncMode
 import com.mydeck.app.ui.theme.Typography
+import kotlinx.datetime.Instant
+import kotlinx.datetime.LocalDate
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.atStartOfDayIn
+import kotlinx.datetime.toLocalDateTime
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalPermissionsApi::class)
 @Composable
@@ -53,16 +73,8 @@ fun SyncSettingsScreen(
     val viewModel: SyncSettingsViewModel = hiltViewModel()
     val settingsUiState = viewModel.uiState.collectAsState().value
     val navigationEvent = viewModel.navigationEvent.collectAsState()
-    val onClickBack: () -> Unit = { viewModel.onClickBack() }
-    val onClickDoFullSyncNow: () -> Unit = { viewModel.onClickDoFullSyncNow() }
-    val onClickAutoSync: () -> Unit = { viewModel.onClickAutoSync() }
-    val onClickAutoSyncSwitch: (value: Boolean) -> Unit =
-        { value -> viewModel.onClickAutoSyncSwitch(value) }
-    val onClickSyncOnAppOpenSwitch: (value: Boolean) -> Unit =
-        { value -> viewModel.onClickSyncOnAppOpenSwitch(value) }
-    val onClickSyncNotificationsSwitch: (value: Boolean) -> Unit =
-        { value -> viewModel.onClickSyncNotificationsSwitch(value) }
     val snackbarHostState = remember { SnackbarHostState() }
+
     val notificationPermissionState = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
         rememberPermissionState(Manifest.permission.POST_NOTIFICATIONS)
     } else {
@@ -71,7 +83,6 @@ fun SyncSettingsScreen(
         viewModel.setPermissionState(it)
     }
 
-
     LaunchedEffect(key1 = navigationEvent.value) {
         navigationEvent.value?.let { event ->
             when (event) {
@@ -79,45 +90,59 @@ fun SyncSettingsScreen(
                     navHostController.popBackStack()
                 }
             }
-            viewModel.onNavigationEventConsumed() // Consume the event
+            viewModel.onNavigationEventConsumed()
         }
     }
 
+    // Handle dialogs
     when (settingsUiState.showDialog) {
-        Dialog.AutoSyncTimeframeDialog -> {
+        SyncSettingsDialog.BookmarkSyncFrequencyDialog -> {
             AutoSyncTimeframeDialog(
-                autoSyncTimeframeOptions = settingsUiState.autoSyncTimeframeOptions,
+                autoSyncTimeframeOptions = settingsUiState.bookmarkSyncFrequencyOptions,
                 onDismissRequest = { viewModel.onDismissDialog() },
-                onElementSelected = { viewModel.onAutoSyncTimeframeSelected(it) }
+                onElementSelected = { viewModel.onBookmarkSyncFrequencySelected(it) }
             )
         }
-        Dialog.RationaleDialog -> {
-            NotificationRationaleDialog(
-                onRationaleDialogDismiss = { viewModel.onDismissDialog() },
-                onRationaleDialogConfirm = { viewModel.onRationaleDialogConfirm() }
+        SyncSettingsDialog.BackgroundRationaleDialog -> {
+            BackgroundSyncRationaleDialog(
+                onConfirm = { viewModel.onRationaleDialogConfirm() },
+                onDismiss = { viewModel.onDismissDialog() }
             )
         }
-        Dialog.PermissionRequest -> {
+        SyncSettingsDialog.PermissionRequest -> {
             SideEffect {
                 viewModel.onDismissDialog()
                 notificationPermissionState?.launchPermissionRequest()
             }
         }
-        else -> {
-            // noop
+        SyncSettingsDialog.DateFromPicker -> {
+            DatePickerDialogWrapper(
+                initialDate = settingsUiState.dateRangeFrom,
+                onDateSelected = { viewModel.onDateRangeFromSelected(it) },
+                onDismiss = { viewModel.onDismissDialog() }
+            )
         }
+        SyncSettingsDialog.DateToPicker -> {
+            DatePickerDialogWrapper(
+                initialDate = settingsUiState.dateRangeTo,
+                onDateSelected = { viewModel.onDateRangeToSelected(it) },
+                onDismiss = { viewModel.onDismissDialog() }
+            )
+        }
+        null -> { /* noop */ }
     }
 
     SyncSettingsView(
-        modifier = Modifier,
         snackbarHostState = snackbarHostState,
-        onClickBack = onClickBack,
-        onClickDoFullSyncNow = onClickDoFullSyncNow,
-        onClickAutoSync = onClickAutoSync,
-        onClickAutoSyncSwitch = onClickAutoSyncSwitch,
-        onClickSyncOnAppOpenSwitch = onClickSyncOnAppOpenSwitch,
-        onClickSyncNotificationsSwitch = onClickSyncNotificationsSwitch,
-        settingsUiState = settingsUiState
+        settingsUiState = settingsUiState,
+        onClickBack = { viewModel.onClickBack() },
+        onClickBookmarkSyncFrequency = { viewModel.onClickBookmarkSyncFrequency() },
+        onContentSyncModeSelected = { viewModel.onContentSyncModeSelected(it) },
+        onClickDateFrom = { viewModel.onShowDialog(SyncSettingsDialog.DateFromPicker) },
+        onClickDateTo = { viewModel.onShowDialog(SyncSettingsDialog.DateToPicker) },
+        onClickDateRangeDownload = { viewModel.onClickDateRangeDownload() },
+        onWifiOnlyChanged = { viewModel.onWifiOnlyChanged(it) },
+        onAllowBatterySaverChanged = { viewModel.onAllowBatterySaverChanged(it) }
     )
 }
 
@@ -127,12 +152,14 @@ fun SyncSettingsView(
     modifier: Modifier = Modifier,
     snackbarHostState: SnackbarHostState,
     settingsUiState: SyncSettingsUiState,
-    onClickDoFullSyncNow: () -> Unit,
-    onClickAutoSync: () -> Unit,
-    onClickAutoSyncSwitch: (Boolean) -> Unit,
-    onClickSyncOnAppOpenSwitch: (Boolean) -> Unit,
-    onClickSyncNotificationsSwitch: (Boolean) -> Unit,
     onClickBack: () -> Unit,
+    onClickBookmarkSyncFrequency: () -> Unit,
+    onContentSyncModeSelected: (ContentSyncMode) -> Unit,
+    onClickDateFrom: () -> Unit,
+    onClickDateTo: () -> Unit,
+    onClickDateRangeDownload: () -> Unit,
+    onWifiOnlyChanged: (Boolean) -> Unit,
+    onAllowBatterySaverChanged: (Boolean) -> Unit,
 ) {
     Scaffold(
         modifier = modifier,
@@ -157,174 +184,414 @@ fun SyncSettingsView(
         Column(
             modifier = Modifier
                 .padding(padding)
-                .padding(16.dp)
-                .fillMaxSize(),
-            horizontalAlignment = Alignment.Start,
+                .padding(horizontal = 16.dp)
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Text(
-                text = stringResource(R.string.settings_sync_full_sync_heading),
-                style = Typography.titleSmall
-            )
-            Text(
-                text = stringResource(R.string.settings_sync_support_text),
-                style = Typography.bodySmall
+            // --- Section 1: Bookmark Sync ---
+            BookmarkSyncSection(
+                frequency = settingsUiState.bookmarkSyncFrequency,
+                nextRun = settingsUiState.nextAutoSyncRun,
+                onClickFrequency = onClickBookmarkSyncFrequency
             )
 
-            // Background Sync Master Switch
-            Row(
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(text = stringResource(R.string.settings_sync_auto_full_sync_title))
-                }
-                Switch(
-                    checked = settingsUiState.autoSyncEnabled,
-                    onCheckedChange = { onClickAutoSyncSwitch(it) }
-                )
-            }
+            Spacer(modifier = Modifier.height(8.dp))
 
-            // Grouped Options (Indented)
-            Column(
-                modifier = Modifier.padding(start = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                // Schedule Option
-                val contentAlpha = if (settingsUiState.autoSyncEnabled) 1f else 0.5f
-                Row(
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable(enabled = settingsUiState.autoSyncEnabled, onClick = onClickAutoSync)
-                        .padding(vertical = 8.dp)
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = stringResource(R.string.auto_sync_timeframe_label),
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = contentAlpha)
-                        )
-                         val nextRunMsg = settingsUiState.nextAutoSyncRun?.let {
-                            stringResource(
-                                R.string.auto_sync_next_run,
-                                settingsUiState.nextAutoSyncRun
-                            )
-                        } ?: stringResource(R.string.auto_sync_next_run_null)
-                        Text(
-                            text = nextRunMsg,
-                            style = Typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = contentAlpha)
-                        )
-                    }
-                    Text(
-                        text = stringResource(settingsUiState.autoSyncTimeframeLabel),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.primary.copy(alpha = contentAlpha)
-                    )
-                }
+            // --- Section 2: Content Sync ---
+            ContentSyncSection(
+                contentSyncMode = settingsUiState.contentSyncMode,
+                dateRangeFrom = settingsUiState.dateRangeFrom,
+                dateRangeTo = settingsUiState.dateRangeTo,
+                isDateRangeDownloading = settingsUiState.isDateRangeDownloading,
+                onContentSyncModeSelected = onContentSyncModeSelected,
+                onClickDateFrom = onClickDateFrom,
+                onClickDateTo = onClickDateTo,
+                onClickDateRangeDownload = onClickDateRangeDownload
+            )
 
-                // Notifications Option
-                Row(
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = stringResource(R.string.settings_sync_notifications_title),
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = contentAlpha)
-                        )
-                        Text(
-                            text = stringResource(R.string.settings_sync_notifications_subtitle),
-                            style = Typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = contentAlpha)
-                        )
-                    }
-                    Switch(
-                        checked = settingsUiState.syncNotificationsEnabled,
-                        onCheckedChange = { onClickSyncNotificationsSwitch(it) },
-                        enabled = settingsUiState.autoSyncEnabled
-                    )
-                }
-            }
+            Spacer(modifier = Modifier.height(8.dp))
 
-            // Sync on App Open (Independent)
-            Row(
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(stringResource(R.string.settings_sync_on_app_open_title))
-                    Text(
-                        text = stringResource(R.string.settings_sync_on_app_open_subtitle),
-                        style = Typography.bodySmall
-                    )
-                }
-                Row {
-                    Switch(
-                        checked = settingsUiState.syncOnAppOpenEnabled,
-                        onCheckedChange = { onClickSyncOnAppOpenSwitch(it) })
-                }
-            }
+            // --- Section 3: Constraints ---
+            ConstraintsSection(
+                wifiOnly = settingsUiState.wifiOnly,
+                allowBatterySaver = settingsUiState.allowBatterySaver,
+                onWifiOnlyChanged = onWifiOnlyChanged,
+                onAllowBatterySaverChanged = onAllowBatterySaverChanged
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // --- Section 4: Sync Status ---
+            SyncStatusSection(syncStatus = settingsUiState.syncStatus)
+
             Spacer(modifier = Modifier.height(16.dp))
+        }
+    }
+}
+
+// --- Section 1: Bookmark Sync ---
+@Composable
+private fun BookmarkSyncSection(
+    frequency: AutoSyncTimeframe,
+    nextRun: String?,
+    onClickFrequency: () -> Unit
+) {
+    Text(
+        text = stringResource(R.string.sync_bookmark_section_title),
+        style = Typography.titleSmall
+    )
+    Text(
+        text = stringResource(R.string.sync_bookmark_description),
+        style = Typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant
+    )
+
+    Row(
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClickFrequency)
+            .padding(vertical = 8.dp)
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(text = stringResource(R.string.sync_bookmark_frequency_label))
+            val nextRunMsg = nextRun?.let {
+                stringResource(R.string.auto_sync_next_run, it)
+            } ?: stringResource(R.string.auto_sync_next_run_null)
             Text(
-                text = stringResource(R.string.sync_status_heading),
-                style = Typography.titleSmall
+                text = nextRunMsg,
+                style = Typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-            Text(
-                text = stringResource(
-                    R.string.sync_status_bookmarks,
-                    settingsUiState.bookmarksWithContent,
-                    settingsUiState.totalBookmarks
-                ),
-                style = Typography.bodySmall
-            )
-            Text(
-                text = settingsUiState.lastSyncTimestamp?.let {
-                    stringResource(R.string.sync_status_last_sync, it)
-                } ?: stringResource(R.string.sync_status_never),
-                style = Typography.bodySmall
-            )
-            Box(
-                modifier = Modifier.fillMaxWidth(),
-                contentAlignment = Alignment.Center
+        }
+        Text(
+            text = stringResource(frequency.toLabelResource()),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.primary
+        )
+    }
+}
+
+// --- Section 2: Content Sync ---
+@Composable
+private fun ContentSyncSection(
+    contentSyncMode: ContentSyncMode,
+    dateRangeFrom: LocalDate?,
+    dateRangeTo: LocalDate?,
+    isDateRangeDownloading: Boolean,
+    onContentSyncModeSelected: (ContentSyncMode) -> Unit,
+    onClickDateFrom: () -> Unit,
+    onClickDateTo: () -> Unit,
+    onClickDateRangeDownload: () -> Unit
+) {
+    Text(
+        text = stringResource(R.string.sync_content_section_title),
+        style = Typography.titleSmall
+    )
+
+    // Automatic
+    ContentSyncRadioOption(
+        selected = contentSyncMode == ContentSyncMode.AUTOMATIC,
+        title = stringResource(R.string.sync_content_automatic),
+        description = stringResource(R.string.sync_content_automatic_desc),
+        onClick = { onContentSyncModeSelected(ContentSyncMode.AUTOMATIC) }
+    )
+
+    // Manual
+    ContentSyncRadioOption(
+        selected = contentSyncMode == ContentSyncMode.MANUAL,
+        title = stringResource(R.string.sync_content_manual),
+        description = stringResource(R.string.sync_content_manual_desc),
+        onClick = { onContentSyncModeSelected(ContentSyncMode.MANUAL) }
+    )
+
+    // Date Range
+    ContentSyncRadioOption(
+        selected = contentSyncMode == ContentSyncMode.DATE_RANGE,
+        title = stringResource(R.string.sync_content_date_range),
+        description = stringResource(R.string.sync_content_date_range_desc),
+        onClick = { onContentSyncModeSelected(ContentSyncMode.DATE_RANGE) }
+    )
+
+    // Date range controls (shown when Date Range is selected)
+    if (contentSyncMode == ContentSyncMode.DATE_RANGE) {
+        Column(
+            modifier = Modifier.padding(start = 40.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            // From date
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
             ) {
-                Button(
-                    onClick = onClickDoFullSyncNow,
-                    enabled = settingsUiState.autoSyncButtonEnabled
+                Text(
+                    text = stringResource(R.string.sync_content_date_from),
+                    style = Typography.bodyMedium,
+                    modifier = Modifier.width(48.dp)
+                )
+                OutlinedButton(
+                    onClick = onClickDateFrom,
+                    modifier = Modifier.weight(1f)
                 ) {
-                    Text(stringResource(R.string.settings_sync_auto_full_button))
+                    Text(dateRangeFrom?.toString() ?: "Select date")
+                }
+            }
+
+            // To date
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    text = stringResource(R.string.sync_content_date_to),
+                    style = Typography.bodyMedium,
+                    modifier = Modifier.width(48.dp)
+                )
+                OutlinedButton(
+                    onClick = onClickDateTo,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text(dateRangeTo?.toString() ?: "Select date")
+                }
+            }
+
+            // Download button
+            Button(
+                onClick = onClickDateRangeDownload,
+                enabled = dateRangeFrom != null && dateRangeTo != null && !isDateRangeDownloading,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                if (isDateRangeDownloading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(16.dp),
+                        strokeWidth = 2.dp,
+                        color = MaterialTheme.colorScheme.onPrimary
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text(stringResource(R.string.sync_content_downloading))
+                } else {
+                    Text(stringResource(R.string.sync_content_download_button))
                 }
             }
         }
     }
 }
 
-@Preview(showBackground = true)
 @Composable
-fun SyncSettingsScreenViewPreview() {
-    val settingsUiState = SyncSettingsUiState(
-        autoSyncEnabled = true,
-        autoSyncTimeframe = AutoSyncTimeframe.HOURS_12,
-        autoSyncTimeframeOptions = listOf(),
-        showDialog = null,
-        autoSyncTimeframeLabel = AutoSyncTimeframe.HOURS_12.toLabelResource(),
-        nextAutoSyncRun = null,
-        autoSyncButtonEnabled = false
+private fun ContentSyncRadioOption(
+    selected: Boolean,
+    title: String,
+    description: String,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .selectable(
+                selected = selected,
+                onClick = onClick,
+                role = Role.RadioButton
+            )
+            .padding(vertical = 4.dp),
+        verticalAlignment = Alignment.Top
+    ) {
+        RadioButton(
+            selected = selected,
+            onClick = null,
+            modifier = Modifier.padding(top = 2.dp)
+        )
+        Column(modifier = Modifier.padding(start = 12.dp)) {
+            Text(text = title, style = Typography.bodyMedium)
+            Text(
+                text = description,
+                style = Typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+// --- Section 3: Constraints ---
+@Composable
+private fun ConstraintsSection(
+    wifiOnly: Boolean,
+    allowBatterySaver: Boolean,
+    onWifiOnlyChanged: (Boolean) -> Unit,
+    onAllowBatterySaverChanged: (Boolean) -> Unit
+) {
+    Text(
+        text = stringResource(R.string.sync_constraints_section_title),
+        style = Typography.titleSmall
     )
-    SyncSettingsView(
-        modifier = Modifier,
-        snackbarHostState = SnackbarHostState(),
-        onClickBack = {},
-        onClickAutoSync = {},
-        onClickAutoSyncSwitch = {},
-        onClickSyncOnAppOpenSwitch = {},
-        onClickSyncNotificationsSwitch = {},
-        onClickDoFullSyncNow = {},
-        settingsUiState = settingsUiState
+
+    Row(
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Text(
+            text = stringResource(R.string.sync_wifi_only),
+            modifier = Modifier.weight(1f)
+        )
+        Switch(
+            checked = wifiOnly,
+            onCheckedChange = onWifiOnlyChanged
+        )
+    }
+
+    Row(
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Text(
+            text = stringResource(R.string.sync_allow_battery_saver),
+            modifier = Modifier.weight(1f)
+        )
+        Switch(
+            checked = allowBatterySaver,
+            onCheckedChange = onAllowBatterySaverChanged
+        )
+    }
+}
+
+// --- Section 4: Sync Status ---
+@Composable
+private fun SyncStatusSection(syncStatus: SyncStatus) {
+    Text(
+        text = stringResource(R.string.sync_status_section_title),
+        style = Typography.titleSmall
+    )
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+        )
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            // Bookmark counts
+            Text(
+                text = "Bookmarks",
+                style = Typography.labelMedium,
+                color = MaterialTheme.colorScheme.primary
+            )
+            Text(
+                text = stringResource(R.string.sync_status_total, syncStatus.totalBookmarks),
+                style = Typography.bodySmall
+            )
+            Text(
+                text = stringResource(R.string.sync_status_unread, syncStatus.unread),
+                style = Typography.bodySmall
+            )
+            Text(
+                text = stringResource(R.string.sync_status_archived, syncStatus.archived),
+                style = Typography.bodySmall
+            )
+            Text(
+                text = stringResource(R.string.sync_status_favorites, syncStatus.favorites),
+                style = Typography.bodySmall
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Content counts
+            Text(
+                text = "Content",
+                style = Typography.labelMedium,
+                color = MaterialTheme.colorScheme.primary
+            )
+            Text(
+                text = stringResource(R.string.sync_status_content_downloaded, syncStatus.contentDownloaded),
+                style = Typography.bodySmall
+            )
+            Text(
+                text = stringResource(R.string.sync_status_content_available, syncStatus.contentAvailable),
+                style = Typography.bodySmall
+            )
+            Text(
+                text = stringResource(R.string.sync_status_content_dirty, syncStatus.contentDirty),
+                style = Typography.bodySmall
+            )
+            Text(
+                text = stringResource(R.string.sync_status_no_content, syncStatus.permanentNoContent),
+                style = Typography.bodySmall
+            )
+
+            // Last sync
+            syncStatus.lastSyncTimestamp?.let { ts ->
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = stringResource(R.string.sync_status_last_sync, ts),
+                    style = Typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    }
+}
+
+// --- Date Picker Dialog ---
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun DatePickerDialogWrapper(
+    initialDate: LocalDate?,
+    onDateSelected: (LocalDate) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val initialMillis = initialDate?.atStartOfDayIn(TimeZone.UTC)?.toEpochMilliseconds()
+    val datePickerState = rememberDatePickerState(initialSelectedDateMillis = initialMillis)
+
+    DatePickerDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = {
+            TextButton(onClick = {
+                datePickerState.selectedDateMillis?.let { millis ->
+                    val instant = Instant.fromEpochMilliseconds(millis)
+                    val localDate = instant.toLocalDateTime(TimeZone.UTC).date
+                    onDateSelected(localDate)
+                }
+                onDismiss()
+            }) {
+                Text(stringResource(R.string.ok))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.cancel))
+            }
+        }
+    ) {
+        DatePicker(state = datePickerState)
+    }
+}
+
+// --- Background Sync Rationale Dialog ---
+@Composable
+private fun BackgroundSyncRationaleDialog(
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.background_sync_rationale_title)) },
+        text = { Text(stringResource(R.string.background_sync_rationale_body)) },
+        confirmButton = {
+            Button(onClick = onConfirm) {
+                Text(stringResource(R.string.background_sync_rationale_allow))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.cancel))
+            }
+        }
     )
 }
 
