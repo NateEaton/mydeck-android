@@ -100,4 +100,37 @@ other{}
     <string name="auto_sync_notification_rationale_dialog_title">Benachrichtigungen Berechtigung benötigt</string>
     <string name="auto_sync_notification_rationale_dialog_text">Um Sie über Fehler bei der Hintergrundsynchronisierung zu informieren, benötigen wir die Berechtigung, Ihnen Benachrichtigungen zu senden. Bitte erteilen Sie diese Berechtigung.</string>
     <string name="auto_sync_notification_rationale_dialog_grant_button">Erteilen</string>
+
+    <!-- Sync Settings - Phase 3 -->
+    <string name="sync_bookmark_section_title">Bookmark Sync</string>
+    <string name="sync_bookmark_description">Bookmarks are always kept in sync.</string>
+    <string name="sync_bookmark_frequency_label">Sync frequency</string>
+    <string name="sync_content_section_title">Content Sync</string>
+    <string name="sync_content_automatic">Automatic</string>
+    <string name="sync_content_automatic_desc">Content is downloaded during bookmark sync</string>
+    <string name="sync_content_manual">Manual</string>
+    <string name="sync_content_manual_desc">Content is downloaded only when you open a bookmark</string>
+    <string name="sync_content_date_range">Date Range</string>
+    <string name="sync_content_date_range_desc">Download content for bookmarks added in a date range</string>
+    <string name="sync_content_date_from">From</string>
+    <string name="sync_content_date_to">To</string>
+    <string name="sync_content_download_button">Download</string>
+    <string name="sync_content_downloading">Downloading…</string>
+    <string name="sync_constraints_section_title">Constraints</string>
+    <string name="sync_wifi_only">Only download on Wi-Fi</string>
+    <string name="sync_allow_battery_saver">Allow download on battery saver</string>
+    <string name="sync_status_section_title">Sync Status</string>
+    <string name="sync_status_total">Total bookmarks: %d</string>
+    <string name="sync_status_unread">Unread: %d</string>
+    <string name="sync_status_archived">Archived: %d</string>
+    <string name="sync_status_favorites">Favorites: %d</string>
+    <string name="sync_status_content_downloaded">Content downloaded: %d</string>
+    <string name="sync_status_content_available">Available to download: %d</string>
+    <string name="sync_status_content_dirty">Download failed (retryable): %d</string>
+    <string name="sync_status_no_content">No article content: %d</string>
+    <string name="offline_tooltip">Offline – unable to reach server</string>
+    <string name="background_sync_rationale_title">Background Downloads</string>
+    <string name="background_sync_rationale_body">Content downloads may continue while the app is in the background. This allows your bookmarks to be ready for offline reading.</string>
+    <string name="background_sync_rationale_allow">Allow</string>
+
 </resources>
