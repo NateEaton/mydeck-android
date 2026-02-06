@@ -120,8 +120,9 @@ class BookmarkListViewModel @Inject constructor(
         )
 
     init {
-        savedStateHandle.get<String>("sharedText").takeIf { it != null }?.let {
-            val sharedText = it.extractUrlAndTitle()
+        savedStateHandle.get<String>("sharedText")?.let { raw ->
+            savedStateHandle.remove<String>("sharedText") // Consume immediately to prevent dialog loop on process restore
+            val sharedText = raw.extractUrlAndTitle()
             val urlError = if (sharedText == null) {
                 R.string.account_settings_url_error // Use resource ID
             } else {
@@ -181,14 +182,6 @@ class BookmarkListViewModel @Inject constructor(
             if (!settingsDataStore.isInitialSyncPerformed()) {
                 Timber.d("loadBookmarks")
                 loadBookmarks() // Start incremental sync when the ViewModel is created
-            }
-        }
-
-        // Trigger sync on app open if enabled
-        viewModelScope.launch {
-            if (settingsDataStore.isSyncOnAppOpenEnabled()) {
-                Timber.d("Sync on app open is enabled, triggering full sync")
-                fullSyncUseCase.performFullSync()
             }
         }
 

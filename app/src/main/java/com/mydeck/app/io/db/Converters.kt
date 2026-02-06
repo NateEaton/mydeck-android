@@ -62,4 +62,20 @@ class Converters {
             else -> throw IllegalStateException("$stateValue can not be converted to BookmarkEntity.Type")
         }
     }
+
+    @TypeConverter
+    fun fromContentState(contentState: BookmarkEntity.ContentState): Int {
+        return contentState.value
+    }
+
+    @TypeConverter
+    fun toContentState(value: Int): BookmarkEntity.ContentState {
+        return when (value) {
+            BookmarkEntity.ContentState.NOT_ATTEMPTED.value -> BookmarkEntity.ContentState.NOT_ATTEMPTED
+            BookmarkEntity.ContentState.DOWNLOADED.value -> BookmarkEntity.ContentState.DOWNLOADED
+            BookmarkEntity.ContentState.DIRTY.value -> BookmarkEntity.ContentState.DIRTY
+            BookmarkEntity.ContentState.PERMANENT_NO_CONTENT.value -> BookmarkEntity.ContentState.PERMANENT_NO_CONTENT
+            else -> BookmarkEntity.ContentState.NOT_ATTEMPTED
+        }
+    }
 }

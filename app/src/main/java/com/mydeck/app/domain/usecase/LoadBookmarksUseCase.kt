@@ -1,17 +1,11 @@
 package com.mydeck.app.domain.usecase
 
 import androidx.room.Transaction
-import androidx.work.Constraints
-import androidx.work.ExistingWorkPolicy
-import androidx.work.NetworkType
-import androidx.work.OneTimeWorkRequestBuilder
-import androidx.work.WorkManager
 import com.mydeck.app.domain.BookmarkRepository
 import com.mydeck.app.domain.mapper.toDomain
 import com.mydeck.app.io.prefs.SettingsDataStore
 import com.mydeck.app.io.rest.ReadeckApi
 import com.mydeck.app.io.rest.model.BookmarkDto
-import com.mydeck.app.worker.BatchArticleLoadWorker
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toInstant
 import timber.log.Timber
@@ -20,7 +14,6 @@ import javax.inject.Inject
 class LoadBookmarksUseCase @Inject constructor(
     private val bookmarkRepository: BookmarkRepository,
     private val readeckApi: ReadeckApi,
-    private val workManager: WorkManager,
     private val settingsDataStore: SettingsDataStore
 ) {
 
@@ -81,35 +74,10 @@ class LoadBookmarksUseCase @Inject constructor(
                 }
             }
 
-            // Enqueue batch article loader after bookmark sync completes
-            enqueueBatchArticleLoader()
-
             return UseCaseResult.Success(Unit)
         } catch (e: Exception) {
             Timber.e(e, "Error loading bookmarks")
             return UseCaseResult.Error(e)
-        }
-    }
-
-    private fun enqueueBatchArticleLoader() {
-        try {
-            val constraints = Constraints.Builder()
-                .setRequiredNetworkType(NetworkType.CONNECTED)
-                .build()
-
-            val request = OneTimeWorkRequestBuilder<BatchArticleLoadWorker>()
-                .setConstraints(constraints)
-                .build()
-
-            workManager.enqueueUniqueWork(
-                BatchArticleLoadWorker.UNIQUE_WORK_NAME,
-                ExistingWorkPolicy.KEEP,
-                request
-            )
-            Timber.d("Batch article loader enqueued successfully")
-        } catch (e: Exception) {
-            // Gracefully handle failures (e.g., in unit tests or if WorkManager unavailable)
-            Timber.w(e, "Failed to enqueue batch article loader")
         }
     }
 

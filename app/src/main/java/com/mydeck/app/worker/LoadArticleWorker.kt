@@ -21,8 +21,13 @@ class LoadArticleWorker @AssistedInject constructor(
             val bookmarkId = workerParams.inputData.getString(PARAM_BOOKMARK_ID)
             return if (bookmarkId != null) {
                 Timber.i("Start loading article [bookmarkId=$bookmarkId]")
-                loadArticleUseCase.execute(bookmarkId)
-                Result.success()
+                val result = loadArticleUseCase.execute(bookmarkId)
+                when (result) {
+                    is LoadArticleUseCase.Result.Success,
+                    is LoadArticleUseCase.Result.AlreadyDownloaded,
+                    is LoadArticleUseCase.Result.PermanentFailure -> Result.success()
+                    is LoadArticleUseCase.Result.TransientFailure -> Result.retry()
+                }
             } else {
                 Timber.w("No bookmarkId provided")
                 Result.failure()

@@ -30,6 +30,8 @@ data class Bookmark(
     val published: LocalDateTime?,
     val embed: String?,
     val embedHostname: String?,
+    val contentState: ContentState = ContentState.NOT_ATTEMPTED,
+    val contentFailureReason: String? = null,
     val article: Resource,
     val articleContent: String?,
     val icon: ImageResource,
@@ -58,5 +60,11 @@ data class Bookmark(
         LOADED,
         ERROR,
         LOADING
+    }
+    enum class ContentState {
+        NOT_ATTEMPTED,
+        DOWNLOADED,
+        DIRTY,
+        PERMANENT_NO_CONTENT
     }
 }

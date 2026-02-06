@@ -31,8 +31,8 @@ class BatchArticleLoadWorker @AssistedInject constructor(
         Timber.d("BatchArticleLoadWorker starting")
 
         try {
-            val pendingBookmarkIds = bookmarkDao.getBookmarkIdsWithoutContent()
-            Timber.i("Found ${pendingBookmarkIds.size} bookmarks without content")
+            val pendingBookmarkIds = bookmarkDao.getBookmarkIdsEligibleForContentFetch()
+            Timber.i("Found ${pendingBookmarkIds.size} bookmarks eligible for content fetch")
 
             if (pendingBookmarkIds.isEmpty()) {
                 return Result.success()

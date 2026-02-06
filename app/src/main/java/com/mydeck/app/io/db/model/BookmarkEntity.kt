@@ -45,6 +45,10 @@ data class BookmarkEntity(
     val embed: String?,
     val embedHostname: String?,
 
+    // Content state tracking
+    val contentState: ContentState = ContentState.NOT_ATTEMPTED,
+    val contentFailureReason: String? = null,
+
     // Embedded Resources
     @Embedded(prefix = "article_")
     val article: ResourceEntity,
@@ -68,5 +72,11 @@ data class BookmarkEntity(
         LOADED(0),
         ERROR(1),
         LOADING(2)
+    }
+    enum class ContentState(val value: Int) {
+        NOT_ATTEMPTED(0),
+        DOWNLOADED(1),
+        DIRTY(2),
+        PERMANENT_NO_CONTENT(3)
     }
 }

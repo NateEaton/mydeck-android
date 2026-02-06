@@ -77,6 +77,7 @@ class BookmarkListViewModelTest {
             emptyList()
         )
         every { savedStateHandle.get<String>(any()) } returns null // no sharedUrl initially
+        every { savedStateHandle.remove<String>(any()) } returns null
         every { workManager.getWorkInfosForUniqueWorkFlow(any()) } returns workInfoFlow
         every { bookmarkRepository.observeAllBookmarkCounts() } returns flowOf(BookmarkCounts())
     }

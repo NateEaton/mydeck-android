@@ -21,7 +21,8 @@ object DatabaseModule {
             .addMigrations(
                 MyDeckDatabase.MIGRATION_1_2,
                 MyDeckDatabase.MIGRATION_2_3,
-                MyDeckDatabase.MIGRATION_3_4
+                MyDeckDatabase.MIGRATION_3_4,
+                MyDeckDatabase.MIGRATION_4_5
             )
             .build()
     }

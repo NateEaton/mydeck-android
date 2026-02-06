@@ -1,13 +1,12 @@
 package com.mydeck.app.io.db.dao
 
 import androidx.room.Dao
-import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
-import androidx.room.OnConflictStrategy.Companion.REPLACE
 import androidx.room.Query
 import androidx.room.RawQuery
 import androidx.room.Transaction
+import androidx.room.Update
 import androidx.sqlite.db.SimpleSQLiteQuery
 import androidx.sqlite.db.SupportSQLiteQuery
 import com.mydeck.app.io.db.model.BookmarkEntity
@@ -41,13 +40,25 @@ interface BookmarkDao {
     """)
     fun observeAllLabels(): Flow<List<String>>
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertBookmarks(bookmarks: List<BookmarkEntity>)
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertBookmarksIgnore(bookmarks: List<BookmarkEntity>): List<Long>
+
+    @Update
+    suspend fun updateBookmarks(bookmarks: List<BookmarkEntity>)
+
+    @Transaction
+    suspend fun upsertBookmarks(bookmarks: List<BookmarkEntity>) {
+        val insertResults = insertBookmarksIgnore(bookmarks)
+        val toUpdate = bookmarks.filterIndexed { index, _ -> insertResults[index] == -1L }
+        if (toUpdate.isNotEmpty()) {
+            updateBookmarks(toUpdate)
+        }
+    }
 
     @Transaction
     suspend fun insertBookmarkWithArticleContent(bookmarkWithArticleContent: BookmarkWithArticleContent) {
         with(bookmarkWithArticleContent) {
-            insertBookmark(bookmark)
+            upsertBookmark(bookmark)
             articleContent?.run { insertArticleContent(this) }
         }
     }
@@ -59,8 +70,19 @@ interface BookmarkDao {
         }
     }
 
-    @Insert(onConflict = REPLACE)
-    suspend fun insertBookmark(bookmarkEntity: BookmarkEntity)
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertBookmarkIgnore(bookmarkEntity: BookmarkEntity): Long
+
+    @Update
+    suspend fun updateBookmark(bookmarkEntity: BookmarkEntity)
+
+    @Transaction
+    suspend fun upsertBookmark(bookmarkEntity: BookmarkEntity) {
+        val rowId = insertBookmarkIgnore(bookmarkEntity)
+        if (rowId == -1L) {
+            updateBookmark(bookmarkEntity)
+        }
+    }
 
     @Query("SELECT * FROM bookmarks ORDER BY updated DESC LIMIT 1")
     suspend fun getLastUpdatedBookmark(): BookmarkEntity?
@@ -336,4 +358,15 @@ interface BookmarkDao {
         Timber.d("searchQuery=${sqlQuery.sql}")
         return getBookmarkListItemsByFiltersDynamic(sqlQuery)
     }
+
+    @Query("UPDATE bookmarks SET contentState = :state, contentFailureReason = :reason WHERE id = :id")
+    suspend fun updateContentState(id: String, state: Int, reason: String?)
+
+    @Query("""
+        SELECT b.id FROM bookmarks b
+        WHERE b.contentState IN (0, 2)
+        AND b.hasArticle = 1
+        ORDER BY b.created DESC
+    """)
+    suspend fun getBookmarkIdsEligibleForContentFetch(): List<String>
 }

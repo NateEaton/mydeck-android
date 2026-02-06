@@ -50,6 +50,13 @@ fun Bookmark.toEntity(): BookmarkWithArticleContent = BookmarkWithArticleContent
         published = published?.toInstant(TimeZone.currentSystemDefault()),
         embed = embed,
         embedHostname = embedHostname,
+        contentState = when (contentState) {
+            Bookmark.ContentState.NOT_ATTEMPTED -> BookmarkEntity.ContentState.NOT_ATTEMPTED
+            Bookmark.ContentState.DOWNLOADED -> BookmarkEntity.ContentState.DOWNLOADED
+            Bookmark.ContentState.DIRTY -> BookmarkEntity.ContentState.DIRTY
+            Bookmark.ContentState.PERMANENT_NO_CONTENT -> BookmarkEntity.ContentState.PERMANENT_NO_CONTENT
+        },
+        contentFailureReason = contentFailureReason,
         article = article.toEntity(),
         icon = icon.toEntity(),
         image = image.toEntity(),
@@ -106,6 +113,13 @@ fun BookmarkEntity.toDomain(): Bookmark = Bookmark(
     published = published?.toLocalDateTime(TimeZone.currentSystemDefault()),
     embed = embed,
     embedHostname = embedHostname,
+    contentState = when (contentState) {
+        BookmarkEntity.ContentState.NOT_ATTEMPTED -> Bookmark.ContentState.NOT_ATTEMPTED
+        BookmarkEntity.ContentState.DOWNLOADED -> Bookmark.ContentState.DOWNLOADED
+        BookmarkEntity.ContentState.DIRTY -> Bookmark.ContentState.DIRTY
+        BookmarkEntity.ContentState.PERMANENT_NO_CONTENT -> Bookmark.ContentState.PERMANENT_NO_CONTENT
+    },
+    contentFailureReason = contentFailureReason,
     article = article.toDomain(),
     icon = icon.toDomain(),
     image = image.toDomain(),
