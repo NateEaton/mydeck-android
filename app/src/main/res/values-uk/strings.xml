@@ -10,4 +10,6 @@
     <string name="webview_error_not_found">Web content not found.</string>
     <string name="webview_error_server">Web content server error.</string>
     <string name="webview_error_http_status">HTTP %1$d</string>
+    <string name="snackbar_bookmark_deleted">Bookmark deleted</string>
+    <string name="action_undo">Undo</string>
 </resources>
