@@ -383,6 +383,8 @@ fun BookmarkDetailsDialogPreview() {
         description = "This is a sample description for the bookmark",
         labels = listOf("tech", "android", "kotlin"),
         readProgress = 0,
+        contentStatus = com.mydeck.app.domain.model.Bookmark.ContentStatus.NOT_ATTEMPTED,
+        contentFailureReason = null,
         hasContent = true
     )
 

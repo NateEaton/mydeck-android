@@ -202,6 +202,8 @@ class BookmarkDetailViewModel @Inject constructor(
                     description = bookmark.description,
                     labels = bookmark.labels,
                     readProgress = bookmark.readProgress,
+                    contentStatus = bookmark.contentStatus,
+                    contentFailureReason = bookmark.contentFailureReason,
                     debugInfo = buildDebugInfo(bookmark),
                     hasContent = when (bookmark.type) {
                         is com.mydeck.app.domain.model.Bookmark.Type.Article -> !bookmark.articleContent.isNullOrBlank()
@@ -466,6 +468,8 @@ class BookmarkDetailViewModel @Inject constructor(
         val description: String,
         val labels: List<String>,
         val readProgress: Int,
+        val contentStatus: com.mydeck.app.domain.model.Bookmark.ContentStatus,
+        val contentFailureReason: String?,
         val debugInfo: String = "",
         val hasContent: Boolean
     ) {

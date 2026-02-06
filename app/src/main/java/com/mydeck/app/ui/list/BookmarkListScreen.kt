@@ -150,6 +150,8 @@ fun BookmarkListScreen(navHostController: NavHostController) {
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
+    val bookmarkDeletedMessage = stringResource(R.string.snackbar_bookmark_deleted)
+    val undoActionLabel = stringResource(R.string.action_undo)
 
     val pullToRefreshState = rememberPullToRefreshState()
     val isLoading by viewModel.loadBookmarksIsRunning.collectAsState()
@@ -164,8 +166,8 @@ fun BookmarkListScreen(navHostController: NavHostController) {
         viewModel.onDeleteBookmark(bookmarkId)
         scope.launch {
             val result = snackbarHostState.showSnackbar(
-                message = "Bookmark deleted",
-                actionLabel = "UNDO",
+                message = bookmarkDeletedMessage,
+                actionLabel = undoActionLabel,
                 duration = SnackbarDuration.Long
             )
             if (result == androidx.compose.material3.SnackbarResult.ActionPerformed) {
@@ -609,7 +611,7 @@ fun BookmarkListScreen(navHostController: NavHostController) {
                                         scope.launch {
                                             val result = snackbarHostState.showSnackbar(
                                                 message = labelDeletedMessageFormat.format(currentLabel),
-                                                actionLabel = "UNDO",
+                                                actionLabel = undoActionLabel,
                                                 duration = SnackbarDuration.Long
                                             )
 

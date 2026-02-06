@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -41,6 +42,7 @@ import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Grade
 import androidx.compose.material.icons.outlined.Inventory2
+import androidx.compose.material.icons.outlined.SignalWifiOff
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -112,12 +114,14 @@ fun BookmarkDetailScreen(navHostController: NavController, bookmarkId: String?, 
     val uiState = viewModel.uiState.collectAsState().value
     var showDetailsDialog by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
+    val bookmarkDeletedMessage = stringResource(R.string.snackbar_bookmark_deleted)
+    val undoActionLabel = stringResource(R.string.action_undo)
     val onClickDeleteBookmark: (String) -> Unit = { id ->
         viewModel.deleteBookmark(id)
         scope.launch {
             val result = snackbarHostState.showSnackbar(
-                message = "Bookmark deleted",
-                actionLabel = "UNDO",
+                message = bookmarkDeletedMessage,
+                actionLabel = undoActionLabel,
                 duration = SnackbarDuration.Long
             )
             if (result == SnackbarResult.ActionPerformed) {
@@ -382,16 +386,34 @@ fun BookmarkDetailContent(
                 )
 
                 val hasContent = uiState.bookmark.hasContent
+                val contentStatus = uiState.bookmark.contentStatus
                 if (hasContent) {
                     BookmarkDetailArticle(
                         modifier = Modifier,
                         uiState = uiState
                     )
                 } else {
-                    EmptyBookmarkDetailArticle(
-                        modifier = Modifier,
-                        onRetryContent = onRetryContent
-                    )
+                    when {
+                        contentStatus == com.mydeck.app.domain.model.Bookmark.ContentStatus.NOT_ATTEMPTED -> {
+                            ContentLoadingState(modifier = Modifier)
+                        }
+                        contentStatus == com.mydeck.app.domain.model.Bookmark.ContentStatus.DIRTY -> {
+                            EmptyBookmarkDetailArticle(
+                                modifier = Modifier,
+                                message = stringResource(R.string.detail_view_content_failed),
+                                showRetry = true,
+                                onRetryContent = onRetryContent
+                            )
+                        }
+                        else -> {
+                            EmptyBookmarkDetailArticle(
+                                modifier = Modifier,
+                                message = stringResource(R.string.detail_view_no_content),
+                                showRetry = false,
+                                onRetryContent = {}
+                            )
+                        }
+                    }
                 }
             }
 
@@ -410,6 +432,8 @@ fun BookmarkDetailContent(
 @Composable
 fun EmptyBookmarkDetailArticle(
     modifier: Modifier,
+    message: String,
+    showRetry: Boolean,
     onRetryContent: () -> Unit
 ) {
     Column(
@@ -417,12 +441,28 @@ fun EmptyBookmarkDetailArticle(
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
-            text = stringResource(R.string.detail_view_no_content)
+            text = message
         )
-        Spacer(modifier = Modifier.height(12.dp))
-        Button(onClick = onRetryContent) {
-            Text(stringResource(R.string.action_retry_content))
+        if (showRetry) {
+            Spacer(modifier = Modifier.height(12.dp))
+            Button(onClick = onRetryContent) {
+                Text(stringResource(R.string.action_retry_content))
+            }
         }
+    }
+}
+
+@Composable
+fun ContentLoadingState(
+    modifier: Modifier
+) {
+    Column(
+        modifier = modifier,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        CircularProgressIndicator()
+        Spacer(modifier = Modifier.height(12.dp))
+        Text(text = stringResource(R.string.detail_view_content_loading))
     }
 }
 
@@ -496,6 +536,8 @@ fun BookmarkDetailOriginalWebView(
     var loadingProgress by remember { mutableStateOf(0) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var errorDetail by remember { mutableStateOf<String?>(null) }
+    var errorAllowsRetry by remember { mutableStateOf(true) }
+    var errorShowOfflineIcon by remember { mutableStateOf(false) }
     val webViewRef = remember { mutableStateOf<WebView?>(null) }
 
     Column(modifier = modifier) {
@@ -513,9 +555,13 @@ fun BookmarkDetailOriginalWebView(
             WebViewErrorState(
                 message = errorMessage ?: "",
                 detail = errorDetail,
+                showRetry = errorAllowsRetry,
+                showOfflineIcon = errorShowOfflineIcon,
                 onRetry = {
                     errorMessage = null
                     errorDetail = null
+                    errorAllowsRetry = true
+                    errorShowOfflineIcon = false
                     loadingProgress = 0
                     webViewRef.value?.loadUrl(uiState.bookmark.url)
                 }
@@ -555,6 +601,12 @@ fun BookmarkDetailOriginalWebView(
                                         else -> context.getString(R.string.webview_error_unavailable)
                                     }
                                     errorDetail = error?.description?.toString()
+                                    errorAllowsRetry = error?.errorCode != ERROR_HOST_LOOKUP &&
+                                        error?.errorCode != ERROR_CONNECT &&
+                                        error?.errorCode != ERROR_TIMEOUT
+                                    errorShowOfflineIcon = error?.errorCode == ERROR_HOST_LOOKUP ||
+                                        error?.errorCode == ERROR_CONNECT ||
+                                        error?.errorCode == ERROR_TIMEOUT
                                     view?.stopLoading()
                                     view?.loadUrl("about:blank")
                                 }
@@ -566,8 +618,18 @@ fun BookmarkDetailOriginalWebView(
                                 errorResponse: WebResourceResponse?
                             ) {
                                 if (request?.isForMainFrame == true) {
-                                    errorMessage = context.getString(R.string.webview_error_unavailable)
-                                    errorDetail = errorResponse?.reasonPhrase
+                                    val statusCode = errorResponse?.statusCode
+                                    errorMessage = when (statusCode) {
+                                        401, 403 -> context.getString(R.string.webview_error_not_authorized)
+                                        404 -> context.getString(R.string.webview_error_not_found)
+                                        in 500..599 -> context.getString(R.string.webview_error_server)
+                                        else -> context.getString(R.string.webview_error_unavailable)
+                                    }
+                                    errorDetail = statusCode?.let {
+                                        context.getString(R.string.webview_error_http_status, it)
+                                    } ?: errorResponse?.reasonPhrase
+                                    errorAllowsRetry = true
+                                    errorShowOfflineIcon = false
                                     view?.stopLoading()
                                     view?.loadUrl("about:blank")
                                 }
@@ -581,6 +643,8 @@ fun BookmarkDetailOriginalWebView(
                                 if (view != null) {
                                     errorMessage = context.getString(R.string.webview_error_unavailable)
                                     errorDetail = error?.toString()
+                                    errorAllowsRetry = true
+                                    errorShowOfflineIcon = false
                                     view.stopLoading()
                                     view.loadUrl("about:blank")
                                 }
@@ -608,6 +672,8 @@ fun BookmarkDetailOriginalWebView(
 private fun WebViewErrorState(
     message: String,
     detail: String?,
+    showRetry: Boolean,
+    showOfflineIcon: Boolean,
     onRetry: () -> Unit
 ) {
     Column(
@@ -616,6 +682,15 @@ private fun WebViewErrorState(
             .padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
+        if (showOfflineIcon) {
+            Icon(
+                imageVector = Icons.Outlined.SignalWifiOff,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(40.dp)
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+        }
         Text(
             text = message,
             style = MaterialTheme.typography.titleMedium,
@@ -629,9 +704,11 @@ private fun WebViewErrorState(
                 textAlign = TextAlign.Center
             )
         }
-        Spacer(modifier = Modifier.height(16.dp))
-        Button(onClick = onRetry) {
-            Text(stringResource(R.string.action_retry_page))
+        if (showRetry) {
+            Spacer(modifier = Modifier.height(16.dp))
+            Button(onClick = onRetry) {
+                Text(stringResource(R.string.action_retry_page))
+            }
         }
     }
 }
@@ -917,6 +994,8 @@ private val sampleBookmark = BookmarkDetailViewModel.Bookmark(
     description = "This is a sample description",
     labels = listOf("tech", "android", "kotlin"),
     readProgress = 0,
+    contentStatus = com.mydeck.app.domain.model.Bookmark.ContentStatus.DOWNLOADED,
+    contentFailureReason = null,
     hasContent = true
 )
 
