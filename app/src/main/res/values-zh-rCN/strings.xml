@@ -133,4 +133,5 @@
     <string name="background_sync_rationale_body">Content downloads may continue while the app is in the background. This allows your bookmarks to be ready for offline reading.</string>
     <string name="background_sync_rationale_allow">Allow</string>
 
+    <string name="retry">Retry</string>
 </resources>

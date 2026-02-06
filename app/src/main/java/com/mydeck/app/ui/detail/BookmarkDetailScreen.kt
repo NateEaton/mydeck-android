@@ -324,7 +324,9 @@ fun BookmarkDetailContent(
     val hasArticleContent = uiState.bookmark.articleContent != null
     val isArticle = uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.ARTICLE
     val needsRestore = isArticle && hasArticleContent && initialReadProgress > 0 && initialReadProgress <= 100
-    var hasRestoredPosition by remember { mutableStateOf(!needsRestore) }
+    // Key on hasArticleContent so when content arrives after on-demand fetch,
+    // the state resets and scroll position restore is triggered
+    var hasRestoredPosition by remember(hasArticleContent) { mutableStateOf(!needsRestore) }
     var lastReportedProgress by remember { mutableStateOf(-1) }
 
     // Restore scroll position when content is loaded (using initial progress, not reactive)
@@ -417,8 +419,12 @@ fun BookmarkDetailContent(
                                         style = MaterialTheme.typography.bodySmall
                                     )
                                     Spacer(Modifier.height(16.dp))
-                                    Button(onClick = onRetryContentFetch) {
-                                        Text("Retry")
+                                    Button(onClick = onSwitchToOriginal) {
+                                        Text(stringResource(R.string.action_view_original))
+                                    }
+                                    Spacer(Modifier.height(8.dp))
+                                    androidx.compose.material3.OutlinedButton(onClick = onRetryContentFetch) {
+                                        Text(stringResource(R.string.retry))
                                     }
                                 }
                             }

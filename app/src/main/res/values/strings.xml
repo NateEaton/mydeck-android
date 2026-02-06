@@ -52,6 +52,7 @@ other{}
     <string name="invalid_url">Invalid URL</string>
     <string name="save">Save</string>
     <string name="cancel">Cancel</string>
+    <string name="retry">Retry</string>
     <string name="create_bookmark_error">Error creating bookmark: %1$s</string>
     <string name="add_new_bookmark">Add New Bookmark</string>
     <string name="create">Create</string>
