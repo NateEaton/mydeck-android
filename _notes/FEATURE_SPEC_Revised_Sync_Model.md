@@ -2,15 +2,16 @@
 
 **Design & Implementation Specification**
 
+---
+
 ## 1. Goals & Non-Goals
 
 ### 1.1 Goals
 
-* Align sync behavior with **Pocket’s UX model** while respecting **Readeck’s immutable-content philosophy**
+* Align sync behavior with **Pocket's UX model** while respecting **Readeck's immutable-content philosophy**
 * Decouple **bookmark metadata sync** from **content sync**
 * Minimize unnecessary background work, bandwidth, and storage
 * Improve user understanding of:
-
   * online/offline state
   * sync status
   * why some bookmarks do not (and will never) have content
@@ -18,9 +19,9 @@
 
 ### 1.2 Non-Goals
 
-* No use of Readeck’s `/api/sync` endpoint
+* No use of Readeck's `/api/sync` endpoint (server-side SQLite bug; see `BookmarkRepositoryImpl.performDeltaSync`)
 * No automatic re-fetch or refresh of already-downloaded content
-* No “global Sync Now” button
+* No "global Sync Now" button
 * No notification spam (notifications are optional and limited to long-running date-range sync completion, if implemented later)
 
 ---
@@ -41,7 +42,7 @@ Content is immutable and expensive.**
 | Sync triggers     | Contextual (app open, pull-to-refresh, read view) |
 | Retry behavior    | Explicit and visible                              |
 
-This replaces the current “everything syncs together” approach.
+This replaces the current "everything syncs together" approach.
 
 ---
 
@@ -67,7 +68,6 @@ This replaces the current “everything syncs together” approach.
 ```
 
 * Bookmark metadata is:
-
   * fetched on login
   * fetched on app open
   * fetched on pull-to-refresh
@@ -102,11 +102,9 @@ This replaces the current “everything syncs together” approach.
 #### Notes:
 
 * **Dirty** means:
-
   * transient failure
   * eligible for retry
 * **Permanent No Content** includes:
-
   * video-only bookmarks
   * image-only bookmarks
   * unreachable or invalid URLs
@@ -147,7 +145,7 @@ Content sync behavior is controlled by **Content Sync Policy** (see Section 5).
 | Bookmark sync         | Fetch content    | No               | No               |
 | Open reading view     | Fetch if missing | Fetch if missing | Fetch if missing |
 | Pull-to-refresh       | Fetch content    | No               | No               |
-| Date-range “Download” | N/A              | N/A              | Fetch            |
+| Date-range "Download" | N/A              | N/A              | Fetch            |
 
 ---
 
@@ -157,19 +155,15 @@ When a bookmark is opened:
 
 1. If content exists locally → render article view
 2. If content does not exist:
-
    * Attempt content fetch
    * Show spinner / loading indicator
 3. If fetch succeeds → render article view
 4. If fetch fails:
-
    * Mark bookmark **dirty**
    * Show retry control in reading view
 5. If server reports no content available:
-
    * Switch automatically to **Original (Web) view**
    * Reading view supports two modes:
-
      * **Article** (Readeck content)
      * **Original** (embedded WebView)
 
@@ -183,11 +177,9 @@ When a bookmark is opened:
 
 #### Section 1: Bookmark Sync
 
-* Description: “Bookmarks are always kept in sync.”
+* Description: "Bookmarks are always kept in sync."
 * Option:
-
   * Sync frequency while app is open
-
     * Default: once per hour
     * Existing interval options reused
 * No manual option
@@ -200,22 +192,17 @@ When a bookmark is opened:
 **Options (radio-style selection):**
 
 1. **Automatic**
-
    * Content is fetched during bookmark sync
    * Requires background sync permission
 2. **Manual**
-
    * No batch content sync
    * Content fetched only when opening a bookmark
 3. **Date Range**
-
    * Two date pickers:
-
      * Added from
      * Added to
    * Grouped **Download** button:
-
-     * Label: “Download”
+     * Label: "Download"
      * Scope: content for bookmarks added in selected range
    * On-demand only
 
@@ -240,7 +227,6 @@ Prompt for background sync permission only when:
 ### 6.2 Rationale Displayed to User
 
 * Explain:
-
   * why background work is needed
   * that content downloads may continue while app is closed
 * Prompt only once per scenario
@@ -257,10 +243,8 @@ Prompt for background sync permission only when:
 
 * Icon-only indicator
 * Tooltip on long press:
-
-  * “Offline – unable to reach server”
+  * "Offline – unable to reach server"
 * Shown when:
-
   * no network connectivity
   * or server unreachable
 
@@ -273,7 +257,6 @@ No text labels. No list-header clutter.
 ### 8.1 Visual Treatment
 
 * Sync status block visually separated from other settings
-
   * border or card-style container
 
 ### 8.2 Metrics Displayed
@@ -317,82 +300,110 @@ Dirty bookmarks:
 
 * Visible retry control when content fetch fails
 * Retry attempts respect:
-
   * Wi-Fi setting
   * battery saver setting
   * offline state
 
 ---
 
-## 10. Current Codebase – Relevant Architecture Notes (No Code)
+## 10. Current Codebase – Architecture Baseline
 
-### 10.1 Existing Components
+This section documents the current state of the codebase as of the start of implementation. Understanding what exists (and what's broken) is essential context for the implementation plan.
 
-* `FullSyncWorker`
+### 10.1 Existing Components & Their Roles
 
-  * Currently handles both bookmark and content sync
-* `LoadArticleUseCase`
+| Component | File | Current Role |
+|-----------|------|-------------|
+| `FullSyncWorker` | `worker/FullSyncWorker.kt` | Performs deletion detection (full ID comparison) then calls `LoadBookmarksUseCase` which fetches metadata **and** enqueues content loading. Handles both periodic (auto) and manual (one-shot) sync. |
+| `LoadBookmarksWorker` | `worker/LoadBookmarksWorker.kt` | Incremental metadata sync with pagination. Delegates to `LoadBookmarksUseCase`. |
+| `LoadBookmarksUseCase` | `domain/usecase/LoadBookmarksUseCase.kt` | Fetches bookmarks page-by-page from Readeck API, saves via `bookmarkRepository.insertBookmarks()`, then **always enqueues `BatchArticleLoadWorker`** on completion (line 85). This is the primary coupling point between metadata and content sync. |
+| `BatchArticleLoadWorker` | `worker/BatchArticleLoadWorker.kt` | Queries `getBookmarkIdsWithoutContent()` and fetches articles in batches of 5 via `LoadArticleUseCase`. |
+| `LoadArticleUseCase` | `domain/usecase/LoadArticleUseCase.kt` | Fetches a single article's content from the API and saves it via `bookmarkRepository.insertBookmarks()`. |
+| `LoadArticleWorker` | `worker/LoadArticleWorker.kt` | One-shot WorkManager wrapper around `LoadArticleUseCase` for individual article downloads. |
+| `BookmarkDao` | `io/db/dao/BookmarkDao.kt` | Room DAO. Uses `OnConflictStrategy.REPLACE` for bookmark inserts (lines 44, 62). |
+| `ArticleContentEntity` | `io/db/model/ArticleContentEntity.kt` | Separate table with `ForeignKey(onDelete = CASCADE)` to `bookmarks`. |
+| `BookmarkRepositoryImpl` | `domain/BookmarkRepositoryImpl.kt` | Repository implementation. `insertBookmarks()` delegates to `bookmarkDao.insertBookmarksWithArticleContent()`. `performFullSync()` handles deletion detection via temporary `remote_bookmark_ids` table. |
+| `BookmarkListViewModel` | `ui/list/BookmarkListViewModel.kt` | Contains sync-on-app-open trigger in `init` block (line 187-193) and the shared-text dialog loop bug (line 123-137). |
+| `BookmarkDetailViewModel` | `ui/detail/BookmarkDetailViewModel.kt` | Loads bookmark + article content via `observeBookmark()`. No on-demand content fetch — just renders whatever is in the DB. |
+| `SyncSettingsScreen` | `ui/settings/SyncSettingsScreen.kt` | Current sync settings UI with auto-sync toggle, schedule selector, notifications toggle, sync-on-app-open toggle, and a "Sync Now" button. |
+| `SettingsDataStore` | `io/prefs/SettingsDataStore.kt` | Encrypted SharedPreferences storing sync preferences: `autoSyncEnabled`, `autoSyncTimeframe`, `syncOnAppOpenEnabled`, `syncNotificationsEnabled`, timestamps, etc. |
 
-  * Fetches article content
-  * Inserts content once (immutable behavior)
-* `BatchArticleLoadWorker` / `LoadArticleWorker`
+### 10.2 Known Bugs (Prerequisites — Must Be Fixed Before or During Phase 1)
 
-  * Background article loading
-* `BookmarkDao.observeAllBookmarkCounts`
+These bugs are documented in `_notes/FIX_Dialog_Loop_and_Sync_Issues.md` and remain **unfixed** in the codebase:
 
-  * Provides live bookmark metrics
-* `WorkManager`
+#### Bug 1: Content Invalidation via CASCADE Delete
 
-  * Already used for periodic and one-shot background tasks
+**Location:** `BookmarkDao.kt` lines 44, 62 — `@Insert(onConflict = OnConflictStrategy.REPLACE)`
 
----
+**Mechanism:** When a bookmark is re-inserted during sync, Room's `REPLACE` strategy deletes the existing row and inserts a new one. Because `ArticleContentEntity` has `ForeignKey(onDelete = CASCADE)`, the associated article content is automatically deleted. This means **every metadata sync destroys all previously downloaded article content**.
 
-### 10.2 Required Structural Changes
+**Impact:** Critical data loss. Users lose offline content silently during background sync.
 
-**Worker Responsibilities**
+#### Bug 2: Add Bookmark Dialog Loop
 
-* Split responsibilities conceptually:
+**Location:** `BookmarkListViewModel.kt` lines 123-137
 
-  * Bookmark sync worker (metadata only)
-  * Content sync workers (policy-driven)
+**Mechanism:** The `init` block reads `sharedText` from `SavedStateHandle` but never removes it. On process death + restore, the ViewModel recreates, reads the persisted value again, and reopens the dialog.
 
-**Policy Layer**
+#### Bug 3: Sync Triggered on ViewModel Recreation
 
-* Introduce explicit content sync policy evaluation:
+**Location:** `BookmarkListViewModel.kt` lines 187-193
 
-  * Automatic
-  * Manual
-  * Date range
+**Mechanism:** Sync-on-app-open logic lives in the ViewModel's `init` block. This ViewModel is scoped to `BookmarkListRoute`, so it recreates on configuration changes and process restoration — triggering unnecessary syncs.
 
-**State Tracking**
+### 10.3 Database Schema (Current)
 
-* Track:
+**`bookmarks` table** (`BookmarkEntity.kt`):
+```
+id (PK), href, created, updated, state (LOADED/ERROR/LOADING), loaded,
+url, title, siteName, site, authors, lang, textDirection, documentTpe,
+type (article/video/photo), hasArticle, description, isDeleted, isMarked,
+isArchived, labels, readProgress, wordCount, readingTime, published,
+embed, embedHostname,
+article_* (ResourceEntity), icon_* (ImageResourceEntity),
+image_* (ImageResourceEntity), log_* (ResourceEntity),
+props_* (ResourceEntity), thumbnail_* (ImageResourceEntity)
+```
 
-  * content present
-  * content dirty
-  * permanent no-content states
+**`article_content` table** (`ArticleContentEntity.kt`):
+```
+bookmarkId (PK, FK → bookmarks.id, onDelete=CASCADE), content (String)
+```
 
-**UI Coordination**
+**`remote_bookmark_ids` table** (`RemoteBookmarkIdEntity.kt`):
+```
+id (PK) — temporary table used during full sync deletion detection
+```
 
-* Reading view must be able to:
+**Key observations:**
+- No content state tracking fields (no dirty flag, no failure reason, no permanent-no-content marker)
+- `hasArticle` on `BookmarkEntity` is a server-provided flag indicating whether Readeck extracted article content — it does NOT indicate whether the app has downloaded it locally
+- Content presence can only be inferred by joining `article_content` (e.g., `getBookmarkIdsWithoutContent()`)
 
-  * trigger one-shot content fetch
-  * observe fetch result
-  * expose retry affordance
+### 10.4 Sync Settings (Current Preferences)
+
+| Key | Type | Purpose |
+|-----|------|---------|
+| `autoSyncEnabled` | Boolean | Master toggle for periodic background sync |
+| `autoSyncTimeframe` | Enum | Schedule: MANUAL, 1H, 6H, 12H, 1D, 7D, 14D, 30D |
+| `syncOnAppOpenEnabled` | Boolean | Trigger full sync on app foreground |
+| `syncNotificationsEnabled` | Boolean | Show notification on sync completion |
+| `lastSyncTimestamp` | Instant | Last incremental sync time |
+| `lastFullSyncTimestamp` | Instant | Last full sync (deletion detection) time |
+| `lastBookmarkTimestamp` | Instant | Cursor for incremental bookmark fetching |
+| `initialSyncPerformed` | Boolean | Whether first sync has completed |
 
 ---
 
 ## 11. Migration & Compatibility Considerations
 
 * Existing users with downloaded content:
-
   * Content remains valid
   * No re-fetch required
 * Existing sync interval settings:
-
   * Reused for bookmark sync
 * Existing manual sync button:
-
   * Removed
   * Pull-to-refresh becomes primary manual trigger
 
@@ -404,319 +415,1006 @@ This design:
 
 * Reduces unnecessary background work
 * Improves perceived performance
-* Matches Pocket’s successful UX patterns
-* Respects Readeck’s architectural philosophy
+* Matches Pocket's successful UX patterns
+* Respects Readeck's architectural philosophy
 * Clarifies sync state for users and developers alike
 
 It is a **refactor**, not a rewrite, and leverages existing infrastructure while significantly improving clarity, efficiency, and user trust.
 
 ---
 
-## 13. Phase 1 Implementation Plan (Bookmark Metadata Sync Isolation)
+# Implementation Plan
 
-### 13.1 Goals
+## Phasing Rationale
 
-* Ship **metadata-only** bookmark sync as a standalone worker.
-* Ensure **no content fetch** is triggered during bookmark sync.
-* Preserve current trigger points and intervals for metadata sync.
+The original spec proposed 7 phases. This was overly conservative — several phases (permissions, offline indicator, migration cleanup, settings UI, policy layer) are too thin to stand alone and create unnecessary integration overhead when split apart. The revised plan consolidates into **3 phases**, each producing a testable, shippable increment:
 
-### 13.2 Scope of Change
+| Phase | Focus | Summary |
+|-------|-------|---------|
+| 1 | **Foundation** | Fix critical bugs, isolate metadata sync, add content state tracking |
+| 2 | **Content Policy + Reading View** | Policy engine, on-demand fetch, retry, constraints |
+| 3 | **UI Overhaul** | Settings redesign, sync status, offline indicator, permissions |
 
-* Introduce a dedicated **BookmarkSyncWorker** (metadata only).
-* Update existing **FullSyncWorker** usages:
-
-  * Metadata sync only, or
-  * Replace call sites with BookmarkSyncWorker.
-* Keep existing interval configuration (app-open periodic sync).
-* Ensure pull-to-refresh and app-open sync perform metadata-only updates.
-
-### 13.3 Implementation Steps
-
-1. **Create BookmarkSyncWorker**
-
-   * Keep API surface minimal: metadata fetch, insert/update/delete only.
-   * Reuse existing sync interval configuration.
-2. **Retire FullSyncWorker in metadata contexts**
-
-   * Replace call sites that only need list updates (app open, pull-to-refresh).
-   * If FullSyncWorker remains for legacy reasons, guard it to run metadata-only.
-3. **Guard content fetch paths**
-
-   * Ensure bookmark sync cannot enqueue LoadArticleWorker or batch loaders.
-   * Verify no implicit content fetch in sync use cases.
-4. **Wire triggers**
-
-   * Login sync -> BookmarkSyncWorker
-   * App open periodic sync -> BookmarkSyncWorker
-   * Pull-to-refresh -> BookmarkSyncWorker
-
-### 13.4 Expected Behavior
-
-* On login, app open, pull-to-refresh:
-
-  * Fetch bookmark IDs + metadata
-  * Insert new bookmarks
-  * Remove deleted bookmarks
-  * Update metadata fields only
-* No content fetch as part of metadata sync, regardless of settings.
-
-### 13.5 Out of Scope (Phase 1)
-
-* Content policy evaluation (Automatic / Manual / Date Range)
-* Content dirty/permanent-no-content tracking
-* Reading view on-demand fetch changes
-* Settings UI changes
-* Sync status reporting changes
-
-### 13.6 Acceptance Checklist
-
-* Metadata sync completes without triggering any content download.
-* Existing periodic sync interval continues to schedule metadata-only work.
-* Pull-to-refresh and app-open sync still update bookmark lists.
+Each phase must be fully tested before beginning the next.
 
 ---
 
-## 14. Phase 2 Implementation Plan (Content State Tracking)
+## Phase 1: Foundation (Bug Fixes + Metadata Sync Isolation + Content State Tracking)
 
-### 14.1 Goals
+### 1.1 Goals
 
-* Introduce explicit content states: downloaded, dirty (retryable), permanent no-content.
-* Ensure content immutability: no re-fetch once downloaded.
-* Enable reliable retry flows based on dirty state.
+* Fix the three critical bugs documented in Section 10.2
+* Decouple metadata sync from content sync at the worker level
+* Introduce content state tracking in the database
+* Ensure existing content is preserved during sync operations
 
-### 14.2 Scope of Change
+### 1.2 Deliverables
 
-* Extend bookmark storage to track content state and failure reason.
-* Map server responses to permanent no-content categories.
-* Update content download flows to set dirty on transient failures.
+#### 1.2.1 Fix: BookmarkDao INSERT Strategy (Content Invalidation)
 
-### 14.3 Implementation Steps
+**Files to modify:**
+- `app/src/main/java/com/mydeck/app/io/db/dao/BookmarkDao.kt`
 
-1. **Define content state model**
+**Changes:**
 
-   * Add fields for content presence, dirty flag, and permanent-no-content reason.
-   * Map to existing Readeck flags where possible.
-2. **Update content fetch pipeline**
+1. Replace bulk insert method:
+```kotlin
+// REMOVE:
+@Insert(onConflict = OnConflictStrategy.REPLACE)
+suspend fun insertBookmarks(bookmarks: List<BookmarkEntity>)
 
-   * On success: mark content downloaded (immutable).
-   * On transient failure: mark dirty.
-   * On permanent failure: mark permanent no-content with reason.
-3. **Adjust retry logic**
+// ADD:
+@Insert(onConflict = OnConflictStrategy.IGNORE)
+suspend fun insertBookmarksIgnore(bookmarks: List<BookmarkEntity>): List<Long>
 
-   * Allow retries only for dirty content.
-   * Block retries for permanent no-content.
-4. **Backfill for existing data**
+@Update
+suspend fun updateBookmarks(bookmarks: List<BookmarkEntity>)
 
-   * Default existing downloaded content to downloaded state.
-   * Leave unknown/no content as unattempted.
+@Transaction
+suspend fun upsertBookmarks(bookmarks: List<BookmarkEntity>) {
+    val insertResults = insertBookmarksIgnore(bookmarks)
+    val toUpdate = bookmarks.filterIndexed { index, _ -> insertResults[index] == -1L }
+    if (toUpdate.isNotEmpty()) {
+        updateBookmarks(toUpdate)
+    }
+}
+```
 
-### 14.4 Out of Scope (Phase 2)
+2. Replace single insert method:
+```kotlin
+// REMOVE:
+@Insert(onConflict = REPLACE)
+suspend fun insertBookmark(bookmarkEntity: BookmarkEntity)
 
-* Content sync policy evaluation
-* Settings UI changes
-* Reading view UX changes
-* Sync status reporting
+// ADD:
+@Insert(onConflict = OnConflictStrategy.IGNORE)
+suspend fun insertBookmarkIgnore(bookmarkEntity: BookmarkEntity): Long
 
-### 14.5 Acceptance Checklist
+@Update
+suspend fun updateBookmark(bookmarkEntity: BookmarkEntity)
 
-* Content download outcomes correctly populate state fields.
-* Dirty content is retryable; permanent no-content is not.
-* Downloaded content is never re-fetched.
+@Transaction
+suspend fun upsertBookmark(bookmarkEntity: BookmarkEntity) {
+    val rowId = insertBookmarkIgnore(bookmarkEntity)
+    if (rowId == -1L) {
+        updateBookmark(bookmarkEntity)
+    }
+}
+```
+
+3. Update `insertBookmarkWithArticleContent` transaction:
+```kotlin
+@Transaction
+suspend fun insertBookmarkWithArticleContent(bookmarkWithArticleContent: BookmarkWithArticleContent) {
+    with(bookmarkWithArticleContent) {
+        upsertBookmark(bookmark)
+        articleContent?.run { insertArticleContent(this) }
+    }
+}
+```
+
+4. Update all call sites that use `insertBookmark()` or `insertBookmarks()`:
+   - `BookmarkRepositoryImpl.renameLabel()` (line 673) — change `insertBookmark(updatedBookmark)` → `upsertBookmark(updatedBookmark)`
+   - `BookmarkRepositoryImpl.deleteLabel()` (line 723) — same change
+   - Any other internal callers
+
+**Article content insert can remain REPLACE** (`insertArticleContent` at line 132) because article content is truly an upsert — we only write it once, and if we write again it means we're intentionally replacing (e.g., the content was re-fetched after a dirty state).
+
+**Verification:**
+- Write a test: insert bookmark with content, then re-insert same bookmark with updated metadata (no content). Assert article content still exists.
+- Write a test: insert bookmark, then upsert with changed title. Assert title is updated and article content is preserved.
+
+#### 1.2.2 Fix: Dialog Loop (SavedStateHandle)
+
+**File:** `app/src/main/java/com/mydeck/app/ui/list/BookmarkListViewModel.kt`
+
+**Change at lines 122-137:**
+```kotlin
+// BEFORE:
+savedStateHandle.get<String>("sharedText").takeIf { it != null }?.let {
+    val sharedText = it.extractUrlAndTitle()
+    // ...
+}
+
+// AFTER:
+savedStateHandle.get<String>("sharedText")?.let { raw ->
+    savedStateHandle.remove<String>("sharedText") // Consume immediately
+    val sharedText = raw.extractUrlAndTitle()
+    val urlError = if (sharedText == null) {
+        R.string.account_settings_url_error
+    } else {
+        null
+    }
+    _createBookmarkUiState.value = CreateBookmarkUiState.Open(
+        title = sharedText?.title ?: "",
+        url = sharedText?.url ?: "",
+        urlError = urlError,
+        isCreateEnabled = urlError == null
+    )
+}
+```
+
+**Verification:**
+- Manual test: share a URL to the app, background it, kill process via ADB, restore. Dialog should NOT reappear.
+
+#### 1.2.3 Fix: Move Sync-on-App-Open to MainActivity
+
+**File:** `app/src/main/java/com/mydeck/app/ui/list/BookmarkListViewModel.kt`
+
+Remove lines 187-193 (the `viewModelScope.launch { if (settingsDataStore.isSyncOnAppOpenEnabled()) ... }` block).
+
+**File:** `app/src/main/java/com/mydeck/app/MainActivity.kt`
+
+Add `FullSyncUseCase` injection and cold-start sync trigger:
+
+```kotlin
+@AndroidEntryPoint
+class MainActivity : ComponentActivity() {
+
+    @Inject lateinit var settingsDataStore: SettingsDataStore
+    @Inject lateinit var fullSyncUseCase: FullSyncUseCase
+
+    private lateinit var intentState: MutableState<Intent?>
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
+
+        // Sync on app open — only on cold start, not on config change or process restore
+        if (savedInstanceState == null) {
+            lifecycleScope.launch {
+                if (settingsDataStore.isSyncOnAppOpenEnabled()) {
+                    Timber.d("App Open: Triggering sync")
+                    fullSyncUseCase.performFullSync()
+                }
+            }
+        }
+
+        setContent {
+            // ... existing content ...
+        }
+    }
+    // ... rest unchanged ...
+}
+```
+
+**Required imports:** `androidx.lifecycle.lifecycleScope`, `kotlinx.coroutines.launch`
+
+**Verification:**
+- Set sync-on-app-open enabled. Cold start app → sync triggered (check Timber logs).
+- Rotate device → sync NOT re-triggered.
+- Background + restore → sync NOT re-triggered.
+
+#### 1.2.4 Decouple Metadata Sync from Content Sync
+
+**Goal:** `LoadBookmarksUseCase` must stop automatically enqueuing `BatchArticleLoadWorker`. Content loading must be a separate, policy-driven decision.
+
+**File:** `app/src/main/java/com/mydeck/app/domain/usecase/LoadBookmarksUseCase.kt`
+
+1. Remove `enqueueBatchArticleLoader()` private method (lines 94-114)
+2. Remove the call `enqueueBatchArticleLoader()` at line 85
+3. Remove the `workManager` constructor parameter (it's only used for batch article enqueueing)
+4. Remove the `BatchArticleLoadWorker` import
+
+**After this change**, bookmark sync (metadata) will complete without triggering any content downloads.
+
+**Temporary compatibility:** During Phase 1, users on "Automatic" content policy (which doesn't exist yet as a setting) will not get automatic content downloads. This is acceptable because:
+- The existing behavior was actively destroying content (Bug 1)
+- Content can still be loaded on-demand when opening a bookmark (existing `LoadArticleWorker` path)
+- Phase 2 restores automatic content loading behind the new policy engine
+
+**File:** `app/src/main/java/com/mydeck/app/worker/FullSyncWorker.kt`
+
+No changes needed — it already delegates to `LoadBookmarksUseCase` which will now be metadata-only.
+
+**Verification:**
+- Trigger a sync. Assert no `BatchArticleLoadWorker` is enqueued (check WorkManager state or Timber logs).
+- Assert bookmark metadata is still correctly inserted/updated.
+- Assert existing article content is NOT deleted during sync (combined with Bug 1 fix).
+
+#### 1.2.5 Add Content State Tracking to Database
+
+**New enum — Content State:**
+
+**File:** `app/src/main/java/com/mydeck/app/io/db/model/BookmarkEntity.kt`
+
+Add to the `BookmarkEntity` class:
+
+```kotlin
+enum class ContentState(val value: Int) {
+    NOT_ATTEMPTED(0),   // Content has never been fetched
+    DOWNLOADED(1),      // Content successfully downloaded and stored
+    DIRTY(2),           // Fetch failed with transient error, eligible for retry
+    PERMANENT_NO_CONTENT(3) // Content will never be available (wrong type, extraction failure, etc.)
+}
+```
+
+Add new fields to `BookmarkEntity`:
+
+```kotlin
+val contentState: ContentState = ContentState.NOT_ATTEMPTED,
+val contentFailureReason: String? = null  // Human-readable reason for DIRTY or PERMANENT_NO_CONTENT
+```
+
+**Database migration:**
+
+**File:** Create `app/src/main/java/com/mydeck/app/io/db/migration/Migration_X_Y.kt` (version numbers depend on current schema version)
+
+```kotlin
+val MIGRATION_X_Y = object : Migration(X, Y) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        // Add content state columns with defaults
+        db.execSQL("ALTER TABLE bookmarks ADD COLUMN contentState INTEGER NOT NULL DEFAULT 0")
+        db.execSQL("ALTER TABLE bookmarks ADD COLUMN contentFailureReason TEXT DEFAULT NULL")
+
+        // Backfill: mark bookmarks that already have content as DOWNLOADED
+        db.execSQL("""
+            UPDATE bookmarks SET contentState = 1
+            WHERE EXISTS (SELECT 1 FROM article_content WHERE article_content.bookmarkId = bookmarks.id)
+        """)
+
+        // Backfill: mark non-article types as PERMANENT_NO_CONTENT
+        // (photos and videos don't have extractable article content)
+        db.execSQL("""
+            UPDATE bookmarks SET contentState = 3, contentFailureReason = 'Non-article type'
+            WHERE type IN ('photo', 'video') AND contentState = 0
+        """)
+
+        // Backfill: mark bookmarks where server says no article as PERMANENT_NO_CONTENT
+        db.execSQL("""
+            UPDATE bookmarks SET contentState = 3, contentFailureReason = 'No article available on server'
+            WHERE hasArticle = 0 AND type = 'article' AND contentState = 0
+        """)
+    }
+}
+```
+
+Register the migration in the Room database builder (in `AppDatabase.kt` or wherever the database is configured).
+
+**Update content fetch pipeline to set state:**
+
+**File:** `app/src/main/java/com/mydeck/app/domain/usecase/LoadArticleUseCase.kt`
+
+```kotlin
+class LoadArticleUseCase @Inject constructor(
+    private val bookmarkRepository: BookmarkRepository,
+    private val readeckApi: ReadeckApi,
+    private val bookmarkDao: BookmarkDao
+) {
+    sealed class Result {
+        data object Success : Result()
+        data object AlreadyDownloaded : Result()
+        data class TransientFailure(val reason: String) : Result()
+        data class PermanentFailure(val reason: String) : Result()
+    }
+
+    suspend fun execute(bookmarkId: String): Result {
+        val bookmark = bookmarkRepository.getBookmarkById(bookmarkId)
+
+        // Guard: never re-fetch downloaded content
+        if (bookmark.contentState == ContentState.DOWNLOADED) {
+            return Result.AlreadyDownloaded
+        }
+
+        // Guard: don't attempt for permanent no-content
+        if (bookmark.contentState == ContentState.PERMANENT_NO_CONTENT) {
+            return Result.PermanentFailure(bookmark.contentFailureReason ?: "No content available")
+        }
+
+        if (!bookmark.hasArticle) {
+            // Server says no article content — mark permanent
+            bookmarkDao.updateContentState(
+                bookmarkId, ContentState.PERMANENT_NO_CONTENT.value,
+                "No article content available (type=${bookmark.type})"
+            )
+            Timber.i("Bookmark has no article [type=${bookmark.type}]")
+            return Result.PermanentFailure("No article content available")
+        }
+
+        return try {
+            val response = readeckApi.getArticle(bookmarkId)
+            if (response.isSuccessful && response.body() != null) {
+                val content = response.body()!!
+                val bookmarkToSave = bookmark.copy(
+                    articleContent = content,
+                    contentState = ContentState.DOWNLOADED,
+                    contentFailureReason = null
+                )
+                bookmarkRepository.insertBookmarks(listOf(bookmarkToSave))
+                Result.Success
+            } else {
+                val reason = "HTTP ${response.code()}"
+                bookmarkDao.updateContentState(bookmarkId, ContentState.DIRTY.value, reason)
+                Timber.w("Content fetch failed for $bookmarkId: $reason")
+                Result.TransientFailure(reason)
+            }
+        } catch (e: IOException) {
+            val reason = "Network error: ${e.message}"
+            bookmarkDao.updateContentState(bookmarkId, ContentState.DIRTY.value, reason)
+            Timber.w(e, "Content fetch network error for $bookmarkId")
+            Result.TransientFailure(reason)
+        } catch (e: Exception) {
+            val reason = "Unexpected error: ${e.message}"
+            bookmarkDao.updateContentState(bookmarkId, ContentState.DIRTY.value, reason)
+            Timber.e(e, "Content fetch unexpected error for $bookmarkId")
+            Result.TransientFailure(reason)
+        }
+    }
+}
+```
+
+**New DAO method:**
+
+**File:** `app/src/main/java/com/mydeck/app/io/db/dao/BookmarkDao.kt`
+
+```kotlin
+@Query("UPDATE bookmarks SET contentState = :state, contentFailureReason = :reason WHERE id = :id")
+suspend fun updateContentState(id: String, state: Int, reason: String?)
+```
+
+**Update `BatchArticleLoadWorker` to respect content state:**
+
+**File:** `app/src/main/java/com/mydeck/app/worker/BatchArticleLoadWorker.kt`
+
+Replace `getBookmarkIdsWithoutContent()` usage with a new query that respects content state:
+
+```kotlin
+// In BookmarkDao, replace or supplement:
+@Query("""
+    SELECT b.id FROM bookmarks b
+    WHERE b.contentState IN (0, 2)
+    AND b.hasArticle = 1
+    ORDER BY b.created DESC
+""")
+suspend fun getBookmarkIdsEligibleForContentFetch(): List<String>
+```
+
+This returns bookmarks that are either NOT_ATTEMPTED (0) or DIRTY (2), and where the server indicates article content exists.
+
+#### 1.2.6 Update Domain Model
+
+**File:** `app/src/main/java/com/mydeck/app/domain/model/Bookmark.kt`
+
+Add to the `Bookmark` domain model:
+
+```kotlin
+val contentState: ContentState = ContentState.NOT_ATTEMPTED,
+val contentFailureReason: String? = null
+```
+
+Where `ContentState` is an enum mirroring the entity enum:
+```kotlin
+enum class ContentState {
+    NOT_ATTEMPTED, DOWNLOADED, DIRTY, PERMANENT_NO_CONTENT
+}
+```
+
+**Update mappers** in `domain/mapper/BookmarkMapper.kt` to map between entity and domain content states.
+
+### 1.3 Acceptance Criteria
+
+- [ ] Syncing bookmarks does NOT delete existing article content (REPLACE → IGNORE+UPDATE verified)
+- [ ] Shared-text dialog does not reappear after process death
+- [ ] Sync-on-app-open triggers only on cold start, not on config change or ViewModel recreation
+- [ ] Metadata sync completes without enqueuing any content download workers
+- [ ] Existing downloaded content is backfilled as `DOWNLOADED` state after migration
+- [ ] Non-article bookmarks are correctly marked `PERMANENT_NO_CONTENT`
+- [ ] `LoadArticleUseCase` sets content state appropriately on success, transient failure, and permanent failure
+- [ ] Content that is already `DOWNLOADED` is never re-fetched
+- [ ] All existing unit tests pass
+- [ ] New unit tests cover: upsert behavior, content state transitions, LoadArticleUseCase result handling
 
 ---
 
-## 15. Phase 3 Implementation Plan (Content Sync Policy Layer)
+## Phase 2: Content Policy Engine + Reading View On-Demand Fetch
 
-### 15.1 Goals
+### 2.1 Goals
 
-* Centralize policy evaluation for Automatic, Manual, and Date Range modes.
-* Apply Wi-Fi and battery constraints consistently.
-* Prepare for permission prompts in later phases.
+* Introduce the content sync policy layer (Automatic / Manual / Date Range)
+* Implement on-demand content fetch with retry in the reading view
+* Enforce constraints (Wi-Fi, battery saver) consistently
+* Re-enable automatic content loading behind the policy engine
 
-### 15.2 Scope of Change
+### 2.2 Deliverables
 
-* Add a policy evaluator (single source of truth).
-* Route batch content downloads through policy checks.
-* Store selected policy and date range parameters.
+#### 2.2.1 Content Sync Policy Evaluator
 
-### 15.3 Implementation Steps
+**New file:** `app/src/main/java/com/mydeck/app/domain/sync/ContentSyncPolicy.kt`
 
-1. **Create policy evaluator**
+```kotlin
+enum class ContentSyncMode {
+    AUTOMATIC,   // Content fetched during bookmark sync
+    MANUAL,      // Content fetched only when user opens a bookmark
+    DATE_RANGE   // Content fetched for a user-specified date range on demand
+}
 
-   * Inputs: user settings, connectivity, battery saver, policy mode.
-   * Outputs: allowed/blocked with reason.
-2. **Wire policy into batch content flows**
+data class ContentSyncConstraints(
+    val wifiOnly: Boolean,
+    val allowOnBatterySaver: Boolean
+)
 
-   * Gate any background or bulk fetch through evaluator.
-3. **Add date range parameters**
+data class DateRangeParams(
+    val from: LocalDate,
+    val to: LocalDate
+)
+```
 
-   * Persist selected date range for download requests.
-4. **Add policy-specific logging**
+**New file:** `app/src/main/java/com/mydeck/app/domain/sync/ContentSyncPolicyEvaluator.kt`
 
-   * Record why content fetch is skipped (for later UI surfacing).
+```kotlin
+class ContentSyncPolicyEvaluator @Inject constructor(
+    private val settingsDataStore: SettingsDataStore,
+    private val connectivityMonitor: ConnectivityMonitor  // new, see below
+) {
+    data class Decision(
+        val allowed: Boolean,
+        val blockedReason: String? = null
+    )
 
-### 15.4 Out of Scope (Phase 3)
+    suspend fun canFetchContent(): Decision {
+        val constraints = settingsDataStore.getContentSyncConstraints()
 
-* Reading view UX changes
-* Settings UI implementation
-* Sync status reporting
-* Permission prompts
+        if (constraints.wifiOnly && !connectivityMonitor.isOnWifi()) {
+            return Decision(false, "Wi-Fi required")
+        }
 
-### 15.5 Acceptance Checklist
+        if (!constraints.allowOnBatterySaver && connectivityMonitor.isBatterySaverOn()) {
+            return Decision(false, "Battery saver active")
+        }
 
-* All content batch fetches are blocked/allowed by policy.
-* Wi-Fi and battery constraints are enforced consistently.
-* Date range parameters are stored for later download execution.
+        if (!connectivityMonitor.isNetworkAvailable()) {
+            return Decision(false, "No network")
+        }
+
+        return Decision(true)
+    }
+
+    suspend fun shouldAutoFetchContent(): Boolean {
+        return settingsDataStore.getContentSyncMode() == ContentSyncMode.AUTOMATIC
+            && canFetchContent().allowed
+    }
+}
+```
+
+**New file:** `app/src/main/java/com/mydeck/app/domain/sync/ConnectivityMonitor.kt`
+
+Interface + implementation using Android's `ConnectivityManager` and `PowerManager`:
+
+```kotlin
+interface ConnectivityMonitor {
+    fun isNetworkAvailable(): Boolean
+    fun isOnWifi(): Boolean
+    fun isBatterySaverOn(): Boolean
+    fun observeConnectivity(): Flow<Boolean>  // For UI offline indicator (Phase 3)
+}
+```
+
+Implementation via `ConnectivityManager.NetworkCallback` and `PowerManager.isPowerSaveMode`.
+
+#### 2.2.2 New Settings Preferences
+
+**File:** `app/src/main/java/com/mydeck/app/io/prefs/SettingsDataStore.kt` (interface) and `SettingsDataStoreImpl.kt`
+
+Add:
+
+```kotlin
+// Content sync mode
+suspend fun getContentSyncMode(): ContentSyncMode
+suspend fun saveContentSyncMode(mode: ContentSyncMode)
+
+// Constraints
+suspend fun getContentSyncConstraints(): ContentSyncConstraints
+suspend fun saveWifiOnly(enabled: Boolean)
+suspend fun saveAllowBatterySaver(enabled: Boolean)
+
+// Date range
+suspend fun getDateRangeParams(): DateRangeParams?
+suspend fun saveDateRangeParams(params: DateRangeParams)
+```
+
+**Default values for existing users:**
+- `contentSyncMode` = `AUTOMATIC` (preserves existing behavior where content was auto-fetched)
+- `wifiOnly` = `false`
+- `allowOnBatterySaver` = `true`
+
+#### 2.2.3 Wire Policy into Content Fetch Flows
+
+**File:** `app/src/main/java/com/mydeck/app/domain/usecase/LoadBookmarksUseCase.kt`
+
+After the metadata sync loop completes (where `enqueueBatchArticleLoader()` used to be), add policy-gated content sync:
+
+```kotlin
+// After metadata sync completes:
+if (policyEvaluator.shouldAutoFetchContent()) {
+    enqueueBatchArticleLoader()
+}
+```
+
+Re-add the `enqueueBatchArticleLoader()` private method, but now it is only called when the policy allows it.
+
+Constructor now requires `ContentSyncPolicyEvaluator`.
+
+**File:** `app/src/main/java/com/mydeck/app/worker/BatchArticleLoadWorker.kt`
+
+Update to use `getBookmarkIdsEligibleForContentFetch()` instead of `getBookmarkIdsWithoutContent()`.
+
+Also add constraint checking before each batch:
+```kotlin
+// Before processing each batch:
+if (!policyEvaluator.canFetchContent().allowed) {
+    Timber.i("Content fetch blocked by constraints, stopping batch")
+    return Result.success() // Don't retry, constraints may change
+}
+```
+
+#### 2.2.4 Date Range Content Sync Worker
+
+**New file:** `app/src/main/java/com/mydeck/app/worker/DateRangeContentSyncWorker.kt`
+
+A one-shot worker that:
+1. Reads date range params from `SettingsDataStore`
+2. Queries bookmarks where `created` is within the date range AND `contentState` is NOT_ATTEMPTED or DIRTY
+3. Fetches content for each, respecting constraints
+4. Reports progress (for future notification support)
+
+```kotlin
+@HiltWorker
+class DateRangeContentSyncWorker @AssistedInject constructor(
+    @Assisted appContext: Context,
+    @Assisted workerParams: WorkerParameters,
+    private val bookmarkDao: BookmarkDao,
+    private val loadArticleUseCase: LoadArticleUseCase,
+    private val policyEvaluator: ContentSyncPolicyEvaluator
+) : CoroutineWorker(appContext, workerParams) {
+
+    override suspend fun doWork(): Result {
+        val fromEpoch = inputData.getLong(PARAM_FROM_EPOCH, 0)
+        val toEpoch = inputData.getLong(PARAM_TO_EPOCH, 0)
+
+        val eligibleIds = bookmarkDao.getBookmarkIdsForDateRangeContentFetch(
+            fromEpoch = fromEpoch, toEpoch = toEpoch
+        )
+
+        for (id in eligibleIds) {
+            if (!policyEvaluator.canFetchContent().allowed) {
+                Timber.i("Constraints no longer met, stopping date range sync")
+                return Result.success()
+            }
+            try {
+                loadArticleUseCase.execute(id)
+            } catch (e: Exception) {
+                Timber.w(e, "Failed to load article $id in date range sync")
+            }
+        }
+
+        return Result.success()
+    }
+
+    companion object {
+        const val UNIQUE_WORK_NAME = "date_range_content_sync"
+        const val PARAM_FROM_EPOCH = "from_epoch"
+        const val PARAM_TO_EPOCH = "to_epoch"
+    }
+}
+```
+
+**New DAO query:**
+```kotlin
+@Query("""
+    SELECT b.id FROM bookmarks b
+    WHERE b.contentState IN (0, 2)
+    AND b.hasArticle = 1
+    AND b.created >= :fromEpoch AND b.created <= :toEpoch
+    ORDER BY b.created DESC
+""")
+suspend fun getBookmarkIdsForDateRangeContentFetch(fromEpoch: Long, toEpoch: Long): List<String>
+```
+
+#### 2.2.5 Reading View On-Demand Content Fetch
+
+**File:** `app/src/main/java/com/mydeck/app/ui/detail/BookmarkDetailViewModel.kt`
+
+Add content loading capability to the detail ViewModel:
+
+```kotlin
+// New dependencies (constructor injection):
+private val loadArticleUseCase: LoadArticleUseCase
+private val policyEvaluator: ContentSyncPolicyEvaluator
+
+// New state:
+private val _contentLoadState = MutableStateFlow<ContentLoadState>(ContentLoadState.Idle)
+val contentLoadState: StateFlow<ContentLoadState> = _contentLoadState.asStateFlow()
+
+sealed class ContentLoadState {
+    data object Idle : ContentLoadState()
+    data object Loading : ContentLoadState()
+    data object Loaded : ContentLoadState()
+    data class Failed(val reason: String, val canRetry: Boolean) : ContentLoadState()
+}
+```
+
+In the `init` block, after loading the bookmark, check if content needs fetching:
+
+```kotlin
+is com.mydeck.app.domain.model.Bookmark.Type.Article -> {
+    currentScrollProgress = bookmark.readProgress
+    isReadLocked = bookmark.isRead()
+
+    // If no content downloaded, attempt on-demand fetch
+    if (bookmark.contentState != ContentState.DOWNLOADED &&
+        bookmark.contentState != ContentState.PERMANENT_NO_CONTENT) {
+        fetchContentOnDemand(bookmarkId)
+    }
+}
+```
+
+```kotlin
+private fun fetchContentOnDemand(bookmarkId: String) {
+    viewModelScope.launch {
+        _contentLoadState.value = ContentLoadState.Loading
+        val result = loadArticleUseCase.execute(bookmarkId)
+        _contentLoadState.value = when (result) {
+            is LoadArticleUseCase.Result.Success -> ContentLoadState.Loaded
+            is LoadArticleUseCase.Result.AlreadyDownloaded -> ContentLoadState.Loaded
+            is LoadArticleUseCase.Result.TransientFailure -> ContentLoadState.Failed(
+                reason = result.reason,
+                canRetry = true
+            )
+            is LoadArticleUseCase.Result.PermanentFailure -> ContentLoadState.Failed(
+                reason = result.reason,
+                canRetry = false
+            )
+        }
+    }
+}
+
+fun retryContentFetch() {
+    bookmarkId?.let { fetchContentOnDemand(it) }
+}
+```
+
+**File:** `app/src/main/java/com/mydeck/app/ui/detail/BookmarkDetailScreen.kt`
+
+Update the reading view to observe `contentLoadState`:
+
+1. When `ContentLoadState.Loading` — show a centered `CircularProgressIndicator` instead of the "No content" message
+2. When `ContentLoadState.Failed(canRetry=true)` — show the failure reason and a "Retry" button
+3. When `ContentLoadState.Failed(canRetry=false)` — auto-switch to Original (WebView) mode
+4. When content loads successfully, the existing `observeBookmarkWithArticleContent` Flow will emit a new value with content populated, causing the UI to re-render with the article
+
+**Specifics for the retry UI:**
+
+```kotlin
+// Within the Reader content mode, when articleContent is null:
+when (val loadState = contentLoadState) {
+    is ContentLoadState.Loading -> {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            CircularProgressIndicator()
+        }
+    }
+    is ContentLoadState.Failed -> {
+        if (!loadState.canRetry) {
+            // Auto-switch to original view
+            LaunchedEffect(Unit) { showOriginal = true }
+        } else {
+            Column(
+                modifier = Modifier.fillMaxSize().padding(16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                Text("Unable to load article content")
+                Text(loadState.reason, style = Typography.bodySmall)
+                Spacer(Modifier.height(16.dp))
+                Button(onClick = { viewModel.retryContentFetch() }) {
+                    Text("Retry")
+                }
+            }
+        }
+    }
+    else -> {
+        // Existing "no content" placeholder
+        EmptyBookmarkDetailArticle()
+    }
+}
+```
+
+### 2.3 Acceptance Criteria
+
+- [ ] Content sync mode setting is persisted and respected (Automatic / Manual / Date Range)
+- [ ] In Automatic mode: content is fetched after metadata sync completes
+- [ ] In Manual mode: content is fetched ONLY when opening a bookmark in reading view
+- [ ] In Date Range mode: content is fetched only when user triggers "Download" for the selected range
+- [ ] Wi-Fi constraint blocks content fetch when on mobile data (if enabled)
+- [ ] Battery saver constraint blocks content fetch when active (if enabled)
+- [ ] Opening a bookmark without content shows loading → article (on success) or loading → retry (on failure)
+- [ ] Permanent no-content bookmarks auto-switch to Original view
+- [ ] Retry button in reading view re-triggers content fetch
+- [ ] `ContentSyncPolicyEvaluator` is the single source of truth for fetch decisions
+- [ ] All Phase 1 tests continue to pass
+- [ ] New tests cover: policy evaluation, constraint checking, on-demand fetch flow, retry behavior
 
 ---
 
-## 16. Phase 4 Implementation Plan (Reading View Fetch + Retry)
+## Phase 3: UI Overhaul (Settings Redesign + Sync Status + Offline Indicator + Permissions)
 
-### 16.1 Goals
+### 3.1 Goals
 
-* On-demand content fetch when opening a bookmark.
-* Show retry affordance when fetch fails.
-* Switch to Original view when content is permanently unavailable.
+* Implement the revised Settings → Sync UI per Section 5
+* Display comprehensive sync status metrics per Section 8
+* Add offline/online indicator to navigation drawer per Section 7
+* Implement permission prompting for background work per Section 6
+* Remove legacy sync UI elements
 
-### 16.2 Scope of Change
+### 3.2 Deliverables
 
-* Update reading view load flow to consult content state.
-* Add retry trigger that respects policy constraints.
-* Provide fallback to WebView on permanent no-content.
+#### 3.2.1 Revised Settings → Sync Screen
 
-### 16.3 Implementation Steps
+**File:** `app/src/main/java/com/mydeck/app/ui/settings/SyncSettingsScreen.kt` (rewrite)
 
-1. **Gate reading view load**
+Replace the current layout with three sections:
 
-   * If content present: render article view.
-   * If no content: attempt fetch (subject to constraints).
-2. **Handle fetch failures**
+**Section 1: Bookmark Sync**
+- Static description text: "Bookmarks are always kept in sync."
+- Sync frequency selector (reuse existing `AutoSyncTimeframe` options from `SettingsDataStore`)
+- Remove the "Auto Sync" on/off toggle — bookmark sync is always on
+- Remove the "Sync on App Open" toggle — it becomes implicit (always syncs on open)
+- Remove the "Sync Now" button — replaced by pull-to-refresh
 
-   * Mark dirty and expose retry UI.
-   * Record failure reason.
-3. **Handle permanent no-content**
+**Section 2: Content Sync**
+- Radio group with three options:
+  - **Automatic** — "Content is downloaded during bookmark sync"
+  - **Manual** — "Content is downloaded only when you open a bookmark"
+  - **Date Range** — "Download content for bookmarks added in a date range"
+- When "Date Range" is selected, show:
+  - "From" date picker
+  - "To" date picker
+  - "Download" button
+- Selection saved via `settingsDataStore.saveContentSyncMode()`
 
-   * Switch to Original view automatically.
-   * Disable retry for permanent failures.
+**Section 3: Constraints**
+- "Only download on Wi-Fi" toggle
+- "Allow download on battery saver" toggle
 
-### 16.4 Out of Scope (Phase 4)
+**Section 4: Sync Status** (card/bordered container)
+- See Section 3.2.2
 
-* Settings UI changes
-* Sync status reporting
-* Background date range download flow
+**File:** `app/src/main/java/com/mydeck/app/ui/settings/SyncSettingsViewModel.kt` (update)
 
-### 16.5 Acceptance Checklist
+Replace the current ViewModel state to match new UI:
 
-* Opening a bookmark fetches missing content once.
-* Failed fetches show retry with constraints respected.
-* Permanent no-content switches to Original view.
+```kotlin
+data class SyncSettingsUiState(
+    // Bookmark sync
+    val bookmarkSyncFrequency: AutoSyncTimeframe,
+    val bookmarkSyncFrequencyOptions: List<AutoSyncTimeframeOption>,
+
+    // Content sync
+    val contentSyncMode: ContentSyncMode,
+    val dateRangeFrom: LocalDate?,
+    val dateRangeTo: LocalDate?,
+    val isDateRangeDownloading: Boolean,
+
+    // Constraints
+    val wifiOnly: Boolean,
+    val allowBatterySaver: Boolean,
+
+    // Sync status
+    val syncStatus: SyncStatus,
+
+    // Dialog state
+    val showDialog: Dialog?
+)
+
+data class SyncStatus(
+    val totalBookmarks: Int,
+    val unread: Int,
+    val archived: Int,
+    val favorites: Int,
+    val contentDownloaded: Int,
+    val contentAvailable: Int,
+    val contentDirty: Int,
+    val permanentNoContent: Int,
+    val lastSyncTimestamp: String?
+)
+```
+
+#### 3.2.2 Sync Status Metrics
+
+**New DAO queries:**
+
+**File:** `app/src/main/java/com/mydeck/app/io/db/dao/BookmarkDao.kt`
+
+```kotlin
+data class DetailedSyncStatusCounts(
+    val total: Int,
+    val unread: Int,
+    val archived: Int,
+    val favorites: Int,
+    val contentDownloaded: Int,
+    val contentAvailable: Int,
+    val contentDirty: Int,
+    val permanentNoContent: Int
+)
+
+@Query("""
+    SELECT
+        (SELECT COUNT(*) FROM bookmarks WHERE state = 0) AS total,
+        (SELECT COUNT(*) FROM bookmarks WHERE readProgress < 100 AND state = 0) AS unread,
+        (SELECT COUNT(*) FROM bookmarks WHERE isArchived = 1 AND state = 0) AS archived,
+        (SELECT COUNT(*) FROM bookmarks WHERE isMarked = 1 AND state = 0) AS favorites,
+        (SELECT COUNT(*) FROM bookmarks WHERE contentState = 1) AS contentDownloaded,
+        (SELECT COUNT(*) FROM bookmarks WHERE contentState = 0 AND hasArticle = 1) AS contentAvailable,
+        (SELECT COUNT(*) FROM bookmarks WHERE contentState = 2) AS contentDirty,
+        (SELECT COUNT(*) FROM bookmarks WHERE contentState = 3) AS permanentNoContent
+    FROM bookmarks LIMIT 1
+""")
+fun observeDetailedSyncStatus(): Flow<DetailedSyncStatusCounts?>
+```
+
+#### 3.2.3 Offline / Online Indicator
+
+**File:** `app/src/main/java/com/mydeck/app/ui/list/BookmarkListScreen.kt`
+
+In the navigation drawer header (where the app name is displayed), add a connectivity indicator:
+
+```kotlin
+// In the drawer header composable:
+val isOnline by connectivityMonitor.observeConnectivity().collectAsState(initial = true)
+
+Row(verticalAlignment = Alignment.CenterVertically) {
+    Text(stringResource(R.string.app_name), /* existing styling */)
+    if (!isOnline) {
+        Spacer(Modifier.width(8.dp))
+        Icon(
+            imageVector = Icons.Default.CloudOff,
+            contentDescription = null,
+            modifier = Modifier
+                .size(16.dp)
+                .combinedClickable(
+                    onClick = {},
+                    onLongClick = { /* show tooltip: "Offline – unable to reach server" */ }
+                ),
+            tint = MaterialTheme.colorScheme.error
+        )
+    }
+}
+```
+
+The `connectivityMonitor` should be injected into the `BookmarkListViewModel` and exposed as a StateFlow.
+
+#### 3.2.4 Permission Prompts
+
+**When user selects "Automatic" content sync mode or taps "Download" for date range:**
+
+1. Check if background work permission is needed (Android 12+ has exact alarm restrictions; POST_NOTIFICATIONS for Android 13+)
+2. Show rationale dialog explaining:
+   - "Content downloads may continue while the app is in the background"
+   - "This allows your bookmarks to be ready for offline reading"
+3. Request permission
+4. Track `permissionPromptShown` in `SettingsDataStore` to avoid re-prompting
+
+Reuse the existing `NotificationRationaleDialog` pattern from `SyncSettingsScreen.kt` and the accompanist permissions library already in the project.
+
+#### 3.2.5 Migration Cleanup
+
+1. **Remove "Sync Now" button** from Settings UI (replaced by pull-to-refresh)
+2. **Remove "Sync on App Open" toggle** — this is now always-on when the user is logged in (the `savedInstanceState == null` guard in `MainActivity` handles it)
+3. **Remove "Auto Sync" master toggle** — bookmark sync is always on; only the frequency changes
+4. **Migrate existing settings:**
+   - If `autoSyncEnabled` was `true`: set `contentSyncMode = AUTOMATIC`
+   - If `autoSyncEnabled` was `false`: set `contentSyncMode = MANUAL`
+   - Existing `autoSyncTimeframe` → reuse as bookmark sync frequency
+   - Run this migration once on first launch after update, tracked by a preference flag
+
+### 3.3 Acceptance Criteria
+
+- [ ] Settings → Sync shows three sections: Bookmark Sync, Content Sync, Constraints
+- [ ] Content sync mode radio group persists selection correctly
+- [ ] Date Range mode shows date pickers and Download button; tapping Download enqueues `DateRangeContentSyncWorker`
+- [ ] Sync status card displays all metrics from `DetailedSyncStatusCounts` and updates live
+- [ ] Offline indicator appears in drawer header when network unavailable or server unreachable
+- [ ] Offline indicator disappears when connectivity is restored
+- [ ] Permission prompt appears when selecting Automatic mode or tapping Date Range Download (first time only)
+- [ ] "Sync Now" button is removed
+- [ ] "Sync on App Open" toggle is removed
+- [ ] "Auto Sync" master toggle is removed; bookmark sync frequency selector remains
+- [ ] Existing user settings are correctly migrated to new model on upgrade
+- [ ] All Phase 1 and Phase 2 tests continue to pass
+- [ ] New tests cover: settings migration, sync status query, UI state management
 
 ---
 
-## 17. Phase 5 Implementation Plan (Settings UX + Sync Status)
+## Appendix A: File Change Summary
 
-### 17.1 Goals
+| File | Phase | Change Type |
+|------|-------|-------------|
+| `io/db/dao/BookmarkDao.kt` | 1, 2, 3 | REPLACE → IGNORE+UPDATE, new queries for content state, date range, detailed sync status |
+| `io/db/model/BookmarkEntity.kt` | 1 | Add `contentState`, `contentFailureReason` fields and `ContentState` enum |
+| `io/db/model/ArticleContentEntity.kt` | — | No changes (CASCADE FK remains; harmless now that bookmarks use UPDATE not REPLACE) |
+| `io/db/migration/Migration_X_Y.kt` | 1 | New file: schema migration + backfill |
+| `domain/model/Bookmark.kt` | 1 | Add `contentState`, `contentFailureReason` |
+| `domain/mapper/BookmarkMapper.kt` | 1 | Map new content state fields |
+| `domain/usecase/LoadArticleUseCase.kt` | 1 | Add content state tracking, guard against re-fetch and permanent no-content |
+| `domain/usecase/LoadBookmarksUseCase.kt` | 1, 2 | Remove auto content enqueue (Phase 1), re-add behind policy gate (Phase 2) |
+| `domain/usecase/FullSyncUseCase.kt` | — | No changes |
+| `domain/sync/ContentSyncPolicy.kt` | 2 | New file: policy enums and data classes |
+| `domain/sync/ContentSyncPolicyEvaluator.kt` | 2 | New file: policy evaluation logic |
+| `domain/sync/ConnectivityMonitor.kt` | 2 | New file: network + battery state interface |
+| `domain/sync/ConnectivityMonitorImpl.kt` | 2 | New file: Android implementation |
+| `domain/BookmarkRepository.kt` | — | No changes needed (insertBookmarks signature unchanged) |
+| `domain/BookmarkRepositoryImpl.kt` | 1 | Update `renameLabel` and `deleteLabel` to use `upsertBookmark` |
+| `worker/FullSyncWorker.kt` | — | No changes (delegates to LoadBookmarksUseCase) |
+| `worker/LoadBookmarksWorker.kt` | — | No changes |
+| `worker/BatchArticleLoadWorker.kt` | 1, 2 | Use content-state-aware query, add constraint checking |
+| `worker/LoadArticleWorker.kt` | — | No changes (wraps LoadArticleUseCase) |
+| `worker/DateRangeContentSyncWorker.kt` | 2 | New file |
+| `ui/list/BookmarkListViewModel.kt` | 1, 3 | Fix dialog loop, remove sync-on-open, add connectivity state |
+| `ui/list/BookmarkListScreen.kt` | 3 | Add offline indicator to drawer header |
+| `ui/detail/BookmarkDetailViewModel.kt` | 2 | Add on-demand content fetch + retry |
+| `ui/detail/BookmarkDetailScreen.kt` | 2 | Add loading/retry/auto-switch UI |
+| `ui/settings/SyncSettingsScreen.kt` | 3 | Rewrite with new sections |
+| `ui/settings/SyncSettingsViewModel.kt` | 3 | Rewrite for new state model |
+| `io/prefs/SettingsDataStore.kt` | 2, 3 | Add content sync mode, constraints, date range prefs |
+| `io/prefs/SettingsDataStoreImpl.kt` | 2, 3 | Implement new preferences |
+| `MainActivity.kt` | 1 | Add sync-on-open trigger |
 
-* Implement the revised Settings → Sync UI.
-* Provide visible sync status metrics for bookmarks and content.
+## Appendix B: New String Resources Needed
 
-### 17.2 Scope of Change
+```xml
+<!-- Sync Settings -->
+<string name="sync_bookmark_section_title">Bookmark Sync</string>
+<string name="sync_bookmark_description">Bookmarks are always kept in sync.</string>
+<string name="sync_content_section_title">Content Sync</string>
+<string name="sync_content_automatic">Automatic</string>
+<string name="sync_content_automatic_desc">Content is downloaded during bookmark sync</string>
+<string name="sync_content_manual">Manual</string>
+<string name="sync_content_manual_desc">Content is downloaded only when you open a bookmark</string>
+<string name="sync_content_date_range">Date Range</string>
+<string name="sync_content_date_range_desc">Download content for bookmarks added in a date range</string>
+<string name="sync_content_download_button">Download</string>
+<string name="sync_constraints_section_title">Constraints</string>
+<string name="sync_wifi_only">Only download on Wi-Fi</string>
+<string name="sync_allow_battery_saver">Allow download on battery saver</string>
 
-* Add sections for Bookmark Sync, Content Sync policy, and Constraints.
-* Add date range picker and Download button.
-* Add sync status block with counts.
+<!-- Sync Status -->
+<string name="sync_status_total">Total bookmarks: %d</string>
+<string name="sync_status_unread">Unread: %d</string>
+<string name="sync_status_archived">Archived: %d</string>
+<string name="sync_status_favorites">Favorites: %d</string>
+<string name="sync_status_content_downloaded">Content downloaded: %d</string>
+<string name="sync_status_content_available">Available to download: %d</string>
+<string name="sync_status_content_dirty">Download failed (retryable): %d</string>
+<string name="sync_status_no_content">No article content: %d</string>
 
-### 17.3 Implementation Steps
+<!-- Reading View -->
+<string name="content_loading">Loading article content…</string>
+<string name="content_load_failed">Unable to load article content</string>
+<string name="content_retry">Retry</string>
 
-1. **Settings UI wiring**
+<!-- Offline Indicator -->
+<string name="offline_tooltip">Offline – unable to reach server</string>
 
-   * Bookmark sync interval selection.
-   * Content sync policy radio group.
-2. **Date range UI**
-
-   * Persist date inputs and allow Download action.
-3. **Constraints toggles**
-
-   * Wi-Fi only and battery saver settings.
-4. **Sync status block**
-
-   * Hook to live metrics (bookmark counts, content states).
-
-### 17.4 Out of Scope (Phase 5)
-
-* Permission prompt flows
-* Offline indicator
-
-### 17.5 Acceptance Checklist
-
-* Settings UI reflects saved policy and constraint values.
-* Download action is present for Date Range mode.
-* Sync status metrics render and update.
-
----
-
-## 18. Phase 6 Implementation Plan (Permissions + Offline Indicator)
-
-### 18.1 Goals
-
-* Prompt for background permission only when required.
-* Surface offline/online indicator in navigation drawer.
-
-### 18.2 Scope of Change
-
-* Add permission prompt flow for Automatic and Date Range download.
-* Add offline indicator with long-press tooltip.
-
-### 18.3 Implementation Steps
-
-1. **Permission gating**
-
-   * Prompt on Automatic selection and Date Range download.
-   * Ensure prompt only once per scenario.
-2. **Offline indicator UI**
-
-   * Icon-only in drawer header.
-   * Tooltip text for offline/unreachable state.
-
-### 18.4 Out of Scope (Phase 6)
-
-* Migration cleanup tasks
-
-### 18.5 Acceptance Checklist
-
-* Permission prompts appear only in specified scenarios.
-* Offline indicator updates based on connectivity and server reachability.
-
----
-
-## 19. Phase 7 Implementation Plan (Migration + Cleanup)
-
-### 19.1 Goals
-
-* Remove legacy sync assumptions.
-* Ensure compatibility for existing users and settings.
-
-### 19.2 Scope of Change
-
-* Remove manual sync button (if still present).
-* Migrate any stored settings to new policy model.
-* Validate no re-fetch of existing content.
-
-### 19.3 Implementation Steps
-
-1. **Cleanup legacy UI**
-
-   * Remove or hide manual Sync Now button.
-2. **Settings migration**
-
-   * Map existing intervals to bookmark sync frequency.
-   * Set content policy default for existing users.
-3. **Content migration validation**
-
-   * Confirm existing downloaded content remains intact.
-
-### 19.4 Acceptance Checklist
-
-* Manual Sync Now is removed or hidden.
-* Existing settings map correctly to new model.
-* No re-fetch of previously downloaded content occurs.
+<!-- Permission Rationale -->
+<string name="background_sync_rationale_title">Background Downloads</string>
+<string name="background_sync_rationale_body">Content downloads may continue while the app is in the background. This allows your bookmarks to be ready for offline reading.</string>
+```
