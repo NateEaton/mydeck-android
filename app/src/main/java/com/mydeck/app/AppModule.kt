@@ -17,9 +17,7 @@ import com.mydeck.app.domain.BookmarkRepository
 import com.mydeck.app.domain.BookmarkRepositoryImpl
 import com.mydeck.app.domain.UserRepository
 import com.mydeck.app.domain.UserRepositoryImpl
-import com.mydeck.app.domain.usecase.LoadArticleUseCase
 import com.mydeck.app.io.rest.NetworkModule
-import com.mydeck.app.io.rest.ReadeckApi
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -38,14 +36,6 @@ abstract class AppModule {
     abstract fun bindUserRepository(userRepositoryImpl: UserRepositoryImpl): UserRepository
 
     companion object {
-        @Provides
-        fun provideLoadBookmarksUseCase(
-            bookmarkRepository: BookmarkRepository,
-            readeckApi: ReadeckApi
-        ): LoadArticleUseCase {
-            return LoadArticleUseCase(bookmarkRepository, readeckApi)
-        }
-
         @Singleton
         @Provides
         @ApplicationScope
