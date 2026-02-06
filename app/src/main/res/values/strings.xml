@@ -53,6 +53,8 @@ other{}
     <string name="save">Save</string>
     <string name="cancel">Cancel</string>
     <string name="retry">Retry</string>
+    <string name="webview_error_title">Unable to load page</string>
+    <string name="webview_error_message">The page could not be loaded (HTTP %1$d)</string>
     <string name="create_bookmark_error">Error creating bookmark: %1$s</string>
     <string name="add_new_bookmark">Add New Bookmark</string>
     <string name="create">Create</string>

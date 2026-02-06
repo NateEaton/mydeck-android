@@ -6,7 +6,6 @@ import android.webkit.WebView
 import androidx.compose.foundation.clickable
 import androidx.compose.ui.draw.alpha
 import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -76,7 +75,6 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.mydeck.app.R
 import com.mydeck.app.domain.model.Template
-import androidx.compose.material3.Button
 import com.mydeck.app.util.openUrlInCustomTab
 import com.mydeck.app.ui.components.ShareBookmarkChooser
 import com.mydeck.app.ui.detail.BookmarkDetailViewModel.ContentLoadState
@@ -148,6 +146,17 @@ fun BookmarkDetailScreen(navHostController: NavController, bookmarkId: String?, 
                 )
             }
 
+            // Auto-switch to Original mode when content fetch fails (any reason)
+            // This handles both permanent failures (no server content) and
+            // transient failures (server error fetching article)
+            LaunchedEffect(contentLoadState) {
+                if (contentLoadState is ContentLoadState.Failed &&
+                    contentMode == ContentMode.READER &&
+                    !uiState.bookmark.hasContent) {
+                    contentMode = ContentMode.ORIGINAL
+                }
+            }
+
             LaunchedEffect(key1 = uiState) {
                 uiState.updateBookmarkState?.let {
                     when (it) {
@@ -183,8 +192,6 @@ fun BookmarkDetailScreen(navHostController: NavController, bookmarkId: String?, 
                 contentMode = contentMode,
                 onContentModeChange = { contentMode = it },
                 contentLoadState = contentLoadState,
-                onRetryContentFetch = { viewModel.retryContentFetch() },
-                onSwitchToOriginal = { contentMode = ContentMode.ORIGINAL }
             )
             // Consumes a shareIntent and creates the corresponding share dialog
             ShareBookmarkChooser(
@@ -239,9 +246,7 @@ fun BookmarkDetailScreen(
     initialReadProgress: Int = 0,
     contentMode: ContentMode = ContentMode.READER,
     onContentModeChange: (ContentMode) -> Unit = {},
-    contentLoadState: ContentLoadState = ContentLoadState.Idle,
-    onRetryContentFetch: () -> Unit = {},
-    onSwitchToOriginal: () -> Unit = {}
+    contentLoadState: ContentLoadState = ContentLoadState.Idle
 ) {
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -301,9 +306,7 @@ fun BookmarkDetailScreen(
             onScrollProgressChanged = onScrollProgressChanged,
             initialReadProgress = initialReadProgress,
             contentMode = contentMode,
-            contentLoadState = contentLoadState,
-            onRetryContentFetch = onRetryContentFetch,
-            onSwitchToOriginal = onSwitchToOriginal
+            contentLoadState = contentLoadState
         )
     }
 }
@@ -316,9 +319,7 @@ fun BookmarkDetailContent(
     onScrollProgressChanged: (Int) -> Unit = {},
     initialReadProgress: Int = 0,
     contentMode: ContentMode = ContentMode.READER,
-    contentLoadState: ContentLoadState = ContentLoadState.Idle,
-    onRetryContentFetch: () -> Unit = {},
-    onSwitchToOriginal: () -> Unit = {}
+    contentLoadState: ContentLoadState = ContentLoadState.Idle
 ) {
     val scrollState = rememberScrollState()
     val hasArticleContent = uiState.bookmark.articleContent != null
@@ -386,7 +387,9 @@ fun BookmarkDetailContent(
                         uiState = uiState
                     )
                 } else {
-                    // No content yet — show loading/retry/auto-switch based on content load state
+                    // No content yet — show loading spinner while fetch is in progress.
+                    // Auto-switch to Original mode is handled by LaunchedEffect above
+                    // when the content load state transitions to Failed.
                     when (contentLoadState) {
                         is ContentLoadState.Loading -> {
                             Box(
@@ -398,38 +401,8 @@ fun BookmarkDetailContent(
                                 CircularProgressIndicator()
                             }
                         }
-                        is ContentLoadState.Failed -> {
-                            if (!contentLoadState.canRetry) {
-                                // Auto-switch to original view for permanent failures
-                                LaunchedEffect(Unit) { onSwitchToOriginal() }
-                            } else {
-                                Column(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(16.dp),
-                                    horizontalAlignment = Alignment.CenterHorizontally,
-                                    verticalArrangement = Arrangement.Center
-                                ) {
-                                    Text(
-                                        text = stringResource(R.string.detail_view_no_content),
-                                        style = MaterialTheme.typography.bodyLarge
-                                    )
-                                    Text(
-                                        text = contentLoadState.reason,
-                                        style = MaterialTheme.typography.bodySmall
-                                    )
-                                    Spacer(Modifier.height(16.dp))
-                                    Button(onClick = onSwitchToOriginal) {
-                                        Text(stringResource(R.string.action_view_original))
-                                    }
-                                    Spacer(Modifier.height(8.dp))
-                                    androidx.compose.material3.OutlinedButton(onClick = onRetryContentFetch) {
-                                        Text(stringResource(R.string.retry))
-                                    }
-                                }
-                            }
-                        }
                         else -> {
+                            // Brief fallback while auto-switch hasn't happened yet
                             EmptyBookmarkDetailArticle(
                                 modifier = Modifier
                             )
@@ -528,10 +501,11 @@ fun BookmarkDetailOriginalWebView(
     uiState: BookmarkDetailViewModel.UiState.Success
 ) {
     var loadingProgress by remember { mutableStateOf(0) }
+    var httpError by remember { mutableStateOf<Pair<Int, String>?>(null) }
 
     Column(modifier = modifier) {
         // Show progress indicator while loading
-        if (loadingProgress < 100) {
+        if (loadingProgress < 100 && httpError == null) {
             LinearProgressIndicator(
                 progress = { loadingProgress / 100f },
                 modifier = Modifier
@@ -540,7 +514,32 @@ fun BookmarkDetailOriginalWebView(
             )
         }
 
-        if (!LocalInspectionMode.current) {
+        if (httpError != null) {
+            // App-provided error message for HTTP errors
+            val (errorCode, _) = httpError!!
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.padding(32.dp)
+                ) {
+                    Text(
+                        text = stringResource(R.string.webview_error_title),
+                        style = MaterialTheme.typography.titleMedium,
+                        textAlign = TextAlign.Center
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        text = stringResource(R.string.webview_error_message, errorCode),
+                        style = MaterialTheme.typography.bodyMedium,
+                        textAlign = TextAlign.Center,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        } else if (!LocalInspectionMode.current) {
             AndroidView(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -556,6 +555,23 @@ fun BookmarkDetailOriginalWebView(
                         settings.defaultTextEncodingName = "utf-8"
                         isVerticalScrollBarEnabled = false
                         isHorizontalScrollBarEnabled = false
+
+                        // Intercept HTTP errors to show app-provided messages
+                        webViewClient = object : android.webkit.WebViewClient() {
+                            override fun onReceivedHttpError(
+                                view: WebView?,
+                                request: android.webkit.WebResourceRequest?,
+                                errorResponse: android.webkit.WebResourceResponse?
+                            ) {
+                                super.onReceivedHttpError(view, request, errorResponse)
+                                // Only handle errors for the main page, not subresources
+                                if (request?.isForMainFrame == true) {
+                                    val code = errorResponse?.statusCode ?: 0
+                                    val description = errorResponse?.reasonPhrase ?: "Unknown error"
+                                    httpError = Pair(code, description)
+                                }
+                            }
+                        }
 
                         // Track loading progress
                         webChromeClient = object : android.webkit.WebChromeClient() {

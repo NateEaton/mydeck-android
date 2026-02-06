@@ -34,4 +34,6 @@
     <string name="background_sync_rationale_allow">Allow</string>
 
     <string name="retry">Retry</string>
+    <string name="webview_error_title">Unable to load page</string>
+    <string name="webview_error_message">The page could not be loaded (HTTP %1$d)</string>
 </resources>
