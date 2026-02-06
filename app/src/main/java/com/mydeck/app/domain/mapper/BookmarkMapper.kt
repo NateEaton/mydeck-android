@@ -41,6 +41,7 @@ fun Bookmark.toEntity(): BookmarkWithArticleContent = BookmarkWithArticleContent
         hasArticle = hasArticle,
         contentStatus = when (contentStatus) {
             Bookmark.ContentStatus.NOT_ATTEMPTED -> BookmarkEntity.ContentStatus.NOT_ATTEMPTED
+            Bookmark.ContentStatus.LOADING -> BookmarkEntity.ContentStatus.LOADING
             Bookmark.ContentStatus.DOWNLOADED -> BookmarkEntity.ContentStatus.DOWNLOADED
             Bookmark.ContentStatus.DIRTY -> BookmarkEntity.ContentStatus.DIRTY
             Bookmark.ContentStatus.PERMANENT_NO_CONTENT -> BookmarkEntity.ContentStatus.PERMANENT_NO_CONTENT
@@ -104,6 +105,7 @@ fun BookmarkEntity.toDomain(): Bookmark = Bookmark(
     hasArticle = hasArticle,
     contentStatus = when (contentStatus) {
         BookmarkEntity.ContentStatus.NOT_ATTEMPTED -> Bookmark.ContentStatus.NOT_ATTEMPTED
+        BookmarkEntity.ContentStatus.LOADING -> Bookmark.ContentStatus.LOADING
         BookmarkEntity.ContentStatus.DOWNLOADED -> Bookmark.ContentStatus.DOWNLOADED
         BookmarkEntity.ContentStatus.DIRTY -> Bookmark.ContentStatus.DIRTY
         BookmarkEntity.ContentStatus.PERMANENT_NO_CONTENT -> Bookmark.ContentStatus.PERMANENT_NO_CONTENT

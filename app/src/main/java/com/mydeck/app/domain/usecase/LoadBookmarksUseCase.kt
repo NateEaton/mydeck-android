@@ -8,6 +8,7 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import com.mydeck.app.domain.BookmarkRepository
 import com.mydeck.app.domain.mapper.toDomain
+import com.mydeck.app.domain.policy.ContentSyncPolicyEvaluator
 import com.mydeck.app.io.prefs.SettingsDataStore
 import com.mydeck.app.io.rest.ReadeckApi
 import com.mydeck.app.io.rest.model.BookmarkDto
@@ -21,7 +22,8 @@ class LoadBookmarksUseCase @Inject constructor(
     private val bookmarkRepository: BookmarkRepository,
     private val readeckApi: ReadeckApi,
     private val workManager: WorkManager,
-    private val settingsDataStore: SettingsDataStore
+    private val settingsDataStore: SettingsDataStore,
+    private val contentSyncPolicyEvaluator: ContentSyncPolicyEvaluator
 ) {
 
     sealed class UseCaseResult<out DataType : Any> {
@@ -86,8 +88,14 @@ class LoadBookmarksUseCase @Inject constructor(
             }
 
             if (allowContentSync) {
-                // Enqueue batch article loader after bookmark sync completes
-                enqueueBatchArticleLoader()
+                // Check content sync policy before enqueuing batch article loader
+                val policyResult = contentSyncPolicyEvaluator.evaluatePolicy()
+                if (policyResult.allowed) {
+                    enqueueBatchArticleLoader()
+                    Timber.d("Content sync allowed by policy: ${policyResult.reason}")
+                } else {
+                    Timber.d("Content sync blocked by policy: ${policyResult.reason}")
+                }
             }
 
             return UseCaseResult.Success(Unit)

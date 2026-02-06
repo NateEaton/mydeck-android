@@ -155,6 +155,23 @@ fun BookmarkDetailScreen(navHostController: NavController, bookmarkId: String?, 
                 )
             }
             var userSelectedContentMode by remember(uiState.bookmark.bookmarkId) { mutableStateOf(false) }
+            
+            // Auto-switch to ORIGINAL mode when content is permanently unavailable or when article exists but no content is available
+            LaunchedEffect(uiState.bookmark.contentStatus, uiState.bookmark.hasContent, uiState.bookmark.hasArticle) {
+                if (!userSelectedContentMode) {
+                    val shouldSwitchToOriginal = when (uiState.bookmark.contentStatus) {
+                        com.mydeck.app.domain.model.Bookmark.ContentStatus.PERMANENT_NO_CONTENT -> true
+                        com.mydeck.app.domain.model.Bookmark.ContentStatus.NOT_ATTEMPTED -> 
+                            uiState.bookmark.hasArticle && !uiState.bookmark.hasContent
+                        else -> false
+                    }
+                    
+                    if (shouldSwitchToOriginal) {
+                        contentMode = ContentMode.ORIGINAL
+                    }
+                }
+            }
+            
             LaunchedEffect(uiState.bookmark.hasContent) {
                 if (!userSelectedContentMode && uiState.bookmark.hasContent) {
                     contentMode = ContentMode.READER
@@ -394,6 +411,9 @@ fun BookmarkDetailContent(
                     )
                 } else {
                     when {
+                        contentStatus == com.mydeck.app.domain.model.Bookmark.ContentStatus.LOADING -> {
+                            ContentLoadingState(modifier = Modifier)
+                        }
                         contentStatus == com.mydeck.app.domain.model.Bookmark.ContentStatus.NOT_ATTEMPTED -> {
                             ContentLoadingState(modifier = Modifier)
                         }
@@ -996,7 +1016,8 @@ private val sampleBookmark = BookmarkDetailViewModel.Bookmark(
     readProgress = 0,
     contentStatus = com.mydeck.app.domain.model.Bookmark.ContentStatus.DOWNLOADED,
     contentFailureReason = null,
-    hasContent = true
+    hasContent = true,
+    hasArticle = true
 )
 
 enum class ContentMode {

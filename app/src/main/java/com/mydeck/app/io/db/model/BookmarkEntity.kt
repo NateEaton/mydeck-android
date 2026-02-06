@@ -73,8 +73,9 @@ data class BookmarkEntity(
     }
     enum class ContentStatus(val value: Int) {
         NOT_ATTEMPTED(0),
-        DOWNLOADED(1),
-        DIRTY(2),
-        PERMANENT_NO_CONTENT(3)
+        LOADING(1),
+        DOWNLOADED(2),
+        DIRTY(3),
+        PERMANENT_NO_CONTENT(4)
     }
 }

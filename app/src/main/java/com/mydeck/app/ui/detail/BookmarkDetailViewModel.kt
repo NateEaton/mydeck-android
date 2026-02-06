@@ -209,7 +209,8 @@ class BookmarkDetailViewModel @Inject constructor(
                         is com.mydeck.app.domain.model.Bookmark.Type.Article -> !bookmark.articleContent.isNullOrBlank()
                         is com.mydeck.app.domain.model.Bookmark.Type.Video -> !bookmark.articleContent.isNullOrBlank() || !bookmark.embed.isNullOrBlank()
                         is com.mydeck.app.domain.model.Bookmark.Type.Picture -> true
-                    }
+                    },
+                    hasArticle = bookmark.hasArticle
                 ),
                 updateBookmarkState = updateState,
                 template = template,
@@ -238,6 +239,20 @@ class BookmarkDetailViewModel @Inject constructor(
         if (contentFetchJob?.isActive == true) {
             return
         }
+        
+        // Immediately update content status to LOADING to prevent UI flicker
+        viewModelScope.launch {
+            try {
+                bookmarkRepository.updateContentState(
+                    bookmarkId = bookmark.id,
+                    status = DomainBookmark.ContentStatus.LOADING,
+                    failureReason = null
+                )
+            } catch (e: Exception) {
+                Timber.w(e, "Failed to update content state to LOADING [id=${bookmark.id}]")
+            }
+        }
+        
         contentFetchJob = viewModelScope.launch {
             try {
                 loadArticleUseCase.execute(bookmark.id)
@@ -471,7 +486,8 @@ class BookmarkDetailViewModel @Inject constructor(
         val contentStatus: com.mydeck.app.domain.model.Bookmark.ContentStatus,
         val contentFailureReason: String?,
         val debugInfo: String = "",
-        val hasContent: Boolean
+        val hasContent: Boolean,
+        val hasArticle: Boolean
     ) {
         enum class Type {
             ARTICLE, PHOTO, VIDEO

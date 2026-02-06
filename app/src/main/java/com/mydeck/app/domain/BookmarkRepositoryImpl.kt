@@ -233,6 +233,7 @@ class BookmarkRepositoryImpl @Inject constructor(
     ) {
         val dbStatus = when (status) {
             Bookmark.ContentStatus.NOT_ATTEMPTED -> BookmarkEntity.ContentStatus.NOT_ATTEMPTED
+            Bookmark.ContentStatus.LOADING -> BookmarkEntity.ContentStatus.LOADING
             Bookmark.ContentStatus.DOWNLOADED -> BookmarkEntity.ContentStatus.DOWNLOADED
             Bookmark.ContentStatus.DIRTY -> BookmarkEntity.ContentStatus.DIRTY
             Bookmark.ContentStatus.PERMANENT_NO_CONTENT -> BookmarkEntity.ContentStatus.PERMANENT_NO_CONTENT

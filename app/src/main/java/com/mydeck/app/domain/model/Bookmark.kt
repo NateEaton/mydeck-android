@@ -63,6 +63,7 @@ data class Bookmark(
     }
     enum class ContentStatus {
         NOT_ATTEMPTED,
+        LOADING,
         DOWNLOADED,
         DIRTY,
         PERMANENT_NO_CONTENT

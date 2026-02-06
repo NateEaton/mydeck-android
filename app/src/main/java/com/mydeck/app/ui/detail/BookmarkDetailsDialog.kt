@@ -385,7 +385,8 @@ fun BookmarkDetailsDialogPreview() {
         readProgress = 0,
         contentStatus = com.mydeck.app.domain.model.Bookmark.ContentStatus.NOT_ATTEMPTED,
         contentFailureReason = null,
-        hasContent = true
+        hasContent = true,
+        hasArticle = true
     )
 
     BookmarkDetailsDialog(

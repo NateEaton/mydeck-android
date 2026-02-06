@@ -2,6 +2,7 @@ package com.mydeck.app.domain.usecase
 
 import com.mydeck.app.domain.BookmarkRepository
 import com.mydeck.app.domain.mapper.toDomain
+import com.mydeck.app.domain.policy.ContentSyncPolicyEvaluator
 import com.mydeck.app.io.prefs.SettingsDataStore
 import com.mydeck.app.io.rest.ReadeckApi
 import com.mydeck.app.io.rest.model.BookmarkDto
@@ -25,6 +26,7 @@ class LoadBookmarksUseCaseTest {
     private lateinit var bookmarkRepository: BookmarkRepository
     private lateinit var readeckApi: ReadeckApi
     private lateinit var settingsDataStore: SettingsDataStore
+    private lateinit var contentSyncPolicyEvaluator: ContentSyncPolicyEvaluator
     private lateinit var loadBookmarksUseCase: LoadBookmarksUseCase
 
     @Before
@@ -32,11 +34,13 @@ class LoadBookmarksUseCaseTest {
         bookmarkRepository = mockk(relaxed = true)
         readeckApi = mockk()
         settingsDataStore = mockk(relaxed = true)
+        contentSyncPolicyEvaluator = mockk(relaxed = true)
         loadBookmarksUseCase = LoadBookmarksUseCase(
             bookmarkRepository,
             readeckApi,
             mockk(relaxed = true),  // workManager
-            settingsDataStore
+            settingsDataStore,
+            contentSyncPolicyEvaluator
         )
     }
 

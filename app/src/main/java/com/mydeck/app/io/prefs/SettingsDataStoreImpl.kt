@@ -9,6 +9,8 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import dagger.hilt.android.qualifiers.ApplicationContext
 import com.mydeck.app.domain.model.AutoSyncTimeframe
 import com.mydeck.app.domain.model.Theme
+import com.mydeck.app.domain.policy.ContentSyncMode
+import com.mydeck.app.domain.policy.DateRangeParams
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -39,6 +41,13 @@ class SettingsDataStoreImpl @Inject constructor(@ApplicationContext private val 
     private val KEY_SYNC_NOTIFICATIONS_ENABLED = booleanPreferencesKey("sync_notifications_enabled")
     private val KEY_LAYOUT_MODE = stringPreferencesKey("layout_mode")
     private val KEY_SORT_OPTION = stringPreferencesKey("sort_option")
+    
+    // Content sync policy keys
+    private val KEY_CONTENT_SYNC_MODE = stringPreferencesKey("content_sync_mode")
+    private val KEY_CONTENT_SYNC_DATE_RANGE_FROM = stringPreferencesKey("content_sync_date_range_from")
+    private val KEY_CONTENT_SYNC_DATE_RANGE_TO = stringPreferencesKey("content_sync_date_range_to")
+    private val KEY_WIFI_ONLY_ENABLED = booleanPreferencesKey("wifi_only_enabled")
+    private val KEY_BATTERY_SAVER_ALLOWED = booleanPreferencesKey("battery_saver_allowed")
 
     override fun saveUsername(username: String) {
         Timber.d("saveUsername")
@@ -250,5 +259,74 @@ class SettingsDataStoreImpl @Inject constructor(@ApplicationContext private val 
 
     override suspend fun getSortOption(): String? {
         return encryptedSharedPreferences.getString(KEY_SORT_OPTION.name, null)
+    }
+    
+    // Content sync policy implementations
+    override suspend fun setContentSyncMode(mode: ContentSyncMode) {
+        encryptedSharedPreferences.edit {
+            putString(KEY_CONTENT_SYNC_MODE.name, mode.name)
+        }
+    }
+
+    override suspend fun getContentSyncMode(): ContentSyncMode {
+        val modeName = encryptedSharedPreferences.getString(KEY_CONTENT_SYNC_MODE.name, ContentSyncMode.MANUAL.name)
+        return try {
+            ContentSyncMode.valueOf(modeName ?: ContentSyncMode.MANUAL.name)
+        } catch (e: IllegalArgumentException) {
+            Timber.w(e, "Invalid content sync mode: $modeName, defaulting to MANUAL")
+            ContentSyncMode.MANUAL
+        }
+    }
+
+    override suspend fun setContentSyncDateRange(params: DateRangeParams) {
+        encryptedSharedPreferences.edit {
+            putString(KEY_CONTENT_SYNC_DATE_RANGE_FROM.name, params.fromDate?.toString())
+            putString(KEY_CONTENT_SYNC_DATE_RANGE_TO.name, params.toDate?.toString())
+        }
+    }
+
+    override suspend fun getContentSyncDateRange(): DateRangeParams {
+        val fromDateStr = encryptedSharedPreferences.getString(KEY_CONTENT_SYNC_DATE_RANGE_FROM.name, null)
+        val toDateStr = encryptedSharedPreferences.getString(KEY_CONTENT_SYNC_DATE_RANGE_TO.name, null)
+        
+        val fromDate = fromDateStr?.let {
+            try {
+                kotlinx.datetime.LocalDate.parse(it)
+            } catch (e: Exception) {
+                Timber.w(e, "Failed to parse date range from: $it")
+                null
+            }
+        }
+        
+        val toDate = toDateStr?.let {
+            try {
+                kotlinx.datetime.LocalDate.parse(it)
+            } catch (e: Exception) {
+                Timber.w(e, "Failed to parse date range to: $it")
+                null
+            }
+        }
+        
+        return DateRangeParams(fromDate, toDate)
+    }
+
+    override suspend fun setWifiOnlyEnabled(enabled: Boolean) {
+        encryptedSharedPreferences.edit {
+            putBoolean(KEY_WIFI_ONLY_ENABLED.name, enabled)
+        }
+    }
+
+    override suspend fun isWifiOnlyEnabled(): Boolean {
+        return encryptedSharedPreferences.getBoolean(KEY_WIFI_ONLY_ENABLED.name, false)
+    }
+
+    override suspend fun setBatterySaverAllowed(allowed: Boolean) {
+        encryptedSharedPreferences.edit {
+            putBoolean(KEY_BATTERY_SAVER_ALLOWED.name, allowed)
+        }
+    }
+
+    override suspend fun isBatterySaverAllowed(): Boolean {
+        return encryptedSharedPreferences.getBoolean(KEY_BATTERY_SAVER_ALLOWED.name, true)
     }
 }

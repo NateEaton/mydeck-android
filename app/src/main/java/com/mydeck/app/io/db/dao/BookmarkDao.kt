@@ -406,4 +406,17 @@ interface BookmarkDao {
         Timber.d("searchQuery=${sqlQuery.sql}")
         return getBookmarkListItemsByFiltersDynamic(sqlQuery)
     }
+    
+    @Query("""
+        SELECT id FROM bookmarks 
+        WHERE created >= :fromEpochMillis 
+        AND created <= :toEpochMillis 
+        AND contentStatus != 'DOWNLOADED'
+        AND type = 'article'
+        AND isDeleted = 0
+    """)
+    suspend fun getBookmarkIdsInDateRangeWithoutContent(
+        fromEpochMillis: Long,
+        toEpochMillis: Long
+    ): List<String>
 }
