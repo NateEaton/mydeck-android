@@ -9,6 +9,7 @@ import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
+import com.mydeck.app.domain.sync.ContentSyncPolicyEvaluator
 import com.mydeck.app.domain.usecase.LoadArticleUseCase
 import com.mydeck.app.io.db.dao.BookmarkDao
 import dagger.assisted.Assisted
@@ -24,7 +25,8 @@ class BatchArticleLoadWorker @AssistedInject constructor(
     @Assisted appContext: Context,
     @Assisted workerParams: WorkerParameters,
     private val bookmarkDao: BookmarkDao,
-    private val loadArticleUseCase: LoadArticleUseCase
+    private val loadArticleUseCase: LoadArticleUseCase,
+    private val policyEvaluator: ContentSyncPolicyEvaluator
 ) : CoroutineWorker(appContext, workerParams) {
 
     override suspend fun doWork(): Result {
@@ -38,7 +40,14 @@ class BatchArticleLoadWorker @AssistedInject constructor(
                 return Result.success()
             }
 
-            pendingBookmarkIds.chunked(BATCH_SIZE).forEachIndexed { index, batch ->
+            val batches = pendingBookmarkIds.chunked(BATCH_SIZE)
+            batches.forEachIndexed { index, batch ->
+                // Check constraints before each batch
+                if (!policyEvaluator.canFetchContent().allowed) {
+                    Timber.i("Content fetch blocked by constraints, stopping batch")
+                    return Result.success()
+                }
+
                 Timber.d("Processing batch ${index + 1}, size=${batch.size}")
 
                 coroutineScope {
@@ -54,7 +63,7 @@ class BatchArticleLoadWorker @AssistedInject constructor(
                 }
 
                 // Brief pause between batches to reduce resource contention
-                if (index < pendingBookmarkIds.chunked(BATCH_SIZE).size - 1) {
+                if (index < batches.size - 1) {
                     delay(BATCH_DELAY_MS)
                 }
             }

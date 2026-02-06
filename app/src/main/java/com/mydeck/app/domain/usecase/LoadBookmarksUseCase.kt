@@ -8,6 +8,7 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import com.mydeck.app.domain.BookmarkRepository
 import com.mydeck.app.domain.mapper.toDomain
+import com.mydeck.app.domain.sync.ContentSyncPolicyEvaluator
 import com.mydeck.app.io.prefs.SettingsDataStore
 import com.mydeck.app.io.rest.ReadeckApi
 import com.mydeck.app.io.rest.model.BookmarkDto
@@ -20,8 +21,9 @@ import javax.inject.Inject
 class LoadBookmarksUseCase @Inject constructor(
     private val bookmarkRepository: BookmarkRepository,
     private val readeckApi: ReadeckApi,
-    private val workManager: WorkManager,
-    private val settingsDataStore: SettingsDataStore
+    private val settingsDataStore: SettingsDataStore,
+    private val policyEvaluator: ContentSyncPolicyEvaluator,
+    private val workManager: WorkManager
 ) {
 
     sealed class UseCaseResult<out DataType : Any> {
@@ -81,8 +83,10 @@ class LoadBookmarksUseCase @Inject constructor(
                 }
             }
 
-            // Enqueue batch article loader after bookmark sync completes
-            enqueueBatchArticleLoader()
+            // After metadata sync completes, conditionally enqueue content sync
+            if (policyEvaluator.shouldAutoFetchContent()) {
+                enqueueBatchArticleLoader()
+            }
 
             return UseCaseResult.Success(Unit)
         } catch (e: Exception) {
@@ -106,9 +110,8 @@ class LoadBookmarksUseCase @Inject constructor(
                 ExistingWorkPolicy.KEEP,
                 request
             )
-            Timber.d("Batch article loader enqueued successfully")
+            Timber.d("Batch article loader enqueued (policy: AUTOMATIC)")
         } catch (e: Exception) {
-            // Gracefully handle failures (e.g., in unit tests or if WorkManager unavailable)
             Timber.w(e, "Failed to enqueue batch article loader")
         }
     }

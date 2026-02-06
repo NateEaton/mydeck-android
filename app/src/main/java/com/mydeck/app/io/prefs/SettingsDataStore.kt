@@ -2,6 +2,9 @@ package com.mydeck.app.io.prefs
 
 import com.mydeck.app.domain.model.AutoSyncTimeframe
 import com.mydeck.app.domain.model.Theme
+import com.mydeck.app.domain.sync.ContentSyncConstraints
+import com.mydeck.app.domain.sync.ContentSyncMode
+import com.mydeck.app.domain.sync.DateRangeParams
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.datetime.Instant
 
@@ -42,4 +45,13 @@ interface SettingsDataStore {
     suspend fun getLayoutMode(): String?
     suspend fun saveSortOption(sortOption: String)
     suspend fun getSortOption(): String?
+
+    // Content sync policy
+    suspend fun getContentSyncMode(): ContentSyncMode
+    suspend fun saveContentSyncMode(mode: ContentSyncMode)
+    suspend fun getContentSyncConstraints(): ContentSyncConstraints
+    suspend fun saveWifiOnly(enabled: Boolean)
+    suspend fun saveAllowBatterySaver(enabled: Boolean)
+    suspend fun getDateRangeParams(): DateRangeParams?
+    suspend fun saveDateRangeParams(params: DateRangeParams)
 }

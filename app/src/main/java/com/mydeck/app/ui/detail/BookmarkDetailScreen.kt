@@ -76,8 +76,10 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.mydeck.app.R
 import com.mydeck.app.domain.model.Template
+import androidx.compose.material3.Button
 import com.mydeck.app.util.openUrlInCustomTab
 import com.mydeck.app.ui.components.ShareBookmarkChooser
+import com.mydeck.app.ui.detail.BookmarkDetailViewModel.ContentLoadState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -103,6 +105,7 @@ fun BookmarkDetailScreen(navHostController: NavController, bookmarkId: String?, 
     val onUpdateLabels: (String, List<String>) -> Unit = { id, labels -> viewModel.onUpdateLabels(id, labels) }
     val snackbarHostState = remember { SnackbarHostState() }
     val uiState = viewModel.uiState.collectAsState().value
+    val contentLoadState = viewModel.contentLoadState.collectAsState().value
     var showDetailsDialog by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val onClickDeleteBookmark: (String) -> Unit = { id ->
@@ -138,9 +141,11 @@ fun BookmarkDetailScreen(navHostController: NavController, bookmarkId: String?, 
 
     when (uiState) {
         is BookmarkDetailViewModel.UiState.Success -> {
+            // Start in READER mode if: not forced to original, AND either has content or content is loading
+            val isContentLoading = contentLoadState is ContentLoadState.Loading
             var contentMode by remember(uiState.bookmark.bookmarkId) {
                 mutableStateOf(
-                    if (showOriginal || !uiState.bookmark.hasContent) ContentMode.ORIGINAL
+                    if (showOriginal) ContentMode.ORIGINAL
                     else ContentMode.READER
                 )
             }
@@ -291,7 +296,10 @@ fun BookmarkDetailScreen(
             onClickOpenUrl = onClickOpenUrl,
             onScrollProgressChanged = onScrollProgressChanged,
             initialReadProgress = initialReadProgress,
-            contentMode = contentMode
+            contentMode = contentMode,
+            contentLoadState = contentLoadState,
+            onRetryContentFetch = { viewModel.retryContentFetch() },
+            onSwitchToOriginal = { contentMode = ContentMode.ORIGINAL }
         )
     }
 }
@@ -303,7 +311,10 @@ fun BookmarkDetailContent(
     onClickOpenUrl: (String) -> Unit,
     onScrollProgressChanged: (Int) -> Unit = {},
     initialReadProgress: Int = 0,
-    contentMode: ContentMode = ContentMode.READER
+    contentMode: ContentMode = ContentMode.READER,
+    contentLoadState: ContentLoadState = ContentLoadState.Idle,
+    onRetryContentFetch: () -> Unit = {},
+    onSwitchToOriginal: () -> Unit = {}
 ) {
     val scrollState = rememberScrollState()
     val hasArticleContent = uiState.bookmark.articleContent != null
@@ -369,9 +380,51 @@ fun BookmarkDetailContent(
                         uiState = uiState
                     )
                 } else {
-                    EmptyBookmarkDetailArticle(
-                        modifier = Modifier
-                    )
+                    // No content yet — show loading/retry/auto-switch based on content load state
+                    when (contentLoadState) {
+                        is ContentLoadState.Loading -> {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(200.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                CircularProgressIndicator()
+                            }
+                        }
+                        is ContentLoadState.Failed -> {
+                            if (!contentLoadState.canRetry) {
+                                // Auto-switch to original view for permanent failures
+                                LaunchedEffect(Unit) { onSwitchToOriginal() }
+                            } else {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(16.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.Center
+                                ) {
+                                    Text(
+                                        text = stringResource(R.string.detail_view_no_content),
+                                        style = MaterialTheme.typography.bodyLarge
+                                    )
+                                    Text(
+                                        text = contentLoadState.reason,
+                                        style = MaterialTheme.typography.bodySmall
+                                    )
+                                    Spacer(Modifier.height(16.dp))
+                                    Button(onClick = onRetryContentFetch) {
+                                        Text("Retry")
+                                    }
+                                }
+                            }
+                        }
+                        else -> {
+                            EmptyBookmarkDetailArticle(
+                                modifier = Modifier
+                            )
+                        }
+                    }
                 }
             }
 
