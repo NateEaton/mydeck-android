@@ -9,6 +9,10 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import dagger.hilt.android.qualifiers.ApplicationContext
 import com.mydeck.app.domain.model.AutoSyncTimeframe
 import com.mydeck.app.domain.model.Theme
+import com.mydeck.app.domain.sync.ContentSyncConstraints
+import com.mydeck.app.domain.sync.ContentSyncMode
+import com.mydeck.app.domain.sync.DateRangeParams
+import kotlinx.datetime.LocalDate
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -39,6 +43,11 @@ class SettingsDataStoreImpl @Inject constructor(@ApplicationContext private val 
     private val KEY_SYNC_NOTIFICATIONS_ENABLED = booleanPreferencesKey("sync_notifications_enabled")
     private val KEY_LAYOUT_MODE = stringPreferencesKey("layout_mode")
     private val KEY_SORT_OPTION = stringPreferencesKey("sort_option")
+    private val KEY_CONTENT_SYNC_MODE = stringPreferencesKey("content_sync_mode")
+    private val KEY_WIFI_ONLY = booleanPreferencesKey("content_sync_wifi_only")
+    private val KEY_ALLOW_BATTERY_SAVER = booleanPreferencesKey("content_sync_allow_battery_saver")
+    private val KEY_DATE_RANGE_FROM = stringPreferencesKey("date_range_from")
+    private val KEY_DATE_RANGE_TO = stringPreferencesKey("date_range_to")
 
     override fun saveUsername(username: String) {
         Timber.d("saveUsername")
@@ -250,5 +259,53 @@ class SettingsDataStoreImpl @Inject constructor(@ApplicationContext private val 
 
     override suspend fun getSortOption(): String? {
         return encryptedSharedPreferences.getString(KEY_SORT_OPTION.name, null)
+    }
+
+    override suspend fun getContentSyncMode(): ContentSyncMode {
+        return encryptedSharedPreferences.getString(KEY_CONTENT_SYNC_MODE.name, ContentSyncMode.AUTOMATIC.name)?.let {
+            try { ContentSyncMode.valueOf(it) } catch (_: Exception) { ContentSyncMode.AUTOMATIC }
+        } ?: ContentSyncMode.AUTOMATIC
+    }
+
+    override suspend fun saveContentSyncMode(mode: ContentSyncMode) {
+        encryptedSharedPreferences.edit {
+            putString(KEY_CONTENT_SYNC_MODE.name, mode.name)
+        }
+    }
+
+    override suspend fun getContentSyncConstraints(): ContentSyncConstraints {
+        return ContentSyncConstraints(
+            wifiOnly = encryptedSharedPreferences.getBoolean(KEY_WIFI_ONLY.name, false),
+            allowOnBatterySaver = encryptedSharedPreferences.getBoolean(KEY_ALLOW_BATTERY_SAVER.name, true)
+        )
+    }
+
+    override suspend fun saveWifiOnly(enabled: Boolean) {
+        encryptedSharedPreferences.edit {
+            putBoolean(KEY_WIFI_ONLY.name, enabled)
+        }
+    }
+
+    override suspend fun saveAllowBatterySaver(enabled: Boolean) {
+        encryptedSharedPreferences.edit {
+            putBoolean(KEY_ALLOW_BATTERY_SAVER.name, enabled)
+        }
+    }
+
+    override suspend fun getDateRangeParams(): DateRangeParams? {
+        val from = encryptedSharedPreferences.getString(KEY_DATE_RANGE_FROM.name, null)
+        val to = encryptedSharedPreferences.getString(KEY_DATE_RANGE_TO.name, null)
+        return if (from != null && to != null) {
+            try {
+                DateRangeParams(from = LocalDate.parse(from), to = LocalDate.parse(to))
+            } catch (_: Exception) { null }
+        } else null
+    }
+
+    override suspend fun saveDateRangeParams(params: DateRangeParams) {
+        encryptedSharedPreferences.edit {
+            putString(KEY_DATE_RANGE_FROM.name, params.from.toString())
+            putString(KEY_DATE_RANGE_TO.name, params.to.toString())
+        }
     }
 }

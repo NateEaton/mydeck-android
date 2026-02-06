@@ -369,4 +369,13 @@ interface BookmarkDao {
         ORDER BY b.created DESC
     """)
     suspend fun getBookmarkIdsEligibleForContentFetch(): List<String>
+
+    @Query("""
+        SELECT b.id FROM bookmarks b
+        WHERE b.contentState IN (0, 2)
+        AND b.hasArticle = 1
+        AND b.created >= :fromEpoch AND b.created <= :toEpoch
+        ORDER BY b.created DESC
+    """)
+    suspend fun getBookmarkIdsForDateRangeContentFetch(fromEpoch: Long, toEpoch: Long): List<String>
 }

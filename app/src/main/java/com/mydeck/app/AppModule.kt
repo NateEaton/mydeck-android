@@ -17,6 +17,8 @@ import com.mydeck.app.domain.BookmarkRepository
 import com.mydeck.app.domain.BookmarkRepositoryImpl
 import com.mydeck.app.domain.UserRepository
 import com.mydeck.app.domain.UserRepositoryImpl
+import com.mydeck.app.domain.sync.ConnectivityMonitor
+import com.mydeck.app.domain.sync.ConnectivityMonitorImpl
 import com.mydeck.app.io.rest.NetworkModule
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
@@ -34,6 +36,10 @@ abstract class AppModule {
 
     @Binds
     abstract fun bindUserRepository(userRepositoryImpl: UserRepositoryImpl): UserRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindConnectivityMonitor(impl: ConnectivityMonitorImpl): ConnectivityMonitor
 
     companion object {
         @Singleton
