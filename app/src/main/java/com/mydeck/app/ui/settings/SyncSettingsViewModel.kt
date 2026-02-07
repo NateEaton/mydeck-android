@@ -403,15 +403,20 @@ class SyncSettingsViewModel @Inject constructor(
 
         // Build constraints based on current settings and overrides
         val constraintsBuilder = Constraints.Builder()
-            .setRequiredNetworkType(NetworkType.CONNECTED)
 
-        // If wifi-only is enabled and we're NOT overriding it, require WiFi
-        if (wifiOnly.value && !overrideWifiOnly) {
-            constraintsBuilder.setRequiredNetworkType(NetworkType.UNMETERED)
+        // Determine network type constraint
+        val networkType = if (overrideWifiOnly || !wifiOnly.value) {
+            // If overriding WiFi constraint OR WiFi constraint not enabled, allow any network
+            NetworkType.CONNECTED
+        } else {
+            // WiFi-only constraint is enabled and NOT being overridden
+            NetworkType.UNMETERED
         }
+        constraintsBuilder.setRequiredNetworkType(networkType)
 
-        // If battery saver is NOT allowed and we're NOT overriding it, require not in battery saver
-        if (!allowBatterySaver.value && !overrideBatterySaver) {
+        // Determine battery constraint
+        if (!overrideBatterySaver && !allowBatterySaver.value) {
+            // Battery saver constraint is enabled and NOT being overridden
             constraintsBuilder.setRequiresBatteryNotLow(true)
         }
 
@@ -428,7 +433,7 @@ class SyncSettingsViewModel @Inject constructor(
             request
         )
 
-        Timber.i("Enqueued DateRangeContentSyncWorker [from=$from, to=$to, overrideWifi=$overrideWifiOnly, overrideBattery=$overrideBatterySaver]")
+        Timber.i("Enqueued DateRangeContentSyncWorker [from=$from, to=$to, networkType=$networkType, overrideWifi=$overrideWifiOnly, overrideBattery=$overrideBatterySaver]")
 
         // Switch back to MANUAL mode after successful download
         viewModelScope.launch {
