@@ -124,10 +124,20 @@ class BookmarkDetailViewModel @Inject constructor(
                             // so scrolling back up doesn't reduce progress from 100
                             isReadLocked = bookmark.isRead()
 
-                            // If no content downloaded, attempt on-demand fetch
-                            if (bookmark.contentState != ContentState.DOWNLOADED &&
-                                bookmark.contentState != ContentState.PERMANENT_NO_CONTENT) {
-                                fetchContentOnDemand(bookmarkId)
+                            // Handle content availability
+                            when (bookmark.contentState) {
+                                ContentState.DOWNLOADED -> { /* Content available, nothing to do */ }
+                                ContentState.PERMANENT_NO_CONTENT -> {
+                                    // Signal to UI that content is permanently unavailable
+                                    _contentLoadState.value = ContentLoadState.Failed(
+                                        reason = bookmark.contentFailureReason ?: "No content available",
+                                        canRetry = false
+                                    )
+                                }
+                                else -> {
+                                    // NOT_ATTEMPTED or DIRTY — attempt on-demand fetch
+                                    fetchContentOnDemand(bookmarkId)
+                                }
                             }
                         }
                     }

@@ -47,8 +47,28 @@ interface BookmarkDao {
     @Transaction
     suspend fun insertBookmarkWithArticleContent(bookmarkWithArticleContent: BookmarkWithArticleContent) {
         with(bookmarkWithArticleContent) {
-            insertBookmark(bookmark)
-            articleContent?.run { insertArticleContent(this) }
+            // For existing bookmarks, preserve content state and downloaded article content.
+            // Room's REPLACE strategy does DELETE+INSERT, which triggers CASCADE DELETE on
+            // the article_content foreign key. We must read and restore both.
+            val existingState = getContentStateById(bookmark.id)
+            val existingArticleContent = if (existingState != null) getArticleContent(bookmark.id) else null
+
+            val bookmarkToInsert = if (existingState != null) {
+                bookmark.copy(
+                    contentState = existingState.contentState,
+                    contentFailureReason = existingState.contentFailureReason
+                )
+            } else {
+                bookmark
+            }
+
+            insertBookmark(bookmarkToInsert)
+
+            // Re-insert article content: prefer new content, fall back to preserved existing
+            val contentToSave = articleContent ?: existingArticleContent?.let {
+                ArticleContentEntity(bookmarkId = bookmark.id, content = it)
+            }
+            contentToSave?.run { insertArticleContent(this) }
         }
     }
 
@@ -337,8 +357,41 @@ interface BookmarkDao {
         return getBookmarkListItemsByFiltersDynamic(sqlQuery)
     }
 
+    data class ContentStateInfo(
+        val contentState: BookmarkEntity.ContentState,
+        val contentFailureReason: String?
+    )
+
+    @Query("SELECT contentState, contentFailureReason FROM bookmarks WHERE id = :id")
+    suspend fun getContentStateById(id: String): ContentStateInfo?
+
     @Query("UPDATE bookmarks SET contentState = :state, contentFailureReason = :reason WHERE id = :id")
     suspend fun updateContentState(id: String, state: Int, reason: String?)
+
+    data class DetailedSyncStatusCounts(
+        val total: Int,
+        val unread: Int,
+        val archived: Int,
+        val favorites: Int,
+        val contentDownloaded: Int,
+        val contentAvailable: Int,
+        val contentDirty: Int,
+        val permanentNoContent: Int
+    )
+
+    @Query("""
+        SELECT
+            (SELECT COUNT(*) FROM bookmarks WHERE state = 0) AS total,
+            (SELECT COUNT(*) FROM bookmarks WHERE readProgress < 100 AND state = 0) AS unread,
+            (SELECT COUNT(*) FROM bookmarks WHERE isArchived = 1 AND state = 0) AS archived,
+            (SELECT COUNT(*) FROM bookmarks WHERE isMarked = 1 AND state = 0) AS favorites,
+            (SELECT COUNT(*) FROM bookmarks WHERE contentState = 1) AS contentDownloaded,
+            (SELECT COUNT(*) FROM bookmarks WHERE contentState = 0 AND hasArticle = 1) AS contentAvailable,
+            (SELECT COUNT(*) FROM bookmarks WHERE contentState = 2) AS contentDirty,
+            (SELECT COUNT(*) FROM bookmarks WHERE contentState = 3) AS permanentNoContent
+        FROM bookmarks LIMIT 1
+    """)
+    fun observeDetailedSyncStatus(): Flow<DetailedSyncStatusCounts?>
 
     @Query("""
         SELECT b.id FROM bookmarks b

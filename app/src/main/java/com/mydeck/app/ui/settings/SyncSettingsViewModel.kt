@@ -6,7 +6,13 @@ import androidx.annotation.StringRes
 import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.work.Constraints
+import androidx.work.Data
+import androidx.work.ExistingWorkPolicy
+import androidx.work.NetworkType
+import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkInfo
+import androidx.work.WorkManager
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.PermissionState
 import com.google.accompanist.permissions.isGranted
@@ -14,12 +20,13 @@ import com.google.accompanist.permissions.shouldShowRationale
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import com.mydeck.app.R
-import com.mydeck.app.domain.BookmarkRepository
 import com.mydeck.app.domain.model.AutoSyncTimeframe
+import com.mydeck.app.domain.sync.ContentSyncMode
+import com.mydeck.app.domain.sync.DateRangeParams
 import com.mydeck.app.domain.usecase.FullSyncUseCase
 import com.mydeck.app.io.db.dao.BookmarkDao
 import com.mydeck.app.io.prefs.SettingsDataStore
-import kotlinx.coroutines.flow.Flow
+import com.mydeck.app.worker.DateRangeContentSyncWorker
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -29,6 +36,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.datetime.LocalDate
 import timber.log.Timber
 import java.text.DateFormat
 import java.util.Date
@@ -37,10 +45,10 @@ import javax.inject.Inject
 @OptIn(ExperimentalPermissionsApi::class)
 @HiltViewModel
 class SyncSettingsViewModel @Inject constructor(
-    private val bookmarkRepository: BookmarkRepository,
     private val bookmarkDao: BookmarkDao,
     private val settingsDataStore: SettingsDataStore,
     private val fullSyncUseCase: FullSyncUseCase,
+    private val workManager: WorkManager,
     @ApplicationContext private val context: Context,
 ) : ViewModel() {
     private var _permissionState: PermissionState? = null
@@ -49,169 +57,288 @@ class SyncSettingsViewModel @Inject constructor(
     )
     private val _navigationEvent = MutableStateFlow<NavigationEvent?>(null)
     val navigationEvent: StateFlow<NavigationEvent?> = _navigationEvent.asStateFlow()
-    private val autoSyncEnabled = MutableStateFlow(false)
-    private val autoSyncTimeframe = MutableStateFlow(AutoSyncTimeframe.MANUAL)
-    private val syncOnAppOpenEnabled = MutableStateFlow(false)
-    private val syncNotificationsEnabled = MutableStateFlow(true)
-    private val showDialog = MutableStateFlow<Dialog?>(null)
-    private val workInfo: Flow<WorkInfo?> = fullSyncUseCase.workInfoFlow.map { workInfoList ->
+
+    // Bookmark sync
+    private val bookmarkSyncFrequency = MutableStateFlow(AutoSyncTimeframe.HOURS_01)
+
+    // Content sync
+    private val contentSyncMode = MutableStateFlow(ContentSyncMode.AUTOMATIC)
+    private val dateRangeFrom = MutableStateFlow<LocalDate?>(null)
+    private val dateRangeTo = MutableStateFlow<LocalDate?>(null)
+    private val isDateRangeDownloading = MutableStateFlow(false)
+
+    // Constraints
+    private val wifiOnly = MutableStateFlow(false)
+    private val allowBatterySaver = MutableStateFlow(true)
+
+    // Dialog
+    private val showDialog = MutableStateFlow<SyncSettingsDialog?>(null)
+
+    // Last sync timestamp
+    private val lastSyncTimestamp = MutableStateFlow<String?>(null)
+
+    // Sync status from DB
+    private val detailedSyncStatus = bookmarkDao.observeDetailedSyncStatus()
+        .map { it ?: BookmarkDao.DetailedSyncStatusCounts(0, 0, 0, 0, 0, 0, 0, 0) }
+        .stateIn(
+            viewModelScope,
+            SharingStarted.WhileSubscribed(5000),
+            BookmarkDao.DetailedSyncStatusCounts(0, 0, 0, 0, 0, 0, 0, 0)
+        )
+
+    // Work info for next scheduled run
+    private val workInfoNext = fullSyncUseCase.workInfoFlow.map { workInfoList ->
         workInfoList.firstOrNull()?.let {
-            it
+            if (it.state == WorkInfo.State.ENQUEUED) it.nextScheduleTimeMillis else null
         }
     }
 
-    private val syncStatusCounts = bookmarkDao.observeSyncStatus()
-        .map { it ?: BookmarkDao.SyncStatusCounts(0, 0) }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), BookmarkDao.SyncStatusCounts(0, 0))
-
-    private val lastSyncTimestamp = MutableStateFlow<String?>(null)
+    // Date range download work status
+    private val dateRangeWorkStatus = workManager
+        .getWorkInfosForUniqueWorkFlow(DateRangeContentSyncWorker.UNIQUE_WORK_NAME)
+        .map { workInfoList ->
+            workInfoList.any { it.state == WorkInfo.State.RUNNING || it.state == WorkInfo.State.ENQUEUED }
+        }
 
     init {
         viewModelScope.launch {
-            autoSyncEnabled.value = settingsDataStore.isAutoSyncEnabled()
-            autoSyncTimeframe.value = settingsDataStore.getAutoSyncTimeframe()
-            syncOnAppOpenEnabled.value = settingsDataStore.isSyncOnAppOpenEnabled()
-            syncNotificationsEnabled.value = settingsDataStore.isSyncNotificationsEnabled()
+            // Load all settings
+            bookmarkSyncFrequency.value = settingsDataStore.getAutoSyncTimeframe().let { timeframe ->
+                // If MANUAL, default to HOURS_01 since bookmark sync is always on
+                if (timeframe == AutoSyncTimeframe.MANUAL) AutoSyncTimeframe.HOURS_01 else timeframe
+            }
+            contentSyncMode.value = settingsDataStore.getContentSyncMode()
+            val constraints = settingsDataStore.getContentSyncConstraints()
+            wifiOnly.value = constraints.wifiOnly
+            allowBatterySaver.value = constraints.allowOnBatterySaver
+            settingsDataStore.getDateRangeParams()?.let {
+                dateRangeFrom.value = it.from
+                dateRangeTo.value = it.to
+            }
             settingsDataStore.getLastSyncTimestamp()?.let {
                 lastSyncTimestamp.value = dateFormat.format(Date(it.toEpochMilliseconds()))
             }
+
+            // Perform settings migration for existing users
+            performSettingsMigration()
         }
-    }
 
-
-    val uiState = combine(
-        autoSyncEnabled,
-        autoSyncTimeframe,
-        showDialog,
-        workInfo,
-        fullSyncUseCase.syncIsRunning
-    ) { autoSyncEnabled, autoSyncTimeframe, showDialog, workInfo, syncIsRunning ->
-        val next = workInfo?.let {
-            if (it.state == WorkInfo.State.ENQUEUED) {
-                it.nextScheduleTimeMillis
-            } else {
-                null
+        // Observe date range work status
+        viewModelScope.launch {
+            dateRangeWorkStatus.collect { running ->
+                isDateRangeDownloading.value = running
             }
         }
+    }
 
-        Timber.d("enabled=$autoSyncEnabled, timeFrame=$autoSyncTimeframe")
-        Timber.d("workInfo=$workInfo")
+    private suspend fun performSettingsMigration() {
+        val migrationKey = "sync_settings_v3_migrated"
+        val prefs = context.getSharedPreferences("sync_migration", Context.MODE_PRIVATE)
+        if (prefs.getBoolean(migrationKey, false)) return
 
-        Triple(autoSyncEnabled, autoSyncTimeframe, Pair(showDialog, Pair(next, syncIsRunning)))
-    }.combine(syncStatusCounts) { triple, counts ->
-        Pair(triple, counts)
-    }.combine(lastSyncTimestamp) { pair, lastSync ->
-        Pair(pair, lastSync)
-    }.combine(syncOnAppOpenEnabled) { pair, syncOnOpen ->
-        Pair(pair, syncOnOpen)
-    }.combine(syncNotificationsEnabled) { pair, notificationsEnabled ->
-        val (innerPair, syncOnOpen) = pair
-        val (pairWithCounts, lastSync) = innerPair
-        val (triple, counts) = pairWithCounts
-        val (autoSyncEnabled, autoSyncTimeframe, rest) = triple
-        val (showDialog, nextAndSync) = rest
-        val (next, syncIsRunning) = nextAndSync
+        // Migrate: if autoSyncEnabled was false, set content mode to MANUAL
+        val wasAutoSyncEnabled = settingsDataStore.isAutoSyncEnabled()
+        if (!wasAutoSyncEnabled) {
+            settingsDataStore.saveContentSyncMode(ContentSyncMode.MANUAL)
+            contentSyncMode.value = ContentSyncMode.MANUAL
+        }
 
-        Timber.d("changed")
+        // Ensure bookmark sync is always scheduled (was previously toggle-able)
+        val timeframe = settingsDataStore.getAutoSyncTimeframe()
+        if (timeframe != AutoSyncTimeframe.MANUAL) {
+            fullSyncUseCase.scheduleFullSyncWorker(timeframe)
+        } else {
+            // Default to hourly if it was manual
+            settingsDataStore.saveAutoSyncTimeframe(AutoSyncTimeframe.HOURS_01)
+            fullSyncUseCase.scheduleFullSyncWorker(AutoSyncTimeframe.HOURS_01)
+            bookmarkSyncFrequency.value = AutoSyncTimeframe.HOURS_01
+        }
+
+        // Mark migration done
+        prefs.edit().putBoolean(migrationKey, true).apply()
+        Timber.i("Sync settings v3 migration completed")
+    }
+
+    val uiState: StateFlow<SyncSettingsUiState> = combine(
+        bookmarkSyncFrequency,
+        contentSyncMode,
+        showDialog,
+        workInfoNext,
+        wifiOnly,
+    ) { freq, mode, dialog, next, wifi ->
+        SyncSettingsPartial1(freq, mode, dialog, next, wifi)
+    }.combine(
+        combine(
+            allowBatterySaver,
+            dateRangeFrom,
+            dateRangeTo,
+            isDateRangeDownloading,
+            detailedSyncStatus
+        ) { battery, from, to, downloading, status ->
+            SyncSettingsPartial2(battery, from, to, downloading, status)
+        }
+    ) { p1, p2 ->
         SyncSettingsUiState(
-            autoSyncEnabled = autoSyncEnabled,
-            autoSyncTimeframe = autoSyncTimeframe,
-            autoSyncTimeframeOptions = getAutoSyncOptionList(autoSyncTimeframe),
-            showDialog = showDialog,
-            autoSyncTimeframeLabel = autoSyncTimeframe.toLabelResource(),
-            nextAutoSyncRun = next?.let { dateFormat.format(Date(it)) },
-            autoSyncButtonEnabled = syncIsRunning.not(),
-            totalBookmarks = counts.total,
-            bookmarksWithContent = counts.withContent,
-            lastSyncTimestamp = lastSync,
-            syncOnAppOpenEnabled = syncOnOpen,
-            syncNotificationsEnabled = notificationsEnabled
+            bookmarkSyncFrequency = p1.freq,
+            bookmarkSyncFrequencyOptions = getBookmarkSyncOptions(p1.freq),
+            nextAutoSyncRun = p1.next?.let { dateFormat.format(Date(it)) },
+            contentSyncMode = p1.mode,
+            dateRangeFrom = p2.from,
+            dateRangeTo = p2.to,
+            isDateRangeDownloading = p2.downloading,
+            wifiOnly = p1.wifi,
+            allowBatterySaver = p2.battery,
+            syncStatus = SyncStatus(
+                totalBookmarks = p2.status.total,
+                unread = p2.status.unread,
+                archived = p2.status.archived,
+                favorites = p2.status.favorites,
+                contentDownloaded = p2.status.contentDownloaded,
+                contentAvailable = p2.status.contentAvailable,
+                contentDirty = p2.status.contentDirty,
+                permanentNoContent = p2.status.permanentNoContent,
+                lastSyncTimestamp = null // set below
+            ),
+            showDialog = p1.dialog
         )
+    }.combine(lastSyncTimestamp) { state, ts ->
+        state.copy(syncStatus = state.syncStatus.copy(lastSyncTimestamp = ts))
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = SyncSettingsUiState()
+    )
+
+    // --- Bookmark Sync ---
+
+    fun onClickBookmarkSyncFrequency() {
+        showDialog.value = SyncSettingsDialog.BookmarkSyncFrequencyDialog
     }
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
-            initialValue =
-                SyncSettingsUiState(
-                    autoSyncEnabled = false,
-                    autoSyncTimeframe = AutoSyncTimeframe.MANUAL,
-                    autoSyncTimeframeOptions = getAutoSyncOptionList(AutoSyncTimeframe.MANUAL),
-                    showDialog = null,
-                    autoSyncTimeframeLabel = AutoSyncTimeframe.MANUAL.toLabelResource(),
-                    nextAutoSyncRun = null,
-                    autoSyncButtonEnabled = false,
-                    syncOnAppOpenEnabled = false,
-                    syncNotificationsEnabled = true
-                )
+
+    fun onBookmarkSyncFrequencySelected(selected: AutoSyncTimeframe) {
+        // Don't allow MANUAL - bookmark sync is always on
+        val effective = if (selected == AutoSyncTimeframe.MANUAL) AutoSyncTimeframe.HOURS_01 else selected
+        fullSyncUseCase.scheduleFullSyncWorker(effective)
+        viewModelScope.launch {
+            settingsDataStore.saveAutoSyncTimeframe(effective)
+            bookmarkSyncFrequency.value = effective
+        }
+    }
+
+    // --- Content Sync ---
+
+    fun onContentSyncModeSelected(mode: ContentSyncMode) {
+        viewModelScope.launch {
+            settingsDataStore.saveContentSyncMode(mode)
+            contentSyncMode.value = mode
+
+            // If switching to AUTOMATIC, may need notification permission
+            if (mode == ContentSyncMode.AUTOMATIC) {
+                requestBackgroundPermissionIfNeeded()
+            }
+        }
+    }
+
+    fun onDateRangeFromSelected(date: LocalDate) {
+        dateRangeFrom.value = date
+        saveDateRangeIfBothSet()
+    }
+
+    fun onDateRangeToSelected(date: LocalDate) {
+        dateRangeTo.value = date
+        saveDateRangeIfBothSet()
+    }
+
+    private fun saveDateRangeIfBothSet() {
+        val from = dateRangeFrom.value ?: return
+        val to = dateRangeTo.value ?: return
+        viewModelScope.launch {
+            settingsDataStore.saveDateRangeParams(DateRangeParams(from, to))
+        }
+    }
+
+    fun onClickDateRangeDownload() {
+        val from = dateRangeFrom.value ?: return
+        val to = dateRangeTo.value ?: return
+
+        // Request permission if needed
+        requestBackgroundPermissionIfNeeded()
+
+        // Convert LocalDate to epoch millis for the worker
+        val fromEpoch = from.toEpochDays().toLong() * 86400L * 1000L
+        val toEpoch = (to.toEpochDays().toLong() + 1) * 86400L * 1000L // End of day
+
+        val inputData = Data.Builder()
+            .putLong(DateRangeContentSyncWorker.PARAM_FROM_EPOCH, fromEpoch)
+            .putLong(DateRangeContentSyncWorker.PARAM_TO_EPOCH, toEpoch)
+            .build()
+
+        val constraints = Constraints.Builder()
+            .setRequiredNetworkType(NetworkType.CONNECTED)
+            .build()
+
+        val request = OneTimeWorkRequestBuilder<DateRangeContentSyncWorker>()
+            .setInputData(inputData)
+            .setConstraints(constraints)
+            .build()
+
+        workManager.enqueueUniqueWork(
+            DateRangeContentSyncWorker.UNIQUE_WORK_NAME,
+            ExistingWorkPolicy.REPLACE,
+            request
         )
 
-    fun onClickDoFullSyncNow() {
-        fullSyncUseCase.performFullSync()
+        Timber.i("Enqueued DateRangeContentSyncWorker [from=$from, to=$to]")
     }
 
-    fun onClickAutoSync() {
-        showDialog.value = Dialog.AutoSyncTimeframeDialog
+    // --- Constraints ---
+
+    fun onWifiOnlyChanged(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsDataStore.saveWifiOnly(enabled)
+            wifiOnly.value = enabled
+        }
+    }
+
+    fun onAllowBatterySaverChanged(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsDataStore.saveAllowBatterySaver(enabled)
+            allowBatterySaver.value = enabled
+        }
+    }
+
+    // --- Permission ---
+
+    private fun requestBackgroundPermissionIfNeeded() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return
+        val perm = _permissionState ?: return
+        if (perm.status.isGranted) return
+
+        if (perm.status.shouldShowRationale) {
+            showDialog.value = SyncSettingsDialog.BackgroundRationaleDialog
+        } else {
+            showDialog.value = SyncSettingsDialog.PermissionRequest
+        }
+    }
+
+    fun onRationaleDialogConfirm() {
+        showDialog.value = SyncSettingsDialog.PermissionRequest
+    }
+
+    // --- Dialog ---
+
+    fun onShowDialog(dialog: SyncSettingsDialog) {
+        showDialog.value = dialog
     }
 
     fun onDismissDialog() {
         showDialog.value = null
     }
 
-    fun onAutoSyncTimeframeSelected(selected: AutoSyncTimeframe) {
-        Timber.d("onAutoSyncTimeframeSelected [selected=$selected]")
-        if (autoSyncEnabled.value) {
-            fullSyncUseCase.scheduleFullSyncWorker(selected)
-        }
-        updateAutoSyncTimeframe(selected)
-    }
-
-    fun onClickAutoSyncSwitch(enabled: Boolean) {
-        Timber.d("onClickAutoSyncSwitch [enabled=$enabled]")
-        if (enabled) {
-            when {
-                Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU -> {
-                    Timber.d("older version, permission is assumed!")
-                }
-                _permissionState?.status?.isGranted == true -> {
-                    Timber.d("permission is already granted")
-                }
-
-                _permissionState?.status?.shouldShowRationale == true -> {
-                    showDialog.value = Dialog.RationaleDialog
-                }
-                else ->{
-                    showDialog.value = Dialog.PermissionRequest
-                }
-            }
-            fullSyncUseCase.scheduleFullSyncWorker(autoSyncTimeframe.value)
-        } else {
-            fullSyncUseCase.cancelFullSyncWorker()
-        }
-        updateAutoSyncEnabled(enabled)
-    }
-
-    fun onRationaleDialogConfirm() {
-        showDialog.value = Dialog.PermissionRequest
-    }
-
-    fun onClickSyncOnAppOpenSwitch(enabled: Boolean) {
-        Timber.d("onClickSyncOnAppOpenSwitch [enabled=$enabled]")
-        viewModelScope.launch {
-            settingsDataStore.setSyncOnAppOpenEnabled(enabled)
-            syncOnAppOpenEnabled.value = settingsDataStore.isSyncOnAppOpenEnabled()
-        }
-    }
-
-    fun onClickSyncNotificationsSwitch(enabled: Boolean) {
-        Timber.d("onClickSyncNotificationsSwitch [enabled=$enabled]")
-        viewModelScope.launch {
-            settingsDataStore.setSyncNotificationsEnabled(enabled)
-            syncNotificationsEnabled.value = settingsDataStore.isSyncNotificationsEnabled()
-        }
-    }
+    // --- Navigation ---
 
     fun onNavigationEventConsumed() {
-        _navigationEvent.update { null } // Reset the event
+        _navigationEvent.update { null }
     }
 
     fun onClickBack() {
@@ -222,8 +349,11 @@ class SyncSettingsViewModel @Inject constructor(
         data object NavigateBack : NavigationEvent()
     }
 
-    private fun getAutoSyncOptionList(selected: AutoSyncTimeframe): List<AutoSyncTimeframeOption> {
-        return AutoSyncTimeframe.entries.map {
+    // --- Helpers ---
+
+    private fun getBookmarkSyncOptions(selected: AutoSyncTimeframe): List<AutoSyncTimeframeOption> {
+        // Exclude MANUAL since bookmark sync is always on
+        return AutoSyncTimeframe.entries.filter { it != AutoSyncTimeframe.MANUAL }.map {
             AutoSyncTimeframeOption(
                 autoSyncTimeframe = it,
                 label = it.toLabelResource(),
@@ -232,47 +362,72 @@ class SyncSettingsViewModel @Inject constructor(
         }
     }
 
-    private fun updateAutoSyncEnabled(enabled: Boolean) {
-        viewModelScope.launch {
-            settingsDataStore.setAutoSyncEnabled(enabled)
-            autoSyncEnabled.value = settingsDataStore.isAutoSyncEnabled()
-        }
-    }
-
-    private fun updateAutoSyncTimeframe(value: AutoSyncTimeframe) {
-        viewModelScope.launch {
-            settingsDataStore.saveAutoSyncTimeframe(value)
-            autoSyncTimeframe.value = settingsDataStore.getAutoSyncTimeframe()
-        }
-    }
-
     @OptIn(ExperimentalPermissionsApi::class)
     fun setPermissionState(permissionState: PermissionState) {
         _permissionState = permissionState
     }
+
+    // Internal data classes for combine
+    private data class SyncSettingsPartial1(
+        val freq: AutoSyncTimeframe,
+        val mode: ContentSyncMode,
+        val dialog: SyncSettingsDialog?,
+        val next: Long?,
+        val wifi: Boolean
+    )
+
+    private data class SyncSettingsPartial2(
+        val battery: Boolean,
+        val from: LocalDate?,
+        val to: LocalDate?,
+        val downloading: Boolean,
+        val status: BookmarkDao.DetailedSyncStatusCounts
+    )
 }
 
 @Immutable
 data class SyncSettingsUiState(
-    val autoSyncEnabled: Boolean,
-    val autoSyncTimeframe: AutoSyncTimeframe,
-    val autoSyncTimeframeOptions: List<AutoSyncTimeframeOption>,
-    val showDialog: Dialog?,
-    @StringRes
-    val autoSyncTimeframeLabel: Int,
-    val nextAutoSyncRun: String?,
-    val autoSyncButtonEnabled: Boolean,
-    val totalBookmarks: Int = 0,
-    val bookmarksWithContent: Int = 0,
-    val lastSyncTimestamp: String? = null,
-    val syncOnAppOpenEnabled: Boolean = false,
-    val syncNotificationsEnabled: Boolean = true
+    // Bookmark sync
+    val bookmarkSyncFrequency: AutoSyncTimeframe = AutoSyncTimeframe.HOURS_01,
+    val bookmarkSyncFrequencyOptions: List<AutoSyncTimeframeOption> = emptyList(),
+    val nextAutoSyncRun: String? = null,
+
+    // Content sync
+    val contentSyncMode: ContentSyncMode = ContentSyncMode.AUTOMATIC,
+    val dateRangeFrom: LocalDate? = null,
+    val dateRangeTo: LocalDate? = null,
+    val isDateRangeDownloading: Boolean = false,
+
+    // Constraints
+    val wifiOnly: Boolean = false,
+    val allowBatterySaver: Boolean = true,
+
+    // Sync status
+    val syncStatus: SyncStatus = SyncStatus(),
+
+    // Dialog state
+    val showDialog: SyncSettingsDialog? = null
 )
 
-enum class Dialog {
-    RationaleDialog,
-    AutoSyncTimeframeDialog,
-    PermissionRequest
+@Immutable
+data class SyncStatus(
+    val totalBookmarks: Int = 0,
+    val unread: Int = 0,
+    val archived: Int = 0,
+    val favorites: Int = 0,
+    val contentDownloaded: Int = 0,
+    val contentAvailable: Int = 0,
+    val contentDirty: Int = 0,
+    val permanentNoContent: Int = 0,
+    val lastSyncTimestamp: String? = null
+)
+
+enum class SyncSettingsDialog {
+    BookmarkSyncFrequencyDialog,
+    BackgroundRationaleDialog,
+    PermissionRequest,
+    DateFromPicker,
+    DateToPicker
 }
 
 data class AutoSyncTimeframeOption(
