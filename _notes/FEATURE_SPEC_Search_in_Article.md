@@ -2,27 +2,95 @@
 
 ## Overview
 
-Add a "Search in Article" option to the reading view overflow menu that enables in-content text search with match highlighting and navigation. Available only for Article-type bookmarks; greyed out for Photo and Video types.
+Add a "Search in Article" option to the reading view overflow menu that enables in-content text search with match highlighting and navigation. Available only for Article-type bookmarks in Reader mode. Hidden entirely for Photo and Video types. Disabled (greyed out) in Original view mode.
 
-## User Flow
+This spec also covers a companion change: adding an "Open in Browser" option to the overflow menu, and updating icon semantics on both the reading view menu and list view bookmark cards to properly distinguish between "view original in-app" and "open in external browser."
 
-1. User opens an Article bookmark in reading view
+---
+
+## Part 1: Overflow Menu Restructure
+
+### New Menu Order
+
+The reading view overflow menu (`BookmarkDetailMenu`) is reordered as follows:
+
+| # | Item | Icon | Visibility / Conditions |
+|---|------|------|------------------------|
+| 1 | Increase text size | `Icons.Filled.TextIncrease` | Always shown |
+| 2 | Decrease text size | `Icons.Filled.TextDecrease` | Always shown |
+| 3 | View Original / View Article / View Photo / View Video | See icon table below | Always shown (disabled when no content available) |
+| 4 | Search in Article | `Icons.Filled.Search` | **Hidden** for Photo/Video types. **Disabled** (greyed out) in Original mode or when article content is empty. |
+| 5 | Is Read | `Icons.Filled.CheckCircle` / `Icons.Outlined.CheckCircle` | Always shown. Label changed from "Mark Read" to "Is Read" |
+| 6 | Open in Browser | `Icons.AutoMirrored.Filled.OpenInNew` | Always shown |
+| 7 | Share Link | `Icons.Outlined.Share` | Always shown |
+| 8 | Delete | `Icons.Filled.Delete` | Always shown |
+
+### View Original / View Content — Icon Update
+
+| Current Mode | Label | New Icon | Rationale |
+|-------------|-------|----------|-----------|
+| READER → switch to Original | "View Original" | `Icons.Filled.Language` (globe) | Globe = web content rendered in-app |
+| ORIGINAL → switch to Article | "View Article" | `Icons.Outlined.Description` | No change |
+| ORIGINAL → switch to Photo | "View Photo" | `Icons.Filled.Image` | No change |
+| ORIGINAL → switch to Video | "View Video" | `Icons.Filled.Movie` | No change |
+
+The "View Original" option currently uses `Icons.AutoMirrored.Filled.OpenInNew` (external link). This is misleading because it opens content *within* the app. Changing to the globe icon (`Icons.Filled.Language`) makes the distinction clear: globe = in-app web view, external-link = opens device browser.
+
+### Open in Browser (New Item)
+
+- **Label**: "Open in Browser"
+- **Icon**: `Icons.AutoMirrored.Filled.OpenInNew` (external link arrow)
+- **Action**: Opens the bookmark URL in the device's default browser via `Intent(ACTION_VIEW, url.toUri())`
+- **Position**: Between "Is Read" and "Share Link"
+- **Always enabled**: The bookmark always has a URL
+
+Implementation note: Use a simple `ACTION_VIEW` intent rather than `CustomTabsIntent`. The existing `openUrlInCustomTab()` function opens a Chrome Custom Tab (which still looks like an in-app experience). A dedicated "Open in Browser" should launch the full standalone browser, making it clearly distinct from the in-app Original view.
+
+---
+
+## Part 2: List View Card Icon Changes
+
+### Current Behavior (Problem)
+
+All three card layouts (Mosaic, Grid, Compact) show an `Icons.AutoMirrored.Filled.OpenInNew` (external link) icon button. Tapping it calls `onClickBookmarkOpenOriginal(bookmarkId)`, which navigates to the detail screen with `showOriginal = true` — an **in-app** WebView. The external-link icon falsely suggests it opens an external browser.
+
+### New Behavior
+
+Replace the single icon button with **two** icon buttons, placed to the right of the archive icon:
+
+| Order | Icon | Action | Content Description |
+|-------|------|--------|-------------------|
+| 1st (left) | `Icons.Filled.Language` (globe) | Navigate to detail screen with `showOriginal = true` (in-app Original view) | "View Original" |
+| 2nd (right) | `Icons.AutoMirrored.Filled.OpenInNew` (external link) | Open bookmark URL in default browser via `Intent(ACTION_VIEW)` | "Open in Browser" |
+
+This applies to all three card composables:
+- `BookmarkMosaicCard` (line ~275)
+- `BookmarkGridCard` (line ~508)
+- `BookmarkCompactCard` (line ~693)
+
+Each card will need the bookmark URL passed through (currently only `bookmark.id` is available; the URL may need to be added to `BookmarkListItem` if not already present).
+
+### Sizing
+
+The additional icon button is small. Current card icon buttons use:
+- Mosaic: 48.dp button, 20.dp icon
+- Grid: 36.dp button, 20.dp icon
+- Compact: 32.dp button, 18.dp icon
+
+These sizes can accommodate one more button without layout issues. If horizontal space is tight on the Compact layout, consider showing only the globe icon (Original view) and omitting the external-link icon on Compact cards.
+
+---
+
+## Part 3: Search in Article
+
+### User Flow
+
+1. User opens an Article bookmark in reading view (Reader mode)
 2. Taps overflow menu (⋮) → selects "Search in Article"
 3. The standard TopAppBar is replaced with a **search toolbar**
 4. User types a search term; matches are highlighted in the WebView content in real-time
 5. User navigates between matches with up/down arrows
 6. User exits search via the back arrow, restoring the normal toolbar
-
-## UI Design
-
-### Menu Item
-
-- **Label**: "Search in Article" with `Icons.Filled.Search` leading icon
-- **Position**: After "Mark Read/Unread", before "View Original/Article" toggle
-- **Visibility**: Only shown when `bookmark.type == Article`
-- **Enabled state**:
-  - In **READER mode**: Always enabled (article HTML content is searchable)
-  - In **ORIGINAL mode**: Greyed out and disabled (third-party page content is not reliably searchable via injected JS due to cross-origin frames, dynamic content, and varied DOM structures)
 
 ### Search Toolbar (replaces TopAppBar)
 
@@ -42,6 +110,14 @@ Modeled after the existing list view search bar (`BookmarkListScreen.kt:381-407`
 
 The up/down arrows should be disabled (alpha 0.38) when there are 0 matches.
 
+### Menu Item Conditions
+
+- **Visibility**: Hidden entirely when `bookmark.type` is Photo or Video
+- **Enabled state**:
+  - **READER mode with content**: Enabled
+  - **READER mode without content** (articleContent is null/blank): Disabled (greyed out)
+  - **ORIGINAL mode**: Disabled (greyed out) — Original view is out of scope for search
+
 ### Highlight Colors
 
 | Highlight | Color | Purpose |
@@ -50,6 +126,8 @@ The up/down arrows should be disabled (alpha 0.38) when there are 0 matches.
 | Current match | `#FF8C00` (dark orange) with dark text | Background highlight for the actively-selected occurrence |
 
 These colors are injected via JavaScript/CSS into the WebView and work across all three article themes (light/dark/sepia).
+
+---
 
 ## Technical Design
 
@@ -89,7 +167,7 @@ Query changes should be debounced (~300ms, matching list search behavior) before
 
 ### WebView JavaScript Bridge
 
-A `WebViewJsBridge` object or set of helper functions that call `WebView.evaluateJavascript()`:
+A `WebViewSearchBridge` object or set of helper functions that call `WebView.evaluateJavascript()`:
 
 #### 1. `searchAndHighlight(webView, query)` → returns match count
 
@@ -98,7 +176,7 @@ Injected JS logic:
 - Walk all text nodes in `<div class="container">`
 - For each text node, find all case-insensitive occurrences of `query`
 - Wrap each match in `<span class="mydeck-search-match" data-match-index="N">` with yellow background
-- Return total match count via `JavascriptInterface` callback or `evaluateJavascript` result callback
+- Return total match count via `evaluateJavascript` result callback
 
 #### 2. `highlightCurrentMatch(webView, index)`
 
@@ -110,7 +188,7 @@ Injected JS logic:
 
 - Remove all `<span class="mydeck-search-match">` wrappers, restoring original text nodes
 
-#### Injected CSS (prepended once)
+#### Injected CSS (added to HTML templates)
 
 ```css
 .mydeck-search-match {
@@ -127,40 +205,24 @@ Injected JS logic:
 
 ### WebView Reference Management
 
-The article content WebView reference (`webViewRef` at `BookmarkDetailScreen.kt:445`) is already tracked via `mutableStateOf<WebView?>`. This reference will be hoisted/shared so the search toolbar can trigger JS calls on it. Options:
-
-- **Option A (recommended)**: Pass a lambda `onSearchAction: (SearchAction) -> Unit` down from the composable that holds `webViewRef`, where `SearchAction` is a sealed class (`Search(query)`, `GoTo(index)`, `Clear`). The composable handles translating these to `evaluateJavascript` calls.
-- **Option B**: Hoist `webViewRef` into the ViewModel (less idiomatic for Compose but simpler bridging).
-
-Option A keeps the WebView lifecycle in Compose-land where it belongs.
+The article content WebView reference (`webViewRef` at `BookmarkDetailScreen.kt:445`) is already tracked via `mutableStateOf<WebView?>`. Pass a lambda `onSearchAction: (SearchAction) -> Unit` down from the composable that holds `webViewRef`, where `SearchAction` is a sealed class (`Search(query)`, `GoTo(index)`, `Clear`). The composable translates these to `evaluateJavascript` calls. This keeps the WebView lifecycle in Compose-land.
 
 ### JavaScript Enablement
 
-Currently, article-type WebViews have `settings.javaScriptEnabled = false` (only videos enable JS). This must be changed:
-
-- When article search is active, JavaScript must be enabled on the article WebView
-- **Approach**: Always enable JS for article WebViews. The Sakura CSS template contains no scripts, so this is safe. Alternatively, enable JS only when search is activated (requires a WebView reload which is disruptive).
-- **Recommendation**: Always enable JS for articles. It's a minimal change (`BookmarkDetailScreen.kt:457`) and avoids content reload complexity.
+Currently, article-type WebViews have `settings.javaScriptEnabled = false` (only videos enable JS at `BookmarkDetailScreen.kt:457`). Always enable JS for article WebViews — the Sakura CSS template contains no scripts, so this is safe and avoids content-reload complexity when search is activated.
 
 ### HTML Template Changes
 
-Add the search highlight CSS to all three template files (`html_template_light.html`, `html_template_dark.html`, `html_template_sepia.html`) so styles are available without runtime injection. This avoids a FOUC (flash of unstyled content) if the user searches immediately.
-
-### Integration with Content Modes
-
-| Mode | Search Available | Reason |
-|------|-----------------|--------|
-| READER (Article) | Yes | Content is local HTML in a controlled template; JS injection is reliable |
-| ORIGINAL (WebView) | No (greyed out) | Third-party pages may have CSP headers blocking injected scripts, iframes with cross-origin content, dynamically loaded content, and complex DOM structures that break text-node walking |
-
-If ORIGINAL mode support is desired in the future, Android's built-in `WebView.findAllAsync()` / `WebView.findNext()` API could be explored, but it has limited styling control and is deprecated in favor of custom solutions.
+Add the search highlight CSS to all three template files (`html_template_light.html`, `html_template_dark.html`, `html_template_sepia.html`) so styles are available without runtime injection.
 
 ### Interaction with Existing Features
 
-- **Zoom factor**: Highlight CSS uses `!important` so zoom changes don't affect highlight visibility. JS re-search is not needed on zoom change.
-- **Scroll progress tracking**: Search-initiated scrolling (scrollIntoView) will trigger scroll progress updates, which is acceptable — the user is still reading.
-- **Theme switching**: If the user changes theme while search is active, content reloads. Search state (query, matches) should be re-applied after content reload via a `LaunchedEffect` watching `content.value`.
+- **Zoom factor**: Highlight CSS uses `!important` so zoom changes don't affect highlight visibility.
+- **Scroll progress tracking**: Search-initiated scrolling (scrollIntoView) will trigger scroll progress updates — acceptable behavior.
+- **Theme switching**: If theme changes while search is active, content reloads. Re-apply search state after content reload via a `LaunchedEffect` watching `content.value`.
 - **Read progress restore**: No conflict — search activation happens after initial content load and scroll restore.
+
+---
 
 ## String Resources
 
@@ -171,44 +233,54 @@ If ORIGINAL mode support is desired in the future, Android's built-in `WebView.f
 <string name="search_next_match">Next match</string>
 <string name="search_previous_match">Previous match</string>
 <string name="close_article_search">Close search</string>
+<string name="action_is_read">Is Read</string>
+<string name="action_open_in_browser">Open in Browser</string>
 ```
 
 ## Files to Create/Modify
 
 | File | Change |
 |------|--------|
-| `BookmarkDetailScreen.kt` | Add search toolbar composable, menu item, wire WebView JS calls |
+| `BookmarkDetailScreen.kt` | Add search toolbar, restructure menu order/icons, add Open in Browser action, wire WebView JS calls |
 | `BookmarkDetailViewModel.kt` | Add `ArticleSearchState`, search functions, debounced query flow |
+| `BookmarkCard.kt` | Replace single OpenInNew icon with globe (View Original) + OpenInNew (Open in Browser) on all 3 card layouts |
+| `BookmarkListScreen.kt` | Wire new `onClickOpenInBrowser` callback for cards |
+| `BookmarkListViewModel.kt` | Add `onClickOpenInBrowser(bookmarkId)` to resolve URL and fire intent (or emit event) |
+| `BookmarkListItem.kt` | Add `url` field if not already present (needed for Open in Browser from card) |
 | `html_template_light.html` | Add `.mydeck-search-match` / `.mydeck-search-current` CSS |
 | `html_template_dark.html` | Same CSS addition |
 | `html_template_sepia.html` | Same CSS addition |
-| `strings.xml` | Add 6 new string resources |
-| **New:** `ArticleSearchBar.kt` (ui/detail/) | Extracted composable for the search toolbar (keeps DetailScreen manageable) |
+| `strings.xml` | Add/update ~8 string resources |
+| **New:** `ArticleSearchBar.kt` (ui/detail/) | Extracted composable for the search toolbar |
 | **New:** `WebViewSearchBridge.kt` (ui/detail/) | JavaScript generation and WebView evaluation helpers |
 
 ## Edge Cases
 
-- **Empty article content**: Search menu item should be disabled if `articleContent` is null/blank (same as "View Original" disabled logic)
-- **Very long articles**: JS text-node walking should be performant for typical article lengths (< 100KB HTML). No pagination needed.
-- **Special characters in query**: The JS search must escape regex special characters in the user's query string (use literal string matching, not regex)
-- **HTML entities**: The JS walker operates on text nodes (already decoded), so `&amp;` etc. are handled transparently
+- **Empty article content**: Search menu item disabled if `articleContent` is null/blank
+- **Original mode**: Search menu item disabled (greyed out)
+- **Photo/Video types**: Search menu item hidden entirely
+- **Special characters in query**: JS search must escape regex special characters (use literal string matching)
+- **HTML entities**: JS walker operates on text nodes (already decoded), so `&amp;` etc. are handled transparently
 - **WebView destroyed**: Guard `evaluateJavascript` calls against null WebView ref
-- **Rapid typing**: 300ms debounce prevents excessive DOM manipulation during fast typing
-- **Search across theme change**: Re-run search after content reload (detected via `content.value` change)
+- **Rapid typing**: 300ms debounce prevents excessive DOM manipulation
+- **Theme change during search**: Re-run search after content reload
+- **Compact card space**: If two icon buttons don't fit on Compact cards, show only the globe (View Original); omit the external-link icon
 
 ## Testing
 
 - Unit tests for ViewModel search state transitions (activate, query change, next/prev, deactivate)
 - Unit tests for match counter wrap-around logic
-- Manual testing: search in light/dark/sepia themes, zoom levels, long articles, articles with code blocks, articles with images interspersed
-- Verify menu item hidden for Photo/Video types
-- Verify menu item greyed out in Original mode
+- Manual testing: search across light/dark/sepia themes, zoom levels, long articles, articles with code blocks and images
+- Verify Search in Article hidden for Photo/Video types
+- Verify Search in Article greyed out in Original mode
 - Verify highlights cleared on search exit
-- Verify scroll-to-match works correctly at top/bottom of article
+- Verify Open in Browser launches default browser (not Custom Tab)
+- Verify card icons: globe opens in-app Original, external-link opens browser
+- Verify menu order matches spec
 
 ## Out of Scope
 
-- Full-text search across all bookmarks (separate feature: Global Full Text Search)
-- Search in Original (WebView) mode — documented as greyed out
+- Search in Original (WebView) mode
 - Search in Photo or Video content types
+- Full-text search across all bookmarks (separate feature)
 - Persistent search terms / search history
