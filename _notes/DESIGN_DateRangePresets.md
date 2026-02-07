@@ -31,10 +31,10 @@ Manual date entry required
 #### New Enum: `DateRangePreset`
 ```kotlin
 enum class DateRangePreset {
-    LAST_DAY,        // Last 24 hours
-    LAST_WEEK,       // Last 7 days
-    LAST_MONTH,      // Last 30 days
-    LAST_YEAR,       // Last 365 days
+    PAST_DAY,        // Today - 1 day through today
+    PAST_WEEK,       // Today - 7 days through today
+    PAST_MONTH,      // Today - 30 days through today
+    PAST_YEAR,       // Today - 365 days through today
     CUSTOM           // User-defined range
 }
 ```
@@ -42,7 +42,7 @@ enum class DateRangePreset {
 #### Updated `DateRangeParams`
 ```kotlin
 data class DateRangeParams(
-    val preset: DateRangePreset = DateRangePreset.LAST_MONTH,  // Default to last month
+    val preset: DateRangePreset = DateRangePreset.PAST_MONTH,  // Default to past month
     val from: LocalDate? = null,      // Only populated if preset == CUSTOM
     val to: LocalDate? = null,        // Only populated if preset == CUSTOM
     val downloading: Boolean = false
@@ -53,10 +53,10 @@ data class DateRangeParams(
 ```kotlin
 fun DateRangePreset.toDateRange(today: LocalDate): Pair<LocalDate, LocalDate> {
     return when (this) {
-        LAST_DAY -> Pair(today.minusDays(1), today)
-        LAST_WEEK -> Pair(today.minusDays(7), today)
-        LAST_MONTH -> Pair(today.minusDays(30), today)
-        LAST_YEAR -> Pair(today.minusDays(365), today)
+        PAST_DAY -> Pair(today.minusDays(1), today)
+        PAST_WEEK -> Pair(today.minusDays(7), today)
+        PAST_MONTH -> Pair(today.minusDays(30), today)
+        PAST_YEAR -> Pair(today.minusDays(365), today)
         CUSTOM -> throw IllegalArgumentException("CUSTOM requires explicit dates")
     }
 }
@@ -83,11 +83,11 @@ Content Sync Section
 
 #### Visual Mockup Description
 
-**State 1: Preset Selected (e.g., "Last Month")**
+**State 1: Preset Selected (e.g., "Past Month")**
 ```
 ☑ Date Range
   ┌─────────────────────────────┐
-  │ Last Month          [▼]     │  ← Compact dropdown, no date pickers
+  │ Past Month          [▼]     │  ← Compact dropdown, no date pickers
   └─────────────────────────────┘
   [Download] button
 ```
@@ -108,7 +108,7 @@ Content Sync Section
 ### 3. Default Values
 
 When user first selects "Date Range" mode:
-- **Preset:** `LAST_MONTH` (safe, common use case)
+- **Preset:** `PAST_MONTH` (safe, common use case - today minus 30 days through today)
 - **If preset is CUSTOM:**
   - **From:** First day of current month
   - **To:** Current date
@@ -136,7 +136,7 @@ This provides sensible defaults without requiring user action.
 
 #### Phase 3: UI
 1. Create `DateRangePresetDropdown()` composable:
-   - Show dropdown with options: Last Day, Last Week, Last Month, Last Year, Custom
+   - Show dropdown with options: Past Day, Past Week, Past Month, Past Year, Custom
    - Handle selection change
 2. Update `ContentSyncSection()`:
    - Add dropdown below "Date Range" radio button
@@ -171,10 +171,8 @@ This provides sensible defaults without requiring user action.
 
 ### 6. Edge Cases & Considerations
 
-#### Backward Compatibility
-- Existing saved date ranges (before presets):
-  - Auto-migrate to `CUSTOM` preset with preserved dates
-  - OR: Create migration in `SettingsDataStore` to detect old ranges
+#### No Backward Compatibility Required
+- This is a new feature; no existing saved date ranges to migrate
 
 #### Timezone Handling
 - All date calculations use `LocalDate` (no time component)
@@ -198,10 +196,10 @@ fun canDownloadWithDateRange(preset: DateRangePreset, from: LocalDate?, to: Loca
 **New strings to add to all locale files:**
 ```xml
 <string name="sync_content_date_range_preset">Download period</string>
-<string name="sync_date_preset_last_day">Last day</string>
-<string name="sync_date_preset_last_week">Last week</string>
-<string name="sync_date_preset_last_month">Last month</string>
-<string name="sync_date_preset_last_year">Last year</string>
+<string name="sync_date_preset_past_day">Past day</string>
+<string name="sync_date_preset_past_week">Past week</string>
+<string name="sync_date_preset_past_month">Past month</string>
+<string name="sync_date_preset_past_year">Past year</string>
 <string name="sync_date_preset_custom">Custom date range</string>
 ```
 
