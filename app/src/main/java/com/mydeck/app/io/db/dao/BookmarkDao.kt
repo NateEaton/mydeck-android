@@ -47,8 +47,28 @@ interface BookmarkDao {
     @Transaction
     suspend fun insertBookmarkWithArticleContent(bookmarkWithArticleContent: BookmarkWithArticleContent) {
         with(bookmarkWithArticleContent) {
-            insertBookmark(bookmark)
-            articleContent?.run { insertArticleContent(this) }
+            // For existing bookmarks, preserve content state and downloaded article content.
+            // Room's REPLACE strategy does DELETE+INSERT, which triggers CASCADE DELETE on
+            // the article_content foreign key. We must read and restore both.
+            val existingState = getContentStateById(bookmark.id)
+            val existingArticleContent = if (existingState != null) getArticleContent(bookmark.id) else null
+
+            val bookmarkToInsert = if (existingState != null) {
+                bookmark.copy(
+                    contentState = existingState.contentState,
+                    contentFailureReason = existingState.contentFailureReason
+                )
+            } else {
+                bookmark
+            }
+
+            insertBookmark(bookmarkToInsert)
+
+            // Re-insert article content: prefer new content, fall back to preserved existing
+            val contentToSave = articleContent ?: existingArticleContent?.let {
+                ArticleContentEntity(bookmarkId = bookmark.id, content = it)
+            }
+            contentToSave?.run { insertArticleContent(this) }
         }
     }
 
@@ -336,6 +356,14 @@ interface BookmarkDao {
         Timber.d("searchQuery=${sqlQuery.sql}")
         return getBookmarkListItemsByFiltersDynamic(sqlQuery)
     }
+
+    data class ContentStateInfo(
+        val contentState: BookmarkEntity.ContentState,
+        val contentFailureReason: String?
+    )
+
+    @Query("SELECT contentState, contentFailureReason FROM bookmarks WHERE id = :id")
+    suspend fun getContentStateById(id: String): ContentStateInfo?
 
     @Query("UPDATE bookmarks SET contentState = :state, contentFailureReason = :reason WHERE id = :id")
     suspend fun updateContentState(id: String, state: Int, reason: String?)

@@ -668,9 +668,8 @@ class BookmarkRepositoryImpl @Inject constructor(
                         if (label == oldLabel) newLabel else label
                     }
 
-                    // Update locally
-                    val updatedBookmark = bookmark.copy(labels = updatedLabels)
-                    bookmarkDao.insertBookmark(updatedBookmark)
+                    // Update locally (use targeted UPDATE to avoid CASCADE DELETE from REPLACE)
+                    bookmarkDao.updateLabels(bookmark.id, updatedLabels.joinToString(","))
 
                     // Update on server - use addLabels and removeLabels
                     try {
@@ -718,9 +717,8 @@ class BookmarkRepositoryImpl @Inject constructor(
                     val bookmark = bookmarkWithContent.bookmark
                     val updatedLabels = bookmark.labels.filter { it != label }
 
-                    // Update locally
-                    val updatedBookmark = bookmark.copy(labels = updatedLabels)
-                    bookmarkDao.insertBookmark(updatedBookmark)
+                    // Update locally (use targeted UPDATE to avoid CASCADE DELETE from REPLACE)
+                    bookmarkDao.updateLabels(bookmark.id, updatedLabels.joinToString(","))
 
                     // Update on server - use removeLabels
                     try {
