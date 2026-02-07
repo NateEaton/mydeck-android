@@ -1,6 +1,7 @@
 package com.mydeck.app.domain.usecase
 
 import android.content.Context
+import coil3.ImageLoaders
 import coil3.request.ImageRequest
 import dagger.hilt.android.qualifiers.ApplicationContext
 import timber.log.Timber
@@ -17,7 +18,7 @@ class ThumbnailPrefetchUseCase @Inject constructor(
 
         Timber.d("Prefetching ${thumbnailUrls.size} thumbnail images")
 
-        val imageLoader = context.imageLoader
+        val imageLoader = ImageLoaders.getImageLoader(context)
         thumbnailUrls.forEach { url ->
             try {
                 val request = ImageRequest.Builder(context)

@@ -200,8 +200,7 @@ class SyncSettingsViewModel @Inject constructor(
                 contentDownloaded = p2.status.contentDownloaded,
                 contentAvailable = p2.status.contentAvailable,
                 contentDirty = p2.status.contentDirty,
-                permanentNoContent = p2.status.permanentNoContent,
-                lastSyncTimestamp = null // set below
+                permanentNoContent = p2.status.permanentNoContent
             ),
             showDialog = p1.dialog
         )
