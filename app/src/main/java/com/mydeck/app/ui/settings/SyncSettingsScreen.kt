@@ -239,7 +239,7 @@ private fun BookmarkSyncSection(
 ) {
     Text(
         text = stringResource(R.string.sync_bookmark_section_title),
-        style = Typography.titleSmall
+        style = Typography.titleMedium
     )
     Text(
         text = stringResource(R.string.sync_bookmark_description),
@@ -288,7 +288,7 @@ private fun ContentSyncSection(
 ) {
     Text(
         text = stringResource(R.string.sync_content_section_title),
-        style = Typography.titleSmall
+        style = Typography.titleMedium
     )
 
     // Automatic
@@ -423,7 +423,7 @@ private fun ConstraintsSection(
 ) {
     Text(
         text = stringResource(R.string.sync_constraints_section_title),
-        style = Typography.titleSmall
+        style = Typography.titleMedium
     )
 
     Row(
@@ -462,7 +462,7 @@ private fun ConstraintsSection(
 private fun SyncStatusSection(syncStatus: SyncStatus) {
     Text(
         text = stringResource(R.string.sync_status_section_title),
-        style = Typography.titleSmall
+        style = Typography.titleMedium
     )
 
     Card(
@@ -478,8 +478,8 @@ private fun SyncStatusSection(syncStatus: SyncStatus) {
         ) {
             // Bookmark counts
             Text(
-                text = "Bookmarks",
-                style = Typography.labelMedium,
+                text = stringResource(R.string.sync_status_bookmarks_heading),
+                style = Typography.titleSmall,
                 color = MaterialTheme.colorScheme.primary
             )
             Text(
@@ -499,12 +499,20 @@ private fun SyncStatusSection(syncStatus: SyncStatus) {
                 style = Typography.bodySmall
             )
 
+            syncStatus.lastBookmarkSyncTimestamp?.let { ts ->
+                Text(
+                    text = stringResource(R.string.sync_status_last_sync, ts),
+                    style = Typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
             Spacer(modifier = Modifier.height(8.dp))
 
             // Content counts
             Text(
-                text = "Content",
-                style = Typography.labelMedium,
+                text = stringResource(R.string.sync_status_content_heading),
+                style = Typography.titleSmall,
                 color = MaterialTheme.colorScheme.primary
             )
             Text(
@@ -524,11 +532,9 @@ private fun SyncStatusSection(syncStatus: SyncStatus) {
                 style = Typography.bodySmall
             )
 
-            // Last sync
-            syncStatus.lastSyncTimestamp?.let { ts ->
-                Spacer(modifier = Modifier.height(8.dp))
+            syncStatus.lastContentSyncTimestamp?.let { ts ->
                 Text(
-                    text = stringResource(R.string.sync_status_last_sync, ts),
+                    text = stringResource(R.string.sync_status_last_content_sync, ts),
                     style = Typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )

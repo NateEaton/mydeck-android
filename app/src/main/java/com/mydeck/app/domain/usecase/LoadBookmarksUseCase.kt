@@ -22,7 +22,8 @@ class LoadBookmarksUseCase @Inject constructor(
     private val readeckApi: ReadeckApi,
     private val settingsDataStore: SettingsDataStore,
     private val policyEvaluator: ContentSyncPolicyEvaluator,
-    private val workManager: WorkManager
+    private val workManager: WorkManager,
+    private val thumbnailPrefetchUseCase: ThumbnailPrefetchUseCase
 ) {
 
     sealed class UseCaseResult<out DataType : Any> {
@@ -61,6 +62,21 @@ class LoadBookmarksUseCase @Inject constructor(
                     Timber.d("totalCount=$totalCount")
 
                     bookmarkRepository.insertBookmarks(bookmarks)
+
+                    // Prefetch thumbnails and icons for offline viewing (non-blocking)
+                    try {
+                        val imagesToPrefetch = bookmarks.flatMap { bookmark ->
+                            listOfNotNull(
+                                bookmark.thumbnail.src?.takeIf { it.isNotEmpty() },
+                                bookmark.icon.src?.takeIf { it.isNotEmpty() }
+                            )
+                        }
+                        if (imagesToPrefetch.isNotEmpty()) {
+                            thumbnailPrefetchUseCase.prefetchThumbnails(imagesToPrefetch)
+                        }
+                    } catch (e: Exception) {
+                        Timber.w(e, "Failed to prefetch images")
+                    }
 
                     // Find the latest created timestamp in the current page
                     val latestBookmark = bookmarks.maxByOrNull { it.created }

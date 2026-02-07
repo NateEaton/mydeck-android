@@ -33,6 +33,7 @@ class SettingsDataStoreImpl @Inject constructor(@ApplicationContext private val 
     private val KEY_PASSWORD = stringPreferencesKey("password")
     private val KEY_LAST_BOOKMARK_TIMESTAMP = stringPreferencesKey("lastBookmarkTimestamp")
     private val KEY_LAST_SYNC_TIMESTAMP = stringPreferencesKey("lastSyncTimestamp")
+    private val KEY_LAST_CONTENT_SYNC_TIMESTAMP = stringPreferencesKey("lastContentSyncTimestamp")
     private val KEY_LAST_FULL_SYNC_TIMESTAMP = stringPreferencesKey("last_full_sync_timestamp")
     private val KEY_INITIAL_SYNC_PERFORMED = "initial_sync_performed"
     private val KEY_AUTOSYNC_ENABLED = booleanPreferencesKey("autosync_enabled")
@@ -97,6 +98,18 @@ class SettingsDataStoreImpl @Inject constructor(@ApplicationContext private val 
 
     override suspend fun getLastSyncTimestamp(): Instant? {
         return encryptedSharedPreferences.getString(KEY_LAST_SYNC_TIMESTAMP.name, null)?.let {
+            Instant.parse(it)
+        }
+    }
+
+    override suspend fun saveLastContentSyncTimestamp(timestamp: Instant) {
+        encryptedSharedPreferences.edit {
+            putString(KEY_LAST_CONTENT_SYNC_TIMESTAMP.name, timestamp.toString())
+        }
+    }
+
+    override suspend fun getLastContentSyncTimestamp(): Instant? {
+        return encryptedSharedPreferences.getString(KEY_LAST_CONTENT_SYNC_TIMESTAMP.name, null)?.let {
             Instant.parse(it)
         }
     }

@@ -74,8 +74,9 @@ class SyncSettingsViewModel @Inject constructor(
     // Dialog
     private val showDialog = MutableStateFlow<SyncSettingsDialog?>(null)
 
-    // Last sync timestamp
+    // Last sync timestamps
     private val lastSyncTimestamp = MutableStateFlow<String?>(null)
+    private val lastContentSyncTimestamp = MutableStateFlow<String?>(null)
 
     // Sync status from DB
     private val detailedSyncStatus = bookmarkDao.observeDetailedSyncStatus()
@@ -117,6 +118,9 @@ class SyncSettingsViewModel @Inject constructor(
             }
             settingsDataStore.getLastSyncTimestamp()?.let {
                 lastSyncTimestamp.value = dateFormat.format(Date(it.toEpochMilliseconds()))
+            }
+            settingsDataStore.getLastContentSyncTimestamp()?.let {
+                lastContentSyncTimestamp.value = dateFormat.format(Date(it.toEpochMilliseconds()))
             }
 
             // Perform settings migration for existing users
@@ -202,7 +206,9 @@ class SyncSettingsViewModel @Inject constructor(
             showDialog = p1.dialog
         )
     }.combine(lastSyncTimestamp) { state, ts ->
-        state.copy(syncStatus = state.syncStatus.copy(lastSyncTimestamp = ts))
+        state.copy(syncStatus = state.syncStatus.copy(lastBookmarkSyncTimestamp = ts))
+    }.combine(lastContentSyncTimestamp) { state, ts ->
+        state.copy(syncStatus = state.syncStatus.copy(lastContentSyncTimestamp = ts))
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
@@ -419,7 +425,8 @@ data class SyncStatus(
     val contentAvailable: Int = 0,
     val contentDirty: Int = 0,
     val permanentNoContent: Int = 0,
-    val lastSyncTimestamp: String? = null
+    val lastBookmarkSyncTimestamp: String? = null,
+    val lastContentSyncTimestamp: String? = null
 )
 
 enum class SyncSettingsDialog {

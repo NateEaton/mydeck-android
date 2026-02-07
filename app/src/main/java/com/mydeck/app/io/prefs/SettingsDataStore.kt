@@ -23,6 +23,8 @@ interface SettingsDataStore {
     suspend fun getLastBookmarkTimestamp(): Instant?
     suspend fun saveLastSyncTimestamp(timestamp: Instant)
     suspend fun getLastSyncTimestamp(): Instant?
+    suspend fun saveLastContentSyncTimestamp(timestamp: Instant)
+    suspend fun getLastContentSyncTimestamp(): Instant?
     suspend fun saveLastFullSyncTimestamp(timestamp: Instant)
     suspend fun getLastFullSyncTimestamp(): Instant?
     suspend fun setInitialSyncPerformed(performed: Boolean)

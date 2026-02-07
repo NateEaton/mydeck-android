@@ -12,12 +12,14 @@ import androidx.work.WorkerParameters
 import com.mydeck.app.domain.sync.ContentSyncPolicyEvaluator
 import com.mydeck.app.domain.usecase.LoadArticleUseCase
 import com.mydeck.app.io.db.dao.BookmarkDao
+import com.mydeck.app.io.prefs.SettingsDataStore
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
+import kotlinx.datetime.Clock
 import timber.log.Timber
 
 @HiltWorker
@@ -26,7 +28,8 @@ class BatchArticleLoadWorker @AssistedInject constructor(
     @Assisted workerParams: WorkerParameters,
     private val bookmarkDao: BookmarkDao,
     private val loadArticleUseCase: LoadArticleUseCase,
-    private val policyEvaluator: ContentSyncPolicyEvaluator
+    private val policyEvaluator: ContentSyncPolicyEvaluator,
+    private val settingsDataStore: SettingsDataStore
 ) : CoroutineWorker(appContext, workerParams) {
 
     override suspend fun doWork(): Result {
@@ -67,6 +70,9 @@ class BatchArticleLoadWorker @AssistedInject constructor(
                     delay(BATCH_DELAY_MS)
                 }
             }
+
+            // Record the content sync timestamp
+            settingsDataStore.saveLastContentSyncTimestamp(Clock.System.now())
 
             Timber.i("BatchArticleLoadWorker completed successfully")
             return Result.success()

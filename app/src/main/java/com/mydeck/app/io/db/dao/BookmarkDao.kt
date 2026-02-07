@@ -53,7 +53,12 @@ interface BookmarkDao {
             val existingState = getContentStateById(bookmark.id)
             val existingArticleContent = if (existingState != null) getArticleContent(bookmark.id) else null
 
-            val bookmarkToInsert = if (existingState != null) {
+            val bookmarkToInsert = if (existingState != null &&
+                bookmark.contentState == BookmarkEntity.ContentState.NOT_ATTEMPTED) {
+                // Only preserve existing state when the incoming bookmark has the default
+                // NOT_ATTEMPTED state (i.e., it's a metadata-only sync that doesn't know
+                // the real content state). When the caller explicitly sets a state like
+                // DOWNLOADED, respect it.
                 bookmark.copy(
                     contentState = existingState.contentState,
                     contentFailureReason = existingState.contentFailureReason
