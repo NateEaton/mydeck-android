@@ -162,9 +162,11 @@ interface BookmarkDao {
     @Query("DELETE FROM article_content WHERE bookmarkId = :bookmarkId")
     suspend fun deleteArticleContent(bookmarkId: String)
 
+    @Transaction
     @Query("SELECT * FROM bookmarks")
     suspend fun getAllBookmarksWithContent(): List<BookmarkWithArticleContent>
 
+    @Transaction
     @Query("SELECT * FROM bookmarks WHERE id = :id")
     fun observeBookmarkWithArticleContent(id: String): Flow<BookmarkWithArticleContent?>
 
