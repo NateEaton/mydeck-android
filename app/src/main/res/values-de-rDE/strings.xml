@@ -116,6 +116,11 @@ other{}
     <string name="sync_content_date_to">To</string>
     <string name="sync_content_download_button">Download</string>
     <string name="sync_content_downloading">Downloading…</string>
+    <string name="sync_date_preset_past_day">Past day</string>
+    <string name="sync_date_preset_past_week">Past week</string>
+    <string name="sync_date_preset_past_month">Past month</string>
+    <string name="sync_date_preset_past_year">Past year</string>
+    <string name="sync_date_preset_custom">Custom date range</string>
     <string name="sync_constraints_section_title">Constraints</string>
     <string name="sync_wifi_only">Only download on Wi-Fi</string>
     <string name="sync_allow_battery_saver">Allow download on battery saver</string>

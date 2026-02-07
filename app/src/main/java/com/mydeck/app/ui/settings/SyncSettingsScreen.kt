@@ -58,6 +58,8 @@ import com.google.accompanist.permissions.rememberPermissionState
 import com.mydeck.app.R
 import com.mydeck.app.domain.model.AutoSyncTimeframe
 import com.mydeck.app.domain.sync.ContentSyncMode
+import com.mydeck.app.domain.sync.DateRangePreset
+import com.mydeck.app.ui.settings.composables.DateRangePresetDropdown
 import com.mydeck.app.ui.theme.Typography
 import kotlinx.datetime.Instant
 import kotlinx.datetime.LocalDate
@@ -201,10 +203,12 @@ fun SyncSettingsView(
             // --- Section 2: Content Sync ---
             ContentSyncSection(
                 contentSyncMode = settingsUiState.contentSyncMode,
+                dateRangePreset = settingsUiState.dateRangePreset,
                 dateRangeFrom = settingsUiState.dateRangeFrom,
                 dateRangeTo = settingsUiState.dateRangeTo,
                 isDateRangeDownloading = settingsUiState.isDateRangeDownloading,
                 onContentSyncModeSelected = onContentSyncModeSelected,
+                onDateRangePresetSelected = { viewModel.onDateRangePresetSelected(it) },
                 onClickDateFrom = onClickDateFrom,
                 onClickDateTo = onClickDateTo,
                 onClickDateRangeDownload = onClickDateRangeDownload
@@ -278,10 +282,12 @@ private fun BookmarkSyncSection(
 @Composable
 private fun ContentSyncSection(
     contentSyncMode: ContentSyncMode,
+    dateRangePreset: DateRangePreset,
     dateRangeFrom: LocalDate?,
     dateRangeTo: LocalDate?,
     isDateRangeDownloading: Boolean,
     onContentSyncModeSelected: (ContentSyncMode) -> Unit,
+    onDateRangePresetSelected: (DateRangePreset) -> Unit,
     onClickDateFrom: () -> Unit,
     onClickDateTo: () -> Unit,
     onClickDateRangeDownload: () -> Unit
@@ -321,39 +327,49 @@ private fun ContentSyncSection(
             modifier = Modifier.padding(start = 40.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            // From date
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
+            // Preset dropdown
+            DateRangePresetDropdown(
+                selectedPreset = dateRangePreset,
+                onPresetSelected = onDateRangePresetSelected,
                 modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(
-                    text = stringResource(R.string.sync_content_date_from),
-                    style = Typography.bodyMedium,
-                    modifier = Modifier.width(48.dp)
-                )
-                OutlinedButton(
-                    onClick = onClickDateFrom,
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Text(dateRangeFrom?.toString() ?: "Select date")
-                }
-            }
+            )
 
-            // To date
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(
-                    text = stringResource(R.string.sync_content_date_to),
-                    style = Typography.bodyMedium,
-                    modifier = Modifier.width(48.dp)
-                )
-                OutlinedButton(
-                    onClick = onClickDateTo,
-                    modifier = Modifier.weight(1f)
+            // Custom date pickers (shown only when CUSTOM is selected)
+            if (dateRangePreset == DateRangePreset.CUSTOM) {
+                // From date
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text(dateRangeTo?.toString() ?: "Select date")
+                    Text(
+                        text = stringResource(R.string.sync_content_date_from),
+                        style = Typography.bodyMedium,
+                        modifier = Modifier.width(48.dp)
+                    )
+                    OutlinedButton(
+                        onClick = onClickDateFrom,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text(dateRangeFrom?.toString() ?: "Select date")
+                    }
+                }
+
+                // To date
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = stringResource(R.string.sync_content_date_to),
+                        style = Typography.bodyMedium,
+                        modifier = Modifier.width(48.dp)
+                    )
+                    OutlinedButton(
+                        onClick = onClickDateTo,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text(dateRangeTo?.toString() ?: "Select date")
+                    }
                 }
             }
 
