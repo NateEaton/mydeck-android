@@ -410,28 +410,32 @@ class SyncSettingsViewModel @Inject constructor(
             .build()
 
         // Build constraints based on current settings and overrides
+        // When user confirms override, we disable ALL constraints to allow the download to proceed
+        val isOverriding = overrideWifiOnly || overrideBatterySaver
+
         val constraintsBuilder = Constraints.Builder()
 
         // Determine network type constraint
-        val networkType = if (overrideWifiOnly || !wifiOnly.value) {
-            // If overriding WiFi constraint OR WiFi constraint not enabled, allow any network
+        val networkType = if (isOverriding || !wifiOnly.value) {
+            // If overriding ANY constraint OR WiFi constraint not enabled, allow any network
             NetworkType.CONNECTED
         } else {
-            // WiFi-only constraint is enabled and NOT being overridden
+            // WiFi-only constraint is enabled and NO constraints being overridden
             NetworkType.UNMETERED
         }
         constraintsBuilder.setRequiredNetworkType(networkType)
 
-        Timber.d("DateRangeDownload: Setting network constraint - type=$networkType (wifiOnly=$wifiOnly.value, override=$overrideWifiOnly)")
+        Timber.d("DateRangeDownload: Setting network constraint - type=$networkType (wifiOnly=$wifiOnly.value, overridingAny=$isOverriding)")
 
         // Determine battery constraint
-        val batteryConstrained = !overrideBatterySaver && !allowBatterySaver.value
-        if (batteryConstrained) {
-            // Battery saver constraint is enabled and NOT being overridden
+        // If ANY constraint is being overridden, disable ALL constraints
+        val shouldApplyBatteryConstraint = !isOverriding && !allowBatterySaver.value
+        if (shouldApplyBatteryConstraint) {
+            // Battery saver constraint is enabled and NO constraints being overridden
             constraintsBuilder.setRequiresBatteryNotLow(true)
             Timber.d("DateRangeDownload: Setting battery constraint - requireBatteryNotLow=true")
         } else {
-            Timber.d("DateRangeDownload: No battery constraint (override=$overrideBatterySaver, allow=$allowBatterySaver.value)")
+            Timber.d("DateRangeDownload: No battery constraint (overridingAny=$isOverriding, allow=$allowBatterySaver.value)")
         }
 
         val constraints = constraintsBuilder.build()
@@ -441,7 +445,7 @@ class SyncSettingsViewModel @Inject constructor(
             .setConstraints(constraints)
             .build()
 
-        Timber.i("DateRangeDownload: Enqueueing work - from=$from, to=$to, epochs=[$fromEpoch, $toEpoch], networkType=$networkType, battery=$batteryConstrained")
+        Timber.i("DateRangeDownload: Enqueueing work - from=$from, to=$to, epochs=[$fromEpoch, $toEpoch], networkType=$networkType, overridingAllConstraints=$isOverriding")
 
         workManager.enqueueUniqueWork(
             DateRangeContentSyncWorker.UNIQUE_WORK_NAME,
