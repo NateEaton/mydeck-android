@@ -200,6 +200,11 @@ fun SyncSettingsView(
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             // --- Section 1: Bookmark Sync ---
+            Text(
+                text = stringResource(R.string.sync_bookmark_section_title),
+                style = Typography.titleMedium
+            )
+
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
@@ -221,7 +226,12 @@ fun SyncSettingsView(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // --- Section 2: Content Sync ---
+            // --- Section 2: Content Sync (with Constraints) ---
+            Text(
+                text = stringResource(R.string.sync_content_section_title),
+                style = Typography.titleMedium
+            )
+
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
@@ -231,8 +241,15 @@ fun SyncSettingsView(
             ) {
                 Column(
                     modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
+                    // Content Sync Mode
+                    Text(
+                        text = "Content Sync Mode",
+                        style = Typography.titleSmall,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+
                     ContentSyncSection(
                         contentSyncMode = settingsUiState.contentSyncMode,
                         dateRangePreset = settingsUiState.dateRangePreset,
@@ -245,22 +262,33 @@ fun SyncSettingsView(
                         onClickDateTo = onClickDateTo,
                         onClickDateRangeDownload = onClickDateRangeDownload
                     )
+
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    // Constraints heading
+                    Text(
+                        text = stringResource(R.string.sync_constraints_section_title),
+                        style = Typography.titleSmall,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+
+                    ConstraintsSection(
+                        wifiOnly = settingsUiState.wifiOnly,
+                        allowBatterySaver = settingsUiState.allowBatterySaver,
+                        onWifiOnlyChanged = onWifiOnlyChanged,
+                        onAllowBatterySaverChanged = onAllowBatterySaverChanged
+                    )
                 }
             }
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // --- Section 3: Constraints ---
-            ConstraintsSection(
-                wifiOnly = settingsUiState.wifiOnly,
-                allowBatterySaver = settingsUiState.allowBatterySaver,
-                onWifiOnlyChanged = onWifiOnlyChanged,
-                onAllowBatterySaverChanged = onAllowBatterySaverChanged
+            // --- Section 3: Sync Status ---
+            Text(
+                text = stringResource(R.string.sync_status_section_title),
+                style = Typography.titleMedium
             )
 
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // --- Section 4: Sync Status ---
             SyncStatusSection(syncStatus = settingsUiState.syncStatus)
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -275,10 +303,6 @@ private fun BookmarkSyncSection(
     nextRun: String?,
     onClickFrequency: () -> Unit
 ) {
-    Text(
-        text = stringResource(R.string.sync_bookmark_section_title),
-        style = Typography.titleMedium
-    )
     Text(
         text = stringResource(R.string.sync_bookmark_description),
         style = Typography.bodySmall,
@@ -326,11 +350,6 @@ private fun ContentSyncSection(
     onClickDateTo: () -> Unit,
     onClickDateRangeDownload: () -> Unit
 ) {
-    Text(
-        text = stringResource(R.string.sync_content_section_title),
-        style = Typography.titleMedium
-    )
-
     // Automatic
     ContentSyncRadioOption(
         selected = contentSyncMode == ContentSyncMode.AUTOMATIC,
@@ -526,39 +545,40 @@ private fun ConstraintsSection(
     onWifiOnlyChanged: (Boolean) -> Unit,
     onAllowBatterySaverChanged: (Boolean) -> Unit
 ) {
-    Text(
-        text = stringResource(R.string.sync_constraints_section_title),
-        style = Typography.titleMedium
-    )
-
-    Row(
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.fillMaxWidth()
+    Column(
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        Text(
-            text = stringResource(R.string.sync_wifi_only),
-            modifier = Modifier.weight(1f)
-        )
-        Switch(
-            checked = wifiOnly,
-            onCheckedChange = onWifiOnlyChanged
-        )
-    }
+        Row(
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text(
+                text = stringResource(R.string.sync_wifi_only),
+                style = Typography.bodyMedium,
+                modifier = Modifier.weight(1f)
+            )
+            Switch(
+                checked = wifiOnly,
+                onCheckedChange = onWifiOnlyChanged
+            )
+        }
 
-    Row(
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Text(
-            text = stringResource(R.string.sync_allow_battery_saver),
-            modifier = Modifier.weight(1f)
-        )
-        Switch(
-            checked = allowBatterySaver,
-            onCheckedChange = onAllowBatterySaverChanged
-        )
+        Row(
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text(
+                text = stringResource(R.string.sync_allow_battery_saver),
+                style = Typography.bodyMedium,
+                modifier = Modifier.weight(1f)
+            )
+            Switch(
+                checked = allowBatterySaver,
+                onCheckedChange = onAllowBatterySaverChanged
+            )
+        }
     }
 }
 

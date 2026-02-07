@@ -339,34 +339,21 @@ class SyncSettingsViewModel @Inject constructor(
         val from = dateRangeFrom.value ?: return
         val to = dateRangeTo.value ?: return
 
-        // Save current constraint values
-        savedWifiOnly = wifiOnly.value
-        savedAllowBatterySaver = allowBatterySaver.value
+        // Determine which constraints to override
+        val overrideWifiOnly = wifiOnly.value
+        val overrideBatterySaver = !allowBatterySaver.value
 
-        viewModelScope.launch {
-            // Temporarily disable constraints
-            if (wifiOnly.value) {
-                settingsDataStore.saveWifiOnly(false)
-                wifiOnly.value = false
-            }
-            if (!allowBatterySaver.value) {
-                settingsDataStore.saveAllowBatterySaver(true)
-                allowBatterySaver.value = true
-            }
+        // Perform the download with constraint overrides
+        // Note: We DON'T update the permanent state, only pass override info to the download
+        performDateRangeDownload(
+            from = from,
+            to = to,
+            overrideWifiOnly = overrideWifiOnly,
+            overrideBatterySaver = overrideBatterySaver
+        )
 
-            // Perform the download
-            performDateRangeDownload(from, to)
-
-            // Restore constraints after a short delay to ensure work is enqueued
-            delay(500)
-            settingsDataStore.saveWifiOnly(savedWifiOnly)
-            wifiOnly.value = savedWifiOnly
-            settingsDataStore.saveAllowBatterySaver(savedAllowBatterySaver)
-            allowBatterySaver.value = savedAllowBatterySaver
-
-            // Close dialog
-            showDialog.value = null
-        }
+        // Close dialog
+        showDialog.value = null
     }
 
     fun onConstraintOverrideCancelled() {
@@ -374,7 +361,12 @@ class SyncSettingsViewModel @Inject constructor(
         showDialog.value = null
     }
 
-    private fun performDateRangeDownload(from: LocalDate, to: LocalDate) {
+    private fun performDateRangeDownload(
+        from: LocalDate,
+        to: LocalDate,
+        overrideWifiOnly: Boolean = false,
+        overrideBatterySaver: Boolean = false
+    ) {
         // Request permission if needed
         requestBackgroundPermissionIfNeeded()
 
@@ -387,9 +379,21 @@ class SyncSettingsViewModel @Inject constructor(
             .putLong(DateRangeContentSyncWorker.PARAM_TO_EPOCH, toEpoch)
             .build()
 
-        val constraints = Constraints.Builder()
+        // Build constraints based on current settings and overrides
+        val constraintsBuilder = Constraints.Builder()
             .setRequiredNetworkType(NetworkType.CONNECTED)
-            .build()
+
+        // If wifi-only is enabled and we're NOT overriding it, require WiFi
+        if (wifiOnly.value && !overrideWifiOnly) {
+            constraintsBuilder.setRequiredNetworkType(NetworkType.UNMETERED)
+        }
+
+        // If battery saver is NOT allowed and we're NOT overriding it, require not in battery saver
+        if (!allowBatterySaver.value && !overrideBatterySaver) {
+            constraintsBuilder.setRequiresBatteryNotLow(true)
+        }
+
+        val constraints = constraintsBuilder.build()
 
         val request = OneTimeWorkRequestBuilder<DateRangeContentSyncWorker>()
             .setInputData(inputData)
@@ -402,7 +406,7 @@ class SyncSettingsViewModel @Inject constructor(
             request
         )
 
-        Timber.i("Enqueued DateRangeContentSyncWorker [from=$from, to=$to]")
+        Timber.i("Enqueued DateRangeContentSyncWorker [from=$from, to=$to, overrideWifi=$overrideWifiOnly, overrideBattery=$overrideBatterySaver]")
 
         // Switch back to MANUAL mode after successful download
         viewModelScope.launch {
