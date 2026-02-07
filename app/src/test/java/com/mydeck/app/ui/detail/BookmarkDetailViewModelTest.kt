@@ -53,6 +53,8 @@ class BookmarkDetailViewModelTest {
         updateBookmarkUseCase = mockk()
         settingsDataStore = mockk()
         loadArticleUseCase = mockk(relaxed = true)
+        coEvery { loadArticleUseCase.execute(any()) } returns LoadArticleUseCase.Result.AlreadyDownloaded
+        coEvery { bookmarkRepository.updateReadProgress(any(), any()) } returns BookmarkRepository.UpdateResult.Success
         every { bookmarkRepository.observeBookmark(any()) } returns MutableStateFlow(sampleBookmark)
         coEvery { bookmarkRepository.getBookmarkById(any()) } returns sampleBookmark
         coEvery { bookmarkRepository.refreshBookmarkFromApi(any()) } returns Unit
@@ -239,6 +241,7 @@ class BookmarkDetailViewModelTest {
     fun `onNavigationEventConsumed should reset navigation event`() = runTest {
         viewModel = BookmarkDetailViewModel(updateBookmarkUseCase, bookmarkRepository, assetLoader, settingsDataStore, loadArticleUseCase, savedStateHandle)
         viewModel.onClickBack()
+        advanceUntilIdle()
         viewModel.onNavigationEventConsumed()
         assertNull(viewModel.navigationEvent.first())
     }
@@ -247,6 +250,7 @@ class BookmarkDetailViewModelTest {
     fun `onClickBack should set NavigateBack navigation event`() = runTest {
         viewModel = BookmarkDetailViewModel(updateBookmarkUseCase, bookmarkRepository, assetLoader, settingsDataStore, loadArticleUseCase, savedStateHandle)
         viewModel.onClickBack()
+        advanceUntilIdle()
         assertEquals(BookmarkDetailViewModel.NavigationEvent.NavigateBack, viewModel.navigationEvent.first())
     }
 

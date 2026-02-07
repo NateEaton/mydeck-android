@@ -73,16 +73,18 @@ class BookmarkListViewModelTest {
         coEvery { settingsDataStore.isInitialSyncPerformed() } returns true // Assume sync is done
         coEvery { settingsDataStore.isSyncOnAppOpenEnabled() } returns false // Disable sync on app open by default
         every { fullSyncUseCase.performFullSync() } returns Unit
-        every { bookmarkRepository.observeBookmarkListItems(any(), any(), any(), any(), any()) } returns flowOf(
+        every { bookmarkRepository.observeBookmarkListItems(any(), any(), any(), any(), any(), any(), any()) } returns flowOf(
             emptyList()
         ) // No bookmarks initially
         // Mock the default filter state (archived = false) for My List view
-        every { bookmarkRepository.observeBookmarkListItems(null, null, false, null, any()) } returns flowOf(
+        every { bookmarkRepository.observeBookmarkListItems(null, null, false, null, null, any(), any()) } returns flowOf(
             emptyList()
         )
         every { savedStateHandle.get<String>(any()) } returns null // no sharedUrl initially
         every { workManager.getWorkInfosForUniqueWorkFlow(any()) } returns workInfoFlow
         every { bookmarkRepository.observeAllBookmarkCounts() } returns flowOf(BookmarkCounts())
+        coEvery { settingsDataStore.getLayoutMode() } returns null
+        coEvery { settingsDataStore.getSortOption() } returns null
     }
 
     @After
@@ -275,7 +277,9 @@ class BookmarkListViewModelTest {
                 unread = null,
                 archived = false,
                 favorite = null,
-                state = Bookmark.State.LOADED
+                label = null,
+                state = Bookmark.State.LOADED,
+                orderBy = any()
             )
         } returns bookmarkFlow
 
@@ -542,7 +546,9 @@ class BookmarkListViewModelTest {
                     unread = null,
                     archived = false,
                     favorite = null,
-                    state = Bookmark.State.LOADED
+                    label = null,
+                    state = Bookmark.State.LOADED,
+                    orderBy = any()
                 )
             } returns bookmarkFlow
 
@@ -616,7 +622,9 @@ class BookmarkListViewModelTest {
                     unread = null,
                     archived = false,
                     favorite = null,
-                    state = Bookmark.State.LOADED
+                    label = null,
+                    state = Bookmark.State.LOADED,
+                    orderBy = any()
                 )
             } returns bookmarkFlow
 
@@ -676,7 +684,9 @@ class BookmarkListViewModelTest {
                     unread = null,
                     archived = false,
                     favorite = null,
-                    state = Bookmark.State.LOADED
+                    label = null,
+                    state = Bookmark.State.LOADED,
+                    orderBy = any()
                 )
             } returns bookmarkFlow
 
@@ -742,7 +752,9 @@ class BookmarkListViewModelTest {
                     unread = null,
                     archived = false,
                     favorite = null,
-                    state = Bookmark.State.LOADED
+                    label = null,
+                    state = Bookmark.State.LOADED,
+                    orderBy = any()
                 )
             } returns bookmarkFlow
 
@@ -816,7 +828,9 @@ class BookmarkListViewModelTest {
                     unread = null,
                     archived = false,
                     favorite = null,
-                    state = Bookmark.State.LOADED
+                    label = null,
+                    state = Bookmark.State.LOADED,
+                    orderBy = any()
                 )
             } returns bookmarkFlow
 
@@ -876,7 +890,9 @@ class BookmarkListViewModelTest {
                     unread = null,
                     archived = false,
                     favorite = null,
-                    state = Bookmark.State.LOADED
+                    label = null,
+                    state = Bookmark.State.LOADED,
+                    orderBy = any()
                 )
             } returns bookmarkFlow
 
@@ -943,7 +959,9 @@ class BookmarkListViewModelTest {
                     unread = null,
                     archived = false,
                     favorite = null,
-                    state = Bookmark.State.LOADED
+                    label = null,
+                    state = Bookmark.State.LOADED,
+                    orderBy = any()
                 )
             } returns bookmarkFlow
 
@@ -1017,7 +1035,9 @@ class BookmarkListViewModelTest {
                     unread = null,
                     archived = false,
                     favorite = null,
-                    state = Bookmark.State.LOADED
+                    label = null,
+                    state = Bookmark.State.LOADED,
+                    orderBy = any()
                 )
             } returns bookmarkFlow
 
@@ -1077,7 +1097,9 @@ class BookmarkListViewModelTest {
                     unread = null,
                     archived = false,
                     favorite = null,
-                    state = Bookmark.State.LOADED
+                    label = null,
+                    state = Bookmark.State.LOADED,
+                    orderBy = any()
                 )
             } returns bookmarkFlow
 
