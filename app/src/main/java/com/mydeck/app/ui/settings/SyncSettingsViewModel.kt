@@ -350,7 +350,7 @@ class SyncSettingsViewModel @Inject constructor(
                 wifiOnly.value = false
             }
             if (!allowBatterySaver.value) {
-                settingsDataStore.saveAllowOnBatterySaver(true)
+                settingsDataStore.saveAllowBatterySaver(true)
                 allowBatterySaver.value = true
             }
 
@@ -358,10 +358,10 @@ class SyncSettingsViewModel @Inject constructor(
             performDateRangeDownload(from, to)
 
             // Restore constraints after a short delay to ensure work is enqueued
-            kotlinx.coroutines.delay(500)
+            delay(500)
             settingsDataStore.saveWifiOnly(savedWifiOnly)
             wifiOnly.value = savedWifiOnly
-            settingsDataStore.saveAllowOnBatterySaver(savedAllowBatterySaver)
+            settingsDataStore.saveAllowBatterySaver(savedAllowBatterySaver)
             allowBatterySaver.value = savedAllowBatterySaver
 
             // Close dialog
