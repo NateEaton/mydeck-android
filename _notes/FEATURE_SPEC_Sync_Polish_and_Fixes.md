@@ -267,19 +267,91 @@ In this case, the fix is Option A — explicitly prefetch during sync.
 
 ---
 
-## 3. Remaining Items from Original Spec
+## 3. Content State Not Updated by On-Demand Fetch (Bug)
 
-### 3.1 DAO Insert Strategy Deviation
+### 3.1 Problem
+
+When a user opens a bookmark and content is fetched on-demand via `LoadArticleUseCase`, the `contentState` field is not updated to `DOWNLOADED`. As a result, the Sync Status card continues to show "Content downloaded: 0" even after the user has read many articles.
+
+### 3.2 Root Cause
+
+The content preservation logic in `BookmarkDao.insertBookmarkWithArticleContent()` **unconditionally overwrites** the incoming `contentState` with the existing value from the database. This was added to prevent metadata-only syncs from resetting `contentState` to `NOT_ATTEMPTED`, but it also prevents legitimate state transitions (e.g., `NOT_ATTEMPTED → DOWNLOADED` after a successful fetch).
+
+**Location:** `BookmarkDao.kt`, lines 56–61 of `insertBookmarkWithArticleContent`:
+
+```kotlin
+val bookmarkToInsert = if (existingState != null) {
+    bookmark.copy(
+        contentState = existingState.contentState,           // <-- always overwrites
+        contentFailureReason = existingState.contentFailureReason
+    )
+} else {
+    bookmark
+}
+```
+
+When `LoadArticleUseCase` successfully fetches content and passes `contentState = DOWNLOADED` via `bookmarkRepository.insertBookmarks()`, the preservation logic replaces it with the old `NOT_ATTEMPTED`.
+
+Note: the direct `updateContentState()` DAO calls (used for DIRTY and PERMANENT_NO_CONTENT transitions) bypass this code path and work correctly. Only the DOWNLOADED transition is affected because it goes through `insertBookmarks()`.
+
+### 3.3 Fix
+
+The preservation logic should only restore the existing `contentState` when the incoming bookmark has `NOT_ATTEMPTED` (i.e., it's a metadata-only sync that doesn't know the real content state). When the incoming bookmark carries a meaningful state (`DOWNLOADED`, `DIRTY`, or `PERMANENT_NO_CONTENT`), it should be respected.
+
+**File to modify:**
+- `app/src/main/java/com/mydeck/app/io/db/dao/BookmarkDao.kt`
+
+**Change in `insertBookmarkWithArticleContent`:**
+
+```kotlin
+val bookmarkToInsert = if (existingState != null &&
+    bookmark.contentState == BookmarkEntity.ContentState.NOT_ATTEMPTED) {
+    // Only preserve existing state when the incoming bookmark has the default
+    // NOT_ATTEMPTED state (i.e., it's a metadata-only sync that doesn't know
+    // the real content state). When the caller explicitly sets a state like
+    // DOWNLOADED, respect it.
+    bookmark.copy(
+        contentState = existingState.contentState,
+        contentFailureReason = existingState.contentFailureReason
+    )
+} else {
+    bookmark
+}
+```
+
+This preserves the metadata-sync protection (API-mapped bookmarks always have `NOT_ATTEMPTED`, so their state gets preserved) while allowing `LoadArticleUseCase` to transition to `DOWNLOADED`.
+
+### 3.4 Alternative Fix (Cleaner)
+
+Have `LoadArticleUseCase` use `bookmarkDao.updateContentState()` directly after saving content, instead of relying on the `insertBookmarks` path to carry the state:
+
+```kotlin
+// After saving content:
+bookmarkRepository.insertBookmarks(listOf(bookmarkToSave))
+bookmarkDao.updateContentState(bookmarkId, BookmarkEntity.ContentState.DOWNLOADED.value, null)
+```
+
+This is simpler but adds an extra DB write. The Section 3.3 fix is preferred as it addresses the root cause.
+
+### 3.5 Priority
+
+**High** — This bug causes the sync status to be permanently misleading. Users who primarily use on-demand fetch (Manual mode) will always see 0 downloaded content.
+
+---
+
+## 4. Remaining Items from Original Spec
+
+### 4.1 DAO Insert Strategy Deviation
 
 **Original spec recommended:** `IGNORE + UPDATE` (Appendix A, Section 1.2.1)
 
 **What was implemented:** Read-preserve-REPLACE — the `insertBookmarkWithArticleContent` transaction reads existing `contentState` and `articleContent` before the REPLACE, then restores them after insert.
 
-**Assessment:** The current approach works correctly and preserves content during sync. However, the IGNORE+UPDATE approach would be architecturally cleaner since it avoids the CASCADE DELETE entirely rather than working around it. Consider refactoring in a future cleanup pass if the current approach causes issues.
+**Assessment:** The current approach works but has caused at least one bug (Section 3 above) due to the unconditional state preservation. The IGNORE+UPDATE approach would be architecturally cleaner since it avoids the CASCADE DELETE entirely rather than working around it. Consider refactoring in a future cleanup pass, especially if more edge cases surface.
 
-**No action required** unless problems are observed.
+**No immediate action required** beyond fixing the Section 3 bug.
 
-### 3.2 Parameter Validation in DateRangeContentSyncWorker
+### 4.2 Parameter Validation in DateRangeContentSyncWorker
 
 **Original spec:** Appendix C, item 3 — Log a warning when `fromEpoch` and `toEpoch` are both 0.
 
@@ -302,7 +374,7 @@ override suspend fun doWork(): Result {
 }
 ```
 
-### 3.3 Sync Status Card Sub-Headings Should Use String Resources
+### 4.3 Sync Status Card Sub-Headings Should Use String Resources
 
 **Problem:** The "Bookmarks" and "Content" labels inside the Sync Status card are hardcoded strings instead of using string resources.
 
@@ -321,18 +393,20 @@ These string resources are defined in Section 1.4 above.
 
 | Item | Section | Priority | Complexity |
 |------|---------|----------|------------|
+| On-demand fetch content state bug | 3 | High | Low |
 | Heading hierarchy | 1.1 | Medium | Low |
 | Bookmark sync description | 1.2 | Low | Low |
 | "Unread" → "My List" | 1.3 | Medium | Low |
 | Last sync timestamp placement | 1.4 | Medium | Medium |
 | Archive thumbnails offline | 2 | High | Medium-High |
-| DateRangeWorker param validation | 3.2 | Low | Low |
-| Hardcoded sub-heading strings | 3.3 | Low | Low |
+| DateRangeWorker param validation | 4.2 | Low | Low |
+| Hardcoded sub-heading strings | 4.3 | Low | Low |
 
 ### Suggested Implementation Order
 
-1. **Heading hierarchy + hardcoded strings** (1.1 + 3.3) — Quick UI fix, all in `SyncSettingsScreen.kt`
-2. **"Unread" → "My List" + bookmark sync description** (1.3 + 1.2) — String resource changes only
-3. **Last sync timestamp split** (1.4) — Touches ViewModel, DataStore, workers, and UI
-4. **DateRangeWorker param validation** (3.2) — Trivial one-liner
-5. **Archive thumbnails offline** (2) — Requires investigation and is the most complex item
+1. **On-demand fetch content state bug** (3) — High priority, one condition change in `BookmarkDao.kt`
+2. **Heading hierarchy + hardcoded strings** (1.1 + 4.3) — Quick UI fix, all in `SyncSettingsScreen.kt`
+3. **"Unread" → "My List" + bookmark sync description** (1.3 + 1.2) — String resource changes only
+4. **Last sync timestamp split** (1.4) — Touches ViewModel, DataStore, workers, and UI
+5. **DateRangeWorker param validation** (4.2) — Trivial one-liner
+6. **Archive thumbnails offline** (2) — Requires investigation and is the most complex item
