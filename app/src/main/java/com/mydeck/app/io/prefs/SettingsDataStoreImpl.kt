@@ -275,9 +275,9 @@ class SettingsDataStoreImpl @Inject constructor(@ApplicationContext private val 
     }
 
     override suspend fun getContentSyncMode(): ContentSyncMode {
-        return encryptedSharedPreferences.getString(KEY_CONTENT_SYNC_MODE.name, ContentSyncMode.AUTOMATIC.name)?.let {
-            try { ContentSyncMode.valueOf(it) } catch (_: Exception) { ContentSyncMode.AUTOMATIC }
-        } ?: ContentSyncMode.AUTOMATIC
+        return encryptedSharedPreferences.getString(KEY_CONTENT_SYNC_MODE.name, ContentSyncMode.MANUAL.name)?.let {
+            try { ContentSyncMode.valueOf(it) } catch (_: Exception) { ContentSyncMode.MANUAL }
+        } ?: ContentSyncMode.MANUAL
     }
 
     override suspend fun saveContentSyncMode(mode: ContentSyncMode) {
