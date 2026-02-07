@@ -1,100 +1,195 @@
-Yes, this makes perfect sense. Given the transition from a monolithic data structure to a relational one (splitting article content), the introduction of complex sync policies, and the complete overhaul of the UI logic, the existing tests are likely facing dependency injection failures, compilation errors due to signature mismatches, and logic failures.
+# Technical Specification: Test Suite Remediation & Expansion
 
-Here is the technical specification to hand to a developer to remediate the test suite.
+> **Revision Note (2026-02-07):** This spec has been revised after a codebase audit.
+> Phase 1 was largely already completed. The original spec described remediation work
+> that had already been done in DAO, Repository, and UseCase tests. The remaining
+> compilation errors are isolated to two ViewModel test files. This revision corrects
+> inaccuracies, removes completed items, and adds missing items discovered during review.
 
 ---
 
-# Technical Specification: Test Suite Remediation & Expansion
+## Phase 0: Verify Current State (Pre-Requisite)
+
+Before beginning any work, confirm the actual compilation errors by running:
+```
+./gradlew testGithubReleaseDebugUnitTest --dry-run
+```
+or attempting a full compilation. CI is currently disabled in both `.github/workflows/build.yml`
+and `.github/workflows/run-tests.yml` with the comment "TEMPORARILY DISABLED - Test compilation
+errors need to be fixed". Re-enabling CI should be the final step after all fixes.
+
+---
 
 ## Phase 1: Restore Functionality to Existing Tests
 
-The primary goal of this phase is to resolve build errors and runtime crashes in the existing test suite caused by architectural drift.
+### Status of Previously Identified Items
 
-### 1. Database & DAO Tests
-**Target:** `BookmarkDaoTest.kt`, `MyDeckDatabaseMigrationTest.kt`
+The following items from the original spec have been verified as **already completed**
+and require no further action:
 
-*   **Schema Update:** The `BookmarkEntity` no longer contains `articleContent`.
-    *   **Action:** Update `generateTestData()` in `BookmarkDaoTest`. It must create `BookmarkWithArticleContent` objects and use `insertBookmarksWithArticleContent` instead of direct `insertBookmark`.
-*   **Query Updates:**
-    *   **Action:** Update tests checking for filtering (e.g., `GetBookmarkListItemsByFiltersTest`). Ensure the dynamic query builder in the test setup matches the new `BookmarkListItemEntity` projection which now includes fields like `isRead` (mapped from `readProgress`) and joined table data.
-*   **Migration Validation:**
-    *   **Action:** In `MyDeckDatabaseMigrationTest`, specifically update `migrate1To2`. The test currently inserts a string into `articleContent` in the `bookmarks` table. The validation logic must query the new `article_content` table to ensure data was moved correctly during migration, not just that the column was dropped.
+| Area | Status | Evidence |
+| :--- | :--- | :--- |
+| **BookmarkDaoTest** - `generateTestData()` uses `BookmarkWithArticleContent` | DONE | Lines 112-122 already use `insertBookmarksWithArticleContent` |
+| **BookmarkDaoTest** - `GetBookmarkListItemsByFiltersTest` updated | DONE | Lines 129-155 test with correct entity projection |
+| **MyDeckDatabaseMigrationTest** - `migrate1To2` validates `article_content` table | DONE | Lines 277-287 query `article_content` and assert content moved |
+| **BookmarkRepositoryImplTest** - `updateBookmark` nullable booleans | DONE | All tests pass `isFavorite`, `isArchived`, `isRead` as nullable |
+| **BookmarkRepositoryImplTest** - `performFullSync` temp table mocks | DONE | Lines 388-403 mock and verify `clearRemoteBookmarkIds`, `insertRemoteBookmarkIds`, `removeDeletedBookmars` |
+| **BookmarkRepositoryImplTest** - `performDeltaSync` expects Error | DONE | Lines 448-459 assert `SyncResult.Error` with "Delta sync disabled" |
+| **BookmarkRepositoryImplTest** - `createBookmark` verifies WorkManager enqueue | DONE | Line 490 verifies `workManager.enqueue(any<WorkRequest>())` |
+| **LoadBookmarksUseCaseTest** - constructor includes `ContentSyncPolicyEvaluator` + `WorkManager` | DONE | Lines 30-48 mock both and pass to constructor |
 
-### 2. Repository Layer Tests
-**Target:** `BookmarkRepositoryImplTest.kt`
+### Remaining Compilation Errors (Actual Blockers)
 
-*   **Signature Mismatches:**
-    *   **Action:** Update `updateBookmark` calls. The method signature now accepts nullable booleans (`isFavorite`, `isArchived`, `isRead`).
-    *   **Action:** Update `performFullSync`. The implementation now uses a temporary table (`remote_bookmark_ids`) and performs a diff logic (`removeDeletedBookmarks`). Mocks for `bookmarkDao.clearRemoteBookmarkIds()`, `bookmarkDao.insertRemoteBookmarkIds()`, and `bookmarkDao.removeDeletedBookmarks()` must be added.
-*   **Deprecated Logic:**
-    *   **Action:** In `performDeltaSync`, the implementation now explicitly returns an Error due to server-side SQLite incompatibility. Update the test to expect `SyncResult.Error` instead of a success flow.
-*   **WorkManager Integration:**
-    *   **Action:** `createBookmark` now enqueues a `LoadArticleWorker` if content is available. Add `coVerify` for `workManager.enqueue(...)` in the creation tests.
+These are the **real** issues preventing test compilation. There are exactly two test
+files with errors, both in the ViewModel layer.
 
-### 3. UseCase Tests
-**Target:** `LoadBookmarksUseCaseTest.kt`
+#### 1. BookmarkListViewModelTest — Missing `ConnectivityMonitor`
+**File:** `app/src/test/java/com/mydeck/app/ui/list/BookmarkListViewModelTest.kt`
 
-*   **Dependency Injection:**
-    *   **Action:** Update constructor instantiation. It now requires `ContentSyncPolicyEvaluator` and `WorkManager`.
-*   **Worker Trigger:**
-    *   **Action:** The logic now triggers `BatchArticleLoadWorker` after a successful sync if the policy allows. Mock `ContentSyncPolicyEvaluator.shouldAutoFetchContent()` to return `true/false` and verify `workManager.enqueueUniqueWork` is called (or not called) accordingly.
+The `BookmarkListViewModel` constructor requires 8 parameters, but all ViewModel
+instantiations in the test pass only 7 — `ConnectivityMonitor` is missing.
 
-### 4. ViewModel Tests
-**Target:** `BookmarkListViewModelTest.kt`, `BookmarkDetailViewModelTest.kt`, `SettingsViewModelTest.kt`
+*   **Action A — Add mock declaration:**
+    In `@Before setup()`, add:
+    ```kotlin
+    private lateinit var connectivityMonitor: ConnectivityMonitor
+    // in setup():
+    connectivityMonitor = mockk()
+    every { connectivityMonitor.observeConnectivity() } returns flowOf(true)
+    ```
+    This prevents coroutine hangs from the `isOnline` StateFlow in the ViewModel.
 
-*   **Constructor Injection:**
-    *   **Action:** All ViewModels have new dependencies. Update `@Before setup()` to mock:
-        *   `BookmarkListViewModel`: Add `UpdateBookmarkUseCase`, `FullSyncUseCase`, `ConnectivityMonitor`.
-        *   `BookmarkDetailViewModel`: Add `LoadArticleUseCase`, `SettingsDataStore`.
-*   **Flow Mismatches:**
-    *   **Action:** `BookmarkListViewModel` relies on `connectivityMonitor.observeConnectivity()`. Mock this flow to emit `true` (online) by default to prevent coroutine hangs in tests.
-*   **Model Changes:**
-    *   **Action:** Update all `Bookmark` and `BookmarkListItem` dummy data instantiations. They must include new fields: `readingTime`, `wordCount`, `contentState`, and split `articleContent`.
-*   **Filter Logic:**
-    *   **Action:** In `BookmarkListViewModelTest`, `onClickMyList` no longer just filters by archived status; it implies a specific set of filters. Ensure the test verifies the `FilterState` flow reflects the new default state (e.g., `archived = false`).
+*   **Action B — Fix all ViewModel instantiations (approx. 20 occurrences):**
+    Every call to `BookmarkListViewModel(...)` must add `connectivityMonitor` as the
+    8th parameter:
+    ```kotlin
+    viewModel = BookmarkListViewModel(
+        updateBookmarkUseCase,
+        fullSyncUseCase,
+        workManager,
+        bookmarkRepository,
+        context,
+        settingsDataStore,
+        savedStateHandle,
+        connectivityMonitor  // <-- ADD THIS
+    )
+    ```
+
+*   **Action C — Fix incomplete `BookmarkListItem` dummy data (line ~1100):**
+    The `bookmarks` val at the bottom of the file creates `BookmarkListItem` objects
+    missing 4 required fields that have no default values in the data class
+    (`BookmarkListItem.kt` lines 19-22):
+    ```kotlin
+    private val bookmarks = listOf(
+        BookmarkListItem(
+            // ... existing fields ...
+            imageSrc = "",
+            readingTime = null,           // ADD
+            created = Clock.System.now()   // ADD
+                .toLocalDateTime(TimeZone.currentSystemDefault()),
+            wordCount = null,             // ADD
+            published = null              // ADD
+        )
+    )
+    ```
+    Note: The `BookmarkListItem` at lines 238-257 already has these fields — only the
+    shared `bookmarks` val at the bottom is broken.
+
+#### 2. BookmarkDetailViewModelTest — Missing `LoadArticleUseCase`
+**File:** `app/src/test/java/com/mydeck/app/ui/detail/BookmarkDetailViewModelTest.kt`
+
+The `BookmarkDetailViewModel` constructor requires 6 parameters, but all ViewModel
+instantiations in the test pass only 5 — `LoadArticleUseCase` is missing.
+
+*   **Action A — Add mock declaration:**
+    In `@Before setup()`, add:
+    ```kotlin
+    private lateinit var loadArticleUseCase: LoadArticleUseCase
+    // in setup():
+    loadArticleUseCase = mockk(relaxed = true)
+    ```
+
+*   **Action B — Fix all ViewModel instantiations (approx. 15 occurrences):**
+    Every call to `BookmarkDetailViewModel(...)` must add `loadArticleUseCase` as the
+    5th parameter (between `settingsDataStore` and `savedStateHandle`):
+    ```kotlin
+    viewModel = BookmarkDetailViewModel(
+        updateBookmarkUseCase,
+        bookmarkRepository,
+        assetLoader,
+        settingsDataStore,
+        loadArticleUseCase,  // <-- ADD THIS
+        savedStateHandle
+    )
+    ```
+
+*   **Action C — Fix `sampleBookmark` missing `published` field (line ~467):**
+    The `Bookmark` data class requires `published: LocalDateTime?` (line 30 of
+    `Bookmark.kt`) with no default value. The `sampleBookmark` val is missing it:
+    ```kotlin
+    val sampleBookmark = Bookmark(
+        // ... existing fields ...
+        embedHostname = null,
+        published = null,  // ADD — required, no default
+        article = Bookmark.Resource(""),
+        // ...
+    )
+    ```
+    The same fix is needed for all inline `Bookmark(...)` instantiations in the file
+    (lines 71-106, 136-171, 189-224) that are also missing `published`. Verify each
+    one during remediation.
 
 ---
 
 ## Phase 2: Coverage for New Features
 
-This phase defines the new test classes and methods required to cover functionality added since the fork.
+This phase defines new test classes and methods required to cover functionality added
+since the fork.
 
 ### 1. New Unit Tests: Sync Logic & Policy
 **New Test Class:** `ContentSyncPolicyEvaluatorTest.kt`
-*   **Scenario:** Verify `canFetchContent` returns `Decision(false)` when `wifiOnly` is true but `ConnectivityMonitor.isOnWifi()` is false.
-*   **Scenario:** Verify `canFetchContent` returns `Decision(false)` when `allowOnBatterySaver` is false and `ConnectivityMonitor.isBatterySaverOn()` is true.
+**Location:** `app/src/test/java/com/mydeck/app/domain/sync/`
+*   **Scenario:** Verify `canFetchContent` returns `Decision(allowed=false)` when `wifiOnly` is true but `ConnectivityMonitor.isOnWifi()` is false.
+*   **Scenario:** Verify `canFetchContent` returns `Decision(allowed=false)` when `allowOnBatterySaver` is false and `ConnectivityMonitor.isBatterySaverOn()` is true.
+*   **Scenario:** Verify `canFetchContent` returns `Decision(allowed=true)` when all constraints are satisfied.
 *   **Scenario:** Verify `shouldAutoFetchContent` returns false if `SettingsDataStore.getContentSyncMode()` is `MANUAL`.
+*   **Scenario:** Verify `shouldAutoFetchContent` returns true if mode is `AUTOMATIC` and `canFetchContent` allows it.
 
 **New Test Class:** `SyncSettingsViewModelTest.kt`
+**Location:** `app/src/test/java/com/mydeck/app/ui/settings/`
 *   **Scenario:** Verify `onDateRangeFromSelected` and `onDateRangeToSelected` trigger a save to `SettingsDataStore` only when both dates are non-null.
 *   **Scenario:** Verify `onClickDateRangeDownload` enqueues `DateRangeContentSyncWorker` with correct epoch input data.
 
 ### 2. New Unit Tests: Search Functionality
-**Update:** `BookmarkListViewModelTest.kt`
-*   **Scenario:** `onSearchQueryChange` emits new query.
-*   **Scenario:** Verify that when `searchQuery` flow emits a value, `bookmarkRepository.searchBookmarkListItems` is called instead of `observeBookmarkListItems`.
-*   **Scenario:** Verify `onClearSearch` resets query and toggles `isSearchActive` if necessary.
+**Update:** `app/src/test/java/com/mydeck/app/ui/list/BookmarkListViewModelTest.kt`
+*   **Scenario:** `onSearchQueryChange` emits new query to `searchQuery` flow.
+*   **Scenario:** Verify that when `searchQuery` flow emits a non-empty value, `bookmarkRepository.searchBookmarkListItems` is called instead of `observeBookmarkListItems`.
+*   **Scenario:** Verify `onClearSearch` resets query and toggles `isSearchActive`.
 
 ### 3. New Unit Tests: Label Management
-**Update:** `BookmarkDetailViewModelTest.kt`
+**Update:** `app/src/test/java/com/mydeck/app/ui/detail/BookmarkDetailViewModelTest.kt`
 *   **Scenario:** `onUpdateLabels` calls `bookmarkRepository.updateLabels`. Verify the list of strings is passed correctly.
 
-**Update:** `BookmarkListViewModelTest.kt`
-*   **Scenario:** `onClickLabel` updates `FilterState` to include the selected label.
+**Update:** `app/src/test/java/com/mydeck/app/ui/list/BookmarkListViewModelTest.kt`
+*   **Scenario:** `onClickLabel` updates `FilterState` to include the selected label (`FilterState.label`).
 *   **Scenario:** `onRenameLabel` calls repository and refreshes filter if the renamed label was currently active.
 
 ### 4. New Unit Tests: Layout & Sorting
-**Update:** `BookmarkListViewModelTest.kt`
+**Update:** `app/src/test/java/com/mydeck/app/ui/list/BookmarkListViewModelTest.kt`
 *   **Scenario:** `onLayoutModeSelected` persists value to `SettingsDataStore` and updates the `layoutMode` StateFlow.
 *   **Scenario:** `onSortOptionSelected` persists value and triggers a reload of bookmarks with the new SQL `ORDER BY` clause.
 
 ### 5. New Unit Tests: Content State & Loading
-**Update:** `BookmarkDetailViewModelTest.kt`
-*   **Scenario:** Initialization: If `Bookmark.contentState` is `NOT_ATTEMPTED` or `DIRTY` and `hasArticle` is true, verify `loadArticleUseCase.execute` is launched immediately.
-*   **Scenario:** If `loadArticleUseCase` returns `PermanentFailure`, verify `contentLoadState` updates to `Failed(canRetry=false)`.
+**Update:** `app/src/test/java/com/mydeck/app/ui/detail/BookmarkDetailViewModelTest.kt`
+*   **Scenario:** Initialization: If `Bookmark.contentState` is `NOT_ATTEMPTED` or `DIRTY` and `hasArticle` is true, verify `loadArticleUseCase.execute` is launched immediately (confirmed in `BookmarkDetailViewModel.kt` lines 128-141).
+*   **Scenario:** If `loadArticleUseCase` returns a permanent failure, verify `contentLoadState` updates to a failed state with `canRetry=false`.
+*   **Scenario:** If `Bookmark.contentState` is `DOWNLOADED`, verify `loadArticleUseCase.execute` is NOT called.
+*   **Scenario:** If `Bookmark.contentState` is `PERMANENT_NO_CONTENT`, verify `loadArticleUseCase.execute` is NOT called and appropriate state is set.
 
 ### 6. Worker Tests (Optional but Recommended)
-**New Test Class:** `BatchArticleLoadWorkerTest.kt` (Requires `androidx.work:work-testing`)
+**New Test Class:** `BatchArticleLoadWorkerTest.kt`
+**Location:** `app/src/test/java/com/mydeck/app/worker/`
+**Dependency:** Requires `androidx.work:work-testing` (already in `build.gradle.kts` dependencies).
 *   **Scenario:** Verify `doWork` queries `bookmarkDao.getBookmarkIdsEligibleForContentFetch`.
 *   **Scenario:** Verify it stops processing a batch if `ContentSyncPolicyEvaluator` returns disallowed mid-run.
 
@@ -104,18 +199,17 @@ This phase defines the new test classes and methods required to cover functional
 *   **Scenario:** Verify that the "My List" drawer item sets the correct filter state.
 
 ### 8. Integration: Utility Tests
-**Target:** `UtilsTest.kt`
+**Target:** `app/src/test/java/com/mydeck/app/util/UtilsTest.kt`
 *   **Scenario:** Expand `extractUrlAndTitle` tests. Add cases for text shared from specific apps (e.g., "Check this out: https://example.com"). Ensure it correctly strips surrounding text and uses it as the title.
+*   **Scenario:** Add edge cases: multiple URLs in text, URLs with query parameters, URLs with fragments, unicode surrounding text.
 
-This breakdown categorizes the **Phase 2 (New Feature)** tests based on two dimensions:
+---
 
-1.  **Criticality:** How vital is this test to ensuring the app functions correctly?
-2.  **Pattern Novelty:** Is this just "more of the same" (Gap Fill) or does it require setting up new testing infrastructure (New Territory)?
-
-### Summary Matrix
+## Priority Matrix
 
 | Feature Area | Criticality | Test Type | Difficulty |
 | :--- | :--- | :--- | :--- |
+| **Phase 1: Fix ViewModel compilation** | 🔴 **BLOCKER** | Fix | Low |
 | **Sync Logic & Policy** | 🔴 **Critical** | Gap Fill | Low |
 | **Content State Machine** | 🔴 **Critical** | Gap Fill | Medium |
 | **Workers** | 🟠 **High** | **New Territory** | High |
@@ -127,9 +221,9 @@ This breakdown categorizes the **Phase 2 (New Feature)** tests based on two dime
 
 ---
 
-### Detailed Breakdown
+## Detailed Breakdown
 
-#### 1. "Gap Fill" Tests (Existing Patterns)
+### 1. "Gap Fill" Tests (Existing Patterns)
 *These tests follow patterns already established in `BookmarkDetailViewModelTest` or `SettingsViewModelTest`. You just need to apply the logic to the new features.*
 
 **A. Sync Logic & Policy (ContentSyncPolicyEvaluator)**
@@ -168,7 +262,7 @@ This breakdown categorizes the **Phase 2 (New Feature)** tests based on two dime
 
 ---
 
-#### 2. "New Territory" Tests (New Infrastructure)
+### 2. "New Territory" Tests (New Infrastructure)
 *These require setting up new testing libraries or configurations that do not currently exist in the repo.*
 
 **A. Worker Tests (BatchArticleLoadWorker)**
@@ -176,10 +270,14 @@ This breakdown categorizes the **Phase 2 (New Feature)** tests based on two dime
 *   **Why:** Background workers run silently. If they fail (e.g., crash on database access or get stuck in a retry loop), you won't know until users complain about battery drain or missing content.
 *   **New Infrastructure:** Requires `androidx.work:work-testing`. You currently have no worker tests. You need to instantiate a `TestDriver` to manually simulate constraints (network connected, charging) and ensure the worker triggers correctly.
 
-### Recommendation for Implementation Order
+---
 
-1.  **Sync Policy & Content State (Critical / Gap Fill):** Do this first. It secures the new architecture's stability.
-2.  **Utils (High / Gap Fill):** Low effort, high value for the "Share" feature.
-3.  **Search (High / Gap Fill):** Secures the main navigation feature.
-4.  **Worker Tests (High / New Territory):** Do this once the Unit tests are stable. It requires the most setup but covers the "invisible" part of the app.
-5.  **UI & Layout (Medium/Low):** Save these for last. They are the most brittle and time-consuming.
+## Recommendation for Implementation Order
+
+1.  **Phase 1 (BLOCKER):** Fix the two ViewModel test files so the entire suite compiles. This unblocks everything else.
+2.  **Sync Policy & Content State (Critical / Gap Fill):** Do this next. It secures the new architecture's stability.
+3.  **Utils (High / Gap Fill):** Low effort, high value for the "Share" feature.
+4.  **Search (High / Gap Fill):** Secures the main navigation feature.
+5.  **Worker Tests (High / New Territory):** Do this once the Unit tests are stable. It requires the most setup but covers the "invisible" part of the app.
+6.  **UI & Layout (Medium/Low):** Save these for last. They are the most brittle and time-consuming.
+7.  **Re-enable CI:** Uncomment test steps in `.github/workflows/build.yml` and `.github/workflows/run-tests.yml`.
