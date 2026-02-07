@@ -186,7 +186,13 @@ class SyncSettingsViewModel @Inject constructor(
             dateRangeTo,
             isDateRangeDownloading,
             detailedSyncStatus
-        ) { battery, preset, from, to, downloading, status ->
+        ) { args: Array<Any?> ->
+            val battery = args[0] as Boolean
+            val preset = args[1] as DateRangePreset
+            val from = args[2] as LocalDate?
+            val to = args[3] as LocalDate?
+            val downloading = args[4] as Boolean
+            val status = args[5] as BookmarkDao.DetailedSyncStatusCounts
             SyncSettingsPartial2(battery, preset, from, to, downloading, status)
         }
     ) { p1, p2 ->
