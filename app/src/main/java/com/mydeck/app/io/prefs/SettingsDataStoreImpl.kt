@@ -288,8 +288,8 @@ class SettingsDataStoreImpl @Inject constructor(@ApplicationContext private val 
 
     override suspend fun getContentSyncConstraints(): ContentSyncConstraints {
         return ContentSyncConstraints(
-            wifiOnly = encryptedSharedPreferences.getBoolean(KEY_WIFI_ONLY.name, false),
-            allowOnBatterySaver = encryptedSharedPreferences.getBoolean(KEY_ALLOW_BATTERY_SAVER.name, true)
+            wifiOnly = encryptedSharedPreferences.getBoolean(KEY_WIFI_ONLY.name, true),
+            allowOnBatterySaver = encryptedSharedPreferences.getBoolean(KEY_ALLOW_BATTERY_SAVER.name, false)
         )
     }
 
