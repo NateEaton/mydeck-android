@@ -2,7 +2,7 @@ name: Run Tests
 
 on:
   push:
-    branches: [main, develop]
+    branches: [main, develop, claude/*]
   pull_request:
     branches: [main, develop]
   workflow_dispatch:
@@ -21,6 +21,5 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
-      # TEMPORARILY DISABLED - Test compilation errors need to be fixed
-      # - name: Run tests
-      #   run: ./gradlew testGithubReleaseDebugUnitTest testGithubSnapshotDebugUnitTest
+      - name: Run tests
+        run: ./gradlew testGithubReleaseDebugUnitTest testGithubSnapshotDebugUnitTest
