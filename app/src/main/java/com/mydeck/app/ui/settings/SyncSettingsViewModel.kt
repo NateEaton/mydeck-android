@@ -400,6 +400,9 @@ class SyncSettingsViewModel @Inject constructor(
         // Request permission if needed
         requestBackgroundPermissionIfNeeded()
 
+        // Calculate override flag
+        val isOverriding = overrideWifiOnly || overrideBatterySaver
+
         // Convert LocalDate to epoch millis for the worker
         val fromEpoch = from.toEpochDays().toLong() * 86400L * 1000L
         val toEpoch = (to.toEpochDays().toLong() + 1) * 86400L * 1000L // End of day
@@ -412,7 +415,6 @@ class SyncSettingsViewModel @Inject constructor(
 
         // Build constraints based on current settings and overrides
         // When user confirms override, we disable ALL constraints to allow the download to proceed
-        val isOverriding = overrideWifiOnly || overrideBatterySaver
 
         val constraintsBuilder = Constraints.Builder()
 
