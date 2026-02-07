@@ -3,8 +3,8 @@ package com.mydeck.app.ui.settings
 import android.content.Context
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
-import android.os.BatteryManager
 import android.os.Build
+import android.os.PowerManager
 import androidx.annotation.StringRes
 import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
@@ -351,13 +351,13 @@ class SyncSettingsViewModel @Inject constructor(
     }
 
     private fun isBatterySaverActive(): Boolean {
-        val batteryManager = context.getSystemService(Context.BATTERY_SERVICE) as? BatteryManager
+        val powerManager = context.getSystemService(Context.POWER_SERVICE) as? PowerManager
             ?: return false
 
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-            batteryManager.isLowPowerMode
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            powerManager.isPowerSaveMode
         } else {
-            false  // Battery saver mode not reliably available before Android P
+            false  // Power save mode not available before Android 5.0
         }
     }
 
