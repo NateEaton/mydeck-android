@@ -1,6 +1,9 @@
 package com.mydeck.app.ui.settings
 
 import android.content.Context
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
+import android.os.BatteryManager
 import android.os.Build
 import androidx.annotation.StringRes
 import androidx.compose.runtime.Immutable
@@ -85,6 +88,8 @@ class SyncSettingsViewModel @Inject constructor(
     private var savedWifiOnly = false
     private var savedAllowBatterySaver = true
     private var constraintBlockingDownload: String? = null  // Description of which constraint is blocking
+    private var blockedByWifiConstraint = false  // Whether wifi constraint would block
+    private var blockedByBatterySaverConstraint = false  // Whether battery saver constraint would block
 
     // Last sync timestamps
     private val lastSyncTimestamp = MutableStateFlow<String?>(null)
@@ -316,17 +321,17 @@ class SyncSettingsViewModel @Inject constructor(
         val from = dateRangeFrom.value ?: return
         val to = dateRangeTo.value ?: return
 
-        // Check if constraints are blocking the download
-        val isWifiConstraintActive = wifiOnly.value
-        val isBatterySaverConstraintActive = !allowBatterySaver.value
+        // Check if constraints would actually block the download
+        blockedByWifiConstraint = wifiOnly.value && !isWifiConnected()
+        blockedByBatterySaverConstraint = !allowBatterySaver.value && isBatterySaverActive()
 
-        if (isWifiConstraintActive || isBatterySaverConstraintActive) {
-            // Build constraint description for the dialog
-            val constraints = mutableListOf<String>()
-            if (isWifiConstraintActive) constraints.add("Wi-Fi only")
-            if (isBatterySaverConstraintActive) constraints.add("battery saver active")
+        if (blockedByWifiConstraint || blockedByBatterySaverConstraint) {
+            // Show dialog asking to override only if constraints would actually block
+            val blockingConstraints = mutableListOf<String>()
+            if (blockedByWifiConstraint) blockingConstraints.add("Wi-Fi only")
+            if (blockedByBatterySaverConstraint) blockingConstraints.add("battery saver active")
 
-            constraintBlockingDownload = constraints.joinToString(" and ")
+            constraintBlockingDownload = blockingConstraints.joinToString(" and ")
             showDialog.value = SyncSettingsDialog.ConstraintOverrideDialog
             return
         }
@@ -335,21 +340,38 @@ class SyncSettingsViewModel @Inject constructor(
         performDateRangeDownload(from, to)
     }
 
+    private fun isWifiConnected(): Boolean {
+        val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
+            ?: return false
+
+        val activeNetwork = connectivityManager.activeNetwork ?: return false
+        val caps = connectivityManager.getNetworkCapabilities(activeNetwork) ?: return false
+
+        return caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)
+    }
+
+    private fun isBatterySaverActive(): Boolean {
+        val batteryManager = context.getSystemService(Context.BATTERY_SERVICE) as? BatteryManager
+            ?: return false
+
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            batteryManager.isLowPowerMode
+        } else {
+            false  // Battery saver mode not reliably available before Android P
+        }
+    }
+
     fun onConstraintOverrideConfirmed() {
         val from = dateRangeFrom.value ?: return
         val to = dateRangeTo.value ?: return
 
-        // Determine which constraints to override
-        val overrideWifiOnly = wifiOnly.value
-        val overrideBatterySaver = !allowBatterySaver.value
-
-        // Perform the download with constraint overrides
-        // Note: We DON'T update the permanent state, only pass override info to the download
+        // Override only the constraints that were actually blocking
+        // This way we don't unnecessarily weaken other constraints
         performDateRangeDownload(
             from = from,
             to = to,
-            overrideWifiOnly = overrideWifiOnly,
-            overrideBatterySaver = overrideBatterySaver
+            overrideWifiOnly = blockedByWifiConstraint,
+            overrideBatterySaver = blockedByBatterySaverConstraint
         )
 
         // Close dialog
