@@ -58,6 +58,8 @@ import com.google.accompanist.permissions.rememberPermissionState
 import com.mydeck.app.R
 import com.mydeck.app.domain.model.AutoSyncTimeframe
 import com.mydeck.app.domain.sync.ContentSyncMode
+import com.mydeck.app.domain.sync.DateRangePreset
+import com.mydeck.app.ui.settings.composables.DateRangePresetDropdown
 import com.mydeck.app.ui.theme.Typography
 import kotlinx.datetime.Instant
 import kotlinx.datetime.LocalDate
@@ -129,6 +131,12 @@ fun SyncSettingsScreen(
                 onDismiss = { viewModel.onDismissDialog() }
             )
         }
+        SyncSettingsDialog.ConstraintOverrideDialog -> {
+            ConstraintOverrideConfirmDialog(
+                onConfirm = { viewModel.onConstraintOverrideConfirmed() },
+                onCancel = { viewModel.onConstraintOverrideCancelled() }
+            )
+        }
         null -> { /* noop */ }
     }
 
@@ -138,6 +146,7 @@ fun SyncSettingsScreen(
         onClickBack = { viewModel.onClickBack() },
         onClickBookmarkSyncFrequency = { viewModel.onClickBookmarkSyncFrequency() },
         onContentSyncModeSelected = { viewModel.onContentSyncModeSelected(it) },
+        onDateRangePresetSelected = { viewModel.onDateRangePresetSelected(it) },
         onClickDateFrom = { viewModel.onShowDialog(SyncSettingsDialog.DateFromPicker) },
         onClickDateTo = { viewModel.onShowDialog(SyncSettingsDialog.DateToPicker) },
         onClickDateRangeDownload = { viewModel.onClickDateRangeDownload() },
@@ -155,6 +164,7 @@ fun SyncSettingsView(
     onClickBack: () -> Unit,
     onClickBookmarkSyncFrequency: () -> Unit,
     onContentSyncModeSelected: (ContentSyncMode) -> Unit,
+    onDateRangePresetSelected: (DateRangePreset) -> Unit,
     onClickDateFrom: () -> Unit,
     onClickDateTo: () -> Unit,
     onClickDateRangeDownload: () -> Unit,
@@ -190,39 +200,95 @@ fun SyncSettingsView(
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             // --- Section 1: Bookmark Sync ---
-            BookmarkSyncSection(
-                frequency = settingsUiState.bookmarkSyncFrequency,
-                nextRun = settingsUiState.nextAutoSyncRun,
-                onClickFrequency = onClickBookmarkSyncFrequency
+            Text(
+                text = stringResource(R.string.sync_bookmark_section_title),
+                style = Typography.titleMedium
             )
+
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+                )
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    BookmarkSyncSection(
+                        frequency = settingsUiState.bookmarkSyncFrequency,
+                        nextRun = settingsUiState.nextAutoSyncRun,
+                        onClickFrequency = onClickBookmarkSyncFrequency
+                    )
+                }
+            }
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // --- Section 2: Content Sync ---
-            ContentSyncSection(
-                contentSyncMode = settingsUiState.contentSyncMode,
-                dateRangeFrom = settingsUiState.dateRangeFrom,
-                dateRangeTo = settingsUiState.dateRangeTo,
-                isDateRangeDownloading = settingsUiState.isDateRangeDownloading,
-                onContentSyncModeSelected = onContentSyncModeSelected,
-                onClickDateFrom = onClickDateFrom,
-                onClickDateTo = onClickDateTo,
-                onClickDateRangeDownload = onClickDateRangeDownload
+            // --- Section 2: Content Sync (with Constraints) ---
+            Text(
+                text = stringResource(R.string.sync_content_section_title),
+                style = Typography.titleMedium
             )
+
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+                )
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    // Content Sync Mode
+                    Text(
+                        text = "Content Sync Mode",
+                        style = Typography.titleSmall,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+
+                    ContentSyncSection(
+                        contentSyncMode = settingsUiState.contentSyncMode,
+                        dateRangePreset = settingsUiState.dateRangePreset,
+                        dateRangeFrom = settingsUiState.dateRangeFrom,
+                        dateRangeTo = settingsUiState.dateRangeTo,
+                        isDateRangeDownloading = settingsUiState.isDateRangeDownloading,
+                        onContentSyncModeSelected = onContentSyncModeSelected,
+                        onDateRangePresetSelected = onDateRangePresetSelected,
+                        onClickDateFrom = onClickDateFrom,
+                        onClickDateTo = onClickDateTo,
+                        onClickDateRangeDownload = onClickDateRangeDownload
+                    )
+
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    // Constraints heading
+                    Text(
+                        text = stringResource(R.string.sync_constraints_section_title),
+                        style = Typography.titleSmall,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+
+                    ConstraintsSection(
+                        wifiOnly = settingsUiState.wifiOnly,
+                        allowBatterySaver = settingsUiState.allowBatterySaver,
+                        onWifiOnlyChanged = onWifiOnlyChanged,
+                        onAllowBatterySaverChanged = onAllowBatterySaverChanged
+                    )
+                }
+            }
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // --- Section 3: Constraints ---
-            ConstraintsSection(
-                wifiOnly = settingsUiState.wifiOnly,
-                allowBatterySaver = settingsUiState.allowBatterySaver,
-                onWifiOnlyChanged = onWifiOnlyChanged,
-                onAllowBatterySaverChanged = onAllowBatterySaverChanged
+            // --- Section 3: Sync Status ---
+            Text(
+                text = stringResource(R.string.sync_status_section_title),
+                style = Typography.titleMedium
             )
 
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // --- Section 4: Sync Status ---
             SyncStatusSection(syncStatus = settingsUiState.syncStatus)
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -237,10 +303,6 @@ private fun BookmarkSyncSection(
     nextRun: String?,
     onClickFrequency: () -> Unit
 ) {
-    Text(
-        text = stringResource(R.string.sync_bookmark_section_title),
-        style = Typography.titleSmall
-    )
     Text(
         text = stringResource(R.string.sync_bookmark_description),
         style = Typography.bodySmall,
@@ -278,19 +340,16 @@ private fun BookmarkSyncSection(
 @Composable
 private fun ContentSyncSection(
     contentSyncMode: ContentSyncMode,
+    dateRangePreset: DateRangePreset,
     dateRangeFrom: LocalDate?,
     dateRangeTo: LocalDate?,
     isDateRangeDownloading: Boolean,
     onContentSyncModeSelected: (ContentSyncMode) -> Unit,
+    onDateRangePresetSelected: (DateRangePreset) -> Unit,
     onClickDateFrom: () -> Unit,
     onClickDateTo: () -> Unit,
     onClickDateRangeDownload: () -> Unit
 ) {
-    Text(
-        text = stringResource(R.string.sync_content_section_title),
-        style = Typography.titleSmall
-    )
-
     // Automatic
     ContentSyncRadioOption(
         selected = contentSyncMode == ContentSyncMode.AUTOMATIC,
@@ -299,80 +358,145 @@ private fun ContentSyncSection(
         onClick = { onContentSyncModeSelected(ContentSyncMode.AUTOMATIC) }
     )
 
-    // Manual
+    // Manual (now contains Date Range as a sub-option)
     ContentSyncRadioOption(
-        selected = contentSyncMode == ContentSyncMode.MANUAL,
+        selected = contentSyncMode == ContentSyncMode.MANUAL || contentSyncMode == ContentSyncMode.DATE_RANGE,
         title = stringResource(R.string.sync_content_manual),
         description = stringResource(R.string.sync_content_manual_desc),
-        onClick = { onContentSyncModeSelected(ContentSyncMode.MANUAL) }
+        onClick = {
+            if (contentSyncMode != ContentSyncMode.MANUAL && contentSyncMode != ContentSyncMode.DATE_RANGE) {
+                onContentSyncModeSelected(ContentSyncMode.MANUAL)
+            }
+        }
     )
 
-    // Date Range
-    ContentSyncRadioOption(
-        selected = contentSyncMode == ContentSyncMode.DATE_RANGE,
-        title = stringResource(R.string.sync_content_date_range),
-        description = stringResource(R.string.sync_content_date_range_desc),
-        onClick = { onContentSyncModeSelected(ContentSyncMode.DATE_RANGE) }
-    )
-
-    // Date range controls (shown when Date Range is selected)
-    if (contentSyncMode == ContentSyncMode.DATE_RANGE) {
+    // Date range sub-option (shown when Manual is selected)
+    if (contentSyncMode == ContentSyncMode.MANUAL || contentSyncMode == ContentSyncMode.DATE_RANGE) {
         Column(
             modifier = Modifier.padding(start = 40.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            // From date
+            // Sub-choice: On demand vs By date range
             Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(
-                    text = stringResource(R.string.sync_content_date_from),
-                    style = Typography.bodyMedium,
-                    modifier = Modifier.width(48.dp)
-                )
-                OutlinedButton(
-                    onClick = onClickDateFrom,
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Text(dateRangeFrom?.toString() ?: "Select date")
-                }
-            }
-
-            // To date
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(
-                    text = stringResource(R.string.sync_content_date_to),
-                    style = Typography.bodyMedium,
-                    modifier = Modifier.width(48.dp)
-                )
-                OutlinedButton(
-                    onClick = onClickDateTo,
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Text(dateRangeTo?.toString() ?: "Select date")
-                }
-            }
-
-            // Download button
-            Button(
-                onClick = onClickDateRangeDownload,
-                enabled = dateRangeFrom != null && dateRangeTo != null && !isDateRangeDownloading,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                if (isDateRangeDownloading) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(16.dp),
-                        strokeWidth = 2.dp,
-                        color = MaterialTheme.colorScheme.onPrimary
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .selectable(
+                        selected = contentSyncMode == ContentSyncMode.MANUAL,
+                        onClick = { onContentSyncModeSelected(ContentSyncMode.MANUAL) },
+                        role = Role.RadioButton
                     )
-                    Spacer(Modifier.width(8.dp))
-                    Text(stringResource(R.string.sync_content_downloading))
-                } else {
-                    Text(stringResource(R.string.sync_content_download_button))
+                    .padding(vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                RadioButton(
+                    selected = contentSyncMode == ContentSyncMode.MANUAL,
+                    onClick = null
+                )
+                Text(
+                    text = "On demand",
+                    style = Typography.bodyMedium,
+                    modifier = Modifier.padding(start = 8.dp)
+                )
+            }
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .selectable(
+                        selected = contentSyncMode == ContentSyncMode.DATE_RANGE,
+                        onClick = { onContentSyncModeSelected(ContentSyncMode.DATE_RANGE) },
+                        role = Role.RadioButton
+                    )
+                    .padding(vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                RadioButton(
+                    selected = contentSyncMode == ContentSyncMode.DATE_RANGE,
+                    onClick = null
+                )
+                Column(modifier = Modifier.padding(start = 8.dp)) {
+                    Text(
+                        text = stringResource(R.string.sync_content_date_range),
+                        style = Typography.bodyMedium
+                    )
+                    Text(
+                        text = stringResource(R.string.sync_content_date_range_desc),
+                        style = Typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
+            // Date range controls (shown when Date Range is selected)
+            if (contentSyncMode == ContentSyncMode.DATE_RANGE) {
+                Column(
+                    modifier = Modifier.padding(start = 32.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    // Preset dropdown
+                    DateRangePresetDropdown(
+                        selectedPreset = dateRangePreset,
+                        onPresetSelected = onDateRangePresetSelected,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    // Custom date pickers (shown only when CUSTOM is selected)
+                    if (dateRangePreset == DateRangePreset.CUSTOM) {
+                        // From date
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                text = stringResource(R.string.sync_content_date_from),
+                                style = Typography.bodyMedium,
+                                modifier = Modifier.width(48.dp)
+                            )
+                            OutlinedButton(
+                                onClick = onClickDateFrom,
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text(dateRangeFrom?.toString() ?: "Select date")
+                            }
+                        }
+
+                        // To date
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                text = stringResource(R.string.sync_content_date_to),
+                                style = Typography.bodyMedium,
+                                modifier = Modifier.width(48.dp)
+                            )
+                            OutlinedButton(
+                                onClick = onClickDateTo,
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text(dateRangeTo?.toString() ?: "Select date")
+                            }
+                        }
+                    }
+
+                    // Download button
+                    Button(
+                        onClick = onClickDateRangeDownload,
+                        enabled = dateRangeFrom != null && dateRangeTo != null && !isDateRangeDownloading,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        if (isDateRangeDownloading) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(16.dp),
+                                strokeWidth = 2.dp,
+                                color = MaterialTheme.colorScheme.onPrimary
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text(stringResource(R.string.sync_content_downloading))
+                        } else {
+                            Text(stringResource(R.string.sync_content_download_button))
+                        }
+                    }
                 }
             }
         }
@@ -421,39 +545,40 @@ private fun ConstraintsSection(
     onWifiOnlyChanged: (Boolean) -> Unit,
     onAllowBatterySaverChanged: (Boolean) -> Unit
 ) {
-    Text(
-        text = stringResource(R.string.sync_constraints_section_title),
-        style = Typography.titleSmall
-    )
-
-    Row(
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.fillMaxWidth()
+    Column(
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        Text(
-            text = stringResource(R.string.sync_wifi_only),
-            modifier = Modifier.weight(1f)
-        )
-        Switch(
-            checked = wifiOnly,
-            onCheckedChange = onWifiOnlyChanged
-        )
-    }
+        Row(
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text(
+                text = stringResource(R.string.sync_wifi_only),
+                style = Typography.bodyMedium,
+                modifier = Modifier.weight(1f)
+            )
+            Switch(
+                checked = wifiOnly,
+                onCheckedChange = onWifiOnlyChanged
+            )
+        }
 
-    Row(
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Text(
-            text = stringResource(R.string.sync_allow_battery_saver),
-            modifier = Modifier.weight(1f)
-        )
-        Switch(
-            checked = allowBatterySaver,
-            onCheckedChange = onAllowBatterySaverChanged
-        )
+        Row(
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text(
+                text = stringResource(R.string.sync_allow_battery_saver),
+                style = Typography.bodyMedium,
+                modifier = Modifier.weight(1f)
+            )
+            Switch(
+                checked = allowBatterySaver,
+                onCheckedChange = onAllowBatterySaverChanged
+            )
+        }
     }
 }
 
@@ -462,7 +587,7 @@ private fun ConstraintsSection(
 private fun SyncStatusSection(syncStatus: SyncStatus) {
     Text(
         text = stringResource(R.string.sync_status_section_title),
-        style = Typography.titleSmall
+        style = Typography.titleMedium
     )
 
     Card(
@@ -478,8 +603,8 @@ private fun SyncStatusSection(syncStatus: SyncStatus) {
         ) {
             // Bookmark counts
             Text(
-                text = "Bookmarks",
-                style = Typography.labelMedium,
+                text = stringResource(R.string.sync_status_bookmarks_heading),
+                style = Typography.titleSmall,
                 color = MaterialTheme.colorScheme.primary
             )
             Text(
@@ -499,12 +624,20 @@ private fun SyncStatusSection(syncStatus: SyncStatus) {
                 style = Typography.bodySmall
             )
 
+            syncStatus.lastBookmarkSyncTimestamp?.let { ts ->
+                Text(
+                    text = stringResource(R.string.sync_status_last_sync, ts),
+                    style = Typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
             Spacer(modifier = Modifier.height(8.dp))
 
             // Content counts
             Text(
-                text = "Content",
-                style = Typography.labelMedium,
+                text = stringResource(R.string.sync_status_content_heading),
+                style = Typography.titleSmall,
                 color = MaterialTheme.colorScheme.primary
             )
             Text(
@@ -524,11 +657,9 @@ private fun SyncStatusSection(syncStatus: SyncStatus) {
                 style = Typography.bodySmall
             )
 
-            // Last sync
-            syncStatus.lastSyncTimestamp?.let { ts ->
-                Spacer(modifier = Modifier.height(8.dp))
+            syncStatus.lastContentSyncTimestamp?.let { ts ->
                 Text(
-                    text = stringResource(R.string.sync_status_last_sync, ts),
+                    text = stringResource(R.string.sync_status_last_content_sync, ts),
                     style = Typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -589,6 +720,29 @@ private fun BackgroundSyncRationaleDialog(
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.cancel))
+            }
+        }
+    )
+}
+
+// --- Constraint Override Dialog ---
+@Composable
+private fun ConstraintOverrideConfirmDialog(
+    onConfirm: () -> Unit,
+    onCancel: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onCancel,
+        title = { Text("Download Content?") },
+        text = { Text("Content download is blocked by active constraints (Wi-Fi only and/or battery saver). Would you like to temporarily override these settings to complete this download?") },
+        confirmButton = {
+            Button(onClick = onConfirm) {
+                Text("Override & Download")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onCancel) {
                 Text(stringResource(R.string.cancel))
             }
         }

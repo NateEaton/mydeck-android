@@ -1,7 +1,10 @@
 package com.mydeck.app.ui.settings
 
 import android.content.Context
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import android.os.Build
+import android.os.PowerManager
 import androidx.annotation.StringRes
 import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
@@ -23,10 +26,13 @@ import com.mydeck.app.R
 import com.mydeck.app.domain.model.AutoSyncTimeframe
 import com.mydeck.app.domain.sync.ContentSyncMode
 import com.mydeck.app.domain.sync.DateRangeParams
+import com.mydeck.app.domain.sync.DateRangePreset
+import com.mydeck.app.domain.sync.toDateRange
 import com.mydeck.app.domain.usecase.FullSyncUseCase
 import com.mydeck.app.io.db.dao.BookmarkDao
 import com.mydeck.app.io.prefs.SettingsDataStore
 import com.mydeck.app.worker.DateRangeContentSyncWorker
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -36,7 +42,10 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.datetime.Clock
 import kotlinx.datetime.LocalDate
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
 import timber.log.Timber
 import java.text.DateFormat
 import java.util.Date
@@ -63,6 +72,7 @@ class SyncSettingsViewModel @Inject constructor(
 
     // Content sync
     private val contentSyncMode = MutableStateFlow(ContentSyncMode.AUTOMATIC)
+    private val dateRangePreset = MutableStateFlow(DateRangePreset.PAST_MONTH)
     private val dateRangeFrom = MutableStateFlow<LocalDate?>(null)
     private val dateRangeTo = MutableStateFlow<LocalDate?>(null)
     private val isDateRangeDownloading = MutableStateFlow(false)
@@ -74,8 +84,16 @@ class SyncSettingsViewModel @Inject constructor(
     // Dialog
     private val showDialog = MutableStateFlow<SyncSettingsDialog?>(null)
 
-    // Last sync timestamp
+    // Constraint override state
+    private var savedWifiOnly = false
+    private var savedAllowBatterySaver = true
+    private var constraintBlockingDownload: String? = null  // Description of which constraint is blocking
+    private var blockedByWifiConstraint = false  // Whether wifi constraint would block
+    private var blockedByBatterySaverConstraint = false  // Whether battery saver constraint would block
+
+    // Last sync timestamps
     private val lastSyncTimestamp = MutableStateFlow<String?>(null)
+    private val lastContentSyncTimestamp = MutableStateFlow<String?>(null)
 
     // Sync status from DB
     private val detailedSyncStatus = bookmarkDao.observeDetailedSyncStatus()
@@ -112,11 +130,15 @@ class SyncSettingsViewModel @Inject constructor(
             wifiOnly.value = constraints.wifiOnly
             allowBatterySaver.value = constraints.allowOnBatterySaver
             settingsDataStore.getDateRangeParams()?.let {
+                dateRangePreset.value = it.preset
                 dateRangeFrom.value = it.from
                 dateRangeTo.value = it.to
             }
             settingsDataStore.getLastSyncTimestamp()?.let {
                 lastSyncTimestamp.value = dateFormat.format(Date(it.toEpochMilliseconds()))
+            }
+            settingsDataStore.getLastContentSyncTimestamp()?.let {
+                lastContentSyncTimestamp.value = dateFormat.format(Date(it.toEpochMilliseconds()))
             }
 
             // Perform settings migration for existing users
@@ -170,12 +192,19 @@ class SyncSettingsViewModel @Inject constructor(
     }.combine(
         combine(
             allowBatterySaver,
+            dateRangePreset,
             dateRangeFrom,
             dateRangeTo,
             isDateRangeDownloading,
             detailedSyncStatus
-        ) { battery, from, to, downloading, status ->
-            SyncSettingsPartial2(battery, from, to, downloading, status)
+        ) { args: Array<Any?> ->
+            val battery = args[0] as Boolean
+            val preset = args[1] as DateRangePreset
+            val from = args[2] as LocalDate?
+            val to = args[3] as LocalDate?
+            val downloading = args[4] as Boolean
+            val status = args[5] as BookmarkDao.DetailedSyncStatusCounts
+            SyncSettingsPartial2(battery, preset, from, to, downloading, status)
         }
     ) { p1, p2 ->
         SyncSettingsUiState(
@@ -183,6 +212,7 @@ class SyncSettingsViewModel @Inject constructor(
             bookmarkSyncFrequencyOptions = getBookmarkSyncOptions(p1.freq),
             nextAutoSyncRun = p1.next?.let { dateFormat.format(Date(it)) },
             contentSyncMode = p1.mode,
+            dateRangePreset = p2.preset,
             dateRangeFrom = p2.from,
             dateRangeTo = p2.to,
             isDateRangeDownloading = p2.downloading,
@@ -196,13 +226,14 @@ class SyncSettingsViewModel @Inject constructor(
                 contentDownloaded = p2.status.contentDownloaded,
                 contentAvailable = p2.status.contentAvailable,
                 contentDirty = p2.status.contentDirty,
-                permanentNoContent = p2.status.permanentNoContent,
-                lastSyncTimestamp = null // set below
+                permanentNoContent = p2.status.permanentNoContent
             ),
             showDialog = p1.dialog
         )
     }.combine(lastSyncTimestamp) { state, ts ->
-        state.copy(syncStatus = state.syncStatus.copy(lastSyncTimestamp = ts))
+        state.copy(syncStatus = state.syncStatus.copy(lastBookmarkSyncTimestamp = ts))
+    }.combine(lastContentSyncTimestamp) { state, ts ->
+        state.copy(syncStatus = state.syncStatus.copy(lastContentSyncTimestamp = ts))
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
@@ -239,6 +270,29 @@ class SyncSettingsViewModel @Inject constructor(
         }
     }
 
+    fun onDateRangePresetSelected(preset: DateRangePreset) {
+        dateRangePreset.value = preset
+
+        // If preset is not CUSTOM, calculate and save the dates
+        if (preset != DateRangePreset.CUSTOM) {
+            val today = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).date
+            val (from, to) = preset.toDateRange(today)
+            dateRangeFrom.value = from
+            dateRangeTo.value = to
+        }
+
+        // Save the preset and current dates
+        viewModelScope.launch {
+            settingsDataStore.saveDateRangeParams(
+                DateRangeParams(
+                    preset = preset,
+                    from = dateRangeFrom.value,
+                    to = dateRangeTo.value
+                )
+            )
+        }
+    }
+
     fun onDateRangeFromSelected(date: LocalDate) {
         dateRangeFrom.value = date
         saveDateRangeIfBothSet()
@@ -253,7 +307,13 @@ class SyncSettingsViewModel @Inject constructor(
         val from = dateRangeFrom.value ?: return
         val to = dateRangeTo.value ?: return
         viewModelScope.launch {
-            settingsDataStore.saveDateRangeParams(DateRangeParams(from, to))
+            settingsDataStore.saveDateRangeParams(
+                DateRangeParams(
+                    preset = dateRangePreset.value,
+                    from = from,
+                    to = to
+                )
+            )
         }
     }
 
@@ -261,8 +321,87 @@ class SyncSettingsViewModel @Inject constructor(
         val from = dateRangeFrom.value ?: return
         val to = dateRangeTo.value ?: return
 
+        Timber.d("DateRangeDownload: Checking constraints - wifiOnly=$wifiOnly.value, allowBatterySaver=$allowBatterySaver.value")
+
+        // Check if constraints would actually block the download
+        blockedByWifiConstraint = wifiOnly.value && !isWifiConnected()
+        blockedByBatterySaverConstraint = !allowBatterySaver.value && isBatterySaverActive()
+
+        Timber.d("DateRangeDownload: blockedByWifi=$blockedByWifiConstraint, blockedByBattery=$blockedByBatterySaverConstraint")
+
+        if (blockedByWifiConstraint || blockedByBatterySaverConstraint) {
+            // Show dialog asking to override only if constraints would actually block
+            val blockingConstraints = mutableListOf<String>()
+            if (blockedByWifiConstraint) blockingConstraints.add("Wi-Fi only")
+            if (blockedByBatterySaverConstraint) blockingConstraints.add("battery saver active")
+
+            constraintBlockingDownload = blockingConstraints.joinToString(" and ")
+            Timber.d("DateRangeDownload: Showing override dialog - $constraintBlockingDownload")
+            showDialog.value = SyncSettingsDialog.ConstraintOverrideDialog
+            return
+        }
+
+        // No constraints blocking, proceed with download
+        Timber.d("DateRangeDownload: No constraints blocking, proceeding with download")
+        performDateRangeDownload(from, to)
+    }
+
+    private fun isWifiConnected(): Boolean {
+        val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
+            ?: return false
+
+        val activeNetwork = connectivityManager.activeNetwork ?: return false
+        val caps = connectivityManager.getNetworkCapabilities(activeNetwork) ?: return false
+
+        return caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)
+    }
+
+    private fun isBatterySaverActive(): Boolean {
+        val powerManager = context.getSystemService(Context.POWER_SERVICE) as? PowerManager
+            ?: return false
+
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            powerManager.isPowerSaveMode
+        } else {
+            false  // Power save mode not available before Android 5.0
+        }
+    }
+
+    fun onConstraintOverrideConfirmed() {
+        val from = dateRangeFrom.value ?: return
+        val to = dateRangeTo.value ?: return
+
+        Timber.d("DateRangeDownload: Override confirmed - applying overrides: wifi=$blockedByWifiConstraint, battery=$blockedByBatterySaverConstraint")
+
+        // Override only the constraints that were actually blocking
+        // This way we don't unnecessarily weaken other constraints
+        performDateRangeDownload(
+            from = from,
+            to = to,
+            overrideWifiOnly = blockedByWifiConstraint,
+            overrideBatterySaver = blockedByBatterySaverConstraint
+        )
+
+        // Close dialog
+        showDialog.value = null
+    }
+
+    fun onConstraintOverrideCancelled() {
+        constraintBlockingDownload = null
+        showDialog.value = null
+    }
+
+    private fun performDateRangeDownload(
+        from: LocalDate,
+        to: LocalDate,
+        overrideWifiOnly: Boolean = false,
+        overrideBatterySaver: Boolean = false
+    ) {
         // Request permission if needed
         requestBackgroundPermissionIfNeeded()
+
+        // Calculate override flag
+        val isOverriding = overrideWifiOnly || overrideBatterySaver
 
         // Convert LocalDate to epoch millis for the worker
         val fromEpoch = from.toEpochDays().toLong() * 86400L * 1000L
@@ -271,16 +410,45 @@ class SyncSettingsViewModel @Inject constructor(
         val inputData = Data.Builder()
             .putLong(DateRangeContentSyncWorker.PARAM_FROM_EPOCH, fromEpoch)
             .putLong(DateRangeContentSyncWorker.PARAM_TO_EPOCH, toEpoch)
+            .putBoolean(DateRangeContentSyncWorker.PARAM_OVERRIDE, isOverriding)
             .build()
 
-        val constraints = Constraints.Builder()
-            .setRequiredNetworkType(NetworkType.CONNECTED)
-            .build()
+        // Build constraints based on current settings and overrides
+        // When user confirms override, we disable ALL constraints to allow the download to proceed
+
+        val constraintsBuilder = Constraints.Builder()
+
+        // Determine network type constraint
+        val networkType = if (isOverriding || !wifiOnly.value) {
+            // If overriding ANY constraint OR WiFi constraint not enabled, allow any network
+            NetworkType.CONNECTED
+        } else {
+            // WiFi-only constraint is enabled and NO constraints being overridden
+            NetworkType.UNMETERED
+        }
+        constraintsBuilder.setRequiredNetworkType(networkType)
+
+        Timber.d("DateRangeDownload: Setting network constraint - type=$networkType (wifiOnly=$wifiOnly.value, overridingAny=$isOverriding)")
+
+        // Determine battery constraint
+        // If ANY constraint is being overridden, disable ALL constraints
+        val shouldApplyBatteryConstraint = !isOverriding && !allowBatterySaver.value
+        if (shouldApplyBatteryConstraint) {
+            // Battery saver constraint is enabled and NO constraints being overridden
+            constraintsBuilder.setRequiresBatteryNotLow(true)
+            Timber.d("DateRangeDownload: Setting battery constraint - requireBatteryNotLow=true")
+        } else {
+            Timber.d("DateRangeDownload: No battery constraint (overridingAny=$isOverriding, allow=$allowBatterySaver.value)")
+        }
+
+        val constraints = constraintsBuilder.build()
 
         val request = OneTimeWorkRequestBuilder<DateRangeContentSyncWorker>()
             .setInputData(inputData)
             .setConstraints(constraints)
             .build()
+
+        Timber.i("DateRangeDownload: Enqueueing work - from=$from, to=$to, epochs=[$fromEpoch, $toEpoch], networkType=$networkType, overridingAllConstraints=$isOverriding")
 
         workManager.enqueueUniqueWork(
             DateRangeContentSyncWorker.UNIQUE_WORK_NAME,
@@ -288,7 +456,14 @@ class SyncSettingsViewModel @Inject constructor(
             request
         )
 
-        Timber.i("Enqueued DateRangeContentSyncWorker [from=$from, to=$to]")
+        Timber.i("DateRangeDownload: Work enqueued successfully")
+
+        // Switch back to MANUAL mode after successful download
+        viewModelScope.launch {
+            delay(1000)  // Wait a moment for work to be enqueued
+            settingsDataStore.saveContentSyncMode(ContentSyncMode.MANUAL)
+            contentSyncMode.value = ContentSyncMode.MANUAL
+        }
     }
 
     // --- Constraints ---
@@ -378,6 +553,7 @@ class SyncSettingsViewModel @Inject constructor(
 
     private data class SyncSettingsPartial2(
         val battery: Boolean,
+        val preset: DateRangePreset,
         val from: LocalDate?,
         val to: LocalDate?,
         val downloading: Boolean,
@@ -394,6 +570,7 @@ data class SyncSettingsUiState(
 
     // Content sync
     val contentSyncMode: ContentSyncMode = ContentSyncMode.AUTOMATIC,
+    val dateRangePreset: DateRangePreset = DateRangePreset.PAST_MONTH,
     val dateRangeFrom: LocalDate? = null,
     val dateRangeTo: LocalDate? = null,
     val isDateRangeDownloading: Boolean = false,
@@ -419,7 +596,8 @@ data class SyncStatus(
     val contentAvailable: Int = 0,
     val contentDirty: Int = 0,
     val permanentNoContent: Int = 0,
-    val lastSyncTimestamp: String? = null
+    val lastBookmarkSyncTimestamp: String? = null,
+    val lastContentSyncTimestamp: String? = null
 )
 
 enum class SyncSettingsDialog {
@@ -427,7 +605,8 @@ enum class SyncSettingsDialog {
     BackgroundRationaleDialog,
     PermissionRequest,
     DateFromPicker,
-    DateToPicker
+    DateToPicker,
+    ConstraintOverrideDialog
 }
 
 data class AutoSyncTimeframeOption(

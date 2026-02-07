@@ -186,7 +186,7 @@ other{}
 
     <!-- Sync Settings - Phase 3 -->
     <string name="sync_bookmark_section_title">Bookmark Sync</string>
-    <string name="sync_bookmark_description">Bookmarks are always kept in sync.</string>
+    <string name="sync_bookmark_description">Your bookmark list is automatically kept up to date with changes from other devices and the server.</string>
     <string name="sync_bookmark_frequency_label">Sync frequency</string>
     <string name="sync_content_section_title">Content Sync</string>
     <string name="sync_content_automatic">Automatic</string>
@@ -199,14 +199,22 @@ other{}
     <string name="sync_content_date_to">To</string>
     <string name="sync_content_download_button">Download</string>
     <string name="sync_content_downloading">Downloading…</string>
+    <string name="sync_date_preset_past_day">Past day</string>
+    <string name="sync_date_preset_past_week">Past week</string>
+    <string name="sync_date_preset_past_month">Past month</string>
+    <string name="sync_date_preset_past_year">Past year</string>
+    <string name="sync_date_preset_custom">Custom date range</string>
     <string name="sync_constraints_section_title">Constraints</string>
     <string name="sync_wifi_only">Only download on Wi-Fi</string>
     <string name="sync_allow_battery_saver">Allow download on battery saver</string>
 
     <!-- Sync Status - Phase 3 -->
     <string name="sync_status_section_title">Sync Status</string>
+    <string name="sync_status_bookmarks_heading">Bookmarks</string>
+    <string name="sync_status_content_heading">Content</string>
+    <string name="sync_status_last_content_sync">Last content sync: %1$s</string>
     <string name="sync_status_total">Total bookmarks: %d</string>
-    <string name="sync_status_unread">Unread: %d</string>
+    <string name="sync_status_unread">My List: %d</string>
     <string name="sync_status_archived">Archived: %d</string>
     <string name="sync_status_favorites">Favorites: %d</string>
     <string name="sync_status_content_downloaded">Content downloaded: %d</string>

@@ -33,6 +33,7 @@ class SettingsDataStoreImpl @Inject constructor(@ApplicationContext private val 
     private val KEY_PASSWORD = stringPreferencesKey("password")
     private val KEY_LAST_BOOKMARK_TIMESTAMP = stringPreferencesKey("lastBookmarkTimestamp")
     private val KEY_LAST_SYNC_TIMESTAMP = stringPreferencesKey("lastSyncTimestamp")
+    private val KEY_LAST_CONTENT_SYNC_TIMESTAMP = stringPreferencesKey("lastContentSyncTimestamp")
     private val KEY_LAST_FULL_SYNC_TIMESTAMP = stringPreferencesKey("last_full_sync_timestamp")
     private val KEY_INITIAL_SYNC_PERFORMED = "initial_sync_performed"
     private val KEY_AUTOSYNC_ENABLED = booleanPreferencesKey("autosync_enabled")
@@ -97,6 +98,18 @@ class SettingsDataStoreImpl @Inject constructor(@ApplicationContext private val 
 
     override suspend fun getLastSyncTimestamp(): Instant? {
         return encryptedSharedPreferences.getString(KEY_LAST_SYNC_TIMESTAMP.name, null)?.let {
+            Instant.parse(it)
+        }
+    }
+
+    override suspend fun saveLastContentSyncTimestamp(timestamp: Instant) {
+        encryptedSharedPreferences.edit {
+            putString(KEY_LAST_CONTENT_SYNC_TIMESTAMP.name, timestamp.toString())
+        }
+    }
+
+    override suspend fun getLastContentSyncTimestamp(): Instant? {
+        return encryptedSharedPreferences.getString(KEY_LAST_CONTENT_SYNC_TIMESTAMP.name, null)?.let {
             Instant.parse(it)
         }
     }
@@ -262,9 +275,9 @@ class SettingsDataStoreImpl @Inject constructor(@ApplicationContext private val 
     }
 
     override suspend fun getContentSyncMode(): ContentSyncMode {
-        return encryptedSharedPreferences.getString(KEY_CONTENT_SYNC_MODE.name, ContentSyncMode.AUTOMATIC.name)?.let {
-            try { ContentSyncMode.valueOf(it) } catch (_: Exception) { ContentSyncMode.AUTOMATIC }
-        } ?: ContentSyncMode.AUTOMATIC
+        return encryptedSharedPreferences.getString(KEY_CONTENT_SYNC_MODE.name, ContentSyncMode.MANUAL.name)?.let {
+            try { ContentSyncMode.valueOf(it) } catch (_: Exception) { ContentSyncMode.MANUAL }
+        } ?: ContentSyncMode.MANUAL
     }
 
     override suspend fun saveContentSyncMode(mode: ContentSyncMode) {
@@ -275,8 +288,8 @@ class SettingsDataStoreImpl @Inject constructor(@ApplicationContext private val 
 
     override suspend fun getContentSyncConstraints(): ContentSyncConstraints {
         return ContentSyncConstraints(
-            wifiOnly = encryptedSharedPreferences.getBoolean(KEY_WIFI_ONLY.name, false),
-            allowOnBatterySaver = encryptedSharedPreferences.getBoolean(KEY_ALLOW_BATTERY_SAVER.name, true)
+            wifiOnly = encryptedSharedPreferences.getBoolean(KEY_WIFI_ONLY.name, true),
+            allowOnBatterySaver = encryptedSharedPreferences.getBoolean(KEY_ALLOW_BATTERY_SAVER.name, false)
         )
     }
 

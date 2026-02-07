@@ -14,6 +14,8 @@ data class ContentSyncConstraints(
 )
 
 data class DateRangeParams(
-    val from: LocalDate,
-    val to: LocalDate
+    val preset: DateRangePreset = DateRangePreset.PAST_MONTH,
+    val from: LocalDate? = null,
+    val to: LocalDate? = null,
+    val downloading: Boolean = false
 )
