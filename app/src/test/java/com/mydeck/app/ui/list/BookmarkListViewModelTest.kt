@@ -263,7 +263,7 @@ class BookmarkListViewModelTest {
                 iconSrc = "",
                 imageSrc = "",
                 readingTime = null,
-                created = kotlinx.datetime.Clock.System.now().toLocalDateTime(kotlinx.datetime.TimeZone.currentSystemDefault()),
+                created = kotlinx.datetime.LocalDateTime(2024, 1, 20, 12, 0, 0),
                 wordCount = null,
                 published = null
             )
@@ -1144,7 +1144,7 @@ class BookmarkListViewModelTest {
             iconSrc = "",
             imageSrc = "",
             readingTime = null,
-            created = kotlinx.datetime.Clock.System.now().toLocalDateTime(kotlinx.datetime.TimeZone.currentSystemDefault()),
+            created = kotlinx.datetime.LocalDateTime(2024, 1, 20, 12, 0, 0),
             wordCount = null,
             published = null
         )
