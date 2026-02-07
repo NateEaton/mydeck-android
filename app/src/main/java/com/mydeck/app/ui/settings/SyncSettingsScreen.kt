@@ -131,6 +131,12 @@ fun SyncSettingsScreen(
                 onDismiss = { viewModel.onDismissDialog() }
             )
         }
+        SyncSettingsDialog.ConstraintOverrideDialog -> {
+            ConstraintOverrideConfirmDialog(
+                onConfirm = { viewModel.onConstraintOverrideConfirmed() },
+                onCancel = { viewModel.onConstraintOverrideCancelled() }
+            )
+        }
         null -> { /* noop */ }
     }
 
@@ -194,27 +200,53 @@ fun SyncSettingsView(
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             // --- Section 1: Bookmark Sync ---
-            BookmarkSyncSection(
-                frequency = settingsUiState.bookmarkSyncFrequency,
-                nextRun = settingsUiState.nextAutoSyncRun,
-                onClickFrequency = onClickBookmarkSyncFrequency
-            )
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+                )
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    BookmarkSyncSection(
+                        frequency = settingsUiState.bookmarkSyncFrequency,
+                        nextRun = settingsUiState.nextAutoSyncRun,
+                        onClickFrequency = onClickBookmarkSyncFrequency
+                    )
+                }
+            }
 
             Spacer(modifier = Modifier.height(8.dp))
 
             // --- Section 2: Content Sync ---
-            ContentSyncSection(
-                contentSyncMode = settingsUiState.contentSyncMode,
-                dateRangePreset = settingsUiState.dateRangePreset,
-                dateRangeFrom = settingsUiState.dateRangeFrom,
-                dateRangeTo = settingsUiState.dateRangeTo,
-                isDateRangeDownloading = settingsUiState.isDateRangeDownloading,
-                onContentSyncModeSelected = onContentSyncModeSelected,
-                onDateRangePresetSelected = onDateRangePresetSelected,
-                onClickDateFrom = onClickDateFrom,
-                onClickDateTo = onClickDateTo,
-                onClickDateRangeDownload = onClickDateRangeDownload
-            )
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+                )
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    ContentSyncSection(
+                        contentSyncMode = settingsUiState.contentSyncMode,
+                        dateRangePreset = settingsUiState.dateRangePreset,
+                        dateRangeFrom = settingsUiState.dateRangeFrom,
+                        dateRangeTo = settingsUiState.dateRangeTo,
+                        isDateRangeDownloading = settingsUiState.isDateRangeDownloading,
+                        onContentSyncModeSelected = onContentSyncModeSelected,
+                        onDateRangePresetSelected = onDateRangePresetSelected,
+                        onClickDateFrom = onClickDateFrom,
+                        onClickDateTo = onClickDateTo,
+                        onClickDateRangeDownload = onClickDateRangeDownload
+                    )
+                }
+            }
 
             Spacer(modifier = Modifier.height(8.dp))
 
@@ -307,90 +339,145 @@ private fun ContentSyncSection(
         onClick = { onContentSyncModeSelected(ContentSyncMode.AUTOMATIC) }
     )
 
-    // Manual
+    // Manual (now contains Date Range as a sub-option)
     ContentSyncRadioOption(
-        selected = contentSyncMode == ContentSyncMode.MANUAL,
+        selected = contentSyncMode == ContentSyncMode.MANUAL || contentSyncMode == ContentSyncMode.DATE_RANGE,
         title = stringResource(R.string.sync_content_manual),
         description = stringResource(R.string.sync_content_manual_desc),
-        onClick = { onContentSyncModeSelected(ContentSyncMode.MANUAL) }
+        onClick = {
+            if (contentSyncMode != ContentSyncMode.MANUAL && contentSyncMode != ContentSyncMode.DATE_RANGE) {
+                onContentSyncModeSelected(ContentSyncMode.MANUAL)
+            }
+        }
     )
 
-    // Date Range
-    ContentSyncRadioOption(
-        selected = contentSyncMode == ContentSyncMode.DATE_RANGE,
-        title = stringResource(R.string.sync_content_date_range),
-        description = stringResource(R.string.sync_content_date_range_desc),
-        onClick = { onContentSyncModeSelected(ContentSyncMode.DATE_RANGE) }
-    )
-
-    // Date range controls (shown when Date Range is selected)
-    if (contentSyncMode == ContentSyncMode.DATE_RANGE) {
+    // Date range sub-option (shown when Manual is selected)
+    if (contentSyncMode == ContentSyncMode.MANUAL || contentSyncMode == ContentSyncMode.DATE_RANGE) {
         Column(
             modifier = Modifier.padding(start = 40.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            // Preset dropdown
-            DateRangePresetDropdown(
-                selectedPreset = dateRangePreset,
-                onPresetSelected = onDateRangePresetSelected,
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            // Custom date pickers (shown only when CUSTOM is selected)
-            if (dateRangePreset == DateRangePreset.CUSTOM) {
-                // From date
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(
-                        text = stringResource(R.string.sync_content_date_from),
-                        style = Typography.bodyMedium,
-                        modifier = Modifier.width(48.dp)
+            // Sub-choice: On demand vs By date range
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .selectable(
+                        selected = contentSyncMode == ContentSyncMode.MANUAL,
+                        onClick = { onContentSyncModeSelected(ContentSyncMode.MANUAL) },
+                        role = Role.RadioButton
                     )
-                    OutlinedButton(
-                        onClick = onClickDateFrom,
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Text(dateRangeFrom?.toString() ?: "Select date")
-                    }
-                }
+                    .padding(vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                RadioButton(
+                    selected = contentSyncMode == ContentSyncMode.MANUAL,
+                    onClick = null
+                )
+                Text(
+                    text = "On demand",
+                    style = Typography.bodyMedium,
+                    modifier = Modifier.padding(start = 8.dp)
+                )
+            }
 
-                // To date
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(
-                        text = stringResource(R.string.sync_content_date_to),
-                        style = Typography.bodyMedium,
-                        modifier = Modifier.width(48.dp)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .selectable(
+                        selected = contentSyncMode == ContentSyncMode.DATE_RANGE,
+                        onClick = { onContentSyncModeSelected(ContentSyncMode.DATE_RANGE) },
+                        role = Role.RadioButton
                     )
-                    OutlinedButton(
-                        onClick = onClickDateTo,
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Text(dateRangeTo?.toString() ?: "Select date")
-                    }
+                    .padding(vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                RadioButton(
+                    selected = contentSyncMode == ContentSyncMode.DATE_RANGE,
+                    onClick = null
+                )
+                Column(modifier = Modifier.padding(start = 8.dp)) {
+                    Text(
+                        text = stringResource(R.string.sync_content_date_range),
+                        style = Typography.bodyMedium
+                    )
+                    Text(
+                        text = stringResource(R.string.sync_content_date_range_desc),
+                        style = Typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
             }
 
-            // Download button
-            Button(
-                onClick = onClickDateRangeDownload,
-                enabled = dateRangeFrom != null && dateRangeTo != null && !isDateRangeDownloading,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                if (isDateRangeDownloading) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(16.dp),
-                        strokeWidth = 2.dp,
-                        color = MaterialTheme.colorScheme.onPrimary
+            // Date range controls (shown when Date Range is selected)
+            if (contentSyncMode == ContentSyncMode.DATE_RANGE) {
+                Column(
+                    modifier = Modifier.padding(start = 32.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    // Preset dropdown
+                    DateRangePresetDropdown(
+                        selectedPreset = dateRangePreset,
+                        onPresetSelected = onDateRangePresetSelected,
+                        modifier = Modifier.fillMaxWidth()
                     )
-                    Spacer(Modifier.width(8.dp))
-                    Text(stringResource(R.string.sync_content_downloading))
-                } else {
-                    Text(stringResource(R.string.sync_content_download_button))
+
+                    // Custom date pickers (shown only when CUSTOM is selected)
+                    if (dateRangePreset == DateRangePreset.CUSTOM) {
+                        // From date
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                text = stringResource(R.string.sync_content_date_from),
+                                style = Typography.bodyMedium,
+                                modifier = Modifier.width(48.dp)
+                            )
+                            OutlinedButton(
+                                onClick = onClickDateFrom,
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text(dateRangeFrom?.toString() ?: "Select date")
+                            }
+                        }
+
+                        // To date
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                text = stringResource(R.string.sync_content_date_to),
+                                style = Typography.bodyMedium,
+                                modifier = Modifier.width(48.dp)
+                            )
+                            OutlinedButton(
+                                onClick = onClickDateTo,
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text(dateRangeTo?.toString() ?: "Select date")
+                            }
+                        }
+                    }
+
+                    // Download button
+                    Button(
+                        onClick = onClickDateRangeDownload,
+                        enabled = dateRangeFrom != null && dateRangeTo != null && !isDateRangeDownloading,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        if (isDateRangeDownloading) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(16.dp),
+                                strokeWidth = 2.dp,
+                                color = MaterialTheme.colorScheme.onPrimary
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text(stringResource(R.string.sync_content_downloading))
+                        } else {
+                            Text(stringResource(R.string.sync_content_download_button))
+                        }
+                    }
                 }
             }
         }
@@ -613,6 +700,29 @@ private fun BackgroundSyncRationaleDialog(
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.cancel))
+            }
+        }
+    )
+}
+
+// --- Constraint Override Dialog ---
+@Composable
+private fun ConstraintOverrideConfirmDialog(
+    onConfirm: () -> Unit,
+    onCancel: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onCancel,
+        title = { Text("Download Content?") },
+        text = { Text("Content download is blocked by active constraints (Wi-Fi only and/or battery saver). Would you like to temporarily override these settings to complete this download?") },
+        confirmButton = {
+            Button(onClick = onConfirm) {
+                Text("Override & Download")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onCancel) {
                 Text(stringResource(R.string.cancel))
             }
         }

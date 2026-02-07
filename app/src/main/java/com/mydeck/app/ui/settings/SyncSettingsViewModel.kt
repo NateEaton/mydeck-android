@@ -29,6 +29,7 @@ import com.mydeck.app.domain.usecase.FullSyncUseCase
 import com.mydeck.app.io.db.dao.BookmarkDao
 import com.mydeck.app.io.prefs.SettingsDataStore
 import com.mydeck.app.worker.DateRangeContentSyncWorker
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -79,6 +80,11 @@ class SyncSettingsViewModel @Inject constructor(
 
     // Dialog
     private val showDialog = MutableStateFlow<SyncSettingsDialog?>(null)
+
+    // Constraint override state
+    private var savedWifiOnly = false
+    private var savedAllowBatterySaver = true
+    private var constraintBlockingDownload: String? = null  // Description of which constraint is blocking
 
     // Last sync timestamps
     private val lastSyncTimestamp = MutableStateFlow<String?>(null)
@@ -310,6 +316,65 @@ class SyncSettingsViewModel @Inject constructor(
         val from = dateRangeFrom.value ?: return
         val to = dateRangeTo.value ?: return
 
+        // Check if constraints are blocking the download
+        val isWifiConstraintActive = wifiOnly.value
+        val isBatterySaverConstraintActive = !allowBatterySaver.value
+
+        if (isWifiConstraintActive || isBatterySaverConstraintActive) {
+            // Build constraint description for the dialog
+            val constraints = mutableListOf<String>()
+            if (isWifiConstraintActive) constraints.add("Wi-Fi only")
+            if (isBatterySaverConstraintActive) constraints.add("battery saver active")
+
+            constraintBlockingDownload = constraints.joinToString(" and ")
+            showDialog.value = SyncSettingsDialog.ConstraintOverrideDialog
+            return
+        }
+
+        // No constraints blocking, proceed with download
+        performDateRangeDownload(from, to)
+    }
+
+    fun onConstraintOverrideConfirmed() {
+        val from = dateRangeFrom.value ?: return
+        val to = dateRangeTo.value ?: return
+
+        // Save current constraint values
+        savedWifiOnly = wifiOnly.value
+        savedAllowBatterySaver = allowBatterySaver.value
+
+        viewModelScope.launch {
+            // Temporarily disable constraints
+            if (wifiOnly.value) {
+                settingsDataStore.saveWifiOnly(false)
+                wifiOnly.value = false
+            }
+            if (!allowBatterySaver.value) {
+                settingsDataStore.saveAllowOnBatterySaver(true)
+                allowBatterySaver.value = true
+            }
+
+            // Perform the download
+            performDateRangeDownload(from, to)
+
+            // Restore constraints after a short delay to ensure work is enqueued
+            kotlinx.coroutines.delay(500)
+            settingsDataStore.saveWifiOnly(savedWifiOnly)
+            wifiOnly.value = savedWifiOnly
+            settingsDataStore.saveAllowOnBatterySaver(savedAllowBatterySaver)
+            allowBatterySaver.value = savedAllowBatterySaver
+
+            // Close dialog
+            showDialog.value = null
+        }
+    }
+
+    fun onConstraintOverrideCancelled() {
+        constraintBlockingDownload = null
+        showDialog.value = null
+    }
+
+    private fun performDateRangeDownload(from: LocalDate, to: LocalDate) {
         // Request permission if needed
         requestBackgroundPermissionIfNeeded()
 
@@ -338,6 +403,13 @@ class SyncSettingsViewModel @Inject constructor(
         )
 
         Timber.i("Enqueued DateRangeContentSyncWorker [from=$from, to=$to]")
+
+        // Switch back to MANUAL mode after successful download
+        viewModelScope.launch {
+            delay(1000)  // Wait a moment for work to be enqueued
+            settingsDataStore.saveContentSyncMode(ContentSyncMode.MANUAL)
+            contentSyncMode.value = ContentSyncMode.MANUAL
+        }
     }
 
     // --- Constraints ---
@@ -479,7 +551,8 @@ enum class SyncSettingsDialog {
     BackgroundRationaleDialog,
     PermissionRequest,
     DateFromPicker,
-    DateToPicker
+    DateToPicker,
+    ConstraintOverrideDialog
 }
 
 data class AutoSyncTimeframeOption(
