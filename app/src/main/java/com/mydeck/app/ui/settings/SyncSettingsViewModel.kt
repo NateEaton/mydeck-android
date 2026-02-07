@@ -407,6 +407,7 @@ class SyncSettingsViewModel @Inject constructor(
         val inputData = Data.Builder()
             .putLong(DateRangeContentSyncWorker.PARAM_FROM_EPOCH, fromEpoch)
             .putLong(DateRangeContentSyncWorker.PARAM_TO_EPOCH, toEpoch)
+            .putBoolean(DateRangeContentSyncWorker.PARAM_OVERRIDE, isOverriding)
             .build()
 
         // Build constraints based on current settings and overrides
