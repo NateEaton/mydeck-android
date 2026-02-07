@@ -23,6 +23,8 @@ import com.mydeck.app.R
 import com.mydeck.app.domain.model.AutoSyncTimeframe
 import com.mydeck.app.domain.sync.ContentSyncMode
 import com.mydeck.app.domain.sync.DateRangeParams
+import com.mydeck.app.domain.sync.DateRangePreset
+import com.mydeck.app.domain.sync.toDateRange
 import com.mydeck.app.domain.usecase.FullSyncUseCase
 import com.mydeck.app.io.db.dao.BookmarkDao
 import com.mydeck.app.io.prefs.SettingsDataStore
@@ -36,7 +38,10 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.datetime.Clock
 import kotlinx.datetime.LocalDate
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
 import timber.log.Timber
 import java.text.DateFormat
 import java.util.Date
@@ -63,6 +68,7 @@ class SyncSettingsViewModel @Inject constructor(
 
     // Content sync
     private val contentSyncMode = MutableStateFlow(ContentSyncMode.AUTOMATIC)
+    private val dateRangePreset = MutableStateFlow(DateRangePreset.PAST_MONTH)
     private val dateRangeFrom = MutableStateFlow<LocalDate?>(null)
     private val dateRangeTo = MutableStateFlow<LocalDate?>(null)
     private val isDateRangeDownloading = MutableStateFlow(false)
@@ -113,6 +119,7 @@ class SyncSettingsViewModel @Inject constructor(
             wifiOnly.value = constraints.wifiOnly
             allowBatterySaver.value = constraints.allowOnBatterySaver
             settingsDataStore.getDateRangeParams()?.let {
+                dateRangePreset.value = it.preset
                 dateRangeFrom.value = it.from
                 dateRangeTo.value = it.to
             }
@@ -174,12 +181,13 @@ class SyncSettingsViewModel @Inject constructor(
     }.combine(
         combine(
             allowBatterySaver,
+            dateRangePreset,
             dateRangeFrom,
             dateRangeTo,
             isDateRangeDownloading,
             detailedSyncStatus
-        ) { battery, from, to, downloading, status ->
-            SyncSettingsPartial2(battery, from, to, downloading, status)
+        ) { battery, preset, from, to, downloading, status ->
+            SyncSettingsPartial2(battery, preset, from, to, downloading, status)
         }
     ) { p1, p2 ->
         SyncSettingsUiState(
@@ -187,6 +195,7 @@ class SyncSettingsViewModel @Inject constructor(
             bookmarkSyncFrequencyOptions = getBookmarkSyncOptions(p1.freq),
             nextAutoSyncRun = p1.next?.let { dateFormat.format(Date(it)) },
             contentSyncMode = p1.mode,
+            dateRangePreset = p2.preset,
             dateRangeFrom = p2.from,
             dateRangeTo = p2.to,
             isDateRangeDownloading = p2.downloading,
@@ -244,6 +253,29 @@ class SyncSettingsViewModel @Inject constructor(
         }
     }
 
+    fun onDateRangePresetSelected(preset: DateRangePreset) {
+        dateRangePreset.value = preset
+
+        // If preset is not CUSTOM, calculate and save the dates
+        if (preset != DateRangePreset.CUSTOM) {
+            val today = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).date
+            val (from, to) = preset.toDateRange(today)
+            dateRangeFrom.value = from
+            dateRangeTo.value = to
+        }
+
+        // Save the preset and current dates
+        viewModelScope.launch {
+            settingsDataStore.saveDateRangeParams(
+                DateRangeParams(
+                    preset = preset,
+                    from = dateRangeFrom.value,
+                    to = dateRangeTo.value
+                )
+            )
+        }
+    }
+
     fun onDateRangeFromSelected(date: LocalDate) {
         dateRangeFrom.value = date
         saveDateRangeIfBothSet()
@@ -258,7 +290,13 @@ class SyncSettingsViewModel @Inject constructor(
         val from = dateRangeFrom.value ?: return
         val to = dateRangeTo.value ?: return
         viewModelScope.launch {
-            settingsDataStore.saveDateRangeParams(DateRangeParams(from, to))
+            settingsDataStore.saveDateRangeParams(
+                DateRangeParams(
+                    preset = dateRangePreset.value,
+                    from = from,
+                    to = to
+                )
+            )
         }
     }
 
@@ -383,6 +421,7 @@ class SyncSettingsViewModel @Inject constructor(
 
     private data class SyncSettingsPartial2(
         val battery: Boolean,
+        val preset: DateRangePreset,
         val from: LocalDate?,
         val to: LocalDate?,
         val downloading: Boolean,
@@ -399,6 +438,7 @@ data class SyncSettingsUiState(
 
     // Content sync
     val contentSyncMode: ContentSyncMode = ContentSyncMode.AUTOMATIC,
+    val dateRangePreset: DateRangePreset = DateRangePreset.PAST_MONTH,
     val dateRangeFrom: LocalDate? = null,
     val dateRangeTo: LocalDate? = null,
     val isDateRangeDownloading: Boolean = false,
