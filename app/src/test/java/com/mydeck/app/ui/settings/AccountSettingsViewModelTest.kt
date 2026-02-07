@@ -6,6 +6,7 @@ import com.mydeck.app.domain.usecase.AuthenticationResult
 import com.mydeck.app.io.prefs.SettingsDataStore
 import io.mockk.coEvery
 import io.mockk.coVerify
+import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -39,9 +40,11 @@ class AccountSettingsViewModelTest {
         Dispatchers.setMain(testDispatcher)
         settingsDataStore = mockk()
         authenticateUseCase = mockk()
-        coEvery { settingsDataStore.urlFlow } returns MutableStateFlow("")
-        coEvery { settingsDataStore.usernameFlow } returns MutableStateFlow("")
-        coEvery { settingsDataStore.passwordFlow } returns MutableStateFlow("")
+        every { settingsDataStore.urlFlow } returns MutableStateFlow("")
+        every { settingsDataStore.usernameFlow } returns MutableStateFlow("")
+        every { settingsDataStore.passwordFlow } returns MutableStateFlow("")
+        every { settingsDataStore.tokenFlow } returns MutableStateFlow(null)
+        coEvery { settingsDataStore.clearCredentials() } returns Unit
         viewModel = AccountSettingsViewModel(settingsDataStore, authenticateUseCase)
     }
 
@@ -52,9 +55,10 @@ class AccountSettingsViewModelTest {
 
     @Test
     fun `initial uiState should reflect data store values`() = runTest {
-        coEvery { settingsDataStore.urlFlow } returns MutableStateFlow("https://example.com")
-        coEvery { settingsDataStore.usernameFlow } returns MutableStateFlow("testUser")
-        coEvery { settingsDataStore.passwordFlow } returns MutableStateFlow("testPassword")
+        every { settingsDataStore.urlFlow } returns MutableStateFlow("https://example.com")
+        every { settingsDataStore.usernameFlow } returns MutableStateFlow("testUser")
+        every { settingsDataStore.passwordFlow } returns MutableStateFlow("testPassword")
+        every { settingsDataStore.tokenFlow } returns MutableStateFlow("")
         viewModel = AccountSettingsViewModel(settingsDataStore, authenticateUseCase)
 
         val uiStateList = viewModel.uiState.take(2).toList()

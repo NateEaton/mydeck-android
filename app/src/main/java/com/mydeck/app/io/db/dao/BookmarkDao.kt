@@ -102,9 +102,11 @@ interface BookmarkDao {
     @Query("DELETE FROM bookmarks WHERE id = :id")
     suspend fun deleteBookmark(id: String)
 
+    @Transaction
     @RawQuery(observedEntities = [BookmarkEntity::class])
     fun getBookmarksByFiltersDynamic(query: SupportSQLiteQuery): Flow<List<BookmarkEntity>>
 
+    @Transaction
     @RawQuery(observedEntities = [BookmarkEntity::class])
     fun getBookmarkListItemsByFiltersDynamic(query: SupportSQLiteQuery): Flow<List<BookmarkListItemEntity>>
 
