@@ -1047,6 +1047,7 @@ fun LabelsListView(
                         }
                 )
             }
+            }
             VerticalScrollbar(
                 modifier = Modifier
                     .align(Alignment.CenterEnd)
@@ -1106,6 +1107,7 @@ fun BookmarkListView(
                     onClickOpenUrl = onClickOpenUrl
                 )
             }
+        }
         }
         VerticalScrollbar(
             modifier = Modifier
