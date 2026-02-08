@@ -17,9 +17,11 @@ import com.mydeck.app.worker.LoadBookmarksWorker
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
+import io.mockk.Runs
+import io.mockk.just
 import io.mockk.mockk
-import io.mockk.mockkStatic
-import io.mockk.unmockkStatic
+import io.mockk.mockkObject
+import io.mockk.unmockkObject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -71,8 +73,8 @@ class BookmarkListViewModelTest {
         connectivityMonitor = mockk()
 
         workInfoFlow = flowOf(emptyList())
-        mockkStatic(LoadBookmarksWorker::class)
-        every { LoadBookmarksWorker.enqueue(any(), any()) } returns Unit
+        mockkObject(LoadBookmarksWorker.Companion)
+        every { LoadBookmarksWorker.enqueue(any(), any()) } just Runs
 
         // Default Mocking Behavior
         coEvery { settingsDataStore.isInitialSyncPerformed() } returns true // Assume sync is done
@@ -96,7 +98,7 @@ class BookmarkListViewModelTest {
 
     @After
     fun tearDown() {
-        unmockkStatic(LoadBookmarksWorker::class)
+        unmockkObject(LoadBookmarksWorker.Companion)
         Dispatchers.resetMain()
     }
 
