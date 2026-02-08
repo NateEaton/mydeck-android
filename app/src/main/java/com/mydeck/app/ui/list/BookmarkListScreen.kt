@@ -186,6 +186,9 @@ fun BookmarkListScreen(navHostController: NavHostController) {
     val onClickOpenUrl: (String) -> Unit = { bookmarkId ->
         viewModel.onClickBookmarkOpenOriginal(bookmarkId)
     }
+    val onClickOpenInBrowser: (String) -> Unit = { url ->
+        viewModel.onClickOpenInBrowser(url)
+    }
 
     LaunchedEffect(key1 = navigationEvent.value) {
         navigationEvent.value?.let { event ->
@@ -717,7 +720,8 @@ fun BookmarkListScreen(navHostController: NavHostController) {
                                 onClickFavorite = onClickFavorite,
                                 onClickShareBookmark = onClickShareBookmark,
                                 onClickLabel = { label -> viewModel.onClickLabel(label) },
-                                onClickOpenUrl = onClickOpenUrl
+                                onClickOpenUrl = onClickOpenUrl,
+                                onClickOpenInBrowser = onClickOpenInBrowser
                             )
                             // Consumes a shareIntent and creates the corresponding share dialog
                             ShareBookmarkChooser(
@@ -1087,7 +1091,8 @@ fun BookmarkListView(
     onClickArchive: (String, Boolean) -> Unit,
     onClickShareBookmark: (String) -> Unit,
     onClickLabel: (String) -> Unit = {},
-    onClickOpenUrl: (String) -> Unit = {}
+    onClickOpenUrl: (String) -> Unit = {},
+    onClickOpenInBrowser: (String) -> Unit = {}
 ) {
     val lazyListState = key(filterKey) { rememberLazyListState() }
     LaunchedEffect(scrollToTopTrigger) {
@@ -1107,7 +1112,8 @@ fun BookmarkListView(
                         onClickFavorite = onClickFavorite,
                         onClickShareBookmark = onClickShareBookmark,
                         onClickLabel = onClickLabel,
-                        onClickOpenUrl = onClickOpenUrl
+                        onClickOpenUrl = onClickOpenUrl,
+                        onClickOpenInBrowser = onClickOpenInBrowser
                     )
                     LayoutMode.COMPACT -> BookmarkCompactCard(
                         bookmark = bookmark,
@@ -1117,7 +1123,8 @@ fun BookmarkListView(
                         onClickFavorite = onClickFavorite,
                         onClickShareBookmark = onClickShareBookmark,
                         onClickLabel = onClickLabel,
-                        onClickOpenUrl = onClickOpenUrl
+                        onClickOpenUrl = onClickOpenUrl,
+                        onClickOpenInBrowser = onClickOpenInBrowser
                     )
                     LayoutMode.MOSAIC -> BookmarkMosaicCard(
                     bookmark = bookmark,
@@ -1127,7 +1134,8 @@ fun BookmarkListView(
                     onClickFavorite = onClickFavorite,
                     onClickShareBookmark = onClickShareBookmark,
                     onClickLabel = onClickLabel,
-                    onClickOpenUrl = onClickOpenUrl
+                    onClickOpenUrl = onClickOpenUrl,
+                    onClickOpenInBrowser = onClickOpenInBrowser
                 )
             }
         }

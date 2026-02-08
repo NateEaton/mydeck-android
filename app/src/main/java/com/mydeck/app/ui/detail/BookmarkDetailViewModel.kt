@@ -96,6 +96,12 @@ class BookmarkDetailViewModel @Inject constructor(
     private val _pendingDeletion = MutableStateFlow(false)
     val pendingDeletion: StateFlow<Boolean> = _pendingDeletion.asStateFlow()
 
+    // Article search state
+    private val _articleSearchState = MutableStateFlow(ArticleSearchState())
+    val articleSearchState: StateFlow<ArticleSearchState> = _articleSearchState.asStateFlow()
+
+    private var searchDebounceJob: Job? = null
+
     init {
         // Load initial progress and handle type-specific behavior
         if (bookmarkId != null) {
@@ -567,4 +573,65 @@ class BookmarkDetailViewModel @Inject constructor(
             }
         }
     }
+
+    // Article search functions
+    fun onArticleSearchActivate() {
+        _articleSearchState.update { it.copy(isActive = true) }
+    }
+
+    fun onArticleSearchDeactivate() {
+        searchDebounceJob?.cancel()
+        _articleSearchState.update { ArticleSearchState() }
+    }
+
+    fun onArticleSearchQueryChange(query: String) {
+        _articleSearchState.update { it.copy(query = query) }
+
+        // Debounce search execution
+        searchDebounceJob?.cancel()
+        searchDebounceJob = viewModelScope.launch {
+            delay(300)
+            // Signal that search should be executed
+            // The actual search is performed in the UI layer via WebViewSearchBridge
+        }
+    }
+
+    fun onArticleSearchUpdateResults(totalMatches: Int) {
+        _articleSearchState.update { state ->
+            val newCurrent = if (totalMatches > 0 && state.currentMatch == 0) 1 else 0
+            state.copy(
+                totalMatches = totalMatches,
+                currentMatch = newCurrent
+            )
+        }
+    }
+
+    fun onArticleSearchNext() {
+        _articleSearchState.update { state ->
+            if (state.totalMatches > 0) {
+                val next = if (state.currentMatch >= state.totalMatches) 1 else state.currentMatch + 1
+                state.copy(currentMatch = next)
+            } else {
+                state
+            }
+        }
+    }
+
+    fun onArticleSearchPrevious() {
+        _articleSearchState.update { state ->
+            if (state.totalMatches > 0) {
+                val prev = if (state.currentMatch <= 1) state.totalMatches else state.currentMatch - 1
+                state.copy(currentMatch = prev)
+            } else {
+                state
+            }
+        }
+    }
+
+    data class ArticleSearchState(
+        val isActive: Boolean = false,
+        val query: String = "",
+        val totalMatches: Int = 0,
+        val currentMatch: Int = 0  // 1-based, 0 when no matches
+    )
 }
