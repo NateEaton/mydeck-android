@@ -80,6 +80,7 @@ import com.mydeck.app.domain.model.Template
 import com.mydeck.app.util.openUrlInCustomTab
 import com.mydeck.app.ui.components.ShareBookmarkChooser
 import com.mydeck.app.ui.detail.BookmarkDetailViewModel.ContentLoadState
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -131,16 +132,6 @@ fun BookmarkDetailScreen(navHostController: NavController, bookmarkId: String?, 
     val onArticleSearchPrevious = { viewModel.onArticleSearchPrevious() }
     val onArticleSearchUpdateResults = { totalMatches: Int -> viewModel.onArticleSearchUpdateResults(totalMatches) }
 
-    // Open in browser (uses ACTION_VIEW intent instead of Custom Tab)
-    val onClickOpenInBrowser: (String) -> Unit = { url ->
-        try {
-            val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url))
-            context.startActivity(intent)
-        } catch (e: Exception) {
-            // Handle error silently or show snackbar
-        }
-    }
-
     LaunchedEffect(key1 = navigationEvent.value) {
         navigationEvent.value?.let { event ->
             when (event) {
@@ -156,6 +147,16 @@ fun BookmarkDetailScreen(navHostController: NavController, bookmarkId: String?, 
     LaunchedEffect(key1 = openUrlEvent.value){
         openUrlInCustomTab(context, openUrlEvent.value)
         viewModel.onOpenUrlEventConsumed()
+    }
+
+    // Open in browser (uses ACTION_VIEW intent instead of Custom Tab)
+    val onClickOpenInBrowser: (String) -> Unit = { url ->
+        try {
+            val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url))
+            context.startActivity(intent)
+        } catch (e: Exception) {
+            // Handle error silently or show snackbar
+        }
     }
 
     when (uiState) {
