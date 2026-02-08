@@ -581,7 +581,6 @@ class BookmarkListViewModel @Inject constructor(
                 if (isArchived) {
                     when (val result = updateBookmarkUseCase.updateIsArchived(bookmarkId, true)) {
                         is UpdateBookmarkUseCase.Result.Success -> {
-                            fullSyncUseCase.performFullSync()
                             _createBookmarkUiState.value = CreateBookmarkUiState.Success(isArchived = true)
                         }
                         is UpdateBookmarkUseCase.Result.GenericError -> {
