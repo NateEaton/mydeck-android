@@ -201,8 +201,22 @@ Recommended:
 
 Avoid:
 
-* Modal bottom sheets
+* Modal bottom sheets (see rationale below)
 * Scrollable filter content
+
+### Why Inline Panel, Not a Bottom Sheet
+
+The Add Bookmark feature uses a `ModalBottomSheet` (see FEATURE_SPEC_Unified_Add_Bookmark.md, Phase 1). The question of whether the filter panel should also use a bottom sheet for visual consistency was considered and rejected:
+
+* **Different lifecycle:** The add bookmark sheet is a *transient action* — the user creates something and the sheet goes away. The filter panel is a *view configuration* — the user sets filters and then browses results. These are fundamentally different interaction patterns.
+* **Persistent context:** The filter panel collapses into a summary bar that remains visible while scrolling results. A bottom sheet would need to be fully dismissed, losing that always-visible filter summary.
+* **Small surface area:** The filter panel has only 5 controls. An inline collapsible fits naturally without scrolling. A bottom sheet would feel over-engineered for this content.
+* **Precedent:** The sort and layout menus in the app bar use `DropdownMenu` (not bottom sheets), which is the standard Material 3 pattern for small option lists. The inline panel is a natural step up from dropdowns for slightly richer controls, without jumping to the heavier bottom sheet pattern.
+
+**Consistency note:** The app uses three tiers of progressive disclosure, each appropriate to its content complexity:
+1. **DropdownMenu** — simple option lists (sort, layout mode)
+2. **Inline collapsible panel** — moderate controls (filter panel)
+3. **ModalBottomSheet** — form input with keyboard interaction (add bookmark)
 
 ### Configuration Changes
 

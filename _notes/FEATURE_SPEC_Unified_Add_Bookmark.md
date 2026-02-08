@@ -3,7 +3,104 @@
 ## 1. Overview
 This feature replaces the current `AlertDialog`-based "Add Bookmark" experience with a **Modal Bottom Sheet**. This modernizes the UI, solves keyboard occlusion issues, and unifies the code used for both in-app adding and external sharing (Intents).
 
-## 2. Architecture
+### Implementation Phases
+
+This spec is split into two phases with a clear dependency boundary:
+
+| Phase | Scope | Dependency |
+|-------|-------|------------|
+| **Phase 1** | Replace in-app AlertDialog with ModalBottomSheet | None — can be implemented immediately |
+| **Phase 2** | ShareActivity, intent handling, auto-save timer, CreateBookmarkWorker | Requires Offline Action Queue (for fire-and-forget worker pattern) |
+
+---
+
+## Phase 1: In-App Bottom Sheet
+
+### What Changes
+
+Replace the `CreateBookmarkDialog` (`AlertDialog` in `BookmarkListScreen.kt`) with a `ModalBottomSheet` wrapping the new `AddBookmarkSheet` composable. This is a UI-layer swap only — no new activities, no workers, no architectural changes.
+
+### 1.1 New Composable: `AddBookmarkSheet`
+
+```kotlin
+@Composable
+fun AddBookmarkSheet(
+    url: String,
+    title: String,
+    urlError: Int?,
+    isCreateEnabled: Boolean,
+    labels: List<String>,
+    onUrlChange: (String) -> Unit,
+    onTitleChange: (String) -> Unit,
+    onLabelsChange: (List<String>) -> Unit,
+    onCreateBookmark: () -> Unit,
+    onArchiveBookmark: () -> Unit,
+    onDismiss: () -> Unit
+)
+```
+
+### 1.2 Visual Layout
+
+* **Drag Handle:** Standard Material 3 top pill.
+* **Header:** Text "Add Link".
+* **Form (Vertical Column):**
+    * **URL:** Editable `OutlinedTextField` with error support (preserves existing validation).
+    * **Title:** Editable `OutlinedTextField`.
+    * **Labels:** `FlowRow` of Chips + "Add Label" input field.
+        * Tapping "Add Label" shows the keyboard. The Sheet pushes up via `Modifier.imePadding()` so the input remains visible.
+* **Action Bar (Bottom Row):**
+    * **Left:** \[Archive\] (Outlined Button) — saves with `isArchived=true`, closes sheet.
+    * **Right:** \[Add\] (Filled/Primary Button) — saves normally, closes sheet.
+
+### 1.3 Why Include Archive in Phase 1
+
+In many cases users add bookmarks for content they have already read. The Archive button enables moving a bookmark directly to the archive at creation time, keeping "My List" focused on unread content. This is a small addition (one extra callback routed through the existing ViewModel) with meaningful UX value.
+
+### 1.4 Behavioral Notes (In-App Mode)
+
+| Aspect | Behavior |
+|--------|----------|
+| **Auto-Save Timer** | Disabled. Waits for user input. |
+| **Dismissal** | Swiping down cancels (sheet closes, no save). |
+| **"Add" Action** | Saves via existing ViewModel path → closes sheet → shows Snackbar. |
+| **"Archive" Action** | Saves with `isArchived=true` → closes sheet → shows Snackbar. |
+| **Clipboard** | FAB still pre-fills URL from clipboard (existing behavior preserved). |
+
+### 1.5 Keyboard Handling
+
+* Apply `Modifier.imePadding()` to the sheet content.
+* Ensure `WindowCompat.setDecorFitsSystemWindows(window, false)` is set (check if already configured).
+* The sheet must be scrollable if content exceeds visible area (e.g., landscape mode with keyboard open).
+
+### 1.6 Implementation Steps (Phase 1)
+
+**Step 1:** Create `AddBookmarkSheet.kt` in `ui/list/`.
+
+**Step 2:** In `BookmarkListScreen.kt`:
+  * Remove the `CreateBookmarkDialog` composable and its call site.
+  * Add `ModalBottomSheet` wrapping `AddBookmarkSheet`.
+  * Wire existing ViewModel state (`createBookmarkUrl`, `createBookmarkTitle`, `createBookmarkLabels`, etc.) to the new sheet.
+
+**Step 3:** Add the archive-on-create path:
+  * Add `onArchiveBookmark` callback to `BookmarkListViewModel` that sets `isArchived=true` before calling the create API.
+  * Surface the callback through to the sheet's Archive button.
+
+**Step 4:** Test keyboard behavior across screen sizes and orientations. Verify `imePadding()` works correctly with the label input field.
+
+### 1.7 String Resources (Phase 1)
+
+```xml
+<string name="add_link">Add Link</string>
+<string name="action_archive_bookmark">Archive</string>
+```
+
+Note: `add_link` replaces the dialog title "Add New Bookmark" with a shorter header appropriate for the sheet context. The existing `add_bookmark` string is retained for the FAB content description.
+
+---
+
+## Phase 2: Share Intent & Background Processing
+
+> **Prerequisite:** Offline Action Queue must be implemented first. The `CreateBookmarkWorker` pattern depends on the queue infrastructure for reliable fire-and-forget behavior.
 
 ### 2.1 New Component: `ShareActivity`
 A dedicated entry point for `ACTION_SEND` intents to create the "overlay" effect over other apps (e.g., Chrome).
@@ -14,74 +111,42 @@ A dedicated entry point for `ACTION_SEND` intents to create the "overlay" effect
     *   `windowSoftInputMode`: `adjustResize` (Critical for keyboard handling).
 *   **Lifecycle:**
     1.  Extracts URL/Title from Intent.
-    2.  Displays `AddBookmarkSheet` (Composable).
+    2.  Displays `AddBookmarkSheet` (Composable) — reuses the Phase 1 component with `mode = SHARE_INTENT`.
     3.  On Action (Add/Archive/Timeout) -> Enqueues Worker -> Calls `finish()`.
     4.  On Action (View) -> Enqueues Worker -> Launches `MainActivity` -> Calls `finish()`.
 
-### 2.2 Existing Component: `BookmarkListScreen`
-*   **Change:** Replace the `AlertDialog` conditional logic with a `ModalBottomSheet`.
-*   **State:** The ViewModel continues to manage `CreateBookmarkUiState`, but the UI renders the shared Sheet instead of a Dialog.
+### 2.2 AddBookmarkSheet Mode Extension
 
----
-
-## 3. Shared UI Component: `AddBookmarkSheet`
-
-A single Composable used by both Activities.
+The Phase 1 composable is extended with a `mode` parameter:
 
 ```kotlin
-@Composable
-fun AddBookmarkSheet(
-    url: String,
-    title: String,
-    initialLabels: List<String>,
-    // Configuration
-    mode: SheetMode, // Enum: SHARE_INTENT or IN_APP
-    // Callbacks
-    onUpdateTitle: (String) -> Unit,
-    onUpdateLabels: (List<String>) -> Unit,
-    onAction: (SaveAction) -> Unit, // ADD, ARCHIVE, VIEW
-    onDismiss: () -> Unit,
-    onInteraction: () -> Unit // Used to cancel timer
-)
+enum class SheetMode { IN_APP, SHARE_INTENT }
 ```
 
-### 3.1 Visual Layout (Material 3 BottomSheet)
-*   **Drag Handle:** Standard top pill.
-*   **Header:**
-    *   *Share Mode:* Small App Icon + Text "Save to MyDeck".
-    *   *In-App Mode:* Text "Add Link".
-*   **Form (Vertical Column):**
-    *   **URL:** Read-only `OutlinedTextField` (greyed out text).
-    *   **Title:** Editable `OutlinedTextField`.
-    *   **Labels:** FlowRow of Chips + "Add Label" input field.
-        *   *Improvement:* Tapping "Add Label" shows the keyboard. The Sheet pushes up via `Modifier.imePadding()` so the input remains visible.
-*   **Action Bar (Bottom Row):**
-    *   **Left:** [Archive] (Outlined Button or Icon Button with Text).
-    *   **Center:** [Add] (Filled/Primary Button).
-        *   *Share Mode:* Displays a progress indicator (Linear or Circular) representing the auto-save timer.
-    *   **Right:** [View] (Text Button "View").
+Additional parameters for Share mode:
 
----
+```kotlin
+    mode: SheetMode,
+    onAction: (SaveAction) -> Unit,  // ADD, ARCHIVE, VIEW
+    onInteraction: () -> Unit        // Cancels auto-save timer
+```
 
-## 4. Behavioral Differences
+### 2.3 Behavioral Differences (Phase 2)
 
 | Feature | Share Intent Mode (`ShareActivity`) | In-App Mode (`MainActivity`) |
 | :--- | :--- | :--- |
 | **Context** | Overlay on top of Browser/Other App | Inside MyDeck |
-| **Auto-Save Timer** | **Active (5s).** Counts down immediately. | **Disabled.** Waits for user input. |
-| **Interruption** | Tapping *any* field (Title/Label) **cancels** the timer permanently. | N/A |
-| **Dismissal** | Swiping down **Cancels** (Activity finishes). | Swiping down **Cancels** (Sheet closes). |
-| **"Add" Action** | Saves via Worker -> Closes Activity. | Saves via Worker -> Closes Sheet -> Shows Snackbar. |
-| **"Archive" Action**| Saves (isArchived=true) -> Closes Activity. | Saves (isArchived=true) -> Closes Sheet. |
+| **Header** | Small App Icon + "Save to MyDeck" | "Add Link" |
+| **URL Field** | Read-only (greyed out) | Editable |
+| **Auto-Save Timer** | **Active (5s).** Counts down immediately. | **Disabled.** |
+| **Interruption** | Tapping *any* field cancels timer permanently. | N/A |
+| **Dismissal** | Swiping down cancels (Activity finishes). | Swiping down cancels (Sheet closes). |
+| **"Add" Action** | Saves via Worker -> Closes Activity. | Saves via ViewModel -> Closes Sheet -> Snackbar. |
+| **"Archive" Action**| Saves (isArchived=true) via Worker -> Closes Activity. | Saves (isArchived=true) -> Closes Sheet -> Snackbar. |
 | **"View" Action** | Saves -> Opens `MainActivity` (SingleTop). | Saves -> Navigates to `BookmarkDetailScreen`. |
 
----
+### 2.4 `CreateBookmarkWorker`
 
-## 5. Data & Worker Logic
-
-To ensure the "Fire and Forget" experience (especially for Share Mode), we must not rely on the UI staying open to finish the network call.
-
-### 5.1 `CreateBookmarkWorker`
 *   **Input:** URL, Title, Labels, IsArchived (Boolean).
 *   **Constraint:** `NetworkType.CONNECTED`.
 *   **Logic:**
@@ -91,8 +156,11 @@ To ensure the "Fire and Forget" experience (especially for Share Mode), we must 
     4.  **Insert into Local DB (`BookmarkDao`).**
     5.  *Crucial:* Do **not** trigger a full `LoadBookmarksUseCase`. Just insert this one item.
 
-### 5.2 Handling "View" (Immediate Read)
-The "View" action is the only one that cannot purely use a background worker because the user wants to see the content *now*.
+**Relationship to Offline Action Queue:** Once the queue supports `CREATE` actions (Queue Phase 2), the `CreateBookmarkWorker` should be migrated to use the queue's `ActionSyncWorker` instead of being a standalone worker. Until then, it operates independently with the same `NetworkType.CONNECTED` constraint pattern.
+
+### 2.5 Handling "View" (Immediate Read)
+
+The "View" action cannot purely use a background worker because the user wants to see the content *now*.
 
 *   **Logic:**
     1.  Show loading spinner on the Sheet.
@@ -103,29 +171,29 @@ The "View" action is the only one that cannot purely use a background worker bec
         *   *In-App:* `navController.navigate(DetailRoute(bookmarkId))`.
     4.  **Failure:** Show Error on Sheet (allow retry).
 
----
+### 2.6 Implementation Steps (Phase 2)
 
-## 6. Implementation Plan
+**Step 1: Fix Sync & DB (Prerequisite)**
+*   Implement Insert Ignore + Update in `BookmarkDao` to prevent race conditions between the worker and other sync operations.
 
-### Step 1: Fix Sync & DB (Prerequisite)
-*   Implement **Fix #3** (Insert Ignore + Update) in `BookmarkDao`. This ensures that if the background worker runs while the app is doing something else, we don't accidentally wipe content.
+**Step 2: Extend `AddBookmarkSheet`**
+*   Add `SheetMode` parameter and conditional rendering (header, URL editability, timer).
+*   Implement 5-second auto-save timer (`LaunchedEffect` that cancels on state change).
 
-### Step 2: UI Component (`AddBookmarkSheet`)
-*   Create the Composable.
-*   Implement `Modifier.imePadding()` and `WindowCompat.setDecorFitsSystemWindows(window, false)` to ensure the keyboard pushes the sheet up (like the Instapaper screenshots).
+**Step 3: Create `ShareActivity`**
+*   Create Activity and translucent theme.
+*   Wire up Intent handling.
+*   Implement `CreateBookmarkWorker`.
 
-### Step 3: `ShareActivity`
-*   Create Activity and Theme.
-*   Implement the 5-second timer logic (`LaunchedEffect` that cancels on state change).
-*   Wire up the Intent handling.
+**Step 4: Manifest & Intent Filter**
+*   Register `ShareActivity` with `ACTION_SEND` intent filter for `text/plain`.
 
-### Step 4: Refactor In-App "Add"
-*   In `BookmarkListScreen`, remove `AlertDialog`.
-*   Replace with `ModalBottomSheet` wrapping the new `AddBookmarkSheet`.
-*   Wire up to `BookmarkListViewModel`.
+### 2.7 String Resources (Phase 2)
 
-### Step 5: Bug Squashing
-*   Ensure `SavedStateHandle` is cleared in `BookmarkListViewModel` so the dialog doesn't reappear on process death/restoration (Fix #1).
+```xml
+<string name="save_to_mydeck">Save to MyDeck</string>
+<string name="action_view_bookmark">View</string>
+```
 
 ---
 
