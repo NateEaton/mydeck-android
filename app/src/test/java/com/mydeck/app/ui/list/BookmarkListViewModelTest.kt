@@ -90,10 +90,13 @@ class BookmarkListViewModelTest {
         every { savedStateHandle.get<String>(any()) } returns null // no sharedUrl initially
         every { workManager.getWorkInfosForUniqueWorkFlow(any()) } returns workInfoFlow
         every { bookmarkRepository.observeAllBookmarkCounts() } returns flowOf(BookmarkCounts())
+        every { bookmarkRepository.observeAllLabelsWithCounts() } returns flowOf(emptyMap())
         every { connectivityMonitor.observeConnectivity() } returns flowOf(true)
         every { connectivityMonitor.isNetworkAvailable() } returns true
         every { connectivityMonitor.isOnWifi() } returns true
         every { connectivityMonitor.isBatterySaverOn() } returns false
+        coEvery { settingsDataStore.getLayoutMode() } returns null
+        coEvery { settingsDataStore.getSortOption() } returns null
     }
 
     @After
