@@ -145,6 +145,7 @@ fun BookmarkListScreen(navHostController: NavHostController) {
 
     var showLayoutMenu by remember { androidx.compose.runtime.mutableStateOf(false) }
     var showSortMenu by remember { androidx.compose.runtime.mutableStateOf(false) }
+    var scrollToTopTrigger by remember { mutableStateOf(0) }
 
     // Label edit/delete state
     var isEditingLabel by remember { mutableStateOf(false) }
@@ -407,7 +408,12 @@ fun BookmarkListScreen(navHostController: NavHostController) {
                                     .focusRequester(searchFocusRequester)
                             )
                         } else {
-                            Text(currentViewTitle)
+                            Text(
+                                text = currentViewTitle,
+                                modifier = Modifier.clickable {
+                                    scrollToTopTrigger++
+                                }
+                            )
                         }
                     },
                     navigationIcon = {
@@ -672,6 +678,7 @@ fun BookmarkListScreen(navHostController: NavHostController) {
                     if (filterState.value.viewingLabelsList) {
                     LabelsListView(
                         labels = labelsWithCounts.value,
+                        scrollToTopTrigger = scrollToTopTrigger,
                         onLabelSelected = { label ->
                             viewModel.onClickLabel(label)
                         }
@@ -701,6 +708,7 @@ fun BookmarkListScreen(navHostController: NavHostController) {
                             }
                             BookmarkListView(
                                 filterKey = filterState.value,
+                                scrollToTopTrigger = scrollToTopTrigger,
                                 layoutMode = layoutMode.value,
                                 bookmarks = uiState.bookmarks,
                                 onClickBookmark = onClickBookmark,
@@ -985,6 +993,7 @@ fun EmptyScreen(
 fun LabelsListView(
     modifier: Modifier = Modifier,
     labels: Map<String, Int>,
+    scrollToTopTrigger: Int = 0,
     onLabelSelected: (String) -> Unit
 ) {
     if (labels.isEmpty()) {
@@ -1002,6 +1011,11 @@ fun LabelsListView(
         }
     } else {
         val lazyListState = rememberLazyListState()
+        LaunchedEffect(scrollToTopTrigger) {
+            if (scrollToTopTrigger > 0) {
+                lazyListState.animateScrollToItem(0)
+            }
+        }
         Box(modifier = modifier.fillMaxWidth()) {
             LazyColumn(
                 state = lazyListState,
@@ -1064,6 +1078,7 @@ fun LabelsListView(
 fun BookmarkListView(
     modifier: Modifier = Modifier,
     filterKey: Any = Unit,
+    scrollToTopTrigger: Int = 0,
     layoutMode: LayoutMode = LayoutMode.GRID,
     bookmarks: List<BookmarkListItem>,
     onClickBookmark: (String) -> Unit,
@@ -1075,6 +1090,11 @@ fun BookmarkListView(
     onClickOpenUrl: (String) -> Unit = {}
 ) {
     val lazyListState = key(filterKey) { rememberLazyListState() }
+    LaunchedEffect(scrollToTopTrigger) {
+        if (scrollToTopTrigger > 0) {
+            lazyListState.animateScrollToItem(0)
+        }
+    }
     Box(modifier = modifier) {
         LazyColumn(state = lazyListState, modifier = Modifier.fillMaxSize()) {
             items(bookmarks) { bookmark ->
