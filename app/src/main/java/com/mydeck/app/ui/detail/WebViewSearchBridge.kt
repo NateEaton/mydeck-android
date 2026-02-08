@@ -42,7 +42,7 @@ object WebViewSearchBridge {
                 if (!container) return 0;
 
                 var matchCount = 0;
-                var regexPattern = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                var regexPattern = query.replace(/[.*+?^${'$'}{}()|[\]\\]/g, '\\${'$'}&');
                 var regex = new RegExp(regexPattern, 'gi');
 
                 function highlightNode(node) {
