@@ -469,7 +469,101 @@ class BookmarkDetailViewModelTest {
         assertEquals(BookmarkDetailViewModel.UpdateBookmarkState.Error(errorMessage), (successState as BookmarkDetailViewModel.UiState.Success).updateBookmarkState)
         coVerify { updateBookmarkUseCase.updateIsRead(bookmarkId, isRead) }
     }
+
+    @Test
+    fun `init calls loadArticleUseCase when contentState is NOT_ATTEMPTED and hasArticle is true`() = runTest {
+        // Arrange
+        val bookmarkWithNotAttempted = sampleBookmark.copy(
+            contentState = Bookmark.ContentState.NOT_ATTEMPTED,
+            hasArticle = true,
+            articleContent = null
+        )
+        every { bookmarkRepository.observeBookmark("123") } returns MutableStateFlow(bookmarkWithNotAttempted)
+        coEvery { bookmarkRepository.getBookmarkById("123") } returns bookmarkWithNotAttempted
+        coEvery { bookmarkRepository.refreshBookmarkFromApi(any()) } returns Unit
+        coEvery { loadArticleUseCase.execute("123") } returns LoadArticleUseCase.Result.Success
+
+        // Act
+        viewModel = BookmarkDetailViewModel(updateBookmarkUseCase, bookmarkRepository, assetLoader, settingsDataStore, loadArticleUseCase, savedStateHandle)
+        advanceUntilIdle()
+
+        // Assert
+        coVerify { loadArticleUseCase.execute("123") }
+    }
+
+    @Test
+    fun `init does NOT call loadArticleUseCase when contentState is DOWNLOADED`() = runTest {
+        // Arrange
+        val bookmarkWithDownloaded = sampleBookmark.copy(
+            contentState = Bookmark.ContentState.DOWNLOADED,
+            hasArticle = true,
+            articleContent = "Content already downloaded"
+        )
+        every { bookmarkRepository.observeBookmark("123") } returns MutableStateFlow(bookmarkWithDownloaded)
+        coEvery { bookmarkRepository.getBookmarkById("123") } returns bookmarkWithDownloaded
+        coEvery { bookmarkRepository.refreshBookmarkFromApi(any()) } returns Unit
+
+        // Act
+        viewModel = BookmarkDetailViewModel(updateBookmarkUseCase, bookmarkRepository, assetLoader, settingsDataStore, loadArticleUseCase, savedStateHandle)
+        advanceUntilIdle()
+
+        // Assert
+        coVerify(exactly = 0) { loadArticleUseCase.execute(any()) }
+    }
+
+    @Test
+    fun `init sets contentLoadState to Failed when contentState is PERMANENT_NO_CONTENT`() = runTest {
+        // Arrange
+        val bookmarkWithNoContent = sampleBookmark.copy(
+            contentState = Bookmark.ContentState.PERMANENT_NO_CONTENT,
+            contentFailureReason = "Source blocked content extraction",
+            hasArticle = true,
+            articleContent = null
+        )
+        every { bookmarkRepository.observeBookmark("123") } returns MutableStateFlow(bookmarkWithNoContent)
+        coEvery { bookmarkRepository.getBookmarkById("123") } returns bookmarkWithNoContent
+        coEvery { bookmarkRepository.refreshBookmarkFromApi(any()) } returns Unit
+
+        // Act
+        viewModel = BookmarkDetailViewModel(updateBookmarkUseCase, bookmarkRepository, assetLoader, settingsDataStore, loadArticleUseCase, savedStateHandle)
+        advanceUntilIdle()
+
+        // Assert
+        val state = viewModel.contentLoadState.value
+        assert(state is BookmarkDetailViewModel.ContentLoadState.Failed)
+        val failedState = state as BookmarkDetailViewModel.ContentLoadState.Failed
+        assertEquals("Source blocked content extraction", failedState.reason)
+        assertEquals(false, failedState.canRetry)
+        coVerify(exactly = 0) { loadArticleUseCase.execute(any()) }
+    }
+
+    @Test
+    fun `permanent failure from loadArticleUseCase sets canRetry to false`() = runTest {
+        // Arrange
+        val bookmarkWithNotAttempted = sampleBookmark.copy(
+            contentState = Bookmark.ContentState.NOT_ATTEMPTED,
+            hasArticle = true,
+            articleContent = null
+        )
+        every { bookmarkRepository.observeBookmark("123") } returns MutableStateFlow(bookmarkWithNotAttempted)
+        coEvery { bookmarkRepository.getBookmarkById("123") } returns bookmarkWithNotAttempted
+        coEvery { bookmarkRepository.refreshBookmarkFromApi(any()) } returns Unit
+        coEvery { loadArticleUseCase.execute("123") } returns LoadArticleUseCase.Result.PermanentFailure("Article extraction not supported for this site")
+
+        // Act
+        viewModel = BookmarkDetailViewModel(updateBookmarkUseCase, bookmarkRepository, assetLoader, settingsDataStore, loadArticleUseCase, savedStateHandle)
+        advanceUntilIdle()
+
+        // Assert
+        val state = viewModel.contentLoadState.value
+        assert(state is BookmarkDetailViewModel.ContentLoadState.Failed)
+        val failedState = state as BookmarkDetailViewModel.ContentLoadState.Failed
+        assertEquals("Article extraction not supported for this site", failedState.reason)
+        assertEquals(false, failedState.canRetry)
+    }
+
     val sampleBookmark = Bookmark(
+
         id = "123",
         href = "https://example.com",
         created = kotlinx.datetime.LocalDateTime(2024, 1, 20, 12, 0, 0),
@@ -503,7 +597,9 @@ class BookmarkDetailViewModelTest {
         image = Bookmark.ImageResource("", 0, 0),
         log = Bookmark.Resource(""),
         props = Bookmark.Resource(""),
-        thumbnail = Bookmark.ImageResource("", 0, 0)
+        thumbnail = Bookmark.ImageResource("", 0, 0),
+        contentState = Bookmark.ContentState.DOWNLOADED,
+        contentFailureReason = null
     )
     val htmlTemplate = "<html><body>%s</body></html>"
 }
