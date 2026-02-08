@@ -23,6 +23,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.FindInPage
 import androidx.compose.material.icons.filled.Grade
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Language
@@ -807,7 +808,28 @@ fun BookmarkDetailMenu(
                 }
             )
 
-            // 3. View Original/Content toggle for all bookmark types
+            // 3. Find in Article (hidden for photo/video, disabled in Original mode or no content)
+            if (uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.ARTICLE) {
+                val isSearchEnabled = contentMode == ContentMode.READER && uiState.bookmark.hasContent
+
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.action_search_in_article)) },
+                    enabled = isSearchEnabled,
+                    onClick = {
+                        onClickSearchInArticle()
+                        expanded = false
+                    },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Filled.FindInPage,
+                            contentDescription = stringResource(R.string.action_search_in_article),
+                            tint = if (isSearchEnabled) LocalContentColor.current else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                        )
+                    }
+                )
+            }
+
+            // 4. View Original/Content toggle for all bookmark types
             if (uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.ARTICLE ||
                 uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.PHOTO ||
                 uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.VIDEO) {
@@ -850,43 +872,7 @@ fun BookmarkDetailMenu(
                 )
             }
 
-            // 4. Search in Article (hidden for photo/video, disabled in Original mode or no content)
-            if (uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.ARTICLE) {
-                val isSearchEnabled = contentMode == ContentMode.READER && uiState.bookmark.hasContent
-
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.action_search_in_article)) },
-                    enabled = isSearchEnabled,
-                    onClick = {
-                        onClickSearchInArticle()
-                        expanded = false
-                    },
-                    leadingIcon = {
-                        Icon(
-                            imageVector = Icons.Filled.Search,
-                            contentDescription = stringResource(R.string.action_search_in_article),
-                            tint = if (isSearchEnabled) LocalContentColor.current else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
-                        )
-                    }
-                )
-            }
-
-            // 5. Is Read (changed from "Mark Read")
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.action_is_read)) },
-                onClick = {
-                    onClickToggleRead(uiState.bookmark.bookmarkId, !uiState.bookmark.isRead)
-                    expanded = false
-                },
-                leadingIcon = {
-                    Icon(
-                        imageVector = if (uiState.bookmark.isRead) Icons.Filled.CheckCircle else Icons.Outlined.CheckCircle,
-                        contentDescription = stringResource(R.string.action_is_read)
-                    )
-                }
-            )
-
-            // 6. Open in Browser
+            // 5. Open in Browser
             DropdownMenuItem(
                 text = { Text(stringResource(R.string.action_open_in_browser)) },
                 onClick = {
@@ -901,7 +887,7 @@ fun BookmarkDetailMenu(
                 }
             )
 
-            // 7. Share Link
+            // 6. Share Link
             DropdownMenuItem(
                 text = { Text(stringResource(R.string.action_share)) },
                 onClick = {
@@ -912,6 +898,21 @@ fun BookmarkDetailMenu(
                     Icon(
                         imageVector = Icons.Outlined.Share,
                         contentDescription = stringResource(R.string.action_share)
+                    )
+                }
+            )
+
+            // 7. Is Read
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.action_is_read)) },
+                onClick = {
+                    onClickToggleRead(uiState.bookmark.bookmarkId, !uiState.bookmark.isRead)
+                    expanded = false
+                },
+                leadingIcon = {
+                    Icon(
+                        imageVector = if (uiState.bookmark.isRead) Icons.Filled.CheckCircle else Icons.Outlined.CheckCircle,
+                        contentDescription = stringResource(R.string.action_is_read)
                     )
                 }
             )

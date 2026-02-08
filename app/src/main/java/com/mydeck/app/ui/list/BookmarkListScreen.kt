@@ -395,9 +395,7 @@ fun BookmarkListScreen(navHostController: NavHostController) {
                                 placeholder = {
                                     Text(stringResource(R.string.search_bookmarks))
                                 },
-                                leadingIcon = {
-                                    Icon(Icons.Filled.Search, contentDescription = null)
-                                },
+                                textStyle = MaterialTheme.typography.bodyLarge,
                                 trailingIcon = {
                                     if (searchQuery.value.isNotEmpty()) {
                                         IconButton(onClick = { viewModel.onClearSearch() }) {

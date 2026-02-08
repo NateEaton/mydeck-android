@@ -69,12 +69,7 @@ fun ArticleSearchBar(
                     placeholder = {
                         Text(stringResource(R.string.search_in_article_hint))
                     },
-                    leadingIcon = {
-                        Icon(
-                            imageVector = Icons.Filled.Search,
-                            contentDescription = null
-                        )
-                    },
+                    textStyle = MaterialTheme.typography.bodyMedium,
                     trailingIcon = {
                         if (query.isNotEmpty()) {
                             Text(
