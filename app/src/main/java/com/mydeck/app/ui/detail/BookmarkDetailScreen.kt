@@ -23,7 +23,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.FindInPage
+import androidx.compose.material.icons.outlined.FindInPage
 import androidx.compose.material.icons.filled.Grade
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Language
@@ -821,7 +821,7 @@ fun BookmarkDetailMenu(
                     },
                     leadingIcon = {
                         Icon(
-                            imageVector = Icons.Filled.FindInPage,
+                            imageVector = Icons.Outlined.FindInPage,
                             contentDescription = stringResource(R.string.action_search_in_article),
                             tint = if (isSearchEnabled) LocalContentColor.current else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
                         )

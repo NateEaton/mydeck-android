@@ -69,7 +69,7 @@ fun ArticleSearchBar(
                     placeholder = {
                         Text(stringResource(R.string.search_in_article_hint))
                     },
-                    textStyle = MaterialTheme.typography.bodyMedium,
+                    textStyle = MaterialTheme.typography.bodyLarge,
                     trailingIcon = {
                         if (query.isNotEmpty()) {
                             Text(

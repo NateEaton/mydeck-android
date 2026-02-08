@@ -162,7 +162,7 @@ other{}
     <string name="action_view_video">View Video</string>
     <string name="action_increase_text_size">Increase Text Size</string>
     <string name="action_decrease_text_size">Decrease Text Size</string>
-    <string name="search_in_article_hint">Find</string>
+    <string name="search_in_article_hint">Find in article</string>
     <string name="search_match_counter">%1$d/%2$d</string>
     <string name="search_next_match">Next match</string>
     <string name="search_previous_match">Previous match</string>

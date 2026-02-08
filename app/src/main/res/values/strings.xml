@@ -185,7 +185,7 @@ other{}
     <string name="close_search">Close search</string>
     <string name="clear_search">Clear search</string>
     <string name="search_no_results">No results found</string>
-    <string name="search_in_article_hint">Find</string>
+    <string name="search_in_article_hint">Find in article</string>
     <string name="search_match_counter">%1$d/%2$d</string>
     <string name="search_next_match">Next match</string>
     <string name="search_previous_match">Previous match</string>
