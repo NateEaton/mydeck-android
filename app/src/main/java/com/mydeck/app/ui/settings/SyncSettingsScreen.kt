@@ -585,11 +585,6 @@ private fun ConstraintsSection(
 // --- Section 4: Sync Status ---
 @Composable
 private fun SyncStatusSection(syncStatus: SyncStatus) {
-    Text(
-        text = stringResource(R.string.sync_status_section_title),
-        style = Typography.titleMedium
-    )
-
     Card(
         modifier = Modifier.fillMaxWidth(),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
