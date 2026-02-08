@@ -565,7 +565,7 @@ class BookmarkListViewModel @Inject constructor(
         }
     }
 
-    fun createBookmark() {
+    fun createBookmark(isArchived: Boolean = false) {
         viewModelScope.launch {
             val url = (_createBookmarkUiState.value as CreateBookmarkUiState.Open).url
             val title = (_createBookmarkUiState.value as CreateBookmarkUiState.Open).title
@@ -573,13 +573,37 @@ class BookmarkListViewModel @Inject constructor(
 
             _createBookmarkUiState.value = CreateBookmarkUiState.Loading
             try {
-                bookmarkRepository.createBookmark(title = title, url = url, labels = labels)
-                _createBookmarkUiState.value = CreateBookmarkUiState.Success
+                val bookmarkId = bookmarkRepository.createBookmark(
+                    title = title,
+                    url = url,
+                    labels = labels
+                )
+                if (isArchived) {
+                    when (val result = updateBookmarkUseCase.updateIsArchived(bookmarkId, true)) {
+                        is UpdateBookmarkUseCase.Result.Success -> {
+                            _createBookmarkUiState.value = CreateBookmarkUiState.Success(isArchived = true)
+                        }
+                        is UpdateBookmarkUseCase.Result.GenericError -> {
+                            _createBookmarkUiState.value =
+                                CreateBookmarkUiState.Error(result.message)
+                        }
+                        is UpdateBookmarkUseCase.Result.NetworkError -> {
+                            _createBookmarkUiState.value =
+                                CreateBookmarkUiState.Error(result.message)
+                        }
+                    }
+                } else {
+                    _createBookmarkUiState.value = CreateBookmarkUiState.Success(isArchived = false)
+                }
             } catch (e: Exception) {
                 _createBookmarkUiState.value =
                     CreateBookmarkUiState.Error(e.message ?: "Unknown error")
             }
         }
+    }
+
+    fun archiveBookmarkOnCreate() {
+        createBookmark(isArchived = true)
     }
 
     fun onLayoutModeSelected(mode: LayoutMode) {
@@ -633,7 +657,7 @@ class BookmarkListViewModel @Inject constructor(
         ) : CreateBookmarkUiState()
 
         data object Loading : CreateBookmarkUiState()
-        data object Success : CreateBookmarkUiState()
+        data class Success(val isArchived: Boolean) : CreateBookmarkUiState()
         data class Error(val message: String) : CreateBookmarkUiState()
     }
 

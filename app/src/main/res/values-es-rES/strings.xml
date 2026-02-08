@@ -41,6 +41,12 @@ other{}
     <string name="an_error_occurred">Ha habido un fallo.</string>
     <string name="no_bookmarks_found">No hay marcadores.</string>
     <string name="add_bookmark">Añadir marcador</string>
+    <string name="add_link">Add Link</string>
+    <string name="add">Add</string>
+    <string name="action_archive_bookmark">Archive</string>
+    <string name="bookmark_added">Bookmark added</string>
+    <string name="bookmark_added_archived">Added and archived</string>
+    <string name="remove_label">Remove label</string>
     <string name="title">Título (Opcional)</string>
     <string name="url">URL</string>
     <string name="invalid_url">URL no válida</string>
