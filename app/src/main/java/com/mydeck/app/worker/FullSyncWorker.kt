@@ -125,7 +125,12 @@ class FullSyncWorker @AssistedInject constructor(
         }
     }
 
+    @Suppress("UNREACHABLE_CODE")
     private suspend fun showNotification(syncResult: SyncResult) {
+        // Notifications for background sync are disabled — sync should be a silent event.
+        // Keeping the rest of the notification code intact for potential future use cases.
+        return
+
         // Skip notification for manual sync (user triggered from settings page)
         val isManualSync = inputData.getBoolean(INPUT_IS_MANUAL_SYNC, false)
         if (isManualSync) {

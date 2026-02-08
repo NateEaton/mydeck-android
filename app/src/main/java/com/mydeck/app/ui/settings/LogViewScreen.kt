@@ -5,6 +5,7 @@ import android.net.Uri
 import android.widget.Toast
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
@@ -32,6 +33,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import com.mydeck.app.R
+import com.mydeck.app.ui.components.VerticalScrollbar
 import kotlinx.coroutines.launch
 import timber.log.Timber
 
@@ -141,13 +143,24 @@ fun LogViewScreenView(
 
         when (uiState) {
             is LogViewViewModel.UiState.Success -> {
-                Column(
+                Box(
                     modifier = Modifier
                         .padding(paddingValues)
-                        .padding(16.dp)
-                        .verticalScroll(scrollState)
+                        .fillMaxSize()
                 ) {
-                    Text(text = uiState.logContent)
+                    Column(
+                        modifier = Modifier
+                            .padding(16.dp)
+                            .verticalScroll(scrollState)
+                    ) {
+                        Text(text = uiState.logContent)
+                    }
+                    VerticalScrollbar(
+                        modifier = Modifier
+                            .align(Alignment.CenterEnd)
+                            .fillMaxHeight(),
+                        scrollState = scrollState
+                    )
                 }
             }
 

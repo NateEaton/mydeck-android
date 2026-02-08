@@ -485,6 +485,10 @@ class SyncSettingsViewModel @Inject constructor(
     // --- Permission ---
 
     private fun requestBackgroundPermissionIfNeeded() {
+        // Notification permission is not needed while notifications are disabled.
+        return
+
+        @Suppress("UNREACHABLE_CODE")
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return
         val perm = _permissionState ?: return
         if (perm.status.isGranted) return
