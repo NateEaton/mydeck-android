@@ -86,6 +86,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -699,6 +700,7 @@ fun BookmarkListScreen(navHostController: NavHostController) {
                                 }
                             }
                             BookmarkListView(
+                                filterKey = filterState.value,
                                 layoutMode = layoutMode.value,
                                 bookmarks = uiState.bookmarks,
                                 onClickBookmark = onClickBookmark,
@@ -1061,6 +1063,7 @@ fun LabelsListView(
 @Composable
 fun BookmarkListView(
     modifier: Modifier = Modifier,
+    filterKey: Any = Unit,
     layoutMode: LayoutMode = LayoutMode.GRID,
     bookmarks: List<BookmarkListItem>,
     onClickBookmark: (String) -> Unit,
@@ -1071,7 +1074,7 @@ fun BookmarkListView(
     onClickLabel: (String) -> Unit = {},
     onClickOpenUrl: (String) -> Unit = {}
 ) {
-    val lazyListState = rememberLazyListState()
+    val lazyListState = key(filterKey) { rememberLazyListState() }
     Box(modifier = modifier) {
         LazyColumn(state = lazyListState, modifier = Modifier.fillMaxSize()) {
             items(bookmarks) { bookmark ->
