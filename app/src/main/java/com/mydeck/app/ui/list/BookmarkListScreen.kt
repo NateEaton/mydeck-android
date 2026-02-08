@@ -61,7 +61,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.ModalBottomSheetDefaults
 import androidx.compose.material3.ModalDrawerSheet
 import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.NavigationDrawerItem
@@ -796,6 +795,7 @@ fun BookmarkListScreen(navHostController: NavHostController) {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun AddBookmarkBottomSheet(
     title: String,
@@ -814,8 +814,7 @@ private fun AddBookmarkBottomSheet(
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
-        sheetState = sheetState,
-        dragHandle = { ModalBottomSheetDefaults.DragHandle() }
+        sheetState = sheetState
     ) {
         AddBookmarkSheet(
             url = url,
