@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -18,6 +19,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.foundation.text.KeyboardActions
@@ -112,6 +114,7 @@ import com.mydeck.app.domain.model.BookmarkListItem
 import com.mydeck.app.domain.model.LayoutMode
 import com.mydeck.app.domain.model.SortOption
 import com.mydeck.app.ui.components.ShareBookmarkChooser
+import com.mydeck.app.ui.components.VerticalScrollbar
 import com.mydeck.app.ui.navigation.AboutRoute
 import com.mydeck.app.ui.navigation.BookmarkDetailRoute
 import com.mydeck.app.ui.navigation.SettingsRoute
@@ -996,51 +999,60 @@ fun LabelsListView(
             )
         }
     } else {
-        LazyColumn(
-            modifier = modifier.fillMaxWidth()
-        ) {
-            item {
-                Text(
-                    text = stringResource(R.string.labels_description),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
-                )
-            }
-            items(
-                items = labels.entries.sortedBy { it.key }.toList(),
-                key = { it.key }
-            ) { (label, count) ->
-                NavigationDrawerItem(
-                    modifier = Modifier
-                        .padding(horizontal = 8.dp, vertical = 4.dp)
-                        .border(
-                            width = 1.dp,
-                            color = MaterialTheme.colorScheme.outlineVariant,
-                            shape = MaterialTheme.shapes.medium
-                        ),
-                    label = {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 16.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(label)
-                            Badge(
-                                containerColor = MaterialTheme.colorScheme.surfaceVariant
+        val lazyListState = rememberLazyListState()
+        Box(modifier = modifier.fillMaxWidth()) {
+            LazyColumn(
+                state = lazyListState,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                item {
+                    Text(
+                        text = stringResource(R.string.labels_description),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
+                    )
+                }
+                items(
+                    items = labels.entries.sortedBy { it.key }.toList(),
+                    key = { it.key }
+                ) { (label, count) ->
+                    NavigationDrawerItem(
+                        modifier = Modifier
+                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                            .border(
+                                width = 1.dp,
+                                color = MaterialTheme.colorScheme.outlineVariant,
+                                shape = MaterialTheme.shapes.medium
+                            ),
+                        label = {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text(count.toString())
+                                Text(label)
+                                Badge(
+                                    containerColor = MaterialTheme.colorScheme.surfaceVariant
+                                ) {
+                                    Text(count.toString())
+                                }
                             }
+                        },
+                        selected = false,
+                        onClick = {
+                            onLabelSelected(label)
                         }
-                    },
-                    selected = false,
-                    onClick = {
-                        onLabelSelected(label)
-                    }
                 )
             }
+            VerticalScrollbar(
+                modifier = Modifier
+                    .align(Alignment.CenterEnd)
+                    .fillMaxHeight(),
+                lazyListState = lazyListState
+            )
         }
     }
 }
@@ -1058,30 +1070,32 @@ fun BookmarkListView(
     onClickLabel: (String) -> Unit = {},
     onClickOpenUrl: (String) -> Unit = {}
 ) {
-    LazyColumn(modifier = modifier) {
-        items(bookmarks) { bookmark ->
-            when (layoutMode) {
-                LayoutMode.GRID -> BookmarkGridCard(
-                    bookmark = bookmark,
-                    onClickCard = onClickBookmark,
-                    onClickDelete = onClickDelete,
-                    onClickArchive = onClickArchive,
-                    onClickFavorite = onClickFavorite,
-                    onClickShareBookmark = onClickShareBookmark,
-                    onClickLabel = onClickLabel,
-                    onClickOpenUrl = onClickOpenUrl
-                )
-                LayoutMode.COMPACT -> BookmarkCompactCard(
-                    bookmark = bookmark,
-                    onClickCard = onClickBookmark,
-                    onClickDelete = onClickDelete,
-                    onClickArchive = onClickArchive,
-                    onClickFavorite = onClickFavorite,
-                    onClickShareBookmark = onClickShareBookmark,
-                    onClickLabel = onClickLabel,
-                    onClickOpenUrl = onClickOpenUrl
-                )
-                LayoutMode.MOSAIC -> BookmarkMosaicCard(
+    val lazyListState = rememberLazyListState()
+    Box(modifier = modifier) {
+        LazyColumn(state = lazyListState, modifier = Modifier.fillMaxSize()) {
+            items(bookmarks) { bookmark ->
+                when (layoutMode) {
+                    LayoutMode.GRID -> BookmarkGridCard(
+                        bookmark = bookmark,
+                        onClickCard = onClickBookmark,
+                        onClickDelete = onClickDelete,
+                        onClickArchive = onClickArchive,
+                        onClickFavorite = onClickFavorite,
+                        onClickShareBookmark = onClickShareBookmark,
+                        onClickLabel = onClickLabel,
+                        onClickOpenUrl = onClickOpenUrl
+                    )
+                    LayoutMode.COMPACT -> BookmarkCompactCard(
+                        bookmark = bookmark,
+                        onClickCard = onClickBookmark,
+                        onClickDelete = onClickDelete,
+                        onClickArchive = onClickArchive,
+                        onClickFavorite = onClickFavorite,
+                        onClickShareBookmark = onClickShareBookmark,
+                        onClickLabel = onClickLabel,
+                        onClickOpenUrl = onClickOpenUrl
+                    )
+                    LayoutMode.MOSAIC -> BookmarkMosaicCard(
                     bookmark = bookmark,
                     onClickCard = onClickBookmark,
                     onClickDelete = onClickDelete,
@@ -1093,6 +1107,12 @@ fun BookmarkListView(
                 )
             }
         }
+        VerticalScrollbar(
+            modifier = Modifier
+                .align(Alignment.CenterEnd)
+                .fillMaxHeight(),
+            lazyListState = lazyListState
+        )
     }
 }
 
