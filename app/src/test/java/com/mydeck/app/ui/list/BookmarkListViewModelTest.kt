@@ -26,8 +26,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -1143,6 +1145,195 @@ class BookmarkListViewModelTest {
 
             coVerify { updateBookmarkUseCase.updateIsRead(bookmarkId, isRead) }
         }
+
+    @Test
+    fun `onSearchQueryChange emits new query to searchQuery flow`() = runTest {
+        coEvery { settingsDataStore.isInitialSyncPerformed() } returns false
+        coEvery { bookmarkRepository.observeBookmarkListItems(any(), any(), any(), any(), any(), any(), any()) } returns flowOf(bookmarks)
+
+        viewModel = BookmarkListViewModel(
+            updateBookmarkUseCase,
+            fullSyncUseCase,
+            workManager,
+            bookmarkRepository,
+            context,
+            settingsDataStore,
+            savedStateHandle,
+            connectivityMonitor
+        )
+
+        val query = "test query"
+        viewModel.onSearchQueryChange(query)
+
+        assertEquals(query, viewModel.searchQuery.value)
+    }
+
+    @Test
+    fun `searchBookmarkListItems is called when query is non-empty`() = runTest {
+        coEvery { settingsDataStore.isInitialSyncPerformed() } returns false
+        coEvery { bookmarkRepository.observeBookmarkListItems(any(), any(), any(), any(), any(), any(), any()) } returns flowOf(bookmarks)
+        coEvery { bookmarkRepository.searchBookmarkListItems(any(), any(), any(), any(), any(), any(), any(), any()) } returns flowOf(bookmarks)
+
+        viewModel = BookmarkListViewModel(
+            updateBookmarkUseCase,
+            fullSyncUseCase,
+            workManager,
+            bookmarkRepository,
+            context,
+            settingsDataStore,
+            savedStateHandle,
+            connectivityMonitor
+        )
+
+        // Collecting state to trigger the flatMapLatest flow
+        val job = backgroundScope.launch { viewModel.uiState.collect {} }
+
+        val query = "test"
+        viewModel.onSearchQueryChange(query)
+        advanceUntilIdle() // Wait for debounce (300ms)
+
+        coVerify {
+            bookmarkRepository.searchBookmarkListItems(
+                searchQuery = query,
+                type = null,
+                unread = null,
+                archived = false,
+                favorite = null,
+                label = null,
+                state = Bookmark.State.LOADED,
+                orderBy = "created DESC"
+            )
+        }
+        
+        job.cancel()
+    }
+
+    @Test
+    fun `onClearSearch resets query to empty string`() = runTest {
+        coEvery { settingsDataStore.isInitialSyncPerformed() } returns false
+        coEvery { bookmarkRepository.observeBookmarkListItems(any(), any(), any(), any(), any(), any(), any()) } returns flowOf(bookmarks)
+
+        viewModel = BookmarkListViewModel(
+            updateBookmarkUseCase,
+            fullSyncUseCase,
+            workManager,
+            bookmarkRepository,
+            context,
+            settingsDataStore,
+            savedStateHandle,
+            connectivityMonitor
+        )
+
+        viewModel.onSearchQueryChange("test")
+        assertEquals("test", viewModel.searchQuery.value)
+
+        viewModel.onClearSearch()
+        assertEquals("", viewModel.searchQuery.value)
+    }
+
+    @Test
+    fun `onClickLabel updates FilterState with selected label`() = runTest {
+        coEvery { settingsDataStore.isInitialSyncPerformed() } returns false
+        coEvery { bookmarkRepository.observeBookmarkListItems(any(), any(), any(), any(), any(), any(), any()) } returns flowOf(bookmarks)
+
+        viewModel = BookmarkListViewModel(
+            updateBookmarkUseCase,
+            fullSyncUseCase,
+            workManager,
+            bookmarkRepository,
+            context,
+            settingsDataStore,
+            savedStateHandle,
+            connectivityMonitor
+        )
+
+        val label = "important"
+        viewModel.onClickLabel(label)
+
+        val filterState = viewModel.filterState.value
+        assertEquals(label, filterState.label)
+    }
+
+    @Test
+    fun `onRenameLabel calls repository and updates filter if label was active`() = runTest {
+        coEvery { settingsDataStore.isInitialSyncPerformed() } returns false
+        coEvery { bookmarkRepository.observeBookmarkListItems(any(), any(), any(), any(), any(), any(), any()) } returns flowOf(bookmarks)
+        coEvery { bookmarkRepository.renameLabel(any(), any()) } returns BookmarkRepository.UpdateResult.Success
+
+        viewModel = BookmarkListViewModel(
+            updateBookmarkUseCase,
+            fullSyncUseCase,
+            workManager,
+            bookmarkRepository,
+            context,
+            settingsDataStore,
+            savedStateHandle,
+            connectivityMonitor
+        )
+
+        val oldLabel = "old"
+        val newLabel = "new"
+        
+        // specific setup to set initial label
+        viewModel.onClickLabel(oldLabel)
+        assertEquals(oldLabel, viewModel.filterState.value.label)
+
+        viewModel.onRenameLabel(oldLabel, newLabel)
+        advanceUntilIdle()
+
+        coVerify { bookmarkRepository.renameLabel(oldLabel, newLabel) }
+        assertEquals(newLabel, viewModel.filterState.value.label)
+    }
+
+    @Test
+    fun `onLayoutModeSelected persists to settings and updates flow`() = runTest {
+        coEvery { settingsDataStore.isInitialSyncPerformed() } returns false
+        coEvery { bookmarkRepository.observeBookmarkListItems(any(), any(), any(), any(), any(), any(), any()) } returns flowOf(bookmarks)
+        coEvery { settingsDataStore.saveLayoutMode(any()) } returns Unit
+
+        viewModel = BookmarkListViewModel(
+            updateBookmarkUseCase,
+            fullSyncUseCase,
+            workManager,
+            bookmarkRepository,
+            context,
+            settingsDataStore,
+            savedStateHandle,
+            connectivityMonitor
+        )
+
+        val mode = com.mydeck.app.domain.model.LayoutMode.COMPACT
+        viewModel.onLayoutModeSelected(mode)
+        advanceUntilIdle()
+
+        assertEquals(mode, viewModel.layoutMode.value)
+        coVerify { settingsDataStore.saveLayoutMode(mode.name) }
+    }
+
+    @Test
+    fun `onSortOptionSelected persists to settings and updates flow`() = runTest {
+        coEvery { settingsDataStore.isInitialSyncPerformed() } returns false
+        coEvery { bookmarkRepository.observeBookmarkListItems(any(), any(), any(), any(), any(), any(), any()) } returns flowOf(bookmarks)
+        coEvery { settingsDataStore.saveSortOption(any()) } returns Unit
+
+        viewModel = BookmarkListViewModel(
+            updateBookmarkUseCase,
+            fullSyncUseCase,
+            workManager,
+            bookmarkRepository,
+            context,
+            settingsDataStore,
+            savedStateHandle,
+            connectivityMonitor
+        )
+
+        val option = com.mydeck.app.domain.model.SortOption.TITLE_A_TO_Z
+        viewModel.onSortOptionSelected(option)
+        advanceUntilIdle()
+
+        assertEquals(option, viewModel.sortOption.value)
+        coVerify { settingsDataStore.saveSortOption(option.name) }
+    }
     private val bookmarks = listOf(
         BookmarkListItem(
             id = "1",

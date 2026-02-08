@@ -61,13 +61,11 @@ fun String?.extractUrlAndTitle(): SharedText? {
                 titleBuilder.append(line) // Append original line to preserve formatting if needed
             }
         } else {
-            // If URL has not been found yet, this line is part of the potential title
-            if (!urlFound) {
-                if (titleBuilder.isNotEmpty()) {
-                    titleBuilder.append("\n")
-                }
-                titleBuilder.append(line) // Append original line to preserve formatting if needed
+            // This line is part of the title (either before URL found, or after)
+            if (titleBuilder.isNotEmpty()) {
+                titleBuilder.append("\n")
             }
+            titleBuilder.append(line) // Append original line to preserve formatting if needed
         }
     }
 
