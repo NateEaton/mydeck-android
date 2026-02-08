@@ -9,13 +9,19 @@ import com.mydeck.app.domain.BookmarkRepository
 import com.mydeck.app.domain.model.Bookmark
 import com.mydeck.app.domain.model.BookmarkCounts
 import com.mydeck.app.domain.model.BookmarkListItem
+import com.mydeck.app.domain.sync.ConnectivityMonitor
 import com.mydeck.app.domain.usecase.FullSyncUseCase
 import com.mydeck.app.domain.usecase.UpdateBookmarkUseCase
 import com.mydeck.app.io.prefs.SettingsDataStore
+import com.mydeck.app.worker.LoadBookmarksWorker
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
+import io.mockk.Runs
+import io.mockk.just
 import io.mockk.mockk
+import io.mockk.mockkObject
+import io.mockk.unmockkObject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -30,6 +36,7 @@ import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
+import kotlinx.datetime.toLocalDateTime
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -49,6 +56,7 @@ class BookmarkListViewModelTest {
     private lateinit var updateBookmarkUseCase: UpdateBookmarkUseCase
     private lateinit var fullSyncUseCase: FullSyncUseCase
     private lateinit var workManager : WorkManager
+    private lateinit var connectivityMonitor: ConnectivityMonitor
 
     private lateinit var workInfoFlow: Flow<List<WorkInfo>>
 
@@ -62,8 +70,11 @@ class BookmarkListViewModelTest {
         updateBookmarkUseCase = mockk()
         fullSyncUseCase = mockk()
         workManager = mockk()
+        connectivityMonitor = mockk()
 
         workInfoFlow = flowOf(emptyList())
+        mockkObject(LoadBookmarksWorker.Companion)
+        every { LoadBookmarksWorker.enqueue(any(), any()) } just Runs
 
         // Default Mocking Behavior
         coEvery { settingsDataStore.isInitialSyncPerformed() } returns true // Assume sync is done
@@ -79,10 +90,18 @@ class BookmarkListViewModelTest {
         every { savedStateHandle.get<String>(any()) } returns null // no sharedUrl initially
         every { workManager.getWorkInfosForUniqueWorkFlow(any()) } returns workInfoFlow
         every { bookmarkRepository.observeAllBookmarkCounts() } returns flowOf(BookmarkCounts())
+        every { bookmarkRepository.observeAllLabelsWithCounts() } returns flowOf(emptyMap())
+        every { connectivityMonitor.observeConnectivity() } returns flowOf(true)
+        every { connectivityMonitor.isNetworkAvailable() } returns true
+        every { connectivityMonitor.isOnWifi() } returns true
+        every { connectivityMonitor.isBatterySaverOn() } returns false
+        coEvery { settingsDataStore.getLayoutMode() } returns null
+        coEvery { settingsDataStore.getSortOption() } returns null
     }
 
     @After
     fun tearDown() {
+        unmockkObject(LoadBookmarksWorker.Companion)
         Dispatchers.resetMain()
     }
 
@@ -97,6 +116,7 @@ class BookmarkListViewModelTest {
             context,
             settingsDataStore,
             savedStateHandle,
+            connectivityMonitor
         )
         assertEquals(BookmarkListViewModel.UiState.Empty(R.string.list_view_empty_not_loaded_yet), viewModel.uiState.value)
     }
@@ -113,7 +133,8 @@ class BookmarkListViewModelTest {
             bookmarkRepository,
             context,
             settingsDataStore,
-            savedStateHandle
+            savedStateHandle,
+            connectivityMonitor
         )
         // Just verify that it doesn't throw an exception for now
         viewModel.onPullToRefresh()
@@ -129,7 +150,8 @@ class BookmarkListViewModelTest {
             bookmarkRepository,
             context,
             settingsDataStore,
-            savedStateHandle
+            savedStateHandle,
+            connectivityMonitor
         )
         viewModel.onClickMyList()
         assertEquals(
@@ -148,7 +170,8 @@ class BookmarkListViewModelTest {
             bookmarkRepository,
             context,
             settingsDataStore,
-            savedStateHandle
+            savedStateHandle,
+            connectivityMonitor
         )
         viewModel.onClickArchive()
         assertEquals(
@@ -167,7 +190,8 @@ class BookmarkListViewModelTest {
             bookmarkRepository,
             context,
             settingsDataStore,
-            savedStateHandle
+            savedStateHandle,
+            connectivityMonitor
         )
         viewModel.onClickFavorite()
         assertEquals(
@@ -186,7 +210,8 @@ class BookmarkListViewModelTest {
             bookmarkRepository,
             context,
             settingsDataStore,
-            savedStateHandle
+            savedStateHandle,
+            connectivityMonitor
         )
         viewModel.onClickSettings()
         assertEquals(
@@ -205,7 +230,8 @@ class BookmarkListViewModelTest {
             bookmarkRepository,
             context,
             settingsDataStore,
-            savedStateHandle
+            savedStateHandle,
+            connectivityMonitor
         )
         val bookmarkId = "someBookmarkId"
         viewModel.onClickBookmark(bookmarkId)
@@ -225,7 +251,8 @@ class BookmarkListViewModelTest {
             bookmarkRepository,
             context,
             settingsDataStore,
-            savedStateHandle
+            savedStateHandle,
+            connectivityMonitor
         )
         viewModel.onClickSettings() // Set a navigation event
         viewModel.onNavigationEventConsumed()
@@ -275,7 +302,8 @@ class BookmarkListViewModelTest {
             bookmarkRepository,
             context,
             settingsDataStore,
-            savedStateHandle
+            savedStateHandle,
+            connectivityMonitor
         )
 
         viewModel.onClickMyList()
@@ -302,7 +330,8 @@ class BookmarkListViewModelTest {
             bookmarkRepository,
             context,
             settingsDataStore,
-            savedStateHandle
+            savedStateHandle,
+            connectivityMonitor
         )
         viewModel.openCreateBookmarkDialog()
         assertTrue(viewModel.createBookmarkUiState.first() is BookmarkListViewModel.CreateBookmarkUiState.Open)
@@ -318,7 +347,8 @@ class BookmarkListViewModelTest {
             bookmarkRepository,
             context,
             settingsDataStore,
-            savedStateHandle
+            savedStateHandle,
+            connectivityMonitor
         )
         viewModel.openCreateBookmarkDialog()
         viewModel.closeCreateBookmarkDialog()
@@ -336,7 +366,8 @@ class BookmarkListViewModelTest {
                 bookmarkRepository,
                 context,
                 settingsDataStore,
-                savedStateHandle
+                savedStateHandle,
+                connectivityMonitor
             )
             viewModel.openCreateBookmarkDialog()
 
@@ -362,7 +393,8 @@ class BookmarkListViewModelTest {
                 bookmarkRepository,
                 context,
                 settingsDataStore,
-                savedStateHandle
+                savedStateHandle,
+                connectivityMonitor
             )
             viewModel.openCreateBookmarkDialog()
 
@@ -387,7 +419,8 @@ class BookmarkListViewModelTest {
             bookmarkRepository,
             context,
             settingsDataStore,
-            savedStateHandle
+            savedStateHandle,
+            connectivityMonitor
         )
         viewModel.openCreateBookmarkDialog()
 
@@ -410,7 +443,8 @@ class BookmarkListViewModelTest {
             bookmarkRepository,
             context,
             settingsDataStore,
-            savedStateHandle
+            savedStateHandle,
+            connectivityMonitor
         )
         viewModel.openCreateBookmarkDialog()
 
@@ -438,7 +472,8 @@ class BookmarkListViewModelTest {
             bookmarkRepository,
             context,
             settingsDataStore,
-            savedStateHandle
+            savedStateHandle,
+            connectivityMonitor
         )
         viewModel.openCreateBookmarkDialog()
 
@@ -472,7 +507,8 @@ class BookmarkListViewModelTest {
             bookmarkRepository,
             context,
             settingsDataStore,
-            savedStateHandle
+            savedStateHandle,
+            connectivityMonitor
         )
 
         val state =
@@ -496,7 +532,8 @@ class BookmarkListViewModelTest {
                 bookmarkRepository,
                 context,
                 settingsDataStore,
-                savedStateHandle
+                savedStateHandle,
+                connectivityMonitor
             )
 
             val state =
@@ -538,7 +575,8 @@ class BookmarkListViewModelTest {
                 bookmarkRepository,
                 context,
                 settingsDataStore,
-                savedStateHandle
+                savedStateHandle,
+                connectivityMonitor
             )
 
             val uiStates = viewModel.uiState.take(2).toList()
@@ -604,7 +642,8 @@ class BookmarkListViewModelTest {
                 bookmarkRepository,
                 context,
                 settingsDataStore,
-                savedStateHandle
+                savedStateHandle,
+                connectivityMonitor
             )
 
             val uiStates = viewModel.uiState.take(2).toList()
@@ -670,7 +709,8 @@ class BookmarkListViewModelTest {
                 bookmarkRepository,
                 context,
                 settingsDataStore,
-                savedStateHandle
+                savedStateHandle,
+                connectivityMonitor
             )
 
             val uiStates = viewModel.uiState.take(2).toList()
@@ -735,7 +775,8 @@ class BookmarkListViewModelTest {
                 bookmarkRepository,
                 context,
                 settingsDataStore,
-                savedStateHandle
+                savedStateHandle,
+                connectivityMonitor
             )
 
             val uiStates = viewModel.uiState.take(2).toList()
@@ -801,7 +842,8 @@ class BookmarkListViewModelTest {
                 bookmarkRepository,
                 context,
                 settingsDataStore,
-                savedStateHandle
+                savedStateHandle,
+                connectivityMonitor
             )
 
             val uiStates = viewModel.uiState.take(2).toList()
@@ -867,7 +909,8 @@ class BookmarkListViewModelTest {
                 bookmarkRepository,
                 context,
                 settingsDataStore,
-                savedStateHandle
+                savedStateHandle,
+                connectivityMonitor
             )
 
             val uiStates = viewModel.uiState.take(2).toList()
@@ -933,7 +976,8 @@ class BookmarkListViewModelTest {
                 bookmarkRepository,
                 context,
                 settingsDataStore,
-                savedStateHandle
+                savedStateHandle,
+                connectivityMonitor
             )
 
             val uiStates = viewModel.uiState.take(2).toList()
@@ -999,7 +1043,8 @@ class BookmarkListViewModelTest {
                 bookmarkRepository,
                 context,
                 settingsDataStore,
-                savedStateHandle
+                savedStateHandle,
+                connectivityMonitor
             )
 
             val uiStates = viewModel.uiState.take(2).toList()
@@ -1065,7 +1110,8 @@ class BookmarkListViewModelTest {
                 bookmarkRepository,
                 context,
                 settingsDataStore,
-                savedStateHandle
+                savedStateHandle,
+                connectivityMonitor
             )
 
             val uiStates = viewModel.uiState.take(2).toList()
@@ -1111,7 +1157,12 @@ class BookmarkListViewModelTest {
             readProgress = 0,
             thumbnailSrc = "",
             iconSrc = "",
-            imageSrc = ""
+            imageSrc = "",
+            readingTime = null,
+            created = kotlinx.datetime.Clock.System.now()
+                .toLocalDateTime(kotlinx.datetime.TimeZone.currentSystemDefault()),
+            wordCount = null,
+            published = null
         )
     )
 }

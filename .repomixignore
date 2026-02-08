@@ -1,0 +1,6 @@
+_notes/
+.github
+docs/
+metadata/
+./*.txt
+./*.diff

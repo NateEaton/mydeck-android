@@ -25,6 +25,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
+import org.junit.Assert.fail
 import org.junit.Before
 import org.junit.Test
 import org.junit.experimental.runners.Enclosed
@@ -259,14 +260,18 @@ class BookmarkDaoTest {
             val list = bookmarkDao.getAllRemoteBookmarkIds()
             assertEquals(28, list.size)
             list.forEach {
-                val bookmark = bookmarkDao.getBookmarkById(it)
-                if (bookmark != null) {
+                if (it == "not-a-bookmark") {
+                    try {
+                        bookmarkDao.getBookmarkById(it)
+                        fail("Expected IllegalStateException for missing bookmark")
+                    } catch (_: IllegalStateException) {
+                        Timber.d("not-a-bookmark")
+                    }
+                } else {
+                    val bookmark = bookmarkDao.getBookmarkById(it)
                     assertEquals(it, bookmark.id)
                     Timber.d("id=$it")
                     Timber.d("bookmark=$bookmark")
-                } else {
-                    assertEquals(it, "not-a-bookmark")
-                    Timber.d("not-a-bookmark")
                 }
             }
         }
@@ -281,8 +286,12 @@ class BookmarkDaoTest {
             val count = bookmarkDao.removeDeletedBookmars()
             assertEquals(3, count)
             removedIds.forEach {
-                assertNull(bookmarkDao.getBookmarkById(it))
-                Timber.d("id=$it is null")
+                try {
+                    bookmarkDao.getBookmarkById(it)
+                    fail("Expected IllegalStateException for missing bookmark")
+                } catch (_: IllegalStateException) {
+                    Timber.d("id=$it is null")
+                }
             }
         }
     }
