@@ -88,15 +88,17 @@ other{}
     <string name="action_archive">Archive</string>
     <string name="action_mark_read">Read</string>
     <string name="action_mark_unread">Unread</string>
-    <string name="action_share">Share link</string>
+    <string name="action_is_read">Is Read</string>
+    <string name="action_share">Share Link</string>
     <string name="action_delete">Delete</string>
-    <string name="action_open_in_browser">Open in browser</string>
+    <string name="action_open_in_browser">Open in Browser</string>
     <string name="action_view_original">View Original</string>
     <string name="action_view_article">View Article</string>
     <string name="action_view_photo">View Photo</string>
     <string name="action_view_video">View Video</string>
-    <string name="action_increase_text_size">Increase text size</string>
-    <string name="action_decrease_text_size">Decrease text size</string>
+    <string name="action_increase_text_size">Increase Text Size</string>
+    <string name="action_decrease_text_size">Decrease Text Size</string>
+    <string name="action_search_in_article">Find in Article</string>
     <string name="error_no_article_content">Error, article content not available</string>
     <string name="update_successful">Update successful</string>
     <string name="notification_channel_sync_name">Synchronization Errors</string>
@@ -183,6 +185,11 @@ other{}
     <string name="close_search">Close search</string>
     <string name="clear_search">Clear search</string>
     <string name="search_no_results">No results found</string>
+    <string name="search_in_article_hint">Find in article</string>
+    <string name="search_match_counter">%1$d/%2$d</string>
+    <string name="search_next_match">Next match</string>
+    <string name="search_previous_match">Previous match</string>
+    <string name="close_article_search">Close find</string>
 
     <!-- Sync Settings - Phase 3 -->
     <string name="sync_bookmark_section_title">Bookmark Sync</string>

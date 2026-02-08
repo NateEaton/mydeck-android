@@ -23,9 +23,12 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.outlined.FindInPage
 import androidx.compose.material.icons.filled.Grade
 import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Movie
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.MoreVert
@@ -78,6 +81,7 @@ import com.mydeck.app.domain.model.Template
 import com.mydeck.app.util.openUrlInCustomTab
 import com.mydeck.app.ui.components.ShareBookmarkChooser
 import com.mydeck.app.ui.detail.BookmarkDetailViewModel.ContentLoadState
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -104,6 +108,7 @@ fun BookmarkDetailScreen(navHostController: NavController, bookmarkId: String?, 
     val snackbarHostState = remember { SnackbarHostState() }
     val uiState = viewModel.uiState.collectAsState().value
     val contentLoadState = viewModel.contentLoadState.collectAsState().value
+    val articleSearchState = viewModel.articleSearchState.collectAsState().value
     var showDetailsDialog by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val onClickDeleteBookmark: (String) -> Unit = { id ->
@@ -120,6 +125,14 @@ fun BookmarkDetailScreen(navHostController: NavController, bookmarkId: String?, 
         }
     }
 
+    // Search callbacks
+    val onArticleSearchActivate = { viewModel.onArticleSearchActivate() }
+    val onArticleSearchDeactivate = { viewModel.onArticleSearchDeactivate() }
+    val onArticleSearchQueryChange = { query: String -> viewModel.onArticleSearchQueryChange(query) }
+    val onArticleSearchNext = { viewModel.onArticleSearchNext() }
+    val onArticleSearchPrevious = { viewModel.onArticleSearchPrevious() }
+    val onArticleSearchUpdateResults = { totalMatches: Int -> viewModel.onArticleSearchUpdateResults(totalMatches) }
+
     LaunchedEffect(key1 = navigationEvent.value) {
         navigationEvent.value?.let { event ->
             when (event) {
@@ -135,6 +148,16 @@ fun BookmarkDetailScreen(navHostController: NavController, bookmarkId: String?, 
     LaunchedEffect(key1 = openUrlEvent.value){
         openUrlInCustomTab(context, openUrlEvent.value)
         viewModel.onOpenUrlEventConsumed()
+    }
+
+    // Open in browser (uses ACTION_VIEW intent instead of Custom Tab)
+    val onClickOpenInBrowser: (String) -> Unit = { url ->
+        try {
+            val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url))
+            context.startActivity(intent)
+        } catch (e: Exception) {
+            // Handle error silently or show snackbar
+        }
     }
 
     when (uiState) {
@@ -174,12 +197,14 @@ fun BookmarkDetailScreen(navHostController: NavController, bookmarkId: String?, 
             BookmarkDetailScreen(
                 modifier = Modifier,
                 snackbarHostState = snackbarHostState,
-                onClickBack = onClickBack,
+                onClickBack = if (articleSearchState.isActive) onArticleSearchDeactivate else onClickBack,
                 onClickToggleFavorite = onClickToggleFavorite,
                 onClickToggleArchive = onClickToggleArchive,
                 onClickToggleRead = onClickToggleRead,
                 onClickShareBookmark = onClickShareBookmark,
                 onClickDeleteBookmark = onClickDeleteBookmark,
+                onClickOpenInBrowser = onClickOpenInBrowser,
+                onArticleSearchActivate = onArticleSearchActivate,
                 uiState = uiState,
                 onClickOpenUrl = onClickOpenUrl,
                 onClickIncreaseZoomFactor = onClickIncreaseZoomFactor,
@@ -192,6 +217,12 @@ fun BookmarkDetailScreen(navHostController: NavController, bookmarkId: String?, 
                 contentMode = contentMode,
                 onContentModeChange = { contentMode = it },
                 contentLoadState = contentLoadState,
+                articleSearchState = articleSearchState,
+                onArticleSearchDeactivate = onArticleSearchDeactivate,
+                onArticleSearchQueryChange = onArticleSearchQueryChange,
+                onArticleSearchNext = onArticleSearchNext,
+                onArticleSearchPrevious = onArticleSearchPrevious,
+                onArticleSearchUpdateResults = onArticleSearchUpdateResults
             )
             // Consumes a shareIntent and creates the corresponding share dialog
             ShareBookmarkChooser(
@@ -239,6 +270,8 @@ fun BookmarkDetailScreen(
     onClickDeleteBookmark: (String) -> Unit,
     onClickOpenUrl: (String) -> Unit,
     onClickShareBookmark: (String) -> Unit,
+    onClickOpenInBrowser: (String) -> Unit = {},
+    onArticleSearchActivate: () -> Unit = {},
     onClickIncreaseZoomFactor: () -> Unit,
     onClickDecreaseZoomFactor: () -> Unit,
     onShowDetails: () -> Unit = {},
@@ -246,57 +279,77 @@ fun BookmarkDetailScreen(
     initialReadProgress: Int = 0,
     contentMode: ContentMode = ContentMode.READER,
     onContentModeChange: (ContentMode) -> Unit = {},
-    contentLoadState: ContentLoadState = ContentLoadState.Idle
+    contentLoadState: ContentLoadState = ContentLoadState.Idle,
+    articleSearchState: BookmarkDetailViewModel.ArticleSearchState = BookmarkDetailViewModel.ArticleSearchState(),
+    onArticleSearchDeactivate: () -> Unit = {},
+    onArticleSearchQueryChange: (String) -> Unit = {},
+    onArticleSearchNext: () -> Unit = {},
+    onArticleSearchPrevious: () -> Unit = {},
+    onArticleSearchUpdateResults: (Int) -> Unit = {}
 ) {
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         modifier = modifier,
         topBar = {
-            TopAppBar(
-                title = { },
-                navigationIcon = {
-                    IconButton(onClick = onClickBack) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(R.string.back)
+            if (articleSearchState.isActive) {
+                ArticleSearchBar(
+                    query = articleSearchState.query,
+                    currentMatch = articleSearchState.currentMatch,
+                    totalMatches = articleSearchState.totalMatches,
+                    onQueryChange = onArticleSearchQueryChange,
+                    onPreviousMatch = onArticleSearchPrevious,
+                    onNextMatch = onArticleSearchNext,
+                    onClose = onArticleSearchDeactivate
+                )
+            } else {
+                TopAppBar(
+                    title = { },
+                    navigationIcon = {
+                        IconButton(onClick = onClickBack) {
+                            Icon(
+                                Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = stringResource(R.string.back)
+                            )
+                        }
+                    },
+                    actions = {
+                        IconButton(onClick = {
+                            onClickToggleFavorite(uiState.bookmark.bookmarkId, !uiState.bookmark.isFavorite)
+                        }) {
+                            Icon(
+                                imageVector = if (uiState.bookmark.isFavorite) Icons.Filled.Grade else Icons.Outlined.Grade,
+                                contentDescription = stringResource(R.string.action_favorite)
+                            )
+                        }
+                        IconButton(onClick = {
+                            onClickToggleArchive(uiState.bookmark.bookmarkId, !uiState.bookmark.isArchived)
+                        }) {
+                            Icon(
+                                imageVector = if (uiState.bookmark.isArchived) Icons.Filled.Inventory2 else Icons.Outlined.Inventory2,
+                                contentDescription = stringResource(R.string.action_archive)
+                            )
+                        }
+                        IconButton(onClick = { onShowDetails() }) {
+                            Icon(
+                                imageVector = Icons.Outlined.Info,
+                                contentDescription = stringResource(R.string.detail_dialog_title)
+                            )
+                        }
+                        BookmarkDetailMenu(
+                            uiState = uiState,
+                            onClickToggleRead = onClickToggleRead,
+                            onClickShareBookmark = onClickShareBookmark,
+                            onClickDeleteBookmark = onClickDeleteBookmark,
+                            onClickIncreaseZoomFactor = onClickIncreaseZoomFactor,
+                            onClickDecreaseZoomFactor = onClickDecreaseZoomFactor,
+                            onClickSearchInArticle = onArticleSearchActivate,
+                            onClickOpenInBrowser = onClickOpenInBrowser,
+                            contentMode = contentMode,
+                            onContentModeChange = onContentModeChange
                         )
                     }
-                },
-                actions = {
-                    IconButton(onClick = {
-                        onClickToggleFavorite(uiState.bookmark.bookmarkId, !uiState.bookmark.isFavorite)
-                    }) {
-                        Icon(
-                            imageVector = if (uiState.bookmark.isFavorite) Icons.Filled.Grade else Icons.Outlined.Grade,
-                            contentDescription = stringResource(R.string.action_favorite)
-                        )
-                    }
-                    IconButton(onClick = {
-                        onClickToggleArchive(uiState.bookmark.bookmarkId, !uiState.bookmark.isArchived)
-                    }) {
-                        Icon(
-                            imageVector = if (uiState.bookmark.isArchived) Icons.Filled.Inventory2 else Icons.Outlined.Inventory2,
-                            contentDescription = stringResource(R.string.action_archive)
-                        )
-                    }
-                    IconButton(onClick = { onShowDetails() }) {
-                        Icon(
-                            imageVector = Icons.Outlined.Info,
-                            contentDescription = stringResource(R.string.detail_dialog_title)
-                        )
-                    }
-                    BookmarkDetailMenu(
-                        uiState = uiState,
-                        onClickToggleRead = onClickToggleRead,
-                        onClickShareBookmark = onClickShareBookmark,
-                        onClickDeleteBookmark = onClickDeleteBookmark,
-                        onClickIncreaseZoomFactor = onClickIncreaseZoomFactor,
-                        onClickDecreaseZoomFactor = onClickDecreaseZoomFactor,
-                        contentMode = contentMode,
-                        onContentModeChange = onContentModeChange
-                    )
-                }
-            )
+                )
+            }
         }
     ) { padding ->
         BookmarkDetailContent(
@@ -306,7 +359,9 @@ fun BookmarkDetailScreen(
             onScrollProgressChanged = onScrollProgressChanged,
             initialReadProgress = initialReadProgress,
             contentMode = contentMode,
-            contentLoadState = contentLoadState
+            contentLoadState = contentLoadState,
+            articleSearchState = articleSearchState,
+            onArticleSearchUpdateResults = onArticleSearchUpdateResults
         )
     }
 }
@@ -319,7 +374,9 @@ fun BookmarkDetailContent(
     onScrollProgressChanged: (Int) -> Unit = {},
     initialReadProgress: Int = 0,
     contentMode: ContentMode = ContentMode.READER,
-    contentLoadState: ContentLoadState = ContentLoadState.Idle
+    contentLoadState: ContentLoadState = ContentLoadState.Idle,
+    articleSearchState: BookmarkDetailViewModel.ArticleSearchState = BookmarkDetailViewModel.ArticleSearchState(),
+    onArticleSearchUpdateResults: (Int) -> Unit = {}
 ) {
     val scrollState = rememberScrollState()
     val hasArticleContent = uiState.bookmark.articleContent != null
@@ -384,7 +441,9 @@ fun BookmarkDetailContent(
                 if (hasContent) {
                     BookmarkDetailArticle(
                         modifier = Modifier,
-                        uiState = uiState
+                        uiState = uiState,
+                        articleSearchState = articleSearchState,
+                        onArticleSearchUpdateResults = onArticleSearchUpdateResults
                     )
                 } else {
                     // No content yet — show loading spinner while fetch is in progress.
@@ -436,16 +495,69 @@ fun EmptyBookmarkDetailArticle(
 @Composable
 fun BookmarkDetailArticle(
     modifier: Modifier,
-    uiState: BookmarkDetailViewModel.UiState.Success
+    uiState: BookmarkDetailViewModel.UiState.Success,
+    articleSearchState: BookmarkDetailViewModel.ArticleSearchState = BookmarkDetailViewModel.ArticleSearchState(),
+    onArticleSearchUpdateResults: (Int) -> Unit = {}
 ) {
     val isSystemInDarkMode = isSystemInDarkTheme()
     val content = remember(uiState.bookmark.bookmarkId, isSystemInDarkMode, uiState.template) {
         mutableStateOf<String?>(null)
     }
     val webViewRef = remember { mutableStateOf<WebView?>(null) }
+
     LaunchedEffect(uiState.bookmark.bookmarkId, isSystemInDarkMode, uiState.template) {
         content.value = getTemplate(uiState, isSystemInDarkMode)
         webViewRef.value?.settings?.textZoom = uiState.zoomFactor
+    }
+
+    // Handle search query changes
+    LaunchedEffect(articleSearchState.query) {
+        webViewRef.value?.let { webView ->
+            if (articleSearchState.isActive && articleSearchState.query.isNotEmpty()) {
+                WebViewSearchBridge.searchAndHighlight(webView, articleSearchState.query) { matchCount ->
+                    onArticleSearchUpdateResults(matchCount)
+                }
+            } else if (articleSearchState.query.isEmpty()) {
+                WebViewSearchBridge.clearHighlights(webView)
+                onArticleSearchUpdateResults(0)
+            }
+        }
+    }
+
+    // Handle current match navigation
+    LaunchedEffect(articleSearchState.currentMatch) {
+        webViewRef.value?.let { webView ->
+            if (articleSearchState.isActive &&
+                articleSearchState.currentMatch > 0 &&
+                articleSearchState.totalMatches > 0) {
+                // Convert 1-based index to 0-based for JavaScript
+                WebViewSearchBridge.highlightCurrentMatch(webView, articleSearchState.currentMatch - 1)
+            }
+        }
+    }
+
+    // Clear highlights when search is deactivated
+    LaunchedEffect(articleSearchState.isActive) {
+        if (!articleSearchState.isActive) {
+            webViewRef.value?.let { webView ->
+                WebViewSearchBridge.clearHighlights(webView)
+            }
+        }
+    }
+
+    // Re-apply search when content is reloaded (theme change, etc.)
+    LaunchedEffect(content.value, articleSearchState.query) {
+        if (articleSearchState.isActive &&
+            articleSearchState.query.isNotEmpty() &&
+            content.value != null) {
+            // Delay to ensure WebView has loaded the new content
+            kotlinx.coroutines.delay(100)
+            webViewRef.value?.let { webView ->
+                WebViewSearchBridge.searchAndHighlight(webView, articleSearchState.query) { matchCount ->
+                    onArticleSearchUpdateResults(matchCount)
+                }
+            }
+        }
     }
     if (content.value != null) {
         if (!LocalInspectionMode.current) {
@@ -454,7 +566,8 @@ fun BookmarkDetailArticle(
                 factory = { context ->
                     WebView(context).apply {
                         val isVideo = uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.VIDEO
-                        settings.javaScriptEnabled = isVideo
+                        val isArticle = uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.ARTICLE
+                        settings.javaScriptEnabled = isVideo || isArticle  // Enable JS for articles (needed for search)
                         settings.domStorageEnabled = isVideo
                         settings.mediaPlaybackRequiresUserGesture = true
                         settings.useWideViewPort = false
@@ -651,10 +764,13 @@ fun BookmarkDetailMenu(
     onClickDeleteBookmark: (String) -> Unit,
     onClickIncreaseZoomFactor: () -> Unit,
     onClickDecreaseZoomFactor: () -> Unit,
+    onClickSearchInArticle: () -> Unit = {},
+    onClickOpenInBrowser: (String) -> Unit = {},
     contentMode: ContentMode = ContentMode.READER,
     onContentModeChange: (ContentMode) -> Unit = {}
 ) {
     var expanded by remember { mutableStateOf(false) }
+    val context = LocalContext.current
 
     Box {
         IconButton(onClick = { expanded = true }) {
@@ -664,6 +780,7 @@ fun BookmarkDetailMenu(
             expanded = expanded,
             onDismissRequest = { expanded = false }
         ) {
+            // 1. Increase text size
             DropdownMenuItem(
                 text = { Text(stringResource(R.string.action_increase_text_size)) },
                 onClick = {
@@ -676,6 +793,8 @@ fun BookmarkDetailMenu(
                     )
                 }
             )
+
+            // 2. Decrease text size
             DropdownMenuItem(
                 text = { Text(stringResource(R.string.action_decrease_text_size)) },
                 onClick = {
@@ -688,28 +807,37 @@ fun BookmarkDetailMenu(
                     )
                 }
             )
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.action_mark_read)) },
-                onClick = {
-                    onClickToggleRead(uiState.bookmark.bookmarkId, !uiState.bookmark.isRead)
-                    expanded = false
-                },
-                leadingIcon = {
-                    Icon(
-                        imageVector = if (uiState.bookmark.isRead) Icons.Filled.CheckCircle else Icons.Outlined.CheckCircle,
-                        contentDescription = stringResource(R.string.action_mark_read)
-                    )
-                }
-            )
-            // View Original/Content toggle for all bookmark types
+
+            // 3. Find in Article (hidden for photo/video, disabled in Original mode or no content)
+            if (uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.ARTICLE) {
+                val isSearchEnabled = contentMode == ContentMode.READER && uiState.bookmark.hasContent
+
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.action_search_in_article)) },
+                    enabled = isSearchEnabled,
+                    onClick = {
+                        onClickSearchInArticle()
+                        expanded = false
+                    },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Outlined.FindInPage,
+                            contentDescription = stringResource(R.string.action_search_in_article),
+                            tint = if (isSearchEnabled) LocalContentColor.current else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                        )
+                    }
+                )
+            }
+
+            // 4. View Original/Content toggle for all bookmark types
             if (uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.ARTICLE ||
                 uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.PHOTO ||
                 uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.VIDEO) {
 
                 val (labelRes, icon) = when {
                     contentMode == ContentMode.READER -> {
-                        // In Reader mode, always show "View Original" with OpenInNew icon
-                        Pair(R.string.action_view_original, Icons.AutoMirrored.Filled.OpenInNew)
+                        // In Reader mode, show "View Original" with globe icon
+                        Pair(R.string.action_view_original, Icons.Filled.Language)
                     }
                     // In Original mode, show type-specific label with type-specific icon
                     uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.ARTICLE -> {
@@ -743,6 +871,23 @@ fun BookmarkDetailMenu(
                     }
                 )
             }
+
+            // 5. Open in Browser
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.action_open_in_browser)) },
+                onClick = {
+                    onClickOpenInBrowser(uiState.bookmark.url)
+                    expanded = false
+                },
+                leadingIcon = {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.OpenInNew,
+                        contentDescription = stringResource(R.string.action_open_in_browser)
+                    )
+                }
+            )
+
+            // 6. Share Link
             DropdownMenuItem(
                 text = { Text(stringResource(R.string.action_share)) },
                 onClick = {
@@ -756,6 +901,23 @@ fun BookmarkDetailMenu(
                     )
                 }
             )
+
+            // 7. Is Read
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.action_is_read)) },
+                onClick = {
+                    onClickToggleRead(uiState.bookmark.bookmarkId, !uiState.bookmark.isRead)
+                    expanded = false
+                },
+                leadingIcon = {
+                    Icon(
+                        imageVector = if (uiState.bookmark.isRead) Icons.Filled.CheckCircle else Icons.Outlined.CheckCircle,
+                        contentDescription = stringResource(R.string.action_is_read)
+                    )
+                }
+            )
+
+            // 8. Delete
             DropdownMenuItem(
                 text = { Text(stringResource(R.string.action_delete)) },
                 onClick = {

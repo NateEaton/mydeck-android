@@ -26,6 +26,7 @@ import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Grade
 import androidx.compose.material.icons.filled.Inventory2
+import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.Grade
 import androidx.compose.material.icons.outlined.Inventory2
@@ -82,7 +83,8 @@ fun BookmarkMosaicCard(
     onClickShareBookmark: (String) -> Unit,
     onClickArchive: (String, Boolean) -> Unit,
     onClickLabel: (String) -> Unit = {},
-    onClickOpenUrl: (String) -> Unit = {}
+    onClickOpenUrl: (String) -> Unit = {},
+    onClickOpenInBrowser: (String) -> Unit = {}
 ) {
     Card(
         modifier = Modifier
@@ -270,7 +272,7 @@ fun BookmarkMosaicCard(
                             )
                         }
 
-                        // Open Original Button
+                        // View Original (in-app) Button
                         IconButton(
                             onClick = { onClickOpenUrl(bookmark.id) },
                             modifier = Modifier
@@ -278,8 +280,23 @@ fun BookmarkMosaicCard(
                                 .height(48.dp)
                         ) {
                             Icon(
-                                imageVector = Icons.AutoMirrored.Filled.OpenInNew,
+                                imageVector = Icons.Filled.Language,
                                 contentDescription = stringResource(R.string.action_view_original),
+                                tint = Color.White,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+
+                        // Open in Browser Button
+                        IconButton(
+                            onClick = { onClickOpenInBrowser(bookmark.url) },
+                            modifier = Modifier
+                                .width(48.dp)
+                                .height(48.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.OpenInNew,
+                                contentDescription = stringResource(R.string.action_open_in_browser),
                                 tint = Color.White,
                                 modifier = Modifier.size(20.dp)
                             )
@@ -315,7 +332,8 @@ fun BookmarkGridCard(
     onClickShareBookmark: (String) -> Unit,
     onClickArchive: (String, Boolean) -> Unit,
     onClickLabel: (String) -> Unit = {},
-    onClickOpenUrl: (String) -> Unit = {}
+    onClickOpenUrl: (String) -> Unit = {},
+    onClickOpenInBrowser: (String) -> Unit = {}
 ) {
     Card(
         modifier = Modifier
@@ -509,8 +527,18 @@ fun BookmarkGridCard(
                             modifier = Modifier.size(36.dp)
                         ) {
                             Icon(
-                                imageVector = Icons.AutoMirrored.Filled.OpenInNew,
+                                imageVector = Icons.Filled.Language,
                                 contentDescription = stringResource(R.string.action_view_original),
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                        IconButton(
+                            onClick = { onClickOpenInBrowser(bookmark.url) },
+                            modifier = Modifier.size(36.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.OpenInNew,
+                                contentDescription = stringResource(R.string.action_open_in_browser),
                                 modifier = Modifier.size(20.dp)
                             )
                         }
@@ -542,7 +570,8 @@ fun BookmarkCompactCard(
     onClickShareBookmark: (String) -> Unit,
     onClickArchive: (String, Boolean) -> Unit,
     onClickLabel: (String) -> Unit = {},
-    onClickOpenUrl: (String) -> Unit = {}
+    onClickOpenUrl: (String) -> Unit = {},
+    onClickOpenInBrowser: (String) -> Unit = {}
 ) {
     Column(
         modifier = Modifier
@@ -694,8 +723,18 @@ fun BookmarkCompactCard(
                     modifier = Modifier.size(32.dp)
                 ) {
                     Icon(
-                        imageVector = Icons.AutoMirrored.Filled.OpenInNew,
+                        imageVector = Icons.Filled.Language,
                         contentDescription = stringResource(R.string.action_view_original),
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+                IconButton(
+                    onClick = { onClickOpenInBrowser(bookmark.url) },
+                    modifier = Modifier.size(32.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.OpenInNew,
+                        contentDescription = stringResource(R.string.action_open_in_browser),
                         modifier = Modifier.size(18.dp)
                     )
                 }

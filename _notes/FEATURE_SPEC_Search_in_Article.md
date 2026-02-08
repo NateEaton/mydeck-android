@@ -284,3 +284,147 @@ Add the search highlight CSS to all three template files (`html_template_light.h
 - Search in Photo or Video content types
 - Full-text search across all bookmarks (separate feature)
 - Persistent search terms / search history
+
+---
+
+## Implementation Changes from Original Spec
+
+During implementation and user testing, several refinements were made to improve the user experience:
+
+### Terminology Changes
+
+- **User-facing text**: Changed from "Search in Article" to "**Find in Article**" throughout the UI
+- **Placeholder text**: Changed from "Search in article…" to simply "**Find**" for brevity
+- **String resources**: Updated `action_search_in_article` label to "Find in Article", placeholder to "Find"
+- **Internal code**: Remains as "search" (see Appendix A for complexity assessment of a full rename)
+
+### Menu Changes
+
+- **Title-case formatting**: All menu items now use title-case for consistency (e.g., "Increase Text Size" instead of "Increase text size")
+- **Menu order**: Finalized order is:
+  1. Increase Text Size
+  2. Decrease Text Size
+  3. Find in Article
+  4. View Original (or View Article/Photo/Video depending on mode)
+  5. Open in Browser
+  6. Share Link
+  7. Is Read
+  8. Delete
+- **Icon change**: Menu icon changed from `Icons.Filled.Search` to `Icons.Filled.FindInPage` (magnifying glass on page) to better match browser find functionality
+
+### Search Bar UI Changes
+
+- **Icon removal**: Removed the leading magnifying glass icon from inside the search field for a cleaner appearance
+- **Font consistency**: Set explicit `textStyle = MaterialTheme.typography.bodyMedium` to ensure placeholder and typed text use the same font size
+- **Match counter position**: Counter remains as trailing content inside the text field showing "n/m" format
+
+### List Search Consistency
+
+- **Icon removal**: Also removed the magnifying glass icon from the list view search field for UI consistency
+- **Font normalization**: Set `textStyle = MaterialTheme.typography.bodyLarge` to match placeholder and input text sizes
+
+### Rationale
+
+- "Find" is more concise and matches browser terminology (Ctrl+F / Cmd+F)
+- Title-case menu items provide better visual hierarchy
+- FindInPage icon clearly indicates in-page search vs. general search
+- Removing interior icons reduces visual clutter while maintaining clarity
+- Font normalization prevents awkward size mismatches during typing
+
+---
+
+## Appendix A: Complexity Assessment — Renaming Internal Code from "Search" to "Find"
+
+### Overview
+
+This appendix documents the estimated effort required to rename internal code references from "search" to "find" to match the user-facing terminology. This was assessed but **not implemented**, as the user-facing terminology is already "Find" and internal code consistency is maintained with "search."
+
+### Scope of Changes
+
+A full rename would affect:
+
+#### 1. File Renames (2 files)
+- `ArticleSearchBar.kt` → `ArticleFindBar.kt`
+- `WebViewSearchBridge.kt` → `WebViewFindBridge.kt`
+
+#### 2. ViewModel Functions (~20 occurrences)
+- `ArticleSearchState` → `ArticleFindState`
+- `_articleSearchState` → `_articleFindState`
+- `articleSearchState` → `articleFindState`
+- `onArticleSearchActivate()` → `onArticleFindActivate()`
+- `onArticleSearchDeactivate()` → `onArticleFindDeactivate()`
+- `onArticleSearchQueryChange()` → `onArticleFindQueryChange()`
+- `onArticleSearchUpdateResults()` → `onArticleFindUpdateResults()`
+- `onArticleSearchNext()` → `onArticleFindNext()`
+- `onArticleSearchPrevious()` → `onArticleFindPrevious()`
+- `searchDebounceJob` → `findDebounceJob`
+
+#### 3. Composable Functions & Parameters (~15 occurrences)
+- `ArticleSearchBar()` → `ArticleFindBar()`
+- `WebViewSearchBridge` → `WebViewFindBridge`
+- All function calls and imports across:
+  - `BookmarkDetailScreen.kt`
+  - `BookmarkDetailViewModel.kt`
+  - `ArticleSearchBar.kt` (renamed file)
+  - `WebViewSearchBridge.kt` (renamed file)
+
+#### 4. Variable Names (~15 occurrences)
+- `articleSearchState` → `articleFindState`
+- Parameter names in composables
+- Local variable references
+
+#### 5. CSS Classes (2 occurrences)
+- `.mydeck-search-match` → `.mydeck-find-match`
+- `.mydeck-search-current` → `.mydeck-find-current`
+- Requires updates in:
+  - `html_template_light.html`
+  - `html_template_dark.html`
+  - `html_template_sepia.html`
+  - JavaScript in `WebViewSearchBridge.kt`
+
+#### 6. Comments & Documentation (~15 occurrences)
+- KDoc comments
+- Inline code comments
+- Function descriptions
+
+### Estimated Effort
+
+**Total time: 4-5 hours**
+
+Breakdown:
+- **1 hour**: Rename files and update imports across the codebase
+- **1.5 hours**: Rename all functions, variables, and state classes
+- **0.5 hours**: Update CSS classes in HTML templates and JavaScript
+- **0.5 hours**: Update comments and documentation
+- **1 hour**: Testing — verify no regressions, test all find functionality
+- **0.5 hours**: Code review and polish
+
+### Risks & Considerations
+
+1. **Import churn**: All files importing `ArticleSearchBar` or `WebViewSearchBridge` need updates
+2. **String resource confusion**: Internal "find" vs. string resource keys still named "search_*" could cause confusion for future developers
+3. **Git history**: File renames can make blame/history harder to follow
+4. **Limited value**: Since user-facing terminology is already "Find," internal naming consistency doesn't impact users
+5. **CSS class changes**: Must ensure JavaScript correctly references new class names
+
+### Recommendation
+
+**Do not rename at this time.** The user-facing experience is already correct ("Find in Article"). Internal code uses "search" consistently, which is semantically accurate (the feature *is* searching). The effort-to-value ratio is poor — renaming would consume 4-5 hours with no functional or UX benefit.
+
+Consider renaming only if:
+- A major refactor touches these files anyway
+- New "find" features are added and naming conflicts arise
+- Code review feedback specifically requests alignment
+
+### Testing Checklist (if rename is pursued)
+
+- [ ] Find toolbar appears and hides correctly
+- [ ] Text highlighting works (yellow for all matches, orange for current)
+- [ ] Navigation between matches (up/down arrows) works
+- [ ] Match counter displays correct "n/m" values
+- [ ] Debouncing works (no excessive DOM manipulation)
+- [ ] Theme changes (light/dark/sepia) preserve highlights
+- [ ] Original mode correctly disables find menu item
+- [ ] Photo/Video types correctly hide find menu item
+- [ ] All imports resolve without errors
+- [ ] No console errors in WebView JavaScript

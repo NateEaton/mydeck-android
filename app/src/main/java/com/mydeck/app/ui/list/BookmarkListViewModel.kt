@@ -409,6 +409,17 @@ class BookmarkListViewModel @Inject constructor(
         _shareIntent.value = null
     }
 
+    fun onClickOpenInBrowser(url: String) {
+        try {
+            val intent = Intent(Intent.ACTION_VIEW, android.net.Uri.parse(url)).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            context.startActivity(intent)
+        } catch (e: Exception) {
+            Timber.e(e, "Error opening URL in browser: $url")
+        }
+    }
+
     fun onPullToRefresh() {
         loadBookmarks(false)
     }

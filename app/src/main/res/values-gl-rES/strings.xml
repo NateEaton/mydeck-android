@@ -114,4 +114,19 @@ other{}
     <string name="retry">Retry</string>
     <string name="webview_error_title">Unable to load page</string>
     <string name="webview_error_message">The page could not be loaded (HTTP %1$d)</string>
+
+    <!-- New strings for Search in Article feature -->
+    <string name="action_is_read">Is Read</string>
+    <string name="action_search_in_article">Find in Article</string>
+    <string name="action_view_original">View Original</string>
+    <string name="action_view_article">View Article</string>
+    <string name="action_view_photo">View Photo</string>
+    <string name="action_view_video">View Video</string>
+    <string name="action_increase_text_size">Increase Text Size</string>
+    <string name="action_decrease_text_size">Decrease Text Size</string>
+    <string name="search_in_article_hint">Find in article</string>
+    <string name="search_match_counter">%1$d/%2$d</string>
+    <string name="search_next_match">Next match</string>
+    <string name="search_previous_match">Previous match</string>
+    <string name="close_article_search">Close find</string>
 </resources>
