@@ -23,7 +23,8 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Share
-import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.Publish
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Subject
@@ -64,6 +65,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.mydeck.app.BuildConfig
 import com.mydeck.app.R
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -142,7 +144,7 @@ fun BookmarkDetailsDialog(
 
             // Saved date
             MetadataFieldWithIcon(
-                icon = Icons.Filled.CalendarMonth,
+                icon = Icons.Filled.Download,
                 value = bookmark.createdDate,
                 contentDescription = stringResource(R.string.detail_saved_date)
             )
@@ -150,7 +152,7 @@ fun BookmarkDetailsDialog(
             // Published date
             bookmark.publishedDate?.let { publishedDate ->
                 MetadataFieldWithIcon(
-                    icon = Icons.Filled.CalendarMonth,
+                    icon = Icons.Filled.Publish,
                     value = publishedDate,
                     contentDescription = stringResource(R.string.detail_published_date)
                 )
@@ -187,11 +189,19 @@ fun BookmarkDetailsDialog(
                 }
             }
 
-            // Language
-            if (bookmark.lang.isNotBlank() && bookmark.lang != "Unknown") {
+            // Language (only show if different from system language)
+            val systemLanguage = Locale.getDefault().language
+            if (bookmark.lang.isNotBlank() &&
+                bookmark.lang != "Unknown" &&
+                bookmark.lang != systemLanguage) {
+                val languageDisplayName = try {
+                    Locale.forLanguageTag(bookmark.lang).displayLanguage
+                } catch (e: Exception) {
+                    bookmark.lang
+                }
                 MetadataFieldWithIcon(
                     icon = Icons.Filled.Language,
-                    value = bookmark.lang,
+                    value = languageDisplayName,
                     contentDescription = stringResource(R.string.detail_language)
                 )
             }
