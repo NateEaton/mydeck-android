@@ -189,7 +189,13 @@ class SyncSettingsViewModel @Inject constructor(
         workInfoNext,
         wifiOnly,
         bookmarkSyncRunning
-    ) { freq, mode, dialog, next, wifi, syncRunning ->
+    ) { args: Array<Any?> ->
+        val freq = args[0] as AutoSyncTimeframe
+        val mode = args[1] as ContentSyncMode
+        val dialog = args[2] as SyncSettingsDialog?
+        val next = args[3] as Long?
+        val wifi = args[4] as Boolean
+        val syncRunning = args[5] as Boolean
         SyncSettingsPartial1(freq, mode, dialog, next, wifi, syncRunning)
     }.combine(
         combine(
