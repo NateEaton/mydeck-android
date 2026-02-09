@@ -500,41 +500,7 @@ class BookmarkDetailViewModel @Inject constructor(
 
                 Type.VIDEO -> {
                     val textPart = articleContent ?: description.takeIf { it.isNotBlank() }?.let { "<p>$it</p>" } ?: ""
-                    val rawEmbedPart = embed ?: ""
-                    val isYouTubeEmbed = rawEmbedPart.contains("youtube", ignoreCase = true)
-                    val embedPart = if (isYouTubeEmbed) {
-                        val iframeMatch = Regex("<iframe[^>]*>", RegexOption.IGNORE_CASE).find(rawEmbedPart)
-                        if (iframeMatch != null) {
-                            val iframeTag = iframeMatch.value
-                            val src = Regex("src\\s*=\\s*\"([^\"]+)\"", RegexOption.IGNORE_CASE)
-                                .find(iframeTag)
-                                ?.groupValues
-                                ?.getOrNull(1)
-                            val width = Regex("width\\s*=\\s*\"([^\"]+)\"", RegexOption.IGNORE_CASE)
-                                .find(iframeTag)
-                                ?.groupValues
-                                ?.getOrNull(1)
-                            val height = Regex("height\\s*=\\s*\"([^\"]+)\"", RegexOption.IGNORE_CASE)
-                                .find(iframeTag)
-                                ?.groupValues
-                                ?.getOrNull(1)
-                            buildString {
-                                append("<iframe")
-                                if (!width.isNullOrBlank()) append(" width=\"").append(width).append("\"")
-                                if (!height.isNullOrBlank()) append(" height=\"").append(height).append("\"")
-                                if (!src.isNullOrBlank()) append(" src=\"").append(src).append("\"")
-                                append(" frameborder=\"0\" allowfullscreen></iframe>")
-                            }
-                        } else {
-                            rawEmbedPart
-                        }
-                    } else {
-                        rawEmbedPart
-                    }
-                    if (isYouTubeEmbed) {
-                        Timber.d("YouTube embed raw=%s", rawEmbedPart)
-                        Timber.d("YouTube embed stripped=%s", embedPart)
-                    }
+                    val embedPart = embed ?: ""
                     val wrappedEmbedPart = if (embedPart.contains("<iframe", ignoreCase = true)) {
                         """<div class="video-embed">$embedPart</div>"""
                     } else {
