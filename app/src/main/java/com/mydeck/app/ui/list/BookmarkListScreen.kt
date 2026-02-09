@@ -743,7 +743,6 @@ fun BookmarkListScreen(navHostController: NavHostController) {
                         onUrlChange = { viewModel.updateCreateBookmarkUrl(it) },
                         onLabelsChange = { viewModel.updateCreateBookmarkLabels(it) },
                         onCreateBookmark = { viewModel.createBookmark() },
-                        onArchiveBookmark = { viewModel.archiveBookmarkOnCreate() },
                         onDismiss = { viewModel.closeCreateBookmarkDialog() }
                     )
                 }
@@ -758,13 +757,8 @@ fun BookmarkListScreen(navHostController: NavHostController) {
                 is BookmarkListViewModel.CreateBookmarkUiState.Success -> {
                     LaunchedEffect(key1 = createBookmarkUiState) {
                         scope.launch {
-                            val message = if (createBookmarkUiState.isArchived) {
-                                context.getString(R.string.bookmark_added_archived)
-                            } else {
-                                context.getString(R.string.bookmark_added)
-                            }
                             snackbarHostState.showSnackbar(
-                                message = message,
+                                message = context.getString(R.string.bookmark_added),
                                 duration = SnackbarDuration.Short
                             )
                             viewModel.closeCreateBookmarkDialog()
@@ -807,7 +801,6 @@ private fun AddBookmarkBottomSheet(
     onUrlChange: (String) -> Unit,
     onLabelsChange: (List<String>) -> Unit,
     onCreateBookmark: () -> Unit,
-    onArchiveBookmark: () -> Unit,
     onDismiss: () -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -825,9 +818,7 @@ private fun AddBookmarkBottomSheet(
             onUrlChange = onUrlChange,
             onTitleChange = onTitleChange,
             onLabelsChange = onLabelsChange,
-            onCreateBookmark = onCreateBookmark,
-            onArchiveBookmark = onArchiveBookmark,
-            onDismiss = onDismiss
+            onCreateBookmark = onCreateBookmark
         )
     }
 }

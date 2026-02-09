@@ -63,7 +63,7 @@ In many cases users add bookmarks for content they have already read. The Archiv
 | **Auto-Save Timer** | Disabled. Waits for user input. |
 | **Dismissal** | Swiping down cancels (sheet closes, no save). |
 | **"Add" Action** | Saves via existing ViewModel path → closes sheet → shows Snackbar. |
-| **"Archive" Action** | Saves with `isArchived=true` → closes sheet → shows Snackbar. |
+| **"Archive" Action** | **Deferred:** Archive-on-create is disabled in Phase 1 for now. |
 | **Clipboard** | FAB still pre-fills URL from clipboard (existing behavior preserved). |
 
 ### 1.5 Keyboard Handling
@@ -81,9 +81,9 @@ In many cases users add bookmarks for content they have already read. The Archiv
   * Add `ModalBottomSheet` wrapping `AddBookmarkSheet`.
   * Wire existing ViewModel state (`createBookmarkUrl`, `createBookmarkTitle`, `createBookmarkLabels`, etc.) to the new sheet.
 
-**Step 3:** Add the archive-on-create path:
-  * Add `onArchiveBookmark` callback to `BookmarkListViewModel` that sets `isArchived=true` before calling the create API.
-  * Surface the callback through to the sheet's Archive button.
+**Step 3:** Archive-on-create deferred:
+  * The Archive button is disabled/removed for now.
+  * We will reintroduce the archive path in a future phase once the data flow is confirmed stable.
 
 **Step 4:** Test keyboard behavior across screen sizes and orientations. Verify `imePadding()` works correctly with the label input field.
 
@@ -91,7 +91,6 @@ In many cases users add bookmarks for content they have already read. The Archiv
 
 ```xml
 <string name="add_link">Add Link</string>
-<string name="action_archive_bookmark">Archive</string>
 ```
 
 Note: `add_link` replaces the dialog title "Add New Bookmark" with a shorter header appropriate for the sheet context. The existing `add_bookmark` string is retained for the FAB content description.

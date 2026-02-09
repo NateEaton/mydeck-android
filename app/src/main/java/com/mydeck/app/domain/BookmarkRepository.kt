@@ -33,8 +33,7 @@ interface BookmarkRepository {
     suspend fun createBookmark(
         title: String,
         url: String,
-        labels: List<String> = emptyList(),
-        isArchived: Boolean = false
+        labels: List<String> = emptyList()
     ): String
     suspend fun updateBookmark(bookmarkId: String, isFavorite: Boolean?, isArchived: Boolean?, isRead: Boolean?): UpdateResult
     suspend fun updateReadProgress(bookmarkId: String, progress: Int): UpdateResult

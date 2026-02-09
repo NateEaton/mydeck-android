@@ -233,8 +233,7 @@ class BookmarkRepositoryImpl @Inject constructor(
     override suspend fun createBookmark(
         title: String,
         url: String,
-        labels: List<String>,
-        isArchived: Boolean
+        labels: List<String>
     ): String {
         val createBookmarkDto = CreateBookmarkDto(labels = labels, title = title, url = url)
         val response = readeckApi.createBookmark(createBookmarkDto)
@@ -262,20 +261,6 @@ class BookmarkRepositoryImpl @Inject constructor(
             }
         } catch (e: Exception) {
             Timber.w(e, "Failed to fetch and insert created bookmark")
-        }
-
-        if (isArchived) {
-            try {
-                val archiveResponse = readeckApi.editBookmark(
-                    id = bookmarkId,
-                    body = EditBookmarkDto(isArchived = true)
-                )
-                if (archiveResponse.isSuccessful) {
-                    bookmarkDao.updateIsArchived(bookmarkId, true)
-                }
-            } catch (e: Exception) {
-                Timber.w(e, "Failed to archive newly created bookmark")
-            }
         }
 
         return bookmarkId

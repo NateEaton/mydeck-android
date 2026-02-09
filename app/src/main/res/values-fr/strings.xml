@@ -62,8 +62,6 @@
     <string name="close_article_search">Close find</string>
     <string name="add_link">Add Link</string>
     <string name="add">Add</string>
-    <string name="action_archive_bookmark">Archive</string>
     <string name="bookmark_added">Bookmark added</string>
-    <string name="bookmark_added_archived">Added and archived</string>
     <string name="remove_label">Remove label</string>
 </resources>

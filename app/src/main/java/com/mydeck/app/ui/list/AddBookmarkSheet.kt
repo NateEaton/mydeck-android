@@ -20,7 +20,6 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -48,9 +47,7 @@ fun AddBookmarkSheet(
     onUrlChange: (String) -> Unit,
     onTitleChange: (String) -> Unit,
     onLabelsChange: (List<String>) -> Unit,
-    onCreateBookmark: () -> Unit,
-    onArchiveBookmark: () -> Unit,
-    onDismiss: () -> Unit
+    onCreateBookmark: () -> Unit
 ) {
     var newLabelInput by remember { mutableStateOf("") }
     val keyboardController = LocalSoftwareKeyboardController.current
@@ -113,19 +110,9 @@ fun AddBookmarkSheet(
 
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
+            horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            OutlinedButton(
-                onClick = {
-                    commitPendingLabels(newLabelInput, labels, onLabelsChange)
-                    newLabelInput = ""
-                    onArchiveBookmark()
-                },
-                enabled = isCreateEnabled
-            ) {
-                Text(stringResource(id = R.string.action_archive_bookmark))
-            }
             Button(
                 onClick = {
                     commitPendingLabels(newLabelInput, labels, onLabelsChange)
