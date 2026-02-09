@@ -171,4 +171,12 @@ other{}
     <string name="search_next_match">Next match</string>
     <string name="search_previous_match">Previous match</string>
     <string name="close_article_search">Close find</string>
+
+    <!-- Bookmark Details Dialog -->
+    <string name="detail_saved_date">Saved</string>
+    <string name="detail_published_date">Published</string>
+    <string name="detail_author">Author</string>
+    <string name="detail_site">Site</string>
+    <string name="detail_about">About %1$s</string>
+    <string name="detail_words">%1$d words</string>
 </resources>
