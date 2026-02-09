@@ -500,7 +500,13 @@ class BookmarkDetailViewModel @Inject constructor(
 
                 Type.VIDEO -> {
                     val textPart = articleContent ?: description.takeIf { it.isNotBlank() }?.let { "<p>$it</p>" } ?: ""
-                    val embedPart = embed ?: ""
+                    val embedPart = embed?.let { raw ->
+                        if (raw.contains("<iframe")) {
+                            """<div class="video-embed">$raw</div>"""
+                        } else {
+                            raw
+                        }
+                    } ?: ""
                     val content = textPart + embedPart
                     if (content.isNotEmpty()) htmlTemplate.replace("%s", content) else null
                 }
