@@ -29,8 +29,9 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Subject
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Public
-import coil.compose.AsyncImage
-import coil.request.ImageRequest
+import coil3.compose.AsyncImage
+import coil3.request.ImageRequest
+import coil3.request.crossfade
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -107,6 +108,7 @@ fun BookmarkDetailsDialog(
                         .crossfade(true)
                         .build(),
                     contentDescription = null,
+                    contentScale = androidx.compose.ui.layout.ContentScale.Crop,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(200.dp)
@@ -126,7 +128,8 @@ fun BookmarkDetailsDialog(
                             .data(bookmark.iconSrc)
                             .crossfade(true)
                             .build(),
-                        contentDescription = null,
+                        contentDescription = "site icon",
+                        contentScale = androidx.compose.ui.layout.ContentScale.Fit,
                         modifier = Modifier.size(20.dp)
                     )
                 }
