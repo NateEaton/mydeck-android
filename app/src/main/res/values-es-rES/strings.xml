@@ -49,6 +49,7 @@ other{}
     <string name="url">URL</string>
     <string name="invalid_url">URL no válida</string>
     <string name="save">Guardar</string>
+    <string name="apply">Apply</string>
     <string name="cancel">Cancelar</string>
     <string name="create_bookmark_error">Error al crear el marcador: %1$s</string>
     <string name="add_new_bookmark">Añadir nuevo marcador</string>
@@ -62,6 +63,13 @@ other{}
     <string name="settings_logs_subtitle">Ver y enviar registros</string>
     <string name="log_view_share_title">Enviar registro</string>
     <string name="log_view_no_log_file_found">No hai fichero de registro</string>
+    <string name="log_view_share_error">Failed to create log archive</string>
+    <string name="log_retention_title">Keep logs for</string>
+    <string name="log_retention_1_day">1 day</string>
+    <string name="log_retention_1_week">1 week</string>
+    <string name="log_retention_1_month">1 month</string>
+    <string name="log_retention_3_months">3 months</string>
+    <string name="log_retention_description">Logs older than the selected period are automatically deleted when the app starts.</string>
     <!-- Bookmark Card Actions -->
     <string name="action_favorite">Favorito</string>
     <string name="action_archive">Archivo</string>

@@ -7,6 +7,7 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import dagger.hilt.android.qualifiers.ApplicationContext
+import com.mydeck.app.BuildConfig
 import com.mydeck.app.domain.model.AutoSyncTimeframe
 import com.mydeck.app.domain.model.Theme
 import com.mydeck.app.domain.sync.ContentSyncConstraints
@@ -44,6 +45,7 @@ class SettingsDataStoreImpl @Inject constructor(@ApplicationContext private val 
     private val KEY_SYNC_NOTIFICATIONS_ENABLED = booleanPreferencesKey("sync_notifications_enabled")
     private val KEY_LAYOUT_MODE = stringPreferencesKey("layout_mode")
     private val KEY_SORT_OPTION = stringPreferencesKey("sort_option")
+    private val KEY_LOG_RETENTION_DAYS = intPreferencesKey("log_retention_days")
     private val KEY_CONTENT_SYNC_MODE = stringPreferencesKey("content_sync_mode")
     private val KEY_WIFI_ONLY = booleanPreferencesKey("content_sync_wifi_only")
     private val KEY_ALLOW_BATTERY_SAVER = booleanPreferencesKey("content_sync_allow_battery_saver")
@@ -274,6 +276,19 @@ class SettingsDataStoreImpl @Inject constructor(@ApplicationContext private val 
         return encryptedSharedPreferences.getString(KEY_SORT_OPTION.name, null)
     }
 
+    override suspend fun saveLogRetentionDays(days: Int) {
+        encryptedSharedPreferences.edit {
+            putInt(KEY_LOG_RETENTION_DAYS.name, days)
+        }
+    }
+
+    override suspend fun getLogRetentionDays(): Int {
+        return encryptedSharedPreferences.getInt(KEY_LOG_RETENTION_DAYS.name, defaultLogRetentionDays())
+    }
+
+    override fun getLogRetentionDaysFlow(): StateFlow<Int> =
+        getIntFlow(KEY_LOG_RETENTION_DAYS.name, defaultLogRetentionDays())
+
     override suspend fun getContentSyncMode(): ContentSyncMode {
         return encryptedSharedPreferences.getString(KEY_CONTENT_SYNC_MODE.name, ContentSyncMode.MANUAL.name)?.let {
             try { ContentSyncMode.valueOf(it) } catch (_: Exception) { ContentSyncMode.MANUAL }
@@ -320,5 +335,9 @@ class SettingsDataStoreImpl @Inject constructor(@ApplicationContext private val 
             putString(KEY_DATE_RANGE_FROM.name, params.from.toString())
             putString(KEY_DATE_RANGE_TO.name, params.to.toString())
         }
+    }
+
+    private fun defaultLogRetentionDays(): Int {
+        return if (BuildConfig.DEBUG) 7 else 30
     }
 }

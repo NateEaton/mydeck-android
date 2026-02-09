@@ -54,6 +54,7 @@ other{}
     <string name="url">URL</string>
     <string name="invalid_url">Ungültige URL</string>
     <string name="save">Speichern</string>
+    <string name="apply">Apply</string>
     <string name="cancel">Abbrechen</string>
     <string name="create_bookmark_error">Fehler beim Erstellen des Lesezeichens: %1$s</string>
     <string name="add_new_bookmark">Neues Lesezeichen hinzufügen</string>
@@ -67,6 +68,13 @@ other{}
     <string name="settings_logs_subtitle">Logdateien anzeigen und senden</string>
     <string name="log_view_share_title">Logs senden</string>
     <string name="log_view_no_log_file_found">Keine Logdatei gefunden</string>
+    <string name="log_view_share_error">Failed to create log archive</string>
+    <string name="log_retention_title">Keep logs for</string>
+    <string name="log_retention_1_day">1 day</string>
+    <string name="log_retention_1_week">1 week</string>
+    <string name="log_retention_1_month">1 month</string>
+    <string name="log_retention_3_months">3 months</string>
+    <string name="log_retention_description">Logs older than the selected period are automatically deleted when the app starts.</string>
     <string name="settings_sync">Synchronisierung</string>
     <string name="settings_sync_subtitle">Synchronisierungseinstellungen</string>
 

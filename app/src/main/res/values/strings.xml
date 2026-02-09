@@ -57,6 +57,7 @@ other{}
     <string name="url">URL</string>
     <string name="invalid_url">Invalid URL</string>
     <string name="save">Save</string>
+    <string name="apply">Apply</string>
     <string name="cancel">Cancel</string>
     <string name="retry">Retry</string>
     <string name="webview_error_title">Unable to load page</string>
@@ -73,9 +74,16 @@ other{}
     <string name="settings_logs_subtitle">View and Send Logfiles</string>
     <string name="log_view_share_title">Send Logs</string>
     <string name="log_view_no_log_file_found">No log file found</string>
+    <string name="log_view_share_error">Failed to create log archive</string>
     <string name="log_view_refresh">Refresh Logs</string>
     <string name="log_view_clear_logs">Clear Logs</string>
     <string name="log_view_logs_cleared">Logs cleared</string>
+    <string name="log_retention_title">Keep logs for</string>
+    <string name="log_retention_1_day">1 day</string>
+    <string name="log_retention_1_week">1 week</string>
+    <string name="log_retention_1_month">1 month</string>
+    <string name="log_retention_3_months">3 months</string>
+    <string name="log_retention_description">Logs older than the selected period are automatically deleted when the app starts.</string>
     <string name="settings_sync">Synchronization</string>
     <string name="settings_sync_subtitle">Synchronization Settings</string>
     <string name="settings_ui">User Interface</string>

@@ -48,6 +48,7 @@ other{}
     <string name="url">URL</string>
     <string name="invalid_url">URL non válido</string>
     <string name="save">Gardar</string>
+    <string name="apply">Apply</string>
     <string name="cancel">Desbotar</string>
     <string name="create_bookmark_error">Erro ao crear o marcador: %1$s</string>
     <string name="add_new_bookmark">Engadir Novo marcador</string>
@@ -78,6 +79,13 @@ other{}
     <string name="sync_bookmark_section_title">Bookmark Sync</string>
     <string name="sync_bookmark_description">Bookmarks are always kept in sync.</string>
     <string name="sync_bookmark_frequency_label">Sync frequency</string>
+    <string name="log_view_share_error">Failed to create log archive</string>
+    <string name="log_retention_title">Keep logs for</string>
+    <string name="log_retention_1_day">1 day</string>
+    <string name="log_retention_1_week">1 week</string>
+    <string name="log_retention_1_month">1 month</string>
+    <string name="log_retention_3_months">3 months</string>
+    <string name="log_retention_description">Logs older than the selected period are automatically deleted when the app starts.</string>
     <string name="sync_settings_sync_bookmarks_now">Sync Bookmarks Now</string>
     <string name="sync_settings_sync_bookmarks_now_description">Check for deleted bookmarks and sync all changes immediately</string>
     <string name="sync_settings_sync_running">Syncing…</string>
