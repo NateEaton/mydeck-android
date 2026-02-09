@@ -573,28 +573,13 @@ class BookmarkListViewModel @Inject constructor(
 
             _createBookmarkUiState.value = CreateBookmarkUiState.Loading
             try {
-                val bookmarkId = bookmarkRepository.createBookmark(
+                bookmarkRepository.createBookmark(
                     title = title,
                     url = url,
-                    labels = labels
+                    labels = labels,
+                    isArchived = isArchived
                 )
-                if (isArchived) {
-                    when (val result = updateBookmarkUseCase.updateIsArchived(bookmarkId, true)) {
-                        is UpdateBookmarkUseCase.Result.Success -> {
-                            _createBookmarkUiState.value = CreateBookmarkUiState.Success(isArchived = true)
-                        }
-                        is UpdateBookmarkUseCase.Result.GenericError -> {
-                            _createBookmarkUiState.value =
-                                CreateBookmarkUiState.Error(result.message)
-                        }
-                        is UpdateBookmarkUseCase.Result.NetworkError -> {
-                            _createBookmarkUiState.value =
-                                CreateBookmarkUiState.Error(result.message)
-                        }
-                    }
-                } else {
-                    _createBookmarkUiState.value = CreateBookmarkUiState.Success(isArchived = false)
-                }
+                _createBookmarkUiState.value = CreateBookmarkUiState.Success(isArchived = isArchived)
             } catch (e: Exception) {
                 _createBookmarkUiState.value =
                     CreateBookmarkUiState.Error(e.message ?: "Unknown error")

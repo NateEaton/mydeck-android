@@ -452,14 +452,14 @@ class BookmarkListViewModelTest {
 
         val title = "Test Title"
         val url = "https://example.com"
-        coEvery { bookmarkRepository.createBookmark(title, url, emptyList()) } returns "bookmark123"
+        coEvery { bookmarkRepository.createBookmark(title, url, emptyList(), false) } returns "bookmark123"
 
         viewModel.updateCreateBookmarkTitle(title)
         viewModel.updateCreateBookmarkUrl(url)
         viewModel.createBookmark()
         runCurrent()
 
-        coVerify { bookmarkRepository.createBookmark(title, url, emptyList()) }
+        coVerify { bookmarkRepository.createBookmark(title, url, emptyList(), false) }
         println("state=${viewModel.createBookmarkUiState.value}")
         assertTrue(viewModel.createBookmarkUiState.value is BookmarkListViewModel.CreateBookmarkUiState.Success)
         assertEquals(
@@ -486,7 +486,7 @@ class BookmarkListViewModelTest {
         val title = "Test Title"
         val url = "https://example.com"
         val errorMessage = "Failed to create bookmark"
-        coEvery { bookmarkRepository.createBookmark(title, url, emptyList()) } throws Exception(errorMessage)
+        coEvery { bookmarkRepository.createBookmark(title, url, emptyList(), false) } throws Exception(errorMessage)
 
         viewModel.updateCreateBookmarkTitle(title)
         viewModel.updateCreateBookmarkUrl(url)
