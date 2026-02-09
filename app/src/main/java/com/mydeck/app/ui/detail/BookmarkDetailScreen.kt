@@ -3,6 +3,7 @@ package com.mydeck.app.ui.detail
 import android.icu.text.MessageFormat
 import android.view.View
 import android.webkit.WebView
+import android.net.Uri
 import androidx.compose.foundation.clickable
 import androidx.compose.ui.draw.alpha
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -648,7 +649,7 @@ fun BookmarkDetailArticle(
                 update = {
                     if (content.value != null && it.tag as? String != content.value) {
                         val baseUrl = if (uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.VIDEO) {
-                            uiState.bookmark.url
+                            extractEmbedBaseUrl(uiState.bookmark.embed) ?: uiState.bookmark.url
                         } else {
                             null
                         }
@@ -677,6 +678,22 @@ fun BookmarkDetailArticle(
 
     } else {
         CircularProgressIndicator()
+    }
+}
+
+private fun extractEmbedBaseUrl(embed: String?): String? {
+    if (embed.isNullOrBlank()) return null
+    val src = Regex("src\\s*=\\s*\"([^\"]+)\"", RegexOption.IGNORE_CASE)
+        .find(embed)
+        ?.groupValues
+        ?.getOrNull(1)
+    val uri = src?.let { Uri.parse(it) }
+    val scheme = uri?.scheme
+    val host = uri?.host
+    return if (!scheme.isNullOrBlank() && !host.isNullOrBlank()) {
+        "$scheme://$host/"
+    } else {
+        null
     }
 }
 
