@@ -500,7 +500,16 @@ class BookmarkDetailViewModel @Inject constructor(
 
                 Type.VIDEO -> {
                     val textPart = articleContent ?: description.takeIf { it.isNotBlank() }?.let { "<p>$it</p>" } ?: ""
-                    val embedPart = embed ?: ""
+                    val rawEmbedPart = embed ?: ""
+                    val isYouTubeEmbed = rawEmbedPart.contains("youtube", ignoreCase = true)
+                    val embedPart = if (isYouTubeEmbed) {
+                        rawEmbedPart
+                            .replace(Regex("\\s+sandbox=\"[^\"]*\"", RegexOption.IGNORE_CASE), "")
+                            .replace(Regex("\\s+csp=\"[^\"]*\"", RegexOption.IGNORE_CASE), "")
+                            .replace(Regex("\\s+credentialless=\"[^\"]*\"", RegexOption.IGNORE_CASE), "")
+                    } else {
+                        rawEmbedPart
+                    }
                     val wrappedEmbedPart = if (embedPart.contains("<iframe", ignoreCase = true)) {
                         """<div class="video-embed">$embedPart</div>"""
                     } else {
