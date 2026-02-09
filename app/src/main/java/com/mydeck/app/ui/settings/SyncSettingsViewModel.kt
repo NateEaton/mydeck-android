@@ -110,6 +110,7 @@ class SyncSettingsViewModel @Inject constructor(
             if (it.state == WorkInfo.State.ENQUEUED) it.nextScheduleTimeMillis else null
         }
     }
+    private val bookmarkSyncRunning = fullSyncUseCase.syncIsRunning
 
     // Date range download work status
     private val dateRangeWorkStatus = workManager
@@ -187,8 +188,9 @@ class SyncSettingsViewModel @Inject constructor(
         showDialog,
         workInfoNext,
         wifiOnly,
-    ) { freq, mode, dialog, next, wifi ->
-        SyncSettingsPartial1(freq, mode, dialog, next, wifi)
+        bookmarkSyncRunning
+    ) { freq, mode, dialog, next, wifi, syncRunning ->
+        SyncSettingsPartial1(freq, mode, dialog, next, wifi, syncRunning)
     }.combine(
         combine(
             allowBatterySaver,
@@ -216,6 +218,7 @@ class SyncSettingsViewModel @Inject constructor(
             dateRangeFrom = p2.from,
             dateRangeTo = p2.to,
             isDateRangeDownloading = p2.downloading,
+            isBookmarkSyncRunning = p1.syncRunning,
             wifiOnly = p1.wifi,
             allowBatterySaver = p2.battery,
             syncStatus = SyncStatus(
@@ -254,6 +257,10 @@ class SyncSettingsViewModel @Inject constructor(
             settingsDataStore.saveAutoSyncTimeframe(effective)
             bookmarkSyncFrequency.value = effective
         }
+    }
+
+    fun onClickSyncBookmarksNow() {
+        fullSyncUseCase.performForcedFullSync()
     }
 
     // --- Content Sync ---
@@ -552,7 +559,8 @@ class SyncSettingsViewModel @Inject constructor(
         val mode: ContentSyncMode,
         val dialog: SyncSettingsDialog?,
         val next: Long?,
-        val wifi: Boolean
+        val wifi: Boolean,
+        val syncRunning: Boolean
     )
 
     private data class SyncSettingsPartial2(
@@ -571,6 +579,7 @@ data class SyncSettingsUiState(
     val bookmarkSyncFrequency: AutoSyncTimeframe = AutoSyncTimeframe.HOURS_01,
     val bookmarkSyncFrequencyOptions: List<AutoSyncTimeframeOption> = emptyList(),
     val nextAutoSyncRun: String? = null,
+    val isBookmarkSyncRunning: Boolean = false,
 
     // Content sync
     val contentSyncMode: ContentSyncMode = ContentSyncMode.AUTOMATIC,

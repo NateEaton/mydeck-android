@@ -25,6 +25,9 @@
     <string name="account_settings_password_error">密码不能为空</string>
     <string name="account_settings_allow_unencrypted">允许未加密连接</string>
     <string name="sync_settings_topbar_title">同步设置</string>
+    <string name="sync_settings_sync_bookmarks_now">Sync Bookmarks Now</string>
+    <string name="sync_settings_sync_bookmarks_now_description">Check for deleted bookmarks and sync all changes immediately</string>
+    <string name="sync_settings_sync_running">Syncing…</string>
     <string name="authors" translatable="true">{count, plural, zero{} one{来自 {author}} many{来自 {author} 等} other{} }</string>
     <string name="settings_open_source_libraries">开源库</string>
     <string name="settings_open_source_libraries_subtitle">查看此应用中使用的开源库。</string>

@@ -19,6 +19,9 @@
     <string name="account_settings_password_error">Passwort darf nicht leer sein</string>
     <string name="account_settings_allow_unencrypted">Unverschlüsselte Verbindunge erlauben</string>
     <string name="sync_settings_topbar_title">Synchronisierungseinstellungen</string>
+    <string name="sync_settings_sync_bookmarks_now">Sync Bookmarks Now</string>
+    <string name="sync_settings_sync_bookmarks_now_description">Check for deleted bookmarks and sync all changes immediately</string>
+    <string name="sync_settings_sync_running">Syncing…</string>
     <string name="authors" translatable="true">
 {count, plural,
 zero{}

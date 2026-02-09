@@ -44,7 +44,8 @@ class FullSyncWorker @AssistedInject constructor(
             val lastFullSyncTimestamp = settingsDataStore.getLastFullSyncTimestamp()
 
             // Step 1: Determine if we need a full sync for deletion detection
-            val needsFullSync = lastFullSyncTimestamp == null ||
+            val forceFullSync = inputData.getBoolean(INPUT_FORCE_FULL_SYNC, false)
+            val needsFullSync = forceFullSync || lastFullSyncTimestamp == null ||
                 Clock.System.now() - lastFullSyncTimestamp > FULL_SYNC_INTERVAL
 
             var syncResult = if (needsFullSync) {
@@ -215,6 +216,7 @@ class FullSyncWorker @AssistedInject constructor(
         const val OUTPUT_DATA_COUNT = "count"
         const val NOTIFICATION_ID = 0
         const val INPUT_IS_MANUAL_SYNC = "is_manual_sync"
+        const val INPUT_FORCE_FULL_SYNC = "force_full_sync"
         val FULL_SYNC_INTERVAL = 24.hours  // Run full sync once per day
     }
 }

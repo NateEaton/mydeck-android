@@ -78,6 +78,9 @@ other{}
     <string name="sync_bookmark_section_title">Bookmark Sync</string>
     <string name="sync_bookmark_description">Bookmarks are always kept in sync.</string>
     <string name="sync_bookmark_frequency_label">Sync frequency</string>
+    <string name="sync_settings_sync_bookmarks_now">Sync Bookmarks Now</string>
+    <string name="sync_settings_sync_bookmarks_now_description">Check for deleted bookmarks and sync all changes immediately</string>
+    <string name="sync_settings_sync_running">Syncing…</string>
     <string name="sync_content_section_title">Content Sync</string>
     <string name="sync_content_automatic">Automatic</string>
     <string name="sync_content_automatic_desc">Content is downloaded during bookmark sync</string>

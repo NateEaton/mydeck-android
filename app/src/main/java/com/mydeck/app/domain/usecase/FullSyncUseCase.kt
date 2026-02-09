@@ -44,6 +44,29 @@ class FullSyncUseCase @Inject constructor(
         )
     }
 
+    fun performForcedFullSync() {
+        Timber.d("Start Forced Full Sync Worker")
+        val constraints = Constraints.Builder()
+            .setRequiredNetworkType(NetworkType.CONNECTED)
+            .build()
+
+        val inputData = Data.Builder()
+            .putBoolean(FullSyncWorker.INPUT_IS_MANUAL_SYNC, true)
+            .putBoolean(FullSyncWorker.INPUT_FORCE_FULL_SYNC, true)
+            .build()
+
+        val request = OneTimeWorkRequestBuilder<FullSyncWorker>()
+            .setConstraints(constraints)
+            .addTag(FullSyncWorker.TAG)
+            .setInputData(inputData)
+            .build()
+        workManager.enqueueUniqueWork(
+            FullSyncWorker.UNIQUE_NAME_MANUAL,
+            ExistingWorkPolicy.REPLACE,
+            request
+        )
+    }
+
     fun scheduleFullSyncWorker(autoSyncTimeframe: AutoSyncTimeframe) {
         Timber.i("Schedule Full Sync Worker [autoSyncTimeframe=$autoSyncTimeframe]")
         if (autoSyncTimeframe == AutoSyncTimeframe.MANUAL) {

@@ -90,6 +90,9 @@ other{}
     <string name="ui_settings_topbar_title">Opciones de la interfaz de usuario</string>
     <string name="settings_ui">Interfaz de usuario</string>
     <string name="sync_settings_topbar_title">Opciones de sincronización</string>
+    <string name="sync_settings_sync_bookmarks_now">Sync Bookmarks Now</string>
+    <string name="sync_settings_sync_bookmarks_now_description">Check for deleted bookmarks and sync all changes immediately</string>
+    <string name="sync_settings_sync_running">Syncing…</string>
     <string name="settings_sync">Sincronización</string>
     <string name="settings_sync_subtitle">Opciones de sincronización</string>
     <string name="settings_sync_full_sync_heading">Sincronización en segundo plano</string>
