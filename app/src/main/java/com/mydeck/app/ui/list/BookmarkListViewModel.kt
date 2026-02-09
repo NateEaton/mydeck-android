@@ -573,7 +573,11 @@ class BookmarkListViewModel @Inject constructor(
 
             _createBookmarkUiState.value = CreateBookmarkUiState.Loading
             try {
-                bookmarkRepository.createBookmark(title = title, url = url, labels = labels)
+                bookmarkRepository.createBookmark(
+                    title = title,
+                    url = url,
+                    labels = labels
+                )
                 _createBookmarkUiState.value = CreateBookmarkUiState.Success
             } catch (e: Exception) {
                 _createBookmarkUiState.value =

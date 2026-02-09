@@ -41,6 +41,10 @@
     <string name="an_error_occurred">发生了错误。</string>
     <string name="no_bookmarks_found">未找到书签。</string>
     <string name="add_bookmark">添加书签</string>
+    <string name="add_link">Add Link</string>
+    <string name="add">Add</string>
+    <string name="bookmark_added">Bookmark added</string>
+    <string name="remove_label">Remove label</string>
     <string name="title">标题（可选）</string>
     <string name="invalid_url">无效的 URL</string>
     <string name="save">保存</string>

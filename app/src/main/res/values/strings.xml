@@ -47,6 +47,9 @@ other{}
     <string name="an_error_occurred">An error occurred.</string>
     <string name="no_bookmarks_found">No bookmarks found.</string>
     <string name="add_bookmark">Add Bookmark</string>
+    <string name="add_link">Add Link</string>
+    <string name="add">Add</string>
+    <string name="bookmark_added">Bookmark added</string>
     <string name="title">Title (Optional)</string>
     <string name="url">URL</string>
     <string name="invalid_url">Invalid URL</string>
@@ -170,6 +173,7 @@ other{}
     <string name="detail_minutes_short">min</string>
     <string name="detail_labels">Labels</string>
     <string name="detail_label_placeholder">Add labels (comma-separated)</string>
+    <string name="remove_label">Remove label</string>
 
     <!-- Labels View -->
     <string name="bookmark_labels">Bookmark labels</string>

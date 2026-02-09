@@ -3,8 +3,6 @@ package com.mydeck.app.ui.list
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -21,9 +19,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -32,7 +30,6 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Clear
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.material.icons.filled.Grade
@@ -47,12 +44,11 @@ import androidx.compose.material.icons.outlined.Inventory2
 import androidx.compose.material.icons.outlined.Label
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.TaskAlt
-import androidx.compose.material3.AlertDialog
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.DropdownMenu
@@ -64,6 +60,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.ModalDrawerSheet
 import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.NavigationDrawerItem
@@ -82,6 +79,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.material3.rememberDrawerState
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.LaunchedEffect
@@ -97,7 +95,6 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.tooling.preview.Preview
@@ -733,11 +730,10 @@ fun BookmarkListScreen(navHostController: NavHostController) {
                 }
             }
 
-            // Show the CreateBookmarkDialog based on the state
+            // Show the Add Bookmark bottom sheet based on the state
             when (createBookmarkUiState) {
                 is BookmarkListViewModel.CreateBookmarkUiState.Open -> {
-                    CreateBookmarkDialog(
-                        onDismiss = { viewModel.closeCreateBookmarkDialog() },
+                    AddBookmarkBottomSheet(
                         title = createBookmarkUiState.title,
                         url = createBookmarkUiState.url,
                         urlError = createBookmarkUiState.urlError,
@@ -746,7 +742,8 @@ fun BookmarkListScreen(navHostController: NavHostController) {
                         onTitleChange = { viewModel.updateCreateBookmarkTitle(it) },
                         onUrlChange = { viewModel.updateCreateBookmarkUrl(it) },
                         onLabelsChange = { viewModel.updateCreateBookmarkLabels(it) },
-                        onCreateBookmark = { viewModel.createBookmark() }
+                        onCreateBookmark = { viewModel.createBookmark() },
+                        onDismiss = { viewModel.closeCreateBookmarkDialog() }
                     )
                 }
 
@@ -758,11 +755,12 @@ fun BookmarkListScreen(navHostController: NavHostController) {
                 }
 
                 is BookmarkListViewModel.CreateBookmarkUiState.Success -> {
-                    // Optionally show a success message
                     LaunchedEffect(key1 = createBookmarkUiState) {
-                        // Dismiss the dialog after a short delay
                         scope.launch {
-                            kotlinx.coroutines.delay(1000)
+                            snackbarHostState.showSnackbar(
+                                message = context.getString(R.string.bookmark_added),
+                                duration = SnackbarDuration.Short
+                            )
                             viewModel.closeCreateBookmarkDialog()
                         }
                     }
@@ -791,10 +789,9 @@ fun BookmarkListScreen(navHostController: NavHostController) {
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun CreateBookmarkDialog(
-    onDismiss: () -> Unit,
+private fun AddBookmarkBottomSheet(
     title: String,
     url: String,
     urlError: Int?,
@@ -803,172 +800,26 @@ fun CreateBookmarkDialog(
     onTitleChange: (String) -> Unit,
     onUrlChange: (String) -> Unit,
     onLabelsChange: (List<String>) -> Unit,
-    onCreateBookmark: () -> Unit
+    onCreateBookmark: () -> Unit,
+    onDismiss: () -> Unit
 ) {
-    var newLabelInput by remember { mutableStateOf("") }
-    val keyboardController = LocalSoftwareKeyboardController.current
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
-    AlertDialog(
+    ModalBottomSheet(
         onDismissRequest = onDismiss,
-        title = { Text(stringResource(id = R.string.add_new_bookmark)) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                // URL field
-                OutlinedTextField(
-                    value = url,
-                    onValueChange = { onUrlChange(it) },
-                    isError = urlError != null,
-                    label = { Text(stringResource(id = R.string.url)) },
-                    supportingText = {
-                        urlError?.let {
-                            Text(text = stringResource(it))
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                // Title field
-                OutlinedTextField(
-                    value = title,
-                    onValueChange = { onTitleChange(it) },
-                    label = { Text(stringResource(id = R.string.title)) },
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                // Labels Section
-                CreateBookmarkLabelsSection(
-                    labels = labels,
-                    newLabelInput = newLabelInput,
-                    onNewLabelChange = { newLabelInput = it },
-                    onAddLabel = {
-                        if (newLabelInput.isNotBlank()) {
-                            // Split on commas and trim each label
-                            val newLabels = newLabelInput.split(',')
-                                .map { it.trim() }
-                                .filter { it.isNotBlank() && !labels.contains(it) }
-
-                            if (newLabels.isNotEmpty()) {
-                                onLabelsChange(labels + newLabels)
-                            }
-                            newLabelInput = ""
-                            keyboardController?.hide()
-                        }
-                    },
-                    onRemoveLabel = { label ->
-                        onLabelsChange(labels.filter { it != label })
-                    }
-                )
-            }
-        },
-        confirmButton = {
-            Button(
-                onClick = {
-                    // Process any pending label input before creating
-                    if (newLabelInput.isNotBlank()) {
-                        val newLabels = newLabelInput.split(',')
-                            .map { it.trim() }
-                            .filter { it.isNotBlank() && !labels.contains(it) }
-
-                        if (newLabels.isNotEmpty()) {
-                            onLabelsChange(labels + newLabels)
-                        }
-                    }
-                    onCreateBookmark()
-                },
-                enabled = isCreateEnabled
-            ) {
-                Text(stringResource(id = R.string.create))
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(id = R.string.cancel))
-            }
-        }
-    )
-}
-
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-private fun CreateBookmarkLabelsSection(
-    labels: List<String>,
-    newLabelInput: String,
-    onNewLabelChange: (String) -> Unit,
-    onAddLabel: () -> Unit,
-    onRemoveLabel: (String) -> Unit
-) {
-    Column(
-        modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+        sheetState = sheetState
     ) {
-        Text(
-            text = stringResource(R.string.detail_labels),
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+        AddBookmarkSheet(
+            url = url,
+            title = title,
+            urlError = urlError,
+            isCreateEnabled = isCreateEnabled,
+            labels = labels,
+            onUrlChange = onUrlChange,
+            onTitleChange = onTitleChange,
+            onLabelsChange = onLabelsChange,
+            onCreateBookmark = onCreateBookmark
         )
-
-        // Existing labels
-        if (labels.isNotEmpty()) {
-            FlowRow(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                labels.forEach { label ->
-                    LabelChip(
-                        label = label,
-                        onRemove = { onRemoveLabel(label) }
-                    )
-                }
-            }
-        }
-
-        // Input field for new label
-        OutlinedTextField(
-            value = newLabelInput,
-            onValueChange = onNewLabelChange,
-            placeholder = { Text(stringResource(R.string.detail_label_placeholder)) },
-            modifier = Modifier.fillMaxWidth(),
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-            keyboardActions = KeyboardActions(
-                onDone = { onAddLabel() }
-            ),
-            textStyle = MaterialTheme.typography.bodySmall
-        )
-    }
-}
-
-@Composable
-private fun LabelChip(
-    label: String,
-    onRemove: () -> Unit = {}
-) {
-    Card(
-        modifier = Modifier.padding(4.dp),
-        shape = RoundedCornerShape(16.dp)
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            Text(
-                text = label,
-                style = MaterialTheme.typography.labelSmall,
-                modifier = Modifier.weight(1f, fill = false)
-            )
-            IconButton(
-                onClick = onRemove,
-                modifier = Modifier.size(20.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Filled.Close,
-                    contentDescription = "Remove label",
-                    modifier = Modifier.size(16.dp)
-                )
-            }
-        }
     }
 }
 

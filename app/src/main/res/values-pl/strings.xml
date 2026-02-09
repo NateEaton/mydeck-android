@@ -60,4 +60,8 @@
     <string name="search_next_match">Next match</string>
     <string name="search_previous_match">Previous match</string>
     <string name="close_article_search">Close find</string>
+    <string name="add_link">Add Link</string>
+    <string name="add">Add</string>
+    <string name="bookmark_added">Bookmark added</string>
+    <string name="remove_label">Remove label</string>
 </resources>
