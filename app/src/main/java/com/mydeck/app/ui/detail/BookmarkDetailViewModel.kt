@@ -179,6 +179,16 @@ class BookmarkDetailViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Save current reading progress when the screen goes to background.
+     * This avoids losing scroll position if the app is killed after onStop().
+     */
+    fun saveProgressOnPause() {
+        viewModelScope.launch {
+            saveCurrentProgress()
+        }
+    }
+
     @OptIn(ExperimentalEncodingApi::class)
     val uiState = combine(
         bookmarkRepository.observeBookmark(bookmarkId!!),

@@ -59,6 +59,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -69,6 +70,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalInspectionMode
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -76,6 +78,8 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.navigation.NavController
 import com.mydeck.app.R
 import com.mydeck.app.domain.model.Template
@@ -112,6 +116,7 @@ fun BookmarkDetailScreen(navHostController: NavController, bookmarkId: String?, 
     val articleSearchState = viewModel.articleSearchState.collectAsState().value
     var showDetailsDialog by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
+    val lifecycleOwner = LocalLifecycleOwner.current
     val onClickDeleteBookmark: (String) -> Unit = { id ->
         viewModel.deleteBookmark(id)
         scope.launch {
@@ -133,6 +138,24 @@ fun BookmarkDetailScreen(navHostController: NavController, bookmarkId: String?, 
     val onArticleSearchNext = { viewModel.onArticleSearchNext() }
     val onArticleSearchPrevious = { viewModel.onArticleSearchPrevious() }
     val onArticleSearchUpdateResults = { totalMatches: Int -> viewModel.onArticleSearchUpdateResults(totalMatches) }
+
+    DisposableEffect(lifecycleOwner, bookmarkId) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_STOP) {
+                val state = viewModel.uiState.value
+                if (state is BookmarkDetailViewModel.UiState.Success &&
+                    state.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.ARTICLE) {
+                    viewModel.saveProgressOnPause()
+                }
+            }
+        }
+
+        lifecycleOwner.lifecycle.addObserver(observer)
+
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
 
     LaunchedEffect(key1 = navigationEvent.value) {
         navigationEvent.value?.let { event ->
