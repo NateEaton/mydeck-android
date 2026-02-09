@@ -78,6 +78,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.mydeck.app.R
 import com.mydeck.app.domain.model.Template
+import timber.log.Timber
 import com.mydeck.app.util.openUrlInCustomTab
 import com.mydeck.app.ui.components.ShareBookmarkChooser
 import com.mydeck.app.ui.detail.BookmarkDetailViewModel.ContentLoadState
@@ -577,6 +578,69 @@ fun BookmarkDetailArticle(
                         isVerticalScrollBarEnabled = false
                         isHorizontalScrollBarEnabled = false
                         settings.textZoom = uiState.zoomFactor
+                        WebView.setWebContentsDebuggingEnabled(true)
+                        if (isVideo) {
+                            webViewClient = object : android.webkit.WebViewClient() {
+                                override fun onPageFinished(view: WebView?, url: String?) {
+                                    super.onPageFinished(view, url)
+                                    val width = view?.width ?: 0
+                                    val height = view?.height ?: 0
+                                    Timber.d(
+                                        "Video WebView page finished url=%s viewSize=%dx%d",
+                                        url,
+                                        width,
+                                        height
+                                    )
+                                    view?.evaluateJavascript(
+                                        "(function(){return JSON.stringify({body:document.body?.scrollHeight||0,doc:document.documentElement?.scrollHeight||0});})()"
+                                    ) { result ->
+                                        Timber.d("Video WebView document heights=%s", result)
+                                    }
+                                }
+
+                                override fun onReceivedError(
+                                    view: WebView?,
+                                    request: android.webkit.WebResourceRequest?,
+                                    error: android.webkit.WebResourceError?
+                                ) {
+                                    super.onReceivedError(view, request, error)
+                                    Timber.e(
+                                        "Video WebView error mainFrame=%s url=%s code=%s desc=%s",
+                                        request?.isForMainFrame,
+                                        request?.url,
+                                        error?.errorCode,
+                                        error?.description
+                                    )
+                                }
+
+                                override fun onReceivedHttpError(
+                                    view: WebView?,
+                                    request: android.webkit.WebResourceRequest?,
+                                    errorResponse: android.webkit.WebResourceResponse?
+                                ) {
+                                    super.onReceivedHttpError(view, request, errorResponse)
+                                    Timber.e(
+                                        "Video WebView HTTP error mainFrame=%s url=%s code=%s reason=%s",
+                                        request?.isForMainFrame,
+                                        request?.url,
+                                        errorResponse?.statusCode,
+                                        errorResponse?.reasonPhrase
+                                    )
+                                }
+                            }
+                            webChromeClient = object : android.webkit.WebChromeClient() {
+                                override fun onConsoleMessage(message: android.webkit.ConsoleMessage?): Boolean {
+                                    Timber.d(
+                                        "Video WebView console message=%s source=%s line=%s level=%s",
+                                        message?.message(),
+                                        message?.sourceId(),
+                                        message?.lineNumber(),
+                                        message?.messageLevel()
+                                    )
+                                    return super.onConsoleMessage(message)
+                                }
+                            }
+                        }
                         webViewRef.value = this
                     }
                 },
@@ -586,6 +650,13 @@ fun BookmarkDetailArticle(
                             uiState.bookmark.url
                         } else {
                             null
+                        }
+                        if (uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.VIDEO) {
+                            Timber.d(
+                                "Video WebView loadDataWithBaseURL baseUrl=%s htmlLength=%s",
+                                baseUrl,
+                                content.value?.length
+                            )
                         }
                         it.loadDataWithBaseURL(
                             baseUrl,

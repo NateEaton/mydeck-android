@@ -502,6 +502,28 @@ class BookmarkDetailViewModel @Inject constructor(
                     val textPart = articleContent ?: description.takeIf { it.isNotBlank() }?.let { "<p>$it</p>" } ?: ""
                     val embedPart = embed ?: ""
                     val content = textPart + embedPart
+                    val embedLength = embedPart.length
+                    val iframeSrc = Regex("src=[\"']([^\"']+)[\"']", RegexOption.IGNORE_CASE)
+                        .find(embedPart)
+                        ?.groupValues
+                        ?.getOrNull(1)
+                    val iframeStyle = Regex("style=[\"']([^\"']+)[\"']", RegexOption.IGNORE_CASE)
+                        .find(embedPart)
+                        ?.groupValues
+                        ?.getOrNull(1)
+                    Timber.d(
+                        "Video embed details: embedLength=%s iframeSrc=%s iframeStyle=%s descriptionLength=%s articleLength=%s",
+                        embedLength,
+                        iframeSrc,
+                        iframeStyle,
+                        description.length,
+                        articleContent?.length
+                    )
+                    Timber.d(
+                        "Video HTML template length=%s combinedContentLength=%s",
+                        htmlTemplate.length,
+                        content.length
+                    )
                     if (content.isNotEmpty()) htmlTemplate.replace("%s", content) else null
                 }
 
