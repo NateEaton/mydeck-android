@@ -580,6 +580,7 @@ fun BookmarkDetailArticle(
                         settings.textZoom = uiState.zoomFactor
                         WebView.setWebContentsDebuggingEnabled(true)
                         if (isVideo) {
+                            android.webkit.CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
                             webViewClient = object : android.webkit.WebViewClient() {
                                 override fun onPageFinished(view: WebView?, url: String?) {
                                     super.onPageFinished(view, url)

@@ -501,7 +501,12 @@ class BookmarkDetailViewModel @Inject constructor(
                 Type.VIDEO -> {
                     val textPart = articleContent ?: description.takeIf { it.isNotBlank() }?.let { "<p>$it</p>" } ?: ""
                     val embedPart = embed ?: ""
-                    val content = textPart + embedPart
+                    val wrappedEmbedPart = if (embedPart.contains("<iframe", ignoreCase = true)) {
+                        """<div class="video-embed">$embedPart</div>"""
+                    } else {
+                        embedPart
+                    }
+                    val content = textPart + wrappedEmbedPart
                     val embedLength = embedPart.length
                     val iframeSrc = Regex("src=[\"']([^\"']+)[\"']", RegexOption.IGNORE_CASE)
                         .find(embedPart)
