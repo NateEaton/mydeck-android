@@ -1,6 +1,7 @@
 package com.mydeck.app.ui.detail
 
 import android.icu.text.MessageFormat
+import android.net.Uri
 import android.view.View
 import android.webkit.WebView
 import androidx.compose.foundation.clickable
@@ -583,7 +584,7 @@ fun BookmarkDetailArticle(
                 update = {
                     if (content.value != null && it.tag as? String != content.value) {
                         val baseUrl = if (uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.VIDEO) {
-                            uiState.bookmark.url
+                            extractEmbedBaseUrl(uiState.bookmark.embed) ?: uiState.bookmark.url
                         } else {
                             null
                         }
@@ -1036,4 +1037,27 @@ private val sampleBookmark = BookmarkDetailViewModel.Bookmark(
 enum class ContentMode {
     READER,
     ORIGINAL
+}
+
+/**
+ * Extracts a base URL from an iframe's src attribute in embed HTML.
+ * Returns scheme://host/ or null if parsing fails.
+ */
+private fun extractEmbedBaseUrl(embedHtml: String?): String? {
+    if (embedHtml.isNullOrBlank()) return null
+    val srcRegex = Regex("""<iframe[^>]+src\s*=\s*["']([^"']+)["']""", RegexOption.IGNORE_CASE)
+    val match = srcRegex.find(embedHtml) ?: return null
+    val iframeSrc = match.groupValues[1]
+    return try {
+        val uri = Uri.parse(iframeSrc)
+        val scheme = uri.scheme
+        val host = uri.host
+        if (!scheme.isNullOrBlank() && !host.isNullOrBlank()) {
+            "$scheme://$host/"
+        } else {
+            null
+        }
+    } catch (_: Exception) {
+        null
+    }
 }
