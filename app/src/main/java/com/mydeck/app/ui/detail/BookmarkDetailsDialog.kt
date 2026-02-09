@@ -23,6 +23,14 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Subject
+import androidx.compose.material.icons.filled.Language
+import androidx.compose.material.icons.filled.Public
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -53,6 +61,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.mydeck.app.BuildConfig
 import com.mydeck.app.R
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
@@ -86,58 +95,116 @@ fun BookmarkDetailsDialog(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .padding(24.dp)
+                .padding(20.dp)
                 .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            // Metadata fields
-            MetadataField(
-                label = stringResource(R.string.detail_type),
-                value = when (bookmark.type) {
-                    BookmarkDetailViewModel.Bookmark.Type.ARTICLE -> "Article"
-                    BookmarkDetailViewModel.Bookmark.Type.PHOTO -> "Photo"
-                    BookmarkDetailViewModel.Bookmark.Type.VIDEO -> "Video"
+            // Thumbnail
+            if (bookmark.thumbnailSrc.isNotBlank()) {
+                AsyncImage(
+                    model = ImageRequest.Builder(LocalContext.current)
+                        .data(bookmark.thumbnailSrc)
+                        .crossfade(true)
+                        .build(),
+                    contentDescription = null,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(200.dp)
+                        .padding(bottom = 12.dp)
+                )
+            }
+
+            // Site and Publication Date
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                if (bookmark.iconSrc.isNotBlank()) {
+                    AsyncImage(
+                        model = ImageRequest.Builder(LocalContext.current)
+                            .data(bookmark.iconSrc)
+                            .crossfade(true)
+                            .build(),
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp)
+                    )
                 }
+                Text(
+                    text = bookmark.siteName,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            }
+
+            // Saved date
+            MetadataFieldWithIcon(
+                icon = Icons.Filled.CalendarMonth,
+                value = bookmark.createdDate,
+                contentDescription = stringResource(R.string.detail_saved_date)
             )
 
-            if (bookmark.lang.isNotBlank() && bookmark.lang != "Unknown") {
-                MetadataField(
-                    label = stringResource(R.string.detail_language),
-                    value = bookmark.lang
+            // Published date
+            bookmark.publishedDate?.let { publishedDate ->
+                MetadataFieldWithIcon(
+                    icon = Icons.Filled.CalendarMonth,
+                    value = publishedDate,
+                    contentDescription = stringResource(R.string.detail_published_date)
                 )
             }
 
-            bookmark.wordCount?.let { count ->
-                if (count > 0) {
-                    MetadataField(
-                        label = stringResource(R.string.detail_word_count),
-                        value = "$count words"
-                    )
-                }
-            }
-
+            // Reading time
             bookmark.readingTime?.let { time ->
                 if (time > 0) {
-                    MetadataField(
-                        label = stringResource(R.string.detail_reading_time),
-                        value = "$time ${stringResource(R.string.detail_minutes_short)}"
+                    MetadataFieldWithIcon(
+                        icon = Icons.Filled.Schedule,
+                        value = stringResource(R.string.detail_about, "$time ${stringResource(R.string.detail_minutes_short)}"),
+                        contentDescription = stringResource(R.string.detail_reading_time)
                     )
                 }
             }
 
+            // Authors
             if (bookmark.authors.isNotEmpty()) {
-                MetadataField(
-                    label = "Authors",
-                    value = bookmark.authors.joinToString(", ")
+                MetadataFieldWithIcon(
+                    icon = Icons.Filled.Person,
+                    value = bookmark.authors.joinToString(", "),
+                    contentDescription = stringResource(R.string.detail_author)
                 )
             }
 
-            if (bookmark.description.isNotBlank()) {
-                MetadataField(
-                    label = "Description",
-                    value = bookmark.description
+            // Word count
+            bookmark.wordCount?.let { count ->
+                if (count > 0) {
+                    MetadataFieldWithIcon(
+                        icon = Icons.Filled.Subject,
+                        value = stringResource(R.string.detail_words, count),
+                        contentDescription = stringResource(R.string.detail_word_count)
+                    )
+                }
+            }
+
+            // Language
+            if (bookmark.lang.isNotBlank() && bookmark.lang != "Unknown") {
+                MetadataFieldWithIcon(
+                    icon = Icons.Filled.Language,
+                    value = bookmark.lang,
+                    contentDescription = stringResource(R.string.detail_language)
                 )
             }
+
+            // Description
+            if (bookmark.description.isNotBlank()) {
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = bookmark.description,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
 
             // Labels Section
             LabelsSection(
@@ -164,8 +231,8 @@ fun BookmarkDetailsDialog(
                 }
             )
 
-            // Debug Info Section
-            if (bookmark.debugInfo.isNotBlank()) {
+            // Debug Info Section (only show in debug builds)
+            if (BuildConfig.DEBUG && bookmark.debugInfo.isNotBlank()) {
                 DebugInfoSection(debugInfo = bookmark.debugInfo)
             }
         }
@@ -185,6 +252,31 @@ private fun MetadataField(
             text = label,
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Text(
+            text = value,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+    }
+}
+
+@Composable
+private fun MetadataFieldWithIcon(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    value: String,
+    contentDescription: String
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = contentDescription,
+            modifier = Modifier.size(20.dp),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant
         )
         Text(
             text = value,
@@ -366,11 +458,14 @@ fun BookmarkDetailsDialogPreview() {
     val sampleBookmark = BookmarkDetailViewModel.Bookmark(
         bookmarkId = "1",
         createdDate = "2024-01-15",
+        publishedDate = "2024-01-12",
         url = "https://example.com",
         title = "Sample Bookmark",
         siteName = "Example",
         authors = listOf("John Doe", "Jane Smith"),
         imgSrc = "",
+        iconSrc = "",
+        thumbnailSrc = "",
         isFavorite = false,
         isArchived = false,
         isRead = false,

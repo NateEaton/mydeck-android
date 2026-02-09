@@ -578,6 +578,22 @@ fun BookmarkDetailArticle(
                         isVerticalScrollBarEnabled = false
                         isHorizontalScrollBarEnabled = false
                         settings.textZoom = uiState.zoomFactor
+
+                        // Intercept link clicks and open in Chrome Custom Tabs
+                        webViewClient = object : android.webkit.WebViewClient() {
+                            override fun shouldOverrideUrlLoading(
+                                view: WebView?,
+                                request: android.webkit.WebResourceRequest?
+                            ): Boolean {
+                                val url = request?.url?.toString()
+                                if (url != null) {
+                                    openUrlInCustomTab(context, url)
+                                    return true
+                                }
+                                return false
+                            }
+                        }
+
                         webViewRef.value = this
                     }
                 },
@@ -716,43 +732,23 @@ fun BookmarkDetailHeader(
     uiState: BookmarkDetailViewModel.UiState.Success,
     onClickOpenUrl: (String) -> Unit
 ) {
-    val msg = stringResource(R.string.authors)
-    val author = MessageFormat.format(
-        msg, mapOf(
-            "count" to uiState.bookmark.authors.size,
-            "author" to uiState.bookmark.authors.firstOrNull()
-        )
-    )
     Column(
         modifier = modifier,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         // Header Section Start
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(16.dp))
         Text(
             modifier = Modifier
-                .padding(16.dp)
+                .padding(horizontal = 16.dp)
                 .fillMaxWidth(),
             text = uiState.bookmark.title,
             style = MaterialTheme.typography.headlineSmall,
             textAlign = TextAlign.Center,
             overflow = TextOverflow.Ellipsis,
-            maxLines = 2
+            maxLines = 3
         )
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            modifier = Modifier
-                .fillMaxWidth(),
-            text = "$author - ${uiState.bookmark.createdDate}",
-            style = MaterialTheme.typography.titleMedium,
-            textAlign = TextAlign.Center,
-        )
-        Text(
-            text = uiState.bookmark.siteName,
-            style = MaterialTheme.typography.titleMedium,
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(24.dp))
         // Header Section End
     }
 }

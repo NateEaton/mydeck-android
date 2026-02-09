@@ -171,6 +171,12 @@ other{}
     <string name="detail_word_count">Word Count</string>
     <string name="detail_reading_time">Reading Time</string>
     <string name="detail_minutes_short">min</string>
+    <string name="detail_saved_date">Saved</string>
+    <string name="detail_published_date">Published</string>
+    <string name="detail_author">Author</string>
+    <string name="detail_site">Site</string>
+    <string name="detail_about">About %1$s</string>
+    <string name="detail_words">%1$d words</string>
     <string name="detail_labels">Labels</string>
     <string name="detail_label_placeholder">Add labels (comma-separated)</string>
     <string name="remove_label">Remove label</string>
