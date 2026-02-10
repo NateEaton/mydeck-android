@@ -69,7 +69,7 @@ class MyDeckApplication : Application() {
                         fileName = LOGFILE
                         dir = it.absolutePath
                         fileLimit = 3
-                        sizeLimit = 128
+                        sizeLimit = 128 * 1024 // 128 KB in bytes
                         appendToFile = true
                     }
                 }
@@ -81,7 +81,7 @@ class MyDeckApplication : Application() {
                         fileName = LOGFILE
                         dir = it.absolutePath
                         fileLimit = 3
-                        sizeLimit = 128
+                        sizeLimit = 128 * 1024 // 128 KB in bytes
                         appendToFile = true
                     }
                 }
