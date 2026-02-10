@@ -47,6 +47,9 @@ interface SettingsDataStore {
     suspend fun getLayoutMode(): String?
     suspend fun saveSortOption(sortOption: String)
     suspend fun getSortOption(): String?
+    suspend fun saveLogRetentionDays(days: Int)
+    suspend fun getLogRetentionDays(): Int
+    fun getLogRetentionDaysFlow(): StateFlow<Int>
 
     // Content sync policy
     suspend fun getContentSyncMode(): ContentSyncMode

@@ -145,6 +145,7 @@ fun SyncSettingsScreen(
         settingsUiState = settingsUiState,
         onClickBack = { viewModel.onClickBack() },
         onClickBookmarkSyncFrequency = { viewModel.onClickBookmarkSyncFrequency() },
+        onClickSyncBookmarksNow = { viewModel.onClickSyncBookmarksNow() },
         onContentSyncModeSelected = { viewModel.onContentSyncModeSelected(it) },
         onDateRangePresetSelected = { viewModel.onDateRangePresetSelected(it) },
         onClickDateFrom = { viewModel.onShowDialog(SyncSettingsDialog.DateFromPicker) },
@@ -163,6 +164,7 @@ fun SyncSettingsView(
     settingsUiState: SyncSettingsUiState,
     onClickBack: () -> Unit,
     onClickBookmarkSyncFrequency: () -> Unit,
+    onClickSyncBookmarksNow: () -> Unit,
     onContentSyncModeSelected: (ContentSyncMode) -> Unit,
     onDateRangePresetSelected: (DateRangePreset) -> Unit,
     onClickDateFrom: () -> Unit,
@@ -219,7 +221,9 @@ fun SyncSettingsView(
                     BookmarkSyncSection(
                         frequency = settingsUiState.bookmarkSyncFrequency,
                         nextRun = settingsUiState.nextAutoSyncRun,
-                        onClickFrequency = onClickBookmarkSyncFrequency
+                        isSyncRunning = settingsUiState.isBookmarkSyncRunning,
+                        onClickFrequency = onClickBookmarkSyncFrequency,
+                        onClickSyncBookmarksNow = onClickSyncBookmarksNow
                     )
                 }
             }
@@ -301,7 +305,9 @@ fun SyncSettingsView(
 private fun BookmarkSyncSection(
     frequency: AutoSyncTimeframe,
     nextRun: String?,
-    onClickFrequency: () -> Unit
+    isSyncRunning: Boolean,
+    onClickFrequency: () -> Unit,
+    onClickSyncBookmarksNow: () -> Unit
 ) {
     Text(
         text = stringResource(R.string.sync_bookmark_description),
@@ -333,6 +339,30 @@ private fun BookmarkSyncSection(
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.primary
         )
+    }
+
+    Text(
+        text = stringResource(R.string.sync_settings_sync_bookmarks_now_description),
+        style = Typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant
+    )
+
+    Button(
+        onClick = onClickSyncBookmarksNow,
+        enabled = !isSyncRunning,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        if (isSyncRunning) {
+            CircularProgressIndicator(
+                modifier = Modifier.size(16.dp),
+                strokeWidth = 2.dp,
+                color = MaterialTheme.colorScheme.onPrimary
+            )
+            Spacer(Modifier.width(8.dp))
+            Text(stringResource(R.string.sync_settings_sync_running))
+        } else {
+            Text(stringResource(R.string.sync_settings_sync_bookmarks_now))
+        }
     }
 }
 
