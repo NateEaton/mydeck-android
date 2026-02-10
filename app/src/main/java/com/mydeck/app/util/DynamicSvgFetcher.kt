@@ -1,5 +1,6 @@
 package com.mydeck.app.util
 
+import coil3.decode.ImageSource
 import coil3.fetch.FetchResult
 import coil3.fetch.Fetcher
 import coil3.fetch.SourceFetcher
@@ -34,7 +35,7 @@ private class DynamicSvgFetcherImpl(private val data: DynamicSvgData) : Fetcher 
         buffer.write(bytes)
 
         return SourceFetcher.SourceFetchResult(
-            source = buffer,
+            source = ImageSource(source = buffer),
             mimeType = "image/svg+xml"
         )
     }
