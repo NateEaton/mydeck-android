@@ -1,11 +1,16 @@
 package com.mydeck.app.util
 
+import android.util.Base64
+
 /**
- * Custom data class for dynamic SVG generation.
- * Used with Coil's ImageLoader to generate and cache dynamic SVG thumbnails.
+ * Generates a data URI for dynamic SVG thumbnails.
  *
  * @param title The bookmark title or URL used to generate the SVG
  */
-data class DynamicSvgData(val title: String) {
-    override fun toString(): String = "dynamic://${title.hashCode()}"
+object DynamicSvgUri {
+    fun generate(title: String): String {
+        val svg = DynamicSvgGenerator.generateSvg(title)
+        val encoded = Base64.encodeToString(svg.toByteArray(), Base64.NO_WRAP)
+        return "data:image/svg+xml;base64,$encoded"
+    }
 }

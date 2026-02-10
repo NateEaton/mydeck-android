@@ -5,8 +5,6 @@ import timber.log.Timber
 import androidx.startup.Initializer
 import androidx.work.Configuration
 import androidx.work.WorkManager
-import coil3.ImageLoader
-import coil3.SingletonImageLoader
 import dagger.Binds
 import dagger.Module
 import dagger.Provides
@@ -22,7 +20,6 @@ import com.mydeck.app.domain.UserRepositoryImpl
 import com.mydeck.app.domain.sync.ConnectivityMonitor
 import com.mydeck.app.domain.sync.ConnectivityMonitorImpl
 import com.mydeck.app.io.rest.NetworkModule
-import com.mydeck.app.util.DynamicSvgFetcher
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -66,22 +63,6 @@ abstract class AppModule {
             }
         }
     }
-}
-
-@Module
-@InstallIn(SingletonComponent::class)
-object CoilImageLoaderInitializer : Initializer<ImageLoader> {
-    @Provides
-    @Singleton
-    override fun create(@ApplicationContext context: Context): ImageLoader {
-        return ImageLoader.Builder(context)
-            .components {
-                add(DynamicSvgFetcher.Factory())
-            }
-            .build()
-    }
-
-    override fun dependencies(): List<Class<out Initializer<*>>> = emptyList()
 }
 
 @Module
