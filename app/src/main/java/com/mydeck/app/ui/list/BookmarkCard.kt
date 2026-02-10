@@ -60,6 +60,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.graphics.luminance
 import coil3.ColorImage
+import coil3.asImage
 import coil3.compose.AsyncImage
 import coil3.compose.AsyncImagePreviewHandler
 import coil3.compose.LocalAsyncImagePreviewHandler
@@ -73,6 +74,7 @@ import com.mydeck.app.R
 import com.mydeck.app.domain.model.Bookmark
 import com.mydeck.app.domain.model.BookmarkListItem
 import com.mydeck.app.ui.components.ErrorPlaceholderImage
+import com.mydeck.app.ui.drawable.ReadeckPlaceholderDrawable
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun BookmarkMosaicCard(
@@ -97,16 +99,15 @@ fun BookmarkMosaicCard(
         Box(modifier = Modifier.fillMaxWidth()) {
             // Full height thumbnail as background
             SubcomposeAsyncImage(
-                model = ImageRequest.Builder(LocalContext.current).data(bookmark.imageSrc)
-                    .crossfade(true).build(),
+                model = ImageRequest.Builder(LocalContext.current)
+                    .data(bookmark.imageSrc)
+                    .crossfade(true)
+                    .placeholder(ReadeckPlaceholderDrawable(bookmark.url).asImage())
+                    .error(ReadeckPlaceholderDrawable(bookmark.url).asImage())
+                    .fallback(ReadeckPlaceholderDrawable(bookmark.url).asImage())
+                    .build(),
                 contentDescription = stringResource(R.string.common_bookmark_image_content_description),
                 contentScale = ContentScale.Crop,
-                error = {
-                    ErrorPlaceholderImage(
-                        modifier = Modifier.fillMaxWidth().height(270.dp),
-                        imageContentDescription = stringResource(R.string.common_bookmark_image_content_description)
-                    )
-                },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(200.dp)
@@ -347,18 +348,15 @@ fun BookmarkGridCard(
             // Thumbnail
             Box {
                 SubcomposeAsyncImage(
-                    model = ImageRequest.Builder(LocalContext.current).data(bookmark.thumbnailSrc)
-                        .crossfade(true).build(),
+                    model = ImageRequest.Builder(LocalContext.current)
+                        .data(bookmark.thumbnailSrc)
+                        .crossfade(true)
+                        .placeholder(ReadeckPlaceholderDrawable(bookmark.url).asImage())
+                        .error(ReadeckPlaceholderDrawable(bookmark.url).asImage())
+                        .fallback(ReadeckPlaceholderDrawable(bookmark.url).asImage())
+                        .build(),
                     contentDescription = stringResource(R.string.common_bookmark_image_content_description),
                     contentScale = ContentScale.Crop,
-                    error = {
-                        ErrorPlaceholderImage(
-                            modifier = Modifier
-                                .width(100.dp)
-                                .height(80.dp),
-                            imageContentDescription = stringResource(R.string.common_bookmark_image_content_description)
-                        )
-                    },
                     modifier = Modifier
                         .width(100.dp)
                         .height(80.dp)
