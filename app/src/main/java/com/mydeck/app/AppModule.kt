@@ -82,7 +82,7 @@ object CoilImageLoaderInitializer : Initializer<ImageLoader> {
                 add(SvgDecoder.Factory())
             }
             .build()
-        SingletonImageLoader.setImageLoader(imageLoader)
+        SingletonImageLoader.setSafe { imageLoader }
         return imageLoader
     }
 
