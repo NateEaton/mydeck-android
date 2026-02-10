@@ -12,6 +12,7 @@ import com.mydeck.app.io.rest.model.BookmarkDto as BookmarkDto
 import com.mydeck.app.io.rest.model.Resource as ResourceDto
 import com.mydeck.app.io.rest.model.ImageResource as ImageResourceDto
 import com.mydeck.app.util.DynamicSvgUri
+import timber.log.Timber
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import kotlinx.datetime.toInstant
@@ -203,13 +204,17 @@ fun ImageResourceDto?.toDomain(): Bookmark.ImageResource = Bookmark.ImageResourc
 
 fun BookmarkListItemEntity.toDomain(): BookmarkListItem {
     val dynamicThumbnailSrc = if (thumbnailSrc.isBlank()) {
-        DynamicSvgUri.generate(title)
+        val generated = DynamicSvgUri.generate(title)
+        Timber.d("Generated dynamic thumbnail for '$title'")
+        generated
     } else {
         thumbnailSrc
     }
 
     val dynamicImageSrc = if (imageSrc.isBlank()) {
-        DynamicSvgUri.generate(title)
+        val generated = DynamicSvgUri.generate(title)
+        Timber.d("Generated dynamic image for '$title'")
+        generated
     } else {
         imageSrc
     }
