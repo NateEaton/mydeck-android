@@ -74,6 +74,7 @@ class MyDeckApplication : Application() {
                     }
                 }
             } else {
+                debugTree()
                 logDir?.let {
                     fileTree {
                         level = 5 // Log.WARN

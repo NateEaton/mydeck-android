@@ -172,10 +172,12 @@ class BookmarkDetailViewModel @Inject constructor(
         if (bookmarkId != null && currentScrollProgress > 0) {
             try {
                 bookmarkRepository.updateReadProgress(bookmarkId, currentScrollProgress)
-                Timber.d("Saved final read progress: $currentScrollProgress%")
+                Timber.w("Saved final read progress: $currentScrollProgress%")
             } catch (e: Exception) {
                 Timber.e(e, "Error saving final progress: ${e.message}")
             }
+        } else {
+            Timber.w("Skipping progress save - bookmarkId: $bookmarkId, progress: $currentScrollProgress")
         }
     }
 
@@ -185,6 +187,7 @@ class BookmarkDetailViewModel @Inject constructor(
      */
     fun saveProgressOnPause() {
         viewModelScope.launch {
+            Timber.w("saveProgressOnPause called for bookmark: $bookmarkId, progress: $currentScrollProgress%")
             saveCurrentProgress()
         }
     }
