@@ -8,6 +8,7 @@ import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import com.mydeck.app.io.db.dao.BookmarkDao
+import com.mydeck.app.io.db.dao.PendingActionDao
 import javax.inject.Singleton
 
 @Module
@@ -22,7 +23,8 @@ object DatabaseModule {
                 MyDeckDatabase.MIGRATION_1_2,
                 MyDeckDatabase.MIGRATION_2_3,
                 MyDeckDatabase.MIGRATION_3_4,
-                MyDeckDatabase.MIGRATION_4_5
+                MyDeckDatabase.MIGRATION_4_5,
+                MyDeckDatabase.MIGRATION_5_6
             )
             .build()
     }
@@ -31,4 +33,9 @@ object DatabaseModule {
     @Singleton
     fun provideBookmarkDao(readeckDatabase: MyDeckDatabase): BookmarkDao =
         readeckDatabase.getBookmarkDao()
+
+    @Provides
+    @Singleton
+    fun providePendingActionDao(readeckDatabase: MyDeckDatabase): PendingActionDao =
+        readeckDatabase.getPendingActionDao()
 }

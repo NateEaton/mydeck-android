@@ -139,6 +139,7 @@ other{}
     <string name="auto_sync_next_run_null">No synchronization scheduled</string>
     <string name="auto_sync_notification_success">Synchronization successful</string>
     <string name="auto_sync_notification_failure">Synchronization failed</string>
+    <string name="syncing_tooltip">Pending Actions to Sync</string>
     <string name="auto_sync_notification_running">Background synchronization running.</string>
     <string name="auto_sync_notification_channel">Background Synchronization</string>
     <string name="auto_sync_notification_rationale_dialog_title">Notification Permission Required</string>

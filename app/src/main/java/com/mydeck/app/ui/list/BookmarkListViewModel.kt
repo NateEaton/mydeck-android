@@ -128,6 +128,13 @@ class BookmarkListViewModel @Inject constructor(
             initialValue = emptyMap()
         )
 
+    val pendingActionCount: StateFlow<Int> = bookmarkRepository.observePendingActionCount()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = 0
+        )
+
     init {
         savedStateHandle.get<String>("sharedText").takeIf { it != null }?.let {
             val sharedText = it.extractUrlAndTitle()
@@ -493,16 +500,15 @@ class BookmarkListViewModel @Inject constructor(
 
     private fun updateBookmark(update: suspend () -> UpdateBookmarkUseCase.Result) {
         viewModelScope.launch {
-            val state = when (val result = update()) {
-                is UpdateBookmarkUseCase.Result.Success -> UpdateBookmarkState.Success
-                is UpdateBookmarkUseCase.Result.GenericError -> UpdateBookmarkState.Error(result.message)
-                is UpdateBookmarkUseCase.Result.NetworkError -> UpdateBookmarkState.Error(result.message)
-            }
+            val result = update()
             _uiState.update {
-                when (it) {
-                    is UiState.Success -> it.copy(updateBookmarkState = state)
-                    else -> it
-                }
+                if (it is UiState.Success) {
+                    it.copy(updateBookmarkState = when (result) {
+                        is UpdateBookmarkUseCase.Result.Success -> UpdateBookmarkState.Success
+                        is UpdateBookmarkUseCase.Result.GenericError -> UpdateBookmarkState.Error(result.message)
+                        is UpdateBookmarkUseCase.Result.NetworkError -> UpdateBookmarkState.Error(result.message)
+                    })
+                } else it
             }
         }
     }

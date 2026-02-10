@@ -93,6 +93,7 @@ class BookmarkListViewModelTest {
         every { workManager.getWorkInfosForUniqueWorkFlow(any()) } returns workInfoFlow
         every { bookmarkRepository.observeAllBookmarkCounts() } returns flowOf(BookmarkCounts())
         every { bookmarkRepository.observeAllLabelsWithCounts() } returns flowOf(emptyMap())
+        every { bookmarkRepository.observePendingActionCount() } returns flowOf(0)
         every { connectivityMonitor.observeConnectivity() } returns flowOf(true)
         every { connectivityMonitor.isNetworkAvailable() } returns true
         every { connectivityMonitor.isOnWifi() } returns true

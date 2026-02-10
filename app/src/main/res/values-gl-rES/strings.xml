@@ -152,4 +152,5 @@ other{}
     <string name="detail_site">Site</string>
     <string name="detail_about">About %1$s</string>
     <string name="detail_words">%1$d words</string>
+    <string name="syncing_tooltip">Pending Actions to Sync</string>
 </resources>

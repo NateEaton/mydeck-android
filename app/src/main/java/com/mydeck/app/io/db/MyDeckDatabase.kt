@@ -3,21 +3,27 @@ package com.mydeck.app.io.db
 import androidx.room.Database
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
+import androidx.room.withTransaction
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.mydeck.app.io.db.dao.BookmarkDao
 import com.mydeck.app.io.db.model.ArticleContentEntity
 import com.mydeck.app.io.db.model.BookmarkEntity
 import com.mydeck.app.io.db.model.RemoteBookmarkIdEntity
+import com.mydeck.app.io.db.model.PendingActionEntity
+import com.mydeck.app.io.db.dao.PendingActionDao
 
 @Database(
-    entities = [BookmarkEntity::class, ArticleContentEntity::class, RemoteBookmarkIdEntity::class],
-    version = 5,
+    entities = [BookmarkEntity::class, ArticleContentEntity::class, RemoteBookmarkIdEntity::class, PendingActionEntity::class],
+    version = 6,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
 abstract class MyDeckDatabase : RoomDatabase() {
     abstract fun getBookmarkDao(): BookmarkDao
+    abstract fun getPendingActionDao(): PendingActionDao
+
+    open suspend fun <R> performTransaction(block: suspend () -> R): R = withTransaction(block)
 
     companion object {
         val MIGRATION_1_2 = object : Migration(1, 2) {
@@ -91,6 +97,31 @@ abstract class MyDeckDatabase : RoomDatabase() {
                     UPDATE bookmarks SET contentState = 3, contentFailureReason = 'No article available on server'
                     WHERE hasArticle = 0 AND type = 'article' AND contentState = 0
                 """)
+            }
+        }
+
+        val MIGRATION_5_6 = object : Migration(5, 6) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                // 1. Create pending_actions table
+                database.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `pending_actions` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, 
+                        `bookmarkId` TEXT NOT NULL, 
+                        `actionType` TEXT NOT NULL, 
+                        `payload` TEXT, 
+                        `createdAt` INTEGER NOT NULL
+                    )
+                    """
+                )
+                
+                // 2. Create index for pending_actions
+                database.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_pending_actions_bookmarkId_actionType` ON `pending_actions` (`bookmarkId`, `actionType`)"
+                )
+                
+                // 3. Add isLocalDeleted column to bookmarks
+                database.execSQL("ALTER TABLE bookmarks ADD COLUMN isLocalDeleted INTEGER NOT NULL DEFAULT 0")
             }
         }
     }

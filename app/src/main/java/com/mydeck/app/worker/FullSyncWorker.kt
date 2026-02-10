@@ -40,6 +40,8 @@ class FullSyncWorker @AssistedInject constructor(
     override suspend fun doWork(): Result {
         try {
             Timber.d("Start Work")
+            // Drain the action queue before starting sync to ensure local changes are sent first
+            bookmarkRepository.syncPendingActions()
             val lastSyncTimestamp = settingsDataStore.getLastSyncTimestamp()
             val lastFullSyncTimestamp = settingsDataStore.getLastFullSyncTimestamp()
 
