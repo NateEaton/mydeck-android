@@ -570,6 +570,83 @@ class BookmarkRepositoryImpl @Inject constructor(
         )
     }
 
+    override suspend fun syncPendingActions(): BookmarkRepository.UpdateResult {
+        return withContext(dispatcher) {
+            val actions = pendingActionDao.getAllActionsSorted()
+            Timber.d("Starting syncPendingActions. Pending actions: ${actions.size}")
+
+            for (action in actions) {
+                try {
+                    processPendingAction(action)
+                    pendingActionDao.delete(action)
+                    Timber.d("Successfully processed action: ${action.actionType} for ${action.bookmarkId}")
+                } catch (e: Exception) {
+                    if (isTransientError(e)) {
+                        Timber.w(e, "Transient error processing action ${action.actionType}. Retrying...")
+                        return@withContext BookmarkRepository.UpdateResult.NetworkError("Transient error", e)
+                    } else {
+                        Timber.e(e, "Permanent error processing action ${action.actionType} for ${action.bookmarkId}")
+                        // Drop the action to prevent queue clog
+                        pendingActionDao.delete(action)
+                    }
+                }
+            }
+            BookmarkRepository.UpdateResult.Success
+        }
+    }
+
+    private suspend fun processPendingAction(action: PendingActionEntity) {
+        when (action.actionType) {
+            ActionType.TOGGLE_FAVORITE -> {
+                val payload = json.decodeFromString<TogglePayload>(action.payload!!)
+                val response = readeckApi.editBookmark(action.bookmarkId, EditBookmarkDto(isMarked = payload.value))
+                handleSyncApiResponse(action.bookmarkId, response)
+            }
+            ActionType.TOGGLE_ARCHIVE -> {
+                val payload = json.decodeFromString<TogglePayload>(action.payload!!)
+                val response = readeckApi.editBookmark(action.bookmarkId, EditBookmarkDto(isArchived = payload.value))
+                handleSyncApiResponse(action.bookmarkId, response)
+            }
+            ActionType.TOGGLE_READ -> {
+                val payload = json.decodeFromString<TogglePayload>(action.payload!!)
+                val response = readeckApi.editBookmark(action.bookmarkId, EditBookmarkDto(readProgress = if (payload.value) 100 else 0))
+                handleSyncApiResponse(action.bookmarkId, response)
+            }
+            ActionType.UPDATE_PROGRESS -> {
+                val payload = json.decodeFromString<ProgressPayload>(action.payload!!)
+                val response = readeckApi.editBookmark(action.bookmarkId, EditBookmarkDto(readProgress = payload.progress))
+                handleSyncApiResponse(action.bookmarkId, response)
+            }
+            ActionType.UPDATE_LABELS -> {
+                val payload = json.decodeFromString<LabelsPayload>(action.payload!!)
+                val response = readeckApi.editBookmark(action.bookmarkId, EditBookmarkDto(labels = payload.labels))
+                handleSyncApiResponse(action.bookmarkId, response)
+            }
+            ActionType.DELETE -> {
+                val response = readeckApi.deleteBookmark(action.bookmarkId)
+                handleSyncApiResponse(action.bookmarkId, response)
+            }
+        }
+    }
+
+    private suspend fun <T> handleSyncApiResponse(bookmarkId: String, response: retrofit2.Response<T>) {
+        if (response.isSuccessful) return
+
+        val code = response.code()
+        if (code == 404) {
+            Timber.w("Bookmark $bookmarkId not found on server (404). Hard deleting locally.")
+            bookmarkDao.hardDeleteBookmark(bookmarkId)
+            pendingActionDao.deleteAllForBookmark(bookmarkId)
+            return
+        }
+
+        throw Exception("API Error: $code - ${response.errorBody()?.string()}")
+    }
+
+    private fun isTransientError(e: Exception): Boolean {
+        return e is IOException || e.message?.contains("500") == true || e.message?.contains("429") == true || e.message?.contains("408") == true
+    }
+
     override fun observeAllBookmarkCounts(): Flow<BookmarkCounts> {
         return bookmarkDao.observeAllBookmarkCounts().map { entity ->
             if (entity != null) {

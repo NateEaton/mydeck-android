@@ -37,7 +37,7 @@ interface BookmarkDao {
     fun getArticles(): Flow<List<BookmarkEntity>>
 
     @Query("""
-        SELECT labels FROM bookmarks WHERE state = 0 AND labels != '' AND labels IS NOT NULL
+        SELECT labels FROM bookmarks WHERE state = 0 AND labels != '' AND labels IS NOT NULL AND isLocalDeleted = 0
     """)
     fun observeAllLabels(): Flow<List<String>>
 
@@ -90,10 +90,10 @@ interface BookmarkDao {
     @Query("SELECT * FROM bookmarks ORDER BY updated DESC LIMIT 1")
     suspend fun getLastUpdatedBookmark(): BookmarkEntity?
 
-    @Query("SELECT * FROM bookmarks WHERE id = :id")
+    @Query("SELECT * FROM bookmarks WHERE id = :id AND isLocalDeleted = 0")
     suspend fun getBookmarkById(id: String): BookmarkEntity
 
-    @Query("SELECT * FROM bookmarks WHERE id = :id")
+    @Query("SELECT * FROM bookmarks WHERE id = :id AND isLocalDeleted = 0")
     fun observeBookmark(id: String): Flow<BookmarkEntity?>
 
     @Query("DELETE FROM bookmarks")
@@ -182,7 +182,7 @@ interface BookmarkDao {
     suspend fun getAllBookmarksWithContent(): List<BookmarkWithArticleContent>
 
     @Transaction
-    @Query("SELECT * FROM bookmarks WHERE id = :id")
+    @Query("SELECT * FROM bookmarks WHERE id = :id AND isLocalDeleted = 0")
     fun observeBookmarkWithArticleContent(id: String): Flow<BookmarkWithArticleContent?>
 
     fun getBookmarkListItemsByFilters(
@@ -290,14 +290,14 @@ interface BookmarkDao {
 
     @Query("""
         SELECT
-            (SELECT COUNT(*) FROM bookmarks) AS total,
-            (SELECT COUNT(*) FROM article_content) AS withContent
+            (SELECT COUNT(*) FROM bookmarks WHERE isLocalDeleted = 0) AS total,
+            (SELECT COUNT(*) FROM article_content ac WHERE EXISTS (SELECT 1 FROM bookmarks b WHERE b.id = ac.bookmarkId AND b.isLocalDeleted = 0)) AS withContent
     """)
     fun observeSyncStatus(): Flow<SyncStatusCounts?>
 
     @Query("""
         SELECT b.id FROM bookmarks b
-        WHERE NOT EXISTS (SELECT 1 FROM article_content ac WHERE ac.bookmarkId = b.id)
+        WHERE b.isLocalDeleted = 0 AND NOT EXISTS (SELECT 1 FROM article_content ac WHERE ac.bookmarkId = b.id)
         ORDER BY b.created DESC
     """)
     suspend fun getBookmarkIdsWithoutContent(): List<String>
@@ -406,21 +406,21 @@ interface BookmarkDao {
 
     @Query("""
         SELECT
-            (SELECT COUNT(*) FROM bookmarks WHERE state = 0) AS total,
-            (SELECT COUNT(*) FROM bookmarks WHERE readProgress < 100 AND state = 0) AS unread,
-            (SELECT COUNT(*) FROM bookmarks WHERE isArchived = 1 AND state = 0) AS archived,
-            (SELECT COUNT(*) FROM bookmarks WHERE isMarked = 1 AND state = 0) AS favorites,
-            (SELECT COUNT(*) FROM bookmarks WHERE contentState = 1) AS contentDownloaded,
-            (SELECT COUNT(*) FROM bookmarks WHERE contentState = 0 AND hasArticle = 1) AS contentAvailable,
-            (SELECT COUNT(*) FROM bookmarks WHERE contentState = 2) AS contentDirty,
-            (SELECT COUNT(*) FROM bookmarks WHERE contentState = 3) AS permanentNoContent
+            (SELECT COUNT(*) FROM bookmarks WHERE state = 0 AND isLocalDeleted = 0) AS total,
+            (SELECT COUNT(*) FROM bookmarks WHERE readProgress < 100 AND state = 0 AND isLocalDeleted = 0) AS unread,
+            (SELECT COUNT(*) FROM bookmarks WHERE isArchived = 1 AND state = 0 AND isLocalDeleted = 0) AS archived,
+            (SELECT COUNT(*) FROM bookmarks WHERE isMarked = 1 AND state = 0 AND isLocalDeleted = 0) AS favorites,
+            (SELECT COUNT(*) FROM bookmarks WHERE contentState = 1 AND isLocalDeleted = 0) AS contentDownloaded,
+            (SELECT COUNT(*) FROM bookmarks WHERE contentState = 0 AND hasArticle = 1 AND isLocalDeleted = 0) AS contentAvailable,
+            (SELECT COUNT(*) FROM bookmarks WHERE contentState = 2 AND isLocalDeleted = 0) AS contentDirty,
+            (SELECT COUNT(*) FROM bookmarks WHERE contentState = 3 AND isLocalDeleted = 0) AS permanentNoContent
         FROM bookmarks LIMIT 1
     """)
     fun observeDetailedSyncStatus(): Flow<DetailedSyncStatusCounts?>
 
     @Query("""
         SELECT b.id FROM bookmarks b
-        WHERE b.contentState IN (0, 2)
+        WHERE b.isLocalDeleted = 0 AND b.contentState IN (0, 2)
         AND b.hasArticle = 1
         ORDER BY b.created DESC
     """)
@@ -428,7 +428,7 @@ interface BookmarkDao {
 
     @Query("""
         SELECT b.id FROM bookmarks b
-        WHERE b.contentState IN (0, 2)
+        WHERE b.isLocalDeleted = 0 AND b.contentState IN (0, 2)
         AND b.hasArticle = 1
         AND b.created >= :fromEpoch AND b.created <= :toEpoch
         ORDER BY b.created DESC
