@@ -10,12 +10,13 @@ import kotlinx.coroutines.runBlocking
 import timber.log.Timber
 import java.io.File
 import javax.inject.Inject
+import javax.inject.Provider
 
 
 @HiltAndroidApp
 class MyDeckApplication : Application() {
     @Inject
-    lateinit var settingsDataStore: SettingsDataStore
+    lateinit var settingsDataStoreProvider: Provider<SettingsDataStore>
 
     override fun onCreate() {
         super.onCreate()
@@ -27,10 +28,8 @@ class MyDeckApplication : Application() {
     }
 
     private fun cleanupOldLogs() {
+        val retentionDays = getRetentionDays()
         try {
-            val retentionDays = runBlocking {
-                settingsDataStore.getLogRetentionDays()
-            }
             val cutoffTime = System.currentTimeMillis() - (retentionDays * 24 * 60 * 60 * 1000L)
             val logDir = File(filesDir, LOGDIR)
             if (logDir.exists() && logDir.isDirectory) {
@@ -45,10 +44,24 @@ class MyDeckApplication : Application() {
         }
     }
 
+    private fun getRetentionDays(): Int {
+        return try {
+            runBlocking {
+                settingsDataStoreProvider.get().getLogRetentionDays()
+            }
+        } catch (e: Exception) {
+            defaultLogRetentionDays()
+        }
+    }
+
+    private fun defaultLogRetentionDays(): Int {
+        return if (isDebugBuild()) 7 else 30
+    }
+
     private fun initTimberLog() {
         val logDir = createLogDir(filesDir)
         startTimber {
-            if (BuildConfig.DEBUG) {
+            if (isDebugBuild()) {
                 debugTree()
                 logDir?.let {
                     fileTree {
@@ -73,6 +86,10 @@ class MyDeckApplication : Application() {
                 }
             }
         }
+    }
+
+    private fun isDebugBuild(): Boolean {
+        return BuildConfig.DEBUG || BuildConfig.BUILD_TYPE.contains("debug", ignoreCase = true)
     }
 }
 

@@ -338,6 +338,10 @@ class SettingsDataStoreImpl @Inject constructor(@ApplicationContext private val 
     }
 
     private fun defaultLogRetentionDays(): Int {
-        return if (BuildConfig.DEBUG) 7 else 30
+        return if (isDebugBuild()) 7 else 30
+    }
+
+    private fun isDebugBuild(): Boolean {
+        return BuildConfig.DEBUG || BuildConfig.BUILD_TYPE.contains("debug", ignoreCase = true)
     }
 }
