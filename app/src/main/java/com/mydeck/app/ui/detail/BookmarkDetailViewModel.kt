@@ -327,12 +327,7 @@ class BookmarkDetailViewModel @Inject constructor(
 
     private fun updateBookmark(update: suspend () -> UpdateBookmarkUseCase.Result) {
         viewModelScope.launch {
-            val state = when (val result = update()) {
-                is UpdateBookmarkUseCase.Result.Success -> UpdateBookmarkState.Success
-                is UpdateBookmarkUseCase.Result.GenericError -> UpdateBookmarkState.Error(result.message)
-                is UpdateBookmarkUseCase.Result.NetworkError -> UpdateBookmarkState.Error(result.message)
-            }
-            updateState.value = state
+            update()
         }
     }
 

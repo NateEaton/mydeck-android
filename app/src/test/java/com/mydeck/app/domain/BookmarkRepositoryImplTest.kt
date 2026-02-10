@@ -1,8 +1,12 @@
 package com.mydeck.app.domain
 
+import androidx.room.withTransaction
 import androidx.work.WorkManager
 import androidx.work.WorkRequest
+import com.mydeck.app.io.db.MyDeckDatabase
 import com.mydeck.app.io.db.dao.BookmarkDao
+import com.mydeck.app.io.db.dao.PendingActionDao
+import com.mydeck.app.io.db.model.PendingActionEntity
 import com.mydeck.app.io.rest.ReadeckApi
 import com.mydeck.app.io.rest.model.BookmarkDto
 import com.mydeck.app.io.rest.model.CreateBookmarkDto
@@ -15,13 +19,15 @@ import com.mydeck.app.io.rest.model.Resources
 import com.mydeck.app.io.rest.model.StatusMessageDto
 import com.mydeck.app.io.rest.model.SyncContentRequestDto
 import com.mydeck.app.io.rest.model.SyncStatusDto
+import io.mockk.clearMocks
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
+import io.mockk.mockkStatic
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
@@ -41,24 +47,36 @@ import kotlin.time.Duration.Companion.days
 @OptIn(ExperimentalCoroutinesApi::class)
 class BookmarkRepositoryImplTest {
 
+    private lateinit var database: MyDeckDatabase
     private lateinit var bookmarkDao: BookmarkDao
+    private lateinit var pendingActionDao: PendingActionDao
     private lateinit var readeckApi: ReadeckApi
     private lateinit var json: Json
     private lateinit var workManager: WorkManager
-    private lateinit var testScope: TestScope
+    private val testDispatcher = UnconfinedTestDispatcher()
+    private val testScope = TestScope(testDispatcher)
     private lateinit var bookmarkRepositoryImpl: BookmarkRepositoryImpl
-    private val testDispatcher = StandardTestDispatcher()
 
     @Before
     fun setUp() {
         Dispatchers.setMain(testDispatcher)
-        bookmarkDao = mockk(relaxed = true)
-        readeckApi = mockk()
-        json = Json { ignoreUnknownKeys = false }
-        workManager = mockk(relaxed = true)
-        testScope = TestScope(testDispatcher)
+        database = mockk<MyDeckDatabase>(relaxed = true)
+        bookmarkDao = mockk<BookmarkDao>(relaxed = true)
+        pendingActionDao = mockk<PendingActionDao>(relaxed = true)
+        readeckApi = mockk<ReadeckApi>()
+        json = Json { ignoreUnknownKeys = true }
+        workManager = mockk<WorkManager>(relaxed = true)
+        
+        // Mock performTransaction to just execute the block
+        coEvery { database.performTransaction<Any?>(any()) } coAnswers {
+            val block = arg<suspend () -> Any?>(0)
+            block.invoke()
+        }
+
         bookmarkRepositoryImpl = BookmarkRepositoryImpl(
+            database = database,
             bookmarkDao = bookmarkDao,
+            pendingActionDao = pendingActionDao,
             readeckApi = readeckApi,
             json = json,
             workManager = workManager,
@@ -69,6 +87,7 @@ class BookmarkRepositoryImplTest {
 
     @After
     fun tearDown() {
+        clearMocks(database, bookmarkDao, pendingActionDao, workManager)
         Dispatchers.resetMain()
     }
 
@@ -77,278 +96,74 @@ class BookmarkRepositoryImplTest {
         // Arrange
         val bookmarkId = "123"
         val isFavorite = true
-        val editBookmarkResponseDto = EditBookmarkResponseDto(
-            href = "http://example.com",
-            id = "123",
-            isArchived = true,
-            isDeleted = true,
-            isMarked = true,
-            labels = listOf("label1", "label2"),
-            readAnchor = "anchor1",
-            readProgress = 50,
-            title = "New Title",
-            updated = Clock.System.now()
-        )
-        val response: Response<EditBookmarkResponseDto> = Response.success(editBookmarkResponseDto)
-        coEvery { readeckApi.editBookmark(bookmarkId, EditBookmarkDto(isMarked = isFavorite)) } returns response
 
         // Act
-        val result = bookmarkRepositoryImpl.updateBookmark(
+        bookmarkRepositoryImpl.updateBookmark(
             bookmarkId = bookmarkId,
             isFavorite = isFavorite,
             isArchived = null,
             isRead = null)
 
         // Assert
-        assertTrue(result is BookmarkRepository.UpdateResult.Success)
+        coVerify { pendingActionDao.insert(any<PendingActionEntity>()) }
+        coVerify { workManager.enqueue(any<WorkRequest>()) }
     }
 
     @Test
-    fun `updateBookmark error 422`() = runTest {
+    fun `updateBookmark isFavorite queues action`() = runTest {
         // Arrange
         val bookmarkId = "123"
         val isFavorite = true
-        val errorDto = EditBookmarkErrorDto(errors = listOf("Invalid input"))
-        val errorResponse = Response.error<EditBookmarkResponseDto>(
-            422,
-            json.encodeToString(EditBookmarkErrorDto.serializer(), errorDto).toResponseBody()
-        )
-        coEvery { readeckApi.editBookmark(bookmarkId, EditBookmarkDto(isMarked = isFavorite)) } returns errorResponse
 
         // Act
-        val result = bookmarkRepositoryImpl.updateBookmark(bookmarkId, isFavorite, isArchived = null, isRead = null)
+        bookmarkRepositoryImpl.updateBookmark(bookmarkId, isFavorite, null, null)
 
         // Assert
-        assertTrue(result is BookmarkRepository.UpdateResult.Error)
-        assertEquals("[Invalid input]", (result as BookmarkRepository.UpdateResult.Error).errorMessage)
-        assertEquals(422, result.code)
+        coVerify { pendingActionDao.insert(any<PendingActionEntity>()) }
+        coVerify { workManager.enqueue(any<WorkRequest>()) }
     }
 
     @Test
-    fun `updateBookmark error other than 422`() = runTest {
+    fun `updateBookmark isArchived queues action`() = runTest {
         // Arrange
         val bookmarkId = "123"
-        val isFavorite = true
-        val statusMessageDto = StatusMessageDto(400, "Bad Request")
-        val errorResponse = Response.error<EditBookmarkResponseDto>(
-            400,
-            json.encodeToString(StatusMessageDto.serializer(), statusMessageDto).toResponseBody()
-        )
-        coEvery { readeckApi.editBookmark(bookmarkId, EditBookmarkDto(isMarked = isFavorite)) } returns errorResponse
+        val isArchived = true
 
         // Act
-        val result = bookmarkRepositoryImpl.updateBookmark(bookmarkId, isFavorite, isArchived = null, isRead = null)
+        bookmarkRepositoryImpl.updateBookmark(bookmarkId, null, isArchived, null)
 
         // Assert
-        assertTrue(result is BookmarkRepository.UpdateResult.Error)
-        assertEquals("Bad Request", (result as BookmarkRepository.UpdateResult.Error).errorMessage)
-        assertEquals(400, result.code)
+        coVerify { pendingActionDao.insert(any<PendingActionEntity>()) }
+        coVerify { workManager.enqueue(any<WorkRequest>()) }
     }
 
     @Test
-    fun `updateBookmark network error`() = runTest {
+    fun `updateBookmark isRead queues action`() = runTest {
         // Arrange
         val bookmarkId = "123"
-        val isFavorite = true
-        coEvery { readeckApi.editBookmark(bookmarkId, EditBookmarkDto(isMarked = isFavorite)) } throws IOException("Network error")
+        val isRead = true
 
         // Act
-        val result = bookmarkRepositoryImpl.updateBookmark(bookmarkId, isFavorite, isArchived = null, isRead = null)
+        bookmarkRepositoryImpl.updateBookmark(bookmarkId, null, null, isRead)
 
         // Assert
-        assertTrue(result is BookmarkRepository.UpdateResult.NetworkError)
-        assertEquals("Network error: Network error", (result as BookmarkRepository.UpdateResult.NetworkError).errorMessage)
-        assertTrue(result.ex is IOException)
+        coVerify { pendingActionDao.insert(any<PendingActionEntity>()) }
+        coVerify { workManager.enqueue(any<WorkRequest>()) }
     }
 
     @Test
-    fun `updateBookmark unexpected error`() = runTest {
+    fun `deleteBookmark performs soft delete and queues action`() = runTest {
         // Arrange
         val bookmarkId = "123"
-        val isFavorite = true
-        coEvery { readeckApi.editBookmark(bookmarkId, EditBookmarkDto(isMarked = isFavorite)) } throws RuntimeException("Unexpected error")
 
         // Act
-        val result = bookmarkRepositoryImpl.updateBookmark(bookmarkId, isFavorite, isArchived = null, isRead = null)
+        bookmarkRepositoryImpl.deleteBookmark(id = bookmarkId)
 
         // Assert
-        assertTrue(result is BookmarkRepository.UpdateResult.Error)
-        assertEquals("An unexpected error occurred: Unexpected error", (result as BookmarkRepository.UpdateResult.Error).errorMessage)
-        assertTrue(result.ex is RuntimeException)
-    }
-
-    @Test
-    fun `updateBookmark error 422 serialization exception`() = runTest {
-        // Arrange
-        val bookmarkId = "123"
-        val isFavorite = true
-        val errorResponse = Response.error<EditBookmarkResponseDto>(
-            422,
-            "{\"invalid_json\": true}".toResponseBody()
-        )
-        coEvery { readeckApi.editBookmark(bookmarkId, EditBookmarkDto(isMarked = isFavorite)) } returns errorResponse
-
-        // Act
-        val result = bookmarkRepositoryImpl.updateBookmark(bookmarkId, isFavorite, isArchived = null, isRead = null)
-
-        // Assert
-        assertTrue(result is BookmarkRepository.UpdateResult.Error)
-        assertTrue((result as BookmarkRepository.UpdateResult.Error).errorMessage.contains("Failed to parse error"))
-        assertEquals(422, result.code)
-    }
-
-    @Test
-    fun `updateBookmark other error serialization exception`() = runTest {
-        // Arrange
-        val bookmarkId = "123"
-        val isFavorite = true
-        val errorResponse = Response.error<EditBookmarkResponseDto>(
-            400,
-            "{\"invalid_json\": true}".toResponseBody()
-        )
-        coEvery { readeckApi.editBookmark(bookmarkId, EditBookmarkDto(isMarked = isFavorite)) } returns errorResponse
-
-        // Act
-        val result = bookmarkRepositoryImpl.updateBookmark(bookmarkId, isFavorite, isArchived = null, isRead = null)
-
-        // Assert
-        assertTrue(result is BookmarkRepository.UpdateResult.Error)
-        assertTrue((result as BookmarkRepository.UpdateResult.Error).errorMessage.contains("Failed to parse error"))
-        assertEquals(400, result.code)
-    }
-
-    @Test
-    fun `updateBookmark error 422 empty body`() = runTest {
-        // Arrange
-        val bookmarkId = "123"
-        val isFavorite = true
-        val errorResponse = Response.error<EditBookmarkResponseDto>(
-            422,
-            "".toResponseBody()
-        )
-        coEvery { readeckApi.editBookmark(bookmarkId, EditBookmarkDto(isMarked = isFavorite)) } returns errorResponse
-
-        // Act
-        val result = bookmarkRepositoryImpl.updateBookmark(bookmarkId, isFavorite, isArchived = null, isRead = null)
-
-        // Assert
-        assertTrue(result is BookmarkRepository.UpdateResult.Error)
-        assertEquals("Empty error body", (result as BookmarkRepository.UpdateResult.Error).errorMessage)
-        assertEquals(422, result.code)
-    }
-
-    @Test
-    fun `updateBookmark other error empty body`() = runTest {
-        // Arrange
-        val bookmarkId = "123"
-        val isFavorite = true
-        val errorResponse = Response.error<EditBookmarkResponseDto>(
-            400,
-            "".toResponseBody()
-        )
-        coEvery { readeckApi.editBookmark(bookmarkId, EditBookmarkDto(isMarked = isFavorite)) } returns errorResponse
-
-        // Act
-        val result = bookmarkRepositoryImpl.updateBookmark(bookmarkId, isFavorite, isArchived = null, isRead = null)
-
-        // Assert
-        assertTrue(result is BookmarkRepository.UpdateResult.Error)
-        assertEquals("Empty error body", (result as BookmarkRepository.UpdateResult.Error).errorMessage)
-        assertEquals(400, result.code)
-    }
-
-    @Test
-    fun `updateBookmark isFavorite sets correct field in EditBookmarkDto`() = runTest {
-        // Arrange
-        val bookmarkId = "123"
-        val isFavorite = true
-        val response: Response<EditBookmarkResponseDto> = Response.success(editBookmarkResponseDto)
-        coEvery { readeckApi.editBookmark(bookmarkId, EditBookmarkDto(isMarked = isFavorite)) } returns response
-
-        // Act
-        val result = bookmarkRepositoryImpl.updateBookmark(
-            bookmarkId = bookmarkId,
-            isFavorite = isFavorite,
-            isArchived = null,
-            isRead = null)
-
-        // Assert
-        assertTrue(result is BookmarkRepository.UpdateResult.Success)
-        coVerify { readeckApi.editBookmark(bookmarkId, EditBookmarkDto(isMarked = true)) }
-    }
-
-    @Test
-    fun `updateBookmark isArchived sets correct field in EditBookmarkDto`() = runTest {
-        // Arrange
-        val bookmarkId = "123"
-        val response: Response<EditBookmarkResponseDto> = Response.success(editBookmarkResponseDto)
-        coEvery { readeckApi.editBookmark(bookmarkId, EditBookmarkDto(isArchived = true)) } returns response
-
-        // Act
-        val result = bookmarkRepositoryImpl.updateBookmark(
-            bookmarkId = bookmarkId,
-            isFavorite = null,
-            isArchived = true,
-            isRead = null)
-
-        // Assert
-        assertTrue(result is BookmarkRepository.UpdateResult.Success)
-        coVerify { readeckApi.editBookmark(bookmarkId, EditBookmarkDto(isArchived = true)) }
-    }
-
-    @Test
-    fun `updateBookmark isRead sets correct field in EditBookmarkDto`() = runTest {
-        // Arrange
-        val bookmarkId = "123"
-        val response: Response<EditBookmarkResponseDto> = Response.success(editBookmarkResponseDto)
-        coEvery { readeckApi.editBookmark(bookmarkId, EditBookmarkDto(readProgress = 100)) } returns response
-
-        // Act
-        val result = bookmarkRepositoryImpl.updateBookmark(
-            bookmarkId = bookmarkId,
-            isFavorite = null,
-            isArchived = null,
-            isRead = true)
-
-        // Assert
-        assertTrue(result is BookmarkRepository.UpdateResult.Success)
-        coVerify { readeckApi.editBookmark(bookmarkId, EditBookmarkDto(readProgress = 100)) }
-    }
-
-    @Test
-    fun `deleteBookmark successful`() = runTest {
-        // Arrange
-        val bookmarkId = "123"
-        val response: Response<Unit> = Response.success(Unit)
-        coEvery { readeckApi.deleteBookmark(bookmarkId) } returns response
-
-        // Act
-        val result = bookmarkRepositoryImpl.deleteBookmark(id = bookmarkId)
-
-        // Assert
-        assertTrue(result is BookmarkRepository.UpdateResult.Success)
-        coVerify { readeckApi.deleteBookmark(bookmarkId) }
-    }
-
-    @Test
-    fun `deleteBookmark failure 404`() = runTest {
-        // Arrange
-        val bookmarkId = "123"
-        val statusMessageDto = StatusMessageDto(404, "Not Found")
-        val errorResponse = Response.error<Unit>(
-            404,
-            json.encodeToString(StatusMessageDto.serializer(), statusMessageDto).toResponseBody()
-        )
-        coEvery { readeckApi.deleteBookmark(bookmarkId) } returns errorResponse
-
-        // Act
-        val result = bookmarkRepositoryImpl.deleteBookmark(id = bookmarkId)
-
-        // Assert
-        assertTrue(result is BookmarkRepository.UpdateResult.Error)
-        assertEquals("Not Found", (result as BookmarkRepository.UpdateResult.Error).errorMessage)
-        assertEquals(404, result.code)
-        coVerify { readeckApi.deleteBookmark(bookmarkId) }
+        coVerify { bookmarkDao.softDeleteBookmark(bookmarkId) }
+        coVerify { pendingActionDao.deleteAllForBookmark(bookmarkId) }
+        coVerify { pendingActionDao.insert(any<PendingActionEntity>()) }
+        coVerify { workManager.enqueue(any<WorkRequest>()) }
     }
 
     @Test
@@ -508,31 +323,19 @@ class BookmarkRepositoryImplTest {
     }
 
     @Test
-    fun `updateReadProgress successful`() = runTest {
+    fun `updateReadProgress successful queues action`() = runTest {
         // Arrange
         val bookmarkId = "test-bookmark-id"
         val progress = 75
-        val response = Response.success(editBookmarkResponseDto)
-        
-        coEvery { 
-            readeckApi.editBookmark(
-                id = bookmarkId,
-                body = EditBookmarkDto(readProgress = progress)
-            )
-        } returns response
         
         // Act
         val result = bookmarkRepositoryImpl.updateReadProgress(bookmarkId, progress)
         
         // Assert
         assertTrue(result is BookmarkRepository.UpdateResult.Success)
-        coVerify { 
-            readeckApi.editBookmark(
-                id = bookmarkId,
-                body = EditBookmarkDto(readProgress = progress)
-            )
-        }
         coVerify { bookmarkDao.updateReadProgress(bookmarkId, progress) }
+        coVerify { pendingActionDao.insert(any<PendingActionEntity>()) }
+        coVerify { workManager.enqueue(any<WorkRequest>()) }
     }
 
     private val editBookmarkResponseDto = EditBookmarkResponseDto(

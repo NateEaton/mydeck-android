@@ -53,6 +53,7 @@ interface BookmarkRepository {
 
     fun observeAllBookmarkCounts(): Flow<BookmarkCounts>
     fun observeAllLabelsWithCounts(): Flow<Map<String, Int>>
+    fun observePendingActionCount(): Flow<Int>
     suspend fun renameLabel(oldLabel: String, newLabel: String): UpdateResult
     suspend fun deleteLabel(label: String): UpdateResult
     sealed class UpdateResult {

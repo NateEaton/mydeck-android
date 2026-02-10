@@ -60,7 +60,8 @@ data class BookmarkEntity(
     val thumbnail: ImageResourceEntity,
 
     val contentState: ContentState = ContentState.NOT_ATTEMPTED,
-    val contentFailureReason: String? = null
+    val contentFailureReason: String? = null,
+    val isLocalDeleted: Boolean = false
 ) {
     enum class Type(val value: String) {
         ARTICLE("article"),

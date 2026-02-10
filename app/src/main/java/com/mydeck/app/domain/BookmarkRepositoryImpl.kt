@@ -12,16 +12,29 @@ import com.mydeck.app.domain.mapper.toEntity
 import com.mydeck.app.domain.model.Bookmark
 import com.mydeck.app.domain.model.BookmarkCounts
 import com.mydeck.app.domain.model.BookmarkListItem
+import com.mydeck.app.domain.usecase.LoadBookmarksUseCase
 import com.mydeck.app.io.db.dao.BookmarkDao
+import com.mydeck.app.io.db.dao.PendingActionDao
+import com.mydeck.app.io.db.model.ActionType
 import com.mydeck.app.io.db.model.BookmarkEntity
+import com.mydeck.app.io.db.model.PendingActionEntity
+import com.mydeck.app.io.db.model.ProgressPayload
+import com.mydeck.app.io.db.model.LabelsPayload
 import com.mydeck.app.io.db.model.RemoteBookmarkIdEntity
+import com.mydeck.app.io.db.model.TogglePayload
+import com.mydeck.app.io.db.model.BookmarkListItemEntity
 import com.mydeck.app.io.rest.ReadeckApi
+import com.mydeck.app.io.rest.model.BookmarkDto
 import com.mydeck.app.io.rest.model.CreateBookmarkDto
 import com.mydeck.app.io.rest.model.EditBookmarkDto
 import com.mydeck.app.io.rest.model.EditBookmarkErrorDto
 import com.mydeck.app.io.rest.model.StatusMessageDto
 import com.mydeck.app.io.rest.model.SyncContentRequestDto
+import com.mydeck.app.io.rest.model.EditBookmarkResponseDto
 import com.mydeck.app.worker.LoadArticleWorker
+import com.mydeck.app.worker.ActionSyncWorker
+import com.mydeck.app.io.db.MyDeckDatabase
+import androidx.room.withTransaction
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -40,7 +53,9 @@ import java.io.IOException
 import javax.inject.Inject
 
 class BookmarkRepositoryImpl @Inject constructor(
+    private val database: MyDeckDatabase,
     private val bookmarkDao: BookmarkDao,
+    private val pendingActionDao: PendingActionDao,
     private val readeckApi: ReadeckApi,
     private val json: Json,
     private val workManager: WorkManager,
@@ -196,7 +211,30 @@ class BookmarkRepositoryImpl @Inject constructor(
     }
 
     override suspend fun insertBookmarks(bookmarks: List<Bookmark>) {
-        bookmarkDao.insertBookmarksWithArticleContent(bookmarks.map { it.toEntity() })
+        val mergedBookmarks = bookmarks.map { remote ->
+            val pendingActions = pendingActionDao.getActionsForBookmark(remote.id)
+            if (pendingActions.isEmpty()) {
+                remote.toEntity()
+            } else {
+                // Merge: start with remote, but preserve local status for fields with pending actions
+                val local = bookmarkDao.getBookmarkById(remote.id) // This might be null for new bookmarks
+                val remoteEntity = remote.toEntity()
+                
+                var mergedBookmark = remoteEntity.bookmark
+                for (action in pendingActions) {
+                    mergedBookmark = when (action.actionType) {
+                        ActionType.TOGGLE_FAVORITE -> local?.let { mergedBookmark.copy(isMarked = it.isMarked) } ?: mergedBookmark
+                        ActionType.TOGGLE_ARCHIVE -> local?.let { mergedBookmark.copy(isArchived = it.isArchived) } ?: mergedBookmark
+                        ActionType.TOGGLE_READ -> local?.let { mergedBookmark.copy(readProgress = it.readProgress) } ?: mergedBookmark
+                        ActionType.UPDATE_PROGRESS -> local?.let { mergedBookmark.copy(readProgress = it.readProgress) } ?: mergedBookmark
+                        ActionType.UPDATE_LABELS -> local?.let { mergedBookmark.copy(labels = it.labels) } ?: mergedBookmark
+                        ActionType.DELETE -> mergedBookmark.copy(isLocalDeleted = true)
+                    }
+                }
+                remoteEntity.copy(bookmark = mergedBookmark)
+            }
+        }
+        bookmarkDao.insertBookmarksWithArticleContent(mergedBookmarks)
     }
 
     override suspend fun getBookmarkById(id: String): Bookmark {
@@ -330,107 +368,74 @@ class BookmarkRepositoryImpl @Inject constructor(
         isArchived: Boolean?,
         isRead: Boolean?
     ): BookmarkRepository.UpdateResult {
-        return withContext(dispatcher) {
-            try {
-                val response =
-                    readeckApi.editBookmark(
-                        id = bookmarkId,
-                        body = EditBookmarkDto(
-                            isMarked = isFavorite,
-                            isArchived = isArchived,
-                            readProgress = isRead?.let { if (it) 100 else 0 }
-                        )
-                    )
-                if (response.isSuccessful) {
-                    // Update local database to reflect the change immediately
-                    isFavorite?.let { bookmarkDao.updateIsMarked(bookmarkId, it) }
-                    isArchived?.let { bookmarkDao.updateIsArchived(bookmarkId, it) }
-                    isRead?.let { bookmarkDao.updateReadProgress(bookmarkId, if (it) 100 else 0) }
-                    Timber.i("Update Bookmark successful")
-                    BookmarkRepository.UpdateResult.Success
-                } else {
-                    val code = response.code()
-                    val errorBodyString = response.errorBody()?.string()
-                    Timber.w("Error while Update Bookmark [code=$code, body=$errorBodyString]")
-                    when (code) {
-                        422 -> {
-                            if (!errorBodyString.isNullOrBlank()) {
-                                try {
-                                    json.decodeFromString<EditBookmarkErrorDto>(errorBodyString)
-                                        .let {
-                                            BookmarkRepository.UpdateResult.Error(
-                                                it.errors.toString(),
-                                                response.code()
-                                            )
-                                        }
-                                } catch (e: SerializationException) {
-                                    Timber.e(e, "Failed to parse error: ${e.message}")
-                                    BookmarkRepository.UpdateResult.Error(
-                                        errorMessage = "Failed to parse error: ${e.message}",
-                                        code = response.code(),
-                                        ex = e
-                                    )
-                                }
-                            } else {
-                                Timber.e("Empty error body")
-                                BookmarkRepository.UpdateResult.Error(
-                                    errorMessage = "Empty error body",
-                                    code = code
-                                )
-                            }
-                        }
-
-                        else -> {
-                            val errorState = handleStatusMessage(response.code(), errorBodyString)
-                            BookmarkRepository.UpdateResult.Error(
-                                errorMessage = errorState.message,
-                                code = errorState.status
-                            )
-                        }
-                    }
+        withContext(dispatcher) {
+            database.performTransaction {
+                isFavorite?.let {
+                    bookmarkDao.updateIsMarked(bookmarkId, it)
+                    upsertPendingAction(bookmarkId, ActionType.TOGGLE_FAVORITE, TogglePayload(it))
                 }
-            } catch (e: IOException) {
-                Timber.e(e, "Network error while Update Bookmark: ${e.message}")
-                BookmarkRepository.UpdateResult.NetworkError("Network error: ${e.message}", ex = e)
-            } catch (e: Exception) {
-                Timber.e(e, "Unexpected error while Update Bookmark: ${e.message}")
-                BookmarkRepository.UpdateResult.Error(
-                    "An unexpected error occurred: ${e.message}",
-                    ex = e
-                )
+                isArchived?.let {
+                    bookmarkDao.updateIsArchived(bookmarkId, it)
+                    upsertPendingAction(bookmarkId, ActionType.TOGGLE_ARCHIVE, TogglePayload(it))
+                }
+                isRead?.let {
+                    bookmarkDao.updateReadProgress(bookmarkId, if (it) 100 else 0)
+                    upsertPendingAction(bookmarkId, ActionType.TOGGLE_READ, TogglePayload(it))
+                }
             }
+            ActionSyncWorker.enqueue(workManager)
         }
+        return BookmarkRepository.UpdateResult.Success
     }
 
     override suspend fun deleteBookmark(id: String): BookmarkRepository.UpdateResult {
-        return withContext(dispatcher) {
-            try {
-                val response =
-                    readeckApi.deleteBookmark(id = id)
-                if (response.isSuccessful) {
-                    bookmarkDao.deleteBookmark(id)
-                    Timber.i("Delete Bookmark successful")
-                    BookmarkRepository.UpdateResult.Success
-                } else {
-                    val code = response.code()
-                    val errorBodyString = response.errorBody()?.string()
-                    Timber.w("Error while Delete Bookmark [code=$code, body=$errorBodyString]")
-                    val errorState = handleStatusMessage(code, errorBodyString)
-                    BookmarkRepository.UpdateResult.Error(
-                        errorMessage = errorState.message,
-                        code = errorState.status
+        withContext(dispatcher) {
+            database.performTransaction {
+                // 1. Optimistic Soft Delete
+                bookmarkDao.softDeleteBookmark(id)
+
+                // 2. Delete Supremacy: remove other actions for this bookmark
+                pendingActionDao.deleteAllForBookmark(id)
+
+                // 3. Queue Delete Action
+                pendingActionDao.insert(
+                    PendingActionEntity(
+                        bookmarkId = id,
+                        actionType = ActionType.DELETE,
+                        payload = null,
+                        createdAt = Clock.System.now()
                     )
-                }
-            } catch (e: IOException) {
-                Timber.e(e, "Network error while Delete Bookmark: ${e.message}")
-                BookmarkRepository.UpdateResult.NetworkError("Network error: ${e.message}", ex = e)
-            } catch (e: Exception) {
-                Timber.e(e, "Unexpected error while Delete Bookmark: ${e.message}")
-                BookmarkRepository.UpdateResult.Error(
-                    "An unexpected error occurred: ${e.message}",
-                    ex = e
                 )
             }
+            ActionSyncWorker.enqueue(workManager)
+        }
+        return BookmarkRepository.UpdateResult.Success
+    }
+
+    private suspend fun upsertPendingAction(
+        bookmarkId: String,
+        type: ActionType,
+        payload: Any
+    ) {
+        val payloadString = when(payload) {
+            is TogglePayload -> json.encodeToString(TogglePayload.serializer(), payload)
+            is ProgressPayload -> json.encodeToString(ProgressPayload.serializer(), payload)
+            is LabelsPayload -> json.encodeToString(LabelsPayload.serializer(), payload)
+            else -> null
+        }
+
+        val existingAction = pendingActionDao.find(bookmarkId, type)
+        if (existingAction != null) {
+            pendingActionDao.updateAction(existingAction.id, payloadString, Clock.System.now())
+        } else {
+            pendingActionDao.insert(
+                PendingActionEntity(
+                    bookmarkId = bookmarkId,
+                    actionType = type,
+                    payload = payloadString,
+                    createdAt = Clock.System.now()
+                )
+            )
         }
     }
 
@@ -438,92 +443,36 @@ class BookmarkRepositoryImpl @Inject constructor(
         bookmarkId: String,
         labels: List<String>
     ): BookmarkRepository.UpdateResult {
-        return withContext(dispatcher) {
-            try {
-                // Get current labels to calculate diff
-                val currentBookmark = bookmarkDao.getBookmarkById(bookmarkId)
-                val currentLabels = currentBookmark.labels
-
-                // Calculate added and removed labels
-                val addedLabels = labels.filter { !currentLabels.contains(it) }
-                val removedLabels = currentLabels.filter { !labels.contains(it) }
-
-                val response = readeckApi.editBookmark(
-                    id = bookmarkId,
-                    body = EditBookmarkDto(
-                        addLabels = addedLabels.ifEmpty { null },
-                        removeLabels = removedLabels.ifEmpty { null }
-                    )
-                )
-
-                if (response.isSuccessful) {
-                    // Update local database with new labels
-                    val labelsString = labels.joinToString(",")
-                    bookmarkDao.updateLabels(bookmarkId, labelsString)
-                    Timber.i("Update Labels successful")
-                    BookmarkRepository.UpdateResult.Success
-                } else {
-                    val code = response.code()
-                    val errorBodyString = response.errorBody()?.string()
-                    Timber.w("Error while Update Labels [code=$code, body=$errorBodyString]")
-                    val errorState = handleStatusMessage(code, errorBodyString)
-                    BookmarkRepository.UpdateResult.Error(
-                        errorMessage = errorState.message,
-                        code = errorState.status
-                    )
-                }
-            } catch (e: IOException) {
-                Timber.e(e, "Network error while Update Labels: ${e.message}")
-                BookmarkRepository.UpdateResult.NetworkError("Network error: ${e.message}", ex = e)
-            } catch (e: Exception) {
-                Timber.e(e, "Unexpected error while Update Labels: ${e.message}")
-                BookmarkRepository.UpdateResult.Error(
-                    "An unexpected error occurred: ${e.message}",
-                    ex = e
-                )
+        withContext(dispatcher) {
+            database.performTransaction {
+                // Update local database with new labels
+                val labelsString = labels.joinToString(",")
+                bookmarkDao.updateLabels(bookmarkId, labelsString)
+                
+                // Queue the sync action
+                upsertPendingAction(bookmarkId, ActionType.UPDATE_LABELS, LabelsPayload(labels))
             }
+            ActionSyncWorker.enqueue(workManager)
         }
+        return BookmarkRepository.UpdateResult.Success
     }
 
     override suspend fun updateReadProgress(
         bookmarkId: String,
         progress: Int
     ): BookmarkRepository.UpdateResult {
-        return withContext(dispatcher) {
-            try {
-                val response = readeckApi.editBookmark(
-                    id = bookmarkId,
-                    body = EditBookmarkDto(
-                        readProgress = progress.coerceIn(0, 100)
-                    )
-                )
-
-                if (response.isSuccessful) {
-                    // Update local database with new progress
-                    bookmarkDao.updateReadProgress(bookmarkId, progress.coerceIn(0, 100))
-                    Timber.i("Update Read Progress successful")
-                    BookmarkRepository.UpdateResult.Success
-                } else {
-                    val code = response.code()
-                    val errorBodyString = response.errorBody()?.string()
-                    Timber.w("Error while Update Read Progress [code=$code, body=$errorBodyString]")
-                    val errorState = handleStatusMessage(code, errorBodyString)
-                    BookmarkRepository.UpdateResult.Error(
-                        errorMessage = errorState.message,
-                        code = errorState.status
-                    )
-                }
-            } catch (e: IOException) {
-                Timber.e(e, "Network error while Update Read Progress: ${e.message}")
-                BookmarkRepository.UpdateResult.NetworkError("Network error: ${e.message}", ex = e)
-            } catch (e: Exception) {
-                Timber.e(e, "Unexpected error while Update Read Progress: ${e.message}")
-                BookmarkRepository.UpdateResult.Error(
-                    "An unexpected error occurred: ${e.message}",
-                    ex = e
+        withContext(dispatcher) {
+            database.performTransaction {
+                bookmarkDao.updateReadProgress(bookmarkId, progress.coerceIn(0, 100))
+                upsertPendingAction(
+                    bookmarkId,
+                    ActionType.UPDATE_PROGRESS,
+                    ProgressPayload(progress.coerceIn(0, 100), Clock.System.now())
                 )
             }
+            ActionSyncWorker.enqueue(workManager)
         }
+        return BookmarkRepository.UpdateResult.Success
     }
 
     private fun handleStatusMessage(code: Int, errorBody: String?): StatusMessageDto {
@@ -597,6 +546,7 @@ class BookmarkRepositoryImpl @Inject constructor(
             }
 
             // After fetching all remote IDs, find local bookmarks to delete
+            // Crucial: skip hard-deletion of soft-deleted bookmarks that are pending sync
             val deleted = bookmarkDao.removeDeletedBookmars()
             Timber.i("Deleted bookmarks: $deleted")
 
@@ -656,6 +606,10 @@ class BookmarkRepositoryImpl @Inject constructor(
             labelCounts.toMap()
         }
 
+    override fun observePendingActionCount(): Flow<Int> {
+        return pendingActionDao.getCountFlow()
+    }
+
     override suspend fun renameLabel(oldLabel: String, newLabel: String): BookmarkRepository.UpdateResult =
         withContext(dispatcher) {
             try {
@@ -665,47 +619,26 @@ class BookmarkRepositoryImpl @Inject constructor(
                         bookmark.bookmark.labels.contains(oldLabel)
                     }
 
-                // Update each bookmark by replacing the old label with the new one
-                for (bookmarkWithContent in bookmarksWithContent) {
-                    val bookmark = bookmarkWithContent.bookmark
-                    val updatedLabels = bookmark.labels.map { label ->
-                        if (label == oldLabel) newLabel else label
-                    }
-
-                    // Update locally (use targeted UPDATE to avoid CASCADE DELETE from REPLACE)
-                    bookmarkDao.updateLabels(bookmark.id, updatedLabels.joinToString(","))
-
-                    // Update on server - use addLabels and removeLabels
-                    try {
-                        val response = readeckApi.editBookmark(
-                            id = bookmark.id,
-                            body = EditBookmarkDto(
-                                addLabels = listOf(newLabel),
-                                removeLabels = listOf(oldLabel)
-                            )
-                        )
-
-                        if (!response.isSuccessful) {
-                            return@withContext BookmarkRepository.UpdateResult.Error(
-                                errorMessage = "Failed to rename label on server",
-                                code = response.code()
-                            )
+                    // Update each bookmark by replacing the old label with the new one
+                    for (bookmarkWithContent in bookmarksWithContent) {
+                        val bookmark = bookmarkWithContent.bookmark
+                        val updatedLabels = bookmark.labels.map { label ->
+                            if (label == oldLabel) newLabel else label
                         }
-                    } catch (e: Exception) {
-                        Timber.e(e, "Error renaming label on server")
-                        // Continue with other bookmarks
-                    }
-                }
 
-                BookmarkRepository.UpdateResult.Success
-            } catch (e: Exception) {
-                Timber.e(e, "Error renaming label")
-                BookmarkRepository.UpdateResult.NetworkError(
-                    errorMessage = "Network error while renaming label",
-                    ex = e
-                )
+                        // Update locally and queue sync
+                        database.performTransaction {
+                            bookmarkDao.updateLabels(bookmark.id, updatedLabels.joinToString(","))
+                            upsertPendingAction(bookmark.id, ActionType.UPDATE_LABELS, LabelsPayload(updatedLabels))
+                        }
+                    }
+                    ActionSyncWorker.enqueue(workManager)
+                    BookmarkRepository.UpdateResult.Success
+                } catch (e: Exception) {
+                    Timber.e(e, "Error renaming label")
+                    BookmarkRepository.UpdateResult.Error("Failed to rename label: ${e.message}")
+                }
             }
-        }
 
     override suspend fun deleteLabel(label: String): BookmarkRepository.UpdateResult =
         withContext(dispatcher) {
@@ -721,37 +654,17 @@ class BookmarkRepositoryImpl @Inject constructor(
                     val bookmark = bookmarkWithContent.bookmark
                     val updatedLabels = bookmark.labels.filter { it != label }
 
-                    // Update locally (use targeted UPDATE to avoid CASCADE DELETE from REPLACE)
-                    bookmarkDao.updateLabels(bookmark.id, updatedLabels.joinToString(","))
-
-                    // Update on server - use removeLabels
-                    try {
-                        val response = readeckApi.editBookmark(
-                            id = bookmark.id,
-                            body = EditBookmarkDto(
-                                removeLabels = listOf(label)
-                            )
-                        )
-
-                        if (!response.isSuccessful) {
-                            return@withContext BookmarkRepository.UpdateResult.Error(
-                                errorMessage = "Failed to delete label on server",
-                                code = response.code()
-                            )
-                        }
-                    } catch (e: Exception) {
-                        Timber.e(e, "Error deleting label on server")
-                        // Continue with other bookmarks
+                    // Update locally and queue sync
+                    database.performTransaction {
+                        bookmarkDao.updateLabels(bookmark.id, updatedLabels.joinToString(","))
+                        upsertPendingAction(bookmark.id, ActionType.UPDATE_LABELS, LabelsPayload(updatedLabels))
                     }
                 }
-
+                ActionSyncWorker.enqueue(workManager)
                 BookmarkRepository.UpdateResult.Success
             } catch (e: Exception) {
                 Timber.e(e, "Error deleting label")
-                BookmarkRepository.UpdateResult.NetworkError(
-                    errorMessage = "Network error while deleting label",
-                    ex = e
-                )
+                BookmarkRepository.UpdateResult.Error("Failed to delete label: ${e.message}")
             }
         }
 }

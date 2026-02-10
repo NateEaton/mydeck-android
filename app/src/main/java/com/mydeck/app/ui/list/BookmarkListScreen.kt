@@ -139,6 +139,7 @@ fun BookmarkListScreen(navHostController: NavHostController) {
     val layoutMode = viewModel.layoutMode.collectAsState()
     val sortOption = viewModel.sortOption.collectAsState()
     val isOnline = viewModel.isOnline.collectAsState()
+    val pendingActionCount by viewModel.pendingActionCount.collectAsState()
 
     var showLayoutMenu by remember { androidx.compose.runtime.mutableStateOf(false) }
     var showSortMenu by remember { androidx.compose.runtime.mutableStateOf(false) }
@@ -239,6 +240,20 @@ fun BookmarkListScreen(navHostController: NavHostController) {
                                 contentDescription = stringResource(R.string.offline_tooltip),
                                 modifier = Modifier.size(18.dp),
                                 tint = MaterialTheme.colorScheme.error
+                            )
+                        } else if (pendingActionCount > 0) {
+                            Spacer(Modifier.width(8.dp))
+                            Icon(
+                                imageVector = Icons.Default.Check, // Or a sync icon if available
+                                contentDescription = stringResource(R.string.syncing_tooltip),
+                                modifier = Modifier.size(18.dp),
+                                tint = MaterialTheme.colorScheme.secondary
+                            )
+                            Spacer(Modifier.width(4.dp))
+                            Text(
+                                text = pendingActionCount.toString(),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.secondary
                             )
                         }
                     }
@@ -687,23 +702,8 @@ fun BookmarkListScreen(navHostController: NavHostController) {
                             EmptyScreen(messageResource = uiState.messageResource)
                         }
                         is BookmarkListViewModel.UiState.Success -> {
-                            LaunchedEffect(key1 = uiState.updateBookmarkState) {
-                                uiState.updateBookmarkState?.let { result ->
-                                    val message = when (result) {
-                                        is BookmarkListViewModel.UpdateBookmarkState.Success -> {
-                                            "success"
-                                        }
-
-                                        is BookmarkListViewModel.UpdateBookmarkState.Error -> {
-                                            result.message
-                                        }
-                                    }
-                                    snackbarHostState.showSnackbar(
-                                        message = message,
-                                        duration = SnackbarDuration.Short
-                                    )
-                                }
-                            }
+                            // Success state updates are now optimistic and don't trigger snackbars for every toggle
+                            // but still show the list
                             BookmarkListView(
                                 filterKey = filterState.value,
                                 scrollToTopTrigger = scrollToTopTrigger,
