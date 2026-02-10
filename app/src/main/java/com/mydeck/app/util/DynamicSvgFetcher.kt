@@ -1,8 +1,8 @@
 package com.mydeck.app.util
 
-import coil3.annotation.ExperimentalCoilApi
+import coil3.fetch.FetchResult
 import coil3.fetch.Fetcher
-import coil3.fetch.SourceFetchResult
+import coil3.fetch.SourceFetcher
 import okio.Buffer
 import okio.ByteString.Companion.encodeUtf8
 
@@ -12,27 +12,30 @@ import okio.ByteString.Companion.encodeUtf8
  * Handles [DynamicSvgData] objects and generates unique SVG thumbnails
  * based on the bookmark title.
  */
-@OptIn(ExperimentalCoilApi::class)
-class DynamicSvgFetcher(private val data: DynamicSvgData) : Fetcher {
-    override suspend fun fetch(): Fetcher.Result {
-        val svg = DynamicSvgGenerator.generateSvg(data.title)
-        val bytes = svg.encodeUtf8().toByteArray()
-        val buffer = Buffer().also { it.write(bytes) }
-
-        return SourceFetchResult(
-            source = buffer,
-            mimeType = "image/svg+xml",
-            dataSource = coil3.request.DataSource.MEMORY
-        )
-    }
+class DynamicSvgFetcher : Fetcher {
+    override suspend fun fetch(): FetchResult? = null
 
     companion object {
-        @OptIn(ExperimentalCoilApi::class)
         fun Factory() = Fetcher.Factory { data, options, imageLoader ->
-            when (data) {
-                is DynamicSvgData -> DynamicSvgFetcher(data)
-                else -> null
+            if (data is DynamicSvgData) {
+                DynamicSvgFetcherImpl(data)
+            } else {
+                null
             }
         }
+    }
+}
+
+private class DynamicSvgFetcherImpl(private val data: DynamicSvgData) : Fetcher {
+    override suspend fun fetch(): FetchResult {
+        val svg = DynamicSvgGenerator.generateSvg(data.title)
+        val bytes = svg.encodeUtf8().toByteArray()
+        val buffer = Buffer()
+        buffer.write(bytes)
+
+        return SourceFetcher.SourceFetchResult(
+            source = buffer,
+            mimeType = "image/svg+xml"
+        )
     }
 }

@@ -79,7 +79,9 @@ object CoilImageLoaderInitializer : Initializer<ImageLoader> {
                 add(DynamicSvgFetcher.Factory())
             }
             .build()
-        SingletonImageLoader.setImageLoader { imageLoader }
+
+        // Set as default SingletonImageLoader
+        SingletonImageLoader.setImageLoader(imageLoader)
         return imageLoader
     }
 
