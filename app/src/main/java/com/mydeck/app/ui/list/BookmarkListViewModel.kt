@@ -500,9 +500,16 @@ class BookmarkListViewModel @Inject constructor(
 
     private fun updateBookmark(update: suspend () -> UpdateBookmarkUseCase.Result) {
         viewModelScope.launch {
-            // Actions are now fire-and-forget (optimistic + background sync)
-            // Error handling is handled by the worker if it fails permanently
-            update()
+            val result = update()
+            _uiState.update {
+                if (it is UiState.Success) {
+                    it.copy(updateBookmarkState = when (result) {
+                        is UpdateBookmarkUseCase.Result.Success -> UpdateBookmarkState.Success
+                        is UpdateBookmarkUseCase.Result.GenericError -> UpdateBookmarkState.Error(result.message)
+                        is UpdateBookmarkUseCase.Result.NetworkError -> UpdateBookmarkState.Error(result.message)
+                    })
+                } else it
+            }
         }
     }
 
