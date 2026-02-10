@@ -1,6 +1,5 @@
 package com.mydeck.app
 
-import android.annotation.SuppressLint
 import android.content.Context
 import coil3.ImageLoader
 import coil3.SingletonImageLoader
@@ -72,12 +71,11 @@ abstract class AppModule {
 
 @Module
 @InstallIn(SingletonComponent::class)
-@SuppressLint("EnsureInitializerMetadata")
-object CoilImageLoaderInitializer : Initializer<ImageLoader> {
+object CoilModule {
 
     @Provides
     @Singleton
-    override fun create(@ApplicationContext context: Context): ImageLoader {
+    fun provideImageLoader(@ApplicationContext context: Context): ImageLoader {
         val imageLoader = ImageLoader.Builder(context)
             .components {
                 add(DynamicSvgFetcher.Factory())
@@ -87,8 +85,6 @@ object CoilImageLoaderInitializer : Initializer<ImageLoader> {
         SingletonImageLoader.setSafe { imageLoader }
         return imageLoader
     }
-
-    override fun dependencies(): List<Class<out Initializer<*>>> = emptyList()
 }
 
 @Module
