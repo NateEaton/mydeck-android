@@ -121,7 +121,7 @@ object DynamicSvgGenerator {
         fun nextInt(bound: Int): Int {
             if (bound <= 0) throw IllegalArgumentException("bound must be positive")
             state = (state * 0x5DEECE66DL + 0xBL) and ((1L shl 48) - 1)
-            return (state shr 16).toInt() % bound
+            return abs((state shr 16).toInt()) % bound
         }
     }
 

@@ -3,6 +3,7 @@ package com.mydeck.app
 import android.content.Context
 import coil3.ImageLoader
 import coil3.SingletonImageLoader
+import coil3.svg.SvgDecoder
 import timber.log.Timber
 import androidx.startup.Initializer
 import androidx.work.Configuration
@@ -78,6 +79,7 @@ object CoilImageLoaderInitializer : Initializer<ImageLoader> {
         val imageLoader = ImageLoader.Builder(context)
             .components {
                 add(DynamicSvgFetcher.Factory())
+                add(SvgDecoder.Factory())
             }
             .build()
         SingletonImageLoader.setImageLoader(imageLoader)
