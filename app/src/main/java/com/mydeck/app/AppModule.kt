@@ -74,15 +74,11 @@ object CoilImageLoaderInitializer : Initializer<ImageLoader> {
     @Provides
     @Singleton
     override fun create(@ApplicationContext context: Context): ImageLoader {
-        val imageLoader = ImageLoader.Builder(context)
+        return ImageLoader.Builder(context)
             .components {
                 add(DynamicSvgFetcher.Factory())
             }
             .build()
-
-        // Set as default SingletonImageLoader
-        SingletonImageLoader.setImageLoader(imageLoader)
-        return imageLoader
     }
 
     override fun dependencies(): List<Class<out Initializer<*>>> = emptyList()

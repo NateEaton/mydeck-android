@@ -16,7 +16,7 @@ class DynamicSvgFetcher : Fetcher {
     override suspend fun fetch(): FetchResult? = null
 
     companion object {
-        fun Factory() = Fetcher.Factory { data, options, imageLoader ->
+        fun Factory(): Fetcher.Factory = Fetcher.Factory { data, options, imageLoader ->
             if (data is DynamicSvgData) {
                 DynamicSvgFetcherImpl(data)
             } else {
