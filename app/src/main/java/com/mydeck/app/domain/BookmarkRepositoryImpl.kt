@@ -122,31 +122,7 @@ class BookmarkRepositoryImpl @Inject constructor(
             },
             orderBy = orderBy
         ).map { listItems ->
-            listItems.map { listItem ->
-                BookmarkListItem(
-                    id = listItem.id,
-                    url = listItem.url,
-                    title = listItem.title,
-                    siteName = listItem.siteName,
-                    isMarked = listItem.isMarked,
-                    isArchived = listItem.isArchived,
-                    isRead = listItem.readProgress == 100,
-                    readProgress = listItem.readProgress,
-                    thumbnailSrc = listItem.thumbnailSrc,
-                    iconSrc = listItem.iconSrc,
-                    imageSrc = listItem.imageSrc,
-                    labels = listItem.labels,
-                    type = when (listItem.type) {
-                        BookmarkEntity.Type.ARTICLE -> Bookmark.Type.Article
-                        BookmarkEntity.Type.PHOTO -> Bookmark.Type.Picture
-                        BookmarkEntity.Type.VIDEO -> Bookmark.Type.Video
-                    },
-                    readingTime = listItem.readingTime,
-                    created = listItem.created.toLocalDateTime(kotlinx.datetime.TimeZone.currentSystemDefault()),
-                    wordCount = listItem.wordCount,
-                    published = listItem.published?.toLocalDateTime(kotlinx.datetime.TimeZone.currentSystemDefault())
-                )
-            }
+            listItems.map { it.toDomain() }
         }
     }
 
@@ -182,31 +158,7 @@ class BookmarkRepositoryImpl @Inject constructor(
             },
             orderBy = orderBy
         ).map { listItems ->
-            listItems.map { listItem ->
-                BookmarkListItem(
-                    id = listItem.id,
-                    url = listItem.url,
-                    title = listItem.title,
-                    siteName = listItem.siteName,
-                    isMarked = listItem.isMarked,
-                    isArchived = listItem.isArchived,
-                    isRead = listItem.readProgress == 100,
-                    readProgress = listItem.readProgress,
-                    thumbnailSrc = listItem.thumbnailSrc,
-                    iconSrc = listItem.iconSrc,
-                    imageSrc = listItem.imageSrc,
-                    labels = listItem.labels,
-                    type = when (listItem.type) {
-                        BookmarkEntity.Type.ARTICLE -> Bookmark.Type.Article
-                        BookmarkEntity.Type.PHOTO -> Bookmark.Type.Picture
-                        BookmarkEntity.Type.VIDEO -> Bookmark.Type.Video
-                    },
-                    readingTime = listItem.readingTime,
-                    created = listItem.created.toLocalDateTime(kotlinx.datetime.TimeZone.currentSystemDefault()),
-                    wordCount = listItem.wordCount,
-                    published = listItem.published?.toLocalDateTime(kotlinx.datetime.TimeZone.currentSystemDefault())
-                )
-            }
+            listItems.map { it.toDomain() }
         }
     }
 

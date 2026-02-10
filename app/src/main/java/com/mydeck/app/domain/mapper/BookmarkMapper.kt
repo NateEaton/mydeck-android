@@ -1,14 +1,17 @@
 package com.mydeck.app.domain.mapper
 
 import com.mydeck.app.domain.model.Bookmark
+import com.mydeck.app.domain.model.BookmarkListItem
 import com.mydeck.app.io.db.model.ArticleContentEntity
 import com.mydeck.app.io.db.model.BookmarkEntity
 import com.mydeck.app.io.db.model.BookmarkWithArticleContent
+import com.mydeck.app.io.db.model.BookmarkListItemEntity
 import com.mydeck.app.io.db.model.ImageResourceEntity
 import com.mydeck.app.io.db.model.ResourceEntity
 import com.mydeck.app.io.rest.model.BookmarkDto as BookmarkDto
 import com.mydeck.app.io.rest.model.Resource as ResourceDto
 import com.mydeck.app.io.rest.model.ImageResource as ImageResourceDto
+import com.mydeck.app.util.DynamicSvgData
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import kotlinx.datetime.toInstant
@@ -197,3 +200,41 @@ fun ImageResourceDto?.toDomain(): Bookmark.ImageResource = Bookmark.ImageResourc
     width = this?.width ?: 0,
     height = this?.height ?: 0
 )
+
+fun BookmarkListItemEntity.toDomain(): BookmarkListItem {
+    val dynamicThumbnailSrc = if (thumbnailSrc.isBlank()) {
+        DynamicSvgData(title).toString()
+    } else {
+        thumbnailSrc
+    }
+
+    val dynamicImageSrc = if (imageSrc.isBlank()) {
+        DynamicSvgData(title).toString()
+    } else {
+        imageSrc
+    }
+
+    return BookmarkListItem(
+        id = id,
+        url = url,
+        title = title,
+        siteName = siteName,
+        isMarked = isMarked,
+        isArchived = isArchived,
+        isRead = readProgress >= 100,
+        readProgress = readProgress,
+        thumbnailSrc = dynamicThumbnailSrc,
+        iconSrc = iconSrc,
+        imageSrc = dynamicImageSrc,
+        labels = labels,
+        type = when (type) {
+            BookmarkEntity.Type.ARTICLE -> Bookmark.Type.Article
+            BookmarkEntity.Type.PHOTO -> Bookmark.Type.Picture
+            BookmarkEntity.Type.VIDEO -> Bookmark.Type.Video
+        },
+        readingTime = readingTime,
+        created = created.toLocalDateTime(TimeZone.currentSystemDefault()),
+        wordCount = wordCount,
+        published = published?.toLocalDateTime(TimeZone.currentSystemDefault())
+    )
+}
