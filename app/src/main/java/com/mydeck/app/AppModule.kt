@@ -1,5 +1,6 @@
 package com.mydeck.app
 
+import android.annotation.SuppressLint
 import android.content.Context
 import coil3.ImageLoader
 import coil3.SingletonImageLoader
@@ -71,7 +72,7 @@ abstract class AppModule {
 
 @Module
 @InstallIn(SingletonComponent::class)
-@Suppress("EnsureInitializerMetadata")
+@SuppressLint("EnsureInitializerMetadata")
 object CoilImageLoaderInitializer : Initializer<ImageLoader> {
 
     @Provides
