@@ -71,6 +71,7 @@ abstract class AppModule {
 
 @Module
 @InstallIn(SingletonComponent::class)
+@Suppress("EnsureInitializerMetadata")
 object CoilImageLoaderInitializer : Initializer<ImageLoader> {
 
     @Provides
