@@ -22,6 +22,7 @@ import com.mydeck.app.domain.UserRepositoryImpl
 import com.mydeck.app.domain.sync.ConnectivityMonitor
 import com.mydeck.app.domain.sync.ConnectivityMonitorImpl
 import com.mydeck.app.io.rest.NetworkModule
+import coil3.svg.SvgDecoder
 import com.mydeck.app.util.DynamicSvgFetcher
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
@@ -78,6 +79,7 @@ object CoilImageLoaderInitializer : Initializer<ImageLoader> {
         val imageLoader = ImageLoader.Builder(context)
             .components {
                 add(DynamicSvgFetcher.Factory())
+                add(SvgDecoder.Factory())
             }
             .build()
         SingletonImageLoader.setImageLoader(imageLoader)
