@@ -34,7 +34,6 @@ class ActionSyncWorker @AssistedInject constructor(
         private const val UNIQUE_WORK_NAME = "OfflineActionSync"
 
         fun enqueue(workManager: WorkManager) {
-            println("ALIVE: ActionSyncWorker.enqueue called")
             val constraints = Constraints.Builder()
                 .setRequiredNetworkType(NetworkType.CONNECTED)
                 .build()

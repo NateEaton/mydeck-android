@@ -1,12 +1,15 @@
 package com.mydeck.app.domain
 
 import androidx.room.withTransaction
+import androidx.work.OneTimeWorkRequest
 import androidx.work.WorkManager
 import androidx.work.WorkRequest
 import com.mydeck.app.io.db.MyDeckDatabase
 import com.mydeck.app.io.db.dao.BookmarkDao
 import com.mydeck.app.io.db.dao.PendingActionDao
+import com.mydeck.app.io.db.model.ActionType
 import com.mydeck.app.io.db.model.PendingActionEntity
+import com.mydeck.app.worker.ActionSyncWorker
 import com.mydeck.app.io.rest.ReadeckApi
 import com.mydeck.app.io.rest.model.BookmarkDto
 import com.mydeck.app.io.rest.model.CreateBookmarkDto
@@ -19,11 +22,7 @@ import com.mydeck.app.io.rest.model.Resources
 import com.mydeck.app.io.rest.model.StatusMessageDto
 import com.mydeck.app.io.rest.model.SyncContentRequestDto
 import com.mydeck.app.io.rest.model.SyncStatusDto
-import io.mockk.clearMocks
-import io.mockk.coEvery
-import io.mockk.coVerify
-import io.mockk.mockk
-import io.mockk.mockkStatic
+import io.mockk.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.TestScope
@@ -60,18 +59,40 @@ class BookmarkRepositoryImplTest {
     @Before
     fun setUp() {
         Dispatchers.setMain(testDispatcher)
-        database = mockk<MyDeckDatabase>(relaxed = true)
+        database = mockk<MyDeckDatabase>()
         bookmarkDao = mockk<BookmarkDao>(relaxed = true)
-        pendingActionDao = mockk<PendingActionDao>(relaxed = true)
+        pendingActionDao = mockk<PendingActionDao>()
         readeckApi = mockk<ReadeckApi>()
         json = Json { ignoreUnknownKeys = true }
         workManager = mockk<WorkManager>(relaxed = true)
         
-        // Mock performTransaction to just execute the block
-        coEvery { database.performTransaction<Any?>(any()) } coAnswers {
-            val block = arg<suspend () -> Any?>(0)
-            block.invoke()
+        // Mock performTransaction catch-all
+        // Mock performTransaction for different return types
+        coEvery { database.performTransaction<Unit>(any()) } coAnswers {
+            val block = it.invocation.args[0] as (suspend () -> Unit)
+            block()
         }
+        coEvery { database.performTransaction<Long>(any()) } coAnswers {
+            val block = it.invocation.args[0] as (suspend () -> Long)
+            block()
+        }
+        coEvery { database.performTransaction<Any?>(any()) } coAnswers {
+            val block = it.invocation.args[0] as (suspend () -> Any?)
+            block()
+        }
+
+        // Mock DAO getters
+        every { database.getBookmarkDao() } returns bookmarkDao
+        every { database.getPendingActionDao() } returns pendingActionDao
+
+        // Standard mocks for PendingActionDao
+        coEvery { pendingActionDao.find(any(), any()) } returns null
+        coEvery { pendingActionDao.insert(any()) } returns 0L
+        coEvery { pendingActionDao.deleteAllForBookmark(any()) } just runs
+        coEvery { pendingActionDao.getActionsForBookmark(any()) } returns emptyList()
+        coEvery { pendingActionDao.delete(any()) } just runs
+        coEvery { pendingActionDao.getAllActionsSorted() } returns emptyList()
+        coEvery { pendingActionDao.updateAction(any(), any(), any()) } just runs
 
         bookmarkRepositoryImpl = BookmarkRepositoryImpl(
             database = database,
@@ -105,8 +126,29 @@ class BookmarkRepositoryImplTest {
             isRead = null)
 
         // Assert
-        coVerify { pendingActionDao.insert(any<PendingActionEntity>()) }
-        coVerify { workManager.enqueue(any<WorkRequest>()) }
+        coVerify { pendingActionDao.insert(any()) }
+        verify { workManager.enqueueUniqueWork("OfflineActionSync", any(), any<OneTimeWorkRequest>()) }
+    }
+
+    @Test
+    fun `updateBookmark coalesces multiple updates of same type`() = runTest {
+        // Arrange
+        val bookmarkId = "123"
+        val existingAction = PendingActionEntity(
+            id = 1,
+            bookmarkId = bookmarkId,
+            actionType = ActionType.TOGGLE_FAVORITE,
+            payload = "old",
+            createdAt = Clock.System.now()
+        )
+        coEvery { pendingActionDao.find(bookmarkId, ActionType.TOGGLE_FAVORITE) } returns existingAction
+
+        // Act
+        bookmarkRepositoryImpl.updateBookmark(bookmarkId, isFavorite = true, isArchived = null, isRead = null)
+
+        // Assert
+        coVerify { pendingActionDao.updateAction(1, any(), any()) }
+        coVerify(exactly = 0) { pendingActionDao.insert(any()) }
     }
 
     @Test
@@ -119,8 +161,8 @@ class BookmarkRepositoryImplTest {
         bookmarkRepositoryImpl.updateBookmark(bookmarkId, isFavorite, null, null)
 
         // Assert
-        coVerify { pendingActionDao.insert(any<PendingActionEntity>()) }
-        coVerify { workManager.enqueue(any<WorkRequest>()) }
+        coVerify { pendingActionDao.insert(any()) }
+        verify { workManager.enqueueUniqueWork("OfflineActionSync", any(), any<OneTimeWorkRequest>()) }
     }
 
     @Test
@@ -133,8 +175,8 @@ class BookmarkRepositoryImplTest {
         bookmarkRepositoryImpl.updateBookmark(bookmarkId, null, isArchived, null)
 
         // Assert
-        coVerify { pendingActionDao.insert(any<PendingActionEntity>()) }
-        coVerify { workManager.enqueue(any<WorkRequest>()) }
+        coVerify { pendingActionDao.insert(any()) }
+        verify { workManager.enqueueUniqueWork("OfflineActionSync", any(), any<OneTimeWorkRequest>()) }
     }
 
     @Test
@@ -147,8 +189,8 @@ class BookmarkRepositoryImplTest {
         bookmarkRepositoryImpl.updateBookmark(bookmarkId, null, null, isRead)
 
         // Assert
-        coVerify { pendingActionDao.insert(any<PendingActionEntity>()) }
-        coVerify { workManager.enqueue(any<WorkRequest>()) }
+        coVerify { pendingActionDao.insert(any()) }
+        verify { workManager.enqueueUniqueWork("OfflineActionSync", any(), any<OneTimeWorkRequest>()) }
     }
 
     @Test
@@ -162,8 +204,8 @@ class BookmarkRepositoryImplTest {
         // Assert
         coVerify { bookmarkDao.softDeleteBookmark(bookmarkId) }
         coVerify { pendingActionDao.deleteAllForBookmark(bookmarkId) }
-        coVerify { pendingActionDao.insert(any<PendingActionEntity>()) }
-        coVerify { workManager.enqueue(any<WorkRequest>()) }
+        coVerify { pendingActionDao.insert(match { it.actionType == ActionType.DELETE }) }
+        verify { workManager.enqueueUniqueWork("OfflineActionSync", any(), any<androidx.work.OneTimeWorkRequest>()) }
     }
 
     @Test
@@ -334,8 +376,57 @@ class BookmarkRepositoryImplTest {
         // Assert
         assertTrue(result is BookmarkRepository.UpdateResult.Success)
         coVerify { bookmarkDao.updateReadProgress(bookmarkId, progress) }
-        coVerify { pendingActionDao.insert(any<PendingActionEntity>()) }
-        coVerify { workManager.enqueue(any<WorkRequest>()) }
+        coVerify { pendingActionDao.insert(any()) }
+        verify { workManager.enqueueUniqueWork("OfflineActionSync", any(), any<OneTimeWorkRequest>()) }
+    }
+
+    @Test
+    fun `updateLabels successful queues action`() = runTest {
+        // Arrange
+        val bookmarkId = "test-bookmark-id"
+        val labels = listOf("test", "labels")
+        
+        // Act
+        val result = bookmarkRepositoryImpl.updateLabels(bookmarkId, labels)
+        
+        // Assert
+        assertTrue(result is BookmarkRepository.UpdateResult.Success)
+        coVerify { bookmarkDao.updateLabels(any(), any()) }
+        coVerify { pendingActionDao.insert(any()) }
+        verify { workManager.enqueueUniqueWork("OfflineActionSync", any(), any<OneTimeWorkRequest>()) }
+    }
+
+    @Test
+    fun `syncPendingActions handles 404 by hard deleting locally`() = runTest {
+        // Arrange
+        val action = PendingActionEntity(1, "123", ActionType.TOGGLE_FAVORITE, "{\"value\":true}", Clock.System.now())
+        coEvery { pendingActionDao.getAllActionsSorted() } returns listOf(action)
+        coEvery { readeckApi.editBookmark("123", any()) } returns Response.error(404, "".toResponseBody())
+
+        // Act
+        bookmarkRepositoryImpl.syncPendingActions()
+
+        // Assert
+        coVerify { bookmarkDao.hardDeleteBookmark("123") }
+        coVerify { pendingActionDao.deleteAllForBookmark("123") }
+        coVerify { pendingActionDao.delete(action) }
+    }
+
+    @Test
+    fun `syncPendingActions stops on transient error`() = runTest {
+        // Arrange
+        val action1 = PendingActionEntity(1, "123", ActionType.TOGGLE_FAVORITE, "{\"value\":true}", Clock.System.now())
+        val action2 = PendingActionEntity(2, "456", ActionType.TOGGLE_ARCHIVE, "{\"value\":true}", Clock.System.now())
+        coEvery { pendingActionDao.getAllActionsSorted() } returns listOf(action1, action2)
+        coEvery { readeckApi.editBookmark("123", any()) } throws IOException("Network error")
+
+        // Act
+        val result = bookmarkRepositoryImpl.syncPendingActions()
+
+        // Assert
+        assertTrue(result is BookmarkRepository.UpdateResult.NetworkError)
+        coVerify(exactly = 0) { readeckApi.editBookmark("456", any()) }
+        coVerify(exactly = 0) { pendingActionDao.delete(action1) }
     }
 
     private val editBookmarkResponseDto = EditBookmarkResponseDto(
