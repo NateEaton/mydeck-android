@@ -3,10 +3,7 @@ package com.mydeck.app.io.rest
 import com.mydeck.app.io.rest.auth.AuthInterceptor
 import com.mydeck.app.io.rest.auth.NotificationHelper
 import com.mydeck.app.io.rest.auth.TokenManager
-import com.mydeck.app.io.rest.model.AuthenticationRequestDto
-import com.mydeck.app.io.rest.model.EditBookmarkDto
-import com.mydeck.app.io.rest.model.EditBookmarkErrorDto
-import com.mydeck.app.io.rest.model.StatusMessageDto
+import com.mydeck.app.io.rest.model.*
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
@@ -197,6 +194,124 @@ class ReadeckApiTest {
 
         assertEquals(HttpURLConnection.HTTP_FORBIDDEN, statusMessage.status)
         assertEquals("Invalid user and/or password", statusMessage.message)
+    }
+
+    @Test
+    fun testGetInfo() = runTest {
+        mockWebServer.enqueue(MockResponse()
+            .setResponseCode(HttpURLConnection.HTTP_OK)
+            .addHeader("Content-Type", "application/json")
+            .setBody(loadJsonFromClasspath("api/info.json"))
+        )
+
+        val response = readeckApi.getInfo()
+
+        assertTrue(response.isSuccessful)
+        assertEquals(200, response.code())
+        assertEquals("0.22.0", response.body()?.version?.release)
+        assertTrue(response.body()?.features?.contains("oauth") ?: false)
+    }
+
+    @Test
+    fun testRegisterOAuthClient() = runTest {
+        mockWebServer.enqueue(MockResponse()
+            .setResponseCode(HttpURLConnection.HTTP_CREATED)
+            .addHeader("Content-Type", "application/json")
+            .setBody(loadJsonFromClasspath("api/oauth-client.json"))
+        )
+
+        val request = OAuthClientRegistrationRequestDto(
+            clientName = "MyDeck Android",
+            clientUri = "https://github.com/NateEaton/mydeck-android",
+            softwareId = "com.mydeck.app",
+            softwareVersion = "1.0.0",
+            grantTypes = listOf("urn:ietf:params:oauth:grant-type:device_code")
+        )
+
+        val response = readeckApi.registerOAuthClient(request)
+
+        assertTrue(response.isSuccessful)
+        assertEquals(201, response.code())
+        assertEquals("abc123xyz789", response.body()?.clientId)
+    }
+
+    @Test
+    fun testAuthorizeDevice() = runTest {
+        mockWebServer.enqueue(MockResponse()
+            .setResponseCode(HttpURLConnection.HTTP_OK)
+            .addHeader("Content-Type", "application/json")
+            .setBody(loadJsonFromClasspath("api/oauth-device.json"))
+        )
+
+        val request = OAuthDeviceAuthorizationRequestDto(
+            clientId = "abc123xyz789",
+            scope = "bookmarks:read bookmarks:write profile:read"
+        )
+
+        val response = readeckApi.authorizeDevice(request)
+
+        assertTrue(response.isSuccessful)
+        assertEquals(HttpURLConnection.HTTP_OK, response.code())
+        assertEquals("WDJB-MJHT", response.body()?.userCode)
+        assertEquals(300, response.body()?.expiresIn)
+    }
+
+    @Test
+    fun testRequestTokenSuccess() = runTest {
+        mockWebServer.enqueue(MockResponse()
+            .setResponseCode(HttpURLConnection.HTTP_CREATED)
+            .addHeader("Content-Type", "application/json")
+            .setBody(loadJsonFromClasspath("api/oauth-token.json"))
+        )
+
+        val request = OAuthTokenRequestDto(
+            grantType = "urn:ietf:params:oauth:grant-type:device_code",
+            clientId = "abc123xyz789",
+            deviceCode = "GmRhmhcxhwAzkoEqiMEg_DnyEysNkuNhszIySk9eS"
+        )
+
+        val response = readeckApi.requestToken(request)
+
+        assertTrue(response.isSuccessful)
+        assertEquals(201, response.code())
+        assertTrue(response.body()?.accessToken?.startsWith("eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9") ?: false)
+    }
+
+    @Test
+    fun testRequestTokenPending() = runTest {
+        mockWebServer.enqueue(MockResponse()
+            .setResponseCode(HttpURLConnection.HTTP_BAD_REQUEST)
+            .addHeader("Content-Type", "application/json")
+            .setBody(loadJsonFromClasspath("api/oauth-error.json"))
+        )
+
+        val request = OAuthTokenRequestDto(
+            grantType = "urn:ietf:params:oauth:grant-type:device_code",
+            clientId = "abc123xyz789",
+            deviceCode = "GmRhmhcxhwAzkoEqiMEg_DnyEysNkuNhszIySk9eS"
+        )
+
+        val response = readeckApi.requestToken(request)
+
+        assertFalse(response.isSuccessful)
+        assertEquals(400, response.code())
+
+        val errorBody = response.errorBody()?.string()
+        val oauthError = Json.decodeFromString<OAuthErrorDto>(errorBody!!)
+        assertEquals("authorization_pending", oauthError.error)
+    }
+
+    @Test
+    fun testRevokeToken() = runTest {
+        mockWebServer.enqueue(MockResponse()
+            .setResponseCode(HttpURLConnection.HTTP_OK)
+        )
+
+        val request = OAuthRevokeRequestDto(token = "mockToken")
+        val response = readeckApi.revokeToken(request)
+
+        assertTrue(response.isSuccessful)
+        assertEquals(200, response.code())
     }
 
     private fun loadJsonFromClasspath(resourcePath: String): String {

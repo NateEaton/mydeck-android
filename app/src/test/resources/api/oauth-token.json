@@ -1,0 +1,6 @@
+{
+    "id": "X4bmnMRcnDhQtu5y33qzTp",
+    "access_token": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJpZCI6Ilg0Ym1uTVJjbkRoUXR1NXkzM3F6VHAiLCJzdWIiOiJjdXJ0IiwiaWF0IjoxNzA0Nzc4NDYxLCJzY29wZSI6ImJvb2ttYXJrczp3cml0ZSBib29rbWFya3M6cmVhZCBwcm9maWxlOnJlYWQifQ.oN9O7g6m_",
+    "token_type": "Bearer",
+    "scope": "bookmarks:read bookmarks:write profile:read"
+}

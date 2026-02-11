@@ -2,56 +2,135 @@ package com.mydeck.app.ui.settings
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
-import androidx.compose.material.icons.filled.Visibility
-import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.FocusDirection
-import androidx.compose.ui.focus.FocusManager
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
-import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.input.TextFieldValue
-import androidx.compose.ui.text.input.VisualTransformation
-import androidx.compose.ui.text.TextRange
-import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import com.mydeck.app.R
-import com.mydeck.app.domain.usecase.AuthenticationResult
+import com.mydeck.app.ui.login.DeviceAuthorizationDialog
 
 @Composable
 fun AccountSettingsScreen(
-    navHostController: NavHostController
+    navHostController: NavHostController,
+    viewModel: AccountSettingsViewModel = hiltViewModel(),
+    padding: PaddingValues = PaddingValues(0.dp)
 ) {
-    val viewModel: AccountSettingsViewModel = hiltViewModel()
     val settingsUiState = viewModel.uiState.collectAsState().value
     val navigationEvent = viewModel.navigationEvent.collectAsState()
-    val onUrlChanged: (String) -> Unit = { url -> viewModel.onUrlChanged(url) }
-    val onUsernameChanged: (String) -> Unit = { username -> viewModel.onUsernameChanged(username) }
-    val onPasswordChanged: (String) -> Unit = { password -> viewModel.onPasswordChanged(password) }
+    val keyboardController = LocalSoftwareKeyboardController.current
+    val onUrlChanged: (String) -> Unit = { url -> viewModel.updateUrl(url) }
     val onLoginClicked: () -> Unit = { viewModel.login() }
-    val onAllowUnencryptedConnectionChanged: (Boolean) -> Unit = { allow -> viewModel.onAllowUnencryptedConnectionChanged(allow) }
-    val onClickBack: () -> Unit = { viewModel.onClickBack() }
     val onSignOut: () -> Unit = { viewModel.signOut() }
-    val snackbarHostState = remember { SnackbarHostState() }
-    val scope = rememberCoroutineScope()
-    val isStartDestination = navHostController.previousBackStackEntry == null
+
+    LazyColumn(
+        modifier = Modifier
+            .padding(padding)
+            .padding(16.dp)
+            .fillMaxSize(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        item {
+            OutlinedTextField(
+                value = settingsUiState.url,
+                placeholder = { Text(stringResource(R.string.account_settings_url_placeholder)) },
+                onValueChange = { onUrlChanged(it) },
+                label = { Text(stringResource(R.string.account_settings_url_label)) },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                isError = settingsUiState.urlError != null,
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                keyboardActions = KeyboardActions(
+                    onDone = {
+                        keyboardController?.hide()
+                        if (settingsUiState.loginEnabled) {
+                            onLoginClicked()
+                        }
+                    }
+                ),
+                supportingText = {
+                    settingsUiState.urlError?.let {
+                        Text(text = stringResource(it))
+                    }
+                }
+            )
+        }
+
+        item {
+            LoginButton(
+                onClick = onLoginClicked,
+                enabled = settingsUiState.loginEnabled && settingsUiState.authStatus !is AccountSettingsViewModel.AuthStatus.Loading,
+                authStatus = settingsUiState.authStatus,
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
+
+        // Error message display
+        if (settingsUiState.authStatus is AccountSettingsViewModel.AuthStatus.Error) {
+            item {
+                Text(
+                    text = (settingsUiState.authStatus as AccountSettingsViewModel.AuthStatus.Error).message,
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 4.dp)
+                )
+            }
+        }
+
+        // Sign-out section (only show when logged in)
+        if (settingsUiState.isLoggedIn) {
+            item {
+                HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
+            }
+            item {
+                Text(
+                    text = stringResource(R.string.account_settings_sign_out_warning),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+            item {
+                OutlinedButton(
+                    onClick = { onSignOut() },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = MaterialTheme.colorScheme.error
+                    ),
+                ) {
+                    Text(stringResource(R.string.account_settings_sign_out))
+                }
+            }
+        }
+    }
+
+    // OAuth Device Authorization Dialog (outside LazyColumn to fix scoping)
+    if (settingsUiState.authStatus is AccountSettingsViewModel.AuthStatus.WaitingForAuthorization &&
+        settingsUiState.deviceAuthState != null) {
+        DeviceAuthorizationDialog(
+            userCode = settingsUiState.deviceAuthState!!.userCode,
+            verificationUri = settingsUiState.deviceAuthState!!.verificationUri,
+            verificationUriComplete = settingsUiState.deviceAuthState!!.verificationUriComplete,
+            expiresAt = settingsUiState.deviceAuthState!!.expiresAt,
+            onCancel = { viewModel.cancelAuthorization() }
+        )
+    }
 
     LaunchedEffect(key1 = navigationEvent.value) {
         navigationEvent.value?.let { event ->
@@ -65,320 +144,35 @@ fun AccountSettingsScreen(
                     }
                 }
             }
-            viewModel.onNavigationEventConsumed() // Consume the event
+            viewModel.navigationEventConsumed() // Consume event
         }
     }
-
-    LaunchedEffect(key1 = settingsUiState.authenticationResult) {
-        settingsUiState.authenticationResult?.let { result ->
-            when (result) {
-                is AuthenticationResult.Success -> {
-                    snackbarHostState.showSnackbar(
-                        message = "Success",
-                        duration = SnackbarDuration.Short
-                    )
-                }
-
-                is AuthenticationResult.AuthenticationFailed -> {
-                    snackbarHostState.showSnackbar(
-                        message = result.message,
-                        duration = SnackbarDuration.Short
-                    )
-                }
-
-                is AuthenticationResult.NetworkError -> {
-                    snackbarHostState.showSnackbar(
-                        message = result.message,
-                        duration = SnackbarDuration.Short
-                    )
-                }
-
-                is AuthenticationResult.GenericError -> {
-                    snackbarHostState.showSnackbar(
-                        message = result.message,
-                        duration = SnackbarDuration.Short
-                    )
-                }
-            }
-        }
-    }
-
-    AccountSettingsView(
-        modifier = Modifier,
-        snackbarHostState = snackbarHostState,
-        settingsUiState = settingsUiState,
-        onUrlChanged = onUrlChanged,
-        onUsernameChanged = onUsernameChanged,
-        onPasswordChanged = onPasswordChanged,
-        onLoginClicked = onLoginClicked,
-        onClickBack = onClickBack,
-        onAllowUnencryptedConnectionChanged = onAllowUnencryptedConnectionChanged,
-        onSignOut = onSignOut,
-        isStartDestination = isStartDestination
-    )
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AccountSettingsView(
-    modifier: Modifier = Modifier,
-    snackbarHostState: SnackbarHostState,
-    settingsUiState: AccountSettingsUiState,
-    onUrlChanged: (String) -> Unit,
-    onUsernameChanged: (String) -> Unit,
-    onPasswordChanged: (String) -> Unit,
-    onLoginClicked: () -> Unit,
-    onClickBack: () -> Unit,
-    onAllowUnencryptedConnectionChanged: (Boolean) -> Unit,
-    onSignOut: () -> Unit,
-    isStartDestination: Boolean = false
+fun LoginButton(
+    onClick: () -> Unit,
+    enabled: Boolean,
+    authStatus: AccountSettingsViewModel.AuthStatus,
+    modifier: Modifier = Modifier
 ) {
-    val keyboardController = LocalSoftwareKeyboardController.current
-    val focusManager = LocalFocusManager.current
-    val urlFocusRequester = remember { FocusRequester() }
-    var showSignOutDialog by remember { mutableStateOf(false) }
-    var passwordVisible by remember { mutableStateOf(false) }
-
-    // Create TextFieldValue for URL field with cursor at the end
-    val urlValue = remember(settingsUiState.url) {
-        val url = settingsUiState.url ?: ""
-        TextFieldValue(text = url, selection = TextRange(url.length))
-    }
-
-    // Request focus on URL field when screen opens
-    LaunchedEffect(Unit) {
-        urlFocusRequester.requestFocus()
-    }
-
-    if (showSignOutDialog) {
-        AlertDialog(
-            onDismissRequest = { showSignOutDialog = false },
-            title = { Text(stringResource(R.string.account_settings_sign_out_confirm_title)) },
-            text = { Text(stringResource(R.string.account_settings_sign_out_confirm_message)) },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        showSignOutDialog = false
-                        onSignOut()
-                    }
-                ) {
-                    Text(stringResource(R.string.account_settings_sign_out), color = MaterialTheme.colorScheme.error)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showSignOutDialog = false }) {
-                    Text(stringResource(R.string.cancel))
-                }
-            }
-        )
-    }
-
-    Scaffold(
-        modifier = modifier,
-        snackbarHost = { SnackbarHost(snackbarHostState) },
-        topBar = {
-            if (!isStartDestination) {
-                TopAppBar(
-                    title = { Text(stringResource(R.string.accountsettings_topbar_title)) },
-                    navigationIcon = {
-                        IconButton(
-                            onClick = onClickBack,
-                            modifier = Modifier.testTag(AccountSettingsScreenTestTags.BACK_BUTTON)
-                        ) {
-                            Icon(
-                                Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = stringResource(R.string.back)
-                            )
-                        }
-                    }
+    Button(
+        onClick = onClick,
+        enabled = enabled,
+        modifier = modifier
+    ) {
+        when (authStatus) {
+            is AccountSettingsViewModel.AuthStatus.Loading -> {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(16.dp),
+                    strokeWidth = 2.dp
                 )
-            } else {
-                TopAppBar(
-                    title = { Text(stringResource(R.string.accountsettings_topbar_title)) }
-                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Signing in...")
             }
-        }
-    ) { padding ->
-        LazyColumn(
-            modifier = Modifier
-                .padding(padding)
-                .padding(16.dp)
-                .fillMaxSize(),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            item {
-                OutlinedTextField(
-                    value = urlValue,
-                    placeholder = { Text(stringResource(R.string.account_settings_url_placeholder)) },
-                    onValueChange = { textFieldValue -> onUrlChanged(textFieldValue.text) },
-                    label = { Text(stringResource(R.string.account_settings_url_label)) },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .focusRequester(urlFocusRequester),
-                    singleLine = true,
-                    isError = settingsUiState.urlError != null,
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
-                    keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(FocusDirection.Down) }),
-                    supportingText = {
-                        settingsUiState.urlError?.let {
-                            Text(text = stringResource(it))
-                        }
-                    }
-                )
-            }
-            item {
-                OutlinedTextField(
-                    value = settingsUiState.username ?: "",
-                    placeholder = { Text(stringResource(R.string.account_settings_username_placeholder)) },
-                    onValueChange = { onUsernameChanged(it) },
-                    label = { Text(stringResource(R.string.account_settings_username_label)) },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    isError = settingsUiState.usernameError != null,
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
-                    keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(FocusDirection.Down) }),
-                    supportingText = {
-                        settingsUiState.usernameError?.let {
-                            Text(text = stringResource(it))
-                        }
-                    }
-                )
-            }
-            item {
-                OutlinedTextField(
-                    value = settingsUiState.password ?: "",
-                    placeholder = { Text(stringResource(R.string.account_settings_password_placeholder)) },
-                    onValueChange = { onPasswordChanged(it) },
-                    label = { Text(stringResource(R.string.account_settings_password_label)) },
-                    visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                    trailingIcon = {
-                        val image = if (passwordVisible)
-                            Icons.Filled.Visibility
-                        else Icons.Filled.VisibilityOff
-
-                        // Please provide localized description if available
-                        val description = if (passwordVisible) "Hide password" else "Show password"
-
-                        IconButton(onClick = { passwordVisible = !passwordVisible }) {
-                            Icon(imageVector = image, description)
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    isError = settingsUiState.passwordError != null,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done),
-                    keyboardActions = KeyboardActions(
-                        onDone = {
-                            keyboardController?.hide()
-                            if (settingsUiState.loginEnabled) {
-                                onLoginClicked()
-                            }
-                        }
-                    ),
-                    supportingText = {
-                        settingsUiState.passwordError?.let {
-                            Text(text = stringResource(it))
-                        }
-                    }
-                )
-            }
-            item {
-                Row(
-                    modifier = Modifier
-                        .height(56.dp)
-                        .selectable(
-                            selected = settingsUiState.allowUnencryptedConnection,
-                            onClick = { onAllowUnencryptedConnectionChanged(settingsUiState.allowUnencryptedConnection.not()) },
-                            role = Role.Checkbox
-                        ),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    Checkbox(
-                        checked = settingsUiState.allowUnencryptedConnection,
-                        onCheckedChange = null
-                    )
-                    Text(text = stringResource(R.string.account_settings_allow_unencrypted))
-                }
-            }
-            item {
-                Button(
-                    onClick = {
-                        keyboardController?.hide()
-                        onLoginClicked.invoke()
-                    },
-                    enabled = settingsUiState.loginEnabled,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(stringResource(R.string.account_settings_login))
-                }
-            }
-            // Sign-out section (only show when logged in)
-            if (settingsUiState.isLoggedIn) {
-                item {
-                    HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
-                }
-                item {
-                    Text(
-                        text = stringResource(R.string.account_settings_sign_out_warning),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
-                item {
-                    OutlinedButton(
-                        onClick = { showSignOutDialog = true },
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.outlinedButtonColors(
-                            contentColor = MaterialTheme.colorScheme.error
-                        ),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.error)
-                    ) {
-                        Text(stringResource(R.string.account_settings_sign_out))
-                    }
-                }
+            else -> {
+                Text(stringResource(R.string.account_settings_login))
             }
         }
     }
-}
-
-@Preview(showBackground = true)
-@Composable
-fun AccountSettingsScreenViewPreview() {
-    val settingsUiState = AccountSettingsUiState(
-        url = "https://example.com",
-        username = "user",
-        password = "pass",
-        loginEnabled = true,
-        urlError = R.string.account_settings_url_error,
-        usernameError = null,
-        passwordError = null,
-        authenticationResult = null,
-        allowUnencryptedConnection = false,
-        isLoggedIn = true
-    )
-    AccountSettingsView(
-        modifier = Modifier,
-        snackbarHostState = SnackbarHostState(),
-        settingsUiState = settingsUiState,
-        onUrlChanged = {},
-        onUsernameChanged = {},
-        onPasswordChanged = {},
-        onLoginClicked = {},
-        onClickBack = {},
-        onAllowUnencryptedConnectionChanged = {},
-        onSignOut = {},
-        isStartDestination = false
-    )
-}
-
-object AccountSettingsScreenTestTags {
-    const val BACK_BUTTON = "AccountSettingsScreenTestTags.BackButton"
-    const val TOPBAR = "AccountSettingsScreenTestTags.TopBar"
-    const val SETTINGS_ITEM = "AccountSettingsScreenTestTags.SettingsItem"
-    const val SETTINGS_ITEM_TITLE = "AccountSettingsScreenTestTags.SettingsItem.Title"
-    const val SETTINGS_ITEM_SUBTITLE = "AccountSettingsScreenTestTags.SettingsItem.Subtitle"
-    const val SETTINGS_ITEM_ACCOUNT = "Account"
 }

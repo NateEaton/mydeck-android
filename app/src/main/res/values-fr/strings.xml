@@ -84,4 +84,21 @@
     <string name="detail_about">About %1$s</string>
     <string name="detail_words">%1$d words</string>
     <string name="syncing_tooltip">Pending Actions to Sync</string>
+    
+    <!-- OAuth Device Code Authentication -->
+    <string name="oauth_device_auth_title">Autoriser MyDeck</string>
+    <string name="oauth_device_auth_instructions">Veuillez suivre ces étapes pour vous connecter à votre compte Readeck :</string>
+    <string name="oauth_device_auth_step1">1. Visitez cette URL :</string>
+    <string name="oauth_device_auth_step2">2. Entrez ce code :</string>
+    <string name="oauth_device_auth_copy_code">Copier le code</string>
+    <string name="oauth_device_auth_copy_url">Copier l\'URL</string>
+    <string name="oauth_device_auth_open_browser">Ouvrir dans le navigateur</string>
+    <string name="oauth_device_auth_waiting">En attente d\'autorisation…</string>
+    <string name="oauth_device_auth_expires_in">Expire dans : %s</string>
+    <string name="oauth_device_auth_expired">Le code d\'autorisation a expiré. Veuillez réessayer.</string>
+    <string name="oauth_device_auth_denied">L\'autorisation a été refusée.</string>
+    <string name="oauth_device_auth_success">Autorisé avec succès !</string>
+    <string name="oauth_error_network">Erreur réseau. Veuillez vérifier votre connexion.</string>
+    <string name="logout_confirm_title">Se déconnecter</string>
+    <string name="logout_confirm_message">Êtes-vous sûr de vouloir vous déconnecter ?</string>
 </resources>
