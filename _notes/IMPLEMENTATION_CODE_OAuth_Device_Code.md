@@ -48,7 +48,7 @@ class OAuthDeviceAuthorizationUseCase @Inject constructor(
         private const val GRANT_TYPE_DEVICE_CODE = "urn:ietf:params:oauth:grant-type:device_code"
         private const val REQUIRED_SCOPES = "bookmarks:read bookmarks:write profile:read"
         private const val CLIENT_NAME = "MyDeck Android"
-        private const val CLIENT_URI = "https://github.com/yourusername/mydeck-android"
+        private const val CLIENT_URI = "https://github.com/NateEaton/mydeck-android"
         private const val SOFTWARE_ID = "com.mydeck.app"
         private const val SLOW_DOWN_ADDITIONAL_INTERVAL = 5 // seconds
     }
@@ -93,13 +93,13 @@ class OAuthDeviceAuthorizationUseCase @Inject constructor(
                 return DeviceAuthResult.Error("Failed to register with server: $errorMessage")
             }
 
-            val clientId = clientResponse.body()!!.clientId
-            Timber.d("OAuth client registered: $clientId")
+            val registeredClientId = clientResponse.body()!!.clientId
+            Timber.d("OAuth client registered: $registeredClientId")
 
             // Step 1.2: Request device authorization
             Timber.d("Requesting device authorization")
             val deviceAuthRequest = OAuthDeviceAuthorizationRequestDto(
-                clientId = clientId,
+                clientId = registeredClientId,
                 scope = REQUIRED_SCOPES
             )
 
@@ -117,6 +117,7 @@ class OAuthDeviceAuthorizationUseCase @Inject constructor(
             val expiresAt = System.currentTimeMillis() + (deviceAuth.expiresIn * 1000L)
 
             val state = OAuthDeviceAuthorizationState(
+                clientId = registeredClientId, // Needed for token polling
                 deviceCode = deviceAuth.deviceCode,
                 userCode = deviceAuth.userCode,
                 verificationUri = deviceAuth.verificationUri,
@@ -271,13 +272,19 @@ class OAuthDeviceAuthorizationUseCase @Inject constructor(
 
 **File:** `app/src/main/java/com/mydeck/app/domain/UserRepositoryImpl.kt`
 
-**Changes to make:**
+> **Existing codebase context:** Currently injects `SettingsDataStore`, `ReadeckApi`, and `Json`. Has `login(url, username, password)` (calls `/auth` endpoint), `login(url, appToken)` (TODO stub), and `logout()` (TODO stub). `observeAuthenticationDetails()` requires all four fields (url, username, password, token) to be non-null.
+
+**Key changes:**
+1. Add `OAuthDeviceAuthorizationUseCase` dependency
+2. Replace `login(url, username, password)` with `initiateLogin(url)` — starts OAuth flow
+3. Add `completeLogin(url, token)` — saves token, fetches username from `/profile`
+4. Implement `logout()` — revoke token then clear credentials
+5. Fix `observeAuthenticationDetails()` — password no longer required (use empty string)
 
 ```kotlin
 package com.mydeck.app.domain
 
 import com.mydeck.app.domain.model.AuthenticationDetails
-import com.mydeck.app.domain.model.OAuthDeviceAuthorizationState
 import com.mydeck.app.domain.model.User
 import com.mydeck.app.domain.usecase.OAuthDeviceAuthorizationUseCase
 import com.mydeck.app.io.prefs.SettingsDataStore
@@ -286,6 +293,7 @@ import com.mydeck.app.io.rest.model.OAuthRevokeRequestDto
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
@@ -298,36 +306,36 @@ class UserRepositoryImpl @Inject constructor(
     private val settingsDataStore: SettingsDataStore,
     private val readeckApi: ReadeckApi,
     private val json: Json,
-    private val oauthDeviceAuthUseCase: OAuthDeviceAuthorizationUseCase // NEW
+    private val oauthDeviceAuthUseCase: OAuthDeviceAuthorizationUseCase
 ) : UserRepository {
 
+    /**
+     * Updated to no longer require password — with OAuth, password is stored as empty string.
+     * Checks url + username + token (ignores password).
+     */
     override fun observeAuthenticationDetails(): Flow<AuthenticationDetails?> =
         combine(
             settingsDataStore.urlFlow,
             settingsDataStore.usernameFlow,
-            settingsDataStore.passwordFlow,
             settingsDataStore.tokenFlow
-        ) { url, username, password, token ->
-            if (url != null && username != null && password != null && token != null) {
-                AuthenticationDetails(url, username, password, token)
+        ) { url, username, token ->
+            if (url != null && username != null && token != null) {
+                AuthenticationDetails(url, username, "", token)
             } else {
                 null
             }
         }.flowOn(Dispatchers.IO)
 
     /**
-     * NEW: OAuth-based login flow
-     *
-     * This replaces the old username/password login method.
-     * Returns DeviceAuthorizationRequired with state to display to user.
+     * Start OAuth Device Code flow.
+     * Saves URL early (needed by UrlInterceptor), then registers client and requests device auth.
+     * Returns DeviceAuthorizationRequired with state including clientId for polling.
      */
-    override suspend fun login(url: String): UserRepository.LoginResult {
+    override suspend fun initiateLogin(url: String): UserRepository.LoginResult {
         return withContext(Dispatchers.IO) {
-            // Save URL early to allow API calls to the correct server
             settingsDataStore.saveUrl(url)
 
             try {
-                // Initiate OAuth Device Code Grant flow
                 when (val result = oauthDeviceAuthUseCase.initiateDeviceAuthorization()) {
                     is OAuthDeviceAuthorizationUseCase.DeviceAuthResult.AuthorizationRequired -> {
                         Timber.d("Device authorization required")
@@ -353,88 +361,41 @@ class UserRepositoryImpl @Inject constructor(
     }
 
     /**
-     * NEW: Complete login after user has authorized in browser
-     *
-     * This method handles the polling loop and token retrieval.
-     * Call this from a ViewModel/UI layer with proper lifecycle management.
+     * Complete login after ViewModel receives token from polling.
+     * Saves the token, then calls GET /profile to retrieve the username.
      */
-    suspend fun completeLogin(
-        clientId: String,
-        deviceCode: String,
-        username: String, // From profile endpoint after getting token
-        pollingInterval: Int
+    override suspend fun completeLogin(
+        url: String,
+        token: String
     ): UserRepository.LoginResult {
         return withContext(Dispatchers.IO) {
-            var currentInterval = pollingInterval
-
             try {
-                // Poll for token
-                when (val result = oauthDeviceAuthUseCase.pollForToken(
-                    clientId = clientId,
-                    deviceCode = deviceCode,
-                    currentInterval = currentInterval
-                )) {
-                    is OAuthDeviceAuthorizationUseCase.TokenPollResult.Success -> {
-                        // Save credentials
-                        val url = settingsDataStore.urlFlow.first()
-                        settingsDataStore.saveCredentials(
-                            url = url ?: "",
-                            username = username,
-                            password = "", // No password with OAuth
-                            token = result.accessToken
-                        )
-                        Timber.i("Login successful")
-                        UserRepository.LoginResult.Success
-                    }
+                // Save token first so AuthInterceptor can use it for the /profile call
+                settingsDataStore.saveToken(token)
 
-                    is OAuthDeviceAuthorizationUseCase.TokenPollResult.StillPending -> {
-                        // Continue polling - caller should delay and call again
-                        UserRepository.LoginResult.DeviceAuthorizationRequired(
-                            OAuthDeviceAuthorizationState(
-                                deviceCode = deviceCode,
-                                userCode = "",
-                                verificationUri = "",
-                                verificationUriComplete = null,
-                                expiresAt = 0,
-                                pollingInterval = currentInterval
-                            )
-                        )
-                    }
-
-                    is OAuthDeviceAuthorizationUseCase.TokenPollResult.SlowDown -> {
-                        // Update interval and continue
-                        currentInterval = result.newInterval
-                        UserRepository.LoginResult.DeviceAuthorizationRequired(
-                            OAuthDeviceAuthorizationState(
-                                deviceCode = deviceCode,
-                                userCode = "",
-                                verificationUri = "",
-                                verificationUriComplete = null,
-                                expiresAt = 0,
-                                pollingInterval = currentInterval
-                            )
-                        )
-                    }
-
-                    is OAuthDeviceAuthorizationUseCase.TokenPollResult.UserDenied -> {
-                        settingsDataStore.clearCredentials()
-                        UserRepository.LoginResult.Error(result.message)
-                    }
-
-                    is OAuthDeviceAuthorizationUseCase.TokenPollResult.Expired -> {
-                        settingsDataStore.clearCredentials()
-                        UserRepository.LoginResult.Error(result.message)
-                    }
-
-                    is OAuthDeviceAuthorizationUseCase.TokenPollResult.Error -> {
-                        settingsDataStore.clearCredentials()
-                        UserRepository.LoginResult.Error(result.message, ex = result.exception)
-                    }
+                // Fetch username from profile endpoint
+                val profileResponse = readeckApi.userprofile()
+                val username = if (profileResponse.isSuccessful && profileResponse.body() != null) {
+                    profileResponse.body()!!.user?.username ?: "user"
+                } else {
+                    Timber.w("Could not fetch profile, using default username")
+                    "user"
                 }
+
+                // Save full credentials
+                settingsDataStore.saveCredentials(
+                    url = url,
+                    username = username,
+                    password = "", // No password with OAuth
+                    token = token
+                )
+                Timber.i("Login completed successfully for user: $username")
+                UserRepository.LoginResult.Success
             } catch (e: Exception) {
+                Timber.e(e, "Failed to complete login")
                 settingsDataStore.clearCredentials()
                 UserRepository.LoginResult.Error(
-                    "An unexpected error occurred: ${e.message}",
+                    "Failed to complete login: ${e.message}",
                     ex = e
                 )
             }
@@ -442,7 +403,8 @@ class UserRepositoryImpl @Inject constructor(
     }
 
     /**
-     * NEW: Logout with token revocation
+     * Logout with token revocation.
+     * Attempts server-side revocation, then clears local credentials regardless.
      */
     override suspend fun logout(): UserRepository.LogoutResult {
         return withContext(Dispatchers.IO) {
@@ -450,7 +412,6 @@ class UserRepositoryImpl @Inject constructor(
                 val token = settingsDataStore.tokenFlow.first()
 
                 if (token != null) {
-                    // Attempt to revoke token on server
                     try {
                         val response = readeckApi.revokeToken(
                             OAuthRevokeRequestDto(token = token)
@@ -459,27 +420,19 @@ class UserRepositoryImpl @Inject constructor(
                             Timber.i("Token revoked successfully")
                         } else {
                             Timber.w("Token revocation failed: ${response.code()}")
-                            // Continue with local logout anyway
                         }
                     } catch (e: Exception) {
                         Timber.e(e, "Failed to revoke token")
-                        // Continue with local logout anyway (fail open)
+                        // Continue with local logout (fail open)
                     }
                 }
 
-                // Clear local credentials
                 settingsDataStore.clearCredentials()
                 Timber.i("Logout successful")
                 UserRepository.LogoutResult.Success
-
             } catch (e: Exception) {
                 Timber.e(e, "Logout failed")
-                // Still try to clear credentials
-                try {
-                    settingsDataStore.clearCredentials()
-                } catch (clearError: Exception) {
-                    Timber.e(clearError, "Failed to clear credentials")
-                }
+                try { settingsDataStore.clearCredentials() } catch (_: Exception) {}
                 UserRepository.LogoutResult.Error("Failed to logout: ${e.message}")
             }
         }
@@ -490,179 +443,226 @@ class UserRepositoryImpl @Inject constructor(
     }
 
     override fun observeUser(): Flow<User?> = observeAuthenticationDetails().map {
-        if (it != null) {
-            User(it.username)
-        } else {
-            null
-        }
+        if (it != null) User(it.username) else null
     }
 }
 ```
 
-**Note:** The `completeLogin()` method should actually be called from the ViewModel in a polling loop. The repository method should just handle a single poll attempt.
+> **Important:** The polling loop does NOT belong here. The ViewModel calls `oauthDeviceAuthUseCase.pollForToken()` directly in its own coroutine, and on `Success` calls `userRepository.completeLogin(url, token)`.
+
+> **AuthenticationDetails note:** The `password` field in `AuthenticationDetails` can be kept for compatibility but will always be `""` for OAuth logins. The `observeAuthenticationDetails()` flow no longer checks `password` for non-null. If you prefer a cleaner approach, make `password` nullable in `AuthenticationDetails`.
 
 ---
 
-## 3. Login ViewModel
+## 3. AccountSettingsViewModel Updates
 
-**File:** `app/src/main/java/com/mydeck/app/ui/login/LoginViewModel.kt`
+**File:** `app/src/main/java/com/mydeck/app/ui/settings/AccountSettingsViewModel.kt`
+
+> **Existing codebase context:** This is the existing ViewModel that handles login. It currently injects `SettingsDataStore` and `AuthenticateUseCase`. The UI state includes `url`, `username`, `password`, `loginEnabled`, error fields, and `authenticationResult`. The `login()` method calls `authenticateUseCase.execute(url, username, password)` and on success emits `NavigateToBookmarkList`.
+
+**Changes:**
+1. Add `OAuthDeviceAuthorizationUseCase` and `UserRepository` dependencies
+2. Remove `username`/`password` from UI state
+3. Add device authorization state to UI state
+4. Replace `login()` with OAuth flow
+5. Add polling coroutine with proper lifecycle management
+6. `clientId` comes from `OAuthDeviceAuthorizationState` (no longer a design gap)
 
 ```kotlin
-package com.mydeck.app.ui.login
+package com.mydeck.app.ui.settings
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.mydeck.app.domain.UserRepository
+import com.mydeck.app.domain.BookmarkRepository
 import com.mydeck.app.domain.model.OAuthDeviceAuthorizationState
 import com.mydeck.app.domain.usecase.OAuthDeviceAuthorizationUseCase
+import com.mydeck.app.io.prefs.SettingsDataStore
+import com.mydeck.app.sync.LoadBookmarksWorker
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
+import android.content.Context
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import timber.log.Timber
 import javax.inject.Inject
 import kotlin.time.Duration.Companion.seconds
 
 @HiltViewModel
-class LoginViewModel @Inject constructor(
+class AccountSettingsViewModel @Inject constructor(
+    private val settingsDataStore: SettingsDataStore,
     private val userRepository: UserRepository,
-    private val oauthDeviceAuthUseCase: OAuthDeviceAuthorizationUseCase
+    private val oauthDeviceAuthUseCase: OAuthDeviceAuthorizationUseCase,
+    private val bookmarkRepository: BookmarkRepository,
+    @ApplicationContext private val context: Context
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow<LoginUiState>(LoginUiState.Initial)
-    val uiState: StateFlow<LoginUiState> = _uiState.asStateFlow()
+    // Existing UI state fields (url, urlError, loginEnabled, isLoggedIn, etc.)
+    // Remove: username, password, usernameError, passwordError
+    // Add: deviceAuthState, authStatus
 
-    private var pollingJob: Job? = null
-    private var clientId: String? = null
-    private var deviceCode: String? = null
-    private var pollingInterval: Int = 5
+    data class AccountSettingsUiState(
+        val url: String = "https://",
+        val urlError: Int? = null,
+        val loginEnabled: Boolean = true,
+        val allowUnencryptedConnection: Boolean = false,
+        val isLoggedIn: Boolean = false,
+        val authStatus: AuthStatus = AuthStatus.Idle,
+        val deviceAuthState: OAuthDeviceAuthorizationState? = null
+    )
 
-    sealed class LoginUiState {
-        data object Initial : LoginUiState()
-        data object Loading : LoginUiState()
-        data class DeviceAuthorizationRequired(
-            val userCode: String,
-            val verificationUri: String,
-            val verificationUriComplete: String?,
-            val expiresAt: Long,
-            val pollingInterval: Int
-        ) : LoginUiState()
-        data object Success : LoginUiState()
-        data class Error(val message: String) : LoginUiState()
+    sealed class AuthStatus {
+        data object Idle : AuthStatus()
+        data object Loading : AuthStatus()
+        data object WaitingForAuthorization : AuthStatus()
+        data object Success : AuthStatus()
+        data class Error(val message: String) : AuthStatus()
     }
 
-    fun login(serverUrl: String) {
+    private val _uiState = MutableStateFlow(AccountSettingsUiState())
+    val uiState: StateFlow<AccountSettingsUiState> = _uiState.asStateFlow()
+
+    private val _navigationEvent = MutableStateFlow<NavigationEvent?>(null)
+    val navigationEvent: StateFlow<NavigationEvent?> = _navigationEvent.asStateFlow()
+
+    private var pollingJob: Job? = null
+
+    sealed class NavigationEvent {
+        data object NavigateToBookmarkList : NavigationEvent()
+        data object NavigateBack : NavigationEvent()
+    }
+
+    init {
         viewModelScope.launch {
-            _uiState.value = LoginUiState.Loading
+            val token = settingsDataStore.tokenFlow.value
+            val url = settingsDataStore.urlFlow.value
+            _uiState.update {
+                it.copy(
+                    isLoggedIn = !token.isNullOrBlank(),
+                    url = url ?: "https://"
+                )
+            }
+        }
+    }
 
-            when (val result = userRepository.login(serverUrl)) {
-                is UserRepository.LoginResult.Success -> {
-                    _uiState.value = LoginUiState.Success
-                }
+    fun updateUrl(url: String) {
+        _uiState.update { it.copy(url = url, urlError = null) }
+    }
 
+    fun login() {
+        val url = _uiState.value.url.let { rawUrl ->
+            // Append /api if missing (existing behavior)
+            if (!rawUrl.endsWith("/api") && !rawUrl.endsWith("/api/")) {
+                rawUrl.trimEnd('/') + "/api"
+            } else rawUrl
+        }
+
+        viewModelScope.launch {
+            _uiState.update { it.copy(authStatus = AuthStatus.Loading) }
+
+            when (val result = userRepository.initiateLogin(url)) {
                 is UserRepository.LoginResult.DeviceAuthorizationRequired -> {
                     val state = result.state
-                    // Store for polling
-                    deviceCode = state.deviceCode
-                    pollingInterval = state.pollingInterval
+                    _uiState.update {
+                        it.copy(
+                            authStatus = AuthStatus.WaitingForAuthorization,
+                            deviceAuthState = state
+                        )
+                    }
+                    startPolling(url, state)
+                }
 
-                    // Extract client ID (this is a simplification - in reality you'd need to
-                    // pass this through the result or store it differently)
-                    // For now, we'll need to modify the flow to include clientId
-
-                    _uiState.value = LoginUiState.DeviceAuthorizationRequired(
-                        userCode = state.userCode,
-                        verificationUri = state.verificationUri,
-                        verificationUriComplete = state.verificationUriComplete,
-                        expiresAt = state.expiresAt,
-                        pollingInterval = state.pollingInterval
-                    )
-
-                    // Start polling
-                    startPolling(state)
+                is UserRepository.LoginResult.Success -> {
+                    // Shouldn't happen from initiateLogin, but handle it
+                    onLoginSuccess()
                 }
 
                 is UserRepository.LoginResult.Error -> {
-                    _uiState.value = LoginUiState.Error(result.errorMessage)
+                    _uiState.update { it.copy(authStatus = AuthStatus.Error(result.errorMessage)) }
                 }
 
                 is UserRepository.LoginResult.NetworkError -> {
-                    _uiState.value = LoginUiState.Error(result.errorMessage)
+                    _uiState.update { it.copy(authStatus = AuthStatus.Error(result.errorMessage)) }
                 }
             }
         }
     }
 
-    private fun startPolling(state: OAuthDeviceAuthorizationState) {
-        // Cancel any existing polling
+    private fun startPolling(url: String, state: OAuthDeviceAuthorizationState) {
         pollingJob?.cancel()
 
         var currentInterval = state.pollingInterval
 
         pollingJob = viewModelScope.launch {
-            Timber.d("Starting OAuth token polling")
+            Timber.d("Starting OAuth token polling (clientId=${state.clientId})")
 
             while (true) {
-                // Check if expired
                 if (System.currentTimeMillis() >= state.expiresAt) {
                     Timber.w("Device authorization expired")
-                    _uiState.value = LoginUiState.Error("Authorization code expired. Please try again.")
+                    _uiState.update {
+                        it.copy(
+                            authStatus = AuthStatus.Error("Authorization code expired. Please try again."),
+                            deviceAuthState = null
+                        )
+                    }
                     break
                 }
 
-                // Wait for polling interval
                 delay(currentInterval.seconds)
 
-                // Poll for token
-                // Note: We need clientId here - this would need to be stored from the initial auth
-                val clientId = this@LoginViewModel.clientId ?: run {
-                    Timber.e("Client ID not available for polling")
-                    _uiState.value = LoginUiState.Error("Authentication error. Please try again.")
-                    break
-                }
-
                 when (val result = oauthDeviceAuthUseCase.pollForToken(
-                    clientId = clientId,
+                    clientId = state.clientId,
                     deviceCode = state.deviceCode,
                     currentInterval = currentInterval
                 )) {
                     is OAuthDeviceAuthorizationUseCase.TokenPollResult.Success -> {
                         Timber.i("Token received, completing login")
-                        // Save token via repository
-                        // This needs to be refactored to work properly
-                        // For now, assume repository handles it
-                        _uiState.value = LoginUiState.Success
+
+                        // Complete login: save token, fetch profile
+                        when (val loginResult = userRepository.completeLogin(url, result.accessToken)) {
+                            is UserRepository.LoginResult.Success -> onLoginSuccess()
+                            is UserRepository.LoginResult.Error -> {
+                                _uiState.update { it.copy(authStatus = AuthStatus.Error(loginResult.errorMessage)) }
+                            }
+                            else -> {
+                                _uiState.update { it.copy(authStatus = AuthStatus.Error("Unexpected error")) }
+                            }
+                        }
                         break
                     }
 
                     is OAuthDeviceAuthorizationUseCase.TokenPollResult.StillPending -> {
                         Timber.d("Authorization still pending")
-                        // Continue polling
                     }
 
                     is OAuthDeviceAuthorizationUseCase.TokenPollResult.SlowDown -> {
-                        Timber.w("Server requested slow_down, adjusting interval")
                         currentInterval = result.newInterval
+                        Timber.w("Server requested slow_down, new interval: ${currentInterval}s")
                     }
 
                     is OAuthDeviceAuthorizationUseCase.TokenPollResult.UserDenied -> {
-                        Timber.w("User denied authorization")
-                        _uiState.value = LoginUiState.Error(result.message)
+                        _uiState.update {
+                            it.copy(authStatus = AuthStatus.Error(result.message), deviceAuthState = null)
+                        }
                         break
                     }
 
                     is OAuthDeviceAuthorizationUseCase.TokenPollResult.Expired -> {
-                        Timber.w("Device code expired")
-                        _uiState.value = LoginUiState.Error(result.message)
+                        _uiState.update {
+                            it.copy(authStatus = AuthStatus.Error(result.message), deviceAuthState = null)
+                        }
                         break
                     }
 
                     is OAuthDeviceAuthorizationUseCase.TokenPollResult.Error -> {
-                        Timber.e("Polling error: ${result.message}")
-                        _uiState.value = LoginUiState.Error(result.message)
+                        _uiState.update {
+                            it.copy(authStatus = AuthStatus.Error(result.message), deviceAuthState = null)
+                        }
                         break
                     }
                 }
@@ -670,9 +670,43 @@ class LoginViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Post-login tasks — same as existing AuthenticateUseCase.execute() does after success.
+     */
+    private suspend fun onLoginSuccess() {
+        bookmarkRepository.deleteAllBookmarks()
+        settingsDataStore.saveLastBookmarkTimestamp(0)
+        LoadBookmarksWorker.enqueue(context, isInitialLoad = true)
+        settingsDataStore.setInitialSyncPerformed(true)
+
+        _uiState.update {
+            it.copy(
+                authStatus = AuthStatus.Success,
+                isLoggedIn = true,
+                deviceAuthState = null
+            )
+        }
+        _navigationEvent.value = NavigationEvent.NavigateToBookmarkList
+    }
+
     fun cancelAuthorization() {
         pollingJob?.cancel()
-        _uiState.value = LoginUiState.Initial
+        _uiState.update {
+            it.copy(authStatus = AuthStatus.Idle, deviceAuthState = null)
+        }
+    }
+
+    fun signOut() {
+        viewModelScope.launch {
+            userRepository.logout()
+            _uiState.update {
+                AccountSettingsUiState(url = it.url) // Reset to logged-out state
+            }
+        }
+    }
+
+    fun navigationEventConsumed() {
+        _navigationEvent.value = null
     }
 
     override fun onCleared() {
@@ -682,13 +716,13 @@ class LoginViewModel @Inject constructor(
 }
 ```
 
-**Note:** This ViewModel has a simplification issue - the `clientId` needs to be returned from the repository. This would require refactoring the `LoginResult.DeviceAuthorizationRequired` to include the `clientId`.
+> **Note:** This replaces both the existing `AccountSettingsViewModel.login()` and the `AuthenticateUseCase` for the OAuth flow. The post-login tasks (clearing bookmarks, enqueuing sync) are inlined in `onLoginSuccess()`. The existing `AuthenticateUseCase` can be removed or kept for reference.
 
 ---
 
 ## 4. Device Authorization Dialog (Compose)
 
-**File:** `app/src/main/java/com/mydeck/app/ui/login/DeviceAuthorizationDialog.kt`
+**File:** `app/src/main/java/com/mydeck/app/ui/settings/DeviceAuthorizationDialog.kt`
 
 ```kotlin
 package com.mydeck.app.ui.login
@@ -979,46 +1013,34 @@ Add these strings:
 
 ## 6. Additional Notes for Developer
 
-### 6.1 Architecture Considerations
+### 6.1 Architecture Decisions (Resolved)
 
-The current implementation has a **small architectural issue**: the `clientId` needs to be preserved between the initial authorization and the polling phase. There are several ways to solve this:
+The following design issues from the original draft have been resolved in this revision:
 
-**Option A: Return clientId in DeviceAuthorizationState**
-```kotlin
-data class OAuthDeviceAuthorizationState(
-    val clientId: String, // ADD THIS
-    val deviceCode: String,
-    val userCode: String,
-    // ... rest of fields
-)
-```
+- **`clientId` propagation:** Resolved by including `clientId` in `OAuthDeviceAuthorizationState`. The ViewModel reads it from the state when starting the polling loop.
+- **Password in `AuthenticationDetails`:** Resolved by storing empty string `""` for password in OAuth flow. `observeAuthenticationDetails()` updated to not require password for non-null check.
+- **Username retrieval:** Resolved by calling `GET /profile` after receiving the token in `completeLogin()`.
+- **ViewModel architecture:** The existing `AccountSettingsViewModel` is updated rather than introducing a new `LoginViewModel`. Post-login tasks from `AuthenticateUseCase` are inlined.
 
-**Option B: Make OAuthDeviceAuthorizationUseCase stateful**
-Store the clientId internally in the use case and provide a method to access it.
+### 6.2 API Schema Quirks
 
-**Option C: Return both results together**
-Return a combined result that includes both the authorization state and the client ID.
+Be aware of these Readeck API behaviors that differ from typical OAuth implementations:
 
-**Recommendation:** Use **Option A** - it's the cleanest and most explicit.
-
-### 6.2 Token Storage and UserRepository
-
-The current `UserRepositoryImpl` expects `username` and `password` in credentials, but OAuth doesn't use passwords. You'll need to either:
-
-1. **Store empty password:** `password = ""`
-2. **Refactor AuthenticationDetails:** Make password optional
-3. **Fetch username from API:** After getting token, call `/profile` endpoint to get username
-
-**Recommendation:** Fetch username from `/profile` endpoint after receiving token.
+1. **`grant_types` in client registration response** is a **string**, not an array (despite being an array in the request)
+2. **`response_types` in client registration response** is also a **string**, not an array
+3. **Token response has no `expires_in`** — tokens don't expire unless revoked
+4. **Token response includes an `id` field** (Token ID) in addition to `access_token`
+5. **`client_id_issued_at` is not returned** by Readeck despite being part of RFC 7591
+6. **`client_uri` must be HTTPS** and must resolve to a non-local, non-private IP address
 
 ### 6.3 Testing with Real Server
 
 To test this implementation:
 
 1. Set up Readeck 0.22+ (nightly build)
-2. Configure OAuth in Readeck settings
+2. Check `/api/info` endpoint returns `"oauth"` in features array
 3. Use the app to initiate flow
-4. Monitor logs with: `adb logcat | grep "OAuth\|LoginViewModel"`
+4. Monitor logs with: `adb logcat | grep "OAuth\|AccountSettingsViewModel"`
 5. Test all error scenarios (denial, timeout, network errors)
 
 ### 6.4 Background Polling Considerations
@@ -1032,31 +1054,37 @@ The current implementation polls in a ViewModel coroutine. This has limitations:
 - Showing a foreground notification during authorization
 - Implementing "Resume Authentication" if app is restarted
 
+**Simpler alternative:** Pause polling on background, resume on foreground, respect remaining expiry time.
+
 ### 6.5 Security Best Practices
 
 1. **Never log tokens:** Ensure Timber doesn't log full tokens in production
 2. **Validate URLs:** Check user-entered server URLs for common mistakes
-3. **HTTPS warnings:** Warn users about non-HTTPS URLs
-4. **Token expiration:** Handle token expiration gracefully (though Readeck tokens are long-lived)
+3. **HTTPS warnings:** Warn users about non-HTTPS URLs (existing `AccountSettingsViewModel` already has this validation)
+4. **Token revocation on logout:** Always attempt server-side revocation, but clear local credentials regardless (fail open)
 
 ---
 
 ## 7. Quick Start Checklist
 
-- [ ] Create all DTO classes (Section 1 of tech spec)
-- [ ] Add OAuth endpoints to `ReadeckApi`
+- [ ] Add `/info` endpoint to `ReadeckApi` and create `ServerInfoDto` for feature detection
+- [ ] Create all OAuth DTO classes (Section 5.1 of tech spec) — note `grant_types` is string in response
+- [ ] Add OAuth endpoints to `ReadeckApi` (`/oauth/client`, `/oauth/device`, `/oauth/token`, `/oauth/revoke`)
+- [ ] Create `OAuthDeviceAuthorizationState` domain model (with `clientId` field)
 - [ ] Create `OAuthDeviceAuthorizationUseCase` (this document, Section 1)
-- [ ] Update `UserRepository` interface
-- [ ] Update `UserRepositoryImpl` (this document, Section 2)
-- [ ] Create `LoginViewModel` or update existing (this document, Section 3)
+- [ ] Update `UserRepository` interface — add `initiateLogin(url)`, `completeLogin(url, token)`, `LogoutResult`
+- [ ] Update `UserRepositoryImpl` (this document, Section 2) — fix `observeAuthenticationDetails()` password check
+- [ ] Update `AuthenticationDetails` — make `password` optional or accept empty string
+- [ ] Update `AccountSettingsViewModel` (this document, Section 3) — replace username/password login with OAuth flow
+- [ ] Remove or deprecate `AuthenticateUseCase` (post-login tasks inlined in ViewModel)
 - [ ] Create `DeviceAuthorizationDialog` composable (this document, Section 4)
-- [ ] Add string resources to all language files (this document, Section 5)
-- [ ] Add logout functionality to settings screen
-- [ ] Test with Readeck 0.22+ nightly instance
+- [ ] Update `AccountSettingsScreen` — remove username/password fields, add device auth dialog trigger
+- [ ] Add string resources to all 10 language files (this document, Section 5, per CLAUDE.md)
+- [ ] Update `AccountSettingsViewModel.signOut()` to call `userRepository.logout()` (token revocation)
+- [ ] Test with Readeck 0.22+ nightly instance (check `/api/info` features first)
 - [ ] Handle edge cases (backgrounding, expiration, network errors)
 - [ ] Write unit tests for use case and repository
 - [ ] Write UI tests for login flow
-- [ ] Update documentation
 
 ---
 
