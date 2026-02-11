@@ -32,14 +32,19 @@ This specification outlines the implementation of OAuth 2.0 Device Code Grant au
 
 ### Current State
 - App uses simple username/password authentication via `POST /auth`
-- Returns a JWT token directly
-- No support for OAuth flows
+- Returns a bearer token directly
+- Authentication UI lives in `AccountSettingsViewModel` / `AccountSettingsScreen`
+- Credentials (url, username, password, token) stored in `EncryptedSharedPreferences` via `SettingsDataStore`
+- `AuthInterceptor` adds `Bearer` token to all requests; `UrlInterceptor` rewrites the dummy base URL
+- `AuthenticateUseCase` orchestrates login and post-login tasks (clearing bookmarks, enqueuing sync worker)
+- `UserRepository.logout()` is declared but unimplemented (`TODO`)
 
 ### Target State
 - App uses OAuth 2.0 Device Code Grant flow
-- Supports scoped permissions
+- Checks `/api/info` endpoint `features` array for `"oauth"` capability before initiating flow
+- Supports scoped permissions (`bookmarks:read`, `bookmarks:write`, `profile:read`)
 - Compatible with Readeck 0.22+ authentication infrastructure
-- Maintains backward compatibility with stored tokens
+- Maintains backward compatibility with stored tokens (same Bearer scheme)
 
 ---
 
@@ -117,17 +122,46 @@ Example: `https://readeck.example.com/api`
 
 ---
 
+### 4.0 Check Server OAuth Capability
+
+**Endpoint:** `GET /info`
+**Authentication:** None (public endpoint)
+**Description:** Returns public server information including supported features. The app **must** call this endpoint before initiating the OAuth flow to confirm the server supports OAuth.
+
+#### Response (200 OK)
+```json
+{
+  "version": {
+    "canonical": "0.22.0-175-g154ad5c1",
+    "release": "0.22.0",
+    "build": "175-g154ad5c1"
+  },
+  "features": ["email", "oauth"]
+}
+```
+
+**Feature Detection:**
+- If `features` contains `"oauth"` → proceed with OAuth Device Code flow
+- If `features` does not contain `"oauth"` → show error: server does not support OAuth authentication
+
+---
+
 ### 4.1 Register OAuth Client
 
 **Endpoint:** `POST /oauth/client`
 **Authentication:** None (public endpoint)
-**Description:** Creates an ephemeral OAuth client. Valid for 10 minutes.
+**Description:** Creates an OAuth client (RFC 7591). The client registration is ephemeral and valid for a limited time.
+
+**Required fields:** `client_name`, `client_uri`, `software_id`, `software_version`
+**Optional fields:** `grant_types` (defaults to `["authorization_code", "urn:ietf:params:oauth:grant-type:device_code"]`), `logo_uri`, `redirect_uris`, `token_endpoint_auth_method`, `response_types`
+
+> **Important:** `client_uri` must be an HTTPS URL that resolves to a non-local, non-private IP address. Using `http://` or localhost URLs will be rejected.
 
 #### Request Body
 ```json
 {
   "client_name": "MyDeck Android",
-  "client_uri": "https://github.com/yourusername/mydeck-android",
+  "client_uri": "https://github.com/NateEaton/mydeck-android",
   "software_id": "com.mydeck.app",
   "software_version": "1.0.0",
   "grant_types": ["urn:ietf:params:oauth:grant-type:device_code"]
@@ -138,13 +172,17 @@ Example: `https://readeck.example.com/api`
 ```json
 {
   "client_id": "abc123xyz789",
-  "client_id_issued_at": 1704067200,
   "client_name": "MyDeck Android",
-  "client_uri": "https://github.com/yourusername/mydeck-android",
-  "grant_types": ["urn:ietf:params:oauth:grant-type:device_code"],
+  "client_uri": "https://github.com/NateEaton/mydeck-android",
+  "grant_types": "urn:ietf:params:oauth:grant-type:device_code",
   "software_id": "com.mydeck.app",
-  "software_version": "1.0.0"
+  "software_version": "1.0.0",
+  "token_endpoint_auth_method": "none",
+  "response_types": "code"
 }
+```
+
+> **Note:** In the response, `grant_types` and `response_types` are returned as **strings** (not arrays), unlike the request where they are arrays. The response also omits `client_id_issued_at` — this field does not exist in the Readeck API despite being part of RFC 7591.
 ```
 
 #### Error Response (400 Bad Request)
@@ -173,8 +211,8 @@ Example: `https://readeck.example.com/api`
 
 **Available Scopes:**
 - `bookmarks:read` - Read-only access to bookmarks
-- `bookmarks:write` - Write access to bookmarks (includes read)
-- `profile:read` - Extended profile information
+- `bookmarks:write` - Write access to bookmarks
+- `profile:read` - Extended profile information (email, settings). Note: the `/profile` endpoint is accessible with *any* OAuth scope, but only returns extended information (e.g., `user.email`) with the `profile:read` scope. Including `profile:read` is recommended so the app can retrieve the username after authentication.
 
 #### Response (200 OK)
 ```json
@@ -224,11 +262,14 @@ Example: `https://readeck.example.com/api`
 #### Response (201 Created) - Success
 ```json
 {
+  "id": "X4bmnMRcnDhQtu5y33qzTp",
   "access_token": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9...",
   "token_type": "Bearer",
-  "expires_in": 31536000,
   "scope": "bookmarks:read bookmarks:write profile:read"
 }
+```
+
+> **Note:** The Readeck API does **not** return an `expires_in` field in the token response. Tokens are long-lived and do not expire unless explicitly revoked. There is also no refresh token mechanism.
 ```
 
 #### Response (400 Bad Request) - Still Pending
@@ -269,19 +310,22 @@ Example: `https://readeck.example.com/api`
 
 **Endpoint:** `POST /oauth/revoke`
 **Authentication:** Bearer token (same token being revoked)
-**Description:** Revokes an access token.
+**Description:** Revokes an access token. The request must authenticate using the same access token as the one provided in the request body.
 
 #### Request Headers
 ```
-Authorization: Bearer eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9...
+Authorization: Bearer <access_token>
 Content-Type: application/json
 ```
 
 #### Request Body
 ```json
 {
-  "token": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9..."
+  "token": "<access_token>"
 }
+```
+
+> **Note:** The `token` field has a `maxLength` of 64 characters per the API spec.
 ```
 
 #### Response (200 OK)
@@ -343,9 +387,6 @@ data class OAuthClientRegistrationResponseDto(
     @SerialName("client_id")
     val clientId: String,
 
-    @SerialName("client_id_issued_at")
-    val clientIdIssuedAt: Long,
-
     @SerialName("client_name")
     val clientName: String,
 
@@ -353,13 +394,25 @@ data class OAuthClientRegistrationResponseDto(
     val clientUri: String,
 
     @SerialName("grant_types")
-    val grantTypes: List<String>,
+    val grantTypes: String? = null, // Note: returned as string, not array
 
     @SerialName("software_id")
     val softwareId: String,
 
     @SerialName("software_version")
-    val softwareVersion: String
+    val softwareVersion: String,
+
+    @SerialName("logo_uri")
+    val logoUri: String? = null,
+
+    @SerialName("redirect_uris")
+    val redirectUris: List<String>? = null,
+
+    @SerialName("token_endpoint_auth_method")
+    val tokenEndpointAuthMethod: String? = null,
+
+    @SerialName("response_types")
+    val responseTypes: String? = null // Note: returned as string, not array
 )
 ```
 
@@ -438,18 +491,21 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class OAuthTokenResponseDto(
+    @SerialName("id")
+    val id: String? = null,
+
     @SerialName("access_token")
     val accessToken: String,
 
     @SerialName("token_type")
     val tokenType: String,
 
-    @SerialName("expires_in")
-    val expiresIn: Long? = null,
-
     @SerialName("scope")
     val scope: String? = null
 )
+```
+
+> **Note:** The Readeck API does not return `expires_in` in the token response. Tokens do not expire unless revoked.
 ```
 
 #### OAuthErrorDto.kt
@@ -490,6 +546,7 @@ data class OAuthRevokeRequestDto(
 package com.mydeck.app.domain.model
 
 data class OAuthDeviceAuthorizationState(
+    val clientId: String, // Needed for token polling after device authorization
     val deviceCode: String,
     val userCode: String,
     val verificationUri: String,
@@ -552,8 +609,14 @@ interface ReadeckApi {
 **File:** `app/src/main/java/com/mydeck/app/domain/UserRepository.kt`
 
 **Changes:**
-1. Update login method signature
-2. Add logout method
+1. Remove `login(url, username, password)` — no longer supported by Readeck
+2. Replace with `initiateLogin(url)` for starting OAuth flow
+3. Add `completeLogin(...)` for saving credentials after token is obtained
+4. Implement `logout()` (currently a TODO stub) with token revocation
+5. Add `DeviceAuthorizationRequired` to `LoginResult`
+6. Add `LogoutResult` sealed class
+
+> **Codebase context:** The existing interface has `login(url, username, password)`, `login(url, appToken)` (unimplemented), and `logout()` (unimplemented). The existing `LoginResult` has `Success`, `Error`, and `NetworkError`.
 
 ```kotlin
 interface UserRepository {
@@ -561,10 +624,13 @@ interface UserRepository {
     fun observeUser(): Flow<User?>
     fun observeAuthenticationDetails(): Flow<AuthenticationDetails?>
 
-    // Updated signature - no username/password
-    suspend fun login(url: String): LoginResult
+    // Start OAuth Device Code flow — replaces login(url, username, password)
+    suspend fun initiateLogin(url: String): LoginResult
 
-    // Implement logout
+    // Save credentials after token is obtained via polling
+    suspend fun completeLogin(url: String, token: String): LoginResult
+
+    // Implement logout with token revocation
     suspend fun logout(): LogoutResult
 
     sealed class LoginResult {
@@ -587,22 +653,33 @@ interface UserRepository {
 }
 ```
 
+> **Important architectural note:** The `completeLogin` method should:
+> 1. Save the token to `SettingsDataStore`
+> 2. Call `GET /profile` to retrieve the username
+> 3. Save credentials with `password = ""` (OAuth has no password)
+> 4. The `AuthenticationDetails` model and `observeAuthenticationDetails()` need updating to make `password` optional (nullable or empty string) so `observeIsLoggedIn()` works correctly without a password.
+```
+
 ---
 
 ### 6.3 UserRepositoryImpl
 
 **File:** `app/src/main/java/com/mydeck/app/domain/UserRepositoryImpl.kt`
 
+> **Codebase context:** Currently injects `SettingsDataStore`, `ReadeckApi`, and `Json`. Constructor bound via `@Binds` in `AppModule`.
+
 **Major Changes:**
 
-1. **Replace `login(url, username, password)` with `login(url)`**
-2. **Implement OAuth Device Code Grant flow**
-3. **Add polling mechanism**
-4. **Implement logout/token revocation**
+1. **Add `OAuthDeviceAuthorizationUseCase` as a constructor dependency**
+2. **Replace `login(url, username, password)` with `initiateLogin(url)`** that calls `oauthDeviceAuthUseCase.initiateDeviceAuthorization()`
+3. **Add `completeLogin(url, token)`** that saves token, fetches username from `/profile`, and calls `settingsDataStore.saveCredentials(url, username, "", token)`
+4. **Implement `logout()`** with token revocation via `readeckApi.revokeToken()`, then `settingsDataStore.clearCredentials()`
+5. **Update `observeAuthenticationDetails()`** to work without a password — either make `password` nullable in `AuthenticationDetails` or check only `url + username + token`
+
+**Key design decision:** The polling loop does **not** belong in the repository. `UserRepositoryImpl.initiateLogin()` returns `DeviceAuthorizationRequired` with the state (including `clientId`). The ViewModel calls `OAuthDeviceAuthorizationUseCase.pollForToken()` directly in its own coroutine loop. On success, the ViewModel calls `userRepository.completeLogin()`.
 
 **New Dependencies:**
-- Coroutines delay for polling
-- StateFlow for device authorization state management
+- `OAuthDeviceAuthorizationUseCase`
 
 ---
 
@@ -610,11 +687,13 @@ interface UserRepository {
 
 **File:** `app/src/main/java/com/mydeck/app/domain/usecase/OAuthDeviceAuthorizationUseCase.kt`
 
-This use case handles the OAuth Device Code Grant flow, including:
-- Client registration
-- Device authorization request
-- Token polling with exponential backoff
-- State management
+> **Codebase context:** Sits alongside existing `AuthenticateUseCase`. The existing `AuthenticateUseCase` orchestrates post-login tasks (deleting bookmarks, resetting sync timestamp, enqueuing `LoadBookmarksWorker`). These post-login tasks should remain in `AuthenticateUseCase` (or a renamed equivalent), called after the OAuth flow completes. `OAuthDeviceAuthorizationUseCase` handles only the OAuth protocol.
+
+This use case handles the OAuth Device Code Grant flow:
+- Client registration (`POST /oauth/client`)
+- Device authorization request (`POST /oauth/device`)
+- Token polling (`POST /oauth/token`) with `slow_down` handling
+- Returns `clientId` in the `OAuthDeviceAuthorizationState` for use during polling
 
 ```kotlin
 package com.mydeck.app.domain.usecase
@@ -623,11 +702,9 @@ import com.mydeck.app.BuildConfig
 import com.mydeck.app.domain.model.OAuthDeviceAuthorizationState
 import com.mydeck.app.io.rest.ReadeckApi
 import com.mydeck.app.io.rest.model.*
-import kotlinx.coroutines.delay
 import kotlinx.serialization.json.Json
 import timber.log.Timber
 import javax.inject.Inject
-import kotlin.time.Duration.Companion.seconds
 
 class OAuthDeviceAuthorizationUseCase @Inject constructor(
     private val readeckApi: ReadeckApi,
@@ -637,7 +714,7 @@ class OAuthDeviceAuthorizationUseCase @Inject constructor(
         private const val GRANT_TYPE_DEVICE_CODE = "urn:ietf:params:oauth:grant-type:device_code"
         private const val REQUIRED_SCOPES = "bookmarks:read bookmarks:write profile:read"
         private const val CLIENT_NAME = "MyDeck Android"
-        private const val CLIENT_URI = "https://github.com/yourusername/mydeck-android"
+        private const val CLIENT_URI = "https://github.com/NateEaton/mydeck-android"
         private const val SOFTWARE_ID = "com.mydeck.app"
         private const val SLOW_DOWN_ADDITIONAL_INTERVAL = 5 // seconds
     }
@@ -650,27 +727,31 @@ class OAuthDeviceAuthorizationUseCase @Inject constructor(
     sealed class TokenPollResult {
         data class Success(val accessToken: String) : TokenPollResult()
         data object StillPending : TokenPollResult()
+        data class SlowDown(val newInterval: Int) : TokenPollResult()
         data class UserDenied(val message: String) : TokenPollResult()
         data class Expired(val message: String) : TokenPollResult()
         data class Error(val message: String, val exception: Exception? = null) : TokenPollResult()
     }
 
     /**
-     * Step 1: Register OAuth client and request device authorization
+     * Step 1: Register OAuth client and request device authorization.
+     * Returns OAuthDeviceAuthorizationState with clientId included.
      */
     suspend fun initiateDeviceAuthorization(): DeviceAuthResult {
-        // Implementation in detailed code below
+        // Full implementation in IMPLEMENTATION_CODE document
     }
 
     /**
-     * Step 2: Poll for token (call repeatedly until success/failure)
+     * Step 2: Poll for token (call repeatedly from ViewModel until terminal result).
+     * Terminal results: Success, UserDenied, Expired, Error.
+     * Non-terminal results: StillPending (continue), SlowDown (increase interval and continue).
      */
     suspend fun pollForToken(
         clientId: String,
         deviceCode: String,
-        pollingInterval: Int
+        currentInterval: Int
     ): TokenPollResult {
-        // Implementation in detailed code below
+        // Full implementation in IMPLEMENTATION_CODE document
     }
 }
 ```
@@ -741,19 +822,22 @@ class OAuthDeviceAuthorizationUseCase @Inject constructor(
 ### Phase 3: UI/UX Layer (3-4 days)
 
 #### Task 3.1: Update Login Screen
-- [ ] Remove username/password fields
+- [ ] Remove username/password fields from `AccountSettingsScreen`
+- [ ] Keep server URL field
 - [ ] Add "Sign In" button that starts OAuth flow
-- [ ] Create device authorization dialog/screen
+- [ ] Create device authorization dialog/screen (`DeviceAuthorizationDialog.kt`)
 - [ ] Display user code prominently
 - [ ] Display verification URI
 - [ ] Add "Copy Code" and "Copy URL" buttons
 - [ ] Show loading indicator during polling
 
-**New/Modified Files:**
-- `LoginScreen.kt` or `LoginActivity.kt`
-- `DeviceAuthorizationDialog.kt` (new)
-- `login_screen.xml` (if using XML layouts)
+**Modified Files:**
+- `AccountSettingsViewModel.kt` — update `login()` to call `userRepository.initiateLogin(url)`, add polling loop, handle `DeviceAuthorizationRequired` state
+- `AccountSettingsScreen.kt` — remove username/password fields, add device auth dialog trigger
+- `DeviceAuthorizationDialog.kt` (new) — Compose dialog for device code display
 - Add string resources (with localization as per CLAUDE.md)
+
+> **Codebase context:** The existing `AccountSettingsViewModel` handles both login and settings. Its `login()` calls `AuthenticateUseCase.execute(url, username, password)`. The `AuthenticateUseCase` calls `userRepository.login()`, then clears bookmarks and enqueues sync. The updated flow should: (1) `AccountSettingsViewModel.login(url)` → `userRepository.initiateLogin(url)`, (2) on `DeviceAuthorizationRequired`, show dialog and start polling loop in ViewModel, (3) on token success, call `userRepository.completeLogin(url, token)` → then `AuthenticateUseCase` equivalent post-login tasks.
 
 #### Task 3.2: Handle Polling States
 - [ ] Show "Waiting for authorization..." message
@@ -1318,12 +1402,12 @@ suspend fun validateStoredToken() {
 ### 12.1 Token Storage
 
 **Current Implementation:**
-- Tokens stored in `SettingsDataStore` (DataStore Preferences)
-- DataStore is encrypted at rest on Android 6.0+ (file-based encryption)
+- Tokens stored via `SettingsDataStore` backed by `EncryptedSharedPreferences` (using `EncryptionHelper`)
+- Uses AES256_SIV for key encryption and AES256_GCM for value encryption via AndroidX Security
+- Master key generated via `MasterKeys.AES256_GCM_SPEC`
+- `TokenManager` (singleton) subscribes to `settingsDataStore.tokenFlow` and caches the token in a `@Volatile` field for synchronous access by `AuthInterceptor`
 
-**Recommendation:** Continue using DataStore - no changes needed
-
-**Future Enhancement:** Consider using Android Keystore for additional security
+**Recommendation:** Continue using current storage - no changes needed. The encrypted storage is already secure.
 
 ### 12.2 Client Secret
 
@@ -1353,10 +1437,10 @@ fun validateServerUrl(url: String): ValidationResult {
 
 ### 12.4 Token Expiration
 
-OAuth tokens typically have long expiration (Readeck returns `expires_in: 31536000` = 1 year).
+The Readeck API does not return an `expires_in` field in the token response. Tokens are long-lived and do not expire unless explicitly revoked via `POST /oauth/revoke`.
 
-**Current Implementation:** Tokens don't expire unless revoked
-**Future Enhancement:** Implement token refresh flow if Readeck adds support
+**Current Implementation:** Tokens don't expire unless revoked. The `AuthInterceptor` handles 401 responses by showing a notification to the user.
+**Future Enhancement:** Implement token refresh flow if Readeck adds refresh token support.
 
 ---
 
@@ -1425,7 +1509,7 @@ object OAuthConstants {
     const val GRANT_TYPE_DEVICE_CODE = "urn:ietf:params:oauth:grant-type:device_code"
     const val REQUIRED_SCOPES = "bookmarks:read bookmarks:write profile:read"
     const val CLIENT_NAME = "MyDeck Android"
-    const val CLIENT_URI = "https://github.com/yourusername/mydeck-android"
+    const val CLIENT_URI = "https://github.com/NateEaton/mydeck-android"
     const val SOFTWARE_ID = "com.mydeck.app"
     const val DEFAULT_POLLING_INTERVAL_SECONDS = 5
     const val SLOW_DOWN_ADDITIONAL_INTERVAL_SECONDS = 5
@@ -1435,16 +1519,22 @@ object OAuthConstants {
 
 ### 14.2 Error Codes Reference
 
+Per the API spec `oauthError` enum, the full set of possible error codes:
+
 | Error Code | Meaning | Action |
 |------------|---------|--------|
 | `authorization_pending` | User hasn't authorized yet | Continue polling |
-| `slow_down` | Polling too fast | Increase interval by 5s |
+| `slow_down` | Polling too fast | Increase interval by 5s, continue polling |
 | `access_denied` | User denied request | Stop, show error |
 | `expired_token` | Code expired (5 min timeout) | Stop, show error |
 | `invalid_client` | Invalid client_id | Restart flow |
+| `invalid_client_metadata` | Invalid client registration data | Fix request and retry |
 | `invalid_grant` | Invalid device_code | Restart flow |
+| `invalid_redirect_uri` | Invalid redirect URI (N/A for device flow) | Restart flow |
 | `invalid_request` | Malformed request | Fix and retry |
+| `invalid_scope` | Requested scope not valid | Fix scope and retry |
 | `server_error` | Server-side error | Retry with backoff |
+| `unauthorized_client` | Client not authorized for grant type | Restart flow with correct grant_types |
 
 ### 14.3 API Reference Links
 
@@ -1532,6 +1622,7 @@ This implementation will be considered successful when:
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
 | 1.0 | 2026-02-11 | Claude | Initial draft |
+| 1.1 | 2026-02-11 | Claude | Revision pass: fixed DTOs to match OpenAPI spec (removed `client_id_issued_at`, `expires_in`; added `id` to token response; fixed `grant_types` type in response); added `/info` feature detection step; added `clientId` to `OAuthDeviceAuthorizationState`; reconciled with existing `AccountSettingsViewModel`/`AuthenticateUseCase` architecture; fixed token storage description (EncryptedSharedPreferences); added all error codes from API spec; added `client_uri` HTTPS constraint; added `profile:read` scope nuance; added `SlowDown` to `TokenPollResult` |
 
 ---
 
