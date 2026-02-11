@@ -216,3 +216,136 @@ private fun openInBrowser(context: Context, url: String) {
     val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
     context.startActivity(intent)
 }
+
+/**
+ * Full-screen version of the device authorization UI.
+ * Unlike the AlertDialog version, this survives app backgrounding
+ * (e.g. when the user taps "Open in Browser" and switches away).
+ */
+@Composable
+fun DeviceAuthorizationScreen(
+    userCode: String,
+    verificationUri: String,
+    verificationUriComplete: String?,
+    expiresAt: Long,
+    onCancel: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val context = LocalContext.current
+    var timeRemaining by remember { mutableStateOf(calculateTimeRemaining(expiresAt)) }
+
+    LaunchedEffect(expiresAt) {
+        while (timeRemaining > 0) {
+            delay(1.seconds)
+            timeRemaining = calculateTimeRemaining(expiresAt)
+        }
+    }
+
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        Text(
+            text = stringResource(R.string.oauth_device_auth_instructions),
+            style = MaterialTheme.typography.bodyMedium
+        )
+
+        // Step 1: URL
+        Text(
+            text = stringResource(R.string.oauth_device_auth_step1),
+            style = MaterialTheme.typography.labelLarge,
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        OutlinedCard(modifier = Modifier.fillMaxWidth()) {
+            Column(modifier = Modifier.padding(12.dp)) {
+                Text(
+                    text = verificationUri,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontFamily = FontFamily.Monospace,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    OutlinedButton(onClick = { copyToClipboard(context, verificationUri) }) {
+                        Icon(Icons.Default.ContentCopy, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(stringResource(R.string.oauth_device_auth_copy_url))
+                    }
+                    if (verificationUriComplete != null) {
+                        Button(onClick = { openInBrowser(context, verificationUriComplete) }) {
+                            Text(stringResource(R.string.oauth_device_auth_open_browser))
+                        }
+                    }
+                }
+            }
+        }
+
+        // Step 2: User Code
+        Text(
+            text = stringResource(R.string.oauth_device_auth_step2),
+            style = MaterialTheme.typography.labelLarge,
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        OutlinedCard(modifier = Modifier.fillMaxWidth()) {
+            Column(
+                modifier = Modifier.padding(12.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = userCode,
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontFamily = FontFamily.Monospace,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 28.sp,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+                OutlinedButton(onClick = { copyToClipboard(context, userCode) }) {
+                    Icon(Icons.Default.ContentCopy, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(stringResource(R.string.oauth_device_auth_copy_code))
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.weight(1f))
+
+        // Status and Timer
+        when {
+            timeRemaining > 0 -> {
+                CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
+                Text(
+                    text = stringResource(R.string.oauth_device_auth_waiting),
+                    style = MaterialTheme.typography.bodyMedium,
+                    textAlign = TextAlign.Center
+                )
+                Text(
+                    text = stringResource(R.string.oauth_device_auth_expires_in, formatTime(timeRemaining)),
+                    style = MaterialTheme.typography.bodySmall,
+                    textAlign = TextAlign.Center
+                )
+            }
+            else -> {
+                Text(
+                    text = stringResource(R.string.oauth_device_auth_expired),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.error,
+                    textAlign = TextAlign.Center
+                )
+            }
+        }
+
+        OutlinedButton(
+            onClick = onCancel,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text(stringResource(android.R.string.cancel))
+        }
+    }
+}

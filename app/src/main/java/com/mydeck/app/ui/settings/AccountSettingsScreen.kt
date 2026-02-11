@@ -21,13 +21,13 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import com.mydeck.app.R
-import com.mydeck.app.ui.login.DeviceAuthorizationDialog
+import com.mydeck.app.ui.login.DeviceAuthorizationScreen
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AccountSettingsScreen(
     navHostController: NavHostController,
-    viewModel: AccountSettingsViewModel = hiltViewModel(),
-    padding: PaddingValues = PaddingValues(0.dp)
+    viewModel: AccountSettingsViewModel = hiltViewModel()
 ) {
     val settingsUiState = viewModel.uiState.collectAsState().value
     val navigationEvent = viewModel.navigationEvent.collectAsState()
@@ -36,9 +36,38 @@ fun AccountSettingsScreen(
     val onLoginClicked: () -> Unit = { viewModel.login() }
     val onSignOut: () -> Unit = { viewModel.signOut() }
 
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text(stringResource(R.string.settings_account_title)) },
+                navigationIcon = {
+                    IconButton(onClick = { navHostController.popBackStack() }) {
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = stringResource(R.string.back)
+                        )
+                    }
+                }
+            )
+        }
+    ) { scaffoldPadding ->
+
+    // When device authorization is in progress, show the auth screen instead of the form
+    if (settingsUiState.authStatus is AccountSettingsViewModel.AuthStatus.WaitingForAuthorization &&
+        settingsUiState.deviceAuthState != null) {
+        DeviceAuthorizationScreen(
+            userCode = settingsUiState.deviceAuthState!!.userCode,
+            verificationUri = settingsUiState.deviceAuthState!!.verificationUri,
+            verificationUriComplete = settingsUiState.deviceAuthState!!.verificationUriComplete,
+            expiresAt = settingsUiState.deviceAuthState!!.expiresAt,
+            onCancel = { viewModel.cancelAuthorization() },
+            modifier = Modifier.padding(scaffoldPadding)
+        )
+    } else {
+
     LazyColumn(
         modifier = Modifier
-            .padding(padding)
+            .padding(scaffoldPadding)
             .padding(16.dp)
             .fillMaxSize(),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -120,17 +149,8 @@ fun AccountSettingsScreen(
         }
     }
 
-    // OAuth Device Authorization Dialog (outside LazyColumn to fix scoping)
-    if (settingsUiState.authStatus is AccountSettingsViewModel.AuthStatus.WaitingForAuthorization &&
-        settingsUiState.deviceAuthState != null) {
-        DeviceAuthorizationDialog(
-            userCode = settingsUiState.deviceAuthState!!.userCode,
-            verificationUri = settingsUiState.deviceAuthState!!.verificationUri,
-            verificationUriComplete = settingsUiState.deviceAuthState!!.verificationUriComplete,
-            expiresAt = settingsUiState.deviceAuthState!!.expiresAt,
-            onCancel = { viewModel.cancelAuthorization() }
-        )
-    }
+    } // end else (non-auth form)
+    } // end Scaffold
 
     LaunchedEffect(key1 = navigationEvent.value) {
         navigationEvent.value?.let { event ->
