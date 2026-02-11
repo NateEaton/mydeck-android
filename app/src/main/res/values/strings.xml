@@ -259,6 +259,11 @@ other{}
     <string name="background_sync_rationale_body">Content downloads may continue while the app is in the background. This allows your bookmarks to be ready for offline reading.</string>
     <string name="background_sync_rationale_allow">Allow</string>
     
+    <!-- Welcome Screen -->
+    <string name="welcome_title">Welcome to MyDeck</string>
+    <string name="welcome_message">MyDeck is a read-later app for Readeck. Enter your Readeck server address below to get started. You\'ll be guided through a quick authorization process to connect your account.</string>
+    <string name="welcome_connect_button">Connect</string>
+
     <!-- OAuth Device Code Authentication -->
     <string name="oauth_device_auth_title">Authorize MyDeck</string>
     <string name="oauth_device_auth_instructions">Please follow these steps to sign in to your Readeck account:</string>

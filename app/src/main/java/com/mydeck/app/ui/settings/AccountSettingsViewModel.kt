@@ -9,9 +9,11 @@ import com.mydeck.app.domain.usecase.OAuthDeviceAuthorizationUseCase
 import com.mydeck.app.io.prefs.SettingsDataStore
 import com.mydeck.app.worker.LoadBookmarksWorker
 import com.mydeck.app.util.isValidUrl
+import com.mydeck.app.coroutine.ApplicationScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import android.content.Context
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -32,7 +34,8 @@ class AccountSettingsViewModel @Inject constructor(
     private val userRepository: UserRepository,
     private val oauthDeviceAuthUseCase: OAuthDeviceAuthorizationUseCase,
     private val bookmarkRepository: BookmarkRepository,
-    @ApplicationContext private val context: Context
+    @ApplicationContext private val context: Context,
+    @ApplicationScope private val applicationScope: CoroutineScope
 ) : ViewModel() {
 
     data class AccountSettingsUiState(
@@ -126,7 +129,7 @@ class AccountSettingsViewModel @Inject constructor(
 
         var currentInterval = state.pollingInterval
 
-        pollingJob = viewModelScope.launch {
+        pollingJob = applicationScope.launch {
             Timber.d("Starting OAuth token polling (clientId=${state.clientId})")
 
             while (true) {
@@ -185,6 +188,11 @@ class AccountSettingsViewModel @Inject constructor(
                             it.copy(authStatus = AuthStatus.Error(result.message), deviceAuthState = null)
                         }
                         break
+                    }
+
+                    is OAuthDeviceAuthorizationUseCase.TokenPollResult.NetworkError -> {
+                        Timber.w("Network error during polling, will retry: ${result.message}")
+                        // Don't break — transient network errors are retryable
                     }
 
                     is OAuthDeviceAuthorizationUseCase.TokenPollResult.Error -> {
@@ -258,7 +266,10 @@ class AccountSettingsViewModel @Inject constructor(
 
     override fun onCleared() {
         super.onCleared()
-        pollingJob?.cancel()
+        // Do NOT cancel pollingJob here — it runs on applicationScope and must
+        // survive ViewModel destruction (e.g. when user backgrounds the app to
+        // open the browser for OAuth authorization). Only cancelAuthorization()
+        // (explicit user action) should cancel it.
     }
 
     /**

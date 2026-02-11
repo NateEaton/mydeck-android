@@ -1,5 +1,6 @@
 package com.mydeck.app.domain.usecase
 
+import android.os.Build
 import com.mydeck.app.BuildConfig
 import com.mydeck.app.domain.model.OAuthDeviceAuthorizationState
 import com.mydeck.app.io.rest.ReadeckApi
@@ -23,10 +24,10 @@ class OAuthDeviceAuthorizationUseCase @Inject constructor(
     companion object {
         private const val GRANT_TYPE_DEVICE_CODE = "urn:ietf:params:oauth:grant-type:device_code"
         private const val REQUIRED_SCOPES = "bookmarks:read bookmarks:write profile:read"
-        private const val CLIENT_NAME = "MyDeck Android"
         private const val CLIENT_URI = "https://github.com/NateEaton/mydeck-android"
         private const val SOFTWARE_ID = "com.mydeck.app"
         private const val SLOW_DOWN_ADDITIONAL_INTERVAL = 5 // seconds
+        private val CLIENT_NAME = "MyDeck Android — ${Build.MANUFACTURER} ${Build.MODEL}"
     }
 
     sealed class DeviceAuthResult {
@@ -40,6 +41,7 @@ class OAuthDeviceAuthorizationUseCase @Inject constructor(
         data class UserDenied(val message: String) : TokenPollResult()
         data class Expired(val message: String) : TokenPollResult()
         data class SlowDown(val newInterval: Int) : TokenPollResult()
+        data class NetworkError(val message: String, val exception: Exception? = null) : TokenPollResult()
         data class Error(val message: String, val exception: Exception? = null) : TokenPollResult()
     }
 
@@ -203,8 +205,8 @@ class OAuthDeviceAuthorizationUseCase @Inject constructor(
             }
 
         } catch (e: IOException) {
-            Timber.e(e, "Network error while polling for token")
-            return TokenPollResult.Error("Network error: ${e.message}", e)
+            Timber.w(e, "Network error while polling for token (retryable)")
+            return TokenPollResult.NetworkError("Network error: ${e.message}", e)
         } catch (e: SerializationException) {
             Timber.e(e, "Serialization error while polling for token")
             return TokenPollResult.Error("Invalid response from server: ${e.message}", e)

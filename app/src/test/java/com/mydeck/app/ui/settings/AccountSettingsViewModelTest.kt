@@ -11,10 +11,12 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -42,6 +44,7 @@ class AccountSettingsViewModelTest {
     private lateinit var oauthDeviceAuthUseCase: OAuthDeviceAuthorizationUseCase
     private lateinit var bookmarkRepository: BookmarkRepository
     private lateinit var context: Context
+    private lateinit var applicationScope: CoroutineScope
     private lateinit var viewModel: AccountSettingsViewModel
 
     @Before
@@ -53,6 +56,7 @@ class AccountSettingsViewModelTest {
         oauthDeviceAuthUseCase = mockk()
         bookmarkRepository = mockk()
         context = mockk()
+        applicationScope = TestScope(testDispatcher)
         
         every { settingsDataStore.urlFlow } returns MutableStateFlow("")
         every { settingsDataStore.tokenFlow } returns MutableStateFlow(null)
@@ -64,7 +68,8 @@ class AccountSettingsViewModelTest {
             userRepository = userRepository,
             oauthDeviceAuthUseCase = oauthDeviceAuthUseCase,
             bookmarkRepository = bookmarkRepository,
-            context = context
+            context = context,
+            applicationScope = applicationScope
         )
     }
 
@@ -82,7 +87,8 @@ class AccountSettingsViewModelTest {
             userRepository = userRepository,
             oauthDeviceAuthUseCase = oauthDeviceAuthUseCase,
             bookmarkRepository = bookmarkRepository,
-            context = context
+            context = context,
+            applicationScope = applicationScope
         )
         
         advanceUntilIdle() // Wait for init block to complete

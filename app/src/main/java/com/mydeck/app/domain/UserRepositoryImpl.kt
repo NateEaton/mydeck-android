@@ -126,6 +126,11 @@ class UserRepositoryImpl @Inject constructor(
                 )
                 Timber.i("Login completed successfully for user: $username")
                 UserRepository.LoginResult.Success
+            } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                // Rethrow cancellation — don't treat it as a login failure.
+                // This happens when the ViewModel is cleared while completeLogin is in-flight.
+                Timber.w("completeLogin was cancelled (ViewModel cleared?), rethrowing")
+                throw e
             } catch (e: Exception) {
                 Timber.e(e, "Failed to complete login")
                 settingsDataStore.clearCredentials()

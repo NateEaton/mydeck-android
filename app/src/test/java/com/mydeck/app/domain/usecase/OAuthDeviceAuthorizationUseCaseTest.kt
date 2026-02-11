@@ -268,7 +268,7 @@ class OAuthDeviceAuthorizationUseCaseTest {
     }
 
     @Test
-    fun `pollForToken returns Error on network error`() = runTest {
+    fun `pollForToken returns NetworkError on network error`() = runTest {
         // Arrange
         coEvery { 
             readeckApi.requestToken(any()) 
@@ -278,8 +278,8 @@ class OAuthDeviceAuthorizationUseCaseTest {
         val result = useCase.pollForToken("client-id", "device-code", 5)
 
         // Assert
-        assertTrue(result is OAuthDeviceAuthorizationUseCase.TokenPollResult.Error)
-        val error = result as OAuthDeviceAuthorizationUseCase.TokenPollResult.Error
+        assertTrue(result is OAuthDeviceAuthorizationUseCase.TokenPollResult.NetworkError)
+        val error = result as OAuthDeviceAuthorizationUseCase.TokenPollResult.NetworkError
         assertTrue(error.message.contains("Network error"))
         assertEquals(IOException::class.java, error.exception!!::class.java)
     }

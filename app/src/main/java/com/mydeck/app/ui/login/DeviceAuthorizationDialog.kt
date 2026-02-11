@@ -341,11 +341,5 @@ fun DeviceAuthorizationScreen(
             }
         }
 
-        OutlinedButton(
-            onClick = onCancel,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text(stringResource(android.R.string.cancel))
-        }
     }
 }
