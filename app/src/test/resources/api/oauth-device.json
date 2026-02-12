@@ -1,0 +1,8 @@
+{
+    "device_code": "GmRhmhcxhwAzkoEqiMEg_DnyEysNkuNhszIySk9eS",
+    "user_code": "WDJB-MJHT",
+    "verification_uri": "https://readeck.example.com/activate",
+    "verification_uri_complete": "https://readeck.example.com/activate?user_code=WDJB-MJHT",
+    "expires_in": 300,
+    "interval": 5
+}

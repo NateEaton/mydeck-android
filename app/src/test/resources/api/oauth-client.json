@@ -1,0 +1,10 @@
+{
+  "client_id": "abc123xyz789",
+  "client_name": "MyDeck Android",
+  "client_uri": "https://github.com/NateEaton/mydeck-android",
+  "grant_types": ["urn:ietf:params:oauth:grant-type:device_code"],
+  "software_id": "com.mydeck.app",
+  "software_version": "1.0.0",
+  "token_endpoint_auth_method": "none",
+  "response_types": ["code"]
+}

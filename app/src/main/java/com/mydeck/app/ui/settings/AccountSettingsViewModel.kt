@@ -2,12 +2,20 @@ package com.mydeck.app.ui.settings
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import dagger.hilt.android.lifecycle.HiltViewModel
-import com.mydeck.app.R
-import com.mydeck.app.domain.usecase.AuthenticateUseCase
-import com.mydeck.app.domain.usecase.AuthenticationResult
+import com.mydeck.app.domain.BookmarkRepository
+import com.mydeck.app.domain.UserRepository
+import com.mydeck.app.domain.model.OAuthDeviceAuthorizationState
+import com.mydeck.app.domain.usecase.OAuthDeviceAuthorizationUseCase
 import com.mydeck.app.io.prefs.SettingsDataStore
+import com.mydeck.app.worker.LoadBookmarksWorker
 import com.mydeck.app.util.isValidUrl
+import com.mydeck.app.coroutine.ApplicationScope
+import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
+import android.content.Context
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -15,90 +23,231 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import timber.log.Timber
 import javax.inject.Inject
+import kotlinx.datetime.Clock
+import kotlinx.datetime.Instant
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.seconds
 
 @HiltViewModel
 class AccountSettingsViewModel @Inject constructor(
     private val settingsDataStore: SettingsDataStore,
-    private val authenticateUseCase: AuthenticateUseCase
+    private val userRepository: UserRepository,
+    private val oauthDeviceAuthUseCase: OAuthDeviceAuthorizationUseCase,
+    private val bookmarkRepository: BookmarkRepository,
+    @ApplicationContext private val context: Context,
+    @ApplicationScope private val applicationScope: CoroutineScope
 ) : ViewModel() {
+
+    data class AccountSettingsUiState(
+        val url: String = "https://",
+        val urlError: Int? = null,
+        val loginEnabled: Boolean = true,
+        val isLoggedIn: Boolean = false,
+        val authStatus: AuthStatus = AuthStatus.Idle,
+        val deviceAuthState: OAuthDeviceAuthorizationState? = null
+    )
+
+    sealed class AuthStatus {
+        data object Idle : AuthStatus()
+        data object Loading : AuthStatus()
+        data object WaitingForAuthorization : AuthStatus()
+        data object Success : AuthStatus()
+        data class Error(val message: String) : AuthStatus()
+    }
+
+    private val _uiState = MutableStateFlow(AccountSettingsUiState())
+    val uiState: StateFlow<AccountSettingsUiState> = _uiState.asStateFlow()
+
     private val _navigationEvent = MutableStateFlow<NavigationEvent?>(null)
     val navigationEvent: StateFlow<NavigationEvent?> = _navigationEvent.asStateFlow()
-    private val _uiState =
-        MutableStateFlow(AccountSettingsUiState("", "", "", false, null, null, null, null, false, false))
-    val uiState = _uiState.asStateFlow()
+
+    private var pollingJob: Job? = null
+
+    sealed class NavigationEvent {
+        data object NavigateToBookmarkList : NavigationEvent()
+        data object NavigateBack : NavigationEvent()
+    }
 
     init {
         viewModelScope.launch {
-            val url = settingsDataStore.urlFlow.value
-            val username = settingsDataStore.usernameFlow.value
-            val password = settingsDataStore.passwordFlow.value
             val token = settingsDataStore.tokenFlow.value
-            val isLoggedIn = !token.isNullOrBlank()
-
-            // Auto-populate URL with protocol if empty
-            val populatedUrl = if (url.isNullOrBlank()) "https://" else url
-
-            _uiState.value = AccountSettingsUiState(
-                url = populatedUrl,
-                username = username,
-                password = password,
-                loginEnabled = isValidUrlForCurrentSettings(populatedUrl) && !username.isNullOrBlank() && !password.isNullOrBlank(),
-                urlError = null,
-                usernameError = null,
-                passwordError = null,
-                authenticationResult = null,
-                allowUnencryptedConnection = false,
-                isLoggedIn = isLoggedIn
-            )
+            val url = settingsDataStore.urlFlow.value
+            _uiState.update {
+                it.copy(
+                    isLoggedIn = !token.isNullOrBlank(),
+                    url = url ?: "https://"
+                )
+            }
         }
+    }
+
+    fun updateUrl(url: String) {
+        validateUrl(url)
     }
 
     fun login() {
+        val url = normalizeApiUrl(_uiState.value.url)
+        Timber.d("login() called with normalized URL: $url")
+
         viewModelScope.launch {
-            _uiState.value.url!!.also { url ->
-                if (!url.endsWith("/api")) {
-                    _uiState.update { it.copy(url = "$url/api") }
+            _uiState.update { it.copy(authStatus = AuthStatus.Loading) }
+
+            val result = userRepository.initiateLogin(url)
+            Timber.d("initiateLogin result: $result")
+            when (result) {
+                is UserRepository.LoginResult.DeviceAuthorizationRequired -> {
+                    val state = result.state
+                    _uiState.update {
+                        it.copy(
+                            authStatus = AuthStatus.WaitingForAuthorization,
+                            deviceAuthState = state
+                        )
+                    }
+                    startPolling(url, state)
+                }
+
+                is UserRepository.LoginResult.Success -> {
+                    // Shouldn't happen from initiateLogin, but handle it
+                    onLoginSuccess()
+                }
+
+                is UserRepository.LoginResult.Error -> {
+                    Timber.e("Login error (code=${result.code}): ${result.errorMessage}")
+                    _uiState.update { it.copy(authStatus = AuthStatus.Error(result.errorMessage)) }
+                }
+
+                is UserRepository.LoginResult.NetworkError -> {
+                    Timber.e("Login network error: ${result.errorMessage}")
+                    _uiState.update { it.copy(authStatus = AuthStatus.Error(result.errorMessage)) }
                 }
             }
-            val result = authenticateUseCase.execute(
-                _uiState.value.url!!,
-                _uiState.value.username!!,
-                _uiState.value.password!!
-            )
-            _uiState.update {
-                it.copy(authenticationResult = result, isLoggedIn = result is AuthenticationResult.Success)
-            }
-            Timber.d("result=$result")
-            // Navigate to BookmarkList on successful authentication
-            if (result is AuthenticationResult.Success) {
-                _navigationEvent.update { NavigationEvent.NavigateToBookmarkList }
+        }
+    }
+
+    private fun startPolling(url: String, state: OAuthDeviceAuthorizationState) {
+        pollingJob?.cancel()
+
+        var currentInterval = state.pollingInterval
+
+        pollingJob = applicationScope.launch {
+            Timber.d("Starting OAuth token polling (clientId=${state.clientId})")
+
+            while (true) {
+                if (System.currentTimeMillis() >= state.expiresAt) {
+                    Timber.w("Device authorization expired")
+                    _uiState.update {
+                        it.copy(
+                            authStatus = AuthStatus.Error("Authorization code expired. Please try again."),
+                            deviceAuthState = null
+                        )
+                    }
+                    break
+                }
+
+                delay(currentInterval.seconds)
+
+                when (val result = oauthDeviceAuthUseCase.pollForToken(
+                    clientId = state.clientId,
+                    deviceCode = state.deviceCode,
+                    currentInterval = currentInterval
+                )) {
+                    is OAuthDeviceAuthorizationUseCase.TokenPollResult.Success -> {
+                        Timber.i("Token received, completing login")
+
+                        // Complete login: save token, fetch profile
+                        when (val loginResult = userRepository.completeLogin(url, result.accessToken)) {
+                            is UserRepository.LoginResult.Success -> onLoginSuccess()
+                            is UserRepository.LoginResult.Error -> {
+                                _uiState.update { it.copy(authStatus = AuthStatus.Error(loginResult.errorMessage)) }
+                            }
+                            else -> {
+                                _uiState.update { it.copy(authStatus = AuthStatus.Error("Unexpected error")) }
+                            }
+                        }
+                        break
+                    }
+
+                    is OAuthDeviceAuthorizationUseCase.TokenPollResult.StillPending -> {
+                        Timber.d("Authorization still pending")
+                    }
+
+                    is OAuthDeviceAuthorizationUseCase.TokenPollResult.SlowDown -> {
+                        currentInterval = result.newInterval
+                        Timber.w("Server requested slow_down, new interval: ${currentInterval}s")
+                    }
+
+                    is OAuthDeviceAuthorizationUseCase.TokenPollResult.UserDenied -> {
+                        _uiState.update {
+                            it.copy(authStatus = AuthStatus.Error(result.message), deviceAuthState = null)
+                        }
+                        break
+                    }
+
+                    is OAuthDeviceAuthorizationUseCase.TokenPollResult.Expired -> {
+                        _uiState.update {
+                            it.copy(authStatus = AuthStatus.Error(result.message), deviceAuthState = null)
+                        }
+                        break
+                    }
+
+                    is OAuthDeviceAuthorizationUseCase.TokenPollResult.NetworkError -> {
+                        Timber.w("Network error during polling, will retry: ${result.message}")
+                        // Don't break — transient network errors are retryable
+                    }
+
+                    is OAuthDeviceAuthorizationUseCase.TokenPollResult.Error -> {
+                        _uiState.update {
+                            it.copy(authStatus = AuthStatus.Error(result.message), deviceAuthState = null)
+                        }
+                        break
+                    }
+                }
             }
         }
     }
 
-    fun onAllowUnencryptedConnectionChanged(allow: Boolean) {
+    /**
+     * Post-login tasks: clear stale data, reset sync timestamp, and trigger initial bookmark load.
+     */
+    private suspend fun onLoginSuccess() {
+        bookmarkRepository.deleteAllBookmarks()
+        settingsDataStore.saveLastBookmarkTimestamp(Instant.fromEpochMilliseconds(0))
+        LoadBookmarksWorker.enqueue(context, isInitialLoad = true)
+        settingsDataStore.setInitialSyncPerformed(true)
+
         _uiState.update {
-            it.copy(allowUnencryptedConnection = allow)
+            it.copy(
+                authStatus = AuthStatus.Success,
+                isLoggedIn = true,
+                deviceAuthState = null
+            )
         }
-        uiState.value.url?.apply {
-            // Swap protocol prefix when toggling unencrypted connections
-            val updatedUrl = when {
-                allow && this.startsWith("https://") -> "http://${this.substringAfter("https://")}" // Swap https to http
-                !allow && this.startsWith("http://") -> "https://${this.substringAfter("http://")}" // Swap http to https
-                else -> this
-            }
-            validateUrl(updatedUrl)
+        _navigationEvent.value = NavigationEvent.NavigateToBookmarkList
+    }
+
+    fun cancelAuthorization() {
+        pollingJob?.cancel()
+        _uiState.update {
+            it.copy(authStatus = AuthStatus.Idle, deviceAuthState = null)
         }
     }
 
-    fun onUrlChanged(value: String) {
-        validateUrl(value)
+    fun signOut() {
+        Timber.d("signOut() called")
+        viewModelScope.launch {
+            val logoutResult = userRepository.logout()
+            Timber.d("logout result: $logoutResult")
+            _uiState.update {
+                AccountSettingsUiState(url = it.url) // Reset to logged-out state
+            }
+        }
     }
+
 
     private fun validateUrl(value: String) {
         val isUrlValid = isValidUrlForCurrentSettings(value)
         val urlError = if (!isUrlValid && value.isNotEmpty()) {
-            R.string.account_settings_url_error // Use resource ID
+            com.mydeck.app.R.string.account_settings_url_error // Use resource ID
         } else {
             null
         }
@@ -106,101 +255,35 @@ class AccountSettingsViewModel @Inject constructor(
             it.copy(
                 url = value,
                 urlError = urlError,
-                loginEnabled = isUrlValid && !it.username.isNullOrBlank() && !it.password.isNullOrBlank(),
-                authenticationResult = null // Clear any previous result
+                loginEnabled = isUrlValid // OAuth only needs valid URL
             )
         }
     }
 
-    fun onUsernameChanged(value: String) {
-        val usernameError = if (value.isBlank()) {
-            R.string.account_settings_username_error // Use resource ID
-        } else {
-            null
-        }
-        _uiState.update {
-            it.copy(
-                username = value,
-                usernameError = usernameError,
-                loginEnabled = isValidUrlForCurrentSettings(uiState.value.url) && !value.isBlank() && !it.password.isNullOrBlank(),
-                authenticationResult = null // Clear any previous result
-            )
-        }
+    fun navigationEventConsumed() {
+        _navigationEvent.value = null
     }
 
-    fun onPasswordChanged(value: String) {
-        val passwordError = if (value.isBlank()) {
-            R.string.account_settings_password_error // Use resource ID
-        } else {
-            null
+    override fun onCleared() {
+        super.onCleared()
+        // Do NOT cancel pollingJob here — it runs on applicationScope and must
+        // survive ViewModel destruction (e.g. when user backgrounds the app to
+        // open the browser for OAuth authorization). Only cancelAuthorization()
+        // (explicit user action) should cancel it.
+    }
+
+    /**
+     * Normalize user-entered URL to always end with exactly /api (no trailing slash, no double /api).
+     */
+    private fun normalizeApiUrl(rawUrl: String): String {
+        var url = rawUrl.trimEnd('/')
+        if (!url.endsWith("/api")) {
+            url = "$url/api"
         }
-        _uiState.update {
-            it.copy(
-                password = value,
-                passwordError = passwordError,
-                loginEnabled = isValidUrlForCurrentSettings(uiState.value.url) && !it.username.isNullOrBlank() && !value.isBlank(),
-                authenticationResult = null // Clear any previous result
-            )
-        }
-    }
-
-    fun onNavigationEventConsumed() {
-        _navigationEvent.update { null } // Reset the event
-    }
-
-    fun onClickBack() {
-        _navigationEvent.update { NavigationEvent.NavigateBack }
-    }
-
-    fun signOut() {
-        viewModelScope.launch {
-            try {
-                settingsDataStore.clearCredentials()
-                // Reset the UI state
-                _uiState.value = AccountSettingsUiState(
-                    url = "https://",
-                    username = "",
-                    password = "",
-                    loginEnabled = false,
-                    urlError = null,
-                    usernameError = null,
-                    passwordError = null,
-                    authenticationResult = null,
-                    allowUnencryptedConnection = false,
-                    isLoggedIn = false
-                )
-                Timber.d("Signed out successfully")
-            } catch (e: Exception) {
-                Timber.e(e, "Error signing out")
-            }
-        }
-    }
-
-    sealed class NavigationEvent {
-        data object NavigateBack : NavigationEvent()
-        data object NavigateToBookmarkList : NavigationEvent()
+        return url
     }
 
     private fun isValidUrlForCurrentSettings(url: String?): Boolean {
-        val allowUnencrypted = _uiState.value.allowUnencryptedConnection
-        return if (allowUnencrypted) {
-            url.isValidUrl() // Any URL is valid if unencrypted is allowed
-        } else {
-            url?.startsWith("https://") == true && url.isValidUrl() // Must be HTTPS if unencrypted is not allowed
-        }
+        return url.isValidUrl()
     }
-
 }
-
-data class AccountSettingsUiState(
-    val url: String?,
-    val username: String?,
-    val password: String?,
-    val loginEnabled: Boolean,
-    val urlError: Int?,
-    val usernameError: Int?,
-    val passwordError: Int?,
-    val authenticationResult: AuthenticationResult?,
-    val allowUnencryptedConnection: Boolean = false,
-    val isLoggedIn: Boolean = false
-)

@@ -11,6 +11,14 @@ import com.mydeck.app.io.rest.model.EditBookmarkErrorDto
 import com.mydeck.app.io.rest.model.EditBookmarkResponseDto
 import com.mydeck.app.io.rest.model.SyncContentRequestDto
 import com.mydeck.app.io.rest.model.SyncStatusDto
+import com.mydeck.app.io.rest.model.OAuthClientRegistrationRequestDto
+import com.mydeck.app.io.rest.model.OAuthClientRegistrationResponseDto
+import com.mydeck.app.io.rest.model.OAuthDeviceAuthorizationRequestDto
+import com.mydeck.app.io.rest.model.OAuthDeviceAuthorizationResponseDto
+import com.mydeck.app.io.rest.model.OAuthTokenRequestDto
+import com.mydeck.app.io.rest.model.OAuthTokenResponseDto
+import com.mydeck.app.io.rest.model.OAuthRevokeRequestDto
+import com.mydeck.app.io.rest.model.ServerInfoDto
 import kotlinx.datetime.Instant
 import retrofit2.Response
 import retrofit2.http.GET
@@ -42,10 +50,34 @@ interface ReadeckApi {
         @Body body: SyncContentRequestDto
     ): Response<List<BookmarkDto>>
 
+    @GET("info")
+    suspend fun getInfo(): Response<ServerInfoDto>
+
+    @Deprecated("Use OAuth Device Code Grant flow instead")
     @POST("auth")
     suspend fun authenticate(
         @Body body: AuthenticationRequestDto
     ): Response<AuthenticationResponseDto>
+
+    @POST("oauth/client")
+    suspend fun registerOAuthClient(
+        @Body body: OAuthClientRegistrationRequestDto
+    ): Response<OAuthClientRegistrationResponseDto>
+
+    @POST("oauth/device")
+    suspend fun authorizeDevice(
+        @Body body: OAuthDeviceAuthorizationRequestDto
+    ): Response<OAuthDeviceAuthorizationResponseDto>
+
+    @POST("oauth/token")
+    suspend fun requestToken(
+        @Body body: OAuthTokenRequestDto
+    ): Response<OAuthTokenResponseDto>
+
+    @POST("oauth/revoke")
+    suspend fun revokeToken(
+        @Body body: OAuthRevokeRequestDto
+    ): Response<Unit>
 
     @GET("profile")
     suspend fun userprofile(): Response<UserProfileDto>

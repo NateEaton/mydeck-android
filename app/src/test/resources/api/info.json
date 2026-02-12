@@ -1,0 +1,8 @@
+{
+  "version": {
+    "canonical": "0.22.0-175-g154ad5c1",
+    "release": "0.22.0",
+    "build": "175-g154ad5c1"
+  },
+  "features": ["email", "oauth"]
+}

@@ -12,6 +12,9 @@ data class BookmarkDetailRoute(
 )
 
 @Serializable
+object WelcomeRoute
+
+@Serializable
 object AccountSettingsRoute
 
 @Serializable

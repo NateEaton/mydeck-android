@@ -43,6 +43,8 @@ import com.mydeck.app.ui.settings.OpenSourceLibrariesScreen
 import com.mydeck.app.ui.settings.SettingsScreen
 import com.mydeck.app.ui.settings.SyncSettingsScreen
 import com.mydeck.app.ui.settings.UiSettingsScreen
+import com.mydeck.app.ui.navigation.WelcomeRoute
+import com.mydeck.app.ui.welcome.WelcomeScreen
 import com.mydeck.app.ui.theme.MyDeckTheme
 import com.mydeck.app.io.prefs.SettingsDataStore
 import kotlinx.coroutines.launch
@@ -114,7 +116,7 @@ fun MyDeckNavHost(navController: NavHostController, settingsDataStore: SettingsD
     // Determine start destination based on auth state
     val token = settingsDataStore?.tokenFlow?.collectAsState()?.value
     val startDestination: Any = if (token.isNullOrBlank()) {
-        AccountSettingsRoute
+        WelcomeRoute
     } else {
         BookmarkListRoute()
     }
@@ -122,6 +124,7 @@ fun MyDeckNavHost(navController: NavHostController, settingsDataStore: SettingsD
     NavHost(navController = navController, startDestination = startDestination) {
         composable<BookmarkListRoute> { BookmarkListScreen(navController) }
         composable<SettingsRoute> { SettingsScreen(navController) }
+        composable<WelcomeRoute> { WelcomeScreen(navController) }
         composable<AccountSettingsRoute> { AccountSettingsScreen(navController) }
         composable<BookmarkDetailRoute> { backStackEntry ->
             val route = backStackEntry.toRoute<BookmarkDetailRoute>()
