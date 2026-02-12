@@ -45,7 +45,7 @@ import androidx.compose.foundation.verticalScroll
 import com.mydeck.app.R
 import kotlinx.coroutines.delay
 
-private const val AUTO_SAVE_SECONDS = 10
+private const val AUTO_SAVE_SECONDS = 5
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -103,9 +103,9 @@ fun AddBookmarkSheet(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Image(
-                    painter = painterResource(id = R.drawable.ic_launcher_foreground),
+                    painter = painterResource(id = R.mipmap.ic_launcher_foreground),
                     contentDescription = null,
-                    modifier = Modifier.size(24.dp)
+                    modifier = Modifier.size(32.dp)
                 )
                 Text(
                     text = stringResource(id = R.string.save_to_mydeck),

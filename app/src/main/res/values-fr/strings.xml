@@ -111,4 +111,5 @@
     <string name="save_to_mydeck">Enregistrer dans MyDeck</string>
     <string name="action_view_bookmark">Voir</string>
     <string name="share_auto_save_countdown">Enregistrement dans %1$d s…</string>
+    <string name="share_sign_in_required">Veuillez vous connecter à votre serveur avant de partager des marque-pages avec MyDeck.</string>
 </resources>

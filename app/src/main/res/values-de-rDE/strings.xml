@@ -211,4 +211,5 @@ other{}
     <string name="save_to_mydeck">In MyDeck speichern</string>
     <string name="action_view_bookmark">Anzeigen</string>
     <string name="share_auto_save_countdown">Speichern in %1$d s…</string>
+    <string name="share_sign_in_required">Bitte melden Sie sich bei Ihrem Server an, bevor Sie Lesezeichen mit MyDeck teilen.</string>
 </resources>

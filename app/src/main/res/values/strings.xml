@@ -285,4 +285,5 @@ other{}
     <string name="save_to_mydeck">Save to MyDeck</string>
     <string name="action_view_bookmark">View</string>
     <string name="share_auto_save_countdown">Saving in %1$d s…</string>
+    <string name="share_sign_in_required">Please sign in to your server before sharing bookmarks with MyDeck.</string>
 </resources>

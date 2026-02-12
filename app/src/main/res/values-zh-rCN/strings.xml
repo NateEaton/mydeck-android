@@ -211,4 +211,5 @@
     <string name="save_to_mydeck">保存到 MyDeck</string>
     <string name="action_view_bookmark">查看</string>
     <string name="share_auto_save_countdown">%1$d 秒后保存…</string>
+    <string name="share_sign_in_required">请先登录您的服务器，然后再与 MyDeck 分享书签。</string>
 </resources>

@@ -111,4 +111,5 @@
     <string name="save_to_mydeck">Зберегти в MyDeck</string>
     <string name="action_view_bookmark">Переглянути</string>
     <string name="share_auto_save_countdown">Збереження через %1$d с…</string>
+    <string name="share_sign_in_required">Увійдіть на свій сервер перед тим, як ділитися закладками з MyDeck.</string>
 </resources>

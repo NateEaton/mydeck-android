@@ -11,8 +11,10 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import com.mydeck.app.domain.BookmarkRepository
+import com.mydeck.app.domain.model.Bookmark
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
+import kotlinx.coroutines.delay
 import timber.log.Timber
 import java.util.concurrent.TimeUnit
 import javax.inject.Provider
@@ -45,6 +47,10 @@ class CreateBookmarkWorker @AssistedInject constructor(
             )
 
             if (isArchived) {
+                // Wait for bookmark to reach LOADED state before archiving,
+                // otherwise pollForBookmarkReady() in createBookmark will
+                // overwrite our local isArchived=true with the server's false.
+                waitForBookmarkReady(bookmarkRepository, bookmarkId)
                 bookmarkRepository.updateBookmark(
                     bookmarkId = bookmarkId,
                     isFavorite = null,
@@ -67,6 +73,27 @@ class CreateBookmarkWorker @AssistedInject constructor(
                 Result.failure()
             }
         }
+    }
+
+    private suspend fun waitForBookmarkReady(
+        bookmarkRepository: BookmarkRepository,
+        bookmarkId: String
+    ) {
+        val maxAttempts = 30
+        val delayMs = 2000L
+        for (i in 1..maxAttempts) {
+            try {
+                val bookmark = bookmarkRepository.getBookmarkById(bookmarkId)
+                if (bookmark.state != Bookmark.State.LOADING) {
+                    Timber.d("CreateBookmarkWorker: Bookmark ready after $i polls (state=${bookmark.state})")
+                    return
+                }
+            } catch (e: Exception) {
+                Timber.w(e, "CreateBookmarkWorker: Poll attempt $i failed")
+            }
+            delay(delayMs)
+        }
+        Timber.w("CreateBookmarkWorker: Timed out waiting for bookmark $bookmarkId to be ready")
     }
 
     companion object {

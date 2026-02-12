@@ -218,4 +218,5 @@ other{}
     <string name="save_to_mydeck">Guardar en MyDeck</string>
     <string name="action_view_bookmark">Ver</string>
     <string name="share_auto_save_countdown">Guardando en %1$d s…</string>
+    <string name="share_sign_in_required">Inicia sesión en tu servidor antes de compartir marcadores con MyDeck.</string>
 </resources>

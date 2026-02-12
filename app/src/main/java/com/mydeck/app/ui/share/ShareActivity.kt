@@ -25,6 +25,7 @@ import dagger.hilt.android.AndroidEntryPoint
 import com.mydeck.app.MainActivity
 import com.mydeck.app.R
 import com.mydeck.app.domain.BookmarkRepository
+import com.mydeck.app.domain.model.Bookmark
 import com.mydeck.app.domain.model.Theme
 import com.mydeck.app.io.prefs.SettingsDataStore
 import com.mydeck.app.ui.list.AddBookmarkSheet
@@ -37,6 +38,7 @@ import com.mydeck.app.util.MAX_TITLE_LENGTH
 import com.mydeck.app.worker.CreateBookmarkWorker
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import timber.log.Timber
 import javax.inject.Inject
@@ -55,6 +57,14 @@ class ShareActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // Fix 4: Check if user is signed in before proceeding
+        val token = settingsDataStore.tokenFlow.value
+        if (token.isNullOrBlank()) {
+            Toast.makeText(this, getString(R.string.share_sign_in_required), Toast.LENGTH_LONG).show()
+            finish()
+            return
+        }
 
         val sharedText = extractSharedText()
         if (sharedText == null) {
@@ -150,6 +160,11 @@ class ShareActivity : ComponentActivity() {
                     url = url,
                     labels = labels
                 )
+
+                // Wait for bookmark content to be ready before navigating,
+                // otherwise the detail screen shows Original mode with no article content.
+                waitForBookmarkReady(bookmarkId)
+
                 val intent = Intent(this@ShareActivity, MainActivity::class.java).apply {
                     flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
                     putExtra("navigateToBookmarkDetail", bookmarkId)
@@ -166,6 +181,24 @@ class ShareActivity : ComponentActivity() {
                 finish()
             }
         }
+    }
+
+    private suspend fun waitForBookmarkReady(bookmarkId: String) {
+        val maxAttempts = 30
+        val delayMs = 2000L
+        for (i in 1..maxAttempts) {
+            try {
+                val bookmark = bookmarkRepository.getBookmarkById(bookmarkId)
+                if (bookmark.state != Bookmark.State.LOADING) {
+                    Timber.d("ShareActivity: Bookmark ready after $i polls (state=${bookmark.state})")
+                    return
+                }
+            } catch (e: Exception) {
+                Timber.w(e, "ShareActivity: Poll attempt $i failed")
+            }
+            delay(delayMs)
+        }
+        Timber.w("ShareActivity: Timed out waiting for bookmark $bookmarkId")
     }
 }
 

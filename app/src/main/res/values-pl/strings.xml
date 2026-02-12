@@ -111,4 +111,5 @@
     <string name="save_to_mydeck">Zapisz w MyDeck</string>
     <string name="action_view_bookmark">Wyświetl</string>
     <string name="share_auto_save_countdown">Zapisywanie za %1$d s…</string>
+    <string name="share_sign_in_required">Zaloguj się na swoim serwerze przed udostępnianiem zakładek w MyDeck.</string>
 </resources>
