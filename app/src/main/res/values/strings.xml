@@ -280,4 +280,9 @@ other{}
     <string name="oauth_error_network">Network error. Please check your connection.</string>
     <string name="logout_confirm_title">Sign Out</string>
     <string name="logout_confirm_message">Are you sure you want to sign out?</string>
+
+    <!-- Share Intent / Quick Save -->
+    <string name="save_to_mydeck">Save to MyDeck</string>
+    <string name="action_view_bookmark">View</string>
+    <string name="share_auto_save_countdown">Saving in %1$d s…</string>
 </resources>
