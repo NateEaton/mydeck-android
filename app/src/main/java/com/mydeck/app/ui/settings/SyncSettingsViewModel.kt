@@ -215,6 +215,7 @@ class SyncSettingsViewModel @Inject constructor(
             SyncSettingsPartial2(battery, preset, from, to, downloading, status)
         }
     ) { p1, p2 ->
+        val myListCount = (p2.status.total - p2.status.archived).coerceAtLeast(0)
         SyncSettingsUiState(
             bookmarkSyncFrequency = p1.freq,
             bookmarkSyncFrequencyOptions = getBookmarkSyncOptions(p1.freq),
@@ -229,7 +230,7 @@ class SyncSettingsViewModel @Inject constructor(
             allowBatterySaver = p2.battery,
             syncStatus = SyncStatus(
                 totalBookmarks = p2.status.total,
-                unread = p2.status.unread,
+                unread = myListCount,
                 archived = p2.status.archived,
                 favorites = p2.status.favorites,
                 contentDownloaded = p2.status.contentDownloaded,

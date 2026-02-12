@@ -28,5 +28,6 @@ Items to address before formal production release. This is a living document —
 ## Items to Review Before Release
 
 - [ ] **Legacy ReadeckApp drawable vector** — `res/drawable/ic_launcher_foreground.xml` still contains the old two-shape ReadeckApp icon. Consider replacing it with a vector version of the MyDeck three-card icon or removing it if nothing else references it.
+- [ ] **Rename misleading sync status field** — Sync Settings shows “My List” (non-archived) but currently threads that value through a field named `unread` in the sync status model/UI wiring. Rename to something like `myList` (and update related UI/resource keys) to avoid future confusion/regressions.
 - [ ] **OAuth migration branch merge** — Awaiting Stefan's testing confirmation before merging `feature/OAuth-migration` into main.
 - [ ] **Full code review pass** — Systematic review of all changes since fork from ReadeckApp for naming, style, and correctness.
