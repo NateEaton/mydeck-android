@@ -101,4 +101,9 @@
     <string name="oauth_error_network">Network error. Please check your connection.</string>
     <string name="logout_confirm_title">Sign Out</string>
     <string name="logout_confirm_message">Are you sure you want to sign out?</string>
+
+    <!-- Welcome Screen -->
+    <string name="welcome_title">Welcome to MyDeck</string>
+    <string name="welcome_message">MyDeck is a read-later app for Readeck. Enter your Readeck server address below to get started. You\'ll be guided through a quick authorization process to connect your account.</string>
+    <string name="welcome_connect_button">Connect</string>
 </resources>
