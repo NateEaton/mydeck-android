@@ -69,7 +69,7 @@ fun WelcomeScreen(
                 verticalArrangement = Arrangement.Center
             ) {
                 Image(
-                    painter = painterResource(id = R.drawable.ic_launcher_foreground),
+                    painter = painterResource(id = R.mipmap.ic_launcher_foreground),
                     contentDescription = stringResource(R.string.app_name),
                     modifier = Modifier.size(120.dp)
                 )

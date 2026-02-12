@@ -65,6 +65,6 @@ data class Resource(
 @Serializable
 data class ImageResource(
     val src: String,
-    val width: Int,
-    val height: Int
+    val width: Int = 0,
+    val height: Int = 0
 )
