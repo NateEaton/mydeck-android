@@ -12,6 +12,7 @@ import androidx.sqlite.db.SimpleSQLiteQuery
 import androidx.sqlite.db.SupportSQLiteQuery
 import com.mydeck.app.io.db.model.BookmarkEntity
 import kotlinx.coroutines.flow.Flow
+import kotlinx.datetime.Instant
 import timber.log.Timber
 import com.mydeck.app.io.db.model.ArticleContentEntity
 import com.mydeck.app.io.db.model.BookmarkWithArticleContent
@@ -43,6 +44,63 @@ interface BookmarkDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertBookmarks(bookmarks: List<BookmarkEntity>)
+
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertBookmarkIgnore(bookmarkEntity: BookmarkEntity): Long
+
+    @Query("""
+        UPDATE bookmarks SET
+            href = :href, updated = :updated, state = :state, loaded = :loaded,
+            url = :url, title = :title, siteName = :siteName, site = :site,
+            authors = :authors, lang = :lang, textDirection = :textDirection,
+            documentTpe = :documentTpe, type = :type, hasArticle = :hasArticle,
+            description = :description, isDeleted = :isDeleted, isMarked = :isMarked,
+            isArchived = :isArchived, labels = :labels, readProgress = :readProgress,
+            wordCount = :wordCount, readingTime = :readingTime, published = :published,
+            embed = :embed, embedHostname = :embedHostname,
+            article_src = :articleSrc, icon_src = :iconSrc, icon_width = :iconWidth, icon_height = :iconHeight,
+            image_src = :imageSrc, image_width = :imageWidth, image_height = :imageHeight,
+            log_src = :logSrc, props_src = :propsSrc,
+            thumbnail_src = :thumbnailSrc, thumbnail_width = :thumbnailWidth, thumbnail_height = :thumbnailHeight
+        WHERE id = :id
+    """)
+    suspend fun updateBookmarkMetadata(
+        id: String, href: String, updated: Instant, state: BookmarkEntity.State, loaded: Boolean,
+        url: String, title: String, siteName: String, site: String,
+        authors: List<String>, lang: String, textDirection: String,
+        documentTpe: String, type: BookmarkEntity.Type, hasArticle: Boolean,
+        description: String, isDeleted: Boolean, isMarked: Boolean,
+        isArchived: Boolean, labels: List<String>, readProgress: Int,
+        wordCount: Int?, readingTime: Int?, published: Instant?,
+        embed: String?, embedHostname: String?,
+        articleSrc: String, iconSrc: String, iconWidth: Int, iconHeight: Int,
+        imageSrc: String, imageWidth: Int, imageHeight: Int,
+        logSrc: String, propsSrc: String,
+        thumbnailSrc: String, thumbnailWidth: Int, thumbnailHeight: Int
+    )
+
+    @Transaction
+    suspend fun upsertBookmark(bookmarkEntity: BookmarkEntity) {
+        val result = insertBookmarkIgnore(bookmarkEntity)
+        if (result == -1L) {
+            with(bookmarkEntity) {
+                updateBookmarkMetadata(
+                    id = id, href = href, updated = updated, state = state, loaded = loaded,
+                    url = url, title = title, siteName = siteName, site = site,
+                    authors = authors, lang = lang, textDirection = textDirection,
+                    documentTpe = documentTpe, type = type, hasArticle = hasArticle,
+                    description = description, isDeleted = isDeleted, isMarked = isMarked,
+                    isArchived = isArchived, labels = labels, readProgress = readProgress,
+                    wordCount = wordCount, readingTime = readingTime, published = published,
+                    embed = embed, embedHostname = embedHostname,
+                    articleSrc = article.src, iconSrc = icon.src, iconWidth = icon.width, iconHeight = icon.height,
+                    imageSrc = image.src, imageWidth = image.width, imageHeight = image.height,
+                    logSrc = log.src, propsSrc = props.src,
+                    thumbnailSrc = thumbnail.src, thumbnailWidth = thumbnail.width, thumbnailHeight = thumbnail.height
+                )
+            }
+        }
+    }
 
     @Transaction
     suspend fun insertBookmarkWithArticleContent(bookmarkWithArticleContent: BookmarkWithArticleContent) {

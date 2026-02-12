@@ -27,6 +27,13 @@
 
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+        </activity>
+        <activity
+            android:name=".ui.share.ShareActivity"
+            android:exported="true"
+            android:label="@string/save_to_mydeck"
+            android:theme="@style/Theme.MyDeck.Translucent"
+            android:windowSoftInputMode="adjustResize">
             <intent-filter>
                 <action android:name="android.intent.action.SEND" />
                 <category android:name="android.intent.category.DEFAULT" />

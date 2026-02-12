@@ -106,4 +106,10 @@
     <string name="welcome_title">Welcome to MyDeck</string>
     <string name="welcome_message">MyDeck is a read-later app for Readeck. Enter your Readeck server address below to get started. You\'ll be guided through a quick authorization process to connect your account.</string>
     <string name="welcome_connect_button">Connect</string>
+
+    <!-- Share Intent / Quick Save -->
+    <string name="save_to_mydeck">Enregistrer dans MyDeck</string>
+    <string name="action_view_bookmark">Voir</string>
+    <string name="share_auto_save_countdown">Enregistrement dans %1$d s…</string>
+    <string name="share_sign_in_required">Veuillez vous connecter à votre serveur avant de partager des marque-pages avec MyDeck.</string>
 </resources>
