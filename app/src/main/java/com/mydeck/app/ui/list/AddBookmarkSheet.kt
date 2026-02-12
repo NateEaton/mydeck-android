@@ -35,6 +35,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
@@ -44,7 +45,7 @@ import androidx.compose.foundation.verticalScroll
 import com.mydeck.app.R
 import kotlinx.coroutines.delay
 
-private const val AUTO_SAVE_SECONDS = 5
+private const val AUTO_SAVE_SECONDS = 10
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -158,7 +159,9 @@ fun AddBookmarkSheet(
                 cancelAutoSave()
             },
             label = { Text(stringResource(id = R.string.title)) },
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier
+                .fillMaxWidth()
+                .onFocusChanged { if (it.isFocused) cancelAutoSave() }
         )
 
         CreateBookmarkLabelsSection(
@@ -168,6 +171,7 @@ fun AddBookmarkSheet(
                 newLabelInput = it
                 cancelAutoSave()
             },
+            onFocusLabel = cancelAutoSave,
             onAddLabel = {
                 if (newLabelInput.isNotBlank()) {
                     val newLabels = newLabelInput.split(',')
@@ -270,6 +274,7 @@ private fun CreateBookmarkLabelsSection(
     labels: List<String>,
     newLabelInput: String,
     onNewLabelChange: (String) -> Unit,
+    onFocusLabel: () -> Unit = {},
     onAddLabel: () -> Unit,
     onRemoveLabel: (String) -> Unit
 ) {
@@ -302,7 +307,9 @@ private fun CreateBookmarkLabelsSection(
             value = newLabelInput,
             onValueChange = onNewLabelChange,
             placeholder = { Text(stringResource(R.string.detail_label_placeholder)) },
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .onFocusChanged { if (it.isFocused) onFocusLabel() },
             singleLine = true,
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
             keyboardActions = KeyboardActions(onDone = { onAddLabel() }),
