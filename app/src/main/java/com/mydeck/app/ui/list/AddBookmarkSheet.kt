@@ -105,7 +105,7 @@ fun AddBookmarkSheet(
                 Image(
                     painter = painterResource(id = R.mipmap.ic_launcher_foreground),
                     contentDescription = null,
-                    modifier = Modifier.size(32.dp)
+                    modifier = Modifier.size(64.dp)
                 )
                 Text(
                     text = stringResource(id = R.string.save_to_mydeck),
