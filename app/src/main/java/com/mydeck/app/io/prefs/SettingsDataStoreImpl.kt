@@ -9,7 +9,11 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import dagger.hilt.android.qualifiers.ApplicationContext
 import com.mydeck.app.BuildConfig
 import com.mydeck.app.domain.model.AutoSyncTimeframe
+import com.mydeck.app.domain.model.LineSpacing
+import com.mydeck.app.domain.model.ReaderFontFamily
+import com.mydeck.app.domain.model.TextWidth
 import com.mydeck.app.domain.model.Theme
+import com.mydeck.app.domain.model.TypographySettings
 import com.mydeck.app.domain.sync.ContentSyncConstraints
 import com.mydeck.app.domain.sync.ContentSyncMode
 import com.mydeck.app.domain.sync.DateRangeParams
@@ -51,6 +55,14 @@ class SettingsDataStoreImpl @Inject constructor(@ApplicationContext private val 
     private val KEY_ALLOW_BATTERY_SAVER = booleanPreferencesKey("content_sync_allow_battery_saver")
     private val KEY_DATE_RANGE_FROM = stringPreferencesKey("date_range_from")
     private val KEY_DATE_RANGE_TO = stringPreferencesKey("date_range_to")
+    
+    // Typography settings keys
+    private val KEY_TYPO_FONT_SIZE = intPreferencesKey("typography_font_size_percent")
+    private val KEY_TYPO_FONT_FAMILY = stringPreferencesKey("typography_font_family")
+    private val KEY_TYPO_LINE_SPACING = stringPreferencesKey("typography_line_spacing")
+    private val KEY_TYPO_TEXT_WIDTH = stringPreferencesKey("typography_text_width")
+    private val KEY_TYPO_JUSTIFIED = booleanPreferencesKey("typography_justified")
+    private val KEY_TYPO_HYPHENATION = booleanPreferencesKey("typography_hyphenation")
 
     override fun saveUsername(username: String) {
         Timber.d("saveUsername")
@@ -343,5 +355,40 @@ class SettingsDataStoreImpl @Inject constructor(@ApplicationContext private val 
 
     private fun isDebugBuild(): Boolean {
         return BuildConfig.DEBUG || BuildConfig.BUILD_TYPE.contains("debug", ignoreCase = true)
+    }
+
+    // Typography settings implementation
+    private val _typographySettingsFlow = MutableStateFlow(readTypographySettings())
+
+    override val typographySettingsFlow: StateFlow<TypographySettings> =
+        _typographySettingsFlow.asStateFlow()
+
+    private fun readTypographySettings(): TypographySettings {
+        val fontFamilyStr = encryptedSharedPreferences.getString(KEY_TYPO_FONT_FAMILY.name, ReaderFontFamily.SYSTEM_DEFAULT.name) ?: ReaderFontFamily.SYSTEM_DEFAULT.name
+        val lineSpacingStr = encryptedSharedPreferences.getString(KEY_TYPO_LINE_SPACING.name, LineSpacing.TIGHT.name) ?: LineSpacing.TIGHT.name
+        val textWidthStr = encryptedSharedPreferences.getString(KEY_TYPO_TEXT_WIDTH.name, TextWidth.WIDE.name) ?: TextWidth.WIDE.name
+
+        return TypographySettings(
+            fontSizePercent = encryptedSharedPreferences.getInt(KEY_TYPO_FONT_SIZE.name, 100),
+            fontFamily = try { ReaderFontFamily.valueOf(fontFamilyStr) } catch (e: IllegalArgumentException) { ReaderFontFamily.SYSTEM_DEFAULT },
+            lineSpacing = try { LineSpacing.valueOf(lineSpacingStr) } catch (e: IllegalArgumentException) { LineSpacing.TIGHT },
+            textWidth = try { TextWidth.valueOf(textWidthStr) } catch (e: IllegalArgumentException) { TextWidth.WIDE },
+            justified = encryptedSharedPreferences.getBoolean(KEY_TYPO_JUSTIFIED.name, false),
+            hyphenation = encryptedSharedPreferences.getBoolean(KEY_TYPO_HYPHENATION.name, false)
+        )
+    }
+
+    override suspend fun saveTypographySettings(settings: TypographySettings) {
+        encryptedSharedPreferences.edit {
+            putInt(KEY_TYPO_FONT_SIZE.name, settings.fontSizePercent)
+            putString(KEY_TYPO_FONT_FAMILY.name, settings.fontFamily.name)
+            putString(KEY_TYPO_LINE_SPACING.name, settings.lineSpacing.name)
+            putString(KEY_TYPO_TEXT_WIDTH.name, settings.textWidth.name)
+            putBoolean(KEY_TYPO_JUSTIFIED.name, settings.justified)
+            putBoolean(KEY_TYPO_HYPHENATION.name, settings.hyphenation)
+        }
+        // Directly update the flow — the preferenceFlow listener approach doesn't work
+        // because individual keys are written, not the composite "typography_settings" key
+        _typographySettingsFlow.value = settings
     }
 }

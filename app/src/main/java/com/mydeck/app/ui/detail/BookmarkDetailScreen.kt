@@ -33,9 +33,8 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.TextDecrease
-import androidx.compose.material.icons.filled.TextIncrease
 import androidx.compose.material.icons.outlined.CheckCircle
+import androidx.compose.material.icons.outlined.FormatSize
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Grade
 import androidx.compose.material.icons.outlined.Inventory2
@@ -101,11 +100,7 @@ fun BookmarkDetailScreen(navHostController: NavController, bookmarkId: String?, 
         { id, isFavorite -> viewModel.onToggleFavorite(id, isFavorite) }
     val onClickToggleArchive: (String, Boolean) -> Unit =
         { id, isArchived -> viewModel.onToggleArchive(id, isArchived) }
-    val onClickIncreaseZoomFactor: () -> Unit =
-        { viewModel.onClickChangeZoomFactor(25) }
-    val onClickDecreaseZoomFactor: () -> Unit =
-        { viewModel.onClickChangeZoomFactor(-25) }
-
+    val context = LocalContext.current
     val onClickOpenUrl: (String) -> Unit = { viewModel.onClickOpenUrl(it) }
     val onClickShareBookmark: (String) -> Unit = { url -> viewModel.onClickShareBookmark(url) }
     val onClickToggleRead: (String, Boolean) -> Unit = { id, isRead -> viewModel.onToggleRead(id, isRead) }
@@ -115,6 +110,7 @@ fun BookmarkDetailScreen(navHostController: NavController, bookmarkId: String?, 
     val contentLoadState = viewModel.contentLoadState.collectAsState().value
     val articleSearchState = viewModel.articleSearchState.collectAsState().value
     var showDetailsDialog by remember { mutableStateOf(false) }
+    var showTypographyPanel by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val lifecycleOwner = LocalLifecycleOwner.current
     val onClickDeleteBookmark: (String) -> Unit = { id ->
@@ -128,6 +124,15 @@ fun BookmarkDetailScreen(navHostController: NavController, bookmarkId: String?, 
             if (result == SnackbarResult.ActionPerformed) {
                 viewModel.onCancelDeleteBookmark()
             }
+        }
+    }
+
+    val onClickOpenInBrowser: (String) -> Unit = { url ->
+        try {
+            val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url))
+            context.startActivity(intent)
+        } catch (e: Exception) {
+            // Handle error silently or show snackbar
         }
     }
 
@@ -168,20 +173,9 @@ fun BookmarkDetailScreen(navHostController: NavController, bookmarkId: String?, 
         }
     }
 
-    val context = LocalContext.current
     LaunchedEffect(key1 = openUrlEvent.value){
         openUrlInCustomTab(context, openUrlEvent.value)
         viewModel.onOpenUrlEventConsumed()
-    }
-
-    // Open in browser (uses ACTION_VIEW intent instead of Custom Tab)
-    val onClickOpenInBrowser: (String) -> Unit = { url ->
-        try {
-            val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url))
-            context.startActivity(intent)
-        } catch (e: Exception) {
-            // Handle error silently or show snackbar
-        }
     }
 
     when (uiState) {
@@ -231,8 +225,6 @@ fun BookmarkDetailScreen(navHostController: NavController, bookmarkId: String?, 
                 onArticleSearchActivate = onArticleSearchActivate,
                 uiState = uiState,
                 onClickOpenUrl = onClickOpenUrl,
-                onClickIncreaseZoomFactor = onClickIncreaseZoomFactor,
-                onClickDecreaseZoomFactor = onClickDecreaseZoomFactor,
                 onShowDetails = { showDetailsDialog = true },
                 onScrollProgressChanged = { progress ->
                     viewModel.onScrollProgressChanged(progress)
@@ -246,7 +238,8 @@ fun BookmarkDetailScreen(navHostController: NavController, bookmarkId: String?, 
                 onArticleSearchQueryChange = onArticleSearchQueryChange,
                 onArticleSearchNext = onArticleSearchNext,
                 onArticleSearchPrevious = onArticleSearchPrevious,
-                onArticleSearchUpdateResults = onArticleSearchUpdateResults
+                onArticleSearchUpdateResults = onArticleSearchUpdateResults,
+                onShowTypographyPanel = { showTypographyPanel = true }
             )
             // Consumes a shareIntent and creates the corresponding share dialog
             ShareBookmarkChooser(
@@ -261,6 +254,15 @@ fun BookmarkDetailScreen(navHostController: NavController, bookmarkId: String?, 
                     onLabelsUpdate = { newLabels ->
                         onUpdateLabels(uiState.bookmark.bookmarkId, newLabels)
                     }
+                )
+            }
+            if (showTypographyPanel) {
+                ReaderSettingsBottomSheet(
+                    currentSettings = uiState.typographySettings,
+                    onSettingsChanged = { settings ->
+                        viewModel.onTypographySettingsChanged(settings)
+                    },
+                    onDismiss = { showTypographyPanel = false }
                 )
             }
         }
@@ -296,8 +298,6 @@ fun BookmarkDetailScreen(
     onClickShareBookmark: (String) -> Unit,
     onClickOpenInBrowser: (String) -> Unit = {},
     onArticleSearchActivate: () -> Unit = {},
-    onClickIncreaseZoomFactor: () -> Unit,
-    onClickDecreaseZoomFactor: () -> Unit,
     onShowDetails: () -> Unit = {},
     onScrollProgressChanged: (Int) -> Unit = {},
     initialReadProgress: Int = 0,
@@ -309,7 +309,8 @@ fun BookmarkDetailScreen(
     onArticleSearchQueryChange: (String) -> Unit = {},
     onArticleSearchNext: () -> Unit = {},
     onArticleSearchPrevious: () -> Unit = {},
-    onArticleSearchUpdateResults: (Int) -> Unit = {}
+    onArticleSearchUpdateResults: (Int) -> Unit = {},
+    onShowTypographyPanel: () -> Unit = {}
 ) {
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -353,6 +354,15 @@ fun BookmarkDetailScreen(
                                 contentDescription = stringResource(R.string.action_archive)
                             )
                         }
+                        if (uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.ARTICLE &&
+                            contentMode == ContentMode.READER) {
+                            IconButton(onClick = { onShowTypographyPanel() }) {
+                                Icon(
+                                    imageVector = Icons.Outlined.FormatSize,
+                                    contentDescription = stringResource(R.string.action_typography_settings)
+                                )
+                            }
+                        }
                         IconButton(onClick = { onShowDetails() }) {
                             Icon(
                                 imageVector = Icons.Outlined.Info,
@@ -364,8 +374,6 @@ fun BookmarkDetailScreen(
                             onClickToggleRead = onClickToggleRead,
                             onClickShareBookmark = onClickShareBookmark,
                             onClickDeleteBookmark = onClickDeleteBookmark,
-                            onClickIncreaseZoomFactor = onClickIncreaseZoomFactor,
-                            onClickDecreaseZoomFactor = onClickDecreaseZoomFactor,
                             onClickSearchInArticle = onArticleSearchActivate,
                             onClickOpenInBrowser = onClickOpenInBrowser,
                             contentMode = contentMode,
@@ -531,7 +539,20 @@ fun BookmarkDetailArticle(
 
     LaunchedEffect(uiState.bookmark.bookmarkId, isSystemInDarkMode, uiState.template) {
         content.value = getTemplate(uiState, isSystemInDarkMode)
-        webViewRef.value?.settings?.textZoom = uiState.zoomFactor
+        webViewRef.value?.settings?.textZoom = uiState.typographySettings.fontSizePercent
+    }
+
+    // Apply typography settings when they change (non-textZoom properties via JS)
+    LaunchedEffect(uiState.typographySettings) {
+        webViewRef.value?.let { webView ->
+            webView.settings.textZoom = uiState.typographySettings.fontSizePercent
+            // Small delay to let any pending content load finish
+            delay(150)
+            withContext(Dispatchers.Main) {
+                val js = WebViewTypographyBridge.applyTypography(uiState.typographySettings)
+                webView.evaluateJavascript(js, null)
+            }
+        }
     }
 
     // Handle search query changes
@@ -600,9 +621,10 @@ fun BookmarkDetailArticle(
                         settings.defaultTextEncodingName = "utf-8"
                         isVerticalScrollBarEnabled = false
                         isHorizontalScrollBarEnabled = false
-                        settings.textZoom = uiState.zoomFactor
+                        settings.textZoom = uiState.typographySettings.fontSizePercent
 
                         // Intercept link clicks and open in Chrome Custom Tabs
+                        // Apply typography after page finishes loading
                         webViewClient = object : android.webkit.WebViewClient() {
                             override fun shouldOverrideUrlLoading(
                                 view: WebView?,
@@ -614,6 +636,14 @@ fun BookmarkDetailArticle(
                                     return true
                                 }
                                 return false
+                            }
+
+                            override fun onPageFinished(view: WebView?, url: String?) {
+                                super.onPageFinished(view, url)
+                                view?.let {
+                                    val js = WebViewTypographyBridge.applyTypography(uiState.typographySettings)
+                                    it.evaluateJavascript(js, null)
+                                }
                             }
                         }
 
@@ -638,7 +668,7 @@ fun BookmarkDetailArticle(
                     }
                     // Update reference and zoom
                     webViewRef.value = it
-                    it.settings.textZoom = uiState.zoomFactor
+                    it.settings.textZoom = uiState.typographySettings.fontSizePercent
                 }
             )
         }
@@ -782,8 +812,6 @@ fun BookmarkDetailMenu(
     onClickToggleRead: (String, Boolean) -> Unit,
     onClickShareBookmark: (String) -> Unit,
     onClickDeleteBookmark: (String) -> Unit,
-    onClickIncreaseZoomFactor: () -> Unit,
-    onClickDecreaseZoomFactor: () -> Unit,
     onClickSearchInArticle: () -> Unit = {},
     onClickOpenInBrowser: (String) -> Unit = {},
     contentMode: ContentMode = ContentMode.READER,
@@ -800,35 +828,7 @@ fun BookmarkDetailMenu(
             expanded = expanded,
             onDismissRequest = { expanded = false }
         ) {
-            // 1. Increase text size
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.action_increase_text_size)) },
-                onClick = {
-                    onClickIncreaseZoomFactor()
-                },
-                leadingIcon = {
-                    Icon(
-                        imageVector = Icons.Filled.TextIncrease,
-                        contentDescription = stringResource(R.string.action_increase_text_size)
-                    )
-                }
-            )
-
-            // 2. Decrease text size
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.action_decrease_text_size)) },
-                onClick = {
-                    onClickDecreaseZoomFactor()
-                },
-                leadingIcon = {
-                    Icon(
-                        imageVector = Icons.Filled.TextDecrease,
-                        contentDescription = stringResource(R.string.action_decrease_text_size)
-                    )
-                }
-            )
-
-            // 3. Find in Article (hidden for photo/video, disabled in Original mode or no content)
+            // 1. Find in Article (hidden for photo/video, disabled in Original mode or no content)
             if (uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.ARTICLE) {
                 val isSearchEnabled = contentMode == ContentMode.READER && uiState.bookmark.hasContent
 
@@ -849,7 +849,7 @@ fun BookmarkDetailMenu(
                 )
             }
 
-            // 4. View Original/Content toggle for all bookmark types
+            // 2. View Original/Content toggle for all bookmark types
             if (uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.ARTICLE ||
                 uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.PHOTO ||
                 uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.VIDEO) {
@@ -892,7 +892,7 @@ fun BookmarkDetailMenu(
                 )
             }
 
-            // 5. Open in Browser
+            // 3. Open in Browser
             DropdownMenuItem(
                 text = { Text(stringResource(R.string.action_open_in_browser)) },
                 onClick = {
@@ -907,7 +907,7 @@ fun BookmarkDetailMenu(
                 }
             )
 
-            // 6. Share Link
+            // 4. Share Link
             DropdownMenuItem(
                 text = { Text(stringResource(R.string.action_share)) },
                 onClick = {
@@ -922,7 +922,7 @@ fun BookmarkDetailMenu(
                 }
             )
 
-            // 7. Is Read
+            // 5. Is Read
             DropdownMenuItem(
                 text = { Text(stringResource(R.string.action_is_read)) },
                 onClick = {
@@ -937,7 +937,7 @@ fun BookmarkDetailMenu(
                 }
             )
 
-            // 8. Delete
+            // 6. Delete
             DropdownMenuItem(
                 text = { Text(stringResource(R.string.action_delete)) },
                 onClick = {
@@ -976,14 +976,13 @@ fun BookmarkDetailScreenPreview() {
         onClickToggleFavorite = { _, _ -> },
         onClickToggleRead = { _, _ -> },
         onClickShareBookmark = {_ -> },
-        onClickIncreaseZoomFactor = { },
-        onClickDecreaseZoomFactor = { },
         onClickToggleArchive = { _, _ -> },
         uiState = BookmarkDetailViewModel.UiState.Success(
             bookmark = sampleBookmark,
             updateBookmarkState = null,
             template = Template.SimpleTemplate("template"),
-            zoomFactor = 100
+            zoomFactor = 100,
+            typographySettings = com.mydeck.app.domain.model.TypographySettings()
         ),
         onClickOpenUrl = {}
     )
@@ -999,7 +998,8 @@ private fun BookmarkDetailContentPreview() {
                 bookmark = sampleBookmark,
                 updateBookmarkState = null,
                 template = Template.SimpleTemplate("template"),
-                zoomFactor = 100
+                zoomFactor = 100,
+                typographySettings = com.mydeck.app.domain.model.TypographySettings()
             ),
             onClickOpenUrl = {}
         )
@@ -1023,7 +1023,8 @@ private fun BookmarkDetailHeaderPreview() {
             bookmark = sampleBookmark,
             updateBookmarkState = null,
             template = Template.SimpleTemplate("template"),
-            zoomFactor = 100
+            zoomFactor = 100,
+            typographySettings = com.mydeck.app.domain.model.TypographySettings()
         ),
         onClickOpenUrl = {}
     )

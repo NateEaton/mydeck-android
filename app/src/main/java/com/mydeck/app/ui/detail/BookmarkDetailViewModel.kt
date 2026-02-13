@@ -77,6 +77,7 @@ class BookmarkDetailViewModel @Inject constructor(
         }
     }
     private val zoomFactor: Flow<Int> = settingsDataStore.zoomFactorFlow
+    private val typographySettings = settingsDataStore.typographySettingsFlow
     private val updateState = MutableStateFlow<UpdateBookmarkState?>(null)
 
     // Local tracking of scroll progress (not immediately persisted)
@@ -197,8 +198,9 @@ class BookmarkDetailViewModel @Inject constructor(
         bookmarkRepository.observeBookmark(bookmarkId!!),
         updateState,
         template,
-        zoomFactor
-    ) { bookmark, updateState, template, zoomFactor ->
+        zoomFactor,
+        typographySettings
+    ) { bookmark, updateState, template, zoomFactor, typographySettings ->
         if (bookmark == null) {
             Timber.e("Error loading bookmark [bookmarkId=$bookmarkId]")
             UiState.Error
@@ -243,7 +245,8 @@ class BookmarkDetailViewModel @Inject constructor(
                 ),
                 updateBookmarkState = updateState,
                 template = template,
-                zoomFactor = zoomFactor
+                zoomFactor = zoomFactor,
+                typographySettings = typographySettings
             )
         }
     }
@@ -411,6 +414,12 @@ class BookmarkDetailViewModel @Inject constructor(
         }
     }
 
+    fun onTypographySettingsChanged(settings: com.mydeck.app.domain.model.TypographySettings) {
+        viewModelScope.launch {
+            settingsDataStore.saveTypographySettings(settings)
+        }
+    }
+
     fun onNavigationEventConsumed() {
         _navigationEvent.update { null } // Reset the event
     }
@@ -463,8 +472,13 @@ class BookmarkDetailViewModel @Inject constructor(
     }
 
     sealed class UiState {
-        data class Success(val bookmark: Bookmark, val updateBookmarkState: UpdateBookmarkState?, val template: Template, val zoomFactor: Int) :
-            UiState()
+        data class Success(
+            val bookmark: Bookmark, 
+            val updateBookmarkState: UpdateBookmarkState?, 
+            val template: Template, 
+            val zoomFactor: Int,
+            val typographySettings: com.mydeck.app.domain.model.TypographySettings
+        ) : UiState()
 
         data object Loading : UiState()
         data object Error : UiState()
