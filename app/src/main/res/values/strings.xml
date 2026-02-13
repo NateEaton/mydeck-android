@@ -286,4 +286,32 @@ other{}
     <string name="action_view_bookmark">View</string>
     <string name="share_auto_save_countdown">Saving in %1$d s…</string>
     <string name="share_sign_in_required">Please sign in to your server before sharing bookmarks with MyDeck.</string>
+
+    <!-- Reader Typography Panel -->
+    <string name="action_typography_settings">Text formatting</string>
+    <string name="typography_section_font">Font</string>
+    <string name="typography_section_size">Font size</string>
+    <string name="typography_section_line_spacing">Spacing</string>
+    <string name="typography_section_width">Width</string>
+    <string name="typography_reset">Reset to defaults</string>
+
+    <!-- Font family names (not translated — proper nouns) -->
+    <string name="font_system_default" translatable="false">System Default</string>
+    <string name="font_noto_serif" translatable="false">Noto Serif</string>
+    <string name="font_literata" translatable="false">Literata</string>
+    <string name="font_source_serif" translatable="false">Source Serif</string>
+    <string name="font_noto_sans" translatable="false">Noto Sans</string>
+    <string name="font_jetbrains_mono" translatable="false">JetBrains Mono</string>
+
+    <!-- Line spacing options -->
+    <string name="line_spacing_tight">Tight</string>
+    <string name="line_spacing_loose">Loose</string>
+
+    <!-- Text width options -->
+    <string name="width_wide">Wide</string>
+    <string name="width_narrow">Narrow</string>
+
+    <!-- Justify and Hyphenation toggles -->
+    <string name="justify_label">Justify text</string>
+    <string name="hyphenation_label">Hyphenate words</string>
 </resources>

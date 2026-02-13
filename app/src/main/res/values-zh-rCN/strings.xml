@@ -212,4 +212,18 @@
     <string name="action_view_bookmark">查看</string>
     <string name="share_auto_save_countdown">%1$d 秒后保存…</string>
     <string name="share_sign_in_required">请先登录您的服务器，然后再与 MyDeck 分享书签。</string>
+
+    <!-- Reader Typography Panel -->
+    <string name="action_typography_settings">文本格式</string>
+    <string name="typography_section_font">字体</string>
+    <string name="typography_section_size">字体大小</string>
+    <string name="typography_section_line_spacing">行距</string>
+    <string name="typography_section_width">宽度</string>
+    <string name="typography_reset">恢复默认设置</string>
+    <string name="line_spacing_tight">紧凑</string>
+    <string name="line_spacing_loose">宽松</string>
+    <string name="width_wide">宽</string>
+    <string name="width_narrow">窄</string>
+    <string name="justify_label">两端对齐</string>
+    <string name="hyphenation_label">连字符断词</string>
 </resources>

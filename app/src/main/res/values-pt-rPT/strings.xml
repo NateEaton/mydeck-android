@@ -112,4 +112,18 @@
     <string name="action_view_bookmark">Ver</string>
     <string name="share_auto_save_countdown">A guardar em %1$d s…</string>
     <string name="share_sign_in_required">Inicie sessão no seu servidor antes de partilhar marcadores com o MyDeck.</string>
+
+    <!-- Reader Typography Panel -->
+    <string name="action_typography_settings">Formatação de texto</string>
+    <string name="typography_section_font">Fonte</string>
+    <string name="typography_section_size">Tamanho da fonte</string>
+    <string name="typography_section_line_spacing">Espaçamento</string>
+    <string name="typography_section_width">Largura</string>
+    <string name="typography_reset">Repor predefinições</string>
+    <string name="line_spacing_tight">Compacto</string>
+    <string name="line_spacing_loose">Espaçado</string>
+    <string name="width_wide">Largo</string>
+    <string name="width_narrow">Estreito</string>
+    <string name="justify_label">Justificar texto</string>
+    <string name="hyphenation_label">Hifenizar palavras</string>
 </resources>

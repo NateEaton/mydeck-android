@@ -2,6 +2,7 @@ package com.mydeck.app.io.prefs
 
 import com.mydeck.app.domain.model.AutoSyncTimeframe
 import com.mydeck.app.domain.model.Theme
+import com.mydeck.app.domain.model.TypographySettings
 import com.mydeck.app.domain.sync.ContentSyncConstraints
 import com.mydeck.app.domain.sync.ContentSyncMode
 import com.mydeck.app.domain.sync.DateRangeParams
@@ -59,4 +60,8 @@ interface SettingsDataStore {
     suspend fun saveAllowBatterySaver(enabled: Boolean)
     suspend fun getDateRangeParams(): DateRangeParams?
     suspend fun saveDateRangeParams(params: DateRangeParams)
+
+    // Typography settings
+    val typographySettingsFlow: StateFlow<TypographySettings>
+    suspend fun saveTypographySettings(settings: TypographySettings)
 }
