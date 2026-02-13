@@ -112,4 +112,18 @@
     <string name="action_view_bookmark">Просмотр</string>
     <string name="share_auto_save_countdown">Сохранение через %1$d с…</string>
     <string name="share_sign_in_required">Войдите на свой сервер перед тем, как делиться закладками с MyDeck.</string>
+
+    <!-- Reader Typography Panel -->
+    <string name="action_typography_settings">Форматирование текста</string>
+    <string name="typography_section_font">Шрифт</string>
+    <string name="typography_section_size">Размер шрифта</string>
+    <string name="typography_section_line_spacing">Межстрочный интервал</string>
+    <string name="typography_section_width">Ширина</string>
+    <string name="typography_reset">Сбросить настройки</string>
+    <string name="line_spacing_tight">Узкий</string>
+    <string name="line_spacing_loose">Широкий</string>
+    <string name="width_wide">Широкий</string>
+    <string name="width_narrow">Узкий</string>
+    <string name="justify_label">Выравнивание по ширине</string>
+    <string name="hyphenation_label">Перенос слов</string>
 </resources>

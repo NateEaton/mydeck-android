@@ -212,4 +212,18 @@ other{}
     <string name="action_view_bookmark">Anzeigen</string>
     <string name="share_auto_save_countdown">Speichern in %1$d s…</string>
     <string name="share_sign_in_required">Bitte melden Sie sich bei Ihrem Server an, bevor Sie Lesezeichen mit MyDeck teilen.</string>
+
+    <!-- Reader Typography Panel -->
+    <string name="action_typography_settings">Textformatierung</string>
+    <string name="typography_section_font">Schrift</string>
+    <string name="typography_section_size">Schriftgröße</string>
+    <string name="typography_section_line_spacing">Zeilenabstand</string>
+    <string name="typography_section_width">Breite</string>
+    <string name="typography_reset">Auf Standard zurücksetzen</string>
+    <string name="line_spacing_tight">Eng</string>
+    <string name="line_spacing_loose">Weit</string>
+    <string name="width_wide">Breit</string>
+    <string name="width_narrow">Schmal</string>
+    <string name="justify_label">Blocksatz</string>
+    <string name="hyphenation_label">Silbentrennung</string>
 </resources>
