@@ -13,6 +13,7 @@ import com.mydeck.app.domain.sync.ConnectivityMonitor
 import com.mydeck.app.domain.usecase.FullSyncUseCase
 import com.mydeck.app.domain.usecase.UpdateBookmarkUseCase
 import com.mydeck.app.io.prefs.SettingsDataStore
+import com.mydeck.app.worker.CreateBookmarkWorker
 import com.mydeck.app.worker.LoadBookmarksWorker
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -77,6 +78,8 @@ class BookmarkListViewModelTest {
         workInfoFlow = flowOf(emptyList())
         mockkObject(LoadBookmarksWorker.Companion)
         every { LoadBookmarksWorker.enqueue(any(), any()) } just Runs
+        mockkObject(CreateBookmarkWorker.Companion)
+        every { CreateBookmarkWorker.enqueue(any(), any(), any(), any(), any()) } just Runs
 
         // Default Mocking Behavior
         coEvery { settingsDataStore.isInitialSyncPerformed() } returns true // Assume sync is done
@@ -104,6 +107,7 @@ class BookmarkListViewModelTest {
 
     @After
     fun tearDown() {
+        unmockkObject(CreateBookmarkWorker.Companion)
         unmockkObject(LoadBookmarksWorker.Companion)
         Dispatchers.resetMain()
     }
@@ -437,7 +441,7 @@ class BookmarkListViewModelTest {
     }
 
     @Test
-    fun `createBookmark calls repository and sets state to Success`() = runTest {
+    fun `createBookmark enqueues worker and sets state to Success`() = runTest {
         coEvery { settingsDataStore.isInitialSyncPerformed() } returns false
         viewModel = BookmarkListViewModel(
             updateBookmarkUseCase,
@@ -453,24 +457,17 @@ class BookmarkListViewModelTest {
 
         val title = "Test Title"
         val url = "https://example.com"
-        coEvery { bookmarkRepository.createBookmark(title, url, emptyList()) } returns "bookmark123"
 
         viewModel.updateCreateBookmarkTitle(title)
         viewModel.updateCreateBookmarkUrl(url)
         viewModel.createBookmark()
-        runCurrent()
 
-        coVerify { bookmarkRepository.createBookmark(title, url, emptyList()) }
-        println("state=${viewModel.createBookmarkUiState.value}")
+        io.mockk.verify { CreateBookmarkWorker.enqueue(workManager, url, title, emptyList(), false) }
         assertTrue(viewModel.createBookmarkUiState.value is BookmarkListViewModel.CreateBookmarkUiState.Success)
-        assertEquals(
-            BookmarkListViewModel.CreateBookmarkUiState.Success,
-            viewModel.createBookmarkUiState.value
-        )
     }
 
     @Test
-    fun `createBookmark sets state to Error if repository call fails`() = runTest {
+    fun `createBookmark with archive enqueues worker with isArchived true`() = runTest {
         coEvery { settingsDataStore.isInitialSyncPerformed() } returns false
         viewModel = BookmarkListViewModel(
             updateBookmarkUseCase,
@@ -486,19 +483,13 @@ class BookmarkListViewModelTest {
 
         val title = "Test Title"
         val url = "https://example.com"
-        val errorMessage = "Failed to create bookmark"
-        coEvery { bookmarkRepository.createBookmark(title, url, emptyList()) } throws Exception(errorMessage)
 
         viewModel.updateCreateBookmarkTitle(title)
         viewModel.updateCreateBookmarkUrl(url)
-        viewModel.createBookmark()
+        viewModel.handleCreateBookmarkAction(SaveAction.ARCHIVE)
 
-        val uiStates = viewModel.createBookmarkUiState.take(2).toList()
-        assertTrue(uiStates[1] is BookmarkListViewModel.CreateBookmarkUiState.Error)
-        assertEquals(
-            errorMessage,
-            (uiStates[1] as BookmarkListViewModel.CreateBookmarkUiState.Error).message
-        )
+        io.mockk.verify { CreateBookmarkWorker.enqueue(workManager, url, title, emptyList(), true) }
+        assertTrue(viewModel.createBookmarkUiState.value is BookmarkListViewModel.CreateBookmarkUiState.Success)
     }
 
     @Test

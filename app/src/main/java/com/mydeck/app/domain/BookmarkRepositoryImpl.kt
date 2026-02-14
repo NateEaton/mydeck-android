@@ -20,6 +20,7 @@ import com.mydeck.app.io.db.model.BookmarkEntity
 import com.mydeck.app.io.db.model.PendingActionEntity
 import com.mydeck.app.io.db.model.ProgressPayload
 import com.mydeck.app.io.db.model.LabelsPayload
+import com.mydeck.app.io.db.model.TitlePayload
 import com.mydeck.app.io.db.model.RemoteBookmarkIdEntity
 import com.mydeck.app.io.db.model.TogglePayload
 import com.mydeck.app.io.db.model.BookmarkListItemEntity
@@ -228,6 +229,7 @@ class BookmarkRepositoryImpl @Inject constructor(
                         ActionType.TOGGLE_READ -> local?.let { mergedBookmark.copy(readProgress = it.readProgress) } ?: mergedBookmark
                         ActionType.UPDATE_PROGRESS -> local?.let { mergedBookmark.copy(readProgress = it.readProgress) } ?: mergedBookmark
                         ActionType.UPDATE_LABELS -> local?.let { mergedBookmark.copy(labels = it.labels) } ?: mergedBookmark
+                        ActionType.UPDATE_TITLE -> local?.let { mergedBookmark.copy(title = it.title) } ?: mergedBookmark
                         ActionType.DELETE -> mergedBookmark.copy(isLocalDeleted = true)
                     }
                 }
@@ -421,6 +423,7 @@ class BookmarkRepositoryImpl @Inject constructor(
             is TogglePayload -> json.encodeToString(TogglePayload.serializer(), payload)
             is ProgressPayload -> json.encodeToString(ProgressPayload.serializer(), payload)
             is LabelsPayload -> json.encodeToString(LabelsPayload.serializer(), payload)
+            is TitlePayload -> json.encodeToString(TitlePayload.serializer(), payload)
             else -> null
         }
 
@@ -437,6 +440,20 @@ class BookmarkRepositoryImpl @Inject constructor(
                 )
             )
         }
+    }
+
+    override suspend fun updateTitle(
+        bookmarkId: String,
+        title: String
+    ): BookmarkRepository.UpdateResult {
+        withContext(dispatcher) {
+            database.performTransaction {
+                bookmarkDao.updateTitle(bookmarkId, title)
+                upsertPendingAction(bookmarkId, ActionType.UPDATE_TITLE, TitlePayload(title))
+            }
+            ActionSyncWorker.enqueue(workManager)
+        }
+        return BookmarkRepository.UpdateResult.Success
     }
 
     override suspend fun updateLabels(
@@ -620,6 +637,11 @@ class BookmarkRepositoryImpl @Inject constructor(
             ActionType.UPDATE_LABELS -> {
                 val payload = json.decodeFromString<LabelsPayload>(action.payload!!)
                 val response = readeckApi.editBookmark(action.bookmarkId, EditBookmarkDto(labels = payload.labels))
+                handleSyncApiResponse(action.bookmarkId, response)
+            }
+            ActionType.UPDATE_TITLE -> {
+                val payload = json.decodeFromString<TitlePayload>(action.payload!!)
+                val response = readeckApi.editBookmark(action.bookmarkId, EditBookmarkDto(title = payload.title))
                 handleSyncApiResponse(action.bookmarkId, response)
             }
             ActionType.DELETE -> {

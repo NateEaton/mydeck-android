@@ -23,6 +23,7 @@ import com.mydeck.app.io.prefs.SettingsDataStore
 import com.mydeck.app.util.extractUrlAndTitle
 import com.mydeck.app.util.isValidUrl
 import com.mydeck.app.util.MAX_TITLE_LENGTH
+import com.mydeck.app.worker.CreateBookmarkWorker
 import com.mydeck.app.worker.LoadBookmarksWorker
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.CoroutineExceptionHandler
@@ -48,7 +49,7 @@ import javax.inject.Inject
 class BookmarkListViewModel @Inject constructor(
     private val updateBookmarkUseCase: UpdateBookmarkUseCase,
     private val fullSyncUseCase: FullSyncUseCase,
-    workManager: WorkManager,
+    private val workManager: WorkManager,
     private val bookmarkRepository: BookmarkRepository,
     @ApplicationContext private val context: Context,
     private val settingsDataStore: SettingsDataStore,
@@ -572,24 +573,75 @@ class BookmarkListViewModel @Inject constructor(
     }
 
     fun createBookmark() {
-        viewModelScope.launch {
-            val url = (_createBookmarkUiState.value as CreateBookmarkUiState.Open).url
-            val title = (_createBookmarkUiState.value as CreateBookmarkUiState.Open).title
-            val labels = (_createBookmarkUiState.value as CreateBookmarkUiState.Open).labels
+        handleCreateBookmarkAction(SaveAction.ADD)
+    }
 
-            _createBookmarkUiState.value = CreateBookmarkUiState.Loading
-            try {
-                bookmarkRepository.createBookmark(
-                    title = title,
+    fun handleCreateBookmarkAction(action: SaveAction) {
+        val state = _createBookmarkUiState.value as? CreateBookmarkUiState.Open ?: return
+        val url = state.url
+        val title = state.title
+        val labels = state.labels
+
+        when (action) {
+            SaveAction.ADD -> {
+                CreateBookmarkWorker.enqueue(
+                    workManager = workManager,
                     url = url,
-                    labels = labels
+                    title = title,
+                    labels = labels,
+                    isArchived = false
                 )
                 _createBookmarkUiState.value = CreateBookmarkUiState.Success
-            } catch (e: Exception) {
-                _createBookmarkUiState.value =
-                    CreateBookmarkUiState.Error(e.message ?: "Unknown error")
+            }
+            SaveAction.ARCHIVE -> {
+                CreateBookmarkWorker.enqueue(
+                    workManager = workManager,
+                    url = url,
+                    title = title,
+                    labels = labels,
+                    isArchived = true
+                )
+                _createBookmarkUiState.value = CreateBookmarkUiState.Success
+            }
+            SaveAction.VIEW -> {
+                _createBookmarkUiState.value = CreateBookmarkUiState.Loading
+                viewModelScope.launch {
+                    try {
+                        val bookmarkId = bookmarkRepository.createBookmark(
+                            title = title,
+                            url = url,
+                            labels = labels
+                        )
+                        // Wait for bookmark to reach a terminal state before navigating,
+                        // otherwise the detail screen shows Original mode with no content.
+                        waitForBookmarkReady(bookmarkId)
+                        _createBookmarkUiState.value = CreateBookmarkUiState.Success
+                        _navigationEvent.value = NavigationEvent.NavigateToBookmarkDetail(bookmarkId)
+                    } catch (e: Exception) {
+                        _createBookmarkUiState.value =
+                            CreateBookmarkUiState.Error(e.message ?: "Unknown error")
+                    }
+                }
             }
         }
+    }
+
+    private suspend fun waitForBookmarkReady(bookmarkId: String) {
+        val maxAttempts = 30
+        val delayMs = 2000L
+        for (i in 1..maxAttempts) {
+            try {
+                val bookmark = bookmarkRepository.getBookmarkById(bookmarkId)
+                if (bookmark.state != com.mydeck.app.domain.model.Bookmark.State.LOADING) {
+                    Timber.d("Bookmark ready after $i polls (state=${bookmark.state})")
+                    return
+                }
+            } catch (e: Exception) {
+                Timber.w(e, "Poll attempt $i failed for $bookmarkId")
+            }
+            delay(delayMs)
+        }
+        Timber.w("Timed out waiting for bookmark $bookmarkId to be ready")
     }
 
     fun onLayoutModeSelected(mode: LayoutMode) {

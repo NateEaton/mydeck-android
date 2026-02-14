@@ -287,6 +287,17 @@ class BookmarkDetailViewModel @Inject constructor(
         }
     }
 
+    fun onUpdateTitle(bookmarkId: String, title: String) {
+        updateBookmark {
+            val result = bookmarkRepository.updateTitle(bookmarkId, title)
+            when (result) {
+                is BookmarkRepository.UpdateResult.Success -> UpdateBookmarkUseCase.Result.Success
+                is BookmarkRepository.UpdateResult.Error -> UpdateBookmarkUseCase.Result.GenericError(result.errorMessage)
+                is BookmarkRepository.UpdateResult.NetworkError -> UpdateBookmarkUseCase.Result.NetworkError(result.errorMessage)
+            }
+        }
+    }
+
     fun onUpdateLabels(bookmarkId: String, labels: List<String>) {
         updateBookmark {
             // For now, we'll handle labels through the repository directly
@@ -565,7 +576,6 @@ class BookmarkDetailViewModel @Inject constructor(
             appendLine("ID: ${bookmark.id}")
             appendLine("State: ${bookmark.state}")
             appendLine("Loaded: ${bookmark.loaded}")
-            appendLine("Has Article: ${bookmark.hasArticle}")
             appendLine("Is Deleted: ${bookmark.isDeleted}")
             appendLine()
             appendLine("Timestamps:")
@@ -595,9 +605,20 @@ class BookmarkDetailViewModel @Inject constructor(
             appendLine("  Read Progress: ${bookmark.readProgress}%")
             appendLine("  Embed: ${bookmark.embed ?: "N/A"}")
             appendLine("  Embed Hostname: ${bookmark.embedHostname ?: "N/A"}")
-            appendLine("  Has Article Content: ${bookmark.articleContent != null}")
+            appendLine("  Has Article (server): ${bookmark.hasArticle}")
+            appendLine("  Content State: ${bookmark.contentState}")
+            if (bookmark.contentFailureReason != null) {
+                appendLine("  Content Failure Reason: ${bookmark.contentFailureReason}")
+            }
+            appendLine("  Has Local Article Content: ${bookmark.articleContent != null}")
             if (bookmark.articleContent != null) {
                 appendLine("  Article Content Length: ${bookmark.articleContent.length} chars")
+                val preview = bookmark.articleContent.take(200)
+                    .replace(Regex("<[^>]*>"), "")
+                    .replace(Regex("\\s+"), " ")
+                    .trim()
+                    .take(100)
+                appendLine("  Content Preview: $preview")
             }
             appendLine()
             appendLine("Metadata:")

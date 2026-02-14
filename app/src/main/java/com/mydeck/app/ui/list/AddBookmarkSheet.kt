@@ -42,6 +42,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.input.pointer.pointerInput
 import com.mydeck.app.R
 import kotlinx.coroutines.delay
 
@@ -92,6 +93,14 @@ fun AddBookmarkSheet(
         modifier = Modifier
             .fillMaxWidth()
             .imePadding()
+            .pointerInput(autoSaveCancelled) {
+                awaitPointerEventScope {
+                    while (true) {
+                        awaitPointerEvent()
+                        cancelAutoSave()
+                    }
+                }
+            }
             .verticalScroll(scrollState)
             .padding(horizontal = 16.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
@@ -191,57 +200,38 @@ fun AddBookmarkSheet(
 
         Spacer(modifier = Modifier.size(4.dp))
 
-        // Action buttons
-        if (mode == SheetMode.SHARE_INTENT) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+        // Action buttons — same layout for both modes
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            OutlinedButton(
+                onClick = {
+                    commitPendingLabels(newLabelInput, labels, onLabelsChange)
+                    newLabelInput = ""
+                    if (onAction != null) onAction.invoke(SaveAction.ARCHIVE) else onCreateBookmark()
+                },
+                enabled = isCreateEnabled
             ) {
+                Text(stringResource(id = R.string.action_archive))
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedButton(
                     onClick = {
                         commitPendingLabels(newLabelInput, labels, onLabelsChange)
                         newLabelInput = ""
-                        onAction?.invoke(SaveAction.ARCHIVE)
+                        if (onAction != null) onAction.invoke(SaveAction.VIEW) else onCreateBookmark()
                     },
                     enabled = isCreateEnabled
                 ) {
-                    Text(stringResource(id = R.string.action_archive))
+                    Text(stringResource(id = R.string.action_view_bookmark))
                 }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(
-                        onClick = {
-                            commitPendingLabels(newLabelInput, labels, onLabelsChange)
-                            newLabelInput = ""
-                            onAction?.invoke(SaveAction.VIEW)
-                        },
-                        enabled = isCreateEnabled
-                    ) {
-                        Text(stringResource(id = R.string.action_view_bookmark))
-                    }
-                    Button(
-                        onClick = {
-                            commitPendingLabels(newLabelInput, labels, onLabelsChange)
-                            newLabelInput = ""
-                            onAction?.invoke(SaveAction.ADD)
-                        },
-                        enabled = isCreateEnabled
-                    ) {
-                        Text(stringResource(id = R.string.add))
-                    }
-                }
-            }
-        } else {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.Center,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
                 Button(
                     onClick = {
                         commitPendingLabels(newLabelInput, labels, onLabelsChange)
                         newLabelInput = ""
-                        onCreateBookmark()
+                        if (onAction != null) onAction.invoke(SaveAction.ADD) else onCreateBookmark()
                     },
                     enabled = isCreateEnabled
                 ) {

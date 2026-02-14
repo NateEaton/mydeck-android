@@ -743,6 +743,7 @@ fun BookmarkListScreen(navHostController: NavHostController) {
                         onUrlChange = { viewModel.updateCreateBookmarkUrl(it) },
                         onLabelsChange = { viewModel.updateCreateBookmarkLabels(it) },
                         onCreateBookmark = { viewModel.createBookmark() },
+                        onAction = { action -> viewModel.handleCreateBookmarkAction(action) },
                         onDismiss = { viewModel.closeCreateBookmarkDialog() }
                     )
                 }
@@ -801,6 +802,7 @@ private fun AddBookmarkBottomSheet(
     onUrlChange: (String) -> Unit,
     onLabelsChange: (List<String>) -> Unit,
     onCreateBookmark: () -> Unit,
+    onAction: (SaveAction) -> Unit,
     onDismiss: () -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -818,7 +820,8 @@ private fun AddBookmarkBottomSheet(
             onUrlChange = onUrlChange,
             onTitleChange = onTitleChange,
             onLabelsChange = onLabelsChange,
-            onCreateBookmark = onCreateBookmark
+            onCreateBookmark = onCreateBookmark,
+            onAction = onAction
         )
     }
 }

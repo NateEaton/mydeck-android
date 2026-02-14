@@ -55,6 +55,7 @@ interface BookmarkRepository {
     fun observeAllBookmarkCounts(): Flow<BookmarkCounts>
     fun observeAllLabelsWithCounts(): Flow<Map<String, Int>>
     fun observePendingActionCount(): Flow<Int>
+    suspend fun updateTitle(bookmarkId: String, title: String): UpdateResult
     suspend fun renameLabel(oldLabel: String, newLabel: String): UpdateResult
     suspend fun deleteLabel(label: String): UpdateResult
     sealed class UpdateResult {

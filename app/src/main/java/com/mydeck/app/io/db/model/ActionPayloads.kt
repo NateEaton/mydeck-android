@@ -11,3 +11,6 @@ data class ProgressPayload(val progress: Int, val timestamp: Instant)
 
 @Serializable
 data class LabelsPayload(val labels: List<String>)
+
+@Serializable
+data class TitlePayload(val title: String)

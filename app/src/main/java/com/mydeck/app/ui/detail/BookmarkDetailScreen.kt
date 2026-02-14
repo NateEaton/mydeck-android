@@ -38,6 +38,7 @@ import androidx.compose.material.icons.outlined.FormatSize
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Grade
 import androidx.compose.material.icons.outlined.Inventory2
+import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.LinearProgressIndicator
@@ -71,6 +72,11 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.stringResource
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.size
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
@@ -239,7 +245,10 @@ fun BookmarkDetailScreen(navHostController: NavController, bookmarkId: String?, 
                 onArticleSearchNext = onArticleSearchNext,
                 onArticleSearchPrevious = onArticleSearchPrevious,
                 onArticleSearchUpdateResults = onArticleSearchUpdateResults,
-                onShowTypographyPanel = { showTypographyPanel = true }
+                onShowTypographyPanel = { showTypographyPanel = true },
+                onTitleChanged = { newTitle ->
+                    viewModel.onUpdateTitle(uiState.bookmark.bookmarkId, newTitle)
+                }
             )
             // Consumes a shareIntent and creates the corresponding share dialog
             ShareBookmarkChooser(
@@ -310,7 +319,8 @@ fun BookmarkDetailScreen(
     onArticleSearchNext: () -> Unit = {},
     onArticleSearchPrevious: () -> Unit = {},
     onArticleSearchUpdateResults: (Int) -> Unit = {},
-    onShowTypographyPanel: () -> Unit = {}
+    onShowTypographyPanel: () -> Unit = {},
+    onTitleChanged: ((String) -> Unit)? = null
 ) {
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -393,7 +403,8 @@ fun BookmarkDetailScreen(
             contentMode = contentMode,
             contentLoadState = contentLoadState,
             articleSearchState = articleSearchState,
-            onArticleSearchUpdateResults = onArticleSearchUpdateResults
+            onArticleSearchUpdateResults = onArticleSearchUpdateResults,
+            onTitleChanged = onTitleChanged
         )
     }
 }
@@ -408,7 +419,8 @@ fun BookmarkDetailContent(
     contentMode: ContentMode = ContentMode.READER,
     contentLoadState: ContentLoadState = ContentLoadState.Idle,
     articleSearchState: BookmarkDetailViewModel.ArticleSearchState = BookmarkDetailViewModel.ArticleSearchState(),
-    onArticleSearchUpdateResults: (Int) -> Unit = {}
+    onArticleSearchUpdateResults: (Int) -> Unit = {},
+    onTitleChanged: ((String) -> Unit)? = null
 ) {
     val scrollState = rememberScrollState()
     val hasArticleContent = uiState.bookmark.articleContent != null
@@ -466,7 +478,8 @@ fun BookmarkDetailContent(
                 BookmarkDetailHeader(
                     modifier = Modifier,
                     uiState = uiState,
-                    onClickOpenUrl = onClickOpenUrl
+                    onClickOpenUrl = onClickOpenUrl,
+                    onTitleChanged = onTitleChanged
                 )
 
                 val hasContent = uiState.bookmark.hasContent
@@ -783,24 +796,91 @@ suspend fun getTemplate(uiState: BookmarkDetailViewModel.UiState.Success, isSyst
 fun BookmarkDetailHeader(
     modifier: Modifier,
     uiState: BookmarkDetailViewModel.UiState.Success,
-    onClickOpenUrl: (String) -> Unit
+    onClickOpenUrl: (String) -> Unit,
+    onTitleChanged: ((String) -> Unit)? = null
 ) {
+    var isEditingTitle by remember { mutableStateOf(false) }
+    var editedTitle by remember(uiState.bookmark.title) { mutableStateOf(uiState.bookmark.title) }
+    val focusRequester = remember { FocusRequester() }
+
     Column(
         modifier = modifier,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         // Header Section Start
         Spacer(modifier = Modifier.height(16.dp))
-        Text(
-            modifier = Modifier
-                .padding(horizontal = 16.dp)
-                .fillMaxWidth(),
-            text = uiState.bookmark.title,
-            style = MaterialTheme.typography.headlineSmall,
-            textAlign = TextAlign.Center,
-            overflow = TextOverflow.Ellipsis,
-            maxLines = 3
-        )
+        if (isEditingTitle && onTitleChanged != null) {
+            Row(
+                modifier = Modifier
+                    .padding(horizontal = 16.dp)
+                    .fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                OutlinedTextField(
+                    value = editedTitle,
+                    onValueChange = { editedTitle = it },
+                    modifier = Modifier
+                        .weight(1f)
+                        .focusRequester(focusRequester),
+                    textStyle = MaterialTheme.typography.headlineSmall.copy(
+                        textAlign = TextAlign.Center
+                    ),
+                    singleLine = false,
+                    maxLines = 3
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                IconButton(
+                    onClick = {
+                        if (editedTitle.isNotBlank() && editedTitle != uiState.bookmark.title) {
+                            onTitleChanged(editedTitle)
+                        }
+                        isEditingTitle = false
+                    },
+                    modifier = Modifier.size(32.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.CheckCircle,
+                        contentDescription = stringResource(R.string.save),
+                        modifier = Modifier.size(24.dp),
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+            LaunchedEffect(Unit) {
+                focusRequester.requestFocus()
+            }
+        } else {
+            Row(
+                modifier = Modifier
+                    .padding(horizontal = 16.dp)
+                    .fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
+            ) {
+                Text(
+                    modifier = Modifier.weight(1f, fill = false),
+                    text = uiState.bookmark.title,
+                    style = MaterialTheme.typography.headlineSmall,
+                    textAlign = TextAlign.Center,
+                    overflow = TextOverflow.Ellipsis,
+                    maxLines = 3
+                )
+                if (onTitleChanged != null) {
+                    Spacer(modifier = Modifier.width(4.dp))
+                    IconButton(
+                        onClick = { isEditingTitle = true },
+                        modifier = Modifier.size(24.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Edit,
+                            contentDescription = stringResource(R.string.edit_title),
+                            modifier = Modifier.size(18.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+        }
         Spacer(modifier = Modifier.height(24.dp))
         // Header Section End
     }
