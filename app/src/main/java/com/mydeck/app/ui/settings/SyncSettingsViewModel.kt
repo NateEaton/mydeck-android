@@ -16,10 +16,6 @@ import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
-import com.google.accompanist.permissions.ExperimentalPermissionsApi
-import com.google.accompanist.permissions.PermissionState
-import com.google.accompanist.permissions.isGranted
-import com.google.accompanist.permissions.shouldShowRationale
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import com.mydeck.app.R
@@ -51,7 +47,6 @@ import java.text.DateFormat
 import java.util.Date
 import javax.inject.Inject
 
-@OptIn(ExperimentalPermissionsApi::class)
 @HiltViewModel
 class SyncSettingsViewModel @Inject constructor(
     private val bookmarkDao: BookmarkDao,
@@ -60,7 +55,6 @@ class SyncSettingsViewModel @Inject constructor(
     private val workManager: WorkManager,
     @ApplicationContext private val context: Context,
 ) : ViewModel() {
-    private var _permissionState: PermissionState? = null
     private val dateFormat = DateFormat.getDateTimeInstance(
         DateFormat.MEDIUM, DateFormat.MEDIUM
     )
@@ -277,10 +271,6 @@ class SyncSettingsViewModel @Inject constructor(
             settingsDataStore.saveContentSyncMode(mode)
             contentSyncMode.value = mode
 
-            // If switching to AUTOMATIC, may need notification permission
-            if (mode == ContentSyncMode.AUTOMATIC) {
-                requestBackgroundPermissionIfNeeded()
-            }
         }
     }
 
@@ -411,9 +401,6 @@ class SyncSettingsViewModel @Inject constructor(
         overrideWifiOnly: Boolean = false,
         overrideBatterySaver: Boolean = false
     ) {
-        // Request permission if needed
-        requestBackgroundPermissionIfNeeded()
-
         // Calculate override flag
         val isOverriding = overrideWifiOnly || overrideBatterySaver
 
@@ -496,28 +483,6 @@ class SyncSettingsViewModel @Inject constructor(
         }
     }
 
-    // --- Permission ---
-
-    private fun requestBackgroundPermissionIfNeeded() {
-        // Notification permission is not needed while notifications are disabled.
-        return
-
-        @Suppress("UNREACHABLE_CODE")
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return
-        val perm = _permissionState ?: return
-        if (perm.status.isGranted) return
-
-        if (perm.status.shouldShowRationale) {
-            showDialog.value = SyncSettingsDialog.BackgroundRationaleDialog
-        } else {
-            showDialog.value = SyncSettingsDialog.PermissionRequest
-        }
-    }
-
-    fun onRationaleDialogConfirm() {
-        showDialog.value = SyncSettingsDialog.PermissionRequest
-    }
-
     // --- Dialog ---
 
     fun onShowDialog(dialog: SyncSettingsDialog) {
@@ -553,11 +518,6 @@ class SyncSettingsViewModel @Inject constructor(
                 selected = it == selected
             )
         }
-    }
-
-    @OptIn(ExperimentalPermissionsApi::class)
-    fun setPermissionState(permissionState: PermissionState) {
-        _permissionState = permissionState
     }
 
     // Internal data classes for combine

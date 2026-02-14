@@ -690,49 +690,41 @@ class BookmarkRepositoryImpl @Inject constructor(
     override suspend fun renameLabel(oldLabel: String, newLabel: String): BookmarkRepository.UpdateResult =
         withContext(dispatcher) {
             try {
-                // Get all bookmarks with the old label
                 val bookmarksWithContent = bookmarkDao.getAllBookmarksWithContent()
                     .filter { bookmark ->
                         bookmark.bookmark.labels.contains(oldLabel)
                     }
 
-                    // Update each bookmark by replacing the old label with the new one
+                database.performTransaction {
                     for (bookmarkWithContent in bookmarksWithContent) {
                         val bookmark = bookmarkWithContent.bookmark
                         val updatedLabels = bookmark.labels.map { label ->
                             if (label == oldLabel) newLabel else label
                         }
-
-                        // Update locally and queue sync
-                        database.performTransaction {
-                            bookmarkDao.updateLabels(bookmark.id, updatedLabels.joinToString(","))
-                            upsertPendingAction(bookmark.id, ActionType.UPDATE_LABELS, LabelsPayload(updatedLabels))
-                        }
+                        bookmarkDao.updateLabels(bookmark.id, updatedLabels.joinToString(","))
+                        upsertPendingAction(bookmark.id, ActionType.UPDATE_LABELS, LabelsPayload(updatedLabels))
                     }
-                    ActionSyncWorker.enqueue(workManager)
-                    BookmarkRepository.UpdateResult.Success
-                } catch (e: Exception) {
-                    Timber.e(e, "Error renaming label")
-                    BookmarkRepository.UpdateResult.Error("Failed to rename label: ${e.message}")
                 }
+                ActionSyncWorker.enqueue(workManager)
+                BookmarkRepository.UpdateResult.Success
+            } catch (e: Exception) {
+                Timber.e(e, "Error renaming label")
+                BookmarkRepository.UpdateResult.Error("Failed to rename label: ${e.message}")
             }
+        }
 
     override suspend fun deleteLabel(label: String): BookmarkRepository.UpdateResult =
         withContext(dispatcher) {
             try {
-                // Get all bookmarks with the label
                 val bookmarksWithContent = bookmarkDao.getAllBookmarksWithContent()
                     .filter { bookmark ->
                         bookmark.bookmark.labels.contains(label)
                     }
 
-                // Update each bookmark by removing the label
-                for (bookmarkWithContent in bookmarksWithContent) {
-                    val bookmark = bookmarkWithContent.bookmark
-                    val updatedLabels = bookmark.labels.filter { it != label }
-
-                    // Update locally and queue sync
-                    database.performTransaction {
+                database.performTransaction {
+                    for (bookmarkWithContent in bookmarksWithContent) {
+                        val bookmark = bookmarkWithContent.bookmark
+                        val updatedLabels = bookmark.labels.filter { it != label }
                         bookmarkDao.updateLabels(bookmark.id, updatedLabels.joinToString(","))
                         upsertPendingAction(bookmark.id, ActionType.UPDATE_LABELS, LabelsPayload(updatedLabels))
                     }

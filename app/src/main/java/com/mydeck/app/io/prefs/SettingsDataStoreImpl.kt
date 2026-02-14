@@ -252,8 +252,7 @@ class SettingsDataStoreImpl @Inject constructor(@ApplicationContext private val 
     private fun getIntFlow(key: String, defaultValue: Int = 100): StateFlow<Int> =
         preferenceFlow(key) { encryptedSharedPreferences.getInt(key, defaultValue) }
 
-    private fun <T> preferenceFlow(key: String, getValue: () -> T): StateFlow<T> { // Create our flow using callbackflow
-        // Emit initial value when we start collecting from this flow (if it exists) or use default one from params in function call above!  This is important so consumers know initial state!  Can skip this and just send updates if you do not need initial state emission on subscribe time!  That could be fine too depending on your use case - remember that!  Also you can send null as the "initial" value as well if you want!
+    private fun <T> preferenceFlow(key: String, getValue: () -> T): StateFlow<T> {
         val state = MutableStateFlow(getValue())
 
         val listener = SharedPreferences.OnSharedPreferenceChangeListener { _, changedKey ->

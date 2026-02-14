@@ -1,7 +1,5 @@
 package com.mydeck.app.ui.settings
 
-import android.Manifest
-import android.os.Build
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -41,7 +39,6 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.remember
@@ -53,8 +50,6 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
-import com.google.accompanist.permissions.ExperimentalPermissionsApi
-import com.google.accompanist.permissions.rememberPermissionState
 import com.mydeck.app.R
 import com.mydeck.app.domain.model.AutoSyncTimeframe
 import com.mydeck.app.domain.sync.ContentSyncMode
@@ -67,7 +62,7 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.atStartOfDayIn
 import kotlinx.datetime.toLocalDateTime
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalPermissionsApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SyncSettingsScreen(
     navHostController: NavHostController
@@ -76,14 +71,6 @@ fun SyncSettingsScreen(
     val settingsUiState = viewModel.uiState.collectAsState().value
     val navigationEvent = viewModel.navigationEvent.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
-
-    val notificationPermissionState = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-        rememberPermissionState(Manifest.permission.POST_NOTIFICATIONS)
-    } else {
-        null
-    }?.also {
-        viewModel.setPermissionState(it)
-    }
 
     LaunchedEffect(key1 = navigationEvent.value) {
         navigationEvent.value?.let { event ->
@@ -105,17 +92,9 @@ fun SyncSettingsScreen(
                 onElementSelected = { viewModel.onBookmarkSyncFrequencySelected(it) }
             )
         }
-        SyncSettingsDialog.BackgroundRationaleDialog -> {
-            BackgroundSyncRationaleDialog(
-                onConfirm = { viewModel.onRationaleDialogConfirm() },
-                onDismiss = { viewModel.onDismissDialog() }
-            )
-        }
+        SyncSettingsDialog.BackgroundRationaleDialog,
         SyncSettingsDialog.PermissionRequest -> {
-            SideEffect {
-                viewModel.onDismissDialog()
-                notificationPermissionState?.launchPermissionRequest()
-            }
+            // Permission dialogs are currently disabled
         }
         SyncSettingsDialog.DateFromPicker -> {
             DatePickerDialogWrapper(

@@ -1,9 +1,6 @@
 package com.mydeck.app
 
 import android.content.Context
-import timber.log.Timber
-import androidx.startup.Initializer
-import androidx.work.Configuration
 import androidx.work.WorkManager
 import dagger.Binds
 import dagger.Module
@@ -67,20 +64,11 @@ abstract class AppModule {
 
 @Module
 @InstallIn(SingletonComponent::class)
-@Suppress("EnsureInitializerMetadata")
-object WorkManagerInitializer : Initializer<WorkManager> {
+object WorkManagerModule {
 
     @Provides
     @Singleton
-    override fun create(@ApplicationContext context: Context): WorkManager {
-        val configuration = Configuration.Builder().build()
-//        WorkManager.initialize(context, configuration)
-        Timber.tag("Hilt Init").d("WorkManager initialized by Hilt this time")
+    fun provideWorkManager(@ApplicationContext context: Context): WorkManager {
         return WorkManager.getInstance(context)
-    }
-
-    override fun dependencies(): List<Class<out Initializer<*>>> {
-        // No dependencies on other libraries.
-        return emptyList()
     }
 }

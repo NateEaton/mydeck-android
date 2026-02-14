@@ -1,17 +1,9 @@
 package com.mydeck.app.worker
 
-import android.Manifest
-import android.app.NotificationChannel
-import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
-import android.content.pm.PackageManager
-import android.os.Build
-import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationCompat
-import androidx.core.app.NotificationManagerCompat
-import androidx.core.content.ContextCompat.getSystemService
 import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.Data
@@ -66,11 +58,9 @@ class FullSyncWorker @AssistedInject constructor(
             // Check if deletion sync failed
             when (syncResult) {
                 is SyncResult.Error -> {
-                    showNotification(syncResult)
                     return Result.failure()
                 }
                 is SyncResult.NetworkError -> {
-                    showNotification(syncResult)
                     return Result.retry()
                 }
                 is SyncResult.Success -> {
@@ -85,13 +75,11 @@ class FullSyncWorker @AssistedInject constructor(
             val workResult = when (loadResult) {
                 is LoadBookmarksUseCase.UseCaseResult.Error -> {
                     Timber.e(loadResult.exception, "Failed to load updated bookmarks")
-                    showNotification(SyncResult.Error("Failed to load bookmarks", ex = loadResult.exception as? Exception))
                     Result.failure()
                 }
                 is LoadBookmarksUseCase.UseCaseResult.Success -> {
                     // Save the current timestamp after successful sync
                     settingsDataStore.saveLastSyncTimestamp(Clock.System.now())
-                    showNotification(syncResult)
                     Result.success(
                         Data.Builder().putInt(OUTPUT_DATA_COUNT, (syncResult as SyncResult.Success).countDeleted).build()
                     )
@@ -105,83 +93,6 @@ class FullSyncWorker @AssistedInject constructor(
     }
 
     private val notificationChannelId = "FullSyncNotificationChannelId"
-
-
-    private fun createNotificationChannel() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-
-            val notificationChannel = NotificationChannel(
-                notificationChannelId,
-                applicationContext.getString(R.string.auto_sync_notification_channel),
-                NotificationManager.IMPORTANCE_DEFAULT,
-            )
-
-            val notificationManager: NotificationManager? =
-                getSystemService(
-                    applicationContext,
-                    NotificationManager::class.java
-                )
-
-            notificationManager?.createNotificationChannel(
-                notificationChannel
-            )
-        }
-    }
-
-    @Suppress("UNREACHABLE_CODE")
-    private suspend fun showNotification(syncResult: SyncResult) {
-        // Notifications for background sync are disabled — sync should be a silent event.
-        // Keeping the rest of the notification code intact for potential future use cases.
-        return
-
-        // Skip notification for manual sync (user triggered from settings page)
-        val isManualSync = inputData.getBoolean(INPUT_IS_MANUAL_SYNC, false)
-        if (isManualSync) {
-            Timber.d("Skipping notification for manual sync")
-            return
-        }
-
-        // Check if notifications are enabled in settings
-        if (!settingsDataStore.isSyncNotificationsEnabled()) {
-            Timber.d("Sync notifications are disabled")
-            return
-        }
-
-        createNotificationChannel()
-
-        val contentText = when (syncResult) {
-            is SyncResult.Success -> {
-                applicationContext.getString(R.string.auto_sync_notification_success)
-            }
-            else -> {
-                applicationContext.getString(R.string.auto_sync_notification_failure)
-            }
-        }
-
-        val notification = NotificationCompat.Builder(
-            applicationContext,
-            notificationChannelId
-        )
-            .setSmallIcon(R.drawable.ic_notification_logo)
-            .setContentTitle(applicationContext.getString(R.string.app_name))
-            .setContentText(contentText)
-            .setAutoCancel(true)
-            .build()
-
-        if (ActivityCompat.checkSelfPermission(
-                applicationContext,
-                Manifest.permission.POST_NOTIFICATIONS
-            )
-            == PackageManager.PERMISSION_GRANTED
-        ) {
-            with(NotificationManagerCompat.from(applicationContext)) {
-                notify(NOTIFICATION_ID, notification)
-            }
-        } else {
-            Timber.w("No permission to show notification")
-        }
-    }
-
 
     override suspend fun getForegroundInfo(): ForegroundInfo {
         val mainActivityIntent = Intent(

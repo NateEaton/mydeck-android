@@ -139,7 +139,7 @@ fun AddBookmarkSheet(
         OutlinedTextField(
             value = url,
             onValueChange = {
-                if (mode == SheetMode.IN_APP) onUrlChange(it)
+                onUrlChange(it)
                 cancelAutoSave()
             },
             isError = urlError != null,
@@ -147,8 +147,6 @@ fun AddBookmarkSheet(
             supportingText = {
                 urlError?.let { Text(text = stringResource(it)) }
             },
-            readOnly = mode == SheetMode.SHARE_INTENT,
-            enabled = mode == SheetMode.IN_APP,
             modifier = Modifier.fillMaxWidth()
         )
 

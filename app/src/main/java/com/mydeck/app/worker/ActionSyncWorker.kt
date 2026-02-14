@@ -7,8 +7,6 @@ import com.mydeck.app.domain.BookmarkRepository
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import javax.inject.Provider
-import timber.log.Timber
-import java.io.IOException
 import java.util.concurrent.TimeUnit
 
 @HiltWorker
@@ -24,10 +22,6 @@ class ActionSyncWorker @AssistedInject constructor(
             is BookmarkRepository.UpdateResult.NetworkError -> Result.retry()
             is BookmarkRepository.UpdateResult.Error -> Result.failure()
         }
-    }
-
-    private fun isTransientError(e: Exception): Boolean {
-        return e is IOException || e.message?.contains("500") == true || e.message?.contains("429") == true || e.message?.contains("408") == true
     }
 
     companion object {
