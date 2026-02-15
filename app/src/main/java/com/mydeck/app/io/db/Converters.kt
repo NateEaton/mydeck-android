@@ -5,6 +5,7 @@ import com.mydeck.app.io.db.model.BookmarkEntity
 import kotlinx.datetime.Instant
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import timber.log.Timber
 
 class Converters {
     private val json = Json { ignoreUnknownKeys = true }
@@ -24,8 +25,15 @@ class Converters {
         if (value.isNullOrEmpty()) return emptyList()
         return try {
             json.decodeFromString<List<String>>(value)
-        } catch (e: Exception) {
-            emptyList()
+        } catch (jsonError: Exception) {
+            // Try CSV fallback for v6 compatibility or data recovery scenarios
+            try {
+                value.split(",").filter { it.isNotEmpty() }
+            } catch (csvError: Exception) {
+                // Log both errors for diagnostics
+                Timber.w(jsonError, "Failed to deserialize labels as JSON, CSV fallback also failed. Value: $value")
+                emptyList()
+            }
         }
     }
 
