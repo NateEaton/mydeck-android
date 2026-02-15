@@ -20,6 +20,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -27,6 +28,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -48,14 +50,14 @@ class BookmarkDetailViewModel @Inject constructor(
     private val loadArticleUseCase: LoadArticleUseCase,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
-    private val _navigationEvent = MutableStateFlow<NavigationEvent?>(null)
-    val navigationEvent: StateFlow<NavigationEvent?> = _navigationEvent.asStateFlow()
+    private val _navigationEvent = Channel<NavigationEvent>(Channel.BUFFERED)
+    val navigationEvent: Flow<NavigationEvent> = _navigationEvent.receiveAsFlow()
 
-    private val _openUrlEvent = MutableStateFlow<String>("")
-    val openUrlEvent = _openUrlEvent.asStateFlow()
+    private val _openUrlEvent = Channel<String>(Channel.BUFFERED)
+    val openUrlEvent: Flow<String> = _openUrlEvent.receiveAsFlow()
 
-    private val _shareIntent = MutableStateFlow<Intent?>(null)
-    val shareIntent: StateFlow<Intent?> = _shareIntent.asStateFlow()
+    private val _shareIntent = Channel<Intent>(Channel.BUFFERED)
+    val shareIntent: Flow<Intent> = _shareIntent.receiveAsFlow()
 
     private val bookmarkId: String? = savedStateHandle["bookmarkId"]
     private val template: Flow<Template?> = settingsDataStore.themeFlow.map {
@@ -351,18 +353,15 @@ class BookmarkDetailViewModel @Inject constructor(
     }
 
     fun onClickShareBookmark(url: String) {
+        viewModelScope.launch {
+            val intent = Intent().apply {
+                action = Intent.ACTION_SEND
+                putExtra(Intent.EXTRA_TEXT, url)
+                type = "text/plain"
+            }
 
-        val intent = Intent().apply {
-            action = Intent.ACTION_SEND
-            putExtra(Intent.EXTRA_TEXT, url)
-            type = "text/plain"
+            _shareIntent.send(intent)
         }
-
-        _shareIntent.value = intent
-    }
-
-    fun onShareIntentConsumed() {
-        _shareIntent.value = null
     }
 
     fun deleteBookmark(bookmarkId: String) {
@@ -381,7 +380,7 @@ class BookmarkDetailViewModel @Inject constructor(
                     is UpdateBookmarkUseCase.Result.NetworkError -> UpdateBookmarkState.Error(result.message)
                 }
                 if (state is UpdateBookmarkState.Success) {
-                    _navigationEvent.update { NavigationEvent.NavigateBack }
+                    _navigationEvent.send(NavigationEvent.NavigateBack)
                 }
                 updateState.value = state
                 _pendingDeletion.value = false
@@ -404,14 +403,16 @@ class BookmarkDetailViewModel @Inject constructor(
     }
 
     fun onClickOpenUrl(url: String){
-         _openUrlEvent.value = url
+        viewModelScope.launch {
+            _openUrlEvent.send(url)
+        }
     }
 
     fun onClickBack() {
         // Save progress before navigating back
         viewModelScope.launch {
             saveCurrentProgress()
-            _navigationEvent.update { NavigationEvent.NavigateBack }
+            _navigationEvent.send(NavigationEvent.NavigateBack)
         }
     }
 
@@ -429,14 +430,6 @@ class BookmarkDetailViewModel @Inject constructor(
         viewModelScope.launch {
             settingsDataStore.saveTypographySettings(settings)
         }
-    }
-
-    fun onNavigationEventConsumed() {
-        _navigationEvent.update { null } // Reset the event
-    }
-
-    fun onOpenUrlEventConsumed() {
-        _openUrlEvent.value = ""
     }
 
     private fun formatLocalDateTimeWithDateFormat(localDateTime: LocalDateTime): String {

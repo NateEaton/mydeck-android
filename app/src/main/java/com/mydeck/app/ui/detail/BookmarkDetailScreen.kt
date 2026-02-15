@@ -1,5 +1,6 @@
 package com.mydeck.app.ui.detail
 
+import android.content.Intent
 import android.icu.text.MessageFormat
 import android.net.Uri
 import android.view.View
@@ -66,6 +67,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.flow.collectLatest
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -100,8 +102,6 @@ import com.mydeck.app.ui.detail.components.*
 @Composable
 fun BookmarkDetailScreen(navHostController: NavController, bookmarkId: String?, showOriginal: Boolean = false) {
     val viewModel: BookmarkDetailViewModel = hiltViewModel()
-    val navigationEvent = viewModel.navigationEvent.collectAsState()
-    val openUrlEvent = viewModel.openUrlEvent.collectAsState()
     val onClickBack: () -> Unit = { viewModel.onClickBack() }
     val onClickToggleFavorite: (String, Boolean) -> Unit =
         { id, isFavorite -> viewModel.onToggleFavorite(id, isFavorite) }
@@ -169,20 +169,20 @@ fun BookmarkDetailScreen(navHostController: NavController, bookmarkId: String?, 
         }
     }
 
-    LaunchedEffect(key1 = navigationEvent.value) {
-        navigationEvent.value?.let { event ->
+    LaunchedEffect(Unit) {
+        viewModel.navigationEvent.collectLatest { event ->
             when (event) {
                 is BookmarkDetailViewModel.NavigationEvent.NavigateBack -> {
                     navHostController.popBackStack()
                 }
             }
-            viewModel.onNavigationEventConsumed() // Consume the event
         }
     }
 
-    LaunchedEffect(key1 = openUrlEvent.value){
-        openUrlInCustomTab(context, openUrlEvent.value)
-        viewModel.onOpenUrlEventConsumed()
+    LaunchedEffect(Unit) {
+        viewModel.openUrlEvent.collectLatest { url ->
+            openUrlInCustomTab(context, url)
+        }
     }
 
     when (uiState) {
@@ -251,12 +251,14 @@ fun BookmarkDetailScreen(navHostController: NavController, bookmarkId: String?, 
                     viewModel.onUpdateTitle(uiState.bookmark.bookmarkId, newTitle)
                 }
             )
-            // Consumes a shareIntent and creates the corresponding share dialog
-            ShareBookmarkChooser(
-                context = LocalContext.current,
-                intent = viewModel.shareIntent.collectAsState().value,
-                onShareIntentConsumed = { viewModel.onShareIntentConsumed() }
-            )
+
+            // Handle share intent events
+            LaunchedEffect(Unit) {
+                viewModel.shareIntent.collectLatest { intent ->
+                    val chooser = Intent.createChooser(intent, null)
+                    context.startActivity(chooser)
+                }
+            }
             if (showDetailsDialog) {
                 BookmarkDetailsDialog(
                     bookmark = uiState.bookmark,
