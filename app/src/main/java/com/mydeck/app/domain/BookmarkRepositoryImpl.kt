@@ -1,10 +1,5 @@
 package com.mydeck.app.domain
 
-import androidx.work.Constraints
-import androidx.work.Data
-import androidx.work.NetworkType
-import androidx.work.OneTimeWorkRequestBuilder
-import androidx.work.WorkManager
 import com.mydeck.app.coroutine.ApplicationScope
 import com.mydeck.app.coroutine.IoDispatcher
 import com.mydeck.app.domain.mapper.toDomain
@@ -32,8 +27,7 @@ import com.mydeck.app.io.rest.model.EditBookmarkErrorDto
 import com.mydeck.app.io.rest.model.StatusMessageDto
 import com.mydeck.app.io.rest.model.SyncContentRequestDto
 import com.mydeck.app.io.rest.model.EditBookmarkResponseDto
-import com.mydeck.app.worker.LoadArticleWorker
-import com.mydeck.app.worker.ActionSyncWorker
+
 import com.mydeck.app.io.db.MyDeckDatabase
 import androidx.room.withTransaction
 import kotlinx.coroutines.CoroutineDispatcher
@@ -59,7 +53,7 @@ class BookmarkRepositoryImpl @Inject constructor(
     private val pendingActionDao: PendingActionDao,
     private val readeckApi: ReadeckApi,
     private val json: Json,
-    private val workManager: WorkManager,
+    private val syncScheduler: com.mydeck.app.domain.sync.SyncScheduler,
     @ApplicationScope
     private val applicationScope: CoroutineScope,
     @IoDispatcher
@@ -212,13 +206,24 @@ class BookmarkRepositoryImpl @Inject constructor(
     }
 
     override suspend fun insertBookmarks(bookmarks: List<Bookmark>) {
+        if (bookmarks.isEmpty()) return
+
+        val bookmarkIds = bookmarks.map { it.id }
+        
+        // Batch fetch pending actions and existing bookmarks
+        val allPendingActions = pendingActionDao.getActionsForBookmarks(bookmarkIds)
+        val actionsByBookmarkId = allPendingActions.groupBy { it.bookmarkId }
+        
+        val existingBookmarks = bookmarkDao.getBookmarksByIds(bookmarkIds)
+        val existingBookmarksById = existingBookmarks.associateBy { it.id }
+
         val mergedBookmarks = bookmarks.map { remote ->
-            val pendingActions = pendingActionDao.getActionsForBookmark(remote.id)
+            val pendingActions = actionsByBookmarkId[remote.id] ?: emptyList()
             if (pendingActions.isEmpty()) {
                 remote.toEntity()
             } else {
                 // Merge: start with remote, but preserve local status for fields with pending actions
-                val local = bookmarkDao.getBookmarkById(remote.id) // This might be null for new bookmarks
+                val local = existingBookmarksById[remote.id]
                 val remoteEntity = remote.toEntity()
                 
                 var mergedBookmark = remoteEntity.bookmark
@@ -348,20 +353,7 @@ class BookmarkRepositoryImpl @Inject constructor(
     }
 
     private fun enqueueArticleDownload(bookmarkId: String) {
-        val request = OneTimeWorkRequestBuilder<LoadArticleWorker>()
-            .setInputData(
-                Data.Builder()
-                    .putString(LoadArticleWorker.PARAM_BOOKMARK_ID, bookmarkId)
-                    .build()
-            )
-            .setConstraints(
-                Constraints.Builder()
-                    .setRequiredNetworkType(NetworkType.CONNECTED)
-                    .build()
-            )
-            .build()
-        workManager.enqueue(request)
-        Timber.d("Article download enqueued for bookmark: $bookmarkId")
+        syncScheduler.scheduleArticleDownload(bookmarkId)
     }
 
     override suspend fun updateBookmark(
@@ -385,7 +377,7 @@ class BookmarkRepositoryImpl @Inject constructor(
                     upsertPendingAction(bookmarkId, ActionType.TOGGLE_READ, TogglePayload(it))
                 }
             }
-            ActionSyncWorker.enqueue(workManager)
+            syncScheduler.scheduleActionSync()
         }
         return BookmarkRepository.UpdateResult.Success
     }
@@ -409,7 +401,7 @@ class BookmarkRepositoryImpl @Inject constructor(
                     )
                 )
             }
-            ActionSyncWorker.enqueue(workManager)
+            syncScheduler.scheduleActionSync()
         }
         return BookmarkRepository.UpdateResult.Success
     }
@@ -451,7 +443,7 @@ class BookmarkRepositoryImpl @Inject constructor(
                 bookmarkDao.updateTitle(bookmarkId, title)
                 upsertPendingAction(bookmarkId, ActionType.UPDATE_TITLE, TitlePayload(title))
             }
-            ActionSyncWorker.enqueue(workManager)
+            syncScheduler.scheduleActionSync()
         }
         return BookmarkRepository.UpdateResult.Success
     }
@@ -469,7 +461,7 @@ class BookmarkRepositoryImpl @Inject constructor(
                 // Queue the sync action
                 upsertPendingAction(bookmarkId, ActionType.UPDATE_LABELS, LabelsPayload(labels))
             }
-            ActionSyncWorker.enqueue(workManager)
+            syncScheduler.scheduleActionSync()
         }
         return BookmarkRepository.UpdateResult.Success
     }
@@ -487,7 +479,7 @@ class BookmarkRepositoryImpl @Inject constructor(
                     ProgressPayload(progress.coerceIn(0, 100), Clock.System.now())
                 )
             }
-            ActionSyncWorker.enqueue(workManager)
+            syncScheduler.scheduleActionSync()
         }
         return BookmarkRepository.UpdateResult.Success
     }
@@ -691,13 +683,20 @@ class BookmarkRepositoryImpl @Inject constructor(
         bookmarkDao.observeAllLabels().map { labelsStringList ->
             val labelCounts = mutableMapOf<String, Int>()
 
-            // Parse each labels string and count occurrences
+            // Labels are now stored as JSON and parsed by Converters
+            // The DAO returns the raw JSON strings, but we need the parsed lists
+            // Actually, we need to change the DAO query to return parsed labels
+            // For now, parse JSON here until we refactor the DAO
             for (labelsString in labelsStringList) {
                 if (labelsString.isNotEmpty()) {
-                    // Split by comma to get individual labels
-                    val labels = labelsString.split(",").map { it.trim() }.filter { it.isNotEmpty() }
-                    for (label in labels) {
-                        labelCounts[label] = (labelCounts[label] ?: 0) + 1
+                    try {
+                        val labels = json.decodeFromString<List<String>>(labelsString)
+                        for (label in labels) {
+                            labelCounts[label] = (labelCounts[label] ?: 0) + 1
+                        }
+                    } catch (e: Exception) {
+                        // Skip malformed label data
+                        Timber.w(e, "Failed to parse labels: $labelsString")
                     }
                 }
             }
@@ -727,7 +726,7 @@ class BookmarkRepositoryImpl @Inject constructor(
                         upsertPendingAction(bookmark.id, ActionType.UPDATE_LABELS, LabelsPayload(updatedLabels))
                     }
                 }
-                ActionSyncWorker.enqueue(workManager)
+                syncScheduler.scheduleActionSync()
                 BookmarkRepository.UpdateResult.Success
             } catch (e: Exception) {
                 Timber.e(e, "Error renaming label")
@@ -751,7 +750,7 @@ class BookmarkRepositoryImpl @Inject constructor(
                         upsertPendingAction(bookmark.id, ActionType.UPDATE_LABELS, LabelsPayload(updatedLabels))
                     }
                 }
-                ActionSyncWorker.enqueue(workManager)
+                syncScheduler.scheduleActionSync()
                 BookmarkRepository.UpdateResult.Success
             } catch (e: Exception) {
                 Timber.e(e, "Error deleting label")

@@ -151,6 +151,9 @@ interface BookmarkDao {
     @Query("SELECT * FROM bookmarks WHERE id = :id AND isLocalDeleted = 0")
     suspend fun getBookmarkById(id: String): BookmarkEntity
 
+    @Query("SELECT * FROM bookmarks WHERE id IN (:ids) AND isLocalDeleted = 0")
+    suspend fun getBookmarksByIds(ids: List<String>): List<BookmarkEntity>
+
     @Query("SELECT * FROM bookmarks WHERE id = :id AND isLocalDeleted = 0")
     fun observeBookmark(id: String): Flow<BookmarkEntity?>
 

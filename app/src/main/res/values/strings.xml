@@ -191,7 +191,7 @@ other{}
     <string name="detail_about">About %1$s</string>
     <string name="detail_words">%1$d words</string>
     <string name="detail_labels">Labels</string>
-    <string name="detail_label_placeholder">Add labels (comma-separated)</string>
+    <string name="detail_label_placeholder">Add label</string>
     <string name="remove_label">Remove label</string>
 
     <!-- Labels View -->

@@ -3,8 +3,12 @@ package com.mydeck.app.io.db
 import androidx.room.TypeConverter
 import com.mydeck.app.io.db.model.BookmarkEntity
 import kotlinx.datetime.Instant
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 
 class Converters {
+    private val json = Json { ignoreUnknownKeys = true }
+
     @TypeConverter
     fun fromTimestamp(value: Long?): Instant? {
         return value?.let { Instant.fromEpochMilliseconds(it) }
@@ -17,12 +21,17 @@ class Converters {
 
     @TypeConverter
     fun fromStringList(value: String?): List<String> {
-        return value?.split(",")?.filter { it.isNotEmpty() } ?: emptyList()
+        if (value.isNullOrEmpty()) return emptyList()
+        return try {
+            json.decodeFromString<List<String>>(value)
+        } catch (e: Exception) {
+            emptyList()
+        }
     }
 
     @TypeConverter
     fun stringListToString(list: List<String>?): String {
-        return list?.joinToString(",") ?: ""
+        return if (list.isNullOrEmpty()) "" else json.encodeToString(list)
     }
 
     @TypeConverter

@@ -226,14 +226,11 @@ fun BookmarkDetailsDialog(
                 onNewLabelChange = { newLabelInput = it },
                 onAddLabel = {
                     if (newLabelInput.isNotBlank()) {
-                        val newLabels = newLabelInput.split(',')
-                            .map { it.trim() }
-                            .filter { it.isNotBlank() && !labels.contains(it) }
-
-                        labels.addAll(newLabels)
-                        newLabelInput = ""
-                        keyboardController?.hide()
-                        if (newLabels.isNotEmpty()) {
+                        val trimmedLabel = newLabelInput.trim()
+                        if (trimmedLabel.isNotEmpty() && !labels.contains(trimmedLabel)) {
+                            labels.add(trimmedLabel)
+                            newLabelInput = ""
+                            keyboardController?.hide()
                             onLabelsUpdate(labels)
                         }
                     }

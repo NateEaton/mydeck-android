@@ -181,11 +181,9 @@ fun AddBookmarkSheet(
             onFocusLabel = cancelAutoSave,
             onAddLabel = {
                 if (newLabelInput.isNotBlank()) {
-                    val newLabels = newLabelInput.split(',')
-                        .map { it.trim() }
-                        .filter { it.isNotBlank() && !labels.contains(it) }
-                    if (newLabels.isNotEmpty()) {
-                        onLabelsChange(labels + newLabels)
+                    val trimmedLabel = newLabelInput.trim()
+                    if (trimmedLabel.isNotEmpty() && !labels.contains(trimmedLabel)) {
+                        onLabelsChange(labels + trimmedLabel)
                     }
                     newLabelInput = ""
                     keyboardController?.hide()
@@ -248,11 +246,9 @@ private fun commitPendingLabels(
     onLabelsChange: (List<String>) -> Unit
 ) {
     if (newLabelInput.isBlank()) return
-    val newLabels = newLabelInput.split(',')
-        .map { it.trim() }
-        .filter { it.isNotBlank() && !labels.contains(it) }
-    if (newLabels.isNotEmpty()) {
-        onLabelsChange(labels + newLabels)
+    val trimmedLabel = newLabelInput.trim()
+    if (trimmedLabel.isNotEmpty() && !labels.contains(trimmedLabel)) {
+        onLabelsChange(labels + trimmedLabel)
     }
 }
 
