@@ -130,8 +130,8 @@ import com.mydeck.app.ui.theme.Typography
 fun BookmarkListScreen(navHostController: NavHostController) {
     val viewModel: BookmarkListViewModel = hiltViewModel()
 
-    val uiState = viewModel.uiState.collectAsState().value
-    val createBookmarkUiState = viewModel.createBookmarkUiState.collectAsState().value
+    val uiState = viewModel.uiState.collectAsState()
+    val createBookmarkUiState = viewModel.createBookmarkUiState.collectAsState()
     val bookmarkCounts = viewModel.bookmarkCounts.collectAsState()
     val labelsWithCounts = viewModel.labelsWithCounts.collectAsState()
 
@@ -142,7 +142,7 @@ fun BookmarkListScreen(navHostController: NavHostController) {
     val layoutMode = viewModel.layoutMode.collectAsState()
     val sortOption = viewModel.sortOption.collectAsState()
     val isOnline = viewModel.isOnline.collectAsState()
-    val pendingActionCount by viewModel.pendingActionCount.collectAsState()
+    val pendingActionCount = viewModel.pendingActionCount.collectAsState()
 
     var showLayoutMenu by remember { androidx.compose.runtime.mutableStateOf(false) }
     var showSortMenu by remember { androidx.compose.runtime.mutableStateOf(false) }
@@ -246,7 +246,7 @@ fun BookmarkListScreen(navHostController: NavHostController) {
                                 modifier = Modifier.size(18.dp),
                                 tint = MaterialTheme.colorScheme.error
                             )
-                        } else if (pendingActionCount > 0) {
+                        } else if (pendingActionCount.value > 0) {
                             Spacer(Modifier.width(8.dp))
                             Icon(
                                 imageVector = Icons.Default.Check, // Or a sync icon if available
