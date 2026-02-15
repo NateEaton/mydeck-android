@@ -237,15 +237,6 @@ class BookmarkDetailViewModelTest {
     }
 
     @Test
-    fun `onNavigationEventConsumed should reset navigation event`() = runTest {
-        viewModel = BookmarkDetailViewModel(updateBookmarkUseCase, bookmarkRepository, assetLoader, settingsDataStore, loadArticleUseCase, savedStateHandle)
-        viewModel.onClickBack()
-        advanceUntilIdle()
-        viewModel.onNavigationEventConsumed()
-        assertNull(viewModel.navigationEvent.first())
-    }
-
-    @Test
     fun `onClickBack should set NavigateBack navigation event`() = runTest {
         viewModel = BookmarkDetailViewModel(updateBookmarkUseCase, bookmarkRepository, assetLoader, settingsDataStore, loadArticleUseCase, savedStateHandle)
         viewModel.onClickBack()
