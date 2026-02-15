@@ -455,8 +455,8 @@ class BookmarkRepositoryImpl @Inject constructor(
         withContext(dispatcher) {
             database.performTransaction {
                 // Update local database with new labels
-                val labelsString = labels.joinToString(",")
-                bookmarkDao.updateLabels(bookmarkId, labelsString)
+                val labelsJson = json.encodeToString(labels)
+                bookmarkDao.updateLabels(bookmarkId, labelsJson)
                 
                 // Queue the sync action
                 upsertPendingAction(bookmarkId, ActionType.UPDATE_LABELS, LabelsPayload(labels))
@@ -722,7 +722,8 @@ class BookmarkRepositoryImpl @Inject constructor(
                         val updatedLabels = bookmark.labels.map { label ->
                             if (label == oldLabel) newLabel else label
                         }
-                        bookmarkDao.updateLabels(bookmark.id, updatedLabels.joinToString(","))
+                        val labelsJson = json.encodeToString(updatedLabels)
+                        bookmarkDao.updateLabels(bookmark.id, labelsJson)
                         upsertPendingAction(bookmark.id, ActionType.UPDATE_LABELS, LabelsPayload(updatedLabels))
                     }
                 }
@@ -746,7 +747,8 @@ class BookmarkRepositoryImpl @Inject constructor(
                     for (bookmarkWithContent in bookmarksWithContent) {
                         val bookmark = bookmarkWithContent.bookmark
                         val updatedLabels = bookmark.labels.filter { it != label }
-                        bookmarkDao.updateLabels(bookmark.id, updatedLabels.joinToString(","))
+                        val labelsJson = json.encodeToString(updatedLabels)
+                        bookmarkDao.updateLabels(bookmark.id, labelsJson)
                         upsertPendingAction(bookmark.id, ActionType.UPDATE_LABELS, LabelsPayload(updatedLabels))
                     }
                 }

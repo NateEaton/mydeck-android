@@ -214,7 +214,7 @@ class BookmarkListViewModel @Inject constructor(
     }
 
     fun onClickMyList() {
-        _filterState.update { FilterState(unread = true) }
+        _filterState.update { FilterState(archived = false) }
     }
 
     fun onClickArchive() {

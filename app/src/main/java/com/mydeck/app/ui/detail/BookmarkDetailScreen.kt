@@ -95,6 +95,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import com.mydeck.app.ui.detail.components.*
 
 @Composable
 fun BookmarkDetailScreen(navHostController: NavController, bookmarkId: String?, showOriginal: Boolean = false) {
@@ -326,72 +327,26 @@ fun BookmarkDetailScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         modifier = modifier,
         topBar = {
-            if (articleSearchState.isActive) {
-                ArticleSearchBar(
-                    query = articleSearchState.query,
-                    currentMatch = articleSearchState.currentMatch,
-                    totalMatches = articleSearchState.totalMatches,
-                    onQueryChange = onArticleSearchQueryChange,
-                    onPreviousMatch = onArticleSearchPrevious,
-                    onNextMatch = onArticleSearchNext,
-                    onClose = onArticleSearchDeactivate
-                )
-            } else {
-                TopAppBar(
-                    title = { },
-                    navigationIcon = {
-                        IconButton(onClick = onClickBack) {
-                            Icon(
-                                Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = stringResource(R.string.back)
-                            )
-                        }
-                    },
-                    actions = {
-                        IconButton(onClick = {
-                            onClickToggleFavorite(uiState.bookmark.bookmarkId, !uiState.bookmark.isFavorite)
-                        }) {
-                            Icon(
-                                imageVector = if (uiState.bookmark.isFavorite) Icons.Filled.Grade else Icons.Outlined.Grade,
-                                contentDescription = stringResource(R.string.action_favorite)
-                            )
-                        }
-                        IconButton(onClick = {
-                            onClickToggleArchive(uiState.bookmark.bookmarkId, !uiState.bookmark.isArchived)
-                        }) {
-                            Icon(
-                                imageVector = if (uiState.bookmark.isArchived) Icons.Filled.Inventory2 else Icons.Outlined.Inventory2,
-                                contentDescription = stringResource(R.string.action_archive)
-                            )
-                        }
-                        if (uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.ARTICLE &&
-                            contentMode == ContentMode.READER) {
-                            IconButton(onClick = { onShowTypographyPanel() }) {
-                                Icon(
-                                    imageVector = Icons.Outlined.FormatSize,
-                                    contentDescription = stringResource(R.string.action_typography_settings)
-                                )
-                            }
-                        }
-                        IconButton(onClick = { onShowDetails() }) {
-                            Icon(
-                                imageVector = Icons.Outlined.Info,
-                                contentDescription = stringResource(R.string.detail_dialog_title)
-                            )
-                        }
-                        BookmarkDetailMenu(
-                            uiState = uiState,
-                            onClickToggleRead = onClickToggleRead,
-                            onClickShareBookmark = onClickShareBookmark,
-                            onClickDeleteBookmark = onClickDeleteBookmark,
-                            onClickSearchInArticle = onArticleSearchActivate,
-                            onClickOpenInBrowser = onClickOpenInBrowser,
-                            contentMode = contentMode,
-                            onContentModeChange = onContentModeChange
-                        )
-                    }
-                )
-            }
+            BookmarkDetailTopBar(
+                articleSearchState = articleSearchState,
+                onArticleSearchQueryChange = onArticleSearchQueryChange,
+                onArticleSearchPrevious = onArticleSearchPrevious,
+                onArticleSearchNext = onArticleSearchNext,
+                onArticleSearchDeactivate = onArticleSearchDeactivate,
+                onClickBack = onClickBack,
+                uiState = uiState,
+                onClickToggleFavorite = onClickToggleFavorite,
+                onClickToggleArchive = onClickToggleArchive,
+                onShowTypographyPanel = onShowTypographyPanel,
+                onShowDetails = onShowDetails,
+                contentMode = contentMode,
+                onClickToggleRead = onClickToggleRead,
+                onClickShareBookmark = onClickShareBookmark,
+                onClickDeleteBookmark = onClickDeleteBookmark,
+                onArticleSearchActivate = onArticleSearchActivate,
+                onClickOpenInBrowser = onClickOpenInBrowser,
+                onContentModeChange = onContentModeChange
+            )
         }
     ) { padding ->
         BookmarkDetailContent(
@@ -464,7 +419,7 @@ fun BookmarkDetailContent(
             // Header is not shown in Original mode - full content experience
             BookmarkDetailOriginalWebView(
                 modifier = Modifier.fillMaxSize(),
-                uiState = uiState
+                url = uiState.bookmark.url
             )
         } else {
             // Reader mode: scrollable Column for article content
@@ -528,544 +483,54 @@ fun BookmarkDetailContent(
 
 
 @Composable
-fun EmptyBookmarkDetailArticle(
-    modifier: Modifier
-) {
-    Text(
-        modifier = modifier,
-        text = stringResource(R.string.detail_view_no_content)
-    )
-}
-
-@Composable
-fun BookmarkDetailArticle(
-    modifier: Modifier,
-    uiState: BookmarkDetailViewModel.UiState.Success,
-    articleSearchState: BookmarkDetailViewModel.ArticleSearchState = BookmarkDetailViewModel.ArticleSearchState(),
-    onArticleSearchUpdateResults: (Int) -> Unit = {}
-) {
-    val isSystemInDarkMode = isSystemInDarkTheme()
-    val content = remember(uiState.bookmark.bookmarkId, isSystemInDarkMode, uiState.template) {
-        mutableStateOf<String?>(null)
-    }
-    val webViewRef = remember { mutableStateOf<WebView?>(null) }
-
-    LaunchedEffect(uiState.bookmark.bookmarkId, isSystemInDarkMode, uiState.template) {
-        content.value = getTemplate(uiState, isSystemInDarkMode)
-        webViewRef.value?.settings?.textZoom = uiState.typographySettings.fontSizePercent
-    }
-
-    // Apply typography settings when they change (non-textZoom properties via JS)
-    LaunchedEffect(uiState.typographySettings) {
-        webViewRef.value?.let { webView ->
-            webView.settings.textZoom = uiState.typographySettings.fontSizePercent
-            // Small delay to let any pending content load finish
-            delay(150)
-            withContext(Dispatchers.Main) {
-                val js = WebViewTypographyBridge.applyTypography(uiState.typographySettings)
-                webView.evaluateJavascript(js, null)
-            }
-        }
-    }
-
-    // Handle search query changes
-    LaunchedEffect(articleSearchState.query) {
-        webViewRef.value?.let { webView ->
-            if (articleSearchState.isActive && articleSearchState.query.isNotEmpty()) {
-                WebViewSearchBridge.searchAndHighlight(webView, articleSearchState.query) { matchCount ->
-                    onArticleSearchUpdateResults(matchCount)
-                }
-            } else if (articleSearchState.query.isEmpty()) {
-                WebViewSearchBridge.clearHighlights(webView)
-                onArticleSearchUpdateResults(0)
-            }
-        }
-    }
-
-    // Handle current match navigation
-    LaunchedEffect(articleSearchState.currentMatch) {
-        webViewRef.value?.let { webView ->
-            if (articleSearchState.isActive &&
-                articleSearchState.currentMatch > 0 &&
-                articleSearchState.totalMatches > 0) {
-                // Convert 1-based index to 0-based for JavaScript
-                WebViewSearchBridge.highlightCurrentMatch(webView, articleSearchState.currentMatch - 1)
-            }
-        }
-    }
-
-    // Clear highlights when search is deactivated
-    LaunchedEffect(articleSearchState.isActive) {
-        if (!articleSearchState.isActive) {
-            webViewRef.value?.let { webView ->
-                WebViewSearchBridge.clearHighlights(webView)
-            }
-        }
-    }
-
-    // Re-apply search when content is reloaded (theme change, etc.)
-    LaunchedEffect(content.value, articleSearchState.query) {
-        if (articleSearchState.isActive &&
-            articleSearchState.query.isNotEmpty() &&
-            content.value != null) {
-            // Delay to ensure WebView has loaded the new content
-            kotlinx.coroutines.delay(100)
-            webViewRef.value?.let { webView ->
-                WebViewSearchBridge.searchAndHighlight(webView, articleSearchState.query) { matchCount ->
-                    onArticleSearchUpdateResults(matchCount)
-                }
-            }
-        }
-    }
-    if (content.value != null) {
-        if (!LocalInspectionMode.current) {
-            AndroidView(
-                modifier = Modifier.padding(0.dp),
-                factory = { context ->
-                    WebView(context).apply {
-                        val isVideo = uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.VIDEO
-                        val isArticle = uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.ARTICLE
-                        settings.javaScriptEnabled = isVideo || isArticle  // Enable JS for articles (needed for search)
-                        settings.domStorageEnabled = isVideo
-                        settings.mediaPlaybackRequiresUserGesture = true
-                        settings.useWideViewPort = false
-                        settings.loadWithOverviewMode = false
-                        setLayerType(View.LAYER_TYPE_HARDWARE, null)
-                        settings.defaultTextEncodingName = "utf-8"
-                        isVerticalScrollBarEnabled = false
-                        isHorizontalScrollBarEnabled = false
-                        settings.textZoom = uiState.typographySettings.fontSizePercent
-
-                        // Intercept link clicks and open in Chrome Custom Tabs
-                        // Apply typography after page finishes loading
-                        webViewClient = object : android.webkit.WebViewClient() {
-                            override fun shouldOverrideUrlLoading(
-                                view: WebView?,
-                                request: android.webkit.WebResourceRequest?
-                            ): Boolean {
-                                val url = request?.url?.toString()
-                                if (url != null) {
-                                    openUrlInCustomTab(context, url)
-                                    return true
-                                }
-                                return false
-                            }
-
-                            override fun onPageFinished(view: WebView?, url: String?) {
-                                super.onPageFinished(view, url)
-                                view?.let {
-                                    val js = WebViewTypographyBridge.applyTypography(uiState.typographySettings)
-                                    it.evaluateJavascript(js, null)
-                                }
-                            }
-                        }
-
-                        webViewRef.value = this
-                    }
-                },
-                update = {
-                    if (content.value != null && it.tag as? String != content.value) {
-                        val baseUrl = if (uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.VIDEO) {
-                            extractEmbedBaseUrl(uiState.bookmark.embed) ?: uiState.bookmark.url
-                        } else {
-                            null
-                        }
-                        it.loadDataWithBaseURL(
-                            baseUrl,
-                            content.value!!,
-                            "text/html",
-                            "utf-8",
-                            null
-                        )
-                        it.tag = content.value
-                    }
-                    // Update reference and zoom
-                    webViewRef.value = it
-                    it.settings.textZoom = uiState.typographySettings.fontSizePercent
-                }
-            )
-        }
-
-    } else {
-        CircularProgressIndicator()
-    }
-}
-
-@Composable
-fun BookmarkDetailOriginalWebView(
-    modifier: Modifier = Modifier,
-    uiState: BookmarkDetailViewModel.UiState.Success
-) {
-    var loadingProgress by remember { mutableStateOf(0) }
-    var httpError by remember { mutableStateOf<Pair<Int, String>?>(null) }
-
-    Column(modifier = modifier) {
-        // Show progress indicator while loading
-        if (loadingProgress < 100 && httpError == null) {
-            LinearProgressIndicator(
-                progress = { loadingProgress / 100f },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(4.dp)
-            )
-        }
-
-        if (httpError != null) {
-            // App-provided error message for HTTP errors
-            val (errorCode, _) = httpError!!
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier.padding(32.dp)
-                ) {
-                    Text(
-                        text = stringResource(R.string.webview_error_title),
-                        style = MaterialTheme.typography.titleMedium,
-                        textAlign = TextAlign.Center
-                    )
-                    Spacer(Modifier.height(8.dp))
-                    Text(
-                        text = stringResource(R.string.webview_error_message, errorCode),
-                        style = MaterialTheme.typography.bodyMedium,
-                        textAlign = TextAlign.Center,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-        } else if (!LocalInspectionMode.current) {
-            AndroidView(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .fillMaxHeight(),
-                factory = { context ->
-                    WebView(context).apply {
-                        settings.javaScriptEnabled = true
-                        settings.domStorageEnabled = true
-                        settings.mediaPlaybackRequiresUserGesture = false
-                        settings.useWideViewPort = true
-                        settings.loadWithOverviewMode = true
-                        setLayerType(View.LAYER_TYPE_HARDWARE, null)
-                        settings.defaultTextEncodingName = "utf-8"
-                        isVerticalScrollBarEnabled = false
-                        isHorizontalScrollBarEnabled = false
-
-                        // Intercept HTTP errors to show app-provided messages
-                        webViewClient = object : android.webkit.WebViewClient() {
-                            override fun onReceivedHttpError(
-                                view: WebView?,
-                                request: android.webkit.WebResourceRequest?,
-                                errorResponse: android.webkit.WebResourceResponse?
-                            ) {
-                                super.onReceivedHttpError(view, request, errorResponse)
-                                // Only handle errors for the main page, not subresources
-                                if (request?.isForMainFrame == true) {
-                                    val code = errorResponse?.statusCode ?: 0
-                                    val description = errorResponse?.reasonPhrase ?: "Unknown error"
-                                    httpError = Pair(code, description)
-                                }
-                            }
-                        }
-
-                        // Track loading progress
-                        webChromeClient = object : android.webkit.WebChromeClient() {
-                            override fun onProgressChanged(view: WebView?, newProgress: Int) {
-                                super.onProgressChanged(view, newProgress)
-                                loadingProgress = newProgress
-                            }
-                        }
-
-                        loadUrl(uiState.bookmark.url)
-                    }
-                }
-            )
-        }
-    }
-}
-
-suspend fun getTemplate(uiState: BookmarkDetailViewModel.UiState.Success, isSystemInDarkMode: Boolean): String? {
-    return withContext(Dispatchers.IO) {
-        uiState.bookmark.getContent(uiState.template, isSystemInDarkMode)
-    }
-}
-
-
-@Composable
-fun BookmarkDetailHeader(
-    modifier: Modifier,
-    uiState: BookmarkDetailViewModel.UiState.Success,
-    onClickOpenUrl: (String) -> Unit,
-    onTitleChanged: ((String) -> Unit)? = null
-) {
-    var isEditingTitle by remember { mutableStateOf(false) }
-    var editedTitle by remember(uiState.bookmark.title) { mutableStateOf(uiState.bookmark.title) }
-    val focusRequester = remember { FocusRequester() }
-
-    Column(
-        modifier = modifier,
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        // Header Section Start
-        Spacer(modifier = Modifier.height(16.dp))
-        if (isEditingTitle && onTitleChanged != null) {
-            Row(
-                modifier = Modifier
-                    .padding(horizontal = 16.dp)
-                    .fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                OutlinedTextField(
-                    value = editedTitle,
-                    onValueChange = { editedTitle = it },
-                    modifier = Modifier
-                        .weight(1f)
-                        .focusRequester(focusRequester),
-                    textStyle = MaterialTheme.typography.headlineSmall.copy(
-                        textAlign = TextAlign.Center
-                    ),
-                    singleLine = false,
-                    maxLines = 3
-                )
-                Spacer(modifier = Modifier.width(4.dp))
-                IconButton(
-                    onClick = {
-                        if (editedTitle.isNotBlank() && editedTitle != uiState.bookmark.title) {
-                            onTitleChanged(editedTitle)
-                        }
-                        isEditingTitle = false
-                    },
-                    modifier = Modifier.size(32.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.CheckCircle,
-                        contentDescription = stringResource(R.string.save),
-                        modifier = Modifier.size(24.dp),
-                        tint = MaterialTheme.colorScheme.primary
-                    )
-                }
-            }
-            LaunchedEffect(Unit) {
-                focusRequester.requestFocus()
-            }
-        } else {
-            Row(
-                modifier = Modifier
-                    .padding(horizontal = 16.dp)
-                    .fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Center
-            ) {
-                Text(
-                    modifier = Modifier.weight(1f, fill = false),
-                    text = uiState.bookmark.title,
-                    style = MaterialTheme.typography.headlineSmall,
-                    textAlign = TextAlign.Center,
-                    overflow = TextOverflow.Ellipsis,
-                    maxLines = 3
-                )
-                if (onTitleChanged != null) {
-                    Spacer(modifier = Modifier.width(4.dp))
-                    IconButton(
-                        onClick = { isEditingTitle = true },
-                        modifier = Modifier.size(24.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Outlined.Edit,
-                            contentDescription = stringResource(R.string.edit_title),
-                            modifier = Modifier.size(18.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-            }
-        }
-        Spacer(modifier = Modifier.height(24.dp))
-        // Header Section End
-    }
-}
-
-@Composable
-fun BookmarkDetailMenu(
-    uiState: BookmarkDetailViewModel.UiState.Success,
-    onClickToggleRead: (String, Boolean) -> Unit,
-    onClickShareBookmark: (String) -> Unit,
-    onClickDeleteBookmark: (String) -> Unit,
-    onClickSearchInArticle: () -> Unit = {},
-    onClickOpenInBrowser: (String) -> Unit = {},
-    contentMode: ContentMode = ContentMode.READER,
-    onContentModeChange: (ContentMode) -> Unit = {}
-) {
-    var expanded by remember { mutableStateOf(false) }
-    val context = LocalContext.current
-
-    Box {
-        IconButton(onClick = { expanded = true }) {
-            Icon(Icons.Filled.MoreVert, contentDescription = "Actions")
-        }
-        DropdownMenu(
-            expanded = expanded,
-            onDismissRequest = { expanded = false }
-        ) {
-            // 1. Find in Article (hidden for photo/video, disabled in Original mode or no content)
-            if (uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.ARTICLE) {
-                val isSearchEnabled = contentMode == ContentMode.READER && uiState.bookmark.hasContent
-
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.action_search_in_article)) },
-                    enabled = isSearchEnabled,
-                    onClick = {
-                        onClickSearchInArticle()
-                        expanded = false
-                    },
-                    leadingIcon = {
-                        Icon(
-                            imageVector = Icons.Outlined.FindInPage,
-                            contentDescription = stringResource(R.string.action_search_in_article),
-                            tint = if (isSearchEnabled) LocalContentColor.current else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
-                        )
-                    }
-                )
-            }
-
-            // 2. View Original/Content toggle for all bookmark types
-            if (uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.ARTICLE ||
-                uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.PHOTO ||
-                uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.VIDEO) {
-
-                val (labelRes, icon) = when {
-                    contentMode == ContentMode.READER -> {
-                        // In Reader mode, show "View Original" with globe icon
-                        Pair(R.string.action_view_original, Icons.Filled.Language)
-                    }
-                    // In Original mode, show type-specific label with type-specific icon
-                    uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.ARTICLE -> {
-                        Pair(R.string.action_view_article, Icons.Outlined.Description)
-                    }
-                    uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.PHOTO -> {
-                        Pair(R.string.action_view_photo, Icons.Filled.Image)
-                    }
-                    else -> { // VIDEO
-                        Pair(R.string.action_view_video, Icons.Filled.Movie)
-                    }
-                }
-
-                val isReaderMode = contentMode == ContentMode.READER
-                val isEnabled = if (isReaderMode) true else uiState.bookmark.hasContent
-
-                DropdownMenuItem(
-                    text = { Text(stringResource(labelRes)) },
-                    enabled = isEnabled,
-                    onClick = {
-                        val newMode = if (contentMode == ContentMode.READER) ContentMode.ORIGINAL else ContentMode.READER
-                        onContentModeChange(newMode)
-                        expanded = false
-                    },
-                    leadingIcon = {
-                        Icon(
-                            imageVector = icon,
-                            contentDescription = stringResource(labelRes),
-                            tint = if (isEnabled) LocalContentColor.current else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
-                        )
-                    }
-                )
-            }
-
-            // 3. Open in Browser
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.action_open_in_browser)) },
-                onClick = {
-                    onClickOpenInBrowser(uiState.bookmark.url)
-                    expanded = false
-                },
-                leadingIcon = {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.OpenInNew,
-                        contentDescription = stringResource(R.string.action_open_in_browser)
-                    )
-                }
-            )
-
-            // 4. Share Link
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.action_share)) },
-                onClick = {
-                    onClickShareBookmark(uiState.bookmark.url)
-                    expanded = false
-                },
-                leadingIcon = {
-                    Icon(
-                        imageVector = Icons.Outlined.Share,
-                        contentDescription = stringResource(R.string.action_share)
-                    )
-                }
-            )
-
-            // 5. Is Read
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.action_is_read)) },
-                onClick = {
-                    onClickToggleRead(uiState.bookmark.bookmarkId, !uiState.bookmark.isRead)
-                    expanded = false
-                },
-                leadingIcon = {
-                    Icon(
-                        imageVector = if (uiState.bookmark.isRead) Icons.Filled.CheckCircle else Icons.Outlined.CheckCircle,
-                        contentDescription = stringResource(R.string.action_is_read)
-                    )
-                }
-            )
-
-            // 6. Delete
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.action_delete)) },
-                onClick = {
-                    onClickDeleteBookmark(uiState.bookmark.bookmarkId)
-                    expanded = false
-                },
-                leadingIcon = {
-                    Icon(
-                        Icons.Filled.Delete,
-                        contentDescription = stringResource(R.string.action_delete)
-                    )
-                }
-            )
-        }
-    }
-}
-
-@Composable
 fun BookmarkDetailErrorScreen() {
     Box(
         modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.Center
     ) {
-        Text(stringResource(R.string.error_no_article_content))
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.padding(32.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Outlined.Info,
+                contentDescription = null,
+                modifier = Modifier.size(48.dp),
+                tint = MaterialTheme.colorScheme.error
+            )
+            androidx.compose.foundation.layout.Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = stringResource(R.string.an_error_occurred),
+                style = MaterialTheme.typography.titleMedium,
+                textAlign = TextAlign.Center
+            )
+        }
     }
 }
 
-@Preview(showBackground = true)
+@Preview
 @Composable
 fun BookmarkDetailScreenPreview() {
-    BookmarkDetailScreen(
-        modifier = Modifier,
-        snackbarHostState = SnackbarHostState(),
-        onClickBack = {},
-        onClickDeleteBookmark = {},
-        onClickToggleFavorite = { _, _ -> },
-        onClickToggleRead = { _, _ -> },
-        onClickShareBookmark = {_ -> },
-        onClickToggleArchive = { _, _ -> },
-        uiState = BookmarkDetailViewModel.UiState.Success(
-            bookmark = sampleBookmark,
-            updateBookmarkState = null,
-            template = Template.SimpleTemplate("template"),
-            zoomFactor = 100,
-            typographySettings = com.mydeck.app.domain.model.TypographySettings()
-        ),
-        onClickOpenUrl = {}
-    )
+    MaterialTheme {
+        BookmarkDetailScreen(
+            modifier = Modifier,
+            snackbarHostState = SnackbarHostState(),
+            onClickBack = {},
+            uiState = BookmarkDetailViewModel.UiState.Success(
+                bookmark = sampleBookmark,
+                updateBookmarkState = null,
+                template = Template.SimpleTemplate("template"),
+                zoomFactor = 100,
+                typographySettings = com.mydeck.app.domain.model.TypographySettings()
+            ),
+            onClickToggleFavorite = { _, _ -> },
+            onClickToggleArchive = { _, _ -> },
+            onClickToggleRead = { _, _ -> },
+            onClickDeleteBookmark = { },
+            onClickOpenUrl = { },
+            onClickShareBookmark = { }
+        )
+    }
 }
 
 @Preview
@@ -1092,22 +557,6 @@ private fun BookmarkDetailContentErrorPreview() {
     Surface {
         BookmarkDetailErrorScreen()
     }
-}
-
-@Preview(showBackground = true)
-@Composable
-private fun BookmarkDetailHeaderPreview() {
-    BookmarkDetailHeader(
-        modifier = Modifier,
-        uiState = BookmarkDetailViewModel.UiState.Success(
-            bookmark = sampleBookmark,
-            updateBookmarkState = null,
-            template = Template.SimpleTemplate("template"),
-            zoomFactor = 100,
-            typographySettings = com.mydeck.app.domain.model.TypographySettings()
-        ),
-        onClickOpenUrl = {}
-    )
 }
 
 
@@ -1137,30 +586,3 @@ private val sampleBookmark = BookmarkDetailViewModel.Bookmark(
     hasContent = true
 )
 
-enum class ContentMode {
-    READER,
-    ORIGINAL
-}
-
-/**
- * Extracts a base URL from an iframe's src attribute in embed HTML.
- * Returns scheme://host/ or null if parsing fails.
- */
-private fun extractEmbedBaseUrl(embedHtml: String?): String? {
-    if (embedHtml.isNullOrBlank()) return null
-    val srcRegex = Regex("""<iframe[^>]+src\s*=\s*["']([^"']+)["']""", RegexOption.IGNORE_CASE)
-    val match = srcRegex.find(embedHtml) ?: return null
-    val iframeSrc = match.groupValues[1]
-    return try {
-        val uri = Uri.parse(iframeSrc)
-        val scheme = uri.scheme
-        val host = uri.host
-        if (!scheme.isNullOrBlank() && !host.isNullOrBlank()) {
-            "$scheme://$host/"
-        } else {
-            null
-        }
-    } catch (_: Exception) {
-        null
-    }
-}

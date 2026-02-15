@@ -170,10 +170,13 @@ fun BookmarkDetailsDialog(
             }
 
             // Authors
-            if (bookmark.authors.isNotEmpty()) {
+            val filteredAuthors = bookmark.authors.filter { 
+                it.isNotBlank() && it != "false" && it != "null"
+            }
+            if (filteredAuthors.isNotEmpty()) {
                 MetadataFieldWithIcon(
                     icon = Icons.Filled.Person,
-                    value = bookmark.authors.joinToString(", "),
+                    value = filteredAuthors.joinToString(", "),
                     contentDescription = stringResource(R.string.detail_author)
                 )
             }
