@@ -110,6 +110,7 @@ Phase 0 ──→ Phase 1 ──→ Phase 2 ──→ Phase 3 ──→ Phase 4 
 - Drawer content is extracted from `BookmarkListScreen` into a shared `AppDrawerContent` composable
 - `BookmarkListScreen` loses its drawer and scaffold; it becomes pure content
 - Top bar management moves to the shell (with per-route customization via callbacks or state)
+- **White flash fix:** The persistent themed Scaffold wrapping the NavHost ensures a consistent background color is always rendered, eliminating the white flash visible during screen transitions (the flash occurs because the NavHost briefly renders empty/default background between destinations when no outer Scaffold exists)
 
 **Files impacted:**
 - `MainActivity.kt` — NavHost restructured inside new AppShell
@@ -138,6 +139,7 @@ Phase 0 ──→ Phase 1 ──→ Phase 2 ──→ Phase 3 ──→ Phase 4 
 - [ ] Deep link to BookmarkDetail still works
 - [ ] Share intent flow still works
 - [ ] No visual changes to the user (pixel-identical behavior)
+- [ ] No white flash between screen transitions (themed background always visible)
 
 ---
 
@@ -151,6 +153,7 @@ Phase 0 ──→ Phase 1 ──→ Phase 2 ──→ Phase 3 ──→ Phase 4 
 - Switch TopAppBar → `CenterAlignedTopAppBar` on main screens
 - Standardize drawer header typography
 - Add `contentPadding` to Settings `LazyColumn` for gesture bar
+- **Label chip parity across card variants:** Currently only Mosaic cards show label chips. Add tappable label chips to Grid cards (space permitting). For Compact cards, use a single truncated chip or omit — the FilterBar (Phase 4) will make active label state visible regardless of card variant. This ensures labels are tappable entry points to filtering across all view modes.
 - Quick wins from the M3 Review checklist
 
 **Files impacted:**
@@ -158,7 +161,7 @@ Phase 0 ──→ Phase 1 ──→ Phase 2 ──→ Phase 3 ──→ Phase 4 
 - `AccountSettingsScreen.kt` — same
 - `UiSettingsScreen.kt` — same
 - `SyncSettingsScreen.kt` — same
-- `BookmarkCard.kt` — Mosaic contrast fix
+- `BookmarkCard.kt` — Mosaic contrast fix, label chip additions to Grid/Compact variants
 - `BookmarkListScreen.kt` — TopAppBar update, drawer header
 - `BookmarkDetailTopBar.kt` — TopAppBar type
 
@@ -176,6 +179,8 @@ Phase 0 ──→ Phase 1 ──→ Phase 2 ──→ Phase 3 ──→ Phase 4 
 - [ ] Mosaic cards pass WCAG AA contrast on bright images
 - [ ] TopAppBar is `CenterAlignedTopAppBar` on BookmarkList
 - [ ] No custom `Row` layouts remain in Settings
+- [ ] Label chips appear on Grid cards (tappable, triggering label filter)
+- [ ] Compact cards show a single truncated label chip or gracefully omit if no space
 - [ ] Quick wins checklist items from M3 Review are complete
 
 ---
@@ -340,6 +345,7 @@ data class FilterState(
 - Refactor `AppShell` to swap navigation component based on size class
 - Wrap BookmarkList + BookmarkDetail in `ListDetailPaneScaffold` for expanded
 - Constrain reader content width on medium/expanded
+- **Reader width / typography controls interaction:** The existing user typography settings (text width %, font size, line spacing in `TypographySettings`) must compose correctly with the adaptive `widthIn(max)` constraint. The `max` container width sets the outer bound; the user's text width % setting should operate *within* that bound. Verify behavior across compact (no outer constraint), medium (720dp max), and expanded detail pane (~60% of screen). Test in both portrait and landscape orientations.
 - Refactor `VerticalScrollbar` to accept `ScrollableState` (for grid compatibility)
 
 **Files impacted:**
@@ -374,6 +380,8 @@ data class FilterState(
 - [ ] Selecting a bookmark on expanded loads detail in adjacent pane
 - [ ] Back button behavior correct on all form factors
 - [ ] Reader content has max-width constraint on medium/expanded
+- [ ] User typography settings (text width %, font size, line spacing) work correctly within adaptive width constraints across all size classes and orientations
+- [ ] No text overflow or squashing when switching between portrait and landscape on tablet
 - [ ] Labels sheet adapts (bottom sheet on compact, side sheet on expanded)
 - [ ] Filter UI works correctly in both pane and full-screen modes
 
