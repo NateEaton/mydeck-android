@@ -103,8 +103,8 @@ fun BookmarkDetailHeader(
                         Icon(
                             imageVector = Icons.Outlined.Edit,
                             contentDescription = stringResource(R.string.edit_title),
-                            modifier = Modifier.size(16.dp).padding(start = 4.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                            modifier = Modifier.size(20.dp).padding(start = 8.dp),
+                            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)
                         )
                     }
                 }
