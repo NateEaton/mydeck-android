@@ -256,7 +256,7 @@ fun BookmarkListScreen(navHostController: NavHostController) {
                             )
                             Spacer(Modifier.width(4.dp))
                             Text(
-                                text = pendingActionCount.toString(),
+                                text = pendingActionCount.value.toString(),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.secondary
                             )

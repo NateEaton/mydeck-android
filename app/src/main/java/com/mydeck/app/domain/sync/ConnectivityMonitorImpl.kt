@@ -26,7 +26,9 @@ class ConnectivityMonitorImpl @Inject constructor(
     override fun isNetworkAvailable(): Boolean {
         val network = connectivityManager.activeNetwork ?: return false
         val capabilities = connectivityManager.getNetworkCapabilities(network) ?: return false
-        return capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+        // NET_CAPABILITY_VALIDATED means Android has verified actual connectivity,
+        // not just that the network claims to have internet (NET_CAPABILITY_INTERNET)
+        return capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
     }
 
     override fun isOnWifi(): Boolean {

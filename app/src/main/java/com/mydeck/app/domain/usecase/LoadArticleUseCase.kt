@@ -2,6 +2,7 @@ package com.mydeck.app.domain.usecase
 
 import com.mydeck.app.domain.BookmarkRepository
 import com.mydeck.app.domain.model.Bookmark.ContentState
+import com.mydeck.app.domain.sync.ConnectivityMonitor
 import com.mydeck.app.io.db.dao.BookmarkDao
 import com.mydeck.app.io.db.model.BookmarkEntity
 import com.mydeck.app.io.rest.ReadeckApi
@@ -12,7 +13,8 @@ import javax.inject.Inject
 class LoadArticleUseCase @Inject constructor(
     private val bookmarkRepository: BookmarkRepository,
     private val readeckApi: ReadeckApi,
-    private val bookmarkDao: BookmarkDao
+    private val bookmarkDao: BookmarkDao,
+    private val connectivityMonitor: ConnectivityMonitor
 ) {
     sealed class Result {
         data object Success : Result()
@@ -42,6 +44,11 @@ class LoadArticleUseCase @Inject constructor(
             )
             Timber.i("Bookmark has no article [type=${bookmark.type}]")
             return Result.PermanentFailure("No article content available")
+        }
+
+        // Fail fast when offline to avoid OkHttp's ~10s connect timeout
+        if (!connectivityMonitor.isNetworkAvailable()) {
+            return Result.TransientFailure("Offline")
         }
 
         return try {

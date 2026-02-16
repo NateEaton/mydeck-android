@@ -6,16 +6,22 @@ import android.webkit.WebView
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -23,6 +29,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
@@ -208,10 +215,34 @@ fun BookmarkDetailOriginalWebView(
 ) {
     var loadingProgress by remember { mutableStateOf(0) }
     var httpError by remember { mutableStateOf<Pair<Int, String>?>(null) }
+    // Reactively observe connectivity to detect offline state immediately
+    val context = LocalContext.current
+    val connectivityManager = remember {
+        context.getSystemService(android.content.Context.CONNECTIVITY_SERVICE) as android.net.ConnectivityManager
+    }
+    var isNetworkError by remember {
+        val network = connectivityManager.activeNetwork
+        val isOffline = network == null || connectivityManager.getNetworkCapabilities(network)
+            ?.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_VALIDATED) != true
+        mutableStateOf(isOffline)
+    }
+    // Update reactively when connectivity changes
+    DisposableEffect(connectivityManager) {
+        val callback = object : android.net.ConnectivityManager.NetworkCallback() {
+            override fun onAvailable(network: android.net.Network) {
+                isNetworkError = false
+            }
+            override fun onLost(network: android.net.Network) {
+                isNetworkError = true
+            }
+        }
+        connectivityManager.registerDefaultNetworkCallback(callback)
+        onDispose { connectivityManager.unregisterNetworkCallback(callback) }
+    }
 
     Column(modifier = modifier) {
         // Show progress indicator while loading
-        if (loadingProgress < 100 && httpError == null) {
+        if (loadingProgress < 100 && httpError == null && !isNetworkError) {
             LinearProgressIndicator(
                 progress = { loadingProgress / 100f },
                 modifier = Modifier
@@ -220,7 +251,30 @@ fun BookmarkDetailOriginalWebView(
             )
         }
 
-        if (httpError != null) {
+        if (isNetworkError) {
+            // Offline page - simple icon and message, matching Readeck style
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.CloudOff,
+                        contentDescription = null,
+                        modifier = Modifier.size(48.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        text = stringResource(R.string.webview_offline),
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        } else if (httpError != null) {
             // App-provided error message for HTTP errors
             val (errorCode, _) = httpError!!
             Box(
@@ -236,7 +290,7 @@ fun BookmarkDetailOriginalWebView(
                         style = MaterialTheme.typography.titleMedium,
                         textAlign = TextAlign.Center
                     )
-                    androidx.compose.foundation.layout.Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         text = stringResource(R.string.webview_error_message, errorCode),
                         style = MaterialTheme.typography.bodyMedium,
@@ -262,8 +316,19 @@ fun BookmarkDetailOriginalWebView(
                         isVerticalScrollBarEnabled = false
                         isHorizontalScrollBarEnabled = false
 
-                        // Intercept HTTP errors to show app-provided messages
+                        // Intercept errors to show app-provided messages
                         webViewClient = object : android.webkit.WebViewClient() {
+                            override fun onReceivedError(
+                                view: WebView?,
+                                request: android.webkit.WebResourceRequest?,
+                                error: android.webkit.WebResourceError?
+                            ) {
+                                super.onReceivedError(view, request, error)
+                                if (request?.isForMainFrame == true) {
+                                    isNetworkError = true
+                                }
+                            }
+
                             override fun onReceivedHttpError(
                                 view: WebView?,
                                 request: android.webkit.WebResourceRequest?,
