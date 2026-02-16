@@ -161,9 +161,10 @@ class BookmarkListViewModelTest {
             connectivityMonitor
         )
         viewModel.onClickMyList()
+        advanceUntilIdle()
         assertEquals(
-            BookmarkListViewModel.FilterState(unread = true),
-            viewModel.filterState.first()
+            BookmarkListViewModel.FilterState(archived = false),
+            viewModel.filterState.value
         )
     }
 
@@ -275,13 +276,17 @@ class BookmarkListViewModelTest {
             )
         )
         val bookmarkFlow = MutableStateFlow(expectedBookmarks)
+        // Mock for default filter (archived = false, unread = null)
+        // onClickMyList() sets FilterState(archived = false), same as initial state
         coEvery {
             bookmarkRepository.observeBookmarkListItems(
                 type = null,
-                unread = true,
-                archived = null,
+                unread = null,
+                archived = false,
                 favorite = null,
-                state = null
+                label = null,
+                state = null,
+                orderBy = any()
             )
         } returns bookmarkFlow
 
@@ -537,9 +542,11 @@ class BookmarkListViewModelTest {
                 bookmarkRepository.observeBookmarkListItems(
                     type = null,
                     unread = null,
-                    archived = null,
+                    archived = false,
                     favorite = null,
-                    state = null
+                    label = null,
+                    state = null,
+                    orderBy = any()
                 )
             } returns bookmarkFlow
 
@@ -611,9 +618,11 @@ class BookmarkListViewModelTest {
             bookmarkRepository.observeBookmarkListItems(
                     type = null,
                     unread = null,
-                    archived = null,
+                    archived = false,
                     favorite = null,
-                    state = null
+                    label = null,
+                    state = null,
+                    orderBy = any()
                 )
             } returns bookmarkFlow
 
@@ -671,9 +680,11 @@ class BookmarkListViewModelTest {
                 bookmarkRepository.observeBookmarkListItems(
                     type = null,
                     unread = null,
-                    archived = null,
+                    archived = false,
                     favorite = null,
-                    state = null
+                    label = null,
+                    state = null,
+                    orderBy = any()
                 )
             } returns bookmarkFlow
 
@@ -737,9 +748,11 @@ class BookmarkListViewModelTest {
                 bookmarkRepository.observeBookmarkListItems(
                     type = null,
                     unread = null,
-                    archived = null,
+                    archived = false,
                     favorite = null,
-                    state = null
+                    label = null,
+                    state = null,
+                    orderBy = any()
                 )
             } returns bookmarkFlow
 
@@ -811,9 +824,11 @@ class BookmarkListViewModelTest {
                 bookmarkRepository.observeBookmarkListItems(
                     type = null,
                     unread = null,
-                    archived = null,
+                    archived = false,
                     favorite = null,
-                    state = null
+                    label = null,
+                    state = null,
+                    orderBy = any()
                 )
             } returns bookmarkFlow
 
@@ -871,9 +886,11 @@ class BookmarkListViewModelTest {
                 bookmarkRepository.observeBookmarkListItems(
                     type = null,
                     unread = null,
-                    archived = null,
+                    archived = false,
                     favorite = null,
-                    state = null
+                    label = null,
+                    state = null,
+                    orderBy = any()
                 )
             } returns bookmarkFlow
 
@@ -938,9 +955,11 @@ class BookmarkListViewModelTest {
                 bookmarkRepository.observeBookmarkListItems(
                     type = null,
                     unread = null,
-                    archived = null,
+                    archived = false,
                     favorite = null,
-                    state = null
+                    label = null,
+                    state = null,
+                    orderBy = any()
                 )
             } returns bookmarkFlow
 
@@ -1012,9 +1031,11 @@ class BookmarkListViewModelTest {
                 bookmarkRepository.observeBookmarkListItems(
                     type = null,
                     unread = null,
-                    archived = null,
+                    archived = false,
                     favorite = null,
-                    state = null
+                    label = null,
+                    state = null,
+                    orderBy = any()
                 )
             } returns bookmarkFlow
 
@@ -1072,9 +1093,11 @@ class BookmarkListViewModelTest {
                 bookmarkRepository.observeBookmarkListItems(
                     type = null,
                     unread = null,
-                    archived = null,
+                    archived = false,
                     favorite = null,
-                    state = null
+                    label = null,
+                    state = null,
+                    orderBy = any()
                 )
             } returns bookmarkFlow
 
@@ -1177,7 +1200,7 @@ class BookmarkListViewModelTest {
                 searchQuery = query,
                 type = null,
                 unread = null,
-                archived = null,
+                archived = false,
                 favorite = null,
                 label = null,
                 state = null,
