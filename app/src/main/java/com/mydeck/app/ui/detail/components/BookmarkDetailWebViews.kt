@@ -264,7 +264,7 @@ fun BookmarkDetailOriginalWebView(
                         imageVector = Icons.Default.CloudOff,
                         contentDescription = null,
                         modifier = Modifier.size(48.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        tint = MaterialTheme.colorScheme.error
                     )
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(

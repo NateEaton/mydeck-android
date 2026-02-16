@@ -142,7 +142,7 @@ fun BookmarkListScreen(navHostController: NavHostController) {
     val layoutMode = viewModel.layoutMode.collectAsState()
     val sortOption = viewModel.sortOption.collectAsState()
     val isOnline = viewModel.isOnline.collectAsState()
-    val pendingActionCount = viewModel.pendingActionCount.collectAsState()
+
 
     var showLayoutMenu by remember { androidx.compose.runtime.mutableStateOf(false) }
     var showSortMenu by remember { androidx.compose.runtime.mutableStateOf(false) }
@@ -245,20 +245,6 @@ fun BookmarkListScreen(navHostController: NavHostController) {
                                 contentDescription = stringResource(R.string.offline_tooltip),
                                 modifier = Modifier.size(18.dp),
                                 tint = MaterialTheme.colorScheme.error
-                            )
-                        } else if (pendingActionCount.value > 0) {
-                            Spacer(Modifier.width(8.dp))
-                            Icon(
-                                imageVector = Icons.Default.Check, // Or a sync icon if available
-                                contentDescription = stringResource(R.string.syncing_tooltip),
-                                modifier = Modifier.size(18.dp),
-                                tint = MaterialTheme.colorScheme.secondary
-                            )
-                            Spacer(Modifier.width(4.dp))
-                            Text(
-                                text = pendingActionCount.value.toString(),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.secondary
                             )
                         }
                     }
