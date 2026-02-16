@@ -34,26 +34,19 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Menu
-import androidx.compose.material.icons.filled.CloudOff
-import androidx.compose.material.icons.filled.Grade
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Sort
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.Apps
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.automirrored.filled.ViewList
-import androidx.compose.material.icons.outlined.Info
-import androidx.compose.material.icons.outlined.Inventory2
-import androidx.compose.material.icons.outlined.Label
-import androidx.compose.material.icons.outlined.Settings
-import androidx.compose.material.icons.outlined.TaskAlt
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DrawerValue
+import androidx.compose.material3.DrawerState
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -64,8 +57,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.ModalDrawerSheet
-import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.NavigationDrawerItem
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -81,7 +72,6 @@ import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
-import androidx.compose.material3.rememberDrawerState
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -103,7 +93,6 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
-import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import kotlinx.datetime.Clock
@@ -116,24 +105,20 @@ import com.mydeck.app.domain.model.LayoutMode
 import com.mydeck.app.domain.model.SortOption
 import com.mydeck.app.ui.components.ShareBookmarkChooser
 import com.mydeck.app.ui.components.VerticalScrollbar
-import com.mydeck.app.ui.navigation.AboutRoute
-import com.mydeck.app.ui.navigation.BookmarkDetailRoute
-import com.mydeck.app.ui.navigation.SettingsRoute
 import com.mydeck.app.util.openUrlInCustomTab
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.collectLatest
 import androidx.compose.material3.Badge
-import com.mydeck.app.ui.theme.Typography
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun BookmarkListScreen(navHostController: NavHostController) {
-    val viewModel: BookmarkListViewModel = hiltViewModel()
-
+fun BookmarkListScreen(
+    navHostController: NavHostController,
+    viewModel: BookmarkListViewModel,
+    drawerState: DrawerState,
+) {
     val uiState = viewModel.uiState.collectAsState().value
     val createBookmarkUiState = viewModel.createBookmarkUiState.collectAsState().value
-    val bookmarkCounts = viewModel.bookmarkCounts.collectAsState()
-    val labelsWithCounts = viewModel.labelsWithCounts.collectAsState()
 
     // Collect filter states
     val filterState = viewModel.filterState.collectAsState()
@@ -141,7 +126,7 @@ fun BookmarkListScreen(navHostController: NavHostController) {
     val searchQuery = viewModel.searchQuery.collectAsState()
     val layoutMode = viewModel.layoutMode.collectAsState()
     val sortOption = viewModel.sortOption.collectAsState()
-    val isOnline = viewModel.isOnline.collectAsState()
+    val labelsWithCounts = viewModel.labelsWithCounts.collectAsState()
 
 
     var showLayoutMenu by remember { androidx.compose.runtime.mutableStateOf(false) }
@@ -155,7 +140,6 @@ fun BookmarkListScreen(navHostController: NavHostController) {
     var deleteLabelJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
     val labelEditFocusRequester = remember { FocusRequester() }
 
-    val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -163,10 +147,6 @@ fun BookmarkListScreen(navHostController: NavHostController) {
     val isLoading by viewModel.loadBookmarksIsRunning.collectAsState()
 
     // UI event handlers (pass filter update functions)
-    val onClickFilterMyList: () -> Unit = { viewModel.onClickMyList() }
-    val onClickFilterArchive: () -> Unit = { viewModel.onClickArchive() }
-    val onClickFilterFavorite: () -> Unit = { viewModel.onClickFavorite() }
-    val onClickSettings: () -> Unit = { viewModel.onClickSettings() }
     val onClickBookmark: (String) -> Unit = { bookmarkId -> viewModel.onClickBookmark(bookmarkId) }
     val onClickDelete: (String) -> Unit = { bookmarkId ->
         viewModel.onDeleteBookmark(bookmarkId)
@@ -191,26 +171,6 @@ fun BookmarkListScreen(navHostController: NavHostController) {
         viewModel.onClickOpenInBrowser(url)
     }
 
-    LaunchedEffect(Unit) {
-        viewModel.navigationEvent.collectLatest { event ->
-            when (event) {
-                is BookmarkListViewModel.NavigationEvent.NavigateToSettings -> {
-                    navHostController.navigate(SettingsRoute)
-                    scope.launch { drawerState.close() }
-                }
-
-                is BookmarkListViewModel.NavigationEvent.NavigateToAbout -> {
-                    navHostController.navigate(AboutRoute)
-                    scope.launch { drawerState.close() }
-                }
-
-                is BookmarkListViewModel.NavigationEvent.NavigateToBookmarkDetail -> {
-                    navHostController.navigate(BookmarkDetailRoute(event.bookmarkId, event.showOriginal))
-                }
-            }
-        }
-    }
-
     val context = LocalContext.current
     LaunchedEffect(Unit) {
           viewModel.openUrlEvent.collectLatest { url ->
@@ -218,566 +178,415 @@ fun BookmarkListScreen(navHostController: NavHostController) {
           }
     }
 
+    Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+        topBar = {
+            // Determine the current view title based on filter state
+            val currentViewTitle = when {
+                filterState.value.viewingLabelsList -> stringResource(id = R.string.select_label)
+                filterState.value.label != null -> "Label..."
+                filterState.value.archived == false -> stringResource(id = R.string.my_list)
+                filterState.value.archived == true -> stringResource(id = R.string.archive)
+                filterState.value.favorite == true -> stringResource(id = R.string.favorites)
+                else -> stringResource(id = R.string.my_list) // Default to My List
+            }
 
+            val searchFocusRequester = remember { FocusRequester() }
 
-    ModalNavigationDrawer(
-        drawerState = drawerState,
-        drawerContent = {
-            ModalDrawerSheet {
-                Column(
-                    modifier = Modifier
-                        .padding(horizontal = 16.dp)
-                        .verticalScroll(rememberScrollState())
-                ) {
-                    Spacer(Modifier.height(12.dp))
-                    Row(
-                        modifier = Modifier.padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            stringResource(id = R.string.app_name),
-                            style = MaterialTheme.typography.titleLarge
-                        )
-                        if (!isOnline.value) {
-                            Spacer(Modifier.width(8.dp))
-                            Icon(
-                                imageVector = Icons.Default.CloudOff,
-                                contentDescription = stringResource(R.string.offline_tooltip),
-                                modifier = Modifier.size(18.dp),
-                                tint = MaterialTheme.colorScheme.error
-                            )
-                        }
-                    }
-                    HorizontalDivider()
-                    NavigationDrawerItem(
-                        label = { Text(
-                            style = Typography.labelLarge,
-                            text = stringResource(id = R.string.my_list)
-                        ) },
-                        icon = { Icon(imageVector = Icons.Outlined.TaskAlt, contentDescription = null)},
-                        badge = {
-                            val myListCount = bookmarkCounts.value.total - bookmarkCounts.value.archived
-                            if (myListCount > 0) {
-                                Badge(containerColor = MaterialTheme.colorScheme.secondaryContainer) {
-                                    Text(
-                                        text = myListCount.toString()
-                                    )
-                                }
-                            }
-                        },
-                        selected = filterState.value.archived == false,
-                        onClick = {
-                            onClickFilterMyList()
-                            scope.launch { drawerState.close() }
-                        }
-                    )
-                    NavigationDrawerItem(
-                        label = { Text(
-                            style = Typography.labelLarge,
-                            text = stringResource(id = R.string.archive)
-                        ) },
-                        icon = { Icon(imageVector = Icons.Outlined.Inventory2, contentDescription = null) },
-                        badge = {
-                            bookmarkCounts.value.archived.let { count ->
-                                if (count > 0) {
-                                    Badge(containerColor = MaterialTheme.colorScheme.secondaryContainer) {
-                                        Text(
-                                            text = count.toString()
-                                        )
-                                    }
-                                }
-                            }
-                        },
-                        selected = filterState.value.archived == true,
-                        onClick = {
-                            onClickFilterArchive()
-                            scope.launch { drawerState.close() }
-                        }
-                    )
-                    HorizontalDivider()
-                    NavigationDrawerItem(
-                        label = { Text(
-                            style = Typography.labelLarge,
-                            text = stringResource(id = R.string.favorites)
-                        ) },
-                        icon = { Icon(imageVector = Icons.Filled.Grade, contentDescription = null) },
-                        badge = {
-                            bookmarkCounts.value.favorite.let { count ->
-                                if (count > 0) {
-                                    Badge(containerColor = MaterialTheme.colorScheme.secondaryContainer) {
-                                        Text(
-                                            text = count.toString()
-                                        )
-                                    }
-                                }
-                            }
-                        },
-                        selected = filterState.value.favorite == true,
-                        onClick = {
-                            onClickFilterFavorite()
-                            scope.launch { drawerState.close() }
-                        }
-                    )
-                    NavigationDrawerItem(
-                        label = { Text(
-                            style = Typography.labelLarge,
-                            text = stringResource(id = R.string.labels)
-                        ) },
-                        icon = { Icon(Icons.Outlined.Label, contentDescription = null) },
-                        badge = {
-                            if (labelsWithCounts.value.isNotEmpty()) {
-                                Badge(containerColor = MaterialTheme.colorScheme.secondaryContainer) {
-                                    Text(
-                                        text = labelsWithCounts.value.size.toString()
-                                    )
-                                }
-                            }
-                        },
-                        selected = filterState.value.viewingLabelsList || filterState.value.label != null,
-                        onClick = {
-                            viewModel.onClickLabelsView()
-                            scope.launch { drawerState.close() }
-                        }
-                    )
-                    HorizontalDivider()
-                    NavigationDrawerItem(
-                        label = { Text(
-                            style = Typography.labelLarge,
-                            text = stringResource(id = R.string.settings)
-                        ) },
-                        icon = { Icon(imageVector = Icons.Outlined.Settings, contentDescription = null) },
-                        selected = false,
-                        onClick = {
-                            onClickSettings()
-                            scope.launch { drawerState.close() }
-                        }
-                    )
-                    NavigationDrawerItem(
-                        label = { Text(
-                            style = Typography.labelLarge,
-                            text = stringResource(id = R.string.about_title)
-                        ) },
-                        icon = { Icon(imageVector = Icons.Outlined.Info, contentDescription = null) },
-                        selected = false,
-                        onClick = {
-                            viewModel.onClickAbout()
-                            scope.launch { drawerState.close() }
-                        }
-                    )
+            LaunchedEffect(isSearchActive.value) {
+                if (isSearchActive.value) {
+                    searchFocusRequester.requestFocus()
                 }
             }
-        }
-    ) {
-        Scaffold(
-            snackbarHost = { SnackbarHost(snackbarHostState) },
-            topBar = {
-                // Determine the current view title based on filter state
-                val currentViewTitle = when {
-                    filterState.value.viewingLabelsList -> stringResource(id = R.string.select_label)
-                    filterState.value.label != null -> "Label..."
-                    filterState.value.archived == false -> stringResource(id = R.string.my_list)
-                    filterState.value.archived == true -> stringResource(id = R.string.archive)
-                    filterState.value.favorite == true -> stringResource(id = R.string.favorites)
-                    else -> stringResource(id = R.string.my_list) // Default to My List
-                }
 
-                val searchFocusRequester = remember { FocusRequester() }
-
-                LaunchedEffect(isSearchActive.value) {
+            TopAppBar(
+                title = {
                     if (isSearchActive.value) {
-                        searchFocusRequester.requestFocus()
-                    }
-                }
-
-                TopAppBar(
-                    title = {
-                        if (isSearchActive.value) {
-                            OutlinedTextField(
-                                value = searchQuery.value,
-                                onValueChange = { viewModel.onSearchQueryChange(it) },
-                                placeholder = {
-                                    Text(stringResource(R.string.search_bookmarks))
-                                },
-                                textStyle = MaterialTheme.typography.bodyLarge,
-                                trailingIcon = {
-                                    if (searchQuery.value.isNotEmpty()) {
-                                        IconButton(onClick = { viewModel.onClearSearch() }) {
-                                            Icon(Icons.Filled.Clear, contentDescription = stringResource(R.string.clear_search))
-                                        }
-                                    }
-                                },
-                                singleLine = true,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .focusRequester(searchFocusRequester)
-                            )
-                        } else {
-                            Text(
-                                text = currentViewTitle,
-                                modifier = Modifier.clickable {
-                                    scrollToTopTrigger++
-                                }
-                            )
-                        }
-                    },
-                    navigationIcon = {
-                        if (isSearchActive.value) {
-                            IconButton(onClick = { viewModel.onSearchActiveChange(false) }) {
-                                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.close_search))
-                            }
-                        } else {
-                            IconButton(
-                                onClick = { scope.launch { drawerState.open() } }
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Filled.Menu,
-                                    contentDescription = stringResource(id = R.string.menu)
-                                )
-                            }
-                        }
-                    },
-                    actions = {
-                        if (!isSearchActive.value && !filterState.value.viewingLabelsList) {
-                            // Sort button with dropdown
-                            Box {
-                                IconButton(onClick = { showSortMenu = true }) {
-                                    Icon(Icons.Filled.Sort, contentDescription = "Sort")
-                                }
-                                DropdownMenu(
-                                    expanded = showSortMenu,
-                                    onDismissRequest = { showSortMenu = false }
-                                ) {
-                                    SortOption.entries.forEach { option ->
-                                        DropdownMenuItem(
-                                            text = {
-                                                Text(
-                                                    text = option.displayName,
-                                                    fontWeight = if (option == sortOption.value) androidx.compose.ui.text.font.FontWeight.Bold else androidx.compose.ui.text.font.FontWeight.Normal
-                                                )
-                                            },
-                                            onClick = {
-                                                viewModel.onSortOptionSelected(option)
-                                                showSortMenu = false
-                                            }
-                                        )
+                        OutlinedTextField(
+                            value = searchQuery.value,
+                            onValueChange = { viewModel.onSearchQueryChange(it) },
+                            placeholder = {
+                                Text(stringResource(R.string.search_bookmarks))
+                            },
+                            textStyle = MaterialTheme.typography.bodyLarge,
+                            trailingIcon = {
+                                if (searchQuery.value.isNotEmpty()) {
+                                    IconButton(onClick = { viewModel.onClearSearch() }) {
+                                        Icon(Icons.Filled.Clear, contentDescription = stringResource(R.string.clear_search))
                                     }
                                 }
-                            }
-
-                            // Layout button with dropdown
-                            Box {
-                                IconButton(onClick = { showLayoutMenu = true }) {
-                                    Icon(Icons.Filled.GridView, contentDescription = "Layout")
-                                }
-                                DropdownMenu(
-                                    expanded = showLayoutMenu,
-                                    onDismissRequest = { showLayoutMenu = false }
-                                ) {
-                                    LayoutMode.entries.forEach { mode ->
-                                        DropdownMenuItem(
-                                            leadingIcon = {
-                                                Icon(
-                                                    imageVector = when (mode) {
-                                                        LayoutMode.GRID -> Icons.Filled.Apps
-                                                        LayoutMode.COMPACT -> Icons.AutoMirrored.Filled.List
-                                                        LayoutMode.MOSAIC -> Icons.Filled.GridView
-                                                    },
-                                                    contentDescription = null
-                                                )
-                                            },
-                                            text = {
-                                                Text(
-                                                    text = mode.displayName,
-                                                    fontWeight = if (mode == layoutMode.value) androidx.compose.ui.text.font.FontWeight.Bold else androidx.compose.ui.text.font.FontWeight.Normal
-                                                )
-                                            },
-                                            onClick = {
-                                                viewModel.onLayoutModeSelected(mode)
-                                                showLayoutMenu = false
-                                            }
-                                        )
-                                    }
-                                }
-                            }
-
-                            // Search button
-                            IconButton(onClick = { viewModel.onSearchActiveChange(true) }) {
-                                Icon(Icons.Filled.Search, contentDescription = stringResource(R.string.search))
-                            }
-                        }
-                    }
-                )
-            },
-            floatingActionButton = {
-                val clipboardManager = LocalClipboardManager.current
-                FloatingActionButton(
-                    onClick = {
-                        val clipboardText = clipboardManager.getText()?.text
-                        viewModel.openCreateBookmarkDialog(clipboardText)
-                    }
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.Add,
-                        contentDescription = stringResource(id = R.string.add_bookmark)
-                    )
-                }
-            }
-        ) { padding ->
-            Column(
-                modifier = Modifier
-                    .padding(padding)
-                    .fillMaxWidth()
-            ) {
-                // Subheader with label name, edit icon, and delete icon when filtering by label
-                if (filterState.value.label != null) {
-                    val labelDeletedMessageFormat = stringResource(R.string.label_deleted)
-                    val currentLabel = filterState.value.label!!
-
-                    // Focus on edit field when entering edit mode and set cursor at end
-                    LaunchedEffect(isEditingLabel) {
-                        if (isEditingLabel) {
-                            labelEditFocusRequester.requestFocus()
-                        }
-                    }
-
-                    Column(
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Row(
+                            },
+                            singleLine = true,
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 16.dp, vertical = 4.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
+                                .focusRequester(searchFocusRequester)
+                        )
+                    } else {
+                        Text(
+                            text = currentViewTitle,
+                            modifier = Modifier.clickable {
+                                scrollToTopTrigger++
+                            }
+                        )
+                    }
+                },
+                navigationIcon = {
+                    if (isSearchActive.value) {
+                        IconButton(onClick = { viewModel.onSearchActiveChange(false) }) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.close_search))
+                        }
+                    } else {
+                        IconButton(
+                            onClick = { scope.launch { drawerState.open() } }
                         ) {
-                            if (isEditingLabel) {
-                                TextField(
-                                    value = editedLabelName,
-                                    onValueChange = { editedLabelName = it },
-                                    singleLine = true,
-                                    textStyle = MaterialTheme.typography.titleMedium.copy(
-                                        color = MaterialTheme.colorScheme.onSurface
-                                    ),
-                                    colors = TextFieldDefaults.colors(
-                                        focusedContainerColor = MaterialTheme.colorScheme.surface,
-                                        unfocusedContainerColor = MaterialTheme.colorScheme.surface,
-                                        focusedIndicatorColor = MaterialTheme.colorScheme.primary,
-                                        unfocusedIndicatorColor = MaterialTheme.colorScheme.outline,
-                                        focusedTextColor = MaterialTheme.colorScheme.onSurface,
-                                        unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
-                                        focusedLabelColor = MaterialTheme.colorScheme.primary
-                                    ),
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .focusRequester(labelEditFocusRequester),
-                                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                                    keyboardActions = KeyboardActions(
-                                        onDone = {
-                                            if (editedLabelName.isNotBlank() && editedLabelName != currentLabel) {
-                                                viewModel.onRenameLabel(currentLabel, editedLabelName)
-                                            }
-                                            isEditingLabel = false
+                            Icon(
+                                imageVector = Icons.Filled.Menu,
+                                contentDescription = stringResource(id = R.string.menu)
+                            )
+                        }
+                    }
+                },
+                actions = {
+                    if (!isSearchActive.value && !filterState.value.viewingLabelsList) {
+                        // Sort button with dropdown
+                        Box {
+                            IconButton(onClick = { showSortMenu = true }) {
+                                Icon(Icons.Filled.Sort, contentDescription = "Sort")
+                            }
+                            DropdownMenu(
+                                expanded = showSortMenu,
+                                onDismissRequest = { showSortMenu = false }
+                            ) {
+                                SortOption.entries.forEach { option ->
+                                    DropdownMenuItem(
+                                        text = {
+                                            Text(
+                                                text = option.displayName,
+                                                fontWeight = if (option == sortOption.value) androidx.compose.ui.text.font.FontWeight.Bold else androidx.compose.ui.text.font.FontWeight.Normal
+                                            )
+                                        },
+                                        onClick = {
+                                            viewModel.onSortOptionSelected(option)
+                                            showSortMenu = false
                                         }
                                     )
-                                )
-                                IconButton(
-                                    onClick = {
-                                        // Save the edited label
+                                }
+                            }
+                        }
+
+                        // Layout button with dropdown
+                        Box {
+                            IconButton(onClick = { showLayoutMenu = true }) {
+                                Icon(Icons.Filled.GridView, contentDescription = "Layout")
+                            }
+                            DropdownMenu(
+                                expanded = showLayoutMenu,
+                                onDismissRequest = { showLayoutMenu = false }
+                            ) {
+                                LayoutMode.entries.forEach { mode ->
+                                    DropdownMenuItem(
+                                        leadingIcon = {
+                                            Icon(
+                                                imageVector = when (mode) {
+                                                    LayoutMode.GRID -> Icons.Filled.Apps
+                                                    LayoutMode.COMPACT -> Icons.AutoMirrored.Filled.List
+                                                    LayoutMode.MOSAIC -> Icons.Filled.GridView
+                                                },
+                                                contentDescription = null
+                                            )
+                                        },
+                                        text = {
+                                            Text(
+                                                text = mode.displayName,
+                                                fontWeight = if (mode == layoutMode.value) androidx.compose.ui.text.font.FontWeight.Bold else androidx.compose.ui.text.font.FontWeight.Normal
+                                            )
+                                        },
+                                        onClick = {
+                                            viewModel.onLayoutModeSelected(mode)
+                                            showLayoutMenu = false
+                                        }
+                                    )
+                                }
+                            }
+                        }
+
+                        // Search button
+                        IconButton(onClick = { viewModel.onSearchActiveChange(true) }) {
+                            Icon(Icons.Filled.Search, contentDescription = stringResource(R.string.search))
+                        }
+                    }
+                }
+            )
+        },
+        floatingActionButton = {
+            val clipboardManager = LocalClipboardManager.current
+            FloatingActionButton(
+                onClick = {
+                    val clipboardText = clipboardManager.getText()?.text
+                    viewModel.openCreateBookmarkDialog(clipboardText)
+                }
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Add,
+                    contentDescription = stringResource(id = R.string.add_bookmark)
+                )
+            }
+        }
+    ) { padding ->
+        Column(
+            modifier = Modifier
+                .padding(padding)
+                .fillMaxWidth()
+        ) {
+            // Subheader with label name, edit icon, and delete icon when filtering by label
+            if (filterState.value.label != null) {
+                val labelDeletedMessageFormat = stringResource(R.string.label_deleted)
+                val currentLabel = filterState.value.label!!
+
+                // Focus on edit field when entering edit mode and set cursor at end
+                LaunchedEffect(isEditingLabel) {
+                    if (isEditingLabel) {
+                        labelEditFocusRequester.requestFocus()
+                    }
+                }
+
+                Column(
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 4.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        if (isEditingLabel) {
+                            TextField(
+                                value = editedLabelName,
+                                onValueChange = { editedLabelName = it },
+                                singleLine = true,
+                                textStyle = MaterialTheme.typography.titleMedium.copy(
+                                    color = MaterialTheme.colorScheme.onSurface
+                                ),
+                                colors = TextFieldDefaults.colors(
+                                    focusedContainerColor = MaterialTheme.colorScheme.surface,
+                                    unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                                    focusedIndicatorColor = MaterialTheme.colorScheme.primary,
+                                    unfocusedIndicatorColor = MaterialTheme.colorScheme.outline,
+                                    focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                                    unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                                    focusedLabelColor = MaterialTheme.colorScheme.primary
+                                ),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .focusRequester(labelEditFocusRequester),
+                                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                                keyboardActions = KeyboardActions(
+                                    onDone = {
                                         if (editedLabelName.isNotBlank() && editedLabelName != currentLabel) {
                                             viewModel.onRenameLabel(currentLabel, editedLabelName)
                                         }
                                         isEditingLabel = false
-                                    },
-                                    modifier = Modifier.size(40.dp)
-                                ) {
-                                    Icon(
-                                        Icons.Filled.Check,
-                                        contentDescription = "Save",
-                                        modifier = Modifier.size(20.dp)
+                                    }
+                                )
+                            )
+                            IconButton(
+                                onClick = {
+                                    // Save the edited label
+                                    if (editedLabelName.isNotBlank() && editedLabelName != currentLabel) {
+                                        viewModel.onRenameLabel(currentLabel, editedLabelName)
+                                    }
+                                    isEditingLabel = false
+                                },
+                                modifier = Modifier.size(40.dp)
+                            ) {
+                                Icon(
+                                    Icons.Filled.Check,
+                                    contentDescription = "Save",
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        } else {
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .border(
+                                        width = 1.dp,
+                                        color = MaterialTheme.colorScheme.outline,
+                                        shape = RoundedCornerShape(8.dp)
                                     )
-                                }
-                            } else {
-                                Box(
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .border(
-                                            width = 1.dp,
-                                            color = MaterialTheme.colorScheme.outline,
-                                            shape = RoundedCornerShape(8.dp)
+                                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                                contentAlignment = Alignment.CenterStart
+                            ) {
+                                Text(
+                                    currentLabel,
+                                    style = MaterialTheme.typography.titleMedium
+                                )
+                            }
+                            IconButton(
+                                onClick = {
+                                    editedLabelName = currentLabel
+                                    isEditingLabel = true
+                                },
+                                modifier = Modifier.size(40.dp)
+                            ) {
+                                Icon(
+                                    Icons.Filled.Edit,
+                                    contentDescription = stringResource(id = R.string.edit_label),
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                            IconButton(
+                                onClick = {
+                                    // Cancel any existing delete operation
+                                    deleteLabelJob?.cancel()
+
+                                    // Set pending delete
+                                    pendingDeleteLabel = currentLabel
+
+                                    // Show snackbar with undo option
+                                    scope.launch {
+                                        val result = snackbarHostState.showSnackbar(
+                                            message = labelDeletedMessageFormat.format(currentLabel),
+                                            actionLabel = "UNDO",
+                                            duration = SnackbarDuration.Long
                                         )
-                                        .padding(horizontal = 12.dp, vertical = 8.dp),
-                                    contentAlignment = Alignment.CenterStart
-                                ) {
-                                    Text(
-                                        currentLabel,
-                                        style = MaterialTheme.typography.titleMedium
-                                    )
-                                }
-                                IconButton(
-                                    onClick = {
-                                        editedLabelName = currentLabel
-                                        isEditingLabel = true
-                                    },
-                                    modifier = Modifier.size(40.dp)
-                                ) {
-                                    Icon(
-                                        Icons.Filled.Edit,
-                                        contentDescription = stringResource(id = R.string.edit_label),
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                }
-                                IconButton(
-                                    onClick = {
-                                        // Cancel any existing delete operation
-                                        deleteLabelJob?.cancel()
 
-                                        // Set pending delete
-                                        pendingDeleteLabel = currentLabel
-
-                                        // Show snackbar with undo option
-                                        scope.launch {
-                                            val result = snackbarHostState.showSnackbar(
-                                                message = labelDeletedMessageFormat.format(currentLabel),
-                                                actionLabel = "UNDO",
-                                                duration = SnackbarDuration.Long
-                                            )
-
-                                            if (result == androidx.compose.material3.SnackbarResult.ActionPerformed) {
-                                                // User clicked undo, cancel the deletion
-                                                deleteLabelJob?.cancel()
-                                                pendingDeleteLabel = null
-                                            }
+                                        if (result == androidx.compose.material3.SnackbarResult.ActionPerformed) {
+                                            // User clicked undo, cancel the deletion
+                                            deleteLabelJob?.cancel()
+                                            pendingDeleteLabel = null
                                         }
+                                    }
 
-                                        // Schedule the actual deletion after 10 seconds
-                                        deleteLabelJob = scope.launch {
-                                            kotlinx.coroutines.delay(10000)
-                                            if (pendingDeleteLabel == currentLabel) {
-                                                viewModel.onDeleteLabel(currentLabel)
-                                                pendingDeleteLabel = null
-                                            }
+                                    // Schedule the actual deletion after 10 seconds
+                                    deleteLabelJob = scope.launch {
+                                        kotlinx.coroutines.delay(10000)
+                                        if (pendingDeleteLabel == currentLabel) {
+                                            viewModel.onDeleteLabel(currentLabel)
+                                            pendingDeleteLabel = null
                                         }
-                                    },
-                                    modifier = Modifier.size(40.dp)
-                                ) {
-                                    Icon(
-                                        Icons.Filled.Delete,
-                                        contentDescription = stringResource(id = R.string.delete_label),
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                }
+                                    }
+                                },
+                                modifier = Modifier.size(40.dp)
+                            ) {
+                                Icon(
+                                    Icons.Filled.Delete,
+                                    contentDescription = stringResource(id = R.string.delete_label),
+                                    modifier = Modifier.size(20.dp)
+                                )
                             }
                         }
-                        HorizontalDivider()
                     }
-                }
-
-                PullToRefreshBox(
-                    isRefreshing = isLoading,
-                    onRefresh = { viewModel.onPullToRefresh() },
-                    state = pullToRefreshState,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    // Show labels list if viewing labels, otherwise show bookmarks list
-                    if (filterState.value.viewingLabelsList) {
-                    LabelsListView(
-                        labels = labelsWithCounts.value,
-                        scrollToTopTrigger = scrollToTopTrigger,
-                        onLabelSelected = { label ->
-                            viewModel.onClickLabel(label)
-                        }
-                    )
-                } else {
-                    when (uiState) {
-                        is BookmarkListViewModel.UiState.Empty -> {
-                            EmptyScreen(messageResource = uiState.messageResource)
-                        }
-                        is BookmarkListViewModel.UiState.Success -> {
-                            // Success state updates are now optimistic and don't trigger snackbars for every toggle
-                            // but still show the list
-                            BookmarkListView(
-                                filterKey = filterState.value,
-                                scrollToTopTrigger = scrollToTopTrigger,
-                                layoutMode = layoutMode.value,
-                                bookmarks = uiState.bookmarks,
-                                onClickBookmark = onClickBookmark,
-                                onClickDelete = onClickDelete,
-                                onClickArchive = onClickArchive,
-                                onClickFavorite = onClickFavorite,
-                                onClickShareBookmark = onClickShareBookmark,
-                                onClickLabel = { label -> viewModel.onClickLabel(label) },
-                                onClickOpenUrl = onClickOpenUrl,
-                                onClickOpenInBrowser = onClickOpenInBrowser
-                            )
-                            // Consumes a shareIntent and creates the corresponding share dialog
-                            ShareBookmarkChooser(
-                                context = LocalContext.current,
-                                intent = viewModel.shareIntent.collectAsState().value,
-                                onShareIntentConsumed = { viewModel.onShareIntentConsumed() }
-                            )
-                        }
-                    }
-                }
+                    HorizontalDivider()
                 }
             }
 
-            // Show the Add Bookmark bottom sheet based on the state
-            when (createBookmarkUiState) {
-                is BookmarkListViewModel.CreateBookmarkUiState.Open -> {
-                    AddBookmarkBottomSheet(
-                        title = createBookmarkUiState.title,
-                        url = createBookmarkUiState.url,
-                        urlError = createBookmarkUiState.urlError,
-                        isCreateEnabled = createBookmarkUiState.isCreateEnabled,
-                        labels = createBookmarkUiState.labels,
-                        onTitleChange = { viewModel.updateCreateBookmarkTitle(it) },
-                        onUrlChange = { viewModel.updateCreateBookmarkUrl(it) },
-                        onLabelsChange = { viewModel.updateCreateBookmarkLabels(it) },
-                        onCreateBookmark = { viewModel.createBookmark() },
-                        onAction = { action -> viewModel.handleCreateBookmarkAction(action) },
-                        onDismiss = { viewModel.closeCreateBookmarkDialog() }
-                    )
-                }
-
-                is BookmarkListViewModel.CreateBookmarkUiState.Loading -> {
-                    // Show a loading indicator
-                    Dialog(onDismissRequest = { viewModel.closeCreateBookmarkDialog() }) {
-                        CircularProgressIndicator()
+            PullToRefreshBox(
+                isRefreshing = isLoading,
+                onRefresh = { viewModel.onPullToRefresh() },
+                state = pullToRefreshState,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                // Show labels list if viewing labels, otherwise show bookmarks list
+                if (filterState.value.viewingLabelsList) {
+                LabelsListView(
+                    labels = labelsWithCounts.value,
+                    scrollToTopTrigger = scrollToTopTrigger,
+                    onLabelSelected = { label ->
+                        viewModel.onClickLabel(label)
                     }
-                }
-
-                is BookmarkListViewModel.CreateBookmarkUiState.Success -> {
-                    LaunchedEffect(key1 = createBookmarkUiState) {
-                        scope.launch {
-                            snackbarHostState.showSnackbar(
-                                message = context.getString(R.string.bookmark_added),
-                                duration = SnackbarDuration.Short
-                            )
-                            viewModel.closeCreateBookmarkDialog()
-                        }
+                )
+            } else {
+                when (uiState) {
+                    is BookmarkListViewModel.UiState.Empty -> {
+                        EmptyScreen(messageResource = uiState.messageResource)
                     }
-                }
-
-                is BookmarkListViewModel.CreateBookmarkUiState.Error -> {
-                    // Show an error message
-                    AlertDialog(
-                        onDismissRequest = { viewModel.closeCreateBookmarkDialog() },
-                        title = { Text(stringResource(id = R.string.error)) },
-                        text = { Text(createBookmarkUiState.message) },
-                        confirmButton = {
-                            TextButton(onClick = { viewModel.closeCreateBookmarkDialog() }) {
-                                Text(stringResource(id = R.string.ok))
-                            }
-                        }
-                    )
-                }
-
-                is BookmarkListViewModel.CreateBookmarkUiState.Closed -> {
-                    // Do nothing when the dialog is closed
+                    is BookmarkListViewModel.UiState.Success -> {
+                        // Success state updates are now optimistic and don't trigger snackbars for every toggle
+                        // but still show the list
+                        BookmarkListView(
+                            filterKey = filterState.value,
+                            scrollToTopTrigger = scrollToTopTrigger,
+                            layoutMode = layoutMode.value,
+                            bookmarks = uiState.bookmarks,
+                            onClickBookmark = onClickBookmark,
+                            onClickDelete = onClickDelete,
+                            onClickArchive = onClickArchive,
+                            onClickFavorite = onClickFavorite,
+                            onClickShareBookmark = onClickShareBookmark,
+                            onClickLabel = { label -> viewModel.onClickLabel(label) },
+                            onClickOpenUrl = onClickOpenUrl,
+                            onClickOpenInBrowser = onClickOpenInBrowser
+                        )
+                        // Consumes a shareIntent and creates the corresponding share dialog
+                        ShareBookmarkChooser(
+                            context = LocalContext.current,
+                            intent = viewModel.shareIntent.collectAsState().value,
+                            onShareIntentConsumed = { viewModel.onShareIntentConsumed() }
+                        )
+                    }
                 }
             }
-
+            }
         }
+
+        // Show the Add Bookmark bottom sheet based on the state
+        when (createBookmarkUiState) {
+            is BookmarkListViewModel.CreateBookmarkUiState.Open -> {
+                AddBookmarkBottomSheet(
+                    title = createBookmarkUiState.title,
+                    url = createBookmarkUiState.url,
+                    urlError = createBookmarkUiState.urlError,
+                    isCreateEnabled = createBookmarkUiState.isCreateEnabled,
+                    labels = createBookmarkUiState.labels,
+                    onTitleChange = { viewModel.updateCreateBookmarkTitle(it) },
+                    onUrlChange = { viewModel.updateCreateBookmarkUrl(it) },
+                    onLabelsChange = { viewModel.updateCreateBookmarkLabels(it) },
+                    onCreateBookmark = { viewModel.createBookmark() },
+                    onAction = { action -> viewModel.handleCreateBookmarkAction(action) },
+                    onDismiss = { viewModel.closeCreateBookmarkDialog() }
+                )
+            }
+
+            is BookmarkListViewModel.CreateBookmarkUiState.Loading -> {
+                // Show a loading indicator
+                Dialog(onDismissRequest = { viewModel.closeCreateBookmarkDialog() }) {
+                    CircularProgressIndicator()
+                }
+            }
+
+            is BookmarkListViewModel.CreateBookmarkUiState.Success -> {
+                LaunchedEffect(key1 = createBookmarkUiState) {
+                    scope.launch {
+                        snackbarHostState.showSnackbar(
+                            message = context.getString(R.string.bookmark_added),
+                            duration = SnackbarDuration.Short
+                        )
+                        viewModel.closeCreateBookmarkDialog()
+                    }
+                }
+            }
+
+            is BookmarkListViewModel.CreateBookmarkUiState.Error -> {
+                // Show an error message
+                AlertDialog(
+                    onDismissRequest = { viewModel.closeCreateBookmarkDialog() },
+                    title = { Text(stringResource(id = R.string.error)) },
+                    text = { Text(createBookmarkUiState.message) },
+                    confirmButton = {
+                        TextButton(onClick = { viewModel.closeCreateBookmarkDialog() }) {
+                            Text(stringResource(id = R.string.ok))
+                        }
+                    }
+                )
+            }
+
+            is BookmarkListViewModel.CreateBookmarkUiState.Closed -> {
+                // Do nothing when the dialog is closed
+            }
+        }
+
     }
 }
 
