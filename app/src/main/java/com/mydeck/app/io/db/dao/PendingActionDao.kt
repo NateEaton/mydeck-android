@@ -28,6 +28,9 @@ interface PendingActionDao {
     @Query("SELECT * FROM pending_actions WHERE bookmarkId = :bookmarkId")
     suspend fun getActionsForBookmark(bookmarkId: String): List<PendingActionEntity>
 
+    @Query("SELECT * FROM pending_actions WHERE bookmarkId IN (:bookmarkIds)")
+    suspend fun getActionsForBookmarks(bookmarkIds: List<String>): List<PendingActionEntity>
+
     @Query("SELECT COUNT(*) FROM pending_actions")
     fun getCountFlow(): Flow<Int>
 

@@ -1,4 +1,4 @@
-package com.mydeck.app.ui.detail
+package com.mydeck.app.ui.detail.components
 
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth

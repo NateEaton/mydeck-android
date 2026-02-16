@@ -1,9 +1,7 @@
 package com.mydeck.app.domain
 
 import androidx.room.withTransaction
-import androidx.work.OneTimeWorkRequest
-import androidx.work.WorkManager
-import androidx.work.WorkRequest
+import com.mydeck.app.domain.sync.SyncScheduler
 import com.mydeck.app.io.db.MyDeckDatabase
 import com.mydeck.app.io.db.dao.BookmarkDao
 import com.mydeck.app.io.db.dao.PendingActionDao
@@ -51,7 +49,7 @@ class BookmarkRepositoryImplTest {
     private lateinit var pendingActionDao: PendingActionDao
     private lateinit var readeckApi: ReadeckApi
     private lateinit var json: Json
-    private lateinit var workManager: WorkManager
+    private lateinit var syncScheduler: SyncScheduler
     private val testDispatcher = UnconfinedTestDispatcher()
     private val testScope = TestScope(testDispatcher)
     private lateinit var bookmarkRepositoryImpl: BookmarkRepositoryImpl
@@ -64,7 +62,7 @@ class BookmarkRepositoryImplTest {
         pendingActionDao = mockk<PendingActionDao>()
         readeckApi = mockk<ReadeckApi>()
         json = Json { ignoreUnknownKeys = true }
-        workManager = mockk<WorkManager>(relaxed = true)
+        syncScheduler = mockk<SyncScheduler>(relaxed = true)
         
         // Mock performTransaction catch-all
         // Mock performTransaction for different return types
@@ -90,9 +88,13 @@ class BookmarkRepositoryImplTest {
         coEvery { pendingActionDao.insert(any()) } returns 0L
         coEvery { pendingActionDao.deleteAllForBookmark(any()) } just runs
         coEvery { pendingActionDao.getActionsForBookmark(any()) } returns emptyList()
+        coEvery { pendingActionDao.getActionsForBookmarks(any()) } returns emptyList()
         coEvery { pendingActionDao.delete(any()) } just runs
         coEvery { pendingActionDao.getAllActionsSorted() } returns emptyList()
         coEvery { pendingActionDao.updateAction(any(), any(), any()) } just runs
+        
+        // Standard mocks for BookmarkDao batch operations
+        coEvery { bookmarkDao.getBookmarksByIds(any()) } returns emptyList()
 
         bookmarkRepositoryImpl = BookmarkRepositoryImpl(
             database = database,
@@ -100,7 +102,7 @@ class BookmarkRepositoryImplTest {
             pendingActionDao = pendingActionDao,
             readeckApi = readeckApi,
             json = json,
-            workManager = workManager,
+            syncScheduler = syncScheduler,
             applicationScope = testScope,
             dispatcher = testDispatcher
         )
@@ -108,7 +110,7 @@ class BookmarkRepositoryImplTest {
 
     @After
     fun tearDown() {
-        clearMocks(database, bookmarkDao, pendingActionDao, workManager)
+        clearMocks(database, bookmarkDao, pendingActionDao, syncScheduler)
         Dispatchers.resetMain()
     }
 
@@ -127,7 +129,7 @@ class BookmarkRepositoryImplTest {
 
         // Assert
         coVerify { pendingActionDao.insert(any()) }
-        verify { workManager.enqueueUniqueWork("OfflineActionSync", any(), any<OneTimeWorkRequest>()) }
+        verify { syncScheduler.scheduleActionSync() }
     }
 
     @Test
@@ -162,7 +164,7 @@ class BookmarkRepositoryImplTest {
 
         // Assert
         coVerify { pendingActionDao.insert(any()) }
-        verify { workManager.enqueueUniqueWork("OfflineActionSync", any(), any<OneTimeWorkRequest>()) }
+        verify { syncScheduler.scheduleActionSync() }
     }
 
     @Test
@@ -176,7 +178,7 @@ class BookmarkRepositoryImplTest {
 
         // Assert
         coVerify { pendingActionDao.insert(any()) }
-        verify { workManager.enqueueUniqueWork("OfflineActionSync", any(), any<OneTimeWorkRequest>()) }
+        verify { syncScheduler.scheduleActionSync() }
     }
 
     @Test
@@ -190,7 +192,7 @@ class BookmarkRepositoryImplTest {
 
         // Assert
         coVerify { pendingActionDao.insert(any()) }
-        verify { workManager.enqueueUniqueWork("OfflineActionSync", any(), any<OneTimeWorkRequest>()) }
+        verify { syncScheduler.scheduleActionSync() }
     }
 
     @Test
@@ -205,7 +207,7 @@ class BookmarkRepositoryImplTest {
         coVerify { bookmarkDao.softDeleteBookmark(bookmarkId) }
         coVerify { pendingActionDao.deleteAllForBookmark(bookmarkId) }
         coVerify { pendingActionDao.insert(match { it.actionType == ActionType.DELETE }) }
-        verify { workManager.enqueueUniqueWork("OfflineActionSync", any(), any<androidx.work.OneTimeWorkRequest>()) }
+        verify { syncScheduler.scheduleActionSync() }
     }
 
     @Test
@@ -344,7 +346,7 @@ class BookmarkRepositoryImplTest {
         coVerify { readeckApi.createBookmark(createBookmarkDto) }
         coVerify { readeckApi.getBookmarkById(bookmarkId) }
         coVerify { bookmarkDao.insertBookmarksWithArticleContent(any()) }
-        coVerify { workManager.enqueue(any<WorkRequest>()) }
+        verify { syncScheduler.scheduleArticleDownload(bookmarkId) }
     }
 
     @Test
@@ -377,7 +379,7 @@ class BookmarkRepositoryImplTest {
         assertTrue(result is BookmarkRepository.UpdateResult.Success)
         coVerify { bookmarkDao.updateReadProgress(bookmarkId, progress) }
         coVerify { pendingActionDao.insert(any()) }
-        verify { workManager.enqueueUniqueWork("OfflineActionSync", any(), any<OneTimeWorkRequest>()) }
+        verify { syncScheduler.scheduleActionSync() }
     }
 
     @Test
@@ -393,7 +395,7 @@ class BookmarkRepositoryImplTest {
         assertTrue(result is BookmarkRepository.UpdateResult.Success)
         coVerify { bookmarkDao.updateLabels(any(), any()) }
         coVerify { pendingActionDao.insert(any()) }
-        verify { workManager.enqueueUniqueWork("OfflineActionSync", any(), any<OneTimeWorkRequest>()) }
+        verify { syncScheduler.scheduleActionSync() }
     }
 
     @Test

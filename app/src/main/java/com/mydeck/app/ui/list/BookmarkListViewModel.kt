@@ -25,6 +25,9 @@ import com.mydeck.app.util.isValidUrl
 import com.mydeck.app.util.MAX_TITLE_LENGTH
 import com.mydeck.app.worker.CreateBookmarkWorker
 import com.mydeck.app.worker.LoadBookmarksWorker
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -63,102 +66,91 @@ class BookmarkListViewModel @Inject constructor(
             started = SharingStarted.WhileSubscribed(5000),
             initialValue = true
         )
-    private val _navigationEvent =
-        MutableStateFlow<NavigationEvent?>(null) // Using StateFlow for navigation events
-    val navigationEvent: StateFlow<NavigationEvent?> = _navigationEvent.asStateFlow()
+    private val _navigationEvent = Channel<NavigationEvent>(Channel.BUFFERED)
+    val navigationEvent: Flow<NavigationEvent> = _navigationEvent.receiveAsFlow()
 
-    private val _openUrlEvent = MutableStateFlow<String>("")
-    val openUrlEvent = _openUrlEvent.asStateFlow()
-
-    private val _filterState = MutableStateFlow(FilterState(archived = false))
-    val filterState: StateFlow<FilterState> = _filterState.asStateFlow()
-
-    private val _searchQuery = MutableStateFlow("")
-    val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
-
-    private val _isSearchActive = MutableStateFlow(false)
-    val isSearchActive: StateFlow<Boolean> = _isSearchActive.asStateFlow()
+    private val _openUrlEvent = Channel<String>(Channel.BUFFERED)
+    val openUrlEvent = _openUrlEvent.receiveAsFlow()
+    private val _createBookmarkUiState = MutableStateFlow<CreateBookmarkUiState>(CreateBookmarkUiState.Closed)
+    val createBookmarkUiState = _createBookmarkUiState.asStateFlow()
 
     private val _layoutMode = MutableStateFlow(LayoutMode.GRID)
-    val layoutMode: StateFlow<LayoutMode> = _layoutMode.asStateFlow()
+    val layoutMode = _layoutMode.asStateFlow()
 
     private val _sortOption = MutableStateFlow(SortOption.ADDED_NEWEST)
-    val sortOption: StateFlow<SortOption> = _sortOption.asStateFlow()
-
-    private val _uiState = MutableStateFlow<UiState>(UiState.Empty(R.string.list_view_empty_not_loaded_yet))
-    val uiState: StateFlow<UiState> = _uiState.asStateFlow()
+    val sortOption = _sortOption.asStateFlow()
 
     private val _shareIntent = MutableStateFlow<Intent?>(null)
-    val shareIntent: StateFlow<Intent?> = _shareIntent.asStateFlow()
+    val shareIntent = _shareIntent.asStateFlow()
 
-    val loadBookmarksIsRunning: StateFlow<Boolean> = workManager.getWorkInfosForUniqueWorkFlow(
-        LoadBookmarksWorker.UNIQUE_WORK_NAME
-    ).map { it.any { it.state == WorkInfo.State.RUNNING}}
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
-            initialValue = false
-        )
-
-    // Add state for the CreateBookmarkDialog
-    private val _createBookmarkUiState =
-        MutableStateFlow<CreateBookmarkUiState>(CreateBookmarkUiState.Closed)
-    val createBookmarkUiState: StateFlow<CreateBookmarkUiState> =
-        _createBookmarkUiState.asStateFlow()
-
-    // State for pending deletion (for undo functionality)
+    // Pending deletion
     private var pendingDeletionJob: Job? = null
     private var pendingDeletionBookmarkId: String? = null
 
-    val loadBookmarkExceptionHandler = CoroutineExceptionHandler { _, ex ->
-        Timber.e(ex, "Error loading bookmarks")
-        _uiState.value = UiState.Empty(R.string.list_view_empty_error_loading_bookmarks)
+    init {
+        viewModelScope.launch {
+            val mode = settingsDataStore.getLayoutMode()
+            if (mode != null) {
+                try {
+                    _layoutMode.value = LayoutMode.valueOf(mode)
+                } catch (e: Exception) {
+                    Timber.e(e, "Error parsing layout mode")
+                }
+            }
+            val sort = settingsDataStore.getSortOption()
+            if (sort != null) {
+                 try {
+                    _sortOption.value = SortOption.valueOf(sort)
+                } catch (e: Exception) {
+                    Timber.e(e, "Error parsing sort option")
+                }
+            }
+        }
+        
+         // Handle shared text if any
+        savedStateHandle.get<String>("sharedText")?.let { sharedText ->
+            openCreateBookmarkDialog(sharedText)
+        }
     }
 
-    val bookmarkCounts: StateFlow<BookmarkCounts> = bookmarkRepository.observeAllBookmarkCounts()
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
-            initialValue = BookmarkCounts()
-        )
+    private val _searchQuery = MutableStateFlow("")
+    val searchQuery = _searchQuery.asStateFlow()
+
+    private val _isSearchActive = MutableStateFlow(false)
+    val isSearchActive = _isSearchActive.asStateFlow()
+
+    private val _filterState = MutableStateFlow(FilterState(archived = false))
+    val filterState = _filterState.asStateFlow()
 
     val labelsWithCounts: StateFlow<Map<String, Int>> = bookmarkRepository.observeAllLabelsWithCounts()
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
-            initialValue = emptyMap()
-        )
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
 
     val pendingActionCount: StateFlow<Int> = bookmarkRepository.observePendingActionCount()
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
-            initialValue = 0
-        )
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+
+    val bookmarkCounts: StateFlow<BookmarkCounts> = bookmarkRepository.observeAllBookmarkCounts()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), BookmarkCounts(0, 0, 0, 0))
+
+    val loadBookmarksIsRunning: StateFlow<Boolean> = workManager.getWorkInfosForUniqueWorkFlow(LoadBookmarksWorker.UNIQUE_WORK_NAME)
+        .map { workInfoList ->
+            workInfoList.any { it.state == WorkInfo.State.RUNNING || it.state == WorkInfo.State.ENQUEUED }
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
+    private val _uiState = MutableStateFlow<UiState>(UiState.Empty(R.string.list_view_empty_not_loaded_yet))
+    val uiState = _uiState.asStateFlow()
 
     init {
-        savedStateHandle.get<String>("sharedText").takeIf { it != null }?.let {
-            val sharedText = it.extractUrlAndTitle()
-            val urlError = if (sharedText == null) {
-                R.string.account_settings_url_error // Use resource ID
-            } else {
-                null
-            }
-
-            _createBookmarkUiState.value = CreateBookmarkUiState.Open(
-                title = sharedText?.title ?: "",
-                url = sharedText?.url ?: "",
-                urlError = urlError,
-                isCreateEnabled = urlError == null
-            )
-        }
-
-        viewModelScope.launch(loadBookmarkExceptionHandler) {
-            combine(_filterState, _searchQuery, _sortOption) { filter, query, sort ->
+        // ... (Previous init logic for settings)
+         viewModelScope.launch {
+            combine(
+                _filterState,
+                _searchQuery,
+                _sortOption
+            ) { filter, query, sort ->
                 Triple(filter, query, sort)
             }.flatMapLatest { (filter, query, sort) ->
-                if (query.isNotBlank()) {
-                    delay(300) // debounce
+                 if (query.isNotEmpty()) {
                     bookmarkRepository.searchBookmarkListItems(
                         searchQuery = query,
                         type = filter.type,
@@ -166,7 +158,6 @@ class BookmarkListViewModel @Inject constructor(
                         archived = filter.archived,
                         favorite = filter.favorite,
                         label = filter.label,
-                        state = Bookmark.State.LOADED,
                         orderBy = sort.sqlOrderBy
                     )
                 } else {
@@ -176,95 +167,34 @@ class BookmarkListViewModel @Inject constructor(
                         archived = filter.archived,
                         favorite = filter.favorite,
                         label = filter.label,
-                        state = Bookmark.State.LOADED,
                         orderBy = sort.sqlOrderBy
                     )
                 }
-            }.collectLatest {
-                _uiState.value = if (it.isEmpty()) {
-                    if (_searchQuery.value.isNotBlank()) {
-                        UiState.Empty(R.string.search_no_results)
+            }.collectLatest { bookmarks ->
+                _uiState.update { currentState ->
+                    if (currentState is UiState.Success) {
+                        currentState.copy(bookmarks = bookmarks)
                     } else {
-                        UiState.Empty(R.string.list_view_empty_nothing_to_see)
+                        if (bookmarks.isEmpty() && _searchQuery.value.isEmpty() && _filterState.value == FilterState(archived = false)) {
+                             UiState.Empty(R.string.list_view_empty_nothing_to_see)
+                        } else {
+                            UiState.Success(bookmarks, null)
+                        }
                     }
-                } else {
-                    UiState.Success(bookmarks = it, updateBookmarkState = null)
-                }
-            }
-        }
-
-        viewModelScope.launch(loadBookmarkExceptionHandler) {
-            // Check if the initial sync has been performed
-            if (!settingsDataStore.isInitialSyncPerformed()) {
-                Timber.d("loadBookmarks")
-                loadBookmarks() // Start incremental sync when the ViewModel is created
-            }
-        }
-
-        // Trigger sync on app open (always on - toggle removed in Phase 3)
-        viewModelScope.launch {
-            Timber.d("Triggering full sync on app open")
-            fullSyncUseCase.performFullSync()
-        }
-
-        // Load persisted layout mode and sort option
-        viewModelScope.launch {
-            settingsDataStore.getLayoutMode()?.let { layoutModeStr ->
-                try {
-                    _layoutMode.value = LayoutMode.valueOf(layoutModeStr)
-                } catch (e: IllegalArgumentException) {
-                    Timber.w("Invalid layout mode: $layoutModeStr, using default")
                 }
             }
 
-            settingsDataStore.getSortOption()?.let { sortOptionStr ->
-                try {
-                    _sortOption.value = SortOption.valueOf(sortOptionStr)
-                } catch (e: IllegalArgumentException) {
-                    Timber.w("Invalid sort option: $sortOptionStr, using default")
-                }
-            }
         }
-    }
-
-    // Filter update functions
-    private fun setTypeFilter(type: Bookmark.Type?) {
-        _filterState.value = _filterState.value.copy(type = type, label = null, viewingLabelsList = false)
-    }
-
-    private fun setUnreadFilter(unread: Boolean?) {
-        _filterState.value =
-            _filterState.value.copy(unread = unread, archived = null, favorite = null, label = null, viewingLabelsList = false)
-    }
-
-    private fun setArchivedFilter(archived: Boolean?) {
-        _filterState.value =
-            _filterState.value.copy(archived = archived, unread = null, favorite = null, label = null, viewingLabelsList = false)
-    }
-
-    private fun setFavoriteFilter(favorite: Boolean?) {
-        _filterState.value =
-            _filterState.value.copy(favorite = favorite, unread = null, archived = null, label = null, viewingLabelsList = false)
-    }
-
-    // UI event handlers (already present, but need modification)
-    fun onClickAll() {
-        Timber.d("onClickAll")
-        clearFilters()
-    }
-
-    private fun clearFilters() {
-        _filterState.value = FilterState()
     }
 
     fun onSearchQueryChange(query: String) {
         _searchQuery.value = query
     }
 
-    fun onSearchActiveChange(active: Boolean) {
-        _isSearchActive.value = active
-        if (!active) {
-            _searchQuery.value = ""
+    fun onSearchActiveChange(isActive: Boolean) {
+        _isSearchActive.value = isActive
+        if (!isActive) {
+            onClearSearch()
         }
     }
 
@@ -272,74 +202,43 @@ class BookmarkListViewModel @Inject constructor(
         _searchQuery.value = ""
     }
 
+    fun onClickLabel(label: String) {
+        _filterState.update { 
+            if (it.label == label) it.copy(label = null, viewingLabelsList = false)
+            else it.copy(label = label, viewingLabelsList = false)
+        }
+    }
+
+     fun onDismissLabelsList() {
+        _filterState.update { it.copy(viewingLabelsList = false) }
+    }
+
     fun onClickMyList() {
-        Timber.d("onClickMyList")
-        setArchivedFilter(false)
+        _filterState.update { FilterState(archived = false) }
     }
 
     fun onClickArchive() {
-        Timber.d("onClickArchive")
-        setArchivedFilter(true)
+        _filterState.update { FilterState(archived = true) }
     }
 
     fun onClickFavorite() {
-        Timber.d("onClickFavorite")
-        setFavoriteFilter(true)
-    }
-
-    fun onClickArticles() {
-        Timber.d("onClickArticles")
-        setTypeFilter(Bookmark.Type.Article)
-    }
-
-    fun onClickPictures() {
-        Timber.d("onClickPictures")
-        setTypeFilter(Bookmark.Type.Picture)
-    }
-
-    fun onClickVideos() {
-        Timber.d("onClickVideos")
-        setTypeFilter(Bookmark.Type.Video)
+        _filterState.update { FilterState(favorite = true) }
     }
 
     fun onClickLabelsView() {
-        Timber.d("onClickLabelsView")
-        setLabelsListView()
-    }
-
-    private fun setLabelsListView() {
-        // Show the labels list view
-        _filterState.value = FilterState(viewingLabelsList = true)
-    }
-
-    fun onClickLabel(label: String) {
-        Timber.d("onClickLabel: $label")
-        setLabelFilter(label)
-    }
-
-    private fun setLabelFilter(label: String?) {
-        // Clear all other filters when selecting a label filter
-        _filterState.value = FilterState(label = label)
+        _filterState.update { it.copy(viewingLabelsList = true) }
     }
 
     fun onRenameLabel(oldLabel: String, newLabel: String) {
         viewModelScope.launch {
             try {
-                when (bookmarkRepository.renameLabel(oldLabel, newLabel)) {
-                    is BookmarkRepository.UpdateResult.Success -> {
-                        // Update the filter state with the new label name
-                        if (_filterState.value.label == oldLabel) {
-                            setLabelFilter(newLabel)
-                        }
-                        // Labels will auto-refresh via Flow
-                    }
-                    is BookmarkRepository.UpdateResult.Error,
-                    is BookmarkRepository.UpdateResult.NetworkError -> {
-                        Timber.e("Failed to rename label")
-                    }
+                bookmarkRepository.renameLabel(oldLabel, newLabel)
+                _filterState.update { 
+                    if (it.label == oldLabel) it.copy(label = newLabel) else it 
                 }
             } catch (e: Exception) {
                 Timber.e(e, "Error renaming label")
+                // _uiState.value = UiState.Error(...) ?
             }
         }
     }
@@ -347,50 +246,35 @@ class BookmarkListViewModel @Inject constructor(
     fun onDeleteLabel(label: String) {
         viewModelScope.launch {
             try {
-                when (bookmarkRepository.deleteLabel(label)) {
-                    is BookmarkRepository.UpdateResult.Success -> {
-                        // Navigate back to labels list page
-                        _filterState.value = FilterState(viewingLabelsList = true)
-                        // Labels will auto-refresh via Flow
-                    }
-                    is BookmarkRepository.UpdateResult.Error,
-                    is BookmarkRepository.UpdateResult.NetworkError -> {
-                        Timber.e("Failed to delete label")
-                    }
-                }
+                bookmarkRepository.deleteLabel(label)
             } catch (e: Exception) {
                 Timber.e(e, "Error deleting label")
             }
         }
     }
 
+
     fun onClickSettings() {
         Timber.d("onClickSettings")
-        _navigationEvent.update { NavigationEvent.NavigateToSettings }
+        viewModelScope.launch { _navigationEvent.send(NavigationEvent.NavigateToSettings) }
     }
 
     fun onClickAbout() {
         Timber.d("onClickAbout")
-        _navigationEvent.update { NavigationEvent.NavigateToAbout }
+        viewModelScope.launch { _navigationEvent.send(NavigationEvent.NavigateToAbout) }
     }
 
     fun onClickBookmark(bookmarkId: String) {
         Timber.d("onClickBookmark")
-        _navigationEvent.update { NavigationEvent.NavigateToBookmarkDetail(bookmarkId) }
+        viewModelScope.launch { _navigationEvent.send(NavigationEvent.NavigateToBookmarkDetail(bookmarkId)) }
     }
 
     fun onClickBookmarkOpenOriginal(bookmarkId: String) {
         Timber.d("onClickBookmarkOpenOriginal")
-        _navigationEvent.update { NavigationEvent.NavigateToBookmarkDetail(bookmarkId, showOriginal = true) }
+        viewModelScope.launch { _navigationEvent.send(NavigationEvent.NavigateToBookmarkDetail(bookmarkId, showOriginal = true)) }
     }
 
-    fun onNavigationEventConsumed() {
-        _navigationEvent.update { null } // Reset the event
-    }
-
-    fun onOpenUrlEventConsumed() {
-        _openUrlEvent.value = ""
-    }
+    // No need for consume/reset methods with Channel
 
     private fun loadBookmarks(initialLoad: Boolean = false) {
         viewModelScope.launch {
@@ -519,11 +403,12 @@ class BookmarkListViewModel @Inject constructor(
         val sharedText = clipboardText?.extractUrlAndTitle()
 
         _createBookmarkUiState.value = if (sharedText != null) {
+            val isValid = sharedText.url.isValidUrl()
             CreateBookmarkUiState.Open(
                 title = sharedText.title?.take(MAX_TITLE_LENGTH) ?: "",
                 url = sharedText.url,
-                urlError = null,
-                isCreateEnabled = true
+                urlError = if (!isValid && sharedText.url.isNotEmpty()) R.string.account_settings_url_error else null,
+                isCreateEnabled = isValid
             )
         } else {
             CreateBookmarkUiState.Open(
@@ -616,7 +501,7 @@ class BookmarkListViewModel @Inject constructor(
                         // otherwise the detail screen shows Original mode with no content.
                         waitForBookmarkReady(bookmarkId)
                         _createBookmarkUiState.value = CreateBookmarkUiState.Success
-                        _navigationEvent.value = NavigationEvent.NavigateToBookmarkDetail(bookmarkId)
+                        _navigationEvent.send(NavigationEvent.NavigateToBookmarkDetail(bookmarkId))
                     } catch (e: Exception) {
                         _createBookmarkUiState.value =
                             CreateBookmarkUiState.Error(e.message ?: "Unknown error")
@@ -704,3 +589,4 @@ class BookmarkListViewModel @Inject constructor(
         data class Error(val message: String) : UpdateBookmarkState()
     }
 }
+

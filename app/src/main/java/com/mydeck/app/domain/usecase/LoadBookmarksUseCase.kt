@@ -42,7 +42,22 @@ class LoadBookmarksUseCase @Inject constructor(
             while (hasMorePages) {
                 val response = readeckApi.getBookmarks(pageSize, offset, lastLoadedTimestamp, ReadeckApi.SortOrder(ReadeckApi.Sort.Created))
                 if (response.isSuccessful && response.body() != null) {
-                    val bookmarks = (response.body() as List<BookmarkDto>).map { it.toDomain() }
+                    val bookmarkDtos = response.body() as List<BookmarkDto>
+                    
+                    // Process each bookmark individually to prevent one malformed bookmark from aborting the entire sync
+                    val bookmarks = bookmarkDtos.mapNotNull { dto ->
+                        try {
+                            dto.toDomain()
+                        } catch (e: Exception) {
+                            Timber.w(e, "Failed to deserialize bookmark ${dto.id}, skipping")
+                            null
+                        }
+                    }
+                    
+                    if (bookmarks.isEmpty() && bookmarkDtos.isNotEmpty()) {
+                        Timber.e("All bookmarks in page failed deserialization")
+                        return UseCaseResult.Error(Exception("All bookmarks in page failed deserialization"))
+                    }
 
                     val totalCountHeader = response.headers()[ReadeckApi.Header.TOTAL_COUNT]
                     val totalPagesHeader = response.headers()[ReadeckApi.Header.TOTAL_PAGES]
@@ -59,6 +74,9 @@ class LoadBookmarksUseCase @Inject constructor(
                     Timber.d("currentPage=$currentPage")
                     Timber.d("totalPages=$totalPages")
                     Timber.d("totalCount=$totalCount")
+                    if (bookmarks.size < bookmarkDtos.size) {
+                        Timber.w("Skipped ${bookmarkDtos.size - bookmarks.size} malformed bookmarks in page $currentPage")
+                    }
 
                     bookmarkRepository.insertBookmarks(bookmarks)
 

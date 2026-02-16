@@ -160,7 +160,7 @@
     <string name="retry">Retry</string>
     <string name="webview_error_title">Unable to load page</string>
     <string name="webview_error_message">The page could not be loaded (HTTP %1$d)</string>
-
+    <string name="webview_offline">Offline</string>
     <!-- New strings for Search in Article feature -->
     <string name="action_is_read">Is Read</string>
     <string name="action_search_in_article">Find in Article</string>

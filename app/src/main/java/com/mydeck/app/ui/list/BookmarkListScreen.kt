@@ -1,5 +1,8 @@
 package com.mydeck.app.ui.list
 
+
+
+
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -118,6 +121,7 @@ import com.mydeck.app.ui.navigation.BookmarkDetailRoute
 import com.mydeck.app.ui.navigation.SettingsRoute
 import com.mydeck.app.util.openUrlInCustomTab
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.collectLatest
 import androidx.compose.material3.Badge
 import com.mydeck.app.ui.theme.Typography
 
@@ -125,8 +129,7 @@ import com.mydeck.app.ui.theme.Typography
 @Composable
 fun BookmarkListScreen(navHostController: NavHostController) {
     val viewModel: BookmarkListViewModel = hiltViewModel()
-    val navigationEvent = viewModel.navigationEvent.collectAsState()
-    val openUrlEvent = viewModel.openUrlEvent.collectAsState()
+
     val uiState = viewModel.uiState.collectAsState().value
     val createBookmarkUiState = viewModel.createBookmarkUiState.collectAsState().value
     val bookmarkCounts = viewModel.bookmarkCounts.collectAsState()
@@ -139,7 +142,7 @@ fun BookmarkListScreen(navHostController: NavHostController) {
     val layoutMode = viewModel.layoutMode.collectAsState()
     val sortOption = viewModel.sortOption.collectAsState()
     val isOnline = viewModel.isOnline.collectAsState()
-    val pendingActionCount by viewModel.pendingActionCount.collectAsState()
+
 
     var showLayoutMenu by remember { androidx.compose.runtime.mutableStateOf(false) }
     var showSortMenu by remember { androidx.compose.runtime.mutableStateOf(false) }
@@ -188,8 +191,8 @@ fun BookmarkListScreen(navHostController: NavHostController) {
         viewModel.onClickOpenInBrowser(url)
     }
 
-    LaunchedEffect(key1 = navigationEvent.value) {
-        navigationEvent.value?.let { event ->
+    LaunchedEffect(Unit) {
+        viewModel.navigationEvent.collectLatest { event ->
             when (event) {
                 is BookmarkListViewModel.NavigationEvent.NavigateToSettings -> {
                     navHostController.navigate(SettingsRoute)
@@ -205,15 +208,17 @@ fun BookmarkListScreen(navHostController: NavHostController) {
                     navHostController.navigate(BookmarkDetailRoute(event.bookmarkId, event.showOriginal))
                 }
             }
-            viewModel.onNavigationEventConsumed() // Consume the event
         }
     }
 
     val context = LocalContext.current
-    LaunchedEffect(key1 = openUrlEvent.value) {
-        openUrlInCustomTab(context, openUrlEvent.value)
-        viewModel.onOpenUrlEventConsumed()
+    LaunchedEffect(Unit) {
+          viewModel.openUrlEvent.collectLatest { url ->
+              openUrlInCustomTab(context, url)
+          }
     }
+
+
 
     ModalNavigationDrawer(
         drawerState = drawerState,
@@ -240,20 +245,6 @@ fun BookmarkListScreen(navHostController: NavHostController) {
                                 contentDescription = stringResource(R.string.offline_tooltip),
                                 modifier = Modifier.size(18.dp),
                                 tint = MaterialTheme.colorScheme.error
-                            )
-                        } else if (pendingActionCount > 0) {
-                            Spacer(Modifier.width(8.dp))
-                            Icon(
-                                imageVector = Icons.Default.Check, // Or a sync icon if available
-                                contentDescription = stringResource(R.string.syncing_tooltip),
-                                modifier = Modifier.size(18.dp),
-                                tint = MaterialTheme.colorScheme.secondary
-                            )
-                            Spacer(Modifier.width(4.dp))
-                            Text(
-                                text = pendingActionCount.toString(),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.secondary
                             )
                         }
                     }

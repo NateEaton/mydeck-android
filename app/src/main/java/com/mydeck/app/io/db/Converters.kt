@@ -3,8 +3,13 @@ package com.mydeck.app.io.db
 import androidx.room.TypeConverter
 import com.mydeck.app.io.db.model.BookmarkEntity
 import kotlinx.datetime.Instant
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
+import timber.log.Timber
 
 class Converters {
+    private val json = Json { ignoreUnknownKeys = true }
+
     @TypeConverter
     fun fromTimestamp(value: Long?): Instant? {
         return value?.let { Instant.fromEpochMilliseconds(it) }
@@ -17,12 +22,24 @@ class Converters {
 
     @TypeConverter
     fun fromStringList(value: String?): List<String> {
-        return value?.split(",")?.filter { it.isNotEmpty() } ?: emptyList()
+        if (value.isNullOrEmpty()) return emptyList()
+        return try {
+            json.decodeFromString<List<String>>(value)
+        } catch (jsonError: Exception) {
+            // Try CSV fallback for v6 compatibility or data recovery scenarios
+            try {
+                value.split(",").filter { it.isNotEmpty() }
+            } catch (csvError: Exception) {
+                // Log both errors for diagnostics
+                Timber.w(jsonError, "Failed to deserialize labels as JSON, CSV fallback also failed. Value: $value")
+                emptyList()
+            }
+        }
     }
 
     @TypeConverter
     fun stringListToString(list: List<String>?): String {
-        return list?.joinToString(",") ?: ""
+        return if (list.isNullOrEmpty()) "" else json.encodeToString(list)
     }
 
     @TypeConverter

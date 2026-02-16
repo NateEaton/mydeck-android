@@ -62,6 +62,7 @@ other{}
     <string name="retry">Retry</string>
     <string name="webview_error_title">Unable to load page</string>
     <string name="webview_error_message">The page could not be loaded (HTTP %1$d)</string>
+    <string name="webview_offline">Offline</string>
     <string name="create_bookmark_error">Error creating bookmark: %1$s</string>
     <string name="add_new_bookmark">Add New Bookmark</string>
     <string name="create">Create</string>
@@ -191,7 +192,7 @@ other{}
     <string name="detail_about">About %1$s</string>
     <string name="detail_words">%1$d words</string>
     <string name="detail_labels">Labels</string>
-    <string name="detail_label_placeholder">Add labels (comma-separated)</string>
+    <string name="detail_label_placeholder">Add label</string>
     <string name="remove_label">Remove label</string>
 
     <!-- Labels View -->

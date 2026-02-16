@@ -38,6 +38,10 @@ abstract class AppModule {
     @Singleton
     abstract fun bindConnectivityMonitor(impl: ConnectivityMonitorImpl): ConnectivityMonitor
 
+    @Binds
+    @Singleton
+    abstract fun bindSyncScheduler(impl: com.mydeck.app.worker.WorkManagerSyncScheduler): com.mydeck.app.domain.sync.SyncScheduler
+
     companion object {
         @Singleton
         @Provides

@@ -15,7 +15,7 @@ import com.mydeck.app.io.db.dao.PendingActionDao
 
 @Database(
     entities = [BookmarkEntity::class, ArticleContentEntity::class, RemoteBookmarkIdEntity::class, PendingActionEntity::class],
-    version = 6,
+    version = 7,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
