@@ -130,8 +130,8 @@ import com.mydeck.app.ui.theme.Typography
 fun BookmarkListScreen(navHostController: NavHostController) {
     val viewModel: BookmarkListViewModel = hiltViewModel()
 
-    val uiState = viewModel.uiState.collectAsState()
-    val createBookmarkUiState = viewModel.createBookmarkUiState.collectAsState()
+    val uiState = viewModel.uiState.collectAsState().value
+    val createBookmarkUiState = viewModel.createBookmarkUiState.collectAsState().value
     val bookmarkCounts = viewModel.bookmarkCounts.collectAsState()
     val labelsWithCounts = viewModel.labelsWithCounts.collectAsState()
 
