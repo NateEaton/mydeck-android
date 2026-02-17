@@ -127,4 +127,5 @@
     <string name="width_narrow">Wąski</string>
     <string name="justify_label">Wyjustuj tekst</string>
     <string name="hyphenation_label">Dzielenie wyrazów</string>
+    <string name="user_guide">Przewodnik użytkownika</string>
 </resources>

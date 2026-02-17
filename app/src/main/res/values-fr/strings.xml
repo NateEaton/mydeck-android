@@ -127,4 +127,5 @@
     <string name="width_narrow">Étroit</string>
     <string name="justify_label">Justifier le texte</string>
     <string name="hyphenation_label">Césure des mots</string>
+    <string name="user_guide">Guide de l'utilisateur</string>
 </resources>

@@ -227,4 +227,5 @@
     <string name="width_narrow">窄</string>
     <string name="justify_label">两端对齐</string>
     <string name="hyphenation_label">连字符断词</string>
+    <string name="user_guide">用户指南</string>
 </resources>

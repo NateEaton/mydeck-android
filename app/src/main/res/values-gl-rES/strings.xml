@@ -37,6 +37,7 @@ other{}
     <string name="videos">Vídeos</string>
     <string name="pictures">Imaxes</string>
     <string name="settings">Axustes</string>
+    <string name="user_guide">Guía de usuario</string>
     <string name="an_error_occurred">Houbo un fallo.</string>
     <string name="no_bookmarks_found">Non hai marcadores.</string>
     <string name="add_bookmark">Engadir marcador</string>

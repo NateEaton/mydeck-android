@@ -127,4 +127,5 @@
     <string name="width_narrow">Узкий</string>
     <string name="justify_label">Выравнивание по ширине</string>
     <string name="hyphenation_label">Перенос слов</string>
+    <string name="user_guide">Руководство пользователя</string>
 </resources>

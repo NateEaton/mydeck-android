@@ -12,7 +12,7 @@ data class GuideSection(
 class MarkdownAssetLoader(private val context: Context) {
     
     companion object {
-        private const val ASSETS_PATH = "docs/en"
+        private const val ASSETS_PATH = "guide/en"
         private val DEFAULT_SECTIONS = listOf(
             GuideSection("Getting Started", "index.md", 0),
             GuideSection("Bookmarks", "bookmark.md", 1),

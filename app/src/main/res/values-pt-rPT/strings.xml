@@ -127,4 +127,5 @@
     <string name="width_narrow">Estreito</string>
     <string name="justify_label">Justificar texto</string>
     <string name="hyphenation_label">Hifenizar palavras</string>
+    <string name="user_guide">Guia do usuário</string>
 </resources>
