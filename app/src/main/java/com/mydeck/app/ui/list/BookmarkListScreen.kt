@@ -47,6 +47,7 @@ import androidx.compose.material.icons.outlined.Inventory2
 import androidx.compose.material.icons.outlined.Label
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.TaskAlt
+import androidx.compose.material.icons.outlined.HelpOutline
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -117,6 +118,7 @@ import com.mydeck.app.domain.model.SortOption
 import com.mydeck.app.ui.components.ShareBookmarkChooser
 import com.mydeck.app.ui.components.VerticalScrollbar
 import com.mydeck.app.ui.navigation.AboutRoute
+import com.mydeck.app.ui.navigation.UserGuideRoute
 import com.mydeck.app.ui.navigation.BookmarkDetailRoute
 import com.mydeck.app.ui.navigation.SettingsRoute
 import com.mydeck.app.util.openUrlInCustomTab
@@ -344,11 +346,23 @@ fun BookmarkListScreen(navHostController: NavHostController) {
                         label = { Text(
                             style = Typography.labelLarge,
                             text = stringResource(id = R.string.settings)
-                        ) },
-                        icon = { Icon(imageVector = Icons.Outlined.Settings, contentDescription = null) },
+                        )},
+                        icon = { Icon(Icons.Outlined.Settings, contentDescription = null) },
                         selected = false,
                         onClick = {
                             onClickSettings()
+                            scope.launch { drawerState.close() }
+                        }
+                    )
+                    NavigationDrawerItem(
+                        label = { Text(
+                            style = Typography.labelLarge,
+                            text = stringResource(id = R.string.user_guide)
+                        )},
+                        icon = { Icon(Icons.Outlined.HelpOutline, contentDescription = null) },
+                        selected = false,
+                        onClick = {
+                            navHostController.navigate(UserGuideRoute)
                             scope.launch { drawerState.close() }
                         }
                     )

@@ -16,3 +16,11 @@ local.properties
 app/backup-icons/
 .vscode/
 logs/
+
+# --- System / OS Files --- Ignore macOS and Windows specific files
+.DS_Store 
+Thumbs.db
+
+# Ignore Synology system directories globally
+@eaDir/
+\#recycle/

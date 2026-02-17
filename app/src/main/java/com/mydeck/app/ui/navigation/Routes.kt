@@ -34,3 +34,6 @@ object UiSettingsRoute
 
 @Serializable
 object AboutRoute
+
+@Serializable
+object UserGuideRoute

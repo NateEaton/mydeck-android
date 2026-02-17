@@ -204,6 +204,14 @@ dependencies {
     implementation(libs.aboutlibraries.compose.m3)
     implementation(libs.treessence)
     implementation(libs.accompanist.permissions)
+    
+    // Markdown rendering
+    implementation("io.noties.markwon:core:4.6.2")
+    implementation("io.noties.markwon:ext-strikethrough:4.6.2")
+    implementation("io.noties.markwon:ext-tables:4.6.2")
+    implementation("io.noties.markwon:ext-tasklist:4.6.2")
+    implementation("io.noties.markwon:image:4.6.2")
+    implementation("io.noties.markwon:syntax-highlight:4.6.2")
 }
 
 aboutLibraries {
