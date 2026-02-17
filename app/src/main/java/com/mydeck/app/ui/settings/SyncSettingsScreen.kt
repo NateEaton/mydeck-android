@@ -27,6 +27,7 @@ import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.RadioButton
@@ -183,7 +184,7 @@ fun SyncSettingsView(
             // --- Section 1: Bookmark Sync ---
             Text(
                 text = stringResource(R.string.sync_bookmark_section_title),
-                style = Typography.titleMedium
+                style = MaterialTheme.typography.titleMedium
             )
 
             Card(
@@ -212,7 +213,7 @@ fun SyncSettingsView(
             // --- Section 2: Content Sync (with Constraints) ---
             Text(
                 text = stringResource(R.string.sync_content_section_title),
-                style = Typography.titleMedium
+                style = MaterialTheme.typography.titleMedium
             )
 
             Card(
@@ -229,7 +230,7 @@ fun SyncSettingsView(
                     // Content Sync Mode
                     Text(
                         text = "Content Sync Mode",
-                        style = Typography.titleSmall,
+                        style = MaterialTheme.typography.titleSmall,
                         color = MaterialTheme.colorScheme.primary
                     )
 
@@ -251,7 +252,7 @@ fun SyncSettingsView(
                     // Constraints heading
                     Text(
                         text = stringResource(R.string.sync_constraints_section_title),
-                        style = Typography.titleSmall,
+                        style = MaterialTheme.typography.titleSmall,
                         color = MaterialTheme.colorScheme.primary
                     )
 
@@ -269,12 +270,12 @@ fun SyncSettingsView(
             // --- Section 3: Sync Status ---
             Text(
                 text = stringResource(R.string.sync_status_section_title),
-                style = Typography.titleMedium
+                style = MaterialTheme.typography.titleMedium
             )
 
             SyncStatusSection(syncStatus = settingsUiState.syncStatus)
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(48.dp))
         }
     }
 }
@@ -294,31 +295,25 @@ private fun BookmarkSyncSection(
         color = MaterialTheme.colorScheme.onSurfaceVariant
     )
 
-    Row(
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClickFrequency)
-            .padding(vertical = 8.dp)
-    ) {
-        Column(modifier = Modifier.weight(1f)) {
+    ListItem(
+        modifier = Modifier.clickable(onClick = onClickFrequency),
+        headlineContent = {
             Text(text = stringResource(R.string.sync_bookmark_frequency_label))
+        },
+        supportingContent = {
             val nextRunMsg = nextRun?.let {
                 stringResource(R.string.auto_sync_next_run, it)
             } ?: stringResource(R.string.auto_sync_next_run_null)
+            Text(text = nextRunMsg)
+        },
+        trailingContent = {
             Text(
-                text = nextRunMsg,
-                style = Typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                text = stringResource(frequency.toLabelResource()),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.primary
             )
         }
-        Text(
-            text = stringResource(frequency.toLabelResource()),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.primary
-        )
-    }
+    )
 
     Text(
         text = stringResource(R.string.sync_settings_sync_bookmarks_now_description),
@@ -403,7 +398,7 @@ private fun ContentSyncSection(
                 )
                 Text(
                     text = "On demand",
-                    style = Typography.bodyMedium,
+                    style = MaterialTheme.typography.bodyMedium,
                     modifier = Modifier.padding(start = 8.dp)
                 )
             }
@@ -426,11 +421,11 @@ private fun ContentSyncSection(
                 Column(modifier = Modifier.padding(start = 8.dp)) {
                     Text(
                         text = stringResource(R.string.sync_content_date_range),
-                        style = Typography.bodyMedium
+                        style = MaterialTheme.typography.bodyMedium
                     )
                     Text(
                         text = stringResource(R.string.sync_content_date_range_desc),
-                        style = Typography.bodySmall,
+                        style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
@@ -458,7 +453,7 @@ private fun ContentSyncSection(
                         ) {
                             Text(
                                 text = stringResource(R.string.sync_content_date_from),
-                                style = Typography.bodyMedium,
+                                style = MaterialTheme.typography.bodyMedium,
                                 modifier = Modifier.width(48.dp)
                             )
                             OutlinedButton(
@@ -476,7 +471,7 @@ private fun ContentSyncSection(
                         ) {
                             Text(
                                 text = stringResource(R.string.sync_content_date_to),
-                                style = Typography.bodyMedium,
+                                style = MaterialTheme.typography.bodyMedium,
                                 modifier = Modifier.width(48.dp)
                             )
                             OutlinedButton(
@@ -539,7 +534,7 @@ private fun ContentSyncRadioOption(
             Text(text = title, style = Typography.bodyMedium)
             Text(
                 text = description,
-                style = Typography.bodySmall,
+                style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
@@ -554,40 +549,29 @@ private fun ConstraintsSection(
     onWifiOnlyChanged: (Boolean) -> Unit,
     onAllowBatterySaverChanged: (Boolean) -> Unit
 ) {
-    Column(
-        verticalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        Row(
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text(
-                text = stringResource(R.string.sync_wifi_only),
-                style = Typography.bodyMedium,
-                modifier = Modifier.weight(1f)
-            )
-            Switch(
-                checked = wifiOnly,
-                onCheckedChange = onWifiOnlyChanged
-            )
-        }
-
-        Row(
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text(
-                text = stringResource(R.string.sync_allow_battery_saver),
-                style = Typography.bodyMedium,
-                modifier = Modifier.weight(1f)
-            )
-            Switch(
-                checked = allowBatterySaver,
-                onCheckedChange = onAllowBatterySaverChanged
-            )
-        }
+    Column {
+        ListItem(
+            headlineContent = {
+                Text(text = stringResource(R.string.sync_wifi_only))
+            },
+            trailingContent = {
+                Switch(
+                    checked = wifiOnly,
+                    onCheckedChange = onWifiOnlyChanged
+                )
+            }
+        )
+        ListItem(
+            headlineContent = {
+                Text(text = stringResource(R.string.sync_allow_battery_saver))
+            },
+            trailingContent = {
+                Switch(
+                    checked = allowBatterySaver,
+                    onCheckedChange = onAllowBatterySaverChanged
+                )
+            }
+        )
     }
 }
 
@@ -608,30 +592,30 @@ private fun SyncStatusSection(syncStatus: SyncStatus) {
             // Bookmark counts
             Text(
                 text = stringResource(R.string.sync_status_bookmarks_heading),
-                style = Typography.titleSmall,
+                style = MaterialTheme.typography.titleSmall,
                 color = MaterialTheme.colorScheme.primary
             )
             Text(
                 text = stringResource(R.string.sync_status_total, syncStatus.totalBookmarks),
-                style = Typography.bodySmall
+                style = MaterialTheme.typography.bodySmall
             )
             Text(
                 text = stringResource(R.string.sync_status_unread, syncStatus.unread),
-                style = Typography.bodySmall
+                style = MaterialTheme.typography.bodySmall
             )
             Text(
                 text = stringResource(R.string.sync_status_archived, syncStatus.archived),
-                style = Typography.bodySmall
+                style = MaterialTheme.typography.bodySmall
             )
             Text(
                 text = stringResource(R.string.sync_status_favorites, syncStatus.favorites),
-                style = Typography.bodySmall
+                style = MaterialTheme.typography.bodySmall
             )
 
             syncStatus.lastBookmarkSyncTimestamp?.let { ts ->
                 Text(
                     text = stringResource(R.string.sync_status_last_sync, ts),
-                    style = Typography.bodySmall,
+                    style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
@@ -641,30 +625,30 @@ private fun SyncStatusSection(syncStatus: SyncStatus) {
             // Content counts
             Text(
                 text = stringResource(R.string.sync_status_content_heading),
-                style = Typography.titleSmall,
+                style = MaterialTheme.typography.titleSmall,
                 color = MaterialTheme.colorScheme.primary
             )
             Text(
                 text = stringResource(R.string.sync_status_content_downloaded, syncStatus.contentDownloaded),
-                style = Typography.bodySmall
+                style = MaterialTheme.typography.bodySmall
             )
             Text(
                 text = stringResource(R.string.sync_status_content_available, syncStatus.contentAvailable),
-                style = Typography.bodySmall
+                style = MaterialTheme.typography.bodySmall
             )
             Text(
                 text = stringResource(R.string.sync_status_content_dirty, syncStatus.contentDirty),
-                style = Typography.bodySmall
+                style = MaterialTheme.typography.bodySmall
             )
             Text(
                 text = stringResource(R.string.sync_status_no_content, syncStatus.permanentNoContent),
-                style = Typography.bodySmall
+                style = MaterialTheme.typography.bodySmall
             )
 
             syncStatus.lastContentSyncTimestamp?.let { ts ->
                 Text(
                     text = stringResource(R.string.sync_status_last_content_sync, ts),
-                    style = Typography.bodySmall,
+                    style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }

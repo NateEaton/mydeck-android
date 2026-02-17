@@ -4,9 +4,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Grade
 import androidx.compose.material.icons.filled.Inventory2
+import androidx.compose.material.icons.outlined.FindInPage
 import androidx.compose.material.icons.outlined.FormatSize
 import androidx.compose.material.icons.outlined.Grade
-import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Inventory2
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -86,19 +86,19 @@ fun BookmarkDetailTopBar(
                             contentDescription = stringResource(R.string.action_typography_settings)
                         )
                     }
-                }
-                IconButton(onClick = { onShowDetails() }) {
-                    Icon(
-                        imageVector = Icons.Outlined.Info,
-                        contentDescription = stringResource(R.string.detail_dialog_title)
-                    )
+                    IconButton(onClick = { onArticleSearchActivate() }) {
+                        Icon(
+                            imageVector = Icons.Outlined.FindInPage,
+                            contentDescription = stringResource(R.string.action_search_in_article)
+                        )
+                    }
                 }
                 BookmarkDetailMenu(
                     uiState = uiState,
                     onClickToggleRead = onClickToggleRead,
                     onClickShareBookmark = onClickShareBookmark,
                     onClickDeleteBookmark = onClickDeleteBookmark,
-                    onClickSearchInArticle = onArticleSearchActivate,
+                    onShowDetails = onShowDetails,
                     onClickOpenInBrowser = onClickOpenInBrowser,
                     contentMode = contentMode,
                     onContentModeChange = onContentModeChange

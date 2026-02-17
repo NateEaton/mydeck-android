@@ -2,20 +2,18 @@ package com.mydeck.app.ui.settings
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -23,7 +21,6 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
@@ -118,9 +115,7 @@ fun SettingScreenView(
         }
     ) { padding ->
         Column(
-            modifier = Modifier
-                .padding(padding)
-                .padding(16.dp)
+            modifier = Modifier.padding(padding)
         ) {
             SettingItem(
                 icon = Icons.Filled.AccountCircle,
@@ -166,28 +161,28 @@ fun SettingItem(
     onClick: () -> Unit,
     testTag: String
 ) {
-    Row(
+    ListItem(
         modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 8.dp)
-            .clickable { onClick() }
+            .clickable(onClick = onClick)
             .testTag("${SettingsScreenTestTags.SETTINGS_ITEM}.$testTag"),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Icon(icon, contentDescription = title, modifier = Modifier.padding(end = 16.dp))
-        Column {
+        headlineContent = {
             Text(
                 text = title,
-                style = MaterialTheme.typography.titleMedium,
+                style = MaterialTheme.typography.bodyLarge,
                 modifier = Modifier.testTag("${SettingsScreenTestTags.SETTINGS_ITEM_TITLE}.$testTag")
             )
+        },
+        supportingContent = {
             Text(
                 text = subtitle,
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.testTag("${SettingsScreenTestTags.SETTINGS_ITEM_SUBTITLE}.$testTag")
             )
+        },
+        leadingContent = {
+            Icon(icon, contentDescription = title)
         }
-    }
+    )
 }
 
 @Preview(showBackground = true)

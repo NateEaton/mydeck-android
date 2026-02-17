@@ -90,6 +90,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.navigation.NavController
 import com.mydeck.app.R
 import com.mydeck.app.domain.model.Template
+import com.mydeck.app.domain.model.TextWidth
 import com.mydeck.app.util.openUrlInCustomTab
 import com.mydeck.app.ui.components.ShareBookmarkChooser
 import com.mydeck.app.ui.detail.BookmarkDetailViewModel.ContentLoadState
@@ -432,8 +433,12 @@ fun BookmarkDetailContent(
                     .alpha(if (hasRestoredPosition) 1f else 0f),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
+                val headerWidthModifier = when (uiState.typographySettings.textWidth) {
+                    TextWidth.WIDE -> Modifier.fillMaxWidth(0.9f)
+                    TextWidth.NARROW -> Modifier.fillMaxWidth(0.75f)
+                }
                 BookmarkDetailHeader(
-                    modifier = Modifier,
+                    modifier = headerWidthModifier,
                     uiState = uiState,
                     onClickOpenUrl = onClickOpenUrl,
                     onTitleChanged = onTitleChanged

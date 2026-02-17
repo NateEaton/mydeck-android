@@ -97,6 +97,8 @@ other{}
     <string name="theme_sepia">Sepia</string>
     <string name="ui_settings_theme_heading">Theming</string>
     <string name="ui_settings_theme_dialog_support_text">Which theme should be used?</string>
+    <string name="ui_settings_sepia_title">Sepia reading theme</string>
+    <string name="ui_settings_sepia_description">Use warm tinted colors for reading in light mode</string>
 
     <!-- Bookmark Card Actions -->
     <string name="action_favorite">Favorite</string>
@@ -107,6 +109,7 @@ other{}
     <string name="action_share">Share Link</string>
     <string name="action_delete">Delete</string>
     <string name="action_open_in_browser">Open in Browser</string>
+    <string name="more_options">More options</string>
     <string name="action_view_original">View Original</string>
     <string name="action_view_article">View Article</string>
     <string name="action_view_photo">View Photo</string>

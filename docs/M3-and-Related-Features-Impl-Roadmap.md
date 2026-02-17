@@ -149,21 +149,92 @@ Phase 0 ──→ Phase 1 ──→ Phase 2 ──→ Phase 3 ──→ Phase 4 
 
 **Scope:**
 - Replace custom `Row` layouts in Settings screens with `ListItem`
-- Fix Mosaic card text contrast (gradient → `Surface` scrim)
-- Switch TopAppBar → `CenterAlignedTopAppBar` on main screens
+- **Mosaic card redesign:** Revert to a gradient-over-image overlay approach but with improved contrast. Default state shows a compact bottom overlay (title only, 2 lines max ellipsized, plus favorite star icon) with a sharp gradient covering the bottom ~25% of the card. No label chips in Mosaic (matches Readeck). Full actions (archive, delete, share, labels) accessible via long-press context menu or bottom sheet — this replaces Readeck's hover-to-reveal pattern with a standard Android interaction. The gradient must be strong enough to pass WCAG AA contrast on bright images.
 - Standardize drawer header typography
 - Add `contentPadding` to Settings `LazyColumn` for gesture bar
-- **Label chip parity across card variants:** Currently only Mosaic cards show label chips. Add tappable label chips to Grid cards (space permitting). For Compact cards, use a single truncated chip or omit — the FilterBar (Phase 4) will make active label state visible regardless of card variant. This ensures labels are tappable entry points to filtering across all view modes.
-- Quick wins from the M3 Review checklist
+- **Label chips per card variant:**
+  - **Mosaic:** No label chips (matches Readeck, keeps cards image-dominant)
+  - **Grid:** Add tappable label chips (cards have dedicated text areas with room)
+  - **Compact:** Show all labels as chips (not a truncated "first + count" pattern)
+- Quick wins from the M3 Review checklist (excluding haptic feedback and edge-to-edge, which are Phase 6 scope)
 
-**Files impacted:**
-- `SettingsScreen.kt` — `ListItem` adoption
-- `AccountSettingsScreen.kt` — same
-- `UiSettingsScreen.kt` — same
-- `SyncSettingsScreen.kt` — same
-- `BookmarkCard.kt` — Mosaic contrast fix, label chip additions to Grid/Compact variants
-- `BookmarkListScreen.kt` — TopAppBar update, drawer header
-- `BookmarkDetailTopBar.kt` — TopAppBar type
+#### REVISION 2a: Mosaic Card — Restore Action Icons Over Image ✅ DONE
+
+Implemented. Mosaic card now shows: 3-stop gradient (~90-100dp), title on top row, action icons (favorite, archive, view original, delete) on bottom row. No 3-dot overflow menu. No long-press dropdown. Open in Browser removed from Mosaic, Compact, and Grid card variants for consistency with Readeck.
+
+#### REVISION 2b: Title Edit Icon Size ✅ DONE
+
+Implemented. Edit icon is 24dp inside an `IconButton` with 48dp touch target.
+
+#### REVISION 2c: Reading View Title Width — STILL NEEDED
+
+**Problem:** The title in `BookmarkDetailHeader.kt` does not honor the user's text width setting. The typography controls apply text width via CSS (`body.style.maxWidth`) inside the WebView, but the title is a Compose `Text` composable rendered *outside* the WebView.
+
+**Implementation direction:** The title and header content sit in the same scrollable `Column` as the `BookmarkDetailArticle` WebView in `BookmarkDetailScreen.kt`. The text width setting uses CSS viewport-relative units (`90vw` for Wide, `75vw` for Narrow) which don't translate directly to Compose.
+
+The fix should:
+1. In `BookmarkDetailScreen.kt`, wrap the header content (title, metadata, etc.) in a centered `Box` with `Modifier.fillMaxWidth()` + `Modifier.widthIn(max = ...)` that mirrors the text width setting
+2. Map `TextWidth.WIDE` to `Modifier.fillMaxWidth(0.9f)` and `TextWidth.NARROW` to `Modifier.fillMaxWidth(0.75f)` — these are the Compose equivalents of the CSS `90vw`/`75vw` values
+3. The `typographySettings` are already available in the `uiState` passed to `BookmarkDetailScreen`. Use `uiState.typographySettings.textWidth` to select the appropriate modifier
+4. Apply this constraint to the header's outer container, NOT to individual text elements
+5. Do NOT change anything about how the WebView applies text width — that CSS approach is correct for WebView content
+
+#### REVISION 2d: Drawer Dividers — Lighter, Full Width ✅ DONE
+
+Implemented.
+
+#### REVISION 2e: Drawer & Settings Typography Sizing ✅ DONE
+
+Implemented. Drawer typography updated to match Google Settings app sizing.
+
+#### REVISION 2f: Theme Selection — Sepia Independence Fix — STILL NEEDED
+
+The inline `SingleChoiceSegmentedButtonRow` (Light/Dark/System) is implemented. The Sepia toggle is implemented. However, the current Sepia logic has a critical limitation:
+
+**Current behavior (broken):** Sepia is stored as `Theme.SEPIA` in the `Theme` enum — it replaces the theme mode rather than modifying it. The toggle only shows/works when Light is explicitly selected. When System Default is selected and resolves to light, Sepia does not apply.
+
+**Required behavior:** Sepia should be an independent preference that applies whenever the *effective* theme is light, regardless of how it got there:
+- User selects Light + Sepia ON → Sepia applies
+- User selects System Default + Sepia ON → Sepia applies when system is in light mode, normal dark when system is in dark mode
+- User selects Dark + Sepia ON → Sepia does NOT apply (dark overrides), but the preference is remembered so switching back to Light or System activates it
+
+**Implementation direction:**
+1. **Store Sepia as a separate boolean preference** in `SettingsDataStore`, not as a `Theme` enum value. Add a new `sepiaEnabled: Boolean` field (default `false`).
+2. **Remove `Theme.SEPIA`** from the `Theme` enum. The enum should only contain `LIGHT`, `DARK`, `SYSTEM`.
+3. **In `Theme.kt` (UI composition):** Resolve the effective theme by first determining light vs dark (from the theme mode + system setting), then checking `if (isLight && sepiaEnabled) SepiaColorScheme else ...`
+4. **In `UiSettingsViewModel`:**
+   - `themeMode` is always one of LIGHT/DARK/SYSTEM (no SEPIA)
+   - `sepiaEnabled` is a separate StateFlow from `SettingsDataStore`
+   - `onSepiaToggled(Boolean)` writes to the separate preference
+   - `onThemeModeSelected(Theme)` writes only the mode
+5. **In `UiSettingsScreen`:** The Sepia toggle should ALWAYS be visible and enabled regardless of which theme mode is selected. Its description should indicate it applies in light mode.
+6. **In `MainViewModel`:** Collect both theme mode and sepia preference, resolve the effective theme to pass to the composable theme wrapper.
+7. **Migration:** Handle users who currently have `Theme.SEPIA` stored — on first read, migrate to `theme=LIGHT` + `sepiaEnabled=true`.
+
+**Files impacted:** `Theme.kt` (domain enum), `Theme.kt` (UI composition), `SettingsDataStore.kt`, `SettingsDataStoreImpl.kt`, `UiSettingsViewModel.kt`, `UiSettingsScreen.kt`, `MainViewModel.kt`
+
+#### REVISION 2g: Reading View — Relocate Find in Article and Bookmark Detail Actions — NEW
+
+**Current state:** Find in Article is in the overflow menu of the reading view top bar. Bookmark Detail (info icon) is a direct icon in the top bar.
+
+**Required changes in `BookmarkDetailTopBar.kt` and/or `BookmarkDetailScreen.kt`:**
+1. **Find in Article:** Move from overflow menu to a direct icon button in the top bar header (icon only, no label). Use `Icons.Outlined.Search` or equivalent. This makes search more discoverable and quicker to access.
+2. **Bookmark Detail:** Move from direct top bar icon to the overflow menu. Place it between the Read/Unread item and the Delete item. Use the Info icon and "Bookmark Detail" label in the menu.
+
+This swaps their positions — the more frequently used action (search) becomes a direct icon, while the less frequently used action (detail/info) moves to the overflow menu.
+
+**Files impacted (remaining items only — completed items omitted):**
+- `BookmarkCard.kt` — label chip additions to Grid/Compact variants
+- `BookmarkDetailScreen.kt` — header width constraint wrapping (REV 2c)
+- `BookmarkDetailHeader.kt` — title width constraint (REV 2c)
+- `BookmarkDetailTopBar.kt` — swap Find in Article and Bookmark Detail positions (REV 2g)
+- `UiSettingsViewModel.kt` — separate Sepia from theme mode state (REV 2f)
+- `UiSettingsScreen.kt` — Sepia toggle always visible/enabled (REV 2f)
+- `MainViewModel.kt` — resolve effective theme from mode + sepia preference (REV 2f)
+- `SettingsDataStore.kt` — add `sepiaEnabled` boolean preference (REV 2f)
+- `SettingsDataStoreImpl.kt` — implement `sepiaEnabled` storage (REV 2f)
+- `Theme.kt` (domain enum) — remove `SEPIA` from `Theme` enum (REV 2f)
+- `Theme.kt` (UI composition) — resolve sepia at composition time (REV 2f)
 
 **New components:** None (using existing M3 components)
 
@@ -171,17 +242,32 @@ Phase 0 ──→ Phase 1 ──→ Phase 2 ──→ Phase 3 ──→ Phase 4 
 
 **Risks:**
 - Settings layout changes could shift element positions. Visual regression testing recommended.
-- Mosaic card scrim change affects the most visible UI element.
+- Mosaic card gradient/overlay redesign affects the most visible UI element.
+- Sepia theme separation changes how theme state is stored — ensure no regressions for existing Sepia users (theme preference migration may be needed).
 - **Mitigation:** Change one screen at a time. Test each independently.
 
 **Acceptance criteria:**
-- [ ] All Settings screens use `ListItem` — verify 56dp/72dp min heights
-- [ ] Mosaic cards pass WCAG AA contrast on bright images
-- [ ] TopAppBar is `CenterAlignedTopAppBar` on BookmarkList
-- [ ] No custom `Row` layouts remain in Settings
-- [ ] Label chips appear on Grid cards (tappable, triggering label filter)
-- [ ] Compact cards show a single truncated label chip or gracefully omit if no space
-- [ ] Quick wins checklist items from M3 Review are complete
+- [x] All Settings screens use `ListItem` — verify 56dp/72dp min heights
+- [x] Mosaic cards show 3-stop gradient (~90-100dp height) with title on top row and action icons (favorite, archive, view original, delete) on bottom row
+- [x] Mosaic cards have NO label chips and NO long-press dropdown (actions are visible in overlay)
+- [x] Open in Browser icon removed from Mosaic, Compact, and Grid card variants
+- [x] TopAppBar remains left-aligned (not CenterAligned) on all screens
+- [x] No custom `Row` layouts remain in Settings
+- [x] Grid cards show tappable label chips
+- [x] Compact cards show all labels as chips
+- [x] Title edit icon is 24dp inside an `IconButton` (48dp touch target) (REV 2b)
+- [x] Reading view title/header width honors user's text width setting — header uses `fillMaxWidth(0.9f)` for Wide, `fillMaxWidth(0.75f)` for Narrow, centered (REV 2c)
+- [x] Drawer dividers are lighter (`outlineVariant` at 50% alpha) and full width (REV 2d)
+- [x] Drawer item labels, badges, and section titles are appropriately sized per M3 defaults (REV 2e)
+- [x] Settings item headlines use `bodyLarge`, supporting text uses `bodyMedium` (REV 2e)
+- [x] Theme selection uses inline `SingleChoiceSegmentedButtonRow` (Light/Dark/System), no dialog (REV 2f)
+- [x] Sepia is stored as a separate boolean preference, independent of theme mode (REV 2f)
+- [x] Sepia applies when effective theme is light (whether from Light or System Default) (REV 2f)
+- [x] Sepia toggle is always visible and enabled regardless of selected theme mode (REV 2f)
+- [x] `Theme.SEPIA` removed from enum; migration handles existing users (REV 2f)
+- [x] Find in Article is a direct icon button in reading view top bar (REV 2g)
+- [x] Bookmark Detail is in overflow menu between Read/Unread and Delete (REV 2g)
+- [x] Quick wins checklist items from M3 Review are complete (excluding haptics and edge-to-edge, which are Phase 6)
 
 ---
 
@@ -579,13 +665,16 @@ This prevents unreadably long lines on wide screens.
 ### Quick Wins vs Large Refactors
 
 **Quick Wins (can be done in a day each):**
-- [ ] Edge-to-edge status bar transparency
-- [ ] Haptic feedback on bookmark actions
-- [ ] `contentPadding` on Settings LazyColumn
-- [ ] Favicon-title spacing fix (8dp → 12dp)
-- [ ] IconButton `onClickLabel` for TalkBack
-- [ ] `Dimens.kt` creation
-- [ ] Mosaic card contrast fix (gradient → Surface scrim)
+- [ ] Edge-to-edge status bar transparency (Phase 6)
+- [ ] Haptic feedback on bookmark actions (Phase 6)
+- [ ] `contentPadding` on Settings LazyColumn (Phase 2)
+- [ ] Favicon-title spacing fix (8dp → 12dp) (Phase 2)
+- [ ] IconButton `onClickLabel` for TalkBack (Phase 2)
+- [ ] `Dimens.kt` creation (Phase 0)
+
+**Medium Refactors (can be done in a day or two each):**
+- [ ] Mosaic card gradient/overlay redesign — compact overlay with sharp gradient, long-press for actions (Phase 2)
+- [ ] Label chip parity — Grid gets chips, Compact shows all labels, Mosaic has none (Phase 2)
 
 **Medium Refactors (2-3 days each):**
 - [ ] Settings screens → `ListItem` adoption

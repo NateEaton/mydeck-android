@@ -84,12 +84,15 @@
     <string name="theme_dark">深色</string>
     <string name="ui_settings_theme_heading">主题设置</string>
     <string name="ui_settings_theme_dialog_support_text">使用哪种主题？</string>
+    <string name="ui_settings_sepia_title">Sepia reading theme</string>
+    <string name="ui_settings_sepia_description">Use warm tinted colors for reading in light mode</string>
     <string name="action_favorite">收藏</string>
     <string name="action_archive">存档</string>
     <string name="action_mark_read">已读</string>
     <string name="action_share">分享链接</string>
     <string name="action_delete">删除</string>
     <string name="action_open_in_browser">在浏览器中打开</string>
+    <string name="more_options">More options</string>
     <string name="error_no_article_content">错误，未提供文章内容</string>
     <string name="update_successful">更新成功</string>
     <string name="notification_channel_sync_name">同步错误</string>

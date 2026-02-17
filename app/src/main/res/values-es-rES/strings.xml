@@ -92,7 +92,10 @@ other{}
     <string name="theme_dark">Oscuro</string>
     <string name="ui_settings_theme_heading">Temas</string>
     <string name="ui_settings_theme_dialog_support_text">¿Qué tema se debe usar?</string>
+    <string name="ui_settings_sepia_title">Sepia reading theme</string>
+    <string name="ui_settings_sepia_description">Use warm tinted colors for reading in light mode</string>
     <string name="action_open_in_browser">Abrir en el navegador</string>
+    <string name="more_options">More options</string>
     <string name="detail_view_no_content">No se encontró contenido del artículo</string>
     <string name="auto_sync_notification_rationale_dialog_grant_button">Dar permiso</string>
     <string name="ui_settings_topbar_title">Opciones de la interfaz de usuario</string>

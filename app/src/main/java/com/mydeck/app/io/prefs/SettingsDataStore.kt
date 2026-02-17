@@ -64,4 +64,9 @@ interface SettingsDataStore {
     // Typography settings
     val typographySettingsFlow: StateFlow<TypographySettings>
     suspend fun saveTypographySettings(settings: TypographySettings)
+
+    // Sepia preference (independent of theme mode)
+    val sepiaEnabledFlow: StateFlow<Boolean>
+    suspend fun saveSepiaEnabled(enabled: Boolean)
+    suspend fun isSepiaEnabled(): Boolean
 }

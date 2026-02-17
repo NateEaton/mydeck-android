@@ -37,6 +37,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             val viewModel = hiltViewModel<MainViewModel>()
             val theme = viewModel.theme.collectAsState()
+            val sepiaEnabled = viewModel.sepiaEnabled.collectAsState()
             val navController = rememberNavController()
             intentState = remember { mutableStateOf(intent) }
 
@@ -65,7 +66,7 @@ class MainActivity : ComponentActivity() {
                 else -> theme.value
             }
 
-            MyDeckTheme(theme = themeValue) {
+            MyDeckTheme(theme = themeValue, sepiaEnabled = sepiaEnabled.value) {
                 AppShell(navController, settingsDataStore)
             }
         }

@@ -3,6 +3,7 @@ package com.mydeck.app.ui.shell
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -32,7 +33,6 @@ import androidx.compose.ui.unit.dp
 import com.mydeck.app.R
 import com.mydeck.app.domain.model.BookmarkCounts
 import com.mydeck.app.ui.list.BookmarkListViewModel.FilterState
-import com.mydeck.app.ui.theme.Typography
 
 @Composable
 fun AppDrawerContent(
@@ -53,14 +53,14 @@ fun AppDrawerContent(
                 .padding(horizontal = 16.dp)
                 .verticalScroll(rememberScrollState())
         ) {
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(28.dp))
             Row(
                 modifier = Modifier.padding(16.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
                     stringResource(id = R.string.app_name),
-                    style = MaterialTheme.typography.titleLarge
+                    style = MaterialTheme.typography.headlineSmall
                 )
                 if (!isOnline) {
                     Spacer(Modifier.width(8.dp))
@@ -72,10 +72,13 @@ fun AppDrawerContent(
                     )
                 }
             }
-            HorizontalDivider()
+            HorizontalDivider(
+                modifier = Modifier.fillMaxWidth(),
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+            )
             NavigationDrawerItem(
                 label = { Text(
-                    style = Typography.labelLarge,
+                    style = MaterialTheme.typography.bodyLarge,
                     text = stringResource(id = R.string.my_list)
                 ) },
                 icon = { Icon(imageVector = Icons.Outlined.TaskAlt, contentDescription = null)},
@@ -84,7 +87,8 @@ fun AppDrawerContent(
                     if (myListCount > 0) {
                         Badge(containerColor = MaterialTheme.colorScheme.secondaryContainer) {
                             Text(
-                                text = myListCount.toString()
+                                text = myListCount.toString(),
+                                style = MaterialTheme.typography.labelMedium
                             )
                         }
                     }
@@ -94,7 +98,7 @@ fun AppDrawerContent(
             )
             NavigationDrawerItem(
                 label = { Text(
-                    style = Typography.labelLarge,
+                    style = MaterialTheme.typography.bodyLarge,
                     text = stringResource(id = R.string.archive)
                 ) },
                 icon = { Icon(imageVector = Icons.Outlined.Inventory2, contentDescription = null) },
@@ -103,7 +107,8 @@ fun AppDrawerContent(
                         if (count > 0) {
                             Badge(containerColor = MaterialTheme.colorScheme.secondaryContainer) {
                                 Text(
-                                    text = count.toString()
+                                    text = count.toString(),
+                                    style = MaterialTheme.typography.labelMedium
                                 )
                             }
                         }
@@ -112,10 +117,13 @@ fun AppDrawerContent(
                 selected = filterState.archived == true,
                 onClick = onClickArchive
             )
-            HorizontalDivider()
+            HorizontalDivider(
+                modifier = Modifier.fillMaxWidth(),
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+            )
             NavigationDrawerItem(
                 label = { Text(
-                    style = Typography.labelLarge,
+                    style = MaterialTheme.typography.bodyLarge,
                     text = stringResource(id = R.string.favorites)
                 ) },
                 icon = { Icon(imageVector = Icons.Filled.Grade, contentDescription = null) },
@@ -124,7 +132,8 @@ fun AppDrawerContent(
                         if (count > 0) {
                             Badge(containerColor = MaterialTheme.colorScheme.secondaryContainer) {
                                 Text(
-                                    text = count.toString()
+                                    text = count.toString(),
+                                    style = MaterialTheme.typography.labelMedium
                                 )
                             }
                         }
@@ -135,7 +144,7 @@ fun AppDrawerContent(
             )
             NavigationDrawerItem(
                 label = { Text(
-                    style = Typography.labelLarge,
+                    style = MaterialTheme.typography.bodyLarge,
                     text = stringResource(id = R.string.labels)
                 ) },
                 icon = { Icon(Icons.Outlined.Label, contentDescription = null) },
@@ -143,7 +152,8 @@ fun AppDrawerContent(
                     if (labelsWithCounts.isNotEmpty()) {
                         Badge(containerColor = MaterialTheme.colorScheme.secondaryContainer) {
                             Text(
-                                text = labelsWithCounts.size.toString()
+                                text = labelsWithCounts.size.toString(),
+                                style = MaterialTheme.typography.labelMedium
                             )
                         }
                     }
@@ -151,10 +161,13 @@ fun AppDrawerContent(
                 selected = filterState.viewingLabelsList || filterState.label != null,
                 onClick = onClickLabels
             )
-            HorizontalDivider()
+            HorizontalDivider(
+                modifier = Modifier.fillMaxWidth(),
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+            )
             NavigationDrawerItem(
                 label = { Text(
-                    style = Typography.labelLarge,
+                    style = MaterialTheme.typography.bodyLarge,
                     text = stringResource(id = R.string.settings)
                 ) },
                 icon = { Icon(imageVector = Icons.Outlined.Settings, contentDescription = null) },
@@ -163,7 +176,7 @@ fun AppDrawerContent(
             )
             NavigationDrawerItem(
                 label = { Text(
-                    style = Typography.labelLarge,
+                    style = MaterialTheme.typography.bodyLarge,
                     text = stringResource(id = R.string.about_title)
                 ) },
                 icon = { Icon(imageVector = Icons.Outlined.Info, contentDescription = null) },

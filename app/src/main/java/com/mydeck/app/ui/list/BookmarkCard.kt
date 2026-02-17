@@ -2,8 +2,10 @@ package com.mydeck.app.ui.list
 
 import android.content.Context
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -27,13 +29,14 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Grade
 import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.Language
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.Grade
 import androidx.compose.material.icons.outlined.Inventory2
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.SuggestionChipDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -42,8 +45,13 @@ import androidx.compose.material3.SuggestionChip
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -53,7 +61,6 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
@@ -75,7 +82,7 @@ import com.mydeck.app.domain.model.Bookmark
 import com.mydeck.app.domain.model.BookmarkListItem
 import com.mydeck.app.ui.components.ErrorPlaceholderImage
 import com.mydeck.app.ui.drawable.ReadeckPlaceholderDrawable
-@OptIn(ExperimentalLayoutApi::class)
+@OptIn(ExperimentalLayoutApi::class, ExperimentalFoundationApi::class)
 @Composable
 fun BookmarkMosaicCard(
     bookmark: BookmarkListItem,
@@ -129,24 +136,6 @@ fun BookmarkMosaicCard(
                 }
             }
 
-            // Gradient overlay on bottom third for text readability
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(200.dp)
-                    .align(Alignment.BottomCenter)
-                    .background(
-                        brush = androidx.compose.ui.graphics.Brush.verticalGradient(
-                            colors = listOf(
-                                Color.Transparent,
-                                Color.Black.copy(alpha = 0.7f)
-                            ),
-                            startY = 0f,
-                            endY = Float.POSITIVE_INFINITY
-                        )
-                    )
-            )
-
             // Show progress indicator based on read progress
             if (bookmark.readProgress > 0) {
                 Box(
@@ -156,12 +145,11 @@ fun BookmarkMosaicCard(
                         .size(28.dp)
                         .background(
                             color = Color.Gray.copy(alpha = 0.5f),
-                            shape = androidx.compose.foundation.shape.CircleShape
+                            shape = CircleShape
                         ),
                     contentAlignment = Alignment.Center
                 ) {
                     if (bookmark.readProgress == 100) {
-                        // Show bold checkmark for completed
                         Icon(
                             imageVector = Icons.Filled.Check,
                             contentDescription = stringResource(R.string.action_mark_read),
@@ -169,7 +157,6 @@ fun BookmarkMosaicCard(
                             modifier = Modifier.size(20.dp)
                         )
                     } else {
-                        // Show circular progress indicator that grows clockwise
                         CircularProgressIndicator(
                             progress = bookmark.readProgress,
                             modifier = Modifier.size(24.dp)
@@ -178,14 +165,32 @@ fun BookmarkMosaicCard(
                 }
             }
 
-            // Content overlay at bottom
+            // 3-stop gradient overlay (~90-100dp) for improved contrast
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(96.dp)
+                    .align(Alignment.BottomCenter)
+                    .background(
+                        brush = Brush.verticalGradient(
+                            colorStops = arrayOf(
+                                0f to Color.Transparent,
+                                0.4f to Color.Black.copy(alpha = 0.3f),
+                                1f to Color.Black.copy(alpha = 0.85f)
+                            )
+                        )
+                    )
+            )
+
+            // Overlay content: title on top, action icons on bottom
             Column(
                 modifier = Modifier
                     .align(Alignment.BottomStart)
                     .fillMaxWidth()
-                    .padding(8.dp)
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                // Title
+                // Top row: Title
                 Text(
                     text = bookmark.title,
                     style = MaterialTheme.typography.titleMedium,
@@ -194,91 +199,38 @@ fun BookmarkMosaicCard(
                     color = Color.White
                 )
 
-                // Labels Row with clickable chips
-                if (bookmark.labels.isNotEmpty()) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(top = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            painter = painterResource(R.drawable.ic_label_24px),
-                            contentDescription = "labels",
-                            tint = Color.White
-                        )
-                        Spacer(Modifier.width(8.dp))
-                        FlowRow(
-                            horizontalArrangement = Arrangement.spacedBy(6.dp),
-                            verticalArrangement = Arrangement.spacedBy(4.dp),
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            bookmark.labels.forEach { label ->
-                                SuggestionChip(
-                                    onClick = { onClickLabel(label) },
-                                    label = {
-                                        Text(
-                                            text = label,
-                                            style = MaterialTheme.typography.labelMedium,
-                                            color = Color.White
-                                        )
-                                    },
-                                    colors = SuggestionChipDefaults.suggestionChipColors(
-                                        containerColor = Color.White.copy(alpha = 0.2f),
-                                        labelColor = Color.White
-                                    ),
-                                    border = BorderStroke(
-                                        width = 1.dp,
-                                        color = Color.White.copy(alpha = 0.3f)
-                                    )
-                                )
-                            }
-                        }
-                    }
-                }
-
-                // Action Icons Row
+                // Bottom row: Action icons
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 0.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
                     Row(horizontalArrangement = Arrangement.Start) {
-                        // Favorite Button
                         IconButton(
                             onClick = { onClickFavorite(bookmark.id, !bookmark.isMarked) },
-                            modifier = Modifier
-                                .width(48.dp)
-                                .height(48.dp)
+                            modifier = Modifier.size(36.dp)
                         ) {
                             Icon(
                                 imageVector = if (bookmark.isMarked) Icons.Filled.Grade else Icons.Outlined.Grade,
                                 contentDescription = stringResource(R.string.action_favorite),
-                                tint = Color.White
+                                tint = Color.White,
+                                modifier = Modifier.size(20.dp)
                             )
                         }
-
-                        // Archive Button
                         IconButton(
                             onClick = { onClickArchive(bookmark.id, !bookmark.isArchived) },
-                            modifier = Modifier
-                                .width(48.dp)
-                                .height(48.dp)
+                            modifier = Modifier.size(36.dp)
                         ) {
                             Icon(
                                 imageVector = if (bookmark.isArchived) Icons.Filled.Inventory2 else Icons.Outlined.Inventory2,
                                 contentDescription = stringResource(R.string.action_archive),
-                                tint = Color.White
+                                tint = Color.White,
+                                modifier = Modifier.size(20.dp)
                             )
                         }
-
-                        // View Original (in-app) Button
                         IconButton(
                             onClick = { onClickOpenUrl(bookmark.id) },
-                            modifier = Modifier
-                                .width(48.dp)
-                                .height(48.dp)
+                            modifier = Modifier.size(36.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Filled.Language,
@@ -287,34 +239,16 @@ fun BookmarkMosaicCard(
                                 modifier = Modifier.size(20.dp)
                             )
                         }
-
-                        // Open in Browser Button
-                        IconButton(
-                            onClick = { onClickOpenInBrowser(bookmark.url) },
-                            modifier = Modifier
-                                .width(48.dp)
-                                .height(48.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.OpenInNew,
-                                contentDescription = stringResource(R.string.action_open_in_browser),
-                                tint = Color.White,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
                     }
-
-                    // Delete Button (right side)
                     IconButton(
                         onClick = { onClickDelete(bookmark.id) },
-                        modifier = Modifier
-                            .width(48.dp)
-                            .height(48.dp)
+                        modifier = Modifier.size(36.dp)
                     ) {
                         Icon(
-                            Icons.Filled.Delete,
+                            imageVector = Icons.Filled.Delete,
                             contentDescription = stringResource(R.string.action_delete),
-                            tint = Color.White
+                            tint = Color.White,
+                            modifier = Modifier.size(20.dp)
                         )
                     }
                 }
@@ -468,27 +402,27 @@ fun BookmarkGridCard(
                     }
                 }
 
-                // Labels row
+                // Labels row with tappable chips
                 if (bookmark.labels.isNotEmpty()) {
-                    Row(
+                    FlowRow(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(top = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        verticalArrangement = Arrangement.spacedBy(2.dp)
                     ) {
-                        Icon(
-                            painter = painterResource(R.drawable.ic_label_24px),
-                            contentDescription = "labels",
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(Modifier.width(4.dp))
-                        val labels = bookmark.labels.joinToString(", ")
-                        Text(
-                            text = labels,
-                            style = MaterialTheme.typography.labelMedium,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
+                        bookmark.labels.forEach { label ->
+                            SuggestionChip(
+                                onClick = { onClickLabel(label) },
+                                label = {
+                                    Text(
+                                        text = label,
+                                        style = MaterialTheme.typography.labelSmall
+                                    )
+                                },
+                                modifier = Modifier.height(24.dp)
+                            )
+                        }
                     }
                 }
 
@@ -527,16 +461,6 @@ fun BookmarkGridCard(
                             Icon(
                                 imageVector = Icons.Filled.Language,
                                 contentDescription = stringResource(R.string.action_view_original),
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-                        IconButton(
-                            onClick = { onClickOpenInBrowser(bookmark.url) },
-                            modifier = Modifier.size(36.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.OpenInNew,
-                                contentDescription = stringResource(R.string.action_open_in_browser),
                                 modifier = Modifier.size(20.dp)
                             )
                         }
@@ -664,27 +588,27 @@ fun BookmarkCompactCard(
             }
         }
 
-        // Labels row
+        // Labels row — all labels as tappable chips
         if (bookmark.labels.isNotEmpty()) {
-            Row(
+            FlowRow(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(start = 36.dp, top = 4.dp),
-                verticalAlignment = Alignment.CenterVertically
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                verticalArrangement = Arrangement.spacedBy(2.dp)
             ) {
-                Icon(
-                    painter = painterResource(R.drawable.ic_label_24px),
-                    contentDescription = "labels",
-                    modifier = Modifier.size(14.dp)
-                )
-                Spacer(Modifier.width(4.dp))
-                val labels = bookmark.labels.joinToString(", ")
-                Text(
-                    text = labels,
-                    style = MaterialTheme.typography.labelSmall,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
+                bookmark.labels.forEach { label ->
+                    SuggestionChip(
+                        onClick = { onClickLabel(label) },
+                        label = {
+                            Text(
+                                text = label,
+                                style = MaterialTheme.typography.labelSmall
+                            )
+                        },
+                        modifier = Modifier.height(24.dp)
+                    )
+                }
             }
         }
 
@@ -723,16 +647,6 @@ fun BookmarkCompactCard(
                     Icon(
                         imageVector = Icons.Filled.Language,
                         contentDescription = stringResource(R.string.action_view_original),
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
-                IconButton(
-                    onClick = { onClickOpenInBrowser(bookmark.url) },
-                    modifier = Modifier.size(32.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.OpenInNew,
-                        contentDescription = stringResource(R.string.action_open_in_browser),
                         modifier = Modifier.size(18.dp)
                     )
                 }
