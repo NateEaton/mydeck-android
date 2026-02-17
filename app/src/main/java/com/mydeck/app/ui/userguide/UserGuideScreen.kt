@@ -1,11 +1,9 @@
 package com.mydeck.app.ui.userguide
 
-import android.content.Context
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
@@ -25,9 +23,7 @@ import io.noties.markwon.ext.tables.TablePlugin
 import io.noties.markwon.ext.tasklist.TaskListPlugin
 import io.noties.markwon.image.ImagesPlugin
 import io.noties.markwon.image.glide.GlideImagesPlugin
-import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.viewinterop.AndroidView
-import androidx.compose.ui.tooling.preview.Preview
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -187,9 +183,3 @@ private fun NavigationItem(
     }
 }
 
-@Preview(showBackground = true)
-@Composable
-fun UserGuideScreenPreview() {
-    // Preview disabled due to NavHostController complexity
-    // Use actual app to test User Guide functionality
-}

@@ -2,6 +2,7 @@ package com.mydeck.app.ui.userguide
 
 import android.content.Context
 import dagger.hilt.android.qualifiers.ApplicationContext
+import java.io.IOException
 import javax.inject.Inject
 import javax.inject.Singleton
 
