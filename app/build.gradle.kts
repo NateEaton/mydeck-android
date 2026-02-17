@@ -224,6 +224,9 @@ dependencies {
     implementation("io.noties.markwon:syntax-highlight:4.6.2") {
         exclude(group = "org.jetbrains", module = "annotations-java5")
     }
+    implementation("io.noties.markwon:image-glide:4.6.2") {
+        exclude(group = "org.jetbrains", module = "annotations-java5")
+    }
 }
 
 aboutLibraries {

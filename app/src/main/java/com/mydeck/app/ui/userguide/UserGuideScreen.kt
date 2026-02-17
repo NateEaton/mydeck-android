@@ -27,6 +27,7 @@ import io.noties.markwon.image.ImagesPlugin
 import io.noties.markwon.image.glide.GlideImagesPlugin
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.ui.tooling.preview.Preview
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -189,5 +190,6 @@ private fun NavigationItem(
 @Preview(showBackground = true)
 @Composable
 fun UserGuideScreenPreview() {
-    UserGuideScreen(navHostController = androidx.navigation.NavHostController(android.content.Context()))
+    // Preview disabled due to NavHostController complexity
+    // Use actual app to test User Guide functionality
 }
