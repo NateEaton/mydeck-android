@@ -1,7 +1,9 @@
 package com.mydeck.app.ui.userguide
 
 import android.content.Context
-import java.io.IOException
+import dagger.hilt.android.qualifiers.ApplicationContext
+import javax.inject.Inject
+import javax.inject.Singleton
 
 data class GuideSection(
     val title: String,
@@ -9,7 +11,10 @@ data class GuideSection(
     val order: Int
 )
 
-class MarkdownAssetLoader(private val context: Context) {
+@Singleton
+class MarkdownAssetLoader @Inject constructor(
+    @ApplicationContext private val context: Context
+) {
     
     companion object {
         private const val ASSETS_PATH = "guide/en"
