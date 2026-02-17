@@ -127,4 +127,11 @@
     <string name="width_narrow">Étroit</string>
     <string name="justify_label">Justifier le texte</string>
     <string name="hyphenation_label">Césure des mots</string>
+    <string name="labels_search_placeholder">Search labels</string>
+    <string name="labels_empty">No labels</string>
+    <string name="labels_search_empty">No labels found</string>
+    <string name="rename_label">Rename label</string>
+    <string name="rename">Rename</string>
+    <string name="delete">Delete</string>
+    <string name="delete_label_confirm_message">Are you sure you want to delete the label \"%1$s\"? It will be removed from all bookmarks.</string>
 </resources>

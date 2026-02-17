@@ -35,11 +35,13 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Sort
+import androidx.compose.material.icons.filled.SwapVert
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.Apps
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.automirrored.filled.ViewList
+import androidx.compose.material.icons.automirrored.outlined.Label
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -127,18 +129,14 @@ fun BookmarkListScreen(
     val layoutMode = viewModel.layoutMode.collectAsState()
     val sortOption = viewModel.sortOption.collectAsState()
     val labelsWithCounts = viewModel.labelsWithCounts.collectAsState()
+    val isLabelsSheetOpen = viewModel.isLabelsSheetOpen.collectAsState()
 
-
-    var showLayoutMenu by remember { androidx.compose.runtime.mutableStateOf(false) }
-    var showSortMenu by remember { androidx.compose.runtime.mutableStateOf(false) }
+    var showLayoutMenu by remember { mutableStateOf(false) }
+    var showSortMenu by remember { mutableStateOf(false) }
+    var showOverflowMenu by remember { mutableStateOf(false) }
+    var showRenameLabelDialog by remember { mutableStateOf(false) }
+    var showDeleteLabelDialog by remember { mutableStateOf(false) }
     var scrollToTopTrigger by remember { mutableStateOf(0) }
-
-    // Label edit/delete state
-    var isEditingLabel by remember { mutableStateOf(false) }
-    var editedLabelName by remember { mutableStateOf("") }
-    var pendingDeleteLabel by remember { mutableStateOf<String?>(null) }
-    var deleteLabelJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
-    val labelEditFocusRequester = remember { FocusRequester() }
 
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -181,14 +179,14 @@ fun BookmarkListScreen(
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
+            val isLabelMode = filterState.value.label != null
+
             // Determine the current view title based on filter state
             val currentViewTitle = when {
-                filterState.value.viewingLabelsList -> stringResource(id = R.string.select_label)
-                filterState.value.label != null -> "Label..."
                 filterState.value.archived == false -> stringResource(id = R.string.my_list)
                 filterState.value.archived == true -> stringResource(id = R.string.archive)
                 filterState.value.favorite == true -> stringResource(id = R.string.favorites)
-                else -> stringResource(id = R.string.my_list) // Default to My List
+                else -> stringResource(id = R.string.my_list)
             }
 
             val searchFocusRequester = remember { FocusRequester() }
@@ -221,6 +219,20 @@ fun BookmarkListScreen(
                                 .fillMaxWidth()
                                 .focusRequester(searchFocusRequester)
                         )
+                    } else if (isLabelMode) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.clickable { scrollToTopTrigger++ }
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Outlined.Label,
+                                contentDescription = null,
+                                modifier = Modifier.size(20.dp),
+                                tint = MaterialTheme.colorScheme.onSurface
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(text = filterState.value.label!!)
+                        }
                     } else {
                         Text(
                             text = currentViewTitle,
@@ -247,11 +259,11 @@ fun BookmarkListScreen(
                     }
                 },
                 actions = {
-                    if (!isSearchActive.value && !filterState.value.viewingLabelsList) {
+                    if (!isSearchActive.value) {
                         // Sort button with dropdown
                         Box {
                             IconButton(onClick = { showSortMenu = true }) {
-                                Icon(Icons.Filled.Sort, contentDescription = "Sort")
+                                Icon(Icons.Filled.SwapVert, contentDescription = "Sort")
                             }
                             DropdownMenu(
                                 expanded = showSortMenu,
@@ -259,12 +271,13 @@ fun BookmarkListScreen(
                             ) {
                                 SortOption.entries.forEach { option ->
                                     DropdownMenuItem(
-                                        text = {
-                                            Text(
-                                                text = option.displayName,
-                                                fontWeight = if (option == sortOption.value) androidx.compose.ui.text.font.FontWeight.Bold else androidx.compose.ui.text.font.FontWeight.Normal
+                                        leadingIcon = {
+                                            RadioButton(
+                                                selected = option == sortOption.value,
+                                                onClick = null
                                             )
                                         },
+                                        text = { Text(text = option.displayName) },
                                         onClick = {
                                             viewModel.onSortOptionSelected(option)
                                             showSortMenu = false
@@ -274,10 +287,15 @@ fun BookmarkListScreen(
                             }
                         }
 
-                        // Layout button with dropdown
+                        // Layout button with dropdown — icon reflects current mode
                         Box {
+                            val currentLayoutIcon = when (layoutMode.value) {
+                                LayoutMode.GRID -> Icons.Filled.Apps
+                                LayoutMode.COMPACT -> Icons.AutoMirrored.Filled.List
+                                LayoutMode.MOSAIC -> Icons.Filled.GridView
+                            }
                             IconButton(onClick = { showLayoutMenu = true }) {
-                                Icon(Icons.Filled.GridView, contentDescription = "Layout")
+                                Icon(currentLayoutIcon, contentDescription = "Layout")
                             }
                             DropdownMenu(
                                 expanded = showLayoutMenu,
@@ -310,9 +328,37 @@ fun BookmarkListScreen(
                             }
                         }
 
-                        // Search button
-                        IconButton(onClick = { viewModel.onSearchActiveChange(true) }) {
-                            Icon(Icons.Filled.Search, contentDescription = stringResource(R.string.search))
+                        if (isLabelMode) {
+                            // Overflow menu with Rename/Delete label options
+                            Box {
+                                IconButton(onClick = { showOverflowMenu = true }) {
+                                    Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.more_options))
+                                }
+                                DropdownMenu(
+                                    expanded = showOverflowMenu,
+                                    onDismissRequest = { showOverflowMenu = false }
+                                ) {
+                                    DropdownMenuItem(
+                                        text = { Text(stringResource(R.string.rename_label)) },
+                                        onClick = {
+                                            showRenameLabelDialog = true
+                                            showOverflowMenu = false
+                                        }
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text(stringResource(R.string.delete_label)) },
+                                        onClick = {
+                                            showDeleteLabelDialog = true
+                                            showOverflowMenu = false
+                                        }
+                                    )
+                                }
+                            }
+                        } else {
+                            // Search button (non-label mode only)
+                            IconButton(onClick = { viewModel.onSearchActiveChange(true) }) {
+                                Icon(Icons.Filled.Search, contentDescription = stringResource(R.string.search))
+                            }
                         }
                     }
                 }
@@ -338,173 +384,17 @@ fun BookmarkListScreen(
                 .padding(padding)
                 .fillMaxWidth()
         ) {
-            // Subheader with label name, edit icon, and delete icon when filtering by label
-            if (filterState.value.label != null) {
-                val labelDeletedMessageFormat = stringResource(R.string.label_deleted)
-                val currentLabel = filterState.value.label!!
-
-                // Focus on edit field when entering edit mode and set cursor at end
-                LaunchedEffect(isEditingLabel) {
-                    if (isEditingLabel) {
-                        labelEditFocusRequester.requestFocus()
-                    }
-                }
-
-                Column(
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 4.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        if (isEditingLabel) {
-                            TextField(
-                                value = editedLabelName,
-                                onValueChange = { editedLabelName = it },
-                                singleLine = true,
-                                textStyle = MaterialTheme.typography.titleMedium.copy(
-                                    color = MaterialTheme.colorScheme.onSurface
-                                ),
-                                colors = TextFieldDefaults.colors(
-                                    focusedContainerColor = MaterialTheme.colorScheme.surface,
-                                    unfocusedContainerColor = MaterialTheme.colorScheme.surface,
-                                    focusedIndicatorColor = MaterialTheme.colorScheme.primary,
-                                    unfocusedIndicatorColor = MaterialTheme.colorScheme.outline,
-                                    focusedTextColor = MaterialTheme.colorScheme.onSurface,
-                                    unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
-                                    focusedLabelColor = MaterialTheme.colorScheme.primary
-                                ),
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .focusRequester(labelEditFocusRequester),
-                                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                                keyboardActions = KeyboardActions(
-                                    onDone = {
-                                        if (editedLabelName.isNotBlank() && editedLabelName != currentLabel) {
-                                            viewModel.onRenameLabel(currentLabel, editedLabelName)
-                                        }
-                                        isEditingLabel = false
-                                    }
-                                )
-                            )
-                            IconButton(
-                                onClick = {
-                                    // Save the edited label
-                                    if (editedLabelName.isNotBlank() && editedLabelName != currentLabel) {
-                                        viewModel.onRenameLabel(currentLabel, editedLabelName)
-                                    }
-                                    isEditingLabel = false
-                                },
-                                modifier = Modifier.size(40.dp)
-                            ) {
-                                Icon(
-                                    Icons.Filled.Check,
-                                    contentDescription = "Save",
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
-                        } else {
-                            Box(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .border(
-                                        width = 1.dp,
-                                        color = MaterialTheme.colorScheme.outline,
-                                        shape = RoundedCornerShape(8.dp)
-                                    )
-                                    .padding(horizontal = 12.dp, vertical = 8.dp),
-                                contentAlignment = Alignment.CenterStart
-                            ) {
-                                Text(
-                                    currentLabel,
-                                    style = MaterialTheme.typography.titleMedium
-                                )
-                            }
-                            IconButton(
-                                onClick = {
-                                    editedLabelName = currentLabel
-                                    isEditingLabel = true
-                                },
-                                modifier = Modifier.size(40.dp)
-                            ) {
-                                Icon(
-                                    Icons.Filled.Edit,
-                                    contentDescription = stringResource(id = R.string.edit_label),
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
-                            IconButton(
-                                onClick = {
-                                    // Cancel any existing delete operation
-                                    deleteLabelJob?.cancel()
-
-                                    // Set pending delete
-                                    pendingDeleteLabel = currentLabel
-
-                                    // Show snackbar with undo option
-                                    scope.launch {
-                                        val result = snackbarHostState.showSnackbar(
-                                            message = labelDeletedMessageFormat.format(currentLabel),
-                                            actionLabel = "UNDO",
-                                            duration = SnackbarDuration.Long
-                                        )
-
-                                        if (result == androidx.compose.material3.SnackbarResult.ActionPerformed) {
-                                            // User clicked undo, cancel the deletion
-                                            deleteLabelJob?.cancel()
-                                            pendingDeleteLabel = null
-                                        }
-                                    }
-
-                                    // Schedule the actual deletion after 10 seconds
-                                    deleteLabelJob = scope.launch {
-                                        kotlinx.coroutines.delay(10000)
-                                        if (pendingDeleteLabel == currentLabel) {
-                                            viewModel.onDeleteLabel(currentLabel)
-                                            pendingDeleteLabel = null
-                                        }
-                                    }
-                                },
-                                modifier = Modifier.size(40.dp)
-                            ) {
-                                Icon(
-                                    Icons.Filled.Delete,
-                                    contentDescription = stringResource(id = R.string.delete_label),
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
-                        }
-                    }
-                    HorizontalDivider()
-                }
-            }
-
             PullToRefreshBox(
                 isRefreshing = isLoading,
                 onRefresh = { viewModel.onPullToRefresh() },
                 state = pullToRefreshState,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                // Show labels list if viewing labels, otherwise show bookmarks list
-                if (filterState.value.viewingLabelsList) {
-                LabelsListView(
-                    labels = labelsWithCounts.value,
-                    scrollToTopTrigger = scrollToTopTrigger,
-                    onLabelSelected = { label ->
-                        viewModel.onClickLabel(label)
-                    }
-                )
-            } else {
                 when (uiState) {
                     is BookmarkListViewModel.UiState.Empty -> {
                         EmptyScreen(messageResource = uiState.messageResource)
                     }
                     is BookmarkListViewModel.UiState.Success -> {
-                        // Success state updates are now optimistic and don't trigger snackbars for every toggle
-                        // but still show the list
                         BookmarkListView(
                             filterKey = filterState.value,
                             scrollToTopTrigger = scrollToTopTrigger,
@@ -527,7 +417,6 @@ fun BookmarkListScreen(
                         )
                     }
                 }
-            }
             }
         }
 
@@ -588,6 +477,76 @@ fun BookmarkListScreen(
         }
 
     }
+
+    if (isLabelsSheetOpen.value) {
+        LabelsBottomSheet(
+            labels = labelsWithCounts.value,
+            selectedLabel = filterState.value.label,
+            onLabelSelected = { label -> viewModel.onClickLabel(label) },
+            onRenameLabel = { oldLabel, newLabel -> viewModel.onRenameLabel(oldLabel, newLabel) },
+            onDeleteLabel = { label -> viewModel.onDeleteLabel(label) },
+            onDismiss = { viewModel.onCloseLabelsSheet() }
+        )
+    }
+
+    // Label mode: Rename label dialog (from TopAppBar overflow menu)
+    if (showRenameLabelDialog && filterState.value.label != null) {
+        val currentLabel = filterState.value.label!!
+        var newName by remember(currentLabel) { mutableStateOf(currentLabel) }
+        AlertDialog(
+            onDismissRequest = { showRenameLabelDialog = false },
+            title = { Text(stringResource(R.string.rename_label)) },
+            text = {
+                OutlinedTextField(
+                    value = newName,
+                    onValueChange = { newName = it },
+                    singleLine = true,
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        if (newName.isNotBlank() && newName != currentLabel) {
+                            viewModel.onRenameLabel(currentLabel, newName)
+                        }
+                        showRenameLabelDialog = false
+                    }
+                ) {
+                    Text(stringResource(R.string.rename))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showRenameLabelDialog = false }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            }
+        )
+    }
+
+    // Label mode: Delete label dialog (from TopAppBar overflow menu)
+    if (showDeleteLabelDialog && filterState.value.label != null) {
+        val currentLabel = filterState.value.label!!
+        AlertDialog(
+            onDismissRequest = { showDeleteLabelDialog = false },
+            title = { Text(stringResource(R.string.delete_label)) },
+            text = { Text(stringResource(R.string.delete_label_confirm_message, currentLabel)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.onDeleteLabel(currentLabel)
+                        showDeleteLabelDialog = false
+                    }
+                ) {
+                    Text(stringResource(R.string.delete))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteLabelDialog = false }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            }
+        )
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -641,91 +600,6 @@ fun EmptyScreen(
             modifier = Modifier.fillMaxSize()
         ) {
             Text(stringResource(id = messageResource))
-        }
-    }
-}
-
-@Composable
-fun LabelsListView(
-    modifier: Modifier = Modifier,
-    labels: Map<String, Int>,
-    scrollToTopTrigger: Int = 0,
-    onLabelSelected: (String) -> Unit
-) {
-    if (labels.isEmpty()) {
-        Column(
-            modifier = modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            Text(
-                text = stringResource(R.string.list_view_empty_nothing_to_see),
-                style = MaterialTheme.typography.bodyMedium
-            )
-        }
-    } else {
-        val lazyListState = rememberLazyListState()
-        LaunchedEffect(scrollToTopTrigger) {
-            if (scrollToTopTrigger > 0) {
-                lazyListState.animateScrollToItem(0)
-            }
-        }
-        Box(modifier = modifier.fillMaxWidth()) {
-            LazyColumn(
-                state = lazyListState,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                item {
-                    Text(
-                        text = stringResource(R.string.labels_description),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
-                    )
-                }
-                items(
-                    items = labels.entries.sortedBy { it.key }.toList(),
-                    key = { it.key }
-                ) { (label, count) ->
-                    NavigationDrawerItem(
-                        modifier = Modifier
-                            .padding(horizontal = 8.dp, vertical = 4.dp)
-                            .border(
-                                width = 1.dp,
-                                color = MaterialTheme.colorScheme.outlineVariant,
-                                shape = MaterialTheme.shapes.medium
-                            ),
-                        label = {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 16.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(label)
-                                Badge(
-                                    containerColor = MaterialTheme.colorScheme.surfaceVariant
-                                ) {
-                                    Text(count.toString())
-                                }
-                            }
-                        },
-                        selected = false,
-                        onClick = {
-                            onLabelSelected(label)
-                        }
-                )
-            }
-            }
-            VerticalScrollbar(
-                modifier = Modifier
-                    .align(Alignment.CenterEnd)
-                    .fillMaxHeight(),
-                lazyListState = lazyListState
-            )
         }
     }
 }

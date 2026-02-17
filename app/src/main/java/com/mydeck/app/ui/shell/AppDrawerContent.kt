@@ -158,7 +158,7 @@ fun AppDrawerContent(
                         }
                     }
                 },
-                selected = filterState.viewingLabelsList || filterState.label != null,
+                selected = filterState.label != null,
                 onClick = onClickLabels
             )
             HorizontalDivider(

@@ -109,7 +109,7 @@ fun AppShell(
                     scope.launch { drawerState.close() }
                 },
                 onClickLabels = {
-                    bookmarkListViewModel.onClickLabelsView()
+                    bookmarkListViewModel.onOpenLabelsSheet()
                     scope.launch { drawerState.close() }
                 },
                 onClickSettings = {

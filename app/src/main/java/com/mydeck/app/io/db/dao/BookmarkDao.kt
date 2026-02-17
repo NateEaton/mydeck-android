@@ -305,8 +305,8 @@ interface BookmarkDao {
             }
 
             label?.let {
-                append(" AND labels LIKE ?")
-                args.add("%$it%")
+                append(" AND labels LIKE ? COLLATE BINARY")
+                args.add("%\"$it\"%")
             }
 
             append(" ORDER BY $orderBy")
@@ -436,8 +436,8 @@ interface BookmarkDao {
             }
 
             label?.let {
-                append(" AND labels LIKE ?")
-                args.add("%$it%")
+                append(" AND labels LIKE ? COLLATE BINARY")
+                args.add("%\"$it\"%")
             }
 
             append(" ORDER BY $orderBy")

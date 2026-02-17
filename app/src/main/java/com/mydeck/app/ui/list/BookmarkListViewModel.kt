@@ -150,13 +150,17 @@ class BookmarkListViewModel @Inject constructor(
             ) { filter, query, sort ->
                 Triple(filter, query, sort)
             }.flatMapLatest { (filter, query, sort) ->
-                 if (query.isNotEmpty()) {
+                // In label mode, show ALL bookmarks with that label regardless of archive/favorite status
+                val isLabelMode = filter.label != null
+                val effectiveArchived = if (isLabelMode) null else filter.archived
+                val effectiveFavorite = if (isLabelMode) null else filter.favorite
+                if (query.isNotEmpty()) {
                     bookmarkRepository.searchBookmarkListItems(
                         searchQuery = query,
                         type = filter.type,
                         unread = filter.unread,
-                        archived = filter.archived,
-                        favorite = filter.favorite,
+                        archived = effectiveArchived,
+                        favorite = effectiveFavorite,
                         label = filter.label,
                         orderBy = sort.sqlOrderBy
                     )
@@ -164,8 +168,8 @@ class BookmarkListViewModel @Inject constructor(
                     bookmarkRepository.observeBookmarkListItems(
                         type = filter.type,
                         unread = filter.unread,
-                        archived = filter.archived,
-                        favorite = filter.favorite,
+                        archived = effectiveArchived,
+                        favorite = effectiveFavorite,
                         label = filter.label,
                         orderBy = sort.sqlOrderBy
                     )
@@ -203,14 +207,10 @@ class BookmarkListViewModel @Inject constructor(
     }
 
     fun onClickLabel(label: String) {
-        _filterState.update { 
-            if (it.label == label) it.copy(label = null, viewingLabelsList = false)
-            else it.copy(label = label, viewingLabelsList = false)
+        _filterState.update {
+            if (it.label == label) it.copy(label = null)
+            else it.copy(label = label)
         }
-    }
-
-     fun onDismissLabelsList() {
-        _filterState.update { it.copy(viewingLabelsList = false) }
     }
 
     fun onClickMyList() {
@@ -225,8 +225,15 @@ class BookmarkListViewModel @Inject constructor(
         _filterState.update { FilterState(favorite = true) }
     }
 
-    fun onClickLabelsView() {
-        _filterState.update { it.copy(viewingLabelsList = true) }
+    private val _isLabelsSheetOpen = MutableStateFlow(false)
+    val isLabelsSheetOpen = _isLabelsSheetOpen.asStateFlow()
+
+    fun onOpenLabelsSheet() {
+        _isLabelsSheetOpen.value = true
+    }
+
+    fun onCloseLabelsSheet() {
+        _isLabelsSheetOpen.value = false
     }
 
     fun onRenameLabel(oldLabel: String, newLabel: String) {
@@ -247,6 +254,9 @@ class BookmarkListViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 bookmarkRepository.deleteLabel(label)
+                _filterState.update {
+                    if (it.label == label) FilterState(archived = false) else it
+                }
             } catch (e: Exception) {
                 Timber.e(e, "Error deleting label")
             }
@@ -555,7 +565,6 @@ class BookmarkListViewModel @Inject constructor(
         val archived: Boolean? = null,
         val favorite: Boolean? = null,
         val label: String? = null,
-        val viewingLabelsList: Boolean = false
     )
 
     sealed class UiState {
