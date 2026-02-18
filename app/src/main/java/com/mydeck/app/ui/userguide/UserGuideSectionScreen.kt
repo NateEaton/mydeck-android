@@ -5,6 +5,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.CircularProgressIndicator
@@ -93,23 +95,32 @@ fun UserGuideSectionScreen(
                 }
             }
             else -> {
-                AndroidView(
-                    factory = { ctx ->
-                        android.widget.TextView(ctx).apply {
-                            setPadding(32, 16, 32, 32)
-                            setTextIsSelectable(true)
-                            movementMethod = android.text.method.LinkMovementMethod.getInstance()
-                        }
-                    },
-                    update = { textView ->
-                        applyMarkwonColors(textView, colorScheme)
-                        markwon.setMarkdown(textView, uiState.content)
-                    },
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(padding)
-                        .verticalScroll(rememberScrollState())
-                )
+                AnimatedVisibility(
+                    visible = true,
+                    enter = fadeIn()
+                ) {
+                    AndroidView(
+                        factory = { ctx ->
+                            android.widget.TextView(ctx).apply {
+                                setPadding(32, 16, 32, 32)
+                                setTextIsSelectable(true)
+                                movementMethod = android.text.method.LinkMovementMethod.getInstance()
+                            }
+                        },
+                        update = { textView ->
+                            applyMarkwonColors(textView, colorScheme)
+                            // Only set markdown if the content has actually changed
+                            if (textView.tag != uiState.content) {
+                                markwon.setMarkdown(textView, uiState.content)
+                                textView.tag = uiState.content
+                            }
+                        },
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(padding)
+                            .verticalScroll(rememberScrollState())
+                    )
+                }
             }
         }
     }

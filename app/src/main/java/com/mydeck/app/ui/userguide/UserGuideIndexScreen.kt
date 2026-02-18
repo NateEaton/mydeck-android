@@ -5,9 +5,14 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.automirrored.filled.Label
+import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.CollectionsBookmark
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -28,6 +33,14 @@ import com.mydeck.app.R
 import com.mydeck.app.ui.navigation.UserGuideSectionRoute
 import androidx.compose.foundation.clickable
 
+fun getSectionIcon(fileName: String) = when (fileName) {
+    "index.md" -> Icons.Default.Info
+    "bookmark.md" -> Icons.Default.Bookmark
+    "bookmark-list.md" -> Icons.Default.CollectionsBookmark
+    "labels.md" -> Icons.AutoMirrored.Filled.Label
+    else -> Icons.Default.Info
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun UserGuideIndexScreen(
@@ -35,6 +48,7 @@ fun UserGuideIndexScreen(
 ) {
     val viewModel: UserGuideIndexViewModel = hiltViewModel()
     val uiState = viewModel.uiState
+    val lazyListState = rememberLazyListState()
 
     Scaffold(
         topBar = {
@@ -78,6 +92,7 @@ fun UserGuideIndexScreen(
             }
             else -> {
                 LazyColumn(
+                    state = lazyListState,
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(padding)
@@ -85,6 +100,12 @@ fun UserGuideIndexScreen(
                     items(uiState.sections) { section ->
                         ListItem(
                             headlineContent = { Text(section.title) },
+                            leadingContent = {
+                                Icon(
+                                    imageVector = getSectionIcon(section.fileName),
+                                    contentDescription = null
+                                )
+                            },
                             trailingContent = {
                                 Icon(
                                     Icons.AutoMirrored.Filled.KeyboardArrowRight,
