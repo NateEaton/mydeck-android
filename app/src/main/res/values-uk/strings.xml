@@ -170,4 +170,5 @@
     <string name="layout">Layout</string>
     <string name="ui_settings_sepia_title">Сепія для читання</string>
     <string name="ui_settings_sepia_description">Використовувати теплі тони для читання у світлому режимі</string>
+    <string name="select_bookmark">Select a bookmark to read</string>
 </resources>

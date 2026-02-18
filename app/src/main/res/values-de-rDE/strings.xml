@@ -268,4 +268,5 @@ other{}
     <string name="layout">Layout</string>
     <string name="ui_settings_sepia_title">Sepia-Lesemodus</string>
     <string name="ui_settings_sepia_description">Verwende warm getönte Farben zum Lesen im hellen Modus</string>
+    <string name="select_bookmark">Select a bookmark to read</string>
 </resources>
