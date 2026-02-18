@@ -97,6 +97,8 @@ other{}
     <string name="theme_sepia">Sepia</string>
     <string name="ui_settings_theme_heading">Theming</string>
     <string name="ui_settings_theme_dialog_support_text">Which theme should be used?</string>
+    <string name="ui_settings_sepia_title">Sepia reading theme</string>
+    <string name="ui_settings_sepia_description">Use warm tinted colors for reading in light mode</string>
 
     <!-- Bookmark Card Actions -->
     <string name="action_favorite">Favorite</string>
@@ -107,6 +109,7 @@ other{}
     <string name="action_share">Share Link</string>
     <string name="action_delete">Delete</string>
     <string name="action_open_in_browser">Open in Browser</string>
+    <string name="more_options">More options</string>
     <string name="action_view_original">View Original</string>
     <string name="action_view_article">View Article</string>
     <string name="action_view_photo">View Photo</string>
@@ -202,6 +205,13 @@ other{}
     <string name="edit_label">Edit label</string>
     <string name="delete_label">Delete label</string>
     <string name="label_deleted">Label %s deleted</string>
+    <string name="labels_search_placeholder">Search labels</string>
+    <string name="labels_empty">No labels</string>
+    <string name="labels_search_empty">No labels found</string>
+    <string name="rename_label">Rename label</string>
+    <string name="rename">Rename</string>
+    <string name="delete">Delete</string>
+    <string name="delete_label_confirm_message">Are you sure you want to delete the label \"%1$s\"? It will be removed from all bookmarks.</string>
 
     <!-- Search -->
     <string name="search_bookmarks">Search bookmarks</string>
@@ -316,4 +326,35 @@ other{}
     <!-- Justify and Hyphenation toggles -->
     <string name="justify_label">Justify text</string>
     <string name="hyphenation_label">Hyphenate words</string>
+
+    <!-- Filter System -->
+    <string name="filter_bookmarks">Filter bookmarks</string>
+    <string name="filter_search">Search</string>
+    <string name="filter_type">Type</string>
+    <string name="filter_type_article">Article</string>
+    <string name="filter_type_video">Video</string>
+    <string name="filter_type_picture">Picture</string>
+    <string name="filter_progress">Progress</string>
+    <string name="progress_unviewed">Unviewed</string>
+    <string name="progress_in_progress">In progress</string>
+    <string name="progress_completed">Completed</string>
+    <string name="filter_is_favorite">Is Favorite</string>
+    <string name="filter_is_archived">Is Archived</string>
+    <string name="filter_reset">Reset</string>
+    <string name="filter_no_results">No bookmarks match your filters</string>
+    <string name="tri_state_any">N/A</string>
+    <string name="tri_state_yes">Yes</string>
+    <string name="tri_state_no">No</string>
+    <string name="filter_title">Title</string>
+    <string name="filter_author">Author</string>
+    <string name="filter_site">Site</string>
+    <string name="filter_label">Label</string>
+    <string name="filter_from_date">From Date</string>
+    <string name="filter_to_date">To Date</string>
+    <string name="filter_is_loaded">Is Loaded</string>
+    <string name="filter_with_labels">With Labels</string>
+    <string name="filter_with_errors">With Errors</string>
+    <string name="filter_select_label">Tap to select a label</string>
+    <string name="sort">Sort</string>
+    <string name="layout">Layout</string>
 </resources>

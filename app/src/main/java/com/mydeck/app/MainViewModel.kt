@@ -15,10 +15,18 @@ class MainViewModel @Inject constructor(
     val settingsDataStore: SettingsDataStore
 ): ViewModel() {
     val theme = settingsDataStore.themeFlow.map {
-        it?.let { Theme.valueOf(it) } ?: Theme.SYSTEM
+        it?.let {
+            try { Theme.valueOf(it) } catch (_: IllegalArgumentException) { Theme.LIGHT }
+        } ?: Theme.SYSTEM
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
         initialValue = Theme.SYSTEM
+    )
+
+    val sepiaEnabled = settingsDataStore.sepiaEnabledFlow.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = false
     )
 }

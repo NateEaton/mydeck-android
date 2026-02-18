@@ -38,19 +38,21 @@ fun MyDeckTheme(
     theme: Theme = Theme.LIGHT,
     // Dynamic color is available on Android 12+
     dynamicColor: Boolean = true,
+    sepiaEnabled: Boolean = false,
     content: @Composable () -> Unit
 ) {
+    val context = LocalContext.current
     val colorScheme = when {
+        // Sepia takes priority over dynamic color when enabled for light theme
+        theme == Theme.LIGHT && sepiaEnabled -> SepiaColorScheme
         dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && theme in listOf(
             Theme.DARK,
             Theme.LIGHT
         ) -> {
-            val context = LocalContext.current
             if (theme == Theme.DARK) dynamicDarkColorScheme(context)
             else dynamicLightColorScheme(context)
         }
         theme == Theme.DARK -> DarkColorScheme
-        theme == Theme.SEPIA -> SepiaColorScheme
         else -> LightColorScheme
     }
 

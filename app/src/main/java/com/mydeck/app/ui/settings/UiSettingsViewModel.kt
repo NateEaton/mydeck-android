@@ -31,18 +31,21 @@ class UiSettingsViewModel @Inject constructor(
     private val _navigationEvent = MutableStateFlow<NavigationEvent?>(null)
     val navigationEvent: StateFlow<NavigationEvent?> = _navigationEvent.asStateFlow()
     private val theme = MutableStateFlow(Theme.SYSTEM)
+    private val sepiaEnabled = MutableStateFlow(false)
     private val showDialog = MutableStateFlow(false)
 
     init {
         viewModelScope.launch {
             theme.value = settingsDataStore.getTheme()
+            sepiaEnabled.value = settingsDataStore.isSepiaEnabled()
         }
     }
 
 
-    val uiState = combine(theme, showDialog) { theme, showDialog ->
+    val uiState = combine(theme, sepiaEnabled, showDialog) { theme, sepiaEnabled, showDialog ->
         UiSettingsUiState(
-            theme = theme,
+            themeMode = theme,
+            useSepiaInLight = sepiaEnabled,
             themeOptions = getThemeOptionList(theme),
             showDialog = showDialog,
             themeLabel = theme.toLabelResource(),
@@ -53,7 +56,8 @@ class UiSettingsViewModel @Inject constructor(
             started = SharingStarted.WhileSubscribed(5000),
             initialValue =
                 UiSettingsUiState(
-                    theme = Theme.SYSTEM,
+                    themeMode = Theme.SYSTEM,
+                    useSepiaInLight = false,
                     themeOptions = getThemeOptionList(Theme.SYSTEM),
                     showDialog = false,
                     themeLabel = Theme.SYSTEM.toLabelResource(),
@@ -73,8 +77,21 @@ class UiSettingsViewModel @Inject constructor(
     }
 
     fun onThemeSelected(selected: Theme) {
-        Timber.d("onThemeSyncTimeframeSelected [selected=$selected]")
+        Timber.d("onThemeSelected [selected=$selected]")
         updateTheme(selected)
+    }
+
+    fun onThemeModeSelected(mode: Theme) {
+        Timber.d("onThemeModeSelected [mode=$mode]")
+        updateTheme(mode)
+    }
+
+    fun onSepiaToggled(enabled: Boolean) {
+        Timber.d("onSepiaToggled [enabled=$enabled]")
+        viewModelScope.launch {
+            settingsDataStore.saveSepiaEnabled(enabled)
+            sepiaEnabled.value = settingsDataStore.isSepiaEnabled()
+        }
     }
 
     fun onClickBack() {
@@ -105,7 +122,8 @@ class UiSettingsViewModel @Inject constructor(
 
 @Immutable
 data class UiSettingsUiState(
-    val theme: Theme,
+    val themeMode: Theme,  // The base mode (LIGHT, DARK, or SYSTEM)
+    val useSepiaInLight: Boolean,  // Whether sepia applies when effective theme is light
     val themeOptions: List<ThemeOption>,
     val showDialog: Boolean,
     @StringRes
@@ -124,7 +142,6 @@ fun Theme.toLabelResource(): Int {
     return when (this) {
         Theme.LIGHT -> R.string.theme_light
         Theme.DARK -> R.string.theme_dark
-        Theme.SEPIA -> R.string.theme_sepia
         Theme.SYSTEM -> R.string.theme_system
     }
 }

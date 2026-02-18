@@ -2,8 +2,9 @@ package com.mydeck.app.domain
 
 import com.mydeck.app.domain.model.Bookmark
 import com.mydeck.app.domain.model.BookmarkCounts
-import kotlinx.coroutines.flow.Flow
 import com.mydeck.app.domain.model.BookmarkListItem
+import com.mydeck.app.domain.model.ProgressFilter
+import kotlinx.coroutines.flow.Flow
 
 interface BookmarkRepository {
     fun observeBookmarks(
@@ -49,6 +50,24 @@ interface BookmarkRepository {
         favorite: Boolean? = null,
         label: String? = null,
         state: Bookmark.State? = null,
+        orderBy: String = "created DESC"
+    ): Flow<List<BookmarkListItem>>
+
+    fun observeFilteredBookmarkListItems(
+        searchQuery: String? = null,
+        title: String? = null,
+        author: String? = null,
+        site: String? = null,
+        types: Set<Bookmark.Type> = emptySet(),
+        progressFilters: Set<ProgressFilter> = emptySet(),
+        isArchived: Boolean? = null,
+        isFavorite: Boolean? = null,
+        label: String? = null,
+        fromDate: Long? = null,
+        toDate: Long? = null,
+        isLoaded: Boolean? = null,
+        withLabels: Boolean? = null,
+        withErrors: Boolean? = null,
         orderBy: String = "created DESC"
     ): Flow<List<BookmarkListItem>>
 

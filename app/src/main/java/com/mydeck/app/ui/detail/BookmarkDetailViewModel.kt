@@ -60,20 +60,28 @@ class BookmarkDetailViewModel @Inject constructor(
     val shareIntent: Flow<Intent> = _shareIntent.receiveAsFlow()
 
     private val bookmarkId: String? = savedStateHandle["bookmarkId"]
-    private val template: Flow<Template?> = settingsDataStore.themeFlow.map {
-        it?.let {
-            Theme.valueOf(it)
+    private val template: Flow<Template?> = combine(
+        settingsDataStore.themeFlow,
+        settingsDataStore.sepiaEnabledFlow
+    ) { themeStr, sepiaEnabled ->
+        val themeMode = themeStr?.let {
+            try { Theme.valueOf(it) } catch (_: IllegalArgumentException) { Theme.LIGHT }
         } ?: Theme.SYSTEM
-    }.map {
-        when (it) {
+        when (themeMode) {
             Theme.DARK -> assetLoader.loadAsset(Template.DARK_TEMPLATE_FILE)?.let { Template.SimpleTemplate(it) }
-            Theme.LIGHT -> assetLoader.loadAsset(Template.LIGHT_TEMPLATE_FILE)?.let { Template.SimpleTemplate(it) }
-            Theme.SEPIA -> assetLoader.loadAsset(Template.SEPIA_TEMPLATE_FILE)?.let { Template.SimpleTemplate(it) }
+            Theme.LIGHT -> {
+                val templateFile = if (sepiaEnabled) Template.SEPIA_TEMPLATE_FILE else Template.LIGHT_TEMPLATE_FILE
+                assetLoader.loadAsset(templateFile)?.let { Template.SimpleTemplate(it) }
+            }
             Theme.SYSTEM -> {
-                val light = assetLoader.loadAsset(Template.LIGHT_TEMPLATE_FILE)
+                val lightTemplate = if (sepiaEnabled) {
+                    assetLoader.loadAsset(Template.SEPIA_TEMPLATE_FILE)
+                } else {
+                    assetLoader.loadAsset(Template.LIGHT_TEMPLATE_FILE)
+                }
                 val dark = assetLoader.loadAsset(Template.DARK_TEMPLATE_FILE)
-                if (!light.isNullOrBlank() && !dark.isNullOrBlank()) {
-                    Template.DynamicTemplate(light = light, dark = dark)
+                if (!lightTemplate.isNullOrBlank() && !dark.isNullOrBlank()) {
+                    Template.DynamicTemplate(light = lightTemplate, dark = dark)
                 } else null
             }
         }

@@ -305,8 +305,8 @@ interface BookmarkDao {
             }
 
             label?.let {
-                append(" AND labels LIKE ?")
-                args.add("%$it%")
+                append(" AND labels LIKE ? COLLATE BINARY")
+                args.add("%\"$it\"%")
             }
 
             append(" ORDER BY $orderBy")
@@ -436,13 +436,136 @@ interface BookmarkDao {
             }
 
             label?.let {
-                append(" AND labels LIKE ?")
-                args.add("%$it%")
+                append(" AND labels LIKE ? COLLATE BINARY")
+                args.add("%\"$it\"%")
             }
 
             append(" ORDER BY $orderBy")
         }.let { SimpleSQLiteQuery(it, args.toTypedArray()) }
         Timber.d("searchQuery=${sqlQuery.sql}")
+        return getBookmarkListItemsByFiltersDynamic(sqlQuery)
+    }
+
+    fun getFilteredBookmarkListItems(
+        searchQuery: String? = null,
+        title: String? = null,
+        author: String? = null,
+        site: String? = null,
+        types: Set<BookmarkEntity.Type> = emptySet(),
+        progressFilters: Set<Int> = emptySet(), // 0=UNVIEWED, 1=IN_PROGRESS, 2=COMPLETED
+        isArchived: Boolean? = null,
+        isFavorite: Boolean? = null,
+        label: String? = null,
+        fromDate: Long? = null,
+        toDate: Long? = null,
+        isLoaded: Boolean? = null,
+        withLabels: Boolean? = null,
+        withErrors: Boolean? = null,
+        orderBy: String = "created DESC"
+    ): Flow<List<BookmarkListItemEntity>> {
+        val args = mutableListOf<Any>()
+        val sqlQuery = buildString {
+            append("""SELECT id, url, title, siteName, isMarked, isArchived,
+            readProgress, icon_src AS iconSrc, image_src AS imageSrc,
+            labels, thumbnail_src AS thumbnailSrc, type,
+            readingTime, created, wordCount, published
+            FROM bookmarks WHERE isLocalDeleted = 0""")
+
+            if (!searchQuery.isNullOrBlank()) {
+                append(" AND (title LIKE ? COLLATE NOCASE OR labels LIKE ? COLLATE NOCASE OR siteName LIKE ? COLLATE NOCASE OR authors LIKE ? COLLATE NOCASE)")
+                val pattern = "%$searchQuery%"
+                args.add(pattern)
+                args.add(pattern)
+                args.add(pattern)
+                args.add(pattern)
+            }
+
+            if (!title.isNullOrBlank()) {
+                append(" AND title LIKE ? COLLATE NOCASE")
+                args.add("%$title%")
+            }
+
+            if (!author.isNullOrBlank()) {
+                append(" AND authors LIKE ? COLLATE NOCASE")
+                args.add("%$author%")
+            }
+
+            if (!site.isNullOrBlank()) {
+                append(" AND siteName LIKE ? COLLATE NOCASE")
+                args.add("%$site%")
+            }
+
+            if (types.isNotEmpty()) {
+                val placeholders = types.joinToString(", ") { "?" }
+                append(" AND type IN ($placeholders)")
+                types.forEach { args.add(it.value) }
+            }
+
+            if (progressFilters.isNotEmpty()) {
+                val conditions = mutableListOf<String>()
+                if (0 in progressFilters) conditions.add("readProgress = 0") // UNVIEWED
+                if (1 in progressFilters) conditions.add("(readProgress > 0 AND readProgress < 100)") // IN_PROGRESS
+                if (2 in progressFilters) conditions.add("readProgress = 100") // COMPLETED
+                if (conditions.isNotEmpty()) {
+                    append(" AND (${conditions.joinToString(" OR ")})")
+                }
+            }
+
+            isArchived?.let {
+                append(" AND isArchived = ?")
+                args.add(it)
+            }
+
+            isFavorite?.let {
+                append(" AND isMarked = ?")
+                args.add(it)
+            }
+
+            label?.let {
+                append(" AND labels LIKE ? COLLATE BINARY")
+                args.add("%\"$it\"%")
+            }
+
+            fromDate?.let {
+                append(" AND published >= ?")
+                args.add(it)
+            }
+
+            toDate?.let {
+                append(" AND published <= ?")
+                args.add(it)
+            }
+
+            // isLoaded: true = DOWNLOADED (contentState=1), false = NOT_ATTEMPTED (contentState=0)
+            isLoaded?.let {
+                if (it) {
+                    append(" AND contentState = 1")
+                } else {
+                    append(" AND contentState = 0")
+                }
+            }
+
+            // withLabels: true = has labels, false = no labels
+            withLabels?.let {
+                if (it) {
+                    append(" AND labels != '[]' AND labels != '' AND labels IS NOT NULL")
+                } else {
+                    append(" AND (labels = '[]' OR labels = '' OR labels IS NULL)")
+                }
+            }
+
+            // withErrors: true = state=ERROR(1) or contentState=DIRTY(2)/PERMANENT_NO_CONTENT(3)
+            withErrors?.let {
+                if (it) {
+                    append(" AND (state = 1 OR contentState IN (2, 3))")
+                } else {
+                    append(" AND state != 1 AND contentState NOT IN (2, 3)")
+                }
+            }
+
+            append(" ORDER BY $orderBy")
+        }.let { SimpleSQLiteQuery(it, args.toTypedArray()) }
+        Timber.d("filteredQuery=${sqlQuery.sql}")
         return getBookmarkListItemsByFiltersDynamic(sqlQuery)
     }
 

@@ -8,9 +8,9 @@ import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Movie
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.Description
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -33,7 +33,7 @@ fun BookmarkDetailMenu(
     onClickToggleRead: (String, Boolean) -> Unit,
     onClickShareBookmark: (String) -> Unit,
     onClickDeleteBookmark: (String) -> Unit,
-    onClickSearchInArticle: () -> Unit = {},
+    onShowDetails: () -> Unit = {},
     onClickOpenInBrowser: (String) -> Unit = {},
     contentMode: ContentMode = ContentMode.READER,
     onContentModeChange: (ContentMode) -> Unit = {}
@@ -49,21 +49,7 @@ fun BookmarkDetailMenu(
             expanded = expanded,
             onDismissRequest = { expanded = false }
         ) {
-            // 1. Find in Article (article only)
-            if (uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.ARTICLE) {
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.action_search_in_article)) },
-                    onClick = {
-                        onClickSearchInArticle()
-                        expanded = false
-                    },
-                    leadingIcon = {
-                        Icon(Icons.Default.Search, contentDescription = null)
-                    }
-                )
-            }
-
-            // 2. View Article / View Original (article and video types)
+            // 1. View Article / View Original (article and video types)
             if (uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.ARTICLE) {
                 DropdownMenuItem(
                     text = {
@@ -104,7 +90,7 @@ fun BookmarkDetailMenu(
                 )
             }
 
-            // 3. Open in Browser
+            // 2. Open in Browser
             DropdownMenuItem(
                 text = { Text(stringResource(R.string.action_open_in_browser)) },
                 onClick = {
@@ -116,7 +102,7 @@ fun BookmarkDetailMenu(
                 }
             )
 
-            // 4. Share Link
+            // 3. Share Link
             DropdownMenuItem(
                 text = { Text(stringResource(R.string.action_share)) },
                 onClick = {
@@ -128,7 +114,7 @@ fun BookmarkDetailMenu(
                 }
             )
 
-            // 5. Is Read
+            // 4. Is Read
             DropdownMenuItem(
                 text = {
                     Text(
@@ -145,6 +131,18 @@ fun BookmarkDetailMenu(
                         if (uiState.bookmark.isRead) Icons.Outlined.CheckCircle else Icons.Filled.CheckCircle,
                         contentDescription = null
                     )
+                }
+            )
+
+            // 5. Bookmark Details
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.detail_dialog_title)) },
+                onClick = {
+                    onShowDetails()
+                    expanded = false
+                },
+                leadingIcon = {
+                    Icon(Icons.Outlined.Info, contentDescription = null)
                 }
             )
 

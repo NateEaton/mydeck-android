@@ -100,12 +100,16 @@ fun BookmarkDetailHeader(
                             overflow = TextOverflow.Ellipsis,
                             modifier = Modifier.weight(1f)
                         )
-                        Icon(
-                            imageVector = Icons.Outlined.Edit,
-                            contentDescription = stringResource(R.string.edit_title),
-                            modifier = Modifier.size(20.dp).padding(start = 8.dp),
-                            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)
-                        )
+                        IconButton(
+                            onClick = { isEditingTitle = true }
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.Edit,
+                                contentDescription = stringResource(R.string.edit_title),
+                                modifier = Modifier.size(24.dp),
+                                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)
+                            )
+                        }
                     }
                 }
             }

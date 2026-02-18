@@ -55,7 +55,8 @@ class SettingsDataStoreImpl @Inject constructor(@ApplicationContext private val 
     private val KEY_ALLOW_BATTERY_SAVER = booleanPreferencesKey("content_sync_allow_battery_saver")
     private val KEY_DATE_RANGE_FROM = stringPreferencesKey("date_range_from")
     private val KEY_DATE_RANGE_TO = stringPreferencesKey("date_range_to")
-    
+    private val KEY_SEPIA_ENABLED = booleanPreferencesKey("sepia_enabled")
+
     // Typography settings keys
     private val KEY_TYPO_FONT_SIZE = intPreferencesKey("typography_font_size_percent")
     private val KEY_TYPO_FONT_FAMILY = stringPreferencesKey("typography_font_family")
@@ -63,6 +64,18 @@ class SettingsDataStoreImpl @Inject constructor(@ApplicationContext private val 
     private val KEY_TYPO_TEXT_WIDTH = stringPreferencesKey("typography_text_width")
     private val KEY_TYPO_JUSTIFIED = booleanPreferencesKey("typography_justified")
     private val KEY_TYPO_HYPHENATION = booleanPreferencesKey("typography_hyphenation")
+
+    init {
+        // Migration: Theme.SEPIA was previously stored as a Theme enum value.
+        // Migrate to Theme.LIGHT + sepiaEnabled=true so the two preferences are independent.
+        val storedTheme = encryptedSharedPreferences.getString(KEY_THEME.name, null)
+        if (storedTheme == "SEPIA") {
+            encryptedSharedPreferences.edit(commit = true) {
+                putString(KEY_THEME.name, Theme.LIGHT.name)
+                putBoolean(KEY_SEPIA_ENABLED.name, true)
+            }
+        }
+    }
 
     override fun saveUsername(username: String) {
         Timber.d("saveUsername")
@@ -175,7 +188,7 @@ class SettingsDataStoreImpl @Inject constructor(@ApplicationContext private val 
 
     override suspend fun getTheme(): Theme {
         return encryptedSharedPreferences.getString(KEY_THEME.name, Theme.SYSTEM.name)?.let {
-            Theme.valueOf(it)
+            try { Theme.valueOf(it) } catch (_: IllegalArgumentException) { Theme.LIGHT }
         } ?: Theme.SYSTEM
     }
 
@@ -183,6 +196,16 @@ class SettingsDataStoreImpl @Inject constructor(@ApplicationContext private val 
         encryptedSharedPreferences.edit {
             putString(KEY_THEME.name, theme.name)
         }
+    }
+
+    override suspend fun saveSepiaEnabled(enabled: Boolean) {
+        encryptedSharedPreferences.edit {
+            putBoolean(KEY_SEPIA_ENABLED.name, enabled)
+        }
+    }
+
+    override suspend fun isSepiaEnabled(): Boolean {
+        return encryptedSharedPreferences.getBoolean(KEY_SEPIA_ENABLED.name, false)
     }
 
     override suspend fun getZoomFactor(): Int {
@@ -221,6 +244,7 @@ class SettingsDataStoreImpl @Inject constructor(@ApplicationContext private val 
     override val passwordFlow = getStringFlow(KEY_PASSWORD.name, null)
     override val themeFlow = getStringFlow(KEY_THEME.name, Theme.SYSTEM.name)
     override val zoomFactorFlow = getIntFlow(KEY_ZOOM_FACTOR.name, 100)
+    override val sepiaEnabledFlow = getBooleanFlow(KEY_SEPIA_ENABLED.name, false)
     override suspend fun clearCredentials() {
         Timber.d("clearCredentials")
         encryptedSharedPreferences.edit(commit = true) {
@@ -251,6 +275,9 @@ class SettingsDataStoreImpl @Inject constructor(@ApplicationContext private val 
 
     private fun getIntFlow(key: String, defaultValue: Int = 100): StateFlow<Int> =
         preferenceFlow(key) { encryptedSharedPreferences.getInt(key, defaultValue) }
+
+    private fun getBooleanFlow(key: String, defaultValue: Boolean = false): StateFlow<Boolean> =
+        preferenceFlow(key) { encryptedSharedPreferences.getBoolean(key, defaultValue) }
 
     private fun <T> preferenceFlow(key: String, getValue: () -> T): StateFlow<T> {
         val state = MutableStateFlow(getValue())

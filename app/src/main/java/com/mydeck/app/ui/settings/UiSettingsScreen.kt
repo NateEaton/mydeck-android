@@ -3,24 +3,29 @@ package com.mydeck.app.ui.settings
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.remember
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
@@ -30,9 +35,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.mydeck.app.R
-import com.mydeck.app.domain.model.AutoSyncTimeframe
 import com.mydeck.app.domain.model.Theme
-import com.mydeck.app.ui.theme.Typography
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalPermissionsApi::class)
 @Composable
@@ -43,7 +46,8 @@ fun UiSettingsScreen(
     val settingsUiState = viewModel.uiState.collectAsState().value
     val navigationEvent = viewModel.navigationEvent.collectAsState()
     val onClickBack: () -> Unit = { viewModel.onClickBack() }
-    val onClickTheme: () -> Unit = { viewModel.onClickTheme() }
+    val onThemeModeSelected: (Theme) -> Unit = { viewModel.onThemeModeSelected(it) }
+    val onSepiaToggled: (Boolean) -> Unit = { viewModel.onSepiaToggled(it) }
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(key1 = navigationEvent.value) {
@@ -57,19 +61,12 @@ fun UiSettingsScreen(
         }
     }
 
-    if (settingsUiState.showDialog) {
-        ThemeDialog(
-            themeOptions = settingsUiState.themeOptions,
-            onDismissRequest = { viewModel.onDismissDialog() },
-            onElementSelected = { viewModel.onThemeSelected(it) }
-        )
-    }
-
     UiSettingsView(
         modifier = Modifier,
         snackbarHostState = snackbarHostState,
         onClickBack = onClickBack,
-        onClickTheme = onClickTheme,
+        onThemeModeSelected = onThemeModeSelected,
+        onSepiaToggled = onSepiaToggled,
         settingsUiState = settingsUiState
     )
 }
@@ -80,7 +77,8 @@ fun UiSettingsView(
     modifier: Modifier = Modifier,
     snackbarHostState: SnackbarHostState,
     settingsUiState: UiSettingsUiState,
-    onClickTheme: () -> Unit,
+    onThemeModeSelected: (Theme) -> Unit,
+    onSepiaToggled: (Boolean) -> Unit,
     onClickBack: () -> Unit,
 ) {
     Scaffold(
@@ -106,24 +104,58 @@ fun UiSettingsView(
         Column(
             modifier = Modifier
                 .padding(padding)
-                .padding(16.dp)
+                .padding(horizontal = 16.dp, vertical = 8.dp)
                 .fillMaxSize(),
-            horizontalAlignment = Alignment.Start,
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Row(
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.clickable(enabled = true, onClick = onClickTheme)
+            // Theme mode selection (Light/Dark/System)
+            Column(
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(stringResource(R.string.ui_settings_theme_title))
-                    Text(
-                        text = stringResource(settingsUiState.themeLabel),
-                        style = Typography.bodySmall
-                    )
+                Text(
+                    text = stringResource(R.string.ui_settings_theme_title),
+                    style = MaterialTheme.typography.titleMedium
+                )
+                SingleChoiceSegmentedButtonRow(
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    val themeModes = listOf(Theme.LIGHT, Theme.DARK, Theme.SYSTEM)
+                    themeModes.forEachIndexed { index, theme ->
+                        SegmentedButton(
+                            selected = settingsUiState.themeMode == theme,
+                            onClick = { onThemeModeSelected(theme) },
+                            shape = SegmentedButtonDefaults.itemShape(
+                                index = index,
+                                count = themeModes.size
+                            )
+                        ) {
+                            Text(stringResource(theme.toLabelResource()))
+                        }
+                    }
                 }
             }
+
+            // Sepia theme toggle (applies when effective theme is Light)
+            ListItem(
+                headlineContent = {
+                    Text(
+                        text = stringResource(R.string.ui_settings_sepia_title),
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+                },
+                supportingContent = {
+                    Text(
+                        text = stringResource(R.string.ui_settings_sepia_description),
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                },
+                trailingContent = {
+                    Switch(
+                        checked = settingsUiState.useSepiaInLight,
+                        onCheckedChange = onSepiaToggled
+                    )
+                }
+            )
         }
     }
 }
@@ -132,7 +164,8 @@ fun UiSettingsView(
 @Composable
 fun UiSettingsScreenViewPreview() {
     val settingsUiState = UiSettingsUiState(
-        theme = Theme.SYSTEM,
+        themeMode = Theme.SYSTEM,
+        useSepiaInLight = false,
         themeOptions = listOf(),
         showDialog = false,
         themeLabel = Theme.SYSTEM.toLabelResource(),
@@ -141,7 +174,8 @@ fun UiSettingsScreenViewPreview() {
         modifier = Modifier,
         snackbarHostState = SnackbarHostState(),
         onClickBack = {},
-        onClickTheme = {},
+        onThemeModeSelected = {},
+        onSepiaToggled = {},
         settingsUiState = settingsUiState
     )
 }
