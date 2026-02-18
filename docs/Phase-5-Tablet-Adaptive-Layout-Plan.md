@@ -1,5 +1,7 @@
 # Phase 5: Tablet / Adaptive Layout — Implementation Plan
 
+> **Note:** This plan (v1) has been superseded by `Phase-5-Tablet-Adaptive-Layout-Plan-v2.md`. The ListDetailPaneScaffold approach was replaced with full-screen reading across all device sizes.
+
 ## Context
 
 Phase 5 adds responsive layouts using M3 adaptive APIs. All prior phases (0–4, 6) are complete. The navigation architecture was lifted to `AppShell` in Phase 1, making adaptive layout feasible.

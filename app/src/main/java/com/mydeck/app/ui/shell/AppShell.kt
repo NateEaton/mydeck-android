@@ -3,8 +3,10 @@ package com.mydeck.app.ui.shell
 import android.annotation.SuppressLint
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.layout.Row
@@ -20,6 +22,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.unit.Dp
@@ -334,7 +337,17 @@ private fun MediumAppShell(
 
     CompositionLocalProvider(LocalIsWideLayout provides true) {
     Row(modifier = Modifier.fillMaxSize()) {
-        AnimatedVisibility(visible = !hideNavigation) {
+        AnimatedVisibility(
+            visible = !hideNavigation,
+            enter = expandHorizontally(
+                animationSpec = tween(300),
+                expandFrom = Alignment.Start
+            ),
+            exit = shrinkHorizontally(
+                animationSpec = tween(300),
+                shrinkTowards = Alignment.Start
+            )
+        ) {
             AppNavigationRailContent(
                 drawerPreset = drawerPreset,
                 activeLabel = activeLabel,
@@ -469,7 +482,17 @@ private fun ExpandedAppShell(
 
     CompositionLocalProvider(LocalIsWideLayout provides true) {
     Row(modifier = Modifier.fillMaxSize()) {
-        AnimatedVisibility(visible = !hideNavigation) {
+        AnimatedVisibility(
+            visible = !hideNavigation,
+            enter = expandHorizontally(
+                animationSpec = tween(300),
+                expandFrom = Alignment.Start
+            ),
+            exit = shrinkHorizontally(
+                animationSpec = tween(300),
+                shrinkTowards = Alignment.Start
+            )
+        ) {
             AppDrawerContent(
                 usePermanentSheet = true,
                 drawerPreset = drawerPreset,
