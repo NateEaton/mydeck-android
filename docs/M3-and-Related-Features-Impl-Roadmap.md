@@ -668,10 +668,10 @@ enum class DrawerPreset {
 **Risks:** Low. These are independent, incremental improvements.
 
 **Acceptance criteria:**
-- [ ] Screen transitions animate smoothly (300ms slide)
-- [ ] Haptic feedback on long-press actions
-- [ ] Empty states follow M3 pattern
-- [ ] Status bar is transparent (edge-to-edge)
+- [x] Screen transitions animate smoothly (300ms slide)
+- [x] Haptic feedback on bookmark actions (archive, delete, favorite)
+- [x] Empty states follow M3 pattern
+- [x] Status bar is transparent (edge-to-edge)
 
 ---
 
@@ -835,9 +835,9 @@ This prevents unreadably long lines on wide screens.
 - [x] Theme inline controls and Sepia separation (Phase 2)
 
 **Quick Wins (remaining):**
-- [ ] Edge-to-edge status bar transparency (Phase 6)
-- [ ] Haptic feedback on bookmark actions (Phase 6)
-- [ ] Navigation transitions (Phase 6)
+- [x] Edge-to-edge status bar transparency (Phase 6)
+- [x] Haptic feedback on bookmark actions (Phase 6)
+- [x] Navigation transitions (Phase 6)
 
 **Medium Refactors:**
 - [x] Labels bottom sheet + cross-cutting label mode + DAO bug fix (Phase 3)

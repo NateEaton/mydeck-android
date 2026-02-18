@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -30,6 +31,9 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.automirrored.outlined.Label
+import androidx.compose.material.icons.outlined.Bookmarks
+import androidx.compose.material.icons.outlined.CloudOff
+import androidx.compose.material.icons.outlined.SearchOff
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -66,9 +70,13 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.navigation.NavHostController
@@ -123,6 +131,7 @@ fun BookmarkListScreen(
 
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
+    val hapticFeedback = LocalHapticFeedback.current
 
     val pullToRefreshState = rememberPullToRefreshState()
     val isLoading by viewModel.loadBookmarksIsRunning.collectAsState()
@@ -132,6 +141,7 @@ fun BookmarkListScreen(
     // UI event handlers (pass filter update functions)
     val onClickBookmark: (String) -> Unit = { bookmarkId -> viewModel.onClickBookmark(bookmarkId) }
     val onClickDelete: (String) -> Unit = { bookmarkId ->
+        hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
         viewModel.onDeleteBookmark(bookmarkId)
         scope.launch {
             val result = snackbarHostState.showSnackbar(
@@ -144,8 +154,14 @@ fun BookmarkListScreen(
             }
         }
     }
-    val onClickFavorite: (String, Boolean) -> Unit = { bookmarkId, isFavorite -> viewModel.onToggleFavoriteBookmark(bookmarkId, isFavorite) }
-    val onClickArchive: (String, Boolean) -> Unit = { bookmarkId, isArchived -> viewModel.onToggleArchiveBookmark(bookmarkId, isArchived) }
+    val onClickFavorite: (String, Boolean) -> Unit = { bookmarkId, isFavorite ->
+        hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+        viewModel.onToggleFavoriteBookmark(bookmarkId, isFavorite)
+    }
+    val onClickArchive: (String, Boolean) -> Unit = { bookmarkId, isArchived ->
+        hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+        viewModel.onToggleArchiveBookmark(bookmarkId, isArchived)
+    }
     val onClickShareBookmark: (String) -> Unit = { url -> viewModel.onClickShareBookmark(url) }
     val onClickOpenUrl: (String) -> Unit = { bookmarkId ->
         viewModel.onClickBookmarkOpenOriginal(bookmarkId)
@@ -351,11 +367,18 @@ fun BookmarkListScreen(
             ) {
                 when (uiState) {
                     is BookmarkListViewModel.UiState.Empty -> {
-                        EmptyScreen(messageResource = uiState.messageResource)
+                        val emptyIcon = when (uiState.messageResource) {
+                            R.string.list_view_empty_error_loading_bookmarks -> Icons.Outlined.CloudOff
+                            else -> Icons.Outlined.Bookmarks
+                        }
+                        EmptyScreen(icon = emptyIcon, headlineResource = uiState.messageResource)
                     }
                     is BookmarkListViewModel.UiState.Success -> {
                         if (uiState.bookmarks.isEmpty()) {
-                            EmptyScreen(messageResource = R.string.filter_no_results)
+                            EmptyScreen(
+                                icon = Icons.Outlined.SearchOff,
+                                headlineResource = R.string.filter_no_results
+                            )
                         } else {
                             BookmarkListView(
                                 filterKey = Pair(filterFormState.value, activeLabel.value),
@@ -562,7 +585,8 @@ private fun AddBookmarkBottomSheet(
 @Composable
 fun EmptyScreen(
     modifier: Modifier = Modifier,
-    messageResource: Int
+    icon: ImageVector = Icons.Outlined.Bookmarks,
+    headlineResource: Int
 ) {
     Surface(
         modifier = modifier.fillMaxSize(),
@@ -571,9 +595,23 @@ fun EmptyScreen(
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center,
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(24.dp)
         ) {
-            Text(stringResource(id = messageResource))
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                modifier = Modifier.size(48.dp),
+                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = stringResource(id = headlineResource),
+                style = MaterialTheme.typography.titleMedium,
+                textAlign = TextAlign.Center,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)
+            )
         }
     }
 }
@@ -652,7 +690,7 @@ fun BookmarkListView(
 @Preview
 @Composable
 fun EmptyScreenPreview() {
-    EmptyScreen(messageResource = R.string.list_view_empty_nothing_to_see)
+    EmptyScreen(headlineResource = R.string.list_view_empty_nothing_to_see)
 }
 
 @Preview(showBackground = true)

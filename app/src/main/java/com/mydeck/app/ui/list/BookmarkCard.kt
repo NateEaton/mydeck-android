@@ -1,6 +1,12 @@
 package com.mydeck.app.ui.list
 
 import android.content.Context
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -14,6 +20,7 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -82,6 +89,35 @@ import com.mydeck.app.domain.model.Bookmark
 import com.mydeck.app.domain.model.BookmarkListItem
 import com.mydeck.app.ui.components.ErrorPlaceholderImage
 import com.mydeck.app.ui.drawable.ReadeckPlaceholderDrawable
+
+@Composable
+private fun BookmarkShimmerBox(modifier: Modifier = Modifier) {
+    val shimmerColors = listOf(
+        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.9f),
+        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.9f),
+    )
+    val transition = rememberInfiniteTransition(label = "shimmer")
+    val translateAnim by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1400f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 1200, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "shimmer_translate"
+    )
+    Box(
+        modifier = modifier.background(
+            Brush.horizontalGradient(
+                colors = shimmerColors,
+                startX = translateAnim - 400f,
+                endX = translateAnim
+            )
+        )
+    )
+}
+
 @OptIn(ExperimentalLayoutApi::class, ExperimentalFoundationApi::class)
 @Composable
 fun BookmarkMosaicCard(
@@ -109,12 +145,12 @@ fun BookmarkMosaicCard(
                 model = ImageRequest.Builder(LocalContext.current)
                     .data(bookmark.imageSrc)
                     .crossfade(true)
-                    .placeholder(ReadeckPlaceholderDrawable(bookmark.url).asImage())
                     .error(ReadeckPlaceholderDrawable(bookmark.url).asImage())
                     .fallback(ReadeckPlaceholderDrawable(bookmark.url).asImage())
                     .build(),
                 contentDescription = stringResource(R.string.common_bookmark_image_content_description),
                 contentScale = ContentScale.Crop,
+                loading = { BookmarkShimmerBox(modifier = Modifier.fillMaxSize()) },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(200.dp)
@@ -285,12 +321,12 @@ fun BookmarkGridCard(
                     model = ImageRequest.Builder(LocalContext.current)
                         .data(bookmark.thumbnailSrc)
                         .crossfade(true)
-                        .placeholder(ReadeckPlaceholderDrawable(bookmark.url).asImage())
                         .error(ReadeckPlaceholderDrawable(bookmark.url).asImage())
                         .fallback(ReadeckPlaceholderDrawable(bookmark.url).asImage())
                         .build(),
                     contentDescription = stringResource(R.string.common_bookmark_image_content_description),
                     contentScale = ContentScale.Crop,
+                    loading = { BookmarkShimmerBox(modifier = Modifier.fillMaxSize()) },
                     modifier = Modifier
                         .width(100.dp)
                         .height(80.dp)

@@ -1,6 +1,11 @@
 package com.mydeck.app.ui.shell
 
 import android.annotation.SuppressLint
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.material3.DrawerState
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.MaterialTheme
@@ -149,7 +154,23 @@ fun AppShell(
 
             NavHost(
                 navController = navController,
-                startDestination = startDestination
+                startDestination = startDestination,
+                enterTransition = {
+                    slideInHorizontally(animationSpec = tween(300)) { it } +
+                        fadeIn(animationSpec = tween(300))
+                },
+                exitTransition = {
+                    slideOutHorizontally(animationSpec = tween(300)) { -it } +
+                        fadeOut(animationSpec = tween(300))
+                },
+                popEnterTransition = {
+                    slideInHorizontally(animationSpec = tween(300)) { -it } +
+                        fadeIn(animationSpec = tween(300))
+                },
+                popExitTransition = {
+                    slideOutHorizontally(animationSpec = tween(300)) { it } +
+                        fadeOut(animationSpec = tween(300))
+                },
             ) {
                 composable<BookmarkListRoute> {
                     BookmarkListScreen(navController, bookmarkListViewModel, drawerState)
