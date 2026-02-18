@@ -12,6 +12,8 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -21,6 +23,7 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -310,7 +313,8 @@ fun BookmarkGridCard(
     onClickLabel: (String) -> Unit = {},
     onClickOpenUrl: (String) -> Unit = {},
     onClickOpenInBrowser: (String) -> Unit = {},
-    isWideLayout: Boolean = LocalIsWideLayout.current
+    isWideLayout: Boolean = LocalIsWideLayout.current,
+    isInGrid: Boolean = false
 ) {
     if (isWideLayout) {
         BookmarkGridCardWide(
@@ -321,6 +325,7 @@ fun BookmarkGridCard(
             onClickArchive = onClickArchive,
             onClickLabel = onClickLabel,
             onClickOpenUrl = onClickOpenUrl,
+            isInGrid = isInGrid,
         )
     } else {
         BookmarkGridCardNarrow(
@@ -568,19 +573,21 @@ private fun BookmarkGridCardWide(
     onClickArchive: (String, Boolean) -> Unit,
     onClickLabel: (String) -> Unit = {},
     onClickOpenUrl: (String) -> Unit = {},
+    isInGrid: Boolean = false,
 ) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
+            .then(if (isInGrid) Modifier.height(300.dp) else Modifier)
             .padding(horizontal = 12.dp, vertical = 6.dp)
             .clickable { onClickCard(bookmark.id) }
     ) {
-        Column {
+        Column(modifier = if (isInGrid) Modifier.fillMaxHeight() else Modifier) {
             // Full-width image above content (16:9)
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .aspectRatio(16f / 9f)
+                    .then(if (isInGrid) Modifier.height(140.dp) else Modifier.aspectRatio(16f / 9f))
             ) {
                 SubcomposeAsyncImage(
                     model = ImageRequest.Builder(LocalContext.current)
@@ -652,7 +659,10 @@ private fun BookmarkGridCardWide(
             }
 
             // Content below image
-            Column(modifier = Modifier.padding(12.dp)) {
+            val contentModifier = Modifier.padding(12.dp)
+            Column(
+                modifier = if (isInGrid) contentModifier.weight(1f) else contentModifier
+            ) {
                 // Title
                 Text(
                     text = bookmark.title,
@@ -696,14 +706,14 @@ private fun BookmarkGridCardWide(
                     }
                 }
 
-                // Labels row with tappable chips
+                // Labels row with tappable chips (single line, scrollable)
                 if (bookmark.labels.isNotEmpty()) {
-                    FlowRow(
+                    Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(top = 4.dp),
-                        horizontalArrangement = Arrangement.spacedBy(4.dp),
-                        verticalArrangement = Arrangement.spacedBy(2.dp)
+                            .padding(top = 4.dp)
+                            .horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         bookmark.labels.forEach { label ->
                             SuggestionChip(
@@ -718,6 +728,10 @@ private fun BookmarkGridCardWide(
                             )
                         }
                     }
+                }
+
+                if (isInGrid) {
+                    Spacer(modifier = Modifier.weight(1f))
                 }
 
                 // Action buttons

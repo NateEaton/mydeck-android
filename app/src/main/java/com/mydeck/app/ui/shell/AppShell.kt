@@ -10,7 +10,10 @@ import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalNavigationDrawer
@@ -99,7 +102,10 @@ fun AppShell(
     } ?: true
 
     when (layoutTier) {
-        "compact" -> CompositionLocalProvider(LocalReaderMaxWidth provides Dp.Unspecified) {
+        "compact" -> CompositionLocalProvider(
+            LocalReaderMaxWidth provides Dp.Unspecified,
+            LocalIsWideLayout provides false,
+        ) {
         CompactAppShell(
             navController = navController,
             settingsDataStore = settingsDataStore,
@@ -348,19 +354,25 @@ private fun MediumAppShell(
                 shrinkTowards = Alignment.Start
             )
         ) {
-            AppNavigationRailContent(
-                drawerPreset = drawerPreset,
-                activeLabel = activeLabel,
-                onClickMyList = { navigateToListAndApply { bookmarkListViewModel.onClickMyList() } },
-                onClickArchive = { navigateToListAndApply { bookmarkListViewModel.onClickArchive() } },
-                onClickFavorite = { navigateToListAndApply { bookmarkListViewModel.onClickFavorite() } },
-                onClickArticles = { navigateToListAndApply { bookmarkListViewModel.onClickArticles() } },
-                onClickVideos = { navigateToListAndApply { bookmarkListViewModel.onClickVideos() } },
-                onClickPictures = { navigateToListAndApply { bookmarkListViewModel.onClickPictures() } },
-                onClickLabels = { navigateToListAndApply { bookmarkListViewModel.onOpenLabelsSheet() } },
-                onClickSettings = { bookmarkListViewModel.onClickSettings() },
-                onClickAbout = { bookmarkListViewModel.onClickAbout() },
-            )
+            androidx.compose.foundation.layout.Column(
+                modifier = Modifier
+                    .fillMaxHeight()
+                    .verticalScroll(rememberScrollState())
+            ) {
+                AppNavigationRailContent(
+                    drawerPreset = drawerPreset,
+                    activeLabel = activeLabel,
+                    onClickMyList = { navigateToListAndApply { bookmarkListViewModel.onClickMyList() } },
+                    onClickArchive = { navigateToListAndApply { bookmarkListViewModel.onClickArchive() } },
+                    onClickFavorite = { navigateToListAndApply { bookmarkListViewModel.onClickFavorite() } },
+                    onClickArticles = { navigateToListAndApply { bookmarkListViewModel.onClickArticles() } },
+                    onClickVideos = { navigateToListAndApply { bookmarkListViewModel.onClickVideos() } },
+                    onClickPictures = { navigateToListAndApply { bookmarkListViewModel.onClickPictures() } },
+                    onClickLabels = { navigateToListAndApply { bookmarkListViewModel.onOpenLabelsSheet() } },
+                    onClickSettings = { bookmarkListViewModel.onClickSettings() },
+                    onClickAbout = { bookmarkListViewModel.onClickAbout() },
+                )
+            }
         }
 
         // Persistent themed Surface prevents white flash between screen transitions

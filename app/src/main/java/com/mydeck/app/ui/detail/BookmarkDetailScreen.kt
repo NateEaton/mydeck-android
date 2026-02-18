@@ -82,11 +82,8 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.foundation.layout.widthIn
 import com.mydeck.app.ui.theme.Dimens
-import com.mydeck.app.ui.theme.LocalReaderMaxWidth
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
@@ -368,13 +365,12 @@ fun BookmarkDetailScreen(
             )
         }
     ) { padding ->
-        val maxWidth = LocalReaderMaxWidth.current
         Box(
             modifier = Modifier.fillMaxSize().padding(padding),
             contentAlignment = Alignment.TopCenter
         ) {
             BookmarkDetailContent(
-                modifier = if (maxWidth != Dp.Unspecified) Modifier.widthIn(max = maxWidth) else Modifier,
+                modifier = Modifier,
                 uiState = uiState,
                 onClickOpenUrl = onClickOpenUrl,
                 onScrollProgressChanged = onScrollProgressChanged,
@@ -455,12 +451,12 @@ fun BookmarkDetailContent(
                     .alpha(if (hasRestoredPosition) 1f else 0f),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                val headerWidthModifier = when (uiState.typographySettings.textWidth) {
-                    TextWidth.WIDE -> Modifier.fillMaxWidth(0.9f)
-                    TextWidth.NARROW -> Modifier.fillMaxWidth(0.75f)
+                val contentWidthFraction = when (uiState.typographySettings.textWidth) {
+                    TextWidth.WIDE -> 0.9f
+                    TextWidth.NARROW -> 0.8f
                 }
                 BookmarkDetailHeader(
-                    modifier = headerWidthModifier,
+                    modifier = Modifier.fillMaxWidth(contentWidthFraction),
                     uiState = uiState,
                     onClickOpenUrl = onClickOpenUrl,
                     onTitleChanged = onTitleChanged
@@ -469,7 +465,7 @@ fun BookmarkDetailContent(
                 val hasContent = uiState.bookmark.hasContent
                 if (hasContent) {
                     BookmarkDetailArticle(
-                        modifier = Modifier,
+                        modifier = Modifier.fillMaxWidth(contentWidthFraction),
                         uiState = uiState,
                         articleSearchState = articleSearchState,
                         onArticleSearchUpdateResults = onArticleSearchUpdateResults

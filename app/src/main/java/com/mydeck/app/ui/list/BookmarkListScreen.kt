@@ -641,7 +641,7 @@ fun BookmarkListView(
     onClickOpenUrl: (String) -> Unit = {},
     onClickOpenInBrowser: (String) -> Unit = {}
 ) {
-    if (isMultiColumn) {
+    if (isMultiColumn && layoutMode != LayoutMode.COMPACT) {
         val columns = when (layoutMode) {
             LayoutMode.GRID -> GridCells.Adaptive(minSize = 250.dp)
             LayoutMode.COMPACT -> GridCells.Adaptive(minSize = 350.dp)
@@ -677,7 +677,8 @@ fun BookmarkListView(
                             onClickShareBookmark = onClickShareBookmark,
                             onClickLabel = onClickLabel,
                             onClickOpenUrl = onClickOpenUrl,
-                            onClickOpenInBrowser = onClickOpenInBrowser
+                            onClickOpenInBrowser = onClickOpenInBrowser,
+                            isInGrid = true,
                         )
                         LayoutMode.COMPACT -> BookmarkCompactCard(
                             bookmark = bookmark,
