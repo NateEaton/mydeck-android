@@ -59,6 +59,7 @@ class BookmarkDetailViewModelTest {
         every { assetLoader.loadAsset("html_template_light.html") } returns htmlTemplate
         every { savedStateHandle.get<String>("bookmarkId") } returns "123"
         every { settingsDataStore.themeFlow } returns MutableStateFlow(Theme.LIGHT.name)
+        every { settingsDataStore.sepiaEnabledFlow } returns MutableStateFlow(false)
         every { settingsDataStore.zoomFactorFlow } returns MutableStateFlow(100)
         every { settingsDataStore.typographySettingsFlow } returns MutableStateFlow(com.mydeck.app.domain.model.TypographySettings())
         viewModel = BookmarkDetailViewModel(updateBookmarkUseCase, bookmarkRepository, assetLoader, settingsDataStore, loadArticleUseCase, savedStateHandle)

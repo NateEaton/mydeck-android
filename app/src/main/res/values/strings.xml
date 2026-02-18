@@ -345,6 +345,16 @@ other{}
     <string name="tri_state_any">N/A</string>
     <string name="tri_state_yes">Yes</string>
     <string name="tri_state_no">No</string>
+    <string name="filter_title">Title</string>
+    <string name="filter_author">Author</string>
+    <string name="filter_site">Site</string>
+    <string name="filter_label">Label</string>
+    <string name="filter_from_date">From Date</string>
+    <string name="filter_to_date">To Date</string>
+    <string name="filter_is_loaded">Is Loaded</string>
+    <string name="filter_with_labels">With Labels</string>
+    <string name="filter_with_errors">With Errors</string>
+    <string name="filter_select_label">Tap to select a label</string>
     <string name="sort">Sort</string>
     <string name="layout">Layout</string>
 </resources>

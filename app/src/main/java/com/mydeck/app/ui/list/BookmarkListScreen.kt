@@ -81,6 +81,7 @@ import com.mydeck.app.domain.model.BookmarkListItem
 import com.mydeck.app.domain.model.DrawerPreset
 import com.mydeck.app.domain.model.LayoutMode
 import com.mydeck.app.domain.model.SortOption
+import com.mydeck.app.ui.components.FilterBar
 import com.mydeck.app.ui.components.FilterBottomSheet
 import com.mydeck.app.ui.components.ShareBookmarkChooser
 import com.mydeck.app.ui.components.VerticalScrollbar
@@ -332,6 +333,16 @@ fun BookmarkListScreen(
                 .padding(padding)
                 .fillMaxWidth()
         ) {
+            // FilterBar: visible when filters are active beyond preset defaults, not in label mode
+            if (!isLabelMode) {
+                FilterBar(
+                    filterFormState = filterFormState.value,
+                    drawerPreset = drawerPreset.value,
+                    onFilterChanged = { viewModel.onApplyFilter(it) },
+                    onOpenFilterSheet = { viewModel.onOpenFilterSheet() }
+                )
+            }
+
             PullToRefreshBox(
                 isRefreshing = isLoading,
                 onRefresh = { viewModel.onPullToRefresh() },
@@ -434,6 +445,7 @@ fun BookmarkListScreen(
     if (isFilterSheetOpen.value) {
         FilterBottomSheet(
             currentFilter = filterFormState.value,
+            labels = labelsWithCounts.value,
             onApply = { viewModel.onApplyFilter(it) },
             onReset = { viewModel.onResetFilter() },
             onDismiss = { viewModel.onCloseFilterSheet() }

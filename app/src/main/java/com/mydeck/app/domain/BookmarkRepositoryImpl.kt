@@ -207,11 +207,19 @@ class BookmarkRepositoryImpl @Inject constructor(
 
     override fun observeFilteredBookmarkListItems(
         searchQuery: String?,
+        title: String?,
+        author: String?,
+        site: String?,
         types: Set<Bookmark.Type>,
         progressFilters: Set<com.mydeck.app.domain.model.ProgressFilter>,
         isArchived: Boolean?,
         isFavorite: Boolean?,
         label: String?,
+        fromDate: Long?,
+        toDate: Long?,
+        isLoaded: Boolean?,
+        withLabels: Boolean?,
+        withErrors: Boolean?,
         orderBy: String
     ): Flow<List<BookmarkListItem>> {
         val entityTypes = types.mapTo(mutableSetOf()) {
@@ -230,11 +238,19 @@ class BookmarkRepositoryImpl @Inject constructor(
         }
         return bookmarkDao.getFilteredBookmarkListItems(
             searchQuery = searchQuery,
+            title = title,
+            author = author,
+            site = site,
             types = entityTypes,
             progressFilters = progressInts,
             isArchived = isArchived,
             isFavorite = isFavorite,
             label = label,
+            fromDate = fromDate,
+            toDate = toDate,
+            isLoaded = isLoaded,
+            withLabels = withLabels,
+            withErrors = withErrors,
             orderBy = orderBy
         ).map { listItems ->
             listItems.map { listItem ->

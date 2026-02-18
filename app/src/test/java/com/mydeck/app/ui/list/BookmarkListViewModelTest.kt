@@ -88,7 +88,7 @@ class BookmarkListViewModelTest {
         coEvery { settingsDataStore.isSyncOnAppOpenEnabled() } returns false // Disable sync on app open by default
         every { fullSyncUseCase.performFullSync() } returns Unit
         // Use any() for all arguments to be safe, then specialize
-        every { bookmarkRepository.observeBookmarkListItems(any(), any(), any(), any(), any(), any(), any()) } returns flowOf(emptyList())
+        every { bookmarkRepository.observeFilteredBookmarkListItems(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()) } returns flowOf(emptyList())
 
         every { savedStateHandle.get<String>(any()) } returns null // no sharedUrl initially
         every { workManager.getWorkInfosForUniqueWorkFlow(any()) } returns workInfoFlow
@@ -163,8 +163,8 @@ class BookmarkListViewModelTest {
         viewModel.onClickMyList()
         advanceUntilIdle()
         assertEquals(
-            BookmarkListViewModel.FilterState(archived = false),
-            viewModel.filterState.value
+            com.mydeck.app.domain.model.FilterFormState(isArchived = false),
+            viewModel.filterFormState.value
         )
     }
 
@@ -183,8 +183,8 @@ class BookmarkListViewModelTest {
         )
         viewModel.onClickArchive()
         assertEquals(
-            BookmarkListViewModel.FilterState(archived = true),
-            viewModel.filterState.first()
+            com.mydeck.app.domain.model.FilterFormState(isArchived = true),
+            viewModel.filterFormState.first()
         )
     }
 
@@ -203,8 +203,8 @@ class BookmarkListViewModelTest {
         )
         viewModel.onClickFavorite()
         assertEquals(
-            BookmarkListViewModel.FilterState(favorite = true),
-            viewModel.filterState.first()
+            com.mydeck.app.domain.model.FilterFormState(isFavorite = true),
+            viewModel.filterFormState.first()
         )
     }
 
@@ -276,16 +276,22 @@ class BookmarkListViewModelTest {
             )
         )
         val bookmarkFlow = MutableStateFlow(expectedBookmarks)
-        // Mock for default filter (archived = false, unread = null)
-        // onClickMyList() sets FilterState(archived = false), same as initial state
-        coEvery {
-            bookmarkRepository.observeBookmarkListItems(
-                type = null,
-                unread = null,
-                archived = false,
-                favorite = null,
-                label = null,
-                state = null,
+        every {
+            bookmarkRepository.observeFilteredBookmarkListItems(
+                searchQuery = any(),
+                title = any(),
+                author = any(),
+                site = any(),
+                types = any(),
+                progressFilters = any(),
+                isArchived = any(),
+                isFavorite = any(),
+                label = any(),
+                fromDate = any(),
+                toDate = any(),
+                isLoaded = any(),
+                withLabels = any(),
+                withErrors = any(),
                 orderBy = any()
             )
         } returns bookmarkFlow
@@ -538,16 +544,8 @@ class BookmarkListViewModelTest {
             val isFavorite = true
 
             val bookmarkFlow = MutableStateFlow(bookmarks)
-            coEvery {
-                bookmarkRepository.observeBookmarkListItems(
-                    type = null,
-                    unread = null,
-                    archived = false,
-                    favorite = null,
-                    label = null,
-                    state = null,
-                    orderBy = any()
-                )
+            every {
+                bookmarkRepository.observeFilteredBookmarkListItems(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any())
             } returns bookmarkFlow
 
             coEvery {
@@ -614,16 +612,8 @@ class BookmarkListViewModelTest {
             } returns UpdateBookmarkUseCase.Result.GenericError(errorMessage)
 
             val bookmarkFlow = MutableStateFlow(bookmarks)
-            coEvery {
-            bookmarkRepository.observeBookmarkListItems(
-                    type = null,
-                    unread = null,
-                    archived = false,
-                    favorite = null,
-                    label = null,
-                    state = null,
-                    orderBy = any()
-                )
+            every {
+                bookmarkRepository.observeFilteredBookmarkListItems(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any())
             } returns bookmarkFlow
 
             viewModel = BookmarkListViewModel(
@@ -676,16 +666,8 @@ class BookmarkListViewModelTest {
             val errorMessage = "Network Error"
 
             val bookmarkFlow = MutableStateFlow(bookmarks)
-            coEvery {
-                bookmarkRepository.observeBookmarkListItems(
-                    type = null,
-                    unread = null,
-                    archived = false,
-                    favorite = null,
-                    label = null,
-                    state = null,
-                    orderBy = any()
-                )
+            every {
+                bookmarkRepository.observeFilteredBookmarkListItems(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any())
             } returns bookmarkFlow
 
             coEvery {
@@ -744,16 +726,8 @@ class BookmarkListViewModelTest {
             val isArchived = true
 
             val bookmarkFlow = MutableStateFlow(bookmarks)
-            coEvery {
-                bookmarkRepository.observeBookmarkListItems(
-                    type = null,
-                    unread = null,
-                    archived = false,
-                    favorite = null,
-                    label = null,
-                    state = null,
-                    orderBy = any()
-                )
+            every {
+                bookmarkRepository.observeFilteredBookmarkListItems(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any())
             } returns bookmarkFlow
 
             coEvery {
@@ -820,16 +794,8 @@ class BookmarkListViewModelTest {
             } returns UpdateBookmarkUseCase.Result.GenericError(errorMessage)
 
             val bookmarkFlow = MutableStateFlow(bookmarks)
-            coEvery {
-                bookmarkRepository.observeBookmarkListItems(
-                    type = null,
-                    unread = null,
-                    archived = false,
-                    favorite = null,
-                    label = null,
-                    state = null,
-                    orderBy = any()
-                )
+            every {
+                bookmarkRepository.observeFilteredBookmarkListItems(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any())
             } returns bookmarkFlow
 
             viewModel = BookmarkListViewModel(
@@ -882,16 +848,8 @@ class BookmarkListViewModelTest {
             val errorMessage = "Network Error"
 
             val bookmarkFlow = MutableStateFlow(bookmarks)
-            coEvery {
-                bookmarkRepository.observeBookmarkListItems(
-                    type = null,
-                    unread = null,
-                    archived = false,
-                    favorite = null,
-                    label = null,
-                    state = null,
-                    orderBy = any()
-                )
+            every {
+                bookmarkRepository.observeFilteredBookmarkListItems(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any())
             } returns bookmarkFlow
 
             coEvery {
@@ -951,16 +909,8 @@ class BookmarkListViewModelTest {
             val isRead = true
 
             val bookmarkFlow = MutableStateFlow(bookmarks)
-            coEvery {
-                bookmarkRepository.observeBookmarkListItems(
-                    type = null,
-                    unread = null,
-                    archived = false,
-                    favorite = null,
-                    label = null,
-                    state = null,
-                    orderBy = any()
-                )
+            every {
+                bookmarkRepository.observeFilteredBookmarkListItems(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any())
             } returns bookmarkFlow
 
             coEvery {
@@ -1027,16 +977,8 @@ class BookmarkListViewModelTest {
             } returns UpdateBookmarkUseCase.Result.GenericError(errorMessage)
 
             val bookmarkFlow = MutableStateFlow(bookmarks)
-            coEvery {
-                bookmarkRepository.observeBookmarkListItems(
-                    type = null,
-                    unread = null,
-                    archived = false,
-                    favorite = null,
-                    label = null,
-                    state = null,
-                    orderBy = any()
-                )
+            every {
+                bookmarkRepository.observeFilteredBookmarkListItems(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any())
             } returns bookmarkFlow
 
             viewModel = BookmarkListViewModel(
@@ -1089,16 +1031,8 @@ class BookmarkListViewModelTest {
             val errorMessage = "Network Error"
 
             val bookmarkFlow = MutableStateFlow(bookmarks)
-            coEvery {
-                bookmarkRepository.observeBookmarkListItems(
-                    type = null,
-                    unread = null,
-                    archived = false,
-                    favorite = null,
-                    label = null,
-                    state = null,
-                    orderBy = any()
-                )
+            every {
+                bookmarkRepository.observeFilteredBookmarkListItems(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any())
             } returns bookmarkFlow
 
             coEvery {
@@ -1150,94 +1084,9 @@ class BookmarkListViewModelTest {
         }
 
     @Test
-    fun `onSearchQueryChange emits new query to searchQuery flow`() = runTest {
+    fun `onClickLabel updates activeLabel with selected label`() = runTest {
         coEvery { settingsDataStore.isInitialSyncPerformed() } returns false
-        coEvery { bookmarkRepository.observeBookmarkListItems(any(), any(), any(), any(), any(), any(), any()) } returns flowOf(bookmarks)
-
-        viewModel = BookmarkListViewModel(
-            updateBookmarkUseCase,
-            fullSyncUseCase,
-            workManager,
-            bookmarkRepository,
-            context,
-            settingsDataStore,
-            savedStateHandle,
-            connectivityMonitor
-        )
-
-        val query = "test query"
-        viewModel.onSearchQueryChange(query)
-
-        assertEquals(query, viewModel.searchQuery.value)
-    }
-
-    @Test
-    fun `searchBookmarkListItems is called when query is non-empty`() = runTest {
-        coEvery { settingsDataStore.isInitialSyncPerformed() } returns false
-        coEvery { bookmarkRepository.observeBookmarkListItems(any(), any(), any(), any(), any(), any(), any()) } returns flowOf(bookmarks)
-        coEvery { bookmarkRepository.searchBookmarkListItems(any(), any(), any(), any(), any(), any(), any(), any()) } returns flowOf(bookmarks)
-
-        viewModel = BookmarkListViewModel(
-            updateBookmarkUseCase,
-            fullSyncUseCase,
-            workManager,
-            bookmarkRepository,
-            context,
-            settingsDataStore,
-            savedStateHandle,
-            connectivityMonitor
-        )
-
-        // Collecting state to trigger the flatMapLatest flow
-        val job = backgroundScope.launch { viewModel.uiState.collect {} }
-
-        val query = "test"
-        viewModel.onSearchQueryChange(query)
-        advanceUntilIdle() // Wait for debounce (300ms)
-
-        coVerify {
-            bookmarkRepository.searchBookmarkListItems(
-                searchQuery = query,
-                type = null,
-                unread = null,
-                archived = false,
-                favorite = null,
-                label = null,
-                state = null,
-                orderBy = "created DESC"
-            )
-        }
-        
-        job.cancel()
-    }
-
-    @Test
-    fun `onClearSearch resets query to empty string`() = runTest {
-        coEvery { settingsDataStore.isInitialSyncPerformed() } returns false
-        coEvery { bookmarkRepository.observeBookmarkListItems(any(), any(), any(), any(), any(), any(), any()) } returns flowOf(bookmarks)
-
-        viewModel = BookmarkListViewModel(
-            updateBookmarkUseCase,
-            fullSyncUseCase,
-            workManager,
-            bookmarkRepository,
-            context,
-            settingsDataStore,
-            savedStateHandle,
-            connectivityMonitor
-        )
-
-        viewModel.onSearchQueryChange("test")
-        assertEquals("test", viewModel.searchQuery.value)
-
-        viewModel.onClearSearch()
-        assertEquals("", viewModel.searchQuery.value)
-    }
-
-    @Test
-    fun `onClickLabel updates FilterState with selected label`() = runTest {
-        coEvery { settingsDataStore.isInitialSyncPerformed() } returns false
-        coEvery { bookmarkRepository.observeBookmarkListItems(any(), any(), any(), any(), any(), any(), any()) } returns flowOf(bookmarks)
+        every { bookmarkRepository.observeFilteredBookmarkListItems(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()) } returns flowOf(bookmarks)
 
         viewModel = BookmarkListViewModel(
             updateBookmarkUseCase,
@@ -1253,14 +1102,13 @@ class BookmarkListViewModelTest {
         val label = "important"
         viewModel.onClickLabel(label)
 
-        val filterState = viewModel.filterState.value
-        assertEquals(label, filterState.label)
+        assertEquals(label, viewModel.activeLabel.value)
     }
 
     @Test
-    fun `onRenameLabel calls repository and updates filter if label was active`() = runTest {
+    fun `onRenameLabel calls repository and updates activeLabel if label was active`() = runTest {
         coEvery { settingsDataStore.isInitialSyncPerformed() } returns false
-        coEvery { bookmarkRepository.observeBookmarkListItems(any(), any(), any(), any(), any(), any(), any()) } returns flowOf(bookmarks)
+        every { bookmarkRepository.observeFilteredBookmarkListItems(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()) } returns flowOf(bookmarks)
         coEvery { bookmarkRepository.renameLabel(any(), any()) } returns BookmarkRepository.UpdateResult.Success
 
         viewModel = BookmarkListViewModel(
@@ -1279,19 +1127,19 @@ class BookmarkListViewModelTest {
         
         // specific setup to set initial label
         viewModel.onClickLabel(oldLabel)
-        assertEquals(oldLabel, viewModel.filterState.value.label)
+        assertEquals(oldLabel, viewModel.activeLabel.value)
 
         viewModel.onRenameLabel(oldLabel, newLabel)
         advanceUntilIdle()
 
         coVerify { bookmarkRepository.renameLabel(oldLabel, newLabel) }
-        assertEquals(newLabel, viewModel.filterState.value.label)
+        assertEquals(newLabel, viewModel.activeLabel.value)
     }
 
     @Test
     fun `onLayoutModeSelected persists to settings and updates flow`() = runTest {
         coEvery { settingsDataStore.isInitialSyncPerformed() } returns false
-        coEvery { bookmarkRepository.observeBookmarkListItems(any(), any(), any(), any(), any(), any(), any()) } returns flowOf(bookmarks)
+        every { bookmarkRepository.observeFilteredBookmarkListItems(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()) } returns flowOf(bookmarks)
         coEvery { settingsDataStore.saveLayoutMode(any()) } returns Unit
 
         viewModel = BookmarkListViewModel(
@@ -1316,7 +1164,7 @@ class BookmarkListViewModelTest {
     @Test
     fun `onSortOptionSelected persists to settings and updates flow`() = runTest {
         coEvery { settingsDataStore.isInitialSyncPerformed() } returns false
-        coEvery { bookmarkRepository.observeBookmarkListItems(any(), any(), any(), any(), any(), any(), any()) } returns flowOf(bookmarks)
+        every { bookmarkRepository.observeFilteredBookmarkListItems(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()) } returns flowOf(bookmarks)
         coEvery { settingsDataStore.saveSortOption(any()) } returns Unit
 
         viewModel = BookmarkListViewModel(

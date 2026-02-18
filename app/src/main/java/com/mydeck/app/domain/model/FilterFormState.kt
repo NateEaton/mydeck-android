@@ -1,18 +1,38 @@
 package com.mydeck.app.domain.model
 
+import kotlinx.datetime.Instant
+
 data class FilterFormState(
     val search: String? = null,
+    val title: String? = null,
+    val author: String? = null,
+    val site: String? = null,
+    val label: String? = null,
+    val fromDate: Instant? = null,
+    val toDate: Instant? = null,
     val types: Set<Bookmark.Type> = emptySet(),
     val progress: Set<ProgressFilter> = emptySet(),
     val isFavorite: Boolean? = null,
     val isArchived: Boolean? = null,
+    val isLoaded: Boolean? = null,
+    val withLabels: Boolean? = null,
+    val withErrors: Boolean? = null,
 ) {
     fun hasActiveFilters(): Boolean =
         search != null ||
+        title != null ||
+        author != null ||
+        site != null ||
+        label != null ||
+        fromDate != null ||
+        toDate != null ||
         types.isNotEmpty() ||
         progress.isNotEmpty() ||
         isFavorite != null ||
-        isArchived != null
+        isArchived != null ||
+        isLoaded != null ||
+        withLabels != null ||
+        withErrors != null
 
     companion object {
         fun fromPreset(preset: DrawerPreset): FilterFormState = when (preset) {

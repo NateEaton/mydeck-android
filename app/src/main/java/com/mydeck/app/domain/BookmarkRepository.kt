@@ -55,11 +55,19 @@ interface BookmarkRepository {
 
     fun observeFilteredBookmarkListItems(
         searchQuery: String? = null,
+        title: String? = null,
+        author: String? = null,
+        site: String? = null,
         types: Set<Bookmark.Type> = emptySet(),
         progressFilters: Set<ProgressFilter> = emptySet(),
         isArchived: Boolean? = null,
         isFavorite: Boolean? = null,
         label: String? = null,
+        fromDate: Long? = null,
+        toDate: Long? = null,
+        isLoaded: Boolean? = null,
+        withLabels: Boolean? = null,
+        withErrors: Boolean? = null,
         orderBy: String = "created DESC"
     ): Flow<List<BookmarkListItem>>
 

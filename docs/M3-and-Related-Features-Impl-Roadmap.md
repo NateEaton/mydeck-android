@@ -847,3 +847,61 @@ This prevents unreadably long lines on wide screens.
 **Large Refactors:**
 - [ ] Filter form bottom sheet + DAO expansion (Phase 4)
 - [ ] Tablet adaptive layout + ListDetailPaneScaffold (Phase 5)
+
+---
+
+## H) Test Coverage Expansion — Required Phase of Work
+
+### Background
+
+During Phases 0–4b, several significant refactors were made to `BookmarkListViewModel` and `BookmarkRepositoryImpl` that left the test suite out of sync with the production code. The following issues were identified and partially resolved:
+
+**Already Fixed (pre-Phase 5):**
+- `BookmarkListViewModelTest` referenced `FilterState` / `filterState` (old API) — updated to `FilterFormState` / `filterFormState`
+- `BookmarkListViewModelTest` mocked `observeBookmarkListItems()` — updated to `observeFilteredBookmarkListItems()` to match the refactored ViewModel
+- Three search-related tests (`onSearchQueryChange`, `onClearSearch`, `searchBookmarkListItems is called`) referenced non-existent ViewModel methods and were removed; the underlying search functionality is now handled through `FilterFormState.search` via the filter form
+- `onClickLabel` and `onRenameLabel` tests updated to use `activeLabel` instead of the removed `filterState.label`
+
+### Remaining Test Coverage Gaps
+
+#### `BookmarkRepositoryImpl` — Missing Method Coverage
+
+The following public methods have **no test coverage** and should be addressed before Phase 5:
+
+| Method | Complexity | Priority | Notes |
+|:---|:---|:---|:---|
+| `observeAllBookmarkCounts()` | Low | High | Flow testing with database entities |
+| `observeAllLabelsWithCounts()` | Medium | High | String parsing + counting logic |
+| `renameLabel()` | High | High | Bulk operations across multiple bookmarks |
+| `deleteLabel()` | High | High | Label removal with server sync |
+| `updateTitle()` | Low | Medium | Simple pending action queue |
+| `observeFilteredBookmarkListItems()` | Medium | Medium | New DAO query with all filter params |
+
+#### `BookmarkListViewModelTest` — Removed Tests Needing Replacement
+
+Three search-related tests were removed because they referenced non-existent methods. The equivalent behavior is now handled through the filter form. Replacement tests should cover:
+
+1. **Filter form search field applies correctly** — set `FilterFormState(search = "query")` via `onApplyFilter()`, verify `observeFilteredBookmarkListItems` is called with `searchQuery = "query"`
+2. **Reset filter clears search** — apply a filter with search text, call `onResetFilter()`, verify `filterFormState.value.search == null`
+3. **Filter form state flows correctly through to repository** — verify the full pipeline from `onApplyFilter()` → `filterFormState` → `observeFilteredBookmarkListItems()` args
+
+### Recommended Implementation Approach
+
+**Effort estimate:** 4–6 hours across 1–2 sessions
+
+**Session 1 — Repository tests (3–4 hours):**
+- `observeAllBookmarkCounts()`: mock `bookmarkDao.observeAllBookmarkCounts()` returning a flow, verify `BookmarkCounts` mapping
+- `observeAllLabelsWithCounts()`: test JSON label string parsing (e.g., `["AI","nature"]` → `{"AI": 1, "nature": 1}`), edge cases (empty, null, duplicates)
+- `renameLabel()`: mock `bookmarkDao.getAllBookmarksWithContent()`, verify `editBookmark` API calls and local DB updates
+- `deleteLabel()`: similar pattern to rename
+
+**Session 2 — ViewModel filter pipeline tests (1–2 hours):**
+- Replace the 3 removed search tests with filter-form-based equivalents
+- Add `onApplyFilter` → repository call verification
+- Add `onResetFilter` state verification
+
+### Risk Notes
+
+- `renameLabel()` and `deleteLabel()` involve bulk operations with potential partial failures — test both full-success and partial-failure paths
+- `observeAllLabelsWithCounts()` parsing logic is pure Kotlin (no DB/API) — straightforward to test but edge cases matter (empty JSON array `[]`, null labels field, duplicate label names across bookmarks)
+- The `observeFilteredBookmarkListItems()` DAO query has 15 parameters — use `any()` matchers for the majority and only assert on the specific params under test

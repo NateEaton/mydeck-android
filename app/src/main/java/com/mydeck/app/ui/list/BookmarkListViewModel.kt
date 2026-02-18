@@ -165,10 +165,19 @@ class BookmarkListViewModel @Inject constructor(
                     // Normal filter mode
                     bookmarkRepository.observeFilteredBookmarkListItems(
                         searchQuery = filter.search,
+                        title = filter.title,
+                        author = filter.author,
+                        site = filter.site,
                         types = filter.types,
                         progressFilters = filter.progress,
                         isArchived = filter.isArchived,
                         isFavorite = filter.isFavorite,
+                        label = filter.label,
+                        fromDate = filter.fromDate?.toEpochMilliseconds(),
+                        toDate = filter.toDate?.toEpochMilliseconds(),
+                        isLoaded = filter.isLoaded,
+                        withLabels = filter.withLabels,
+                        withErrors = filter.withErrors,
                         orderBy = sort.sqlOrderBy
                     )
                 }

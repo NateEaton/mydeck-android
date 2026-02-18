@@ -448,11 +448,19 @@ interface BookmarkDao {
 
     fun getFilteredBookmarkListItems(
         searchQuery: String? = null,
+        title: String? = null,
+        author: String? = null,
+        site: String? = null,
         types: Set<BookmarkEntity.Type> = emptySet(),
         progressFilters: Set<Int> = emptySet(), // 0=UNVIEWED, 1=IN_PROGRESS, 2=COMPLETED
         isArchived: Boolean? = null,
         isFavorite: Boolean? = null,
         label: String? = null,
+        fromDate: Long? = null,
+        toDate: Long? = null,
+        isLoaded: Boolean? = null,
+        withLabels: Boolean? = null,
+        withErrors: Boolean? = null,
         orderBy: String = "created DESC"
     ): Flow<List<BookmarkListItemEntity>> {
         val args = mutableListOf<Any>()
@@ -470,6 +478,21 @@ interface BookmarkDao {
                 args.add(pattern)
                 args.add(pattern)
                 args.add(pattern)
+            }
+
+            if (!title.isNullOrBlank()) {
+                append(" AND title LIKE ? COLLATE NOCASE")
+                args.add("%$title%")
+            }
+
+            if (!author.isNullOrBlank()) {
+                append(" AND authors LIKE ? COLLATE NOCASE")
+                args.add("%$author%")
+            }
+
+            if (!site.isNullOrBlank()) {
+                append(" AND siteName LIKE ? COLLATE NOCASE")
+                args.add("%$site%")
             }
 
             if (types.isNotEmpty()) {
@@ -501,6 +524,43 @@ interface BookmarkDao {
             label?.let {
                 append(" AND labels LIKE ? COLLATE BINARY")
                 args.add("%\"$it\"%")
+            }
+
+            fromDate?.let {
+                append(" AND published >= ?")
+                args.add(it)
+            }
+
+            toDate?.let {
+                append(" AND published <= ?")
+                args.add(it)
+            }
+
+            // isLoaded: true = DOWNLOADED (contentState=1), false = NOT_ATTEMPTED (contentState=0)
+            isLoaded?.let {
+                if (it) {
+                    append(" AND contentState = 1")
+                } else {
+                    append(" AND contentState = 0")
+                }
+            }
+
+            // withLabels: true = has labels, false = no labels
+            withLabels?.let {
+                if (it) {
+                    append(" AND labels != '[]' AND labels != '' AND labels IS NOT NULL")
+                } else {
+                    append(" AND (labels = '[]' OR labels = '' OR labels IS NULL)")
+                }
+            }
+
+            // withErrors: true = state=ERROR(1) or contentState=DIRTY(2)/PERMANENT_NO_CONTENT(3)
+            withErrors?.let {
+                if (it) {
+                    append(" AND (state = 1 OR contentState IN (2, 3))")
+                } else {
+                    append(" AND state != 1 AND contentState NOT IN (2, 3)")
+                }
             }
 
             append(" ORDER BY $orderBy")
