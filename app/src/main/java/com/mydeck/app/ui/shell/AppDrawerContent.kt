@@ -12,7 +12,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CloudOff
-import androidx.compose.material.icons.filled.Grade
+import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.automirrored.outlined.Article
 import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material.icons.outlined.Info
@@ -135,7 +135,7 @@ fun AppDrawerContent(
                     style = MaterialTheme.typography.bodyLarge,
                     text = stringResource(id = R.string.favorites)
                 ) },
-                icon = { Icon(imageVector = Icons.Filled.Grade, contentDescription = null) },
+                icon = { Icon(imageVector = Icons.Outlined.FavoriteBorder, contentDescription = null) },
                 badge = {
                     bookmarkCounts.favorite.let { count ->
                         if (count > 0) {

@@ -3,6 +3,9 @@ package com.mydeck.app.ui.list
 
 
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -21,7 +24,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Clear
@@ -40,6 +42,9 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DrawerState
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.Snackbar
+import androidx.compose.material3.SnackbarData
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -95,6 +100,7 @@ import com.mydeck.app.ui.components.FilterBottomSheet
 import com.mydeck.app.ui.components.ShareBookmarkChooser
 import com.mydeck.app.ui.components.VerticalScrollbar
 import com.mydeck.app.util.openUrlInCustomTab
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.collectLatest
 import androidx.compose.foundation.lazy.LazyColumn
@@ -148,7 +154,7 @@ fun BookmarkListScreen(
             val result = snackbarHostState.showSnackbar(
                 message = "Bookmark deleted",
                 actionLabel = "UNDO",
-                duration = SnackbarDuration.Long
+                duration = SnackbarDuration.Indefinite
             )
             if (result == androidx.compose.material3.SnackbarResult.ActionPerformed) {
                 viewModel.onCancelDeleteBookmark()
@@ -189,7 +195,7 @@ fun BookmarkListScreen(
     }
 
     Scaffold(
-        snackbarHost = { SnackbarHost(snackbarHostState) },
+        snackbarHost = { SnackbarHost(snackbarHostState) { data -> TimedDeleteSnackbar(data) } },
         topBar = {
             TopAppBar(
                 title = {
@@ -227,7 +233,7 @@ fun BookmarkListScreen(
                     }
                 },
                 actions = {
-                    // Sort button with dropdown
+                    // Sort button with dropdown — one row per category, arrow shows direction of active sort
                     Box {
                         IconButton(onClick = { showSortMenu = true }) {
                             Icon(Icons.Filled.SwapVert, contentDescription = stringResource(R.string.sort))
@@ -236,28 +242,45 @@ fun BookmarkListScreen(
                             expanded = showSortMenu,
                             onDismissRequest = { showSortMenu = false }
                         ) {
-                            SortOption.entries.forEach { option ->
-                                val isSelected = option == sortOption.value
-                                val isDescending = option.sqlOrderBy.contains("DESC")
+                            // Groups: (label, descOption, ascOption, defaultWhenNew)
+                            val sortGroups = listOf(
+                                Triple("Added", SortOption.ADDED_NEWEST, SortOption.ADDED_OLDEST),
+                                Triple("Published", SortOption.PUBLISHED_NEWEST, SortOption.PUBLISHED_OLDEST),
+                                Triple("Title", SortOption.TITLE_A_TO_Z, SortOption.TITLE_Z_TO_A),
+                                Triple("Site Name", SortOption.SITE_A_TO_Z, SortOption.SITE_Z_TO_A),
+                                Triple("Duration", SortOption.DURATION_SHORTEST, SortOption.DURATION_LONGEST)
+                            )
+                            sortGroups.forEach { (label, firstOption, secondOption) ->
+                                val isFirstSelected = sortOption.value == firstOption
+                                val isSecondSelected = sortOption.value == secondOption
+                                val isGroupSelected = isFirstSelected || isSecondSelected
+                                val activeOption = if (isSecondSelected) secondOption else firstOption
+                                val isDescending = activeOption.sqlOrderBy.contains("DESC")
                                 DropdownMenuItem(
                                     leadingIcon = {
-                                        Icon(
-                                            imageVector = if (isDescending) Icons.Filled.ArrowDownward else Icons.Filled.ArrowUpward,
-                                            contentDescription = null,
-                                            tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
+                                        if (isGroupSelected) {
+                                            Icon(
+                                                imageVector = if (isDescending) Icons.Filled.ArrowDownward else Icons.Filled.ArrowUpward,
+                                                contentDescription = null,
+                                                tint = MaterialTheme.colorScheme.primary
+                                            )
+                                        } else {
+                                            Spacer(Modifier.size(24.dp))
+                                        }
                                     },
                                     text = {
                                         Text(
-                                            text = option.displayName,
-                                            color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                                            text = label,
+                                            color = if (isGroupSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
                                         )
                                     },
-                                    trailingIcon = if (isSelected) {
-                                        { Icon(Icons.Filled.Check, contentDescription = null, tint = MaterialTheme.colorScheme.primary) }
-                                    } else null,
                                     onClick = {
-                                        viewModel.onSortOptionSelected(option)
+                                        val newOption = when {
+                                            isFirstSelected -> secondOption  // toggle to other direction
+                                            isSecondSelected -> firstOption  // toggle back
+                                            else -> firstOption              // first tap: use default
+                                        }
+                                        viewModel.onSortOptionSelected(newOption)
                                         showSortMenu = false
                                     }
                                 )
@@ -427,9 +450,11 @@ fun BookmarkListScreen(
                     urlError = createBookmarkUiState.urlError,
                     isCreateEnabled = createBookmarkUiState.isCreateEnabled,
                     labels = createBookmarkUiState.labels,
+                    isFavorite = createBookmarkUiState.isFavorite,
                     onTitleChange = { viewModel.updateCreateBookmarkTitle(it) },
                     onUrlChange = { viewModel.updateCreateBookmarkUrl(it) },
                     onLabelsChange = { viewModel.updateCreateBookmarkLabels(it) },
+                    onFavoriteToggle = { viewModel.updateCreateBookmarkFavorite(it) },
                     onCreateBookmark = { viewModel.createBookmark() },
                     onAction = { action -> viewModel.handleCreateBookmarkAction(action) },
                     onDismiss = { viewModel.closeCreateBookmarkDialog() }
@@ -566,9 +591,11 @@ private fun AddBookmarkBottomSheet(
     urlError: Int?,
     isCreateEnabled: Boolean,
     labels: List<String>,
+    isFavorite: Boolean = false,
     onTitleChange: (String) -> Unit,
     onUrlChange: (String) -> Unit,
     onLabelsChange: (List<String>) -> Unit,
+    onFavoriteToggle: (Boolean) -> Unit = {},
     onCreateBookmark: () -> Unit,
     onAction: (SaveAction) -> Unit,
     onDismiss: () -> Unit
@@ -585,9 +612,11 @@ private fun AddBookmarkBottomSheet(
             urlError = urlError,
             isCreateEnabled = isCreateEnabled,
             labels = labels,
+            isFavorite = isFavorite,
             onUrlChange = onUrlChange,
             onTitleChange = onTitleChange,
             onLabelsChange = onLabelsChange,
+            onFavoriteToggle = onFavoriteToggle,
             onCreateBookmark = onCreateBookmark,
             onAction = onAction
         )
@@ -696,6 +725,30 @@ fun BookmarkListView(
                 .fillMaxHeight(),
             lazyListState = lazyListState
         )
+    }
+}
+
+@Composable
+private fun TimedDeleteSnackbar(snackbarData: SnackbarData) {
+    val progress = remember { Animatable(1f) }
+
+    LaunchedEffect(snackbarData) {
+        launch {
+            progress.animateTo(
+                targetValue = 0f,
+                animationSpec = tween(durationMillis = 5000, easing = LinearEasing)
+            )
+        }
+        delay(5000L)
+        snackbarData.dismiss()
+    }
+
+    Column {
+        LinearProgressIndicator(
+            progress = { progress.value },
+            modifier = Modifier.fillMaxWidth()
+        )
+        Snackbar(snackbarData = snackbarData)
     }
 }
 

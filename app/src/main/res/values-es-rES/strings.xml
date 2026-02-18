@@ -87,7 +87,7 @@ other{}
     <string name="auto_sync_notification_rationale_dialog_text">Para avisarte acerca de los fallos de la sincronización en segundo plano, necesitamos permiso para enviar notificaciones. Por favor acepta el permiso.</string>
     <string name="settings_ui_subtitle">Apariencia</string>
     <string name="ui_settings_theme_title">Tema</string>
-    <string name="theme_system">Predeterminado del sistema</string>
+    <string name="theme_system">Sistema</string>
     <string name="theme_light">Claro</string>
     <string name="theme_dark">Oscuro</string>
     <string name="ui_settings_theme_heading">Temas</string>

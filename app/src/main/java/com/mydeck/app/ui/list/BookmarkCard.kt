@@ -33,12 +33,12 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Grade
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.outlined.CheckCircle
-import androidx.compose.material.icons.outlined.Grade
+import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.Inventory2
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -247,7 +247,7 @@ fun BookmarkMosaicCard(
                             modifier = Modifier.size(36.dp)
                         ) {
                             Icon(
-                                imageVector = if (bookmark.isMarked) Icons.Filled.Grade else Icons.Outlined.Grade,
+                                imageVector = if (bookmark.isMarked) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
                                 contentDescription = stringResource(R.string.action_favorite),
                                 tint = Color.White,
                                 modifier = Modifier.size(20.dp)
@@ -475,7 +475,7 @@ fun BookmarkGridCard(
                             modifier = Modifier.size(36.dp)
                         ) {
                             Icon(
-                                imageVector = if (bookmark.isMarked) Icons.Filled.Grade else Icons.Outlined.Grade,
+                                imageVector = if (bookmark.isMarked) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
                                 contentDescription = stringResource(R.string.action_favorite),
                                 modifier = Modifier.size(20.dp)
                             )
@@ -661,7 +661,7 @@ fun BookmarkCompactCard(
                     modifier = Modifier.size(32.dp)
                 ) {
                     Icon(
-                        imageVector = if (bookmark.isMarked) Icons.Filled.Grade else Icons.Outlined.Grade,
+                        imageVector = if (bookmark.isMarked) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
                         contentDescription = stringResource(R.string.action_favorite),
                         modifier = Modifier.size(18.dp)
                     )

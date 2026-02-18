@@ -11,6 +11,7 @@ import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
@@ -125,8 +126,7 @@ fun SettingScreenView(
                 onClick = onClickAccount,
                 testTag = SettingsScreenTestTags.SETTINGS_ITEM_ACCOUNT
             )
-
-
+            HorizontalDivider()
             SettingItem(
                 icon = Icons.Filled.Sync,
                 title = stringResource(R.string.settings_sync),
@@ -134,7 +134,7 @@ fun SettingScreenView(
                 onClick = onClickSync,
                 testTag = SettingsScreenTestTags.SETTINGS_ITEM_SYNC
             )
-
+            HorizontalDivider()
             SettingItem(
                 icon = Icons.Filled.Visibility,
                 title = stringResource(R.string.settings_ui),
@@ -142,6 +142,7 @@ fun SettingScreenView(
                 onClick = onClickUi,
                 testTag = SettingsScreenTestTags.SETTINGS_ITEM_UI
             )
+            HorizontalDivider()
             SettingItem(
                 icon = Icons.Filled.Info,
                 title = stringResource(R.string.settings_logs),

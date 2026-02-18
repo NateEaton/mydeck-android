@@ -31,6 +31,7 @@ class CreateBookmarkWorker @AssistedInject constructor(
         val title = workerParams.inputData.getString(PARAM_TITLE) ?: ""
         val labels = workerParams.inputData.getStringArray(PARAM_LABELS)?.toList() ?: emptyList()
         val isArchived = workerParams.inputData.getBoolean(PARAM_IS_ARCHIVED, false)
+        val isFavorite = workerParams.inputData.getBoolean(PARAM_IS_FAVORITE, false)
 
         if (url.isNullOrBlank()) {
             Timber.w("CreateBookmarkWorker: No URL provided")
@@ -46,15 +47,15 @@ class CreateBookmarkWorker @AssistedInject constructor(
                 labels = labels
             )
 
-            if (isArchived) {
-                // Wait for bookmark to reach LOADED state before archiving,
+            if (isArchived || isFavorite) {
+                // Wait for bookmark to reach LOADED state before updating,
                 // otherwise pollForBookmarkReady() in createBookmark will
-                // overwrite our local isArchived=true with the server's false.
+                // overwrite our local flags with the server's values.
                 waitForBookmarkReady(bookmarkRepository, bookmarkId)
                 bookmarkRepository.updateBookmark(
                     bookmarkId = bookmarkId,
-                    isFavorite = null,
-                    isArchived = true,
+                    isFavorite = if (isFavorite) true else null,
+                    isArchived = if (isArchived) true else null,
                     isRead = null
                 )
             }
@@ -101,6 +102,7 @@ class CreateBookmarkWorker @AssistedInject constructor(
         const val PARAM_TITLE = "title"
         const val PARAM_LABELS = "labels"
         const val PARAM_IS_ARCHIVED = "isArchived"
+        const val PARAM_IS_FAVORITE = "isFavorite"
         const val RESULT_BOOKMARK_ID = "bookmarkId"
 
         fun enqueue(
@@ -108,7 +110,8 @@ class CreateBookmarkWorker @AssistedInject constructor(
             url: String,
             title: String,
             labels: List<String>,
-            isArchived: Boolean = false
+            isArchived: Boolean = false,
+            isFavorite: Boolean = false
         ) {
             val constraints = Constraints.Builder()
                 .setRequiredNetworkType(NetworkType.CONNECTED)
@@ -119,6 +122,7 @@ class CreateBookmarkWorker @AssistedInject constructor(
                 .putString(PARAM_TITLE, title)
                 .putStringArray(PARAM_LABELS, labels.toTypedArray())
                 .putBoolean(PARAM_IS_ARCHIVED, isArchived)
+                .putBoolean(PARAM_IS_FAVORITE, isFavorite)
                 .build()
 
             val request = OneTimeWorkRequestBuilder<CreateBookmarkWorker>()
