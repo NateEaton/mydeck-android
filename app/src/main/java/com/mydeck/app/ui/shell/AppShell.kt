@@ -155,12 +155,12 @@ private fun CompactAppShell(
         bookmarkListViewModel.navigationEvent.collectLatest { event ->
             when (event) {
                 is BookmarkListViewModel.NavigationEvent.NavigateToSettings -> {
-                    navController.navigate(SettingsRoute)
+                    navController.navigate(SettingsRoute) { launchSingleTop = true }
                     scope.launch { drawerState.close() }
                 }
 
                 is BookmarkListViewModel.NavigationEvent.NavigateToAbout -> {
-                    navController.navigate(AboutRoute)
+                    navController.navigate(AboutRoute) { launchSingleTop = true }
                     scope.launch { drawerState.close() }
                 }
 
@@ -305,11 +305,11 @@ private fun MediumAppShell(
         bookmarkListViewModel.navigationEvent.collectLatest { event ->
             when (event) {
                 is BookmarkListViewModel.NavigationEvent.NavigateToSettings -> {
-                    navController.navigate(SettingsRoute)
+                    navController.navigate(SettingsRoute) { launchSingleTop = true }
                 }
 
                 is BookmarkListViewModel.NavigationEvent.NavigateToAbout -> {
-                    navController.navigate(AboutRoute)
+                    navController.navigate(AboutRoute) { launchSingleTop = true }
                 }
 
                 is BookmarkListViewModel.NavigationEvent.NavigateToBookmarkDetail -> {
@@ -321,19 +321,30 @@ private fun MediumAppShell(
         }
     }
 
+    fun navigateToListAndApply(action: () -> Unit) {
+        val currentRoute = navController.currentBackStackEntry?.destination?.route
+        if (currentRoute?.startsWith(BookmarkListRoute::class.qualifiedName ?: "") != true) {
+            navController.navigate(BookmarkListRoute()) {
+                popUpTo(BookmarkListRoute()) { inclusive = true }
+                launchSingleTop = true
+            }
+        }
+        action()
+    }
+
     CompositionLocalProvider(LocalIsWideLayout provides true) {
     Row(modifier = Modifier.fillMaxSize()) {
         AnimatedVisibility(visible = !hideNavigation) {
             AppNavigationRailContent(
                 drawerPreset = drawerPreset,
                 activeLabel = activeLabel,
-                onClickMyList = { bookmarkListViewModel.onClickMyList() },
-                onClickArchive = { bookmarkListViewModel.onClickArchive() },
-                onClickFavorite = { bookmarkListViewModel.onClickFavorite() },
-                onClickArticles = { bookmarkListViewModel.onClickArticles() },
-                onClickVideos = { bookmarkListViewModel.onClickVideos() },
-                onClickPictures = { bookmarkListViewModel.onClickPictures() },
-                onClickLabels = { bookmarkListViewModel.onOpenLabelsSheet() },
+                onClickMyList = { navigateToListAndApply { bookmarkListViewModel.onClickMyList() } },
+                onClickArchive = { navigateToListAndApply { bookmarkListViewModel.onClickArchive() } },
+                onClickFavorite = { navigateToListAndApply { bookmarkListViewModel.onClickFavorite() } },
+                onClickArticles = { navigateToListAndApply { bookmarkListViewModel.onClickArticles() } },
+                onClickVideos = { navigateToListAndApply { bookmarkListViewModel.onClickVideos() } },
+                onClickPictures = { navigateToListAndApply { bookmarkListViewModel.onClickPictures() } },
+                onClickLabels = { navigateToListAndApply { bookmarkListViewModel.onOpenLabelsSheet() } },
                 onClickSettings = { bookmarkListViewModel.onClickSettings() },
                 onClickAbout = { bookmarkListViewModel.onClickAbout() },
             )
@@ -380,7 +391,7 @@ private fun MediumAppShell(
                         showNavigationIcon = false,
                     )
                 }
-                composable<SettingsRoute> { SettingsScreen(navController) }
+                composable<SettingsRoute> { SettingsScreen(navController, showBackButton = false) }
                 composable<WelcomeRoute> { WelcomeScreen(navController) }
                 composable<AccountSettingsRoute> { AccountSettingsScreen(navController) }
                 composable<BookmarkDetailRoute> { backStackEntry ->
@@ -404,7 +415,7 @@ private fun MediumAppShell(
                     UiSettingsScreen(navHostController = navController)
                 }
                 composable<AboutRoute> {
-                    AboutScreen(navHostController = navController)
+                    AboutScreen(navHostController = navController, showBackButton = false)
                 }
             }
         }
@@ -429,11 +440,11 @@ private fun ExpandedAppShell(
         bookmarkListViewModel.navigationEvent.collectLatest { event ->
             when (event) {
                 is BookmarkListViewModel.NavigationEvent.NavigateToSettings -> {
-                    navController.navigate(SettingsRoute)
+                    navController.navigate(SettingsRoute) { launchSingleTop = true }
                 }
 
                 is BookmarkListViewModel.NavigationEvent.NavigateToAbout -> {
-                    navController.navigate(AboutRoute)
+                    navController.navigate(AboutRoute) { launchSingleTop = true }
                 }
 
                 is BookmarkListViewModel.NavigationEvent.NavigateToBookmarkDetail -> {
@@ -443,6 +454,17 @@ private fun ExpandedAppShell(
                 }
             }
         }
+    }
+
+    fun navigateToListAndApply(action: () -> Unit) {
+        val currentRoute = navController.currentBackStackEntry?.destination?.route
+        if (currentRoute?.startsWith(BookmarkListRoute::class.qualifiedName ?: "") != true) {
+            navController.navigate(BookmarkListRoute()) {
+                popUpTo(BookmarkListRoute()) { inclusive = true }
+                launchSingleTop = true
+            }
+        }
+        action()
     }
 
     CompositionLocalProvider(LocalIsWideLayout provides true) {
@@ -455,13 +477,13 @@ private fun ExpandedAppShell(
                 bookmarkCounts = bookmarkCounts,
                 labelsWithCounts = labelsWithCounts,
                 isOnline = isOnline,
-                onClickMyList = { bookmarkListViewModel.onClickMyList() },
-                onClickArchive = { bookmarkListViewModel.onClickArchive() },
-                onClickFavorite = { bookmarkListViewModel.onClickFavorite() },
-                onClickArticles = { bookmarkListViewModel.onClickArticles() },
-                onClickVideos = { bookmarkListViewModel.onClickVideos() },
-                onClickPictures = { bookmarkListViewModel.onClickPictures() },
-                onClickLabels = { bookmarkListViewModel.onOpenLabelsSheet() },
+                onClickMyList = { navigateToListAndApply { bookmarkListViewModel.onClickMyList() } },
+                onClickArchive = { navigateToListAndApply { bookmarkListViewModel.onClickArchive() } },
+                onClickFavorite = { navigateToListAndApply { bookmarkListViewModel.onClickFavorite() } },
+                onClickArticles = { navigateToListAndApply { bookmarkListViewModel.onClickArticles() } },
+                onClickVideos = { navigateToListAndApply { bookmarkListViewModel.onClickVideos() } },
+                onClickPictures = { navigateToListAndApply { bookmarkListViewModel.onClickPictures() } },
+                onClickLabels = { navigateToListAndApply { bookmarkListViewModel.onOpenLabelsSheet() } },
                 onClickSettings = { bookmarkListViewModel.onClickSettings() },
                 onClickAbout = { bookmarkListViewModel.onClickAbout() },
             )
@@ -507,7 +529,7 @@ private fun ExpandedAppShell(
                         showNavigationIcon = false,
                     )
                 }
-                composable<SettingsRoute> { SettingsScreen(navController) }
+                composable<SettingsRoute> { SettingsScreen(navController, showBackButton = false) }
                 composable<WelcomeRoute> { WelcomeScreen(navController) }
                 composable<AccountSettingsRoute> { AccountSettingsScreen(navController) }
                 composable<BookmarkDetailRoute> { backStackEntry ->
@@ -531,7 +553,7 @@ private fun ExpandedAppShell(
                     UiSettingsScreen(navHostController = navController)
                 }
                 composable<AboutRoute> {
-                    AboutScreen(navHostController = navController)
+                    AboutScreen(navHostController = navController, showBackButton = false)
                 }
             }
         }
