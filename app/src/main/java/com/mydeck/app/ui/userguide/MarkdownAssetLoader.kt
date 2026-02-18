@@ -3,6 +3,7 @@ package com.mydeck.app.ui.userguide
 import android.content.Context
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.IOException
+import java.util.Locale
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -18,7 +19,8 @@ class MarkdownAssetLoader @Inject constructor(
 ) {
     
     companion object {
-        private const val ASSETS_PATH = "guide/en"
+        private const val ASSETS_BASE_PATH = "guide"
+        private const val DEFAULT_LOCALE = "en"
         private val DEFAULT_SECTIONS = listOf(
             GuideSection("Getting Started", "index.md", 0),
             GuideSection("Bookmarks", "bookmark.md", 1),
@@ -27,35 +29,44 @@ class MarkdownAssetLoader @Inject constructor(
         )
     }
     
+    private fun getLocalePath(): String {
+        val currentLocale = Locale.getDefault().language
+        val supportedLocales = listOf("en", "de", "es", "fr", "gl", "pl", "pt", "ru", "uk", "zh")
+        val locale = if (currentLocale in supportedLocales) currentLocale else DEFAULT_LOCALE
+        return "$ASSETS_BASE_PATH/$locale"
+    }
+    
     fun loadSections(): List<GuideSection> {
         return DEFAULT_SECTIONS
     }
     
     fun loadMarkdown(fileName: String): String {
+        val localePath = getLocalePath()
         return try {
-            val raw = context.assets.open("$ASSETS_PATH/$fileName").use { inputStream ->
+            val raw = context.assets.open("$localePath/$fileName").use { inputStream ->
                 inputStream.bufferedReader().use { reader ->
                     reader.readText()
                 }
             }
             raw
                 .replace(Regex("^---[\\s\\S]*?---\\n*"), "")
-                .replace("(./img/", "(file:///android_asset/$ASSETS_PATH/img/")
+                .replace("(./img/", "(file:///android_asset/$localePath/img/")
                 .replace(Regex("""\[([^\]]+)\]\(readeck-instance://[^)]+\)"""), "$1")
         } catch (e: IOException) {
-            "# Error Loading Content\n\nUnable to load: $fileName\n\nPath: $ASSETS_PATH/$fileName\n\nError: ${e.message}"
+            "# Error Loading Content\n\nUnable to load: $fileName\n\nPath: $localePath/$fileName\n\nError: ${e.message}"
         }
     }
     
     fun loadImage(imagePath: String): ByteArray? {
+        val localePath = getLocalePath()
         return try {
             // Handle relative paths like "../img/image.webp"
             val fullPath = if (imagePath.startsWith("../")) {
-                "$ASSETS_PATH/${imagePath.substring(3)}"
+                "$localePath/${imagePath.substring(3)}"
             } else if (imagePath.startsWith("./")) {
-                "$ASSETS_PATH/${imagePath.substring(2)}"
+                "$localePath/${imagePath.substring(2)}"
             } else {
-                "$ASSETS_PATH/$imagePath"
+                "$localePath/$imagePath"
             }
             
             context.assets.open(fullPath).use { inputStream ->

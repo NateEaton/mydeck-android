@@ -38,7 +38,7 @@ The foundation is solid — route, navigation drawer entry, asset files, Markwon
 1. **Wrong layout paradigm** — `NavigationRail` side-by-side split is a desktop pattern; on a phone it's unusable. Needs to be a standard two-screen TOC → Detail flow.
 2. **Images don't load** — Relative paths (`./img/foo.webp`) aren't resolved to `file:///android_asset/` URIs.
 3. **No M3 theming** — Markwon renders with default `TextView` styling, not your Material 3 typography/colors.
-4. **YAML frontmatter visible** — [index.md](cci:7://file:///Volumes/projects/mydeck-android/app/src/main/assets/docs/en/index.md:0:0-0:0) has `---` frontmatter that renders as text.
+4. **YAML frontmatter visible** — @index.md has `---` frontmatter that renders as text.
 5. **Duplicate assets** — [docs/en/](cci:9://file:///Volumes/projects/mydeck-android/app/src/main/assets/docs/en:0:0-0:0) and [guide/en/](cci:9://file:///Volumes/projects/mydeck-android/app/src/main/assets/guide/en:0:0-0:0) are identical; one should go.
 6. **Debug println statements** throughout ViewModel and Screen.
 7. **`readeck-instance://` links** will cause issues if tapped.
@@ -86,31 +86,31 @@ Read @_notes/IMPL_UserGuide.md for the full implementation plan, current state a
 
 This phase has the most structural complexity — new files, new routes, NavHost changes:
 
-> Implement **Phase 2: Redesign to Two-Screen Navigation** of the User Guide feature on the `feature/user-guide` branch.
->
-> Read [_notes/IMPL_UserGuide.md](cci:7://file:///Volumes/projects/mydeck-android/_notes/IMPL_UserGuide.md:0:0-0:0) for the full plan. Key requirements:
->
-> 1. **Replace** the current single [UserGuideScreen.kt](cci:7://file:///Volumes/projects/mydeck-android/app/src/main/java/com/mydeck/app/ui/userguide/UserGuideScreen.kt:0:0-0:0) (which uses a `NavigationRail` split layout) with two screens:
->    - `UserGuideIndexScreen.kt` — Table of Contents. Uses `Scaffold` + `LazyColumn` with M3 `ListItem` composables for each section. Tapping a section navigates to the detail screen.
->    - `UserGuideSectionScreen.kt` — Section detail. `Scaffold` with `TopAppBar` (section title + back button) and scrollable Markwon-rendered markdown content via `AndroidView(TextView)`.
->
-> 2. **Add** `UserGuideSectionRoute(fileName: String, title: String)` to [Routes.kt](cci:7://file:///Volumes/projects/mydeck-android/app/src/main/java/com/mydeck/app/ui/navigation/Routes.kt:0:0-0:0) (use `@Serializable data class`, matching the existing pattern).
->
-> 3. **Wire** the new route into `NavHost` in [MainActivity.kt](cci:7://file:///Volumes/projects/mydeck-android/app/src/main/java/com/mydeck/app/MainActivity.kt:0:0-0:0) — the composable should extract `fileName` and `title` from the route and pass them to `UserGuideSectionScreen`.
->
-> 4. **Split or refactor** [UserGuideViewModel.kt](cci:7://file:///Volumes/projects/mydeck-android/app/src/main/java/com/mydeck/app/ui/userguide/UserGuideViewModel.kt:0:0-0:0) to support both screens. The index screen needs the section list; the section screen needs to load content by fileName. Use `SavedStateHandle` or separate ViewModels — follow whichever pattern is simpler.
->
-> 5. The existing `UserGuideRoute` in [Routes.kt](cci:7://file:///Volumes/projects/mydeck-android/app/src/main/java/com/mydeck/app/ui/navigation/Routes.kt:0:0-0:0) should remain and map to the new `UserGuideIndexScreen`.
->
-> **Reference files for conventions:**
-> - [Routes.kt](cci:7://file:///Volumes/projects/mydeck-android/app/src/main/java/com/mydeck/app/ui/navigation/Routes.kt:0:0-0:0) — route definition pattern
-> - [MainActivity.kt](cci:7://file:///Volumes/projects/mydeck-android/app/src/main/java/com/mydeck/app/MainActivity.kt:0:0-0:0) — `NavHost` wiring pattern
-> - [BookmarkListScreen.kt](cci:7://file:///Volumes/projects/mydeck-android/app/src/main/java/com/mydeck/app/ui/list/BookmarkListScreen.kt:0:0-0:0) — drawer navigation pattern (do not modify this file)
-> - [MarkdownAssetLoader.kt](cci:7://file:///Volumes/projects/mydeck-android/app/src/main/java/com/mydeck/app/ui/userguide/MarkdownAssetLoader.kt:0:0-0:0) — data layer (modify only if needed)
->
-> **Do not** change the drawer entry in [BookmarkListScreen.kt](cci:7://file:///Volumes/projects/mydeck-android/app/src/main/java/com/mydeck/app/ui/list/BookmarkListScreen.kt:0:0-0:0). It already navigates to `UserGuideRoute` which is correct.
->
-> Verify the full navigation flow works: Drawer → Index → Section → Back → Index → Back to previous screen.
+Implement **Phase 2: Redesign to Two-Screen Navigation** of the User Guide feature on the `feature/user-guide` branch.
+
+Read @_notes/IMPL_UserGuide.md for the full plan. Key requirements:
+
+1. **Replace** the current single @UserGuideScreen.kt (which uses a `NavigationRail` split layout) with two screens:
+   - `UserGuideIndexScreen.kt` — Table of Contents. Uses `Scaffold` + `LazyColumn` with M3 `ListItem` composables for each section. Tapping a section navigates to the detail screen.
+   - `UserGuideSectionScreen.kt` — Section detail. `Scaffold` with `TopAppBar` (section title + back button) and scrollable Markwon-rendered markdown content via `AndroidView(TextView)`.
+
+2. **Add** `UserGuideSectionRoute(fileName: String, title: String)` to @Routes.kt (use `@Serializable data class`, matching the existing pattern).
+
+3. **Wire** the new route into `NavHost` in @MainActivity.kt — the composable should extract `fileName` and `title` from the route and pass them to `UserGuideSectionScreen`.
+
+4. **Split or refactor** @UserGuideViewModel.kt to support both screens. The index screen needs the section list; the section screen needs to load content by fileName. Use `SavedStateHandle` or separate ViewModels — follow whichever pattern is simpler.
+
+5. The existing `UserGuideRoute` in @Routes.kt should remain and map to the new `UserGuideIndexScreen`.
+
+**Reference files for conventions:**
+- @Routes.kt — route definition pattern
+- @MainActivity.kt — `NavHost` wiring pattern
+- @BookmarkListScreen.kt — drawer navigation pattern (do not modify this file)
+- @MarkdownAssetLoader.kt — data layer (modify only if needed)
+
+**Do not** change the drawer entry in @BookmarkListScreen.kt. It already navigates to `UserGuideRoute` which is correct.
+
+Verify the full navigation flow works: Drawer → Index → Section → Back → Index → Back to previous screen.
 
 ---
 
@@ -118,28 +118,28 @@ This phase has the most structural complexity — new files, new routes, NavHost
 
 This is the most technically demanding phase:
 
-> Implement **Phase 3: Markdown Rendering Quality** of the User Guide feature on the `feature/user-guide` branch.
->
-> Read [_notes/IMPL_UserGuide.md](cci:7://file:///Volumes/projects/mydeck-android/_notes/IMPL_UserGuide.md:0:0-0:0) for the full plan. This phase has 4 sub-tasks:
->
-> **3a. Fix image loading from assets.**
-> Markdown files reference images as `./img/filename.webp`. These must resolve to `file:///android_asset/guide/en/img/filename.webp` for Markwon to load them. The simplest approach: pre-process the markdown string in [MarkdownAssetLoader.loadMarkdown()](cci:1://file:///Volumes/projects/mydeck-android/app/src/main/java/com/mydeck/app/ui/userguide/MarkdownAssetLoader.kt:36:4-48:5) to replace relative image paths with absolute `file:///android_asset/guide/en/` URIs before returning. Then ensure Markwon's `ImagesPlugin` can handle `file://` URIs. Remove the `image-glide` dependency (the app uses Coil, not Glide) — use Markwon's built-in file scheme support or a custom `SchemeHandler` using `AssetManager` directly.
->
-> **3b. Apply Material 3 typography and colors.**
-> Create a `MarkdownRenderer.kt` (or equivalent) in `ui/userguide/` that configures Markwon with the app's M3 theme. The `AndroidView(TextView)` pattern is correct. At minimum:
-> - `textView.setTextColor(colorScheme.onSurface)` and `setLinkTextColor(colorScheme.primary)`
-> - Configure `MarkwonTheme` heading size multipliers to approximate M3 type scale
-> - Ensure it works in both light and dark mode (re-apply colors in the `update` block of `AndroidView`)
->
-> **3c. Handle inter-section markdown links.**
-> Links like `[Bookmark View](./bookmark.md)` should navigate to the corresponding `UserGuideSectionRoute`. Set a custom click handler (e.g., Markwon's `LinkResolverDef` override or a custom `MovementMethod`) that intercepts `.md` link clicks and triggers navigation. You'll need to accept a navigation callback lambda in the composable.
->
-> **3d. Strip or neutralize `readeck-instance://` URLs.**
-> The markdown contains links like `[Bookmark List](readeck-instance://bookmarks)`. Pre-process the markdown to convert these to plain text (keep the display text, remove the link wrapper). Regex: replace `\[([^\]]+)\]\(readeck-instance://[^)]+\)` with `$1`.
->
-> **Reference:** The Markwon version is 4.6.2. The existing Markwon setup is in [UserGuideScreen.kt](cci:7://file:///Volumes/projects/mydeck-android/app/src/main/java/com/mydeck/app/ui/userguide/UserGuideScreen.kt:0:0-0:0) (or `UserGuideSectionScreen.kt` if Phase 2 is complete). Update [build.gradle.kts](cci:7://file:///Volumes/projects/mydeck-android/app/build.gradle.kts:0:0-0:0) to remove the `image-glide` dependency.
->
-> Verify: images render in section pages, typography looks native, `.md` links navigate between sections, `readeck-instance://` links don't crash, dark mode works.
+Implement **Phase 3: Markdown Rendering Quality** of the User Guide feature on the `feature/user-guide` branch.
+
+Read @_notes/IMPL_UserGuide.md for the full plan. This phase has 4 sub-tasks:
+
+**3a. Fix image loading from assets.**
+Markdown files reference images as `./img/filename.webp`. These must resolve to `file:///android_asset/guide/en/img/filename.webp` for Markwon to load them. The simplest approach: pre-process the markdown string in [MarkdownAssetLoader.loadMarkdown()](cci:1://file:///Volumes/projects/mydeck-android/app/src/main/java/com/mydeck/app/ui/userguide/MarkdownAssetLoader.kt:36:4-48:5) to replace relative image paths with absolute `file:///android_asset/guide/en/` URIs before returning. Then ensure Markwon's `ImagesPlugin` can handle `file://` URIs. Remove the `image-glide` dependency (the app uses Coil, not Glide) — use Markwon's built-in file scheme support or a custom `SchemeHandler` using `AssetManager` directly.
+
+**3b. Apply Material 3 typography and colors.**
+Create a `MarkdownRenderer.kt` (or equivalent) in `ui/userguide/` that configures Markwon with the app's M3 theme. The `AndroidView(TextView)` pattern is correct. At minimum:
+- `textView.setTextColor(colorScheme.onSurface)` and `setLinkTextColor(colorScheme.primary)`
+- Configure `MarkwonTheme` heading size multipliers to approximate M3 type scale
+- Ensure it works in both light and dark mode (re-apply colors in the `update` block of `AndroidView`)
+
+**3c. Handle inter-section markdown links.**
+Links like `[Bookmark View](./bookmark.md)` should navigate to the corresponding `UserGuideSectionRoute`. Set a custom click handler (e.g., Markwon's `LinkResolverDef` override or a custom `MovementMethod`) that intercepts `.md` link clicks and triggers navigation. You'll need to accept a navigation callback lambda in the composable.
+
+**3d. Strip or neutralize `readeck-instance://` URLs.**
+The markdown contains links like `[Bookmark List](readeck-instance://bookmarks)`. Pre-process the markdown to convert these to plain text (keep the display text, remove the link wrapper). Regex: replace `\[([^\]]+)\]\(readeck-instance://[^)]+\)` with `$1`.
+
+**Reference:** The Markwon version is 4.6.2. The existing Markwon setup is in @UserGuideScreen.kt (or `UserGuideSectionScreen.kt` if Phase 2 is complete). Update @build.gradle.kts to remove the `image-glide` dependency.
+
+Verify: images render in section pages, typography looks native, `.md` links navigate between sections, `readeck-instance://` links don't crash, dark mode works.
 
 ---
 
