@@ -103,6 +103,19 @@ import com.mydeck.app.ui.detail.components.*
 @Composable
 fun BookmarkDetailScreen(navHostController: NavController, bookmarkId: String?, showOriginal: Boolean = false) {
     val viewModel: BookmarkDetailViewModel = hiltViewModel()
+    BookmarkDetailHost(
+        viewModel = viewModel,
+        showOriginal = showOriginal,
+        onNavigateBack = { navHostController.popBackStack() }
+    )
+}
+
+@Composable
+fun BookmarkDetailHost(
+    viewModel: BookmarkDetailViewModel,
+    showOriginal: Boolean,
+    onNavigateBack: () -> Unit
+) {
     val onClickBack: () -> Unit = { viewModel.onClickBack() }
     val onClickToggleFavorite: (String, Boolean) -> Unit =
         { id, isFavorite -> viewModel.onToggleFavorite(id, isFavorite) }
@@ -152,7 +165,7 @@ fun BookmarkDetailScreen(navHostController: NavController, bookmarkId: String?, 
     val onArticleSearchPrevious = { viewModel.onArticleSearchPrevious() }
     val onArticleSearchUpdateResults = { totalMatches: Int -> viewModel.onArticleSearchUpdateResults(totalMatches) }
 
-    DisposableEffect(lifecycleOwner, bookmarkId) {
+    DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_STOP) {
                 val state = viewModel.uiState.value
@@ -174,7 +187,7 @@ fun BookmarkDetailScreen(navHostController: NavController, bookmarkId: String?, 
         viewModel.navigationEvent.collectLatest { event ->
             when (event) {
                 is BookmarkDetailViewModel.NavigationEvent.NavigateBack -> {
-                    navHostController.popBackStack()
+                    onNavigateBack()
                 }
             }
         }
@@ -293,7 +306,6 @@ fun BookmarkDetailScreen(navHostController: NavController, bookmarkId: String?, 
             BookmarkDetailErrorScreen()
         }
     }
-
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
