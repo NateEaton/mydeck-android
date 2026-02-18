@@ -19,6 +19,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ArrowDownward
+import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
@@ -44,7 +46,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.RadioButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
@@ -236,14 +237,25 @@ fun BookmarkListScreen(
                             onDismissRequest = { showSortMenu = false }
                         ) {
                             SortOption.entries.forEach { option ->
+                                val isSelected = option == sortOption.value
+                                val isDescending = option.sqlOrderBy.contains("DESC")
                                 DropdownMenuItem(
                                     leadingIcon = {
-                                        RadioButton(
-                                            selected = option == sortOption.value,
-                                            onClick = null
+                                        Icon(
+                                            imageVector = if (isDescending) Icons.Filled.ArrowDownward else Icons.Filled.ArrowUpward,
+                                            contentDescription = null,
+                                            tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                                         )
                                     },
-                                    text = { Text(text = option.displayName) },
+                                    text = {
+                                        Text(
+                                            text = option.displayName,
+                                            color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                                        )
+                                    },
+                                    trailingIcon = if (isSelected) {
+                                        { Icon(Icons.Filled.Check, contentDescription = null, tint = MaterialTheme.colorScheme.primary) }
+                                    } else null,
                                     onClick = {
                                         viewModel.onSortOptionSelected(option)
                                         showSortMenu = false
