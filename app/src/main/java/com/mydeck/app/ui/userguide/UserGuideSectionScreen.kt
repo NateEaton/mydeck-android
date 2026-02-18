@@ -16,22 +16,14 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import com.mydeck.app.R
-import io.noties.markwon.Markwon
-import io.noties.markwon.ext.strikethrough.StrikethroughPlugin
-import io.noties.markwon.ext.tables.TablePlugin
-import io.noties.markwon.ext.tasklist.TaskListPlugin
-import io.noties.markwon.image.ImagesPlugin
-import io.noties.markwon.image.glide.GlideImagesPlugin
+import com.mydeck.app.ui.navigation.UserGuideSectionRoute
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -40,17 +32,25 @@ fun UserGuideSectionScreen(
 ) {
     val viewModel: UserGuideSectionViewModel = hiltViewModel()
     val uiState = viewModel.uiState
-    val context = LocalContext.current
+    val colorScheme = MaterialTheme.colorScheme
 
-    val markwon = remember {
-        Markwon.builder(context)
-            .usePlugin(StrikethroughPlugin.create())
-            .usePlugin(TablePlugin.create(context))
-            .usePlugin(TaskListPlugin.create(context))
-            .usePlugin(ImagesPlugin.create())
-            .usePlugin(GlideImagesPlugin.create(context))
-            .build()
-    }
+    val markwon = rememberMarkwon(
+        onSectionNavigate = { fileName ->
+            val section = GuideSection(
+                title = fileName.removeSuffix(".md")
+                    .replace("-", " ")
+                    .replaceFirstChar { it.uppercase() },
+                fileName = fileName,
+                order = -1
+            )
+            navHostController.navigate(
+                UserGuideSectionRoute(
+                    fileName = section.fileName,
+                    title = section.title
+                )
+            )
+        }
+    )
 
     Scaffold(
         topBar = {
@@ -98,9 +98,11 @@ fun UserGuideSectionScreen(
                         android.widget.TextView(ctx).apply {
                             setPadding(32, 16, 32, 32)
                             setTextIsSelectable(true)
+                            movementMethod = android.text.method.LinkMovementMethod.getInstance()
                         }
                     },
                     update = { textView ->
+                        applyMarkwonColors(textView, colorScheme)
                         markwon.setMarkdown(textView, uiState.content)
                     },
                     modifier = Modifier

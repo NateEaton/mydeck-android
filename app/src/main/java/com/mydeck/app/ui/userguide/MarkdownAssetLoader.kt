@@ -23,10 +23,7 @@ class MarkdownAssetLoader @Inject constructor(
             GuideSection("Getting Started", "index.md", 0),
             GuideSection("Bookmarks", "bookmark.md", 1),
             GuideSection("Bookmark List", "bookmark-list.md", 2),
-            GuideSection("Collections", "collections.md", 3),
-            GuideSection("Labels", "labels.md", 4),
-            GuideSection("User Profile", "user-profile.md", 5),
-            GuideSection("OPDS", "opds.md", 6)
+            GuideSection("Labels", "labels.md", 3)
         )
     }
     
@@ -36,13 +33,15 @@ class MarkdownAssetLoader @Inject constructor(
     
     fun loadMarkdown(fileName: String): String {
         return try {
-            val content = context.assets.open("$ASSETS_PATH/$fileName").use { inputStream ->
+            val raw = context.assets.open("$ASSETS_PATH/$fileName").use { inputStream ->
                 inputStream.bufferedReader().use { reader ->
                     reader.readText()
                 }
             }
-            // Strip YAML frontmatter
-            content.replace(Regex("^---[\\s\\S]*?---\\n*"), "")
+            raw
+                .replace(Regex("^---[\\s\\S]*?---\\n*"), "")
+                .replace("(./img/", "(file:///android_asset/$ASSETS_PATH/img/")
+                .replace(Regex("""\[([^\]]+)\]\(readeck-instance://[^)]+\)"""), "$1")
         } catch (e: IOException) {
             "# Error Loading Content\n\nUnable to load: $fileName\n\nPath: $ASSETS_PATH/$fileName\n\nError: ${e.message}"
         }
