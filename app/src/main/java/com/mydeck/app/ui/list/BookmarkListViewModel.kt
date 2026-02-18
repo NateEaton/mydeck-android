@@ -14,6 +14,8 @@ import com.mydeck.app.domain.BookmarkRepository
 import com.mydeck.app.domain.model.Bookmark
 import com.mydeck.app.domain.model.BookmarkCounts
 import com.mydeck.app.domain.model.BookmarkListItem
+import com.mydeck.app.domain.model.DrawerPreset
+import com.mydeck.app.domain.model.FilterFormState
 import com.mydeck.app.domain.model.LayoutMode
 import com.mydeck.app.domain.model.SortOption
 import com.mydeck.app.domain.sync.ConnectivityMonitor
@@ -29,7 +31,6 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -106,21 +107,26 @@ class BookmarkListViewModel @Inject constructor(
                 }
             }
         }
-        
+
          // Handle shared text if any
         savedStateHandle.get<String>("sharedText")?.let { sharedText ->
             openCreateBookmarkDialog(sharedText)
         }
     }
 
-    private val _searchQuery = MutableStateFlow("")
-    val searchQuery = _searchQuery.asStateFlow()
+    // --- Filter system state ---
 
-    private val _isSearchActive = MutableStateFlow(false)
-    val isSearchActive = _isSearchActive.asStateFlow()
+    private val _drawerPreset = MutableStateFlow(DrawerPreset.MY_LIST)
+    val drawerPreset = _drawerPreset.asStateFlow()
 
-    private val _filterState = MutableStateFlow(FilterState(archived = false))
-    val filterState = _filterState.asStateFlow()
+    private val _filterFormState = MutableStateFlow(FilterFormState.fromPreset(DrawerPreset.MY_LIST))
+    val filterFormState = _filterFormState.asStateFlow()
+
+    private val _activeLabel = MutableStateFlow<String?>(null)
+    val activeLabel = _activeLabel.asStateFlow()
+
+    private val _isFilterSheetOpen = MutableStateFlow(false)
+    val isFilterSheetOpen = _isFilterSheetOpen.asStateFlow()
 
     val labelsWithCounts: StateFlow<Map<String, Int>> = bookmarkRepository.observeAllLabelsWithCounts()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
@@ -141,36 +147,28 @@ class BookmarkListViewModel @Inject constructor(
     val uiState = _uiState.asStateFlow()
 
     init {
-        // ... (Previous init logic for settings)
-         viewModelScope.launch {
+        viewModelScope.launch {
             combine(
-                _filterState,
-                _searchQuery,
+                _filterFormState,
+                _activeLabel,
                 _sortOption
-            ) { filter, query, sort ->
-                Triple(filter, query, sort)
-            }.flatMapLatest { (filter, query, sort) ->
-                // In label mode, show ALL bookmarks with that label regardless of archive/favorite status
-                val isLabelMode = filter.label != null
-                val effectiveArchived = if (isLabelMode) null else filter.archived
-                val effectiveFavorite = if (isLabelMode) null else filter.favorite
-                if (query.isNotEmpty()) {
-                    bookmarkRepository.searchBookmarkListItems(
-                        searchQuery = query,
-                        type = filter.type,
-                        unread = filter.unread,
-                        archived = effectiveArchived,
-                        favorite = effectiveFavorite,
-                        label = filter.label,
+            ) { filter, label, sort ->
+                Triple(filter, label, sort)
+            }.flatMapLatest { (filter, label, sort) ->
+                if (label != null) {
+                    // Label mode: show ALL bookmarks with that label, ignoring filter form
+                    bookmarkRepository.observeFilteredBookmarkListItems(
+                        label = label,
                         orderBy = sort.sqlOrderBy
                     )
                 } else {
-                    bookmarkRepository.observeBookmarkListItems(
-                        type = filter.type,
-                        unread = filter.unread,
-                        archived = effectiveArchived,
-                        favorite = effectiveFavorite,
-                        label = filter.label,
+                    // Normal filter mode
+                    bookmarkRepository.observeFilteredBookmarkListItems(
+                        searchQuery = filter.search,
+                        types = filter.types,
+                        progressFilters = filter.progress,
+                        isArchived = filter.isArchived,
+                        isFavorite = filter.isFavorite,
                         orderBy = sort.sqlOrderBy
                     )
                 }
@@ -179,7 +177,7 @@ class BookmarkListViewModel @Inject constructor(
                     if (currentState is UiState.Success) {
                         currentState.copy(bookmarks = bookmarks)
                     } else {
-                        if (bookmarks.isEmpty() && _searchQuery.value.isEmpty() && _filterState.value == FilterState(archived = false)) {
+                        if (bookmarks.isEmpty() && _activeLabel.value == null && _filterFormState.value == FilterFormState.fromPreset(DrawerPreset.MY_LIST)) {
                              UiState.Empty(R.string.list_view_empty_nothing_to_see)
                         } else {
                             UiState.Success(bookmarks, null)
@@ -187,42 +185,33 @@ class BookmarkListViewModel @Inject constructor(
                     }
                 }
             }
-
         }
     }
 
-    fun onSearchQueryChange(query: String) {
-        _searchQuery.value = query
+    // --- Drawer preset navigation ---
+
+    fun onSelectDrawerPreset(preset: DrawerPreset) {
+        _drawerPreset.value = preset
+        _filterFormState.value = FilterFormState.fromPreset(preset)
+        _activeLabel.value = null
     }
 
-    fun onSearchActiveChange(isActive: Boolean) {
-        _isSearchActive.value = isActive
-        if (!isActive) {
-            onClearSearch()
-        }
-    }
+    fun onClickMyList() = onSelectDrawerPreset(DrawerPreset.MY_LIST)
+    fun onClickArchive() = onSelectDrawerPreset(DrawerPreset.ARCHIVE)
+    fun onClickFavorite() = onSelectDrawerPreset(DrawerPreset.FAVORITES)
+    fun onClickArticles() = onSelectDrawerPreset(DrawerPreset.ARTICLES)
+    fun onClickVideos() = onSelectDrawerPreset(DrawerPreset.VIDEOS)
+    fun onClickPictures() = onSelectDrawerPreset(DrawerPreset.PICTURES)
 
-    fun onClearSearch() {
-        _searchQuery.value = ""
-    }
+    // --- Label mode ---
 
     fun onClickLabel(label: String) {
-        _filterState.update {
-            if (it.label == label) it.copy(label = null)
-            else it.copy(label = label)
+        if (_activeLabel.value == label) {
+            // Toggle off label mode, return to previous drawer preset
+            _activeLabel.value = null
+        } else {
+            _activeLabel.value = label
         }
-    }
-
-    fun onClickMyList() {
-        _filterState.update { FilterState(archived = false) }
-    }
-
-    fun onClickArchive() {
-        _filterState.update { FilterState(archived = true) }
-    }
-
-    fun onClickFavorite() {
-        _filterState.update { FilterState(favorite = true) }
     }
 
     private val _isLabelsSheetOpen = MutableStateFlow(false)
@@ -240,12 +229,11 @@ class BookmarkListViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 bookmarkRepository.renameLabel(oldLabel, newLabel)
-                _filterState.update { 
-                    if (it.label == oldLabel) it.copy(label = newLabel) else it 
+                if (_activeLabel.value == oldLabel) {
+                    _activeLabel.value = newLabel
                 }
             } catch (e: Exception) {
                 Timber.e(e, "Error renaming label")
-                // _uiState.value = UiState.Error(...) ?
             }
         }
     }
@@ -254,8 +242,8 @@ class BookmarkListViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 bookmarkRepository.deleteLabel(label)
-                _filterState.update {
-                    if (it.label == label) FilterState(archived = false) else it
+                if (_activeLabel.value == label) {
+                    _activeLabel.value = null
                 }
             } catch (e: Exception) {
                 Timber.e(e, "Error deleting label")
@@ -263,6 +251,27 @@ class BookmarkListViewModel @Inject constructor(
         }
     }
 
+    // --- Filter sheet ---
+
+    fun onOpenFilterSheet() {
+        _isFilterSheetOpen.value = true
+    }
+
+    fun onCloseFilterSheet() {
+        _isFilterSheetOpen.value = false
+    }
+
+    fun onApplyFilter(filterFormState: FilterFormState) {
+        _filterFormState.value = filterFormState
+        _isFilterSheetOpen.value = false
+    }
+
+    fun onResetFilter() {
+        _filterFormState.value = FilterFormState()
+        _isFilterSheetOpen.value = false
+    }
+
+    // --- Navigation ---
 
     fun onClickSettings() {
         Timber.d("onClickSettings")
@@ -559,14 +568,6 @@ class BookmarkListViewModel @Inject constructor(
         data class NavigateToBookmarkDetail(val bookmarkId: String, val showOriginal: Boolean = false) : NavigationEvent()
     }
 
-    data class FilterState(
-        val type: Bookmark.Type? = null,
-        val unread: Boolean? = null,
-        val archived: Boolean? = null,
-        val favorite: Boolean? = null,
-        val label: String? = null,
-    )
-
     sealed class UiState {
         data class Success(
             val bookmarks: List<BookmarkListItem>,
@@ -598,4 +599,3 @@ class BookmarkListViewModel @Inject constructor(
         data class Error(val message: String) : UpdateBookmarkState()
     }
 }
-

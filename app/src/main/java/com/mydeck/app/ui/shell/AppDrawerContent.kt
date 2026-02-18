@@ -13,11 +13,14 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.material.icons.filled.Grade
+import androidx.compose.material.icons.automirrored.outlined.Article
+import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Inventory2
-import androidx.compose.material.icons.outlined.Label
+import androidx.compose.material.icons.automirrored.outlined.Label
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.TaskAlt
+import androidx.compose.material.icons.outlined.VideoLibrary
 import androidx.compose.material3.Badge
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -32,21 +35,27 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.mydeck.app.R
 import com.mydeck.app.domain.model.BookmarkCounts
-import com.mydeck.app.ui.list.BookmarkListViewModel.FilterState
+import com.mydeck.app.domain.model.DrawerPreset
 
 @Composable
 fun AppDrawerContent(
-    filterState: FilterState,
+    drawerPreset: DrawerPreset,
+    activeLabel: String?,
     bookmarkCounts: BookmarkCounts,
     labelsWithCounts: Map<String, Int>,
     isOnline: Boolean,
     onClickMyList: () -> Unit,
     onClickArchive: () -> Unit,
     onClickFavorite: () -> Unit,
+    onClickArticles: () -> Unit,
+    onClickVideos: () -> Unit,
+    onClickPictures: () -> Unit,
     onClickLabels: () -> Unit,
     onClickSettings: () -> Unit,
     onClickAbout: () -> Unit,
 ) {
+    val isLabelMode = activeLabel != null
+
     ModalDrawerSheet {
         Column(
             modifier = Modifier
@@ -93,7 +102,7 @@ fun AppDrawerContent(
                         }
                     }
                 },
-                selected = filterState.archived == false,
+                selected = !isLabelMode && drawerPreset == DrawerPreset.MY_LIST,
                 onClick = onClickMyList
             )
             NavigationDrawerItem(
@@ -114,7 +123,7 @@ fun AppDrawerContent(
                         }
                     }
                 },
-                selected = filterState.archived == true,
+                selected = !isLabelMode && drawerPreset == DrawerPreset.ARCHIVE,
                 onClick = onClickArchive
             )
             HorizontalDivider(
@@ -139,15 +148,86 @@ fun AppDrawerContent(
                         }
                     }
                 },
-                selected = filterState.favorite == true,
+                selected = !isLabelMode && drawerPreset == DrawerPreset.FAVORITES,
                 onClick = onClickFavorite
+            )
+            HorizontalDivider(
+                modifier = Modifier.fillMaxWidth(),
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+            )
+            NavigationDrawerItem(
+                label = { Text(
+                    style = MaterialTheme.typography.bodyLarge,
+                    text = stringResource(id = R.string.articles)
+                ) },
+                icon = { Icon(imageVector = Icons.AutoMirrored.Outlined.Article, contentDescription = null) },
+                badge = {
+                    bookmarkCounts.article.let { count ->
+                        if (count > 0) {
+                            Badge(containerColor = MaterialTheme.colorScheme.secondaryContainer) {
+                                Text(
+                                    text = count.toString(),
+                                    style = MaterialTheme.typography.labelMedium
+                                )
+                            }
+                        }
+                    }
+                },
+                selected = !isLabelMode && drawerPreset == DrawerPreset.ARTICLES,
+                onClick = onClickArticles
+            )
+            NavigationDrawerItem(
+                label = { Text(
+                    style = MaterialTheme.typography.bodyLarge,
+                    text = stringResource(id = R.string.videos)
+                ) },
+                icon = { Icon(imageVector = Icons.Outlined.VideoLibrary, contentDescription = null) },
+                badge = {
+                    bookmarkCounts.video.let { count ->
+                        if (count > 0) {
+                            Badge(containerColor = MaterialTheme.colorScheme.secondaryContainer) {
+                                Text(
+                                    text = count.toString(),
+                                    style = MaterialTheme.typography.labelMedium
+                                )
+                            }
+                        }
+                    }
+                },
+                selected = !isLabelMode && drawerPreset == DrawerPreset.VIDEOS,
+                onClick = onClickVideos
+            )
+            NavigationDrawerItem(
+                label = { Text(
+                    style = MaterialTheme.typography.bodyLarge,
+                    text = stringResource(id = R.string.pictures)
+                ) },
+                icon = { Icon(imageVector = Icons.Outlined.Image, contentDescription = null) },
+                badge = {
+                    bookmarkCounts.picture.let { count ->
+                        if (count > 0) {
+                            Badge(containerColor = MaterialTheme.colorScheme.secondaryContainer) {
+                                Text(
+                                    text = count.toString(),
+                                    style = MaterialTheme.typography.labelMedium
+                                )
+                            }
+                        }
+                    }
+                },
+                selected = !isLabelMode && drawerPreset == DrawerPreset.PICTURES,
+                onClick = onClickPictures
+            )
+            HorizontalDivider(
+                modifier = Modifier.fillMaxWidth(),
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
             )
             NavigationDrawerItem(
                 label = { Text(
                     style = MaterialTheme.typography.bodyLarge,
                     text = stringResource(id = R.string.labels)
                 ) },
-                icon = { Icon(Icons.Outlined.Label, contentDescription = null) },
+                icon = { Icon(Icons.AutoMirrored.Outlined.Label, contentDescription = null) },
                 badge = {
                     if (labelsWithCounts.isNotEmpty()) {
                         Badge(containerColor = MaterialTheme.colorScheme.secondaryContainer) {
@@ -158,7 +238,7 @@ fun AppDrawerContent(
                         }
                     }
                 },
-                selected = filterState.label != null,
+                selected = isLabelMode,
                 onClick = onClickLabels
             )
             HorizontalDivider(

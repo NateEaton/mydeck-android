@@ -205,6 +205,66 @@ class BookmarkRepositoryImpl @Inject constructor(
         }
     }
 
+    override fun observeFilteredBookmarkListItems(
+        searchQuery: String?,
+        types: Set<Bookmark.Type>,
+        progressFilters: Set<com.mydeck.app.domain.model.ProgressFilter>,
+        isArchived: Boolean?,
+        isFavorite: Boolean?,
+        label: String?,
+        orderBy: String
+    ): Flow<List<BookmarkListItem>> {
+        val entityTypes = types.mapTo(mutableSetOf()) {
+            when (it) {
+                Bookmark.Type.Article -> BookmarkEntity.Type.ARTICLE
+                Bookmark.Type.Picture -> BookmarkEntity.Type.PHOTO
+                Bookmark.Type.Video -> BookmarkEntity.Type.VIDEO
+            }
+        }
+        val progressInts = progressFilters.mapTo(mutableSetOf()) {
+            when (it) {
+                com.mydeck.app.domain.model.ProgressFilter.UNVIEWED -> 0
+                com.mydeck.app.domain.model.ProgressFilter.IN_PROGRESS -> 1
+                com.mydeck.app.domain.model.ProgressFilter.COMPLETED -> 2
+            }
+        }
+        return bookmarkDao.getFilteredBookmarkListItems(
+            searchQuery = searchQuery,
+            types = entityTypes,
+            progressFilters = progressInts,
+            isArchived = isArchived,
+            isFavorite = isFavorite,
+            label = label,
+            orderBy = orderBy
+        ).map { listItems ->
+            listItems.map { listItem ->
+                BookmarkListItem(
+                    id = listItem.id,
+                    url = listItem.url,
+                    title = listItem.title,
+                    siteName = listItem.siteName,
+                    isMarked = listItem.isMarked,
+                    isArchived = listItem.isArchived,
+                    isRead = listItem.readProgress == 100,
+                    readProgress = listItem.readProgress,
+                    thumbnailSrc = listItem.thumbnailSrc,
+                    iconSrc = listItem.iconSrc,
+                    imageSrc = listItem.imageSrc,
+                    labels = listItem.labels,
+                    type = when (listItem.type) {
+                        BookmarkEntity.Type.ARTICLE -> Bookmark.Type.Article
+                        BookmarkEntity.Type.PHOTO -> Bookmark.Type.Picture
+                        BookmarkEntity.Type.VIDEO -> Bookmark.Type.Video
+                    },
+                    readingTime = listItem.readingTime,
+                    created = listItem.created.toLocalDateTime(kotlinx.datetime.TimeZone.currentSystemDefault()),
+                    wordCount = listItem.wordCount,
+                    published = listItem.published?.toLocalDateTime(kotlinx.datetime.TimeZone.currentSystemDefault())
+                )
+            }
+        }
+    }
+
     override suspend fun insertBookmarks(bookmarks: List<Bookmark>) {
         if (bookmarks.isEmpty()) return
 

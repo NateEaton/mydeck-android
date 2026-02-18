@@ -3,7 +3,6 @@ package com.mydeck.app.ui.list
 
 
 
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -13,64 +12,45 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.ui.graphics.RectangleShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Menu
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.SwapVert
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.Apps
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.automirrored.filled.List
-import androidx.compose.material.icons.automirrored.filled.ViewList
 import androidx.compose.material.icons.automirrored.outlined.Label
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DrawerState
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.NavigationDrawerItem
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarDuration
-import androidx.compose.material3.SuggestionChip
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TextField
-import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
@@ -86,31 +66,32 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.navigation.NavHostController
-import androidx.navigation.compose.rememberNavController
 import kotlinx.datetime.Clock
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import com.mydeck.app.R
 import com.mydeck.app.domain.model.Bookmark
 import com.mydeck.app.domain.model.BookmarkListItem
+import com.mydeck.app.domain.model.DrawerPreset
 import com.mydeck.app.domain.model.LayoutMode
 import com.mydeck.app.domain.model.SortOption
+import com.mydeck.app.ui.components.FilterBottomSheet
 import com.mydeck.app.ui.components.ShareBookmarkChooser
 import com.mydeck.app.ui.components.VerticalScrollbar
 import com.mydeck.app.util.openUrlInCustomTab
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.collectLatest
-import androidx.compose.material3.Badge
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.navigation.compose.rememberNavController
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -123,9 +104,10 @@ fun BookmarkListScreen(
     val createBookmarkUiState = viewModel.createBookmarkUiState.collectAsState().value
 
     // Collect filter states
-    val filterState = viewModel.filterState.collectAsState()
-    val isSearchActive = viewModel.isSearchActive.collectAsState()
-    val searchQuery = viewModel.searchQuery.collectAsState()
+    val drawerPreset = viewModel.drawerPreset.collectAsState()
+    val filterFormState = viewModel.filterFormState.collectAsState()
+    val activeLabel = viewModel.activeLabel.collectAsState()
+    val isFilterSheetOpen = viewModel.isFilterSheetOpen.collectAsState()
     val layoutMode = viewModel.layoutMode.collectAsState()
     val sortOption = viewModel.sortOption.collectAsState()
     val labelsWithCounts = viewModel.labelsWithCounts.collectAsState()
@@ -143,6 +125,8 @@ fun BookmarkListScreen(
 
     val pullToRefreshState = rememberPullToRefreshState()
     val isLoading by viewModel.loadBookmarksIsRunning.collectAsState()
+
+    val isLabelMode = activeLabel.value != null
 
     // UI event handlers (pass filter update functions)
     val onClickBookmark: (String) -> Unit = { bookmarkId -> viewModel.onClickBookmark(bookmarkId) }
@@ -176,50 +160,22 @@ fun BookmarkListScreen(
           }
     }
 
+    // Determine the current view title based on drawer preset
+    val currentViewTitle = when (drawerPreset.value) {
+        DrawerPreset.MY_LIST -> stringResource(id = R.string.my_list)
+        DrawerPreset.ARCHIVE -> stringResource(id = R.string.archive)
+        DrawerPreset.FAVORITES -> stringResource(id = R.string.favorites)
+        DrawerPreset.ARTICLES -> stringResource(id = R.string.articles)
+        DrawerPreset.VIDEOS -> stringResource(id = R.string.videos)
+        DrawerPreset.PICTURES -> stringResource(id = R.string.pictures)
+    }
+
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
-            val isLabelMode = filterState.value.label != null
-
-            // Determine the current view title based on filter state
-            val currentViewTitle = when {
-                filterState.value.archived == false -> stringResource(id = R.string.my_list)
-                filterState.value.archived == true -> stringResource(id = R.string.archive)
-                filterState.value.favorite == true -> stringResource(id = R.string.favorites)
-                else -> stringResource(id = R.string.my_list)
-            }
-
-            val searchFocusRequester = remember { FocusRequester() }
-
-            LaunchedEffect(isSearchActive.value) {
-                if (isSearchActive.value) {
-                    searchFocusRequester.requestFocus()
-                }
-            }
-
             TopAppBar(
                 title = {
-                    if (isSearchActive.value) {
-                        OutlinedTextField(
-                            value = searchQuery.value,
-                            onValueChange = { viewModel.onSearchQueryChange(it) },
-                            placeholder = {
-                                Text(stringResource(R.string.search_bookmarks))
-                            },
-                            textStyle = MaterialTheme.typography.bodyLarge,
-                            trailingIcon = {
-                                if (searchQuery.value.isNotEmpty()) {
-                                    IconButton(onClick = { viewModel.onClearSearch() }) {
-                                        Icon(Icons.Filled.Clear, contentDescription = stringResource(R.string.clear_search))
-                                    }
-                                }
-                            },
-                            singleLine = true,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .focusRequester(searchFocusRequester)
-                        )
-                    } else if (isLabelMode) {
+                    if (isLabelMode) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier.clickable { scrollToTopTrigger++ }
@@ -231,7 +187,7 @@ fun BookmarkListScreen(
                                 tint = MaterialTheme.colorScheme.onSurface
                             )
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text(text = filterState.value.label!!)
+                            Text(text = activeLabel.value!!)
                         }
                     } else {
                         Text(
@@ -243,122 +199,114 @@ fun BookmarkListScreen(
                     }
                 },
                 navigationIcon = {
-                    if (isSearchActive.value) {
-                        IconButton(onClick = { viewModel.onSearchActiveChange(false) }) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.close_search))
-                        }
-                    } else {
-                        IconButton(
-                            onClick = { scope.launch { drawerState.open() } }
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.Menu,
-                                contentDescription = stringResource(id = R.string.menu)
-                            )
-                        }
+                    IconButton(
+                        onClick = { scope.launch { drawerState.open() } }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Menu,
+                            contentDescription = stringResource(id = R.string.menu)
+                        )
                     }
                 },
                 actions = {
-                    if (!isSearchActive.value) {
-                        // Sort button with dropdown
-                        Box {
-                            IconButton(onClick = { showSortMenu = true }) {
-                                Icon(Icons.Filled.SwapVert, contentDescription = "Sort")
-                            }
-                            DropdownMenu(
-                                expanded = showSortMenu,
-                                onDismissRequest = { showSortMenu = false }
-                            ) {
-                                SortOption.entries.forEach { option ->
-                                    DropdownMenuItem(
-                                        leadingIcon = {
-                                            RadioButton(
-                                                selected = option == sortOption.value,
-                                                onClick = null
-                                            )
-                                        },
-                                        text = { Text(text = option.displayName) },
-                                        onClick = {
-                                            viewModel.onSortOptionSelected(option)
-                                            showSortMenu = false
-                                        }
-                                    )
-                                }
+                    // Sort button with dropdown
+                    Box {
+                        IconButton(onClick = { showSortMenu = true }) {
+                            Icon(Icons.Filled.SwapVert, contentDescription = stringResource(R.string.sort))
+                        }
+                        DropdownMenu(
+                            expanded = showSortMenu,
+                            onDismissRequest = { showSortMenu = false }
+                        ) {
+                            SortOption.entries.forEach { option ->
+                                DropdownMenuItem(
+                                    leadingIcon = {
+                                        RadioButton(
+                                            selected = option == sortOption.value,
+                                            onClick = null
+                                        )
+                                    },
+                                    text = { Text(text = option.displayName) },
+                                    onClick = {
+                                        viewModel.onSortOptionSelected(option)
+                                        showSortMenu = false
+                                    }
+                                )
                             }
                         }
+                    }
 
-                        // Layout button with dropdown — icon reflects current mode
-                        Box {
-                            val currentLayoutIcon = when (layoutMode.value) {
-                                LayoutMode.GRID -> Icons.Filled.Apps
-                                LayoutMode.COMPACT -> Icons.AutoMirrored.Filled.List
-                                LayoutMode.MOSAIC -> Icons.Filled.GridView
-                            }
-                            IconButton(onClick = { showLayoutMenu = true }) {
-                                Icon(currentLayoutIcon, contentDescription = "Layout")
-                            }
-                            DropdownMenu(
-                                expanded = showLayoutMenu,
-                                onDismissRequest = { showLayoutMenu = false }
-                            ) {
-                                LayoutMode.entries.forEach { mode ->
-                                    DropdownMenuItem(
-                                        leadingIcon = {
-                                            Icon(
-                                                imageVector = when (mode) {
-                                                    LayoutMode.GRID -> Icons.Filled.Apps
-                                                    LayoutMode.COMPACT -> Icons.AutoMirrored.Filled.List
-                                                    LayoutMode.MOSAIC -> Icons.Filled.GridView
-                                                },
-                                                contentDescription = null
-                                            )
-                                        },
-                                        text = {
-                                            Text(
-                                                text = mode.displayName,
-                                                fontWeight = if (mode == layoutMode.value) androidx.compose.ui.text.font.FontWeight.Bold else androidx.compose.ui.text.font.FontWeight.Normal
-                                            )
-                                        },
-                                        onClick = {
-                                            viewModel.onLayoutModeSelected(mode)
-                                            showLayoutMenu = false
-                                        }
-                                    )
-                                }
+                    // Layout button with dropdown — icon reflects current mode
+                    Box {
+                        val currentLayoutIcon = when (layoutMode.value) {
+                            LayoutMode.GRID -> Icons.Filled.Apps
+                            LayoutMode.COMPACT -> Icons.AutoMirrored.Filled.List
+                            LayoutMode.MOSAIC -> Icons.Filled.GridView
+                        }
+                        IconButton(onClick = { showLayoutMenu = true }) {
+                            Icon(currentLayoutIcon, contentDescription = stringResource(R.string.layout))
+                        }
+                        DropdownMenu(
+                            expanded = showLayoutMenu,
+                            onDismissRequest = { showLayoutMenu = false }
+                        ) {
+                            LayoutMode.entries.forEach { mode ->
+                                DropdownMenuItem(
+                                    leadingIcon = {
+                                        Icon(
+                                            imageVector = when (mode) {
+                                                LayoutMode.GRID -> Icons.Filled.Apps
+                                                LayoutMode.COMPACT -> Icons.AutoMirrored.Filled.List
+                                                LayoutMode.MOSAIC -> Icons.Filled.GridView
+                                            },
+                                            contentDescription = null
+                                        )
+                                    },
+                                    text = {
+                                        Text(
+                                            text = mode.displayName,
+                                            fontWeight = if (mode == layoutMode.value) FontWeight.Bold else FontWeight.Normal
+                                        )
+                                    },
+                                    onClick = {
+                                        viewModel.onLayoutModeSelected(mode)
+                                        showLayoutMenu = false
+                                    }
+                                )
                             }
                         }
+                    }
 
-                        if (isLabelMode) {
-                            // Overflow menu with Rename/Delete label options
-                            Box {
-                                IconButton(onClick = { showOverflowMenu = true }) {
-                                    Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.more_options))
-                                }
-                                DropdownMenu(
-                                    expanded = showOverflowMenu,
-                                    onDismissRequest = { showOverflowMenu = false }
-                                ) {
-                                    DropdownMenuItem(
-                                        text = { Text(stringResource(R.string.rename_label)) },
-                                        onClick = {
-                                            showRenameLabelDialog = true
-                                            showOverflowMenu = false
-                                        }
-                                    )
-                                    DropdownMenuItem(
-                                        text = { Text(stringResource(R.string.delete_label)) },
-                                        onClick = {
-                                            showDeleteLabelDialog = true
-                                            showOverflowMenu = false
-                                        }
-                                    )
-                                }
+                    if (isLabelMode) {
+                        // Overflow menu with Rename/Delete label options
+                        Box {
+                            IconButton(onClick = { showOverflowMenu = true }) {
+                                Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.more_options))
                             }
-                        } else {
-                            // Search button (non-label mode only)
-                            IconButton(onClick = { viewModel.onSearchActiveChange(true) }) {
-                                Icon(Icons.Filled.Search, contentDescription = stringResource(R.string.search))
+                            DropdownMenu(
+                                expanded = showOverflowMenu,
+                                onDismissRequest = { showOverflowMenu = false }
+                            ) {
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.rename_label)) },
+                                    onClick = {
+                                        showRenameLabelDialog = true
+                                        showOverflowMenu = false
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.delete_label)) },
+                                    onClick = {
+                                        showDeleteLabelDialog = true
+                                        showOverflowMenu = false
+                                    }
+                                )
                             }
+                        }
+                    } else {
+                        // Filter button (non-label mode only)
+                        IconButton(onClick = { viewModel.onOpenFilterSheet() }) {
+                            Icon(Icons.Filled.FilterList, contentDescription = stringResource(R.string.filter_bookmarks))
                         }
                     }
                 }
@@ -395,20 +343,24 @@ fun BookmarkListScreen(
                         EmptyScreen(messageResource = uiState.messageResource)
                     }
                     is BookmarkListViewModel.UiState.Success -> {
-                        BookmarkListView(
-                            filterKey = filterState.value,
-                            scrollToTopTrigger = scrollToTopTrigger,
-                            layoutMode = layoutMode.value,
-                            bookmarks = uiState.bookmarks,
-                            onClickBookmark = onClickBookmark,
-                            onClickDelete = onClickDelete,
-                            onClickArchive = onClickArchive,
-                            onClickFavorite = onClickFavorite,
-                            onClickShareBookmark = onClickShareBookmark,
-                            onClickLabel = { label -> viewModel.onClickLabel(label) },
-                            onClickOpenUrl = onClickOpenUrl,
-                            onClickOpenInBrowser = onClickOpenInBrowser
-                        )
+                        if (uiState.bookmarks.isEmpty()) {
+                            EmptyScreen(messageResource = R.string.filter_no_results)
+                        } else {
+                            BookmarkListView(
+                                filterKey = Pair(filterFormState.value, activeLabel.value),
+                                scrollToTopTrigger = scrollToTopTrigger,
+                                layoutMode = layoutMode.value,
+                                bookmarks = uiState.bookmarks,
+                                onClickBookmark = onClickBookmark,
+                                onClickDelete = onClickDelete,
+                                onClickArchive = onClickArchive,
+                                onClickFavorite = onClickFavorite,
+                                onClickShareBookmark = onClickShareBookmark,
+                                onClickLabel = { label -> viewModel.onClickLabel(label) },
+                                onClickOpenUrl = onClickOpenUrl,
+                                onClickOpenInBrowser = onClickOpenInBrowser
+                            )
+                        }
                         // Consumes a shareIntent and creates the corresponding share dialog
                         ShareBookmarkChooser(
                             context = LocalContext.current,
@@ -478,10 +430,20 @@ fun BookmarkListScreen(
 
     }
 
+    // Filter bottom sheet
+    if (isFilterSheetOpen.value) {
+        FilterBottomSheet(
+            currentFilter = filterFormState.value,
+            onApply = { viewModel.onApplyFilter(it) },
+            onReset = { viewModel.onResetFilter() },
+            onDismiss = { viewModel.onCloseFilterSheet() }
+        )
+    }
+
     if (isLabelsSheetOpen.value) {
         LabelsBottomSheet(
             labels = labelsWithCounts.value,
-            selectedLabel = filterState.value.label,
+            selectedLabel = activeLabel.value,
             onLabelSelected = { label -> viewModel.onClickLabel(label) },
             onRenameLabel = { oldLabel, newLabel -> viewModel.onRenameLabel(oldLabel, newLabel) },
             onDeleteLabel = { label -> viewModel.onDeleteLabel(label) },
@@ -490,8 +452,8 @@ fun BookmarkListScreen(
     }
 
     // Label mode: Rename label dialog (from TopAppBar overflow menu)
-    if (showRenameLabelDialog && filterState.value.label != null) {
-        val currentLabel = filterState.value.label!!
+    if (showRenameLabelDialog && activeLabel.value != null) {
+        val currentLabel = activeLabel.value!!
         var newName by remember(currentLabel) { mutableStateOf(currentLabel) }
         AlertDialog(
             onDismissRequest = { showRenameLabelDialog = false },
@@ -524,8 +486,8 @@ fun BookmarkListScreen(
     }
 
     // Label mode: Delete label dialog (from TopAppBar overflow menu)
-    if (showDeleteLabelDialog && filterState.value.label != null) {
-        val currentLabel = filterState.value.label!!
+    if (showDeleteLabelDialog && activeLabel.value != null) {
+        val currentLabel = activeLabel.value!!
         AlertDialog(
             onDismissRequest = { showDeleteLabelDialog = false },
             title = { Text(stringResource(R.string.delete_label)) },

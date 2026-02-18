@@ -446,6 +446,69 @@ interface BookmarkDao {
         return getBookmarkListItemsByFiltersDynamic(sqlQuery)
     }
 
+    fun getFilteredBookmarkListItems(
+        searchQuery: String? = null,
+        types: Set<BookmarkEntity.Type> = emptySet(),
+        progressFilters: Set<Int> = emptySet(), // 0=UNVIEWED, 1=IN_PROGRESS, 2=COMPLETED
+        isArchived: Boolean? = null,
+        isFavorite: Boolean? = null,
+        label: String? = null,
+        orderBy: String = "created DESC"
+    ): Flow<List<BookmarkListItemEntity>> {
+        val args = mutableListOf<Any>()
+        val sqlQuery = buildString {
+            append("""SELECT id, url, title, siteName, isMarked, isArchived,
+            readProgress, icon_src AS iconSrc, image_src AS imageSrc,
+            labels, thumbnail_src AS thumbnailSrc, type,
+            readingTime, created, wordCount, published
+            FROM bookmarks WHERE isLocalDeleted = 0""")
+
+            if (!searchQuery.isNullOrBlank()) {
+                append(" AND (title LIKE ? COLLATE NOCASE OR labels LIKE ? COLLATE NOCASE OR siteName LIKE ? COLLATE NOCASE OR authors LIKE ? COLLATE NOCASE)")
+                val pattern = "%$searchQuery%"
+                args.add(pattern)
+                args.add(pattern)
+                args.add(pattern)
+                args.add(pattern)
+            }
+
+            if (types.isNotEmpty()) {
+                val placeholders = types.joinToString(", ") { "?" }
+                append(" AND type IN ($placeholders)")
+                types.forEach { args.add(it.value) }
+            }
+
+            if (progressFilters.isNotEmpty()) {
+                val conditions = mutableListOf<String>()
+                if (0 in progressFilters) conditions.add("readProgress = 0") // UNVIEWED
+                if (1 in progressFilters) conditions.add("(readProgress > 0 AND readProgress < 100)") // IN_PROGRESS
+                if (2 in progressFilters) conditions.add("readProgress = 100") // COMPLETED
+                if (conditions.isNotEmpty()) {
+                    append(" AND (${conditions.joinToString(" OR ")})")
+                }
+            }
+
+            isArchived?.let {
+                append(" AND isArchived = ?")
+                args.add(it)
+            }
+
+            isFavorite?.let {
+                append(" AND isMarked = ?")
+                args.add(it)
+            }
+
+            label?.let {
+                append(" AND labels LIKE ? COLLATE BINARY")
+                args.add("%\"$it\"%")
+            }
+
+            append(" ORDER BY $orderBy")
+        }.let { SimpleSQLiteQuery(it, args.toTypedArray()) }
+        Timber.d("filteredQuery=${sqlQuery.sql}")
+        return getBookmarkListItemsByFiltersDynamic(sqlQuery)
+    }
+
     data class ContentStateInfo(
         val contentState: BookmarkEntity.ContentState,
         val contentFailureReason: String?

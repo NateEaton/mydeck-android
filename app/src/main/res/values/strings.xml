@@ -326,4 +326,25 @@ other{}
     <!-- Justify and Hyphenation toggles -->
     <string name="justify_label">Justify text</string>
     <string name="hyphenation_label">Hyphenate words</string>
+
+    <!-- Filter System -->
+    <string name="filter_bookmarks">Filter bookmarks</string>
+    <string name="filter_search">Search</string>
+    <string name="filter_type">Type</string>
+    <string name="filter_type_article">Article</string>
+    <string name="filter_type_video">Video</string>
+    <string name="filter_type_picture">Picture</string>
+    <string name="filter_progress">Progress</string>
+    <string name="progress_unviewed">Unviewed</string>
+    <string name="progress_in_progress">In progress</string>
+    <string name="progress_completed">Completed</string>
+    <string name="filter_is_favorite">Is Favorite</string>
+    <string name="filter_is_archived">Is Archived</string>
+    <string name="filter_reset">Reset</string>
+    <string name="filter_no_results">No bookmarks match your filters</string>
+    <string name="tri_state_any">N/A</string>
+    <string name="tri_state_yes">Yes</string>
+    <string name="tri_state_no">No</string>
+    <string name="sort">Sort</string>
+    <string name="layout">Layout</string>
 </resources>

@@ -53,7 +53,8 @@ fun AppShell(
     val scope = rememberCoroutineScope()
 
     // Collect drawer-relevant state from ViewModel
-    val filterState = bookmarkListViewModel.filterState.collectAsState()
+    val drawerPreset = bookmarkListViewModel.drawerPreset.collectAsState()
+    val activeLabel = bookmarkListViewModel.activeLabel.collectAsState()
     val bookmarkCounts = bookmarkListViewModel.bookmarkCounts.collectAsState()
     val labelsWithCounts = bookmarkListViewModel.labelsWithCounts.collectAsState()
     val isOnline = bookmarkListViewModel.isOnline.collectAsState()
@@ -92,7 +93,8 @@ fun AppShell(
         gesturesEnabled = isOnBookmarkList,
         drawerContent = {
             AppDrawerContent(
-                filterState = filterState.value,
+                drawerPreset = drawerPreset.value,
+                activeLabel = activeLabel.value,
                 bookmarkCounts = bookmarkCounts.value,
                 labelsWithCounts = labelsWithCounts.value,
                 isOnline = isOnline.value,
@@ -106,6 +108,18 @@ fun AppShell(
                 },
                 onClickFavorite = {
                     bookmarkListViewModel.onClickFavorite()
+                    scope.launch { drawerState.close() }
+                },
+                onClickArticles = {
+                    bookmarkListViewModel.onClickArticles()
+                    scope.launch { drawerState.close() }
+                },
+                onClickVideos = {
+                    bookmarkListViewModel.onClickVideos()
+                    scope.launch { drawerState.close() }
+                },
+                onClickPictures = {
+                    bookmarkListViewModel.onClickPictures()
                     scope.launch { drawerState.close() }
                 },
                 onClickLabels = {
