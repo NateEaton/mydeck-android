@@ -36,13 +36,15 @@ class MarkdownAssetLoader @Inject constructor(
     
     fun loadMarkdown(fileName: String): String {
         return try {
-            context.assets.open("$ASSETS_PATH/$fileName").use { inputStream ->
+            val content = context.assets.open("$ASSETS_PATH/$fileName").use { inputStream ->
                 inputStream.bufferedReader().use { reader ->
                     reader.readText()
                 }
             }
+            // Strip YAML frontmatter
+            content.replace(Regex("^---[\\s\\S]*?---\\n*"), "")
         } catch (e: IOException) {
-            "# Error Loading Content\n\nUnable to load: $fileName\n\nError: ${e.message}"
+            "# Error Loading Content\n\nUnable to load: $fileName\n\nPath: $ASSETS_PATH/$fileName\n\nError: ${e.message}"
         }
     }
     

@@ -206,25 +206,25 @@ dependencies {
     implementation(libs.accompanist.permissions)
     
     // Markdown rendering
-    implementation("io.noties.markwon:core:4.6.2") {
+    implementation(libs.markwon.core) {
         exclude(group = "org.jetbrains", module = "annotations-java5")
     }
-    implementation("io.noties.markwon:ext-strikethrough:4.6.2") {
+    implementation(libs.markwon.ext.strikethrough) {
         exclude(group = "org.jetbrains", module = "annotations-java5")
     }
-    implementation("io.noties.markwon:ext-tables:4.6.2") {
+    implementation(libs.markwon.ext.tables) {
         exclude(group = "org.jetbrains", module = "annotations-java5")
     }
-    implementation("io.noties.markwon:ext-tasklist:4.6.2") {
+    implementation(libs.markwon.ext.tasklist) {
         exclude(group = "org.jetbrains", module = "annotations-java5")
     }
-    implementation("io.noties.markwon:image:4.6.2") {
+    implementation(libs.markwon.image) {
         exclude(group = "org.jetbrains", module = "annotations-java5")
     }
-    implementation("io.noties.markwon:syntax-highlight:4.6.2") {
+    implementation(libs.markwon.syntax.highlight) {
         exclude(group = "org.jetbrains", module = "annotations-java5")
     }
-    implementation("io.noties.markwon:image-glide:4.6.2") {
+    implementation(libs.markwon.image.glide) {
         exclude(group = "org.jetbrains", module = "annotations-java5")
     }
 }
