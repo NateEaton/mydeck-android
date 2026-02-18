@@ -21,6 +21,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
@@ -36,6 +37,7 @@ import com.mydeck.app.ui.about.AboutScreen
 import com.mydeck.app.ui.detail.BookmarkDetailScreen
 import com.mydeck.app.ui.list.BookmarkListScreen
 import com.mydeck.app.ui.list.BookmarkListViewModel
+import com.mydeck.app.ui.list.LocalIsWideLayout
 import com.mydeck.app.ui.navigation.AboutRoute
 import com.mydeck.app.ui.navigation.AccountSettingsRoute
 import com.mydeck.app.ui.navigation.BookmarkDetailRoute
@@ -298,6 +300,7 @@ private fun MediumAppShell(
         }
     }
 
+    CompositionLocalProvider(LocalIsWideLayout provides true) {
     Row(modifier = androidx.compose.ui.Modifier.fillMaxSize()) {
         AppNavigationRailContent(
             drawerPreset = drawerPreset,
@@ -383,6 +386,7 @@ private fun MediumAppShell(
             }
         }
     }
+    } // end CompositionLocalProvider
 }
 
 @SuppressLint("WrongStartDestinationType")
@@ -419,6 +423,7 @@ private fun ExpandedAppShell(
         }
     }
 
+    CompositionLocalProvider(LocalIsWideLayout provides true) {
     PermanentNavigationDrawer(
         drawerContent = {
             AppDrawerContent(
@@ -510,4 +515,5 @@ private fun ExpandedAppShell(
             }
         }
     }
+    } // end CompositionLocalProvider
 }
