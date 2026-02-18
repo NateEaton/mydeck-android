@@ -25,6 +25,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.Dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
@@ -38,6 +39,8 @@ import com.mydeck.app.ui.detail.BookmarkDetailScreen
 import com.mydeck.app.ui.list.BookmarkListScreen
 import com.mydeck.app.ui.list.BookmarkListViewModel
 import com.mydeck.app.ui.list.LocalIsWideLayout
+import com.mydeck.app.ui.theme.Dimens
+import com.mydeck.app.ui.theme.LocalReaderMaxWidth
 import com.mydeck.app.ui.navigation.AboutRoute
 import com.mydeck.app.ui.navigation.AccountSettingsRoute
 import com.mydeck.app.ui.navigation.BookmarkDetailRoute
@@ -80,7 +83,8 @@ fun AppShell(
     val selectedShowOriginal: MutableState<Boolean> = remember { mutableStateOf(false) }
 
     when (windowSizeClass.windowWidthSizeClass) {
-        WindowWidthSizeClass.COMPACT -> CompactAppShell(
+        WindowWidthSizeClass.COMPACT -> CompositionLocalProvider(LocalReaderMaxWidth provides Dp.Unspecified) {
+        CompactAppShell(
             navController = navController,
             settingsDataStore = settingsDataStore,
             bookmarkListViewModel = bookmarkListViewModel,
@@ -90,7 +94,9 @@ fun AppShell(
             labelsWithCounts = labelsWithCounts.value,
             isOnline = isOnline.value,
         )
-        WindowWidthSizeClass.EXPANDED -> ExpandedAppShell(
+        } // end CompactAppShell CompositionLocalProvider
+        WindowWidthSizeClass.EXPANDED -> CompositionLocalProvider(LocalReaderMaxWidth provides Dimens.ReaderMaxWidthExpanded) {
+        ExpandedAppShell(
             navController = navController,
             settingsDataStore = settingsDataStore,
             bookmarkListViewModel = bookmarkListViewModel,
@@ -102,13 +108,16 @@ fun AppShell(
             selectedBookmarkId = selectedBookmarkId,
             selectedShowOriginal = selectedShowOriginal,
         )
-        else -> MediumAppShell(
+        } // end ExpandedAppShell CompositionLocalProvider
+        else -> CompositionLocalProvider(LocalReaderMaxWidth provides Dimens.ReaderMaxWidthMedium) {
+        MediumAppShell(
             navController = navController,
             settingsDataStore = settingsDataStore,
             bookmarkListViewModel = bookmarkListViewModel,
             drawerPreset = drawerPreset.value,
             activeLabel = activeLabel.value,
         )
+        } // end MediumAppShell CompositionLocalProvider
     }
 }
 

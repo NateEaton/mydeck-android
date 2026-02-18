@@ -82,7 +82,11 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.layout.widthIn
+import com.mydeck.app.ui.theme.Dimens
+import com.mydeck.app.ui.theme.LocalReaderMaxWidth
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
@@ -364,18 +368,24 @@ fun BookmarkDetailScreen(
             )
         }
     ) { padding ->
-        BookmarkDetailContent(
-            modifier = Modifier.padding(padding),
-            uiState = uiState,
-            onClickOpenUrl = onClickOpenUrl,
-            onScrollProgressChanged = onScrollProgressChanged,
-            initialReadProgress = initialReadProgress,
-            contentMode = contentMode,
-            contentLoadState = contentLoadState,
-            articleSearchState = articleSearchState,
-            onArticleSearchUpdateResults = onArticleSearchUpdateResults,
-            onTitleChanged = onTitleChanged
-        )
+        val maxWidth = LocalReaderMaxWidth.current
+        Box(
+            modifier = Modifier.fillMaxSize().padding(padding),
+            contentAlignment = Alignment.TopCenter
+        ) {
+            BookmarkDetailContent(
+                modifier = if (maxWidth != Dp.Unspecified) Modifier.widthIn(max = maxWidth) else Modifier,
+                uiState = uiState,
+                onClickOpenUrl = onClickOpenUrl,
+                onScrollProgressChanged = onScrollProgressChanged,
+                initialReadProgress = initialReadProgress,
+                contentMode = contentMode,
+                contentLoadState = contentLoadState,
+                articleSearchState = articleSearchState,
+                onArticleSearchUpdateResults = onArticleSearchUpdateResults,
+                onTitleChanged = onTitleChanged
+            )
+        }
     }
 }
 
