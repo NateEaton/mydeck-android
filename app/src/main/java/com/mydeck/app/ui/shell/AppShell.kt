@@ -6,11 +6,14 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.DrawerState
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.Surface
+import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -22,6 +25,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.toRoute
+import androidx.window.core.layout.WindowWidthSizeClass
 import com.mydeck.app.io.prefs.SettingsDataStore
 import com.mydeck.app.ui.about.AboutScreen
 import com.mydeck.app.ui.detail.BookmarkDetailScreen
@@ -54,8 +58,6 @@ fun AppShell(
     settingsDataStore: SettingsDataStore? = null,
 ) {
     val bookmarkListViewModel: BookmarkListViewModel = hiltViewModel()
-    val drawerState = rememberDrawerState(DrawerValue.Closed)
-    val scope = rememberCoroutineScope()
 
     // Collect drawer-relevant state from ViewModel
     val drawerPreset = bookmarkListViewModel.drawerPreset.collectAsState()
@@ -63,6 +65,44 @@ fun AppShell(
     val bookmarkCounts = bookmarkListViewModel.bookmarkCounts.collectAsState()
     val labelsWithCounts = bookmarkListViewModel.labelsWithCounts.collectAsState()
     val isOnline = bookmarkListViewModel.isOnline.collectAsState()
+
+    val windowSizeClass = currentWindowAdaptiveInfo().windowSizeClass
+
+    when (windowSizeClass.windowWidthSizeClass) {
+        WindowWidthSizeClass.COMPACT -> CompactAppShell(
+            navController = navController,
+            settingsDataStore = settingsDataStore,
+            bookmarkListViewModel = bookmarkListViewModel,
+            drawerPreset = drawerPreset.value,
+            activeLabel = activeLabel.value,
+            bookmarkCounts = bookmarkCounts.value,
+            labelsWithCounts = labelsWithCounts.value,
+            isOnline = isOnline.value,
+        )
+        else -> MediumAppShell(
+            navController = navController,
+            settingsDataStore = settingsDataStore,
+            bookmarkListViewModel = bookmarkListViewModel,
+            drawerPreset = drawerPreset.value,
+            activeLabel = activeLabel.value,
+        )
+    }
+}
+
+@SuppressLint("WrongStartDestinationType")
+@Composable
+private fun CompactAppShell(
+    navController: NavHostController,
+    settingsDataStore: SettingsDataStore?,
+    bookmarkListViewModel: BookmarkListViewModel,
+    drawerPreset: com.mydeck.app.domain.model.DrawerPreset,
+    activeLabel: String?,
+    bookmarkCounts: com.mydeck.app.domain.model.BookmarkCounts,
+    labelsWithCounts: Map<String, Int>,
+    isOnline: Boolean,
+) {
+    val drawerState = rememberDrawerState(DrawerValue.Closed)
+    val scope = rememberCoroutineScope()
 
     // Collect navigation events from the ViewModel and handle them here,
     // since we now own the drawer state and need to close it after navigation
@@ -98,11 +138,11 @@ fun AppShell(
         gesturesEnabled = isOnBookmarkList,
         drawerContent = {
             AppDrawerContent(
-                drawerPreset = drawerPreset.value,
-                activeLabel = activeLabel.value,
-                bookmarkCounts = bookmarkCounts.value,
-                labelsWithCounts = labelsWithCounts.value,
-                isOnline = isOnline.value,
+                drawerPreset = drawerPreset,
+                activeLabel = activeLabel,
+                bookmarkCounts = bookmarkCounts,
+                labelsWithCounts = labelsWithCounts,
+                isOnline = isOnline,
                 onClickMyList = {
                     bookmarkListViewModel.onClickMyList()
                     scope.launch { drawerState.close() }
@@ -174,6 +214,124 @@ fun AppShell(
             ) {
                 composable<BookmarkListRoute> {
                     BookmarkListScreen(navController, bookmarkListViewModel, drawerState)
+                }
+                composable<SettingsRoute> { SettingsScreen(navController) }
+                composable<WelcomeRoute> { WelcomeScreen(navController) }
+                composable<AccountSettingsRoute> { AccountSettingsScreen(navController) }
+                composable<BookmarkDetailRoute> { backStackEntry ->
+                    val route = backStackEntry.toRoute<BookmarkDetailRoute>()
+                    BookmarkDetailScreen(
+                        navController,
+                        route.bookmarkId,
+                        showOriginal = route.showOriginal
+                    )
+                }
+                composable<OpenSourceLibrariesRoute> {
+                    OpenSourceLibrariesScreen(navHostController = navController)
+                }
+                composable<LogViewRoute> {
+                    LogViewScreen(navController = navController)
+                }
+                composable<SyncSettingsRoute> {
+                    SyncSettingsScreen(navHostController = navController)
+                }
+                composable<UiSettingsRoute> {
+                    UiSettingsScreen(navHostController = navController)
+                }
+                composable<AboutRoute> {
+                    AboutScreen(navHostController = navController)
+                }
+            }
+        }
+    }
+}
+
+@SuppressLint("WrongStartDestinationType")
+@Composable
+private fun MediumAppShell(
+    navController: NavHostController,
+    settingsDataStore: SettingsDataStore?,
+    bookmarkListViewModel: BookmarkListViewModel,
+    drawerPreset: com.mydeck.app.domain.model.DrawerPreset,
+    activeLabel: String?,
+) {
+    val scope = rememberCoroutineScope()
+
+    LaunchedEffect(Unit) {
+        bookmarkListViewModel.navigationEvent.collectLatest { event ->
+            when (event) {
+                is BookmarkListViewModel.NavigationEvent.NavigateToSettings -> {
+                    navController.navigate(SettingsRoute)
+                }
+
+                is BookmarkListViewModel.NavigationEvent.NavigateToAbout -> {
+                    navController.navigate(AboutRoute)
+                }
+
+                is BookmarkListViewModel.NavigationEvent.NavigateToBookmarkDetail -> {
+                    navController.navigate(
+                        BookmarkDetailRoute(event.bookmarkId, event.showOriginal)
+                    )
+                }
+            }
+        }
+    }
+
+    Row(modifier = androidx.compose.ui.Modifier.fillMaxSize()) {
+        AppNavigationRailContent(
+            drawerPreset = drawerPreset,
+            activeLabel = activeLabel,
+            onClickMyList = { bookmarkListViewModel.onClickMyList() },
+            onClickArchive = { bookmarkListViewModel.onClickArchive() },
+            onClickFavorite = { bookmarkListViewModel.onClickFavorite() },
+            onClickArticles = { bookmarkListViewModel.onClickArticles() },
+            onClickVideos = { bookmarkListViewModel.onClickVideos() },
+            onClickPictures = { bookmarkListViewModel.onClickPictures() },
+            onClickLabels = { bookmarkListViewModel.onOpenLabelsSheet() },
+            onClickSettings = { bookmarkListViewModel.onClickSettings() },
+            onClickAbout = { bookmarkListViewModel.onClickAbout() },
+        )
+
+        // Persistent themed Surface prevents white flash between screen transitions
+        Surface(
+            modifier = androidx.compose.ui.Modifier.fillMaxSize(),
+            color = MaterialTheme.colorScheme.background,
+        ) {
+            // Determine start destination based on auth state
+            val token = settingsDataStore?.tokenFlow?.collectAsState()?.value
+            val startDestination: Any = if (token.isNullOrBlank()) {
+                WelcomeRoute
+            } else {
+                BookmarkListRoute()
+            }
+
+            NavHost(
+                navController = navController,
+                startDestination = startDestination,
+                enterTransition = {
+                    slideInHorizontally(animationSpec = tween(300)) { it } +
+                        fadeIn(animationSpec = tween(300))
+                },
+                exitTransition = {
+                    slideOutHorizontally(animationSpec = tween(300)) { -it } +
+                        fadeOut(animationSpec = tween(300))
+                },
+                popEnterTransition = {
+                    slideInHorizontally(animationSpec = tween(300)) { -it } +
+                        fadeIn(animationSpec = tween(300))
+                },
+                popExitTransition = {
+                    slideOutHorizontally(animationSpec = tween(300)) { it } +
+                        fadeOut(animationSpec = tween(300))
+                },
+            ) {
+                composable<BookmarkListRoute> {
+                    BookmarkListScreen(
+                        navController,
+                        bookmarkListViewModel,
+                        drawerState = rememberDrawerState(DrawerValue.Closed),
+                        showNavigationIcon = false,
+                    )
                 }
                 composable<SettingsRoute> { SettingsScreen(navController) }
                 composable<WelcomeRoute> { WelcomeScreen(navController) }

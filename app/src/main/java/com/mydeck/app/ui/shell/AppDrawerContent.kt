@@ -26,6 +26,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalDrawerSheet
+import androidx.compose.material3.PermanentDrawerSheet
 import androidx.compose.material3.NavigationDrawerItem
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -53,216 +54,276 @@ fun AppDrawerContent(
     onClickLabels: () -> Unit,
     onClickSettings: () -> Unit,
     onClickAbout: () -> Unit,
+    usePermanentSheet: Boolean = false,
 ) {
     val isLabelMode = activeLabel != null
 
-    ModalDrawerSheet {
-        Column(
-            modifier = Modifier
-                .padding(horizontal = 16.dp)
-                .verticalScroll(rememberScrollState())
-        ) {
-            Spacer(Modifier.height(28.dp))
-            Row(
-                modifier = Modifier.padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    stringResource(id = R.string.app_name),
-                    style = MaterialTheme.typography.headlineSmall
-                )
-                if (!isOnline) {
-                    Spacer(Modifier.width(8.dp))
-                    Icon(
-                        imageVector = Icons.Default.CloudOff,
-                        contentDescription = stringResource(R.string.offline_tooltip),
-                        modifier = Modifier.size(18.dp),
-                        tint = MaterialTheme.colorScheme.error
-                    )
-                }
-            }
-            HorizontalDivider(
-                modifier = Modifier.fillMaxWidth(),
-                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-            )
-            NavigationDrawerItem(
-                label = { Text(
-                    style = MaterialTheme.typography.bodyLarge,
-                    text = stringResource(id = R.string.my_list)
-                ) },
-                icon = { Icon(imageVector = Icons.Outlined.TaskAlt, contentDescription = null)},
-                badge = {
-                    val myListCount = bookmarkCounts.total - bookmarkCounts.archived
-                    if (myListCount > 0) {
-                        Badge(containerColor = MaterialTheme.colorScheme.secondaryContainer) {
-                            Text(
-                                text = myListCount.toString(),
-                                style = MaterialTheme.typography.labelMedium
-                            )
-                        }
-                    }
-                },
-                selected = !isLabelMode && drawerPreset == DrawerPreset.MY_LIST,
-                onClick = onClickMyList
-            )
-            NavigationDrawerItem(
-                label = { Text(
-                    style = MaterialTheme.typography.bodyLarge,
-                    text = stringResource(id = R.string.archive)
-                ) },
-                icon = { Icon(imageVector = Icons.Outlined.Inventory2, contentDescription = null) },
-                badge = {
-                    bookmarkCounts.archived.let { count ->
-                        if (count > 0) {
-                            Badge(containerColor = MaterialTheme.colorScheme.secondaryContainer) {
-                                Text(
-                                    text = count.toString(),
-                                    style = MaterialTheme.typography.labelMedium
-                                )
-                            }
-                        }
-                    }
-                },
-                selected = !isLabelMode && drawerPreset == DrawerPreset.ARCHIVE,
-                onClick = onClickArchive
-            )
-            HorizontalDivider(
-                modifier = Modifier.fillMaxWidth(),
-                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-            )
-            NavigationDrawerItem(
-                label = { Text(
-                    style = MaterialTheme.typography.bodyLarge,
-                    text = stringResource(id = R.string.favorites)
-                ) },
-                icon = { Icon(imageVector = Icons.Filled.Grade, contentDescription = null) },
-                badge = {
-                    bookmarkCounts.favorite.let { count ->
-                        if (count > 0) {
-                            Badge(containerColor = MaterialTheme.colorScheme.secondaryContainer) {
-                                Text(
-                                    text = count.toString(),
-                                    style = MaterialTheme.typography.labelMedium
-                                )
-                            }
-                        }
-                    }
-                },
-                selected = !isLabelMode && drawerPreset == DrawerPreset.FAVORITES,
-                onClick = onClickFavorite
-            )
-            HorizontalDivider(
-                modifier = Modifier.fillMaxWidth(),
-                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-            )
-            NavigationDrawerItem(
-                label = { Text(
-                    style = MaterialTheme.typography.bodyLarge,
-                    text = stringResource(id = R.string.articles)
-                ) },
-                icon = { Icon(imageVector = Icons.AutoMirrored.Outlined.Article, contentDescription = null) },
-                badge = {
-                    bookmarkCounts.article.let { count ->
-                        if (count > 0) {
-                            Badge(containerColor = MaterialTheme.colorScheme.secondaryContainer) {
-                                Text(
-                                    text = count.toString(),
-                                    style = MaterialTheme.typography.labelMedium
-                                )
-                            }
-                        }
-                    }
-                },
-                selected = !isLabelMode && drawerPreset == DrawerPreset.ARTICLES,
-                onClick = onClickArticles
-            )
-            NavigationDrawerItem(
-                label = { Text(
-                    style = MaterialTheme.typography.bodyLarge,
-                    text = stringResource(id = R.string.videos)
-                ) },
-                icon = { Icon(imageVector = Icons.Outlined.VideoLibrary, contentDescription = null) },
-                badge = {
-                    bookmarkCounts.video.let { count ->
-                        if (count > 0) {
-                            Badge(containerColor = MaterialTheme.colorScheme.secondaryContainer) {
-                                Text(
-                                    text = count.toString(),
-                                    style = MaterialTheme.typography.labelMedium
-                                )
-                            }
-                        }
-                    }
-                },
-                selected = !isLabelMode && drawerPreset == DrawerPreset.VIDEOS,
-                onClick = onClickVideos
-            )
-            NavigationDrawerItem(
-                label = { Text(
-                    style = MaterialTheme.typography.bodyLarge,
-                    text = stringResource(id = R.string.pictures)
-                ) },
-                icon = { Icon(imageVector = Icons.Outlined.Image, contentDescription = null) },
-                badge = {
-                    bookmarkCounts.picture.let { count ->
-                        if (count > 0) {
-                            Badge(containerColor = MaterialTheme.colorScheme.secondaryContainer) {
-                                Text(
-                                    text = count.toString(),
-                                    style = MaterialTheme.typography.labelMedium
-                                )
-                            }
-                        }
-                    }
-                },
-                selected = !isLabelMode && drawerPreset == DrawerPreset.PICTURES,
-                onClick = onClickPictures
-            )
-            HorizontalDivider(
-                modifier = Modifier.fillMaxWidth(),
-                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-            )
-            NavigationDrawerItem(
-                label = { Text(
-                    style = MaterialTheme.typography.bodyLarge,
-                    text = stringResource(id = R.string.labels)
-                ) },
-                icon = { Icon(Icons.AutoMirrored.Outlined.Label, contentDescription = null) },
-                badge = {
-                    if (labelsWithCounts.isNotEmpty()) {
-                        Badge(containerColor = MaterialTheme.colorScheme.secondaryContainer) {
-                            Text(
-                                text = labelsWithCounts.size.toString(),
-                                style = MaterialTheme.typography.labelMedium
-                            )
-                        }
-                    }
-                },
-                selected = isLabelMode,
-                onClick = onClickLabels
-            )
-            HorizontalDivider(
-                modifier = Modifier.fillMaxWidth(),
-                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-            )
-            NavigationDrawerItem(
-                label = { Text(
-                    style = MaterialTheme.typography.bodyLarge,
-                    text = stringResource(id = R.string.settings)
-                ) },
-                icon = { Icon(imageVector = Icons.Outlined.Settings, contentDescription = null) },
-                selected = false,
-                onClick = onClickSettings
-            )
-            NavigationDrawerItem(
-                label = { Text(
-                    style = MaterialTheme.typography.bodyLarge,
-                    text = stringResource(id = R.string.about_title)
-                ) },
-                icon = { Icon(imageVector = Icons.Outlined.Info, contentDescription = null) },
-                selected = false,
-                onClick = onClickAbout
+    if (usePermanentSheet) {
+        PermanentDrawerSheet {
+            DrawerColumnContent(
+                isLabelMode = isLabelMode,
+                bookmarkCounts = bookmarkCounts,
+                labelsWithCounts = labelsWithCounts,
+                isOnline = isOnline,
+                drawerPreset = drawerPreset,
+                activeLabel = activeLabel,
+                onClickMyList = onClickMyList,
+                onClickArchive = onClickArchive,
+                onClickFavorite = onClickFavorite,
+                onClickArticles = onClickArticles,
+                onClickVideos = onClickVideos,
+                onClickPictures = onClickPictures,
+                onClickLabels = onClickLabels,
+                onClickSettings = onClickSettings,
+                onClickAbout = onClickAbout,
             )
         }
+    } else {
+        ModalDrawerSheet {
+            DrawerColumnContent(
+                isLabelMode = isLabelMode,
+                bookmarkCounts = bookmarkCounts,
+                labelsWithCounts = labelsWithCounts,
+                isOnline = isOnline,
+                drawerPreset = drawerPreset,
+                activeLabel = activeLabel,
+                onClickMyList = onClickMyList,
+                onClickArchive = onClickArchive,
+                onClickFavorite = onClickFavorite,
+                onClickArticles = onClickArticles,
+                onClickVideos = onClickVideos,
+                onClickPictures = onClickPictures,
+                onClickLabels = onClickLabels,
+                onClickSettings = onClickSettings,
+                onClickAbout = onClickAbout,
+            )
+        }
+    }
+}
+
+@Composable
+private fun DrawerColumnContent(
+    isLabelMode: Boolean,
+    bookmarkCounts: BookmarkCounts,
+    labelsWithCounts: Map<String, Int>,
+    isOnline: Boolean,
+    drawerPreset: DrawerPreset,
+    activeLabel: String?,
+    onClickMyList: () -> Unit,
+    onClickArchive: () -> Unit,
+    onClickFavorite: () -> Unit,
+    onClickArticles: () -> Unit,
+    onClickVideos: () -> Unit,
+    onClickPictures: () -> Unit,
+    onClickLabels: () -> Unit,
+    onClickSettings: () -> Unit,
+    onClickAbout: () -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .padding(horizontal = 16.dp)
+            .verticalScroll(rememberScrollState())
+    ) {
+        Spacer(Modifier.height(28.dp))
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                stringResource(id = R.string.app_name),
+                style = MaterialTheme.typography.headlineSmall
+            )
+            if (!isOnline) {
+                Spacer(Modifier.width(8.dp))
+                Icon(
+                    imageVector = Icons.Default.CloudOff,
+                    contentDescription = stringResource(R.string.offline_tooltip),
+                    modifier = Modifier.size(18.dp),
+                    tint = MaterialTheme.colorScheme.error
+                )
+            }
+        }
+        HorizontalDivider(
+            modifier = Modifier.fillMaxWidth(),
+            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+        )
+        NavigationDrawerItem(
+            label = { Text(
+                style = MaterialTheme.typography.bodyLarge,
+                text = stringResource(id = R.string.my_list)
+            ) },
+            icon = { Icon(imageVector = Icons.Outlined.TaskAlt, contentDescription = null)},
+            badge = {
+                val myListCount = bookmarkCounts.total - bookmarkCounts.archived
+                if (myListCount > 0) {
+                    Badge(containerColor = MaterialTheme.colorScheme.secondaryContainer) {
+                        Text(
+                            text = myListCount.toString(),
+                            style = MaterialTheme.typography.labelMedium
+                        )
+                    }
+                }
+            },
+            selected = !isLabelMode && drawerPreset == DrawerPreset.MY_LIST,
+            onClick = onClickMyList
+        )
+        NavigationDrawerItem(
+            label = { Text(
+                style = MaterialTheme.typography.bodyLarge,
+                text = stringResource(id = R.string.archive)
+            ) },
+            icon = { Icon(imageVector = Icons.Outlined.Inventory2, contentDescription = null) },
+            badge = {
+                bookmarkCounts.archived.let { count ->
+                    if (count > 0) {
+                        Badge(containerColor = MaterialTheme.colorScheme.secondaryContainer) {
+                            Text(
+                                text = count.toString(),
+                                style = MaterialTheme.typography.labelMedium
+                            )
+                        }
+                    }
+                }
+            },
+            selected = !isLabelMode && drawerPreset == DrawerPreset.ARCHIVE,
+            onClick = onClickArchive
+        )
+        HorizontalDivider(
+            modifier = Modifier.fillMaxWidth(),
+            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+        )
+        NavigationDrawerItem(
+            label = { Text(
+                style = MaterialTheme.typography.bodyLarge,
+                text = stringResource(id = R.string.favorites)
+            ) },
+            icon = { Icon(imageVector = Icons.Filled.Grade, contentDescription = null) },
+            badge = {
+                bookmarkCounts.favorite.let { count ->
+                    if (count > 0) {
+                        Badge(containerColor = MaterialTheme.colorScheme.secondaryContainer) {
+                            Text(
+                                text = count.toString(),
+                                style = MaterialTheme.typography.labelMedium
+                            )
+                        }
+                    }
+                }
+            },
+            selected = !isLabelMode && drawerPreset == DrawerPreset.FAVORITES,
+            onClick = onClickFavorite
+        )
+        HorizontalDivider(
+            modifier = Modifier.fillMaxWidth(),
+            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+        )
+        NavigationDrawerItem(
+            label = { Text(
+                style = MaterialTheme.typography.bodyLarge,
+                text = stringResource(id = R.string.articles)
+            ) },
+            icon = { Icon(imageVector = Icons.AutoMirrored.Outlined.Article, contentDescription = null) },
+            badge = {
+                bookmarkCounts.article.let { count ->
+                    if (count > 0) {
+                        Badge(containerColor = MaterialTheme.colorScheme.secondaryContainer) {
+                            Text(
+                                text = count.toString(),
+                                style = MaterialTheme.typography.labelMedium
+                            )
+                        }
+                    }
+                }
+            },
+            selected = !isLabelMode && drawerPreset == DrawerPreset.ARTICLES,
+            onClick = onClickArticles
+        )
+        NavigationDrawerItem(
+            label = { Text(
+                style = MaterialTheme.typography.bodyLarge,
+                text = stringResource(id = R.string.videos)
+            ) },
+            icon = { Icon(imageVector = Icons.Outlined.VideoLibrary, contentDescription = null) },
+            badge = {
+                bookmarkCounts.video.let { count ->
+                    if (count > 0) {
+                        Badge(containerColor = MaterialTheme.colorScheme.secondaryContainer) {
+                            Text(
+                                text = count.toString(),
+                                style = MaterialTheme.typography.labelMedium
+                            )
+                        }
+                    }
+                }
+            },
+            selected = !isLabelMode && drawerPreset == DrawerPreset.VIDEOS,
+            onClick = onClickVideos
+        )
+        NavigationDrawerItem(
+            label = { Text(
+                style = MaterialTheme.typography.bodyLarge,
+                text = stringResource(id = R.string.pictures)
+            ) },
+            icon = { Icon(imageVector = Icons.Outlined.Image, contentDescription = null) },
+            badge = {
+                bookmarkCounts.picture.let { count ->
+                    if (count > 0) {
+                        Badge(containerColor = MaterialTheme.colorScheme.secondaryContainer) {
+                            Text(
+                                text = count.toString(),
+                                style = MaterialTheme.typography.labelMedium
+                            )
+                        }
+                    }
+                }
+            },
+            selected = !isLabelMode && drawerPreset == DrawerPreset.PICTURES,
+            onClick = onClickPictures
+        )
+        HorizontalDivider(
+            modifier = Modifier.fillMaxWidth(),
+            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+        )
+        NavigationDrawerItem(
+            label = { Text(
+                style = MaterialTheme.typography.bodyLarge,
+                text = stringResource(id = R.string.labels)
+            ) },
+            icon = { Icon(Icons.AutoMirrored.Outlined.Label, contentDescription = null) },
+            badge = {
+                if (labelsWithCounts.isNotEmpty()) {
+                    Badge(containerColor = MaterialTheme.colorScheme.secondaryContainer) {
+                        Text(
+                            text = labelsWithCounts.size.toString(),
+                            style = MaterialTheme.typography.labelMedium
+                        )
+                    }
+                }
+            },
+            selected = isLabelMode,
+            onClick = onClickLabels
+        )
+        HorizontalDivider(
+            modifier = Modifier.fillMaxWidth(),
+            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+        )
+        NavigationDrawerItem(
+            label = { Text(
+                style = MaterialTheme.typography.bodyLarge,
+                text = stringResource(id = R.string.settings)
+            ) },
+            icon = { Icon(imageVector = Icons.Outlined.Settings, contentDescription = null) },
+            selected = false,
+            onClick = onClickSettings
+        )
+        NavigationDrawerItem(
+            label = { Text(
+                style = MaterialTheme.typography.bodyLarge,
+                text = stringResource(id = R.string.about_title)
+            ) },
+            icon = { Icon(imageVector = Icons.Outlined.Info, contentDescription = null) },
+            selected = false,
+            onClick = onClickAbout
+        )
     }
 }

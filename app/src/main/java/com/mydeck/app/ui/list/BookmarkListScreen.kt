@@ -108,6 +108,7 @@ fun BookmarkListScreen(
     navHostController: NavHostController,
     viewModel: BookmarkListViewModel,
     drawerState: DrawerState,
+    showNavigationIcon: Boolean = true,
 ) {
     val uiState = viewModel.uiState.collectAsState().value
     val createBookmarkUiState = viewModel.createBookmarkUiState.collectAsState().value
@@ -216,13 +217,15 @@ fun BookmarkListScreen(
                     }
                 },
                 navigationIcon = {
-                    IconButton(
-                        onClick = { scope.launch { drawerState.open() } }
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.Menu,
-                            contentDescription = stringResource(id = R.string.menu)
-                        )
+                    if (showNavigationIcon) {
+                        IconButton(
+                            onClick = { scope.launch { drawerState.open() } }
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Menu,
+                                contentDescription = stringResource(id = R.string.menu)
+                            )
+                        }
                     }
                 },
                 actions = {
