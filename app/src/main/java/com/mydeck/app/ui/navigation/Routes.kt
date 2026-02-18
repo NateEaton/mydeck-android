@@ -37,3 +37,9 @@ object AboutRoute
 
 @Serializable
 object UserGuideRoute
+
+@Serializable
+data class UserGuideSectionRoute(
+    val fileName: String,
+    val title: String
+)
