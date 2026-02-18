@@ -171,6 +171,7 @@ other{}
     <string name="oauth_error_network">Network error. Please check your connection.</string>
     <string name="logout_confirm_title">Sign Out</string>
     <string name="logout_confirm_message">Are you sure you want to sign out?</string>
+    <string name="more_options">Máis opcións</string>
 
     <!-- Welcome Screen -->
     <string name="welcome_title">Welcome to MyDeck</string>
@@ -234,4 +235,6 @@ other{}
     <string name="tri_state_no">No</string>
     <string name="sort">Sort</string>
     <string name="layout">Layout</string>
+    <string name="ui_settings_sepia_title">Tema de lectura sepia</string>
+    <string name="ui_settings_sepia_description">Usar cores quentes para a lectura no modo claro</string>
 </resources>

@@ -103,6 +103,9 @@
     <string name="logout_confirm_title">Sign Out</string>
     <string name="logout_confirm_message">Are you sure you want to sign out?</string>
 
+    <!-- Bookmark Card Actions -->
+    <string name="more_options">Więcej opcji</string>
+
     <!-- Welcome Screen -->
     <string name="welcome_title">Welcome to MyDeck</string>
     <string name="welcome_message">MyDeck is a read-later app for Readeck. Enter your Readeck server address below to get started. You\'ll be guided through a quick authorization process to connect your account.</string>
@@ -165,4 +168,6 @@
     <string name="tri_state_no">No</string>
     <string name="sort">Sort</string>
     <string name="layout">Layout</string>
+    <string name="ui_settings_sepia_title">Motyw czytania sepii</string>
+    <string name="ui_settings_sepia_description">Użyj ciepłych kolorów do czytania w trybie jasnym</string>
 </resources>

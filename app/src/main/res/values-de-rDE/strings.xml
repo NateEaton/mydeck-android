@@ -85,7 +85,7 @@ other{}
     <string name="action_share">Link teilen</string>
     <string name="action_delete">Löschen</string>
     <string name="action_open_in_browser">In Browser öffnen</string>
-    <string name="more_options">More options</string>
+    <string name="more_options">Weitere Optionen</string>
     <string name="error_no_article_content">Fehler, kein Artikelinhalt verfügbar</string>
     <string name="update_successful">Aktualisierung erfolgreich</string>
     <string name="notification_channel_sync_name">Synchronisierungsfehler</string>
@@ -266,4 +266,6 @@ other{}
     <string name="tri_state_no">No</string>
     <string name="sort">Sort</string>
     <string name="layout">Layout</string>
+    <string name="ui_settings_sepia_title">Sepia-Lesemodus</string>
+    <string name="ui_settings_sepia_description">Verwende warm getönte Farben zum Lesen im hellen Modus</string>
 </resources>
