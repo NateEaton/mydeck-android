@@ -98,6 +98,11 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.collectLatest
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.navigation.compose.rememberNavController
@@ -108,6 +113,7 @@ fun BookmarkListScreen(
     navHostController: NavHostController,
     viewModel: BookmarkListViewModel,
     drawerState: DrawerState,
+    showNavigationIcon: Boolean = true,
 ) {
     val uiState = viewModel.uiState.collectAsState().value
     val createBookmarkUiState = viewModel.createBookmarkUiState.collectAsState().value
@@ -216,13 +222,15 @@ fun BookmarkListScreen(
                     }
                 },
                 navigationIcon = {
-                    IconButton(
-                        onClick = { scope.launch { drawerState.open() } }
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.Menu,
-                            contentDescription = stringResource(id = R.string.menu)
-                        )
+                    if (showNavigationIcon) {
+                        IconButton(
+                            onClick = { scope.launch { drawerState.open() } }
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Menu,
+                                contentDescription = stringResource(id = R.string.menu)
+                            )
+                        }
                     }
                 },
                 actions = {
@@ -623,6 +631,7 @@ fun BookmarkListView(
     scrollToTopTrigger: Int = 0,
     layoutMode: LayoutMode = LayoutMode.GRID,
     bookmarks: List<BookmarkListItem>,
+    isMultiColumn: Boolean = LocalIsWideLayout.current,
     onClickBookmark: (String) -> Unit,
     onClickDelete: (String) -> Unit,
     onClickFavorite: (String, Boolean) -> Unit,
@@ -632,58 +641,131 @@ fun BookmarkListView(
     onClickOpenUrl: (String) -> Unit = {},
     onClickOpenInBrowser: (String) -> Unit = {}
 ) {
-    val lazyListState = key(filterKey) { rememberLazyListState() }
-    LaunchedEffect(scrollToTopTrigger) {
-        if (scrollToTopTrigger > 0) {
-            lazyListState.animateScrollToItem(0)
+    if (isMultiColumn && layoutMode != LayoutMode.COMPACT) {
+        val columns = when (layoutMode) {
+            LayoutMode.GRID -> GridCells.Adaptive(minSize = 250.dp)
+            LayoutMode.COMPACT -> GridCells.Adaptive(minSize = 350.dp)
+            LayoutMode.MOSAIC -> GridCells.Adaptive(minSize = 180.dp)
         }
-    }
-    Box(modifier = modifier) {
-        LazyColumn(state = lazyListState, modifier = Modifier.fillMaxSize()) {
-            items(bookmarks) { bookmark ->
-                when (layoutMode) {
-                    LayoutMode.GRID -> BookmarkGridCard(
-                        bookmark = bookmark,
-                        onClickCard = onClickBookmark,
-                        onClickDelete = onClickDelete,
-                        onClickArchive = onClickArchive,
-                        onClickFavorite = onClickFavorite,
-                        onClickShareBookmark = onClickShareBookmark,
-                        onClickLabel = onClickLabel,
-                        onClickOpenUrl = onClickOpenUrl,
-                        onClickOpenInBrowser = onClickOpenInBrowser
-                    )
-                    LayoutMode.COMPACT -> BookmarkCompactCard(
-                        bookmark = bookmark,
-                        onClickCard = onClickBookmark,
-                        onClickDelete = onClickDelete,
-                        onClickArchive = onClickArchive,
-                        onClickFavorite = onClickFavorite,
-                        onClickShareBookmark = onClickShareBookmark,
-                        onClickLabel = onClickLabel,
-                        onClickOpenUrl = onClickOpenUrl,
-                        onClickOpenInBrowser = onClickOpenInBrowser
-                    )
-                    LayoutMode.MOSAIC -> BookmarkMosaicCard(
-                    bookmark = bookmark,
-                    onClickCard = onClickBookmark,
-                    onClickDelete = onClickDelete,
-                    onClickArchive = onClickArchive,
-                    onClickFavorite = onClickFavorite,
-                    onClickShareBookmark = onClickShareBookmark,
-                    onClickLabel = onClickLabel,
-                    onClickOpenUrl = onClickOpenUrl,
-                    onClickOpenInBrowser = onClickOpenInBrowser
-                )
+        val spacing = when (layoutMode) {
+            LayoutMode.MOSAIC -> 4.dp
+            else -> 8.dp
+        }
+        val lazyGridState = key(filterKey) { rememberLazyGridState() }
+        LaunchedEffect(scrollToTopTrigger) {
+            if (scrollToTopTrigger > 0) {
+                lazyGridState.animateScrollToItem(0)
             }
         }
+        Box(modifier = modifier) {
+            LazyVerticalGrid(
+                columns = columns,
+                state = lazyGridState,
+                modifier = Modifier.fillMaxSize(),
+                horizontalArrangement = Arrangement.spacedBy(spacing),
+                verticalArrangement = Arrangement.spacedBy(spacing),
+                contentPadding = PaddingValues(horizontal = spacing),
+            ) {
+                items(bookmarks) { bookmark ->
+                    when (layoutMode) {
+                        LayoutMode.GRID -> BookmarkGridCard(
+                            bookmark = bookmark,
+                            onClickCard = onClickBookmark,
+                            onClickDelete = onClickDelete,
+                            onClickArchive = onClickArchive,
+                            onClickFavorite = onClickFavorite,
+                            onClickShareBookmark = onClickShareBookmark,
+                            onClickLabel = onClickLabel,
+                            onClickOpenUrl = onClickOpenUrl,
+                            onClickOpenInBrowser = onClickOpenInBrowser,
+                            isInGrid = true,
+                        )
+                        LayoutMode.COMPACT -> BookmarkCompactCard(
+                            bookmark = bookmark,
+                            onClickCard = onClickBookmark,
+                            onClickDelete = onClickDelete,
+                            onClickArchive = onClickArchive,
+                            onClickFavorite = onClickFavorite,
+                            onClickShareBookmark = onClickShareBookmark,
+                            onClickLabel = onClickLabel,
+                            onClickOpenUrl = onClickOpenUrl,
+                            onClickOpenInBrowser = onClickOpenInBrowser
+                        )
+                        LayoutMode.MOSAIC -> BookmarkMosaicCard(
+                            bookmark = bookmark,
+                            onClickCard = onClickBookmark,
+                            onClickDelete = onClickDelete,
+                            onClickArchive = onClickArchive,
+                            onClickFavorite = onClickFavorite,
+                            onClickShareBookmark = onClickShareBookmark,
+                            onClickLabel = onClickLabel,
+                            onClickOpenUrl = onClickOpenUrl,
+                            onClickOpenInBrowser = onClickOpenInBrowser
+                        )
+                    }
+                }
+            }
+            VerticalScrollbar(
+                modifier = Modifier
+                    .align(Alignment.CenterEnd)
+                    .fillMaxHeight(),
+                lazyGridState = lazyGridState
+            )
         }
-        VerticalScrollbar(
-            modifier = Modifier
-                .align(Alignment.CenterEnd)
-                .fillMaxHeight(),
-            lazyListState = lazyListState
-        )
+    } else {
+        val lazyListState = key(filterKey) { rememberLazyListState() }
+        LaunchedEffect(scrollToTopTrigger) {
+            if (scrollToTopTrigger > 0) {
+                lazyListState.animateScrollToItem(0)
+            }
+        }
+        Box(modifier = modifier) {
+            LazyColumn(state = lazyListState, modifier = Modifier.fillMaxSize()) {
+                items(bookmarks) { bookmark ->
+                    when (layoutMode) {
+                        LayoutMode.GRID -> BookmarkGridCard(
+                            bookmark = bookmark,
+                            onClickCard = onClickBookmark,
+                            onClickDelete = onClickDelete,
+                            onClickArchive = onClickArchive,
+                            onClickFavorite = onClickFavorite,
+                            onClickShareBookmark = onClickShareBookmark,
+                            onClickLabel = onClickLabel,
+                            onClickOpenUrl = onClickOpenUrl,
+                            onClickOpenInBrowser = onClickOpenInBrowser
+                        )
+                        LayoutMode.COMPACT -> BookmarkCompactCard(
+                            bookmark = bookmark,
+                            onClickCard = onClickBookmark,
+                            onClickDelete = onClickDelete,
+                            onClickArchive = onClickArchive,
+                            onClickFavorite = onClickFavorite,
+                            onClickShareBookmark = onClickShareBookmark,
+                            onClickLabel = onClickLabel,
+                            onClickOpenUrl = onClickOpenUrl,
+                            onClickOpenInBrowser = onClickOpenInBrowser
+                        )
+                        LayoutMode.MOSAIC -> BookmarkMosaicCard(
+                            bookmark = bookmark,
+                            onClickCard = onClickBookmark,
+                            onClickDelete = onClickDelete,
+                            onClickArchive = onClickArchive,
+                            onClickFavorite = onClickFavorite,
+                            onClickShareBookmark = onClickShareBookmark,
+                            onClickLabel = onClickLabel,
+                            onClickOpenUrl = onClickOpenUrl,
+                            onClickOpenInBrowser = onClickOpenInBrowser
+                        )
+                    }
+                }
+            }
+            VerticalScrollbar(
+                modifier = Modifier
+                    .align(Alignment.CenterEnd)
+                    .fillMaxHeight(),
+                lazyListState = lazyListState
+            )
+        }
     }
 }
 

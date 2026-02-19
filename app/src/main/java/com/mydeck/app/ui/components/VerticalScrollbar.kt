@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -86,6 +87,47 @@ fun VerticalScrollbar(
     ScrollbarTrack(
         modifier = modifier,
         isScrollInProgress = lazyListState.isScrollInProgress,
+        isScrollable = isScrollable,
+        progress = progress,
+        width = width,
+        color = color,
+        padding = padding
+    )
+}
+
+@Composable
+fun VerticalScrollbar(
+    modifier: Modifier = Modifier,
+    lazyGridState: LazyGridState,
+    width: Dp = 4.dp,
+    color: Color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+    padding: Dp = 4.dp
+) {
+    val isScrollable by remember {
+        derivedStateOf {
+            val layoutInfo = lazyGridState.layoutInfo
+            layoutInfo.totalItemsCount > layoutInfo.visibleItemsInfo.size
+        }
+    }
+
+    val progress by remember {
+        derivedStateOf {
+            val layoutInfo = lazyGridState.layoutInfo
+            val totalItems = layoutInfo.totalItemsCount
+            val visibleItems = layoutInfo.visibleItemsInfo
+            if (totalItems <= visibleItems.size || visibleItems.isEmpty()) {
+                0f
+            } else {
+                val firstVisible = lazyGridState.firstVisibleItemIndex
+                val maxIndex = (totalItems - visibleItems.size).coerceAtLeast(1)
+                (firstVisible.toFloat() / maxIndex).coerceIn(0f, 1f)
+            }
+        }
+    }
+
+    ScrollbarTrack(
+        modifier = modifier,
+        isScrollInProgress = lazyGridState.isScrollInProgress,
         isScrollable = isScrollable,
         progress = progress,
         width = width,
