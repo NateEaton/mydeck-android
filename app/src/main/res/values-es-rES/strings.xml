@@ -275,4 +275,5 @@ other{}
     <string name="tri_state_no">No</string>
     <string name="sort">Sort</string>
     <string name="layout">Layout</string>
+    <string name="select_bookmark">Select a bookmark to read</string>
 </resources>

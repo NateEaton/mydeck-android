@@ -38,7 +38,8 @@ import com.mydeck.app.ui.navigation.UiSettingsRoute
 
 @Composable
 fun SettingsScreen(
-    navHostController: NavHostController
+    navHostController: NavHostController,
+    showBackButton: Boolean = true,
 ) {
     val viewModel: SettingsViewModel = hiltViewModel()
     val settingsUiState = viewModel.uiState.collectAsState().value
@@ -81,7 +82,8 @@ fun SettingsScreen(
         onClickOpenSourceLibraries = onClickOpenSourceLibraries,
         onClickLogs = onClickLogs,
         onClickSync = onClickSync,
-        onClickUi = onClickUi
+        onClickUi = onClickUi,
+        showBackButton = showBackButton,
     )
 }
 
@@ -94,7 +96,8 @@ fun SettingScreenView(
     onClickOpenSourceLibraries: () -> Unit,
     onClickLogs: () -> Unit,
     onClickSync: () -> Unit,
-    onClickUi: () -> Unit
+    onClickUi: () -> Unit,
+    showBackButton: Boolean = true,
 ) {
     Scaffold(
         topBar = {
@@ -102,14 +105,16 @@ fun SettingScreenView(
                 modifier = Modifier.testTag(SettingsScreenTestTags.TOPBAR),
                 title = { Text(stringResource(R.string.settings_topbar_title)) },
                 navigationIcon = {
-                    IconButton(
-                        onClick = onClickBack,
-                        modifier = Modifier.testTag(SettingsScreenTestTags.BACK_BUTTON)
-                    ) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(R.string.back)
-                        )
+                    if (showBackButton) {
+                        IconButton(
+                            onClick = onClickBack,
+                            modifier = Modifier.testTag(SettingsScreenTestTags.BACK_BUTTON)
+                        ) {
+                            Icon(
+                                Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = stringResource(R.string.back)
+                            )
+                        }
                     }
                 }
             )

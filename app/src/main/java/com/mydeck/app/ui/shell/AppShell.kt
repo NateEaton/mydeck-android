@@ -1,32 +1,50 @@
 package com.mydeck.app.ui.shell
 
 import android.annotation.SuppressLint
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.material3.DrawerState
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.Surface
+import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.unit.Dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.toRoute
+import androidx.window.core.layout.WindowHeightSizeClass
+import androidx.window.core.layout.WindowWidthSizeClass
 import com.mydeck.app.io.prefs.SettingsDataStore
 import com.mydeck.app.ui.about.AboutScreen
 import com.mydeck.app.ui.detail.BookmarkDetailScreen
 import com.mydeck.app.ui.list.BookmarkListScreen
 import com.mydeck.app.ui.list.BookmarkListViewModel
+import com.mydeck.app.ui.list.LocalIsWideLayout
+import com.mydeck.app.ui.theme.Dimens
+import com.mydeck.app.ui.theme.LocalReaderMaxWidth
 import com.mydeck.app.ui.navigation.AboutRoute
 import com.mydeck.app.ui.navigation.AccountSettingsRoute
 import com.mydeck.app.ui.navigation.BookmarkDetailRoute
@@ -54,8 +72,6 @@ fun AppShell(
     settingsDataStore: SettingsDataStore? = null,
 ) {
     val bookmarkListViewModel: BookmarkListViewModel = hiltViewModel()
-    val drawerState = rememberDrawerState(DrawerValue.Closed)
-    val scope = rememberCoroutineScope()
 
     // Collect drawer-relevant state from ViewModel
     val drawerPreset = bookmarkListViewModel.drawerPreset.collectAsState()
@@ -64,18 +80,96 @@ fun AppShell(
     val labelsWithCounts = bookmarkListViewModel.labelsWithCounts.collectAsState()
     val isOnline = bookmarkListViewModel.isOnline.collectAsState()
 
+    val windowSizeClass = currentWindowAdaptiveInfo().windowSizeClass
+
+    val configuration = LocalConfiguration.current
+    val isLandscape = configuration.screenWidthDp > configuration.screenHeightDp
+    val isTabletHeight = windowSizeClass.windowHeightSizeClass != WindowHeightSizeClass.COMPACT
+
+    val layoutTier = when {
+        windowSizeClass.windowWidthSizeClass == WindowWidthSizeClass.COMPACT -> "compact"
+        windowSizeClass.windowWidthSizeClass == WindowWidthSizeClass.EXPANDED
+            && isLandscape && isTabletHeight -> "expanded"
+        else -> "medium"
+    }
+
+    // Determine whether navigation (rail/drawer) should be hidden
+    val currentBackStackEntry = navController.currentBackStackEntryAsState().value
+    val currentRoute = currentBackStackEntry?.destination?.route
+    val hideNavigation = currentRoute?.let {
+        it.startsWith(BookmarkDetailRoute::class.qualifiedName ?: "") ||
+        it.startsWith(WelcomeRoute::class.qualifiedName ?: "")
+    } ?: true
+
+    when (layoutTier) {
+        "compact" -> CompositionLocalProvider(
+            LocalReaderMaxWidth provides Dp.Unspecified,
+            LocalIsWideLayout provides false,
+        ) {
+        CompactAppShell(
+            navController = navController,
+            settingsDataStore = settingsDataStore,
+            bookmarkListViewModel = bookmarkListViewModel,
+            drawerPreset = drawerPreset.value,
+            activeLabel = activeLabel.value,
+            bookmarkCounts = bookmarkCounts.value,
+            labelsWithCounts = labelsWithCounts.value,
+            isOnline = isOnline.value,
+        )
+        } // end CompactAppShell CompositionLocalProvider
+        "expanded" -> CompositionLocalProvider(LocalReaderMaxWidth provides Dimens.ReaderMaxWidthExpanded) {
+        ExpandedAppShell(
+            navController = navController,
+            settingsDataStore = settingsDataStore,
+            bookmarkListViewModel = bookmarkListViewModel,
+            drawerPreset = drawerPreset.value,
+            activeLabel = activeLabel.value,
+            bookmarkCounts = bookmarkCounts.value,
+            labelsWithCounts = labelsWithCounts.value,
+            isOnline = isOnline.value,
+            hideNavigation = hideNavigation,
+        )
+        } // end ExpandedAppShell CompositionLocalProvider
+        else -> CompositionLocalProvider(LocalReaderMaxWidth provides Dimens.ReaderMaxWidthMedium) {
+        MediumAppShell(
+            navController = navController,
+            settingsDataStore = settingsDataStore,
+            bookmarkListViewModel = bookmarkListViewModel,
+            drawerPreset = drawerPreset.value,
+            activeLabel = activeLabel.value,
+            hideNavigation = hideNavigation,
+        )
+        } // end MediumAppShell CompositionLocalProvider
+    }
+}
+
+@SuppressLint("WrongStartDestinationType")
+@Composable
+private fun CompactAppShell(
+    navController: NavHostController,
+    settingsDataStore: SettingsDataStore?,
+    bookmarkListViewModel: BookmarkListViewModel,
+    drawerPreset: com.mydeck.app.domain.model.DrawerPreset,
+    activeLabel: String?,
+    bookmarkCounts: com.mydeck.app.domain.model.BookmarkCounts,
+    labelsWithCounts: Map<String, Int>,
+    isOnline: Boolean,
+) {
+    val drawerState = rememberDrawerState(DrawerValue.Closed)
+    val scope = rememberCoroutineScope()
+
     // Collect navigation events from the ViewModel and handle them here,
     // since we now own the drawer state and need to close it after navigation
     LaunchedEffect(Unit) {
         bookmarkListViewModel.navigationEvent.collectLatest { event ->
             when (event) {
                 is BookmarkListViewModel.NavigationEvent.NavigateToSettings -> {
-                    navController.navigate(SettingsRoute)
+                    navController.navigate(SettingsRoute) { launchSingleTop = true }
                     scope.launch { drawerState.close() }
                 }
 
                 is BookmarkListViewModel.NavigationEvent.NavigateToAbout -> {
-                    navController.navigate(AboutRoute)
+                    navController.navigate(AboutRoute) { launchSingleTop = true }
                     scope.launch { drawerState.close() }
                 }
 
@@ -98,11 +192,11 @@ fun AppShell(
         gesturesEnabled = isOnBookmarkList,
         drawerContent = {
             AppDrawerContent(
-                drawerPreset = drawerPreset.value,
-                activeLabel = activeLabel.value,
-                bookmarkCounts = bookmarkCounts.value,
-                labelsWithCounts = labelsWithCounts.value,
-                isOnline = isOnline.value,
+                drawerPreset = drawerPreset,
+                activeLabel = activeLabel,
+                bookmarkCounts = bookmarkCounts,
+                labelsWithCounts = labelsWithCounts,
+                isOnline = isOnline,
                 onClickMyList = {
                     bookmarkListViewModel.onClickMyList()
                     scope.launch { drawerState.close() }
@@ -204,4 +298,300 @@ fun AppShell(
             }
         }
     }
+}
+
+@SuppressLint("WrongStartDestinationType")
+@Composable
+private fun MediumAppShell(
+    navController: NavHostController,
+    settingsDataStore: SettingsDataStore?,
+    bookmarkListViewModel: BookmarkListViewModel,
+    drawerPreset: com.mydeck.app.domain.model.DrawerPreset,
+    activeLabel: String?,
+    hideNavigation: Boolean,
+) {
+    LaunchedEffect(Unit) {
+        bookmarkListViewModel.navigationEvent.collectLatest { event ->
+            when (event) {
+                is BookmarkListViewModel.NavigationEvent.NavigateToSettings -> {
+                    navController.navigate(SettingsRoute) { launchSingleTop = true }
+                }
+
+                is BookmarkListViewModel.NavigationEvent.NavigateToAbout -> {
+                    navController.navigate(AboutRoute) { launchSingleTop = true }
+                }
+
+                is BookmarkListViewModel.NavigationEvent.NavigateToBookmarkDetail -> {
+                    navController.navigate(
+                        BookmarkDetailRoute(event.bookmarkId, event.showOriginal)
+                    )
+                }
+            }
+        }
+    }
+
+    fun navigateToListAndApply(action: () -> Unit) {
+        val currentRoute = navController.currentBackStackEntry?.destination?.route
+        if (currentRoute?.startsWith(BookmarkListRoute::class.qualifiedName ?: "") != true) {
+            navController.navigate(BookmarkListRoute()) {
+                popUpTo(BookmarkListRoute()) { inclusive = true }
+                launchSingleTop = true
+            }
+        }
+        action()
+    }
+
+    CompositionLocalProvider(LocalIsWideLayout provides true) {
+    Row(modifier = Modifier.fillMaxSize()) {
+        AnimatedVisibility(
+            visible = !hideNavigation,
+            enter = expandHorizontally(
+                animationSpec = tween(300),
+                expandFrom = Alignment.Start
+            ),
+            exit = shrinkHorizontally(
+                animationSpec = tween(300),
+                shrinkTowards = Alignment.Start
+            )
+        ) {
+            androidx.compose.foundation.layout.Column(
+                modifier = Modifier
+                    .fillMaxHeight()
+                    .verticalScroll(rememberScrollState())
+            ) {
+                AppNavigationRailContent(
+                    drawerPreset = drawerPreset,
+                    activeLabel = activeLabel,
+                    onClickMyList = { navigateToListAndApply { bookmarkListViewModel.onClickMyList() } },
+                    onClickArchive = { navigateToListAndApply { bookmarkListViewModel.onClickArchive() } },
+                    onClickFavorite = { navigateToListAndApply { bookmarkListViewModel.onClickFavorite() } },
+                    onClickArticles = { navigateToListAndApply { bookmarkListViewModel.onClickArticles() } },
+                    onClickVideos = { navigateToListAndApply { bookmarkListViewModel.onClickVideos() } },
+                    onClickPictures = { navigateToListAndApply { bookmarkListViewModel.onClickPictures() } },
+                    onClickLabels = { navigateToListAndApply { bookmarkListViewModel.onOpenLabelsSheet() } },
+                    onClickSettings = { bookmarkListViewModel.onClickSettings() },
+                    onClickAbout = { bookmarkListViewModel.onClickAbout() },
+                )
+            }
+        }
+
+        // Persistent themed Surface prevents white flash between screen transitions
+        Surface(
+            modifier = Modifier.weight(1f).fillMaxSize(),
+            color = MaterialTheme.colorScheme.background,
+        ) {
+            // Determine start destination based on auth state
+            val token = settingsDataStore?.tokenFlow?.collectAsState()?.value
+            val startDestination: Any = if (token.isNullOrBlank()) {
+                WelcomeRoute
+            } else {
+                BookmarkListRoute()
+            }
+
+            NavHost(
+                navController = navController,
+                startDestination = startDestination,
+                enterTransition = {
+                    slideInHorizontally(animationSpec = tween(300)) { it } +
+                        fadeIn(animationSpec = tween(300))
+                },
+                exitTransition = {
+                    slideOutHorizontally(animationSpec = tween(300)) { -it } +
+                        fadeOut(animationSpec = tween(300))
+                },
+                popEnterTransition = {
+                    slideInHorizontally(animationSpec = tween(300)) { -it } +
+                        fadeIn(animationSpec = tween(300))
+                },
+                popExitTransition = {
+                    slideOutHorizontally(animationSpec = tween(300)) { it } +
+                        fadeOut(animationSpec = tween(300))
+                },
+            ) {
+                composable<BookmarkListRoute> {
+                    BookmarkListScreen(
+                        navController,
+                        bookmarkListViewModel,
+                        drawerState = rememberDrawerState(DrawerValue.Closed),
+                        showNavigationIcon = false,
+                    )
+                }
+                composable<SettingsRoute> { SettingsScreen(navController, showBackButton = false) }
+                composable<WelcomeRoute> { WelcomeScreen(navController) }
+                composable<AccountSettingsRoute> { AccountSettingsScreen(navController) }
+                composable<BookmarkDetailRoute> { backStackEntry ->
+                    val route = backStackEntry.toRoute<BookmarkDetailRoute>()
+                    BookmarkDetailScreen(
+                        navController,
+                        route.bookmarkId,
+                        showOriginal = route.showOriginal
+                    )
+                }
+                composable<OpenSourceLibrariesRoute> {
+                    OpenSourceLibrariesScreen(navHostController = navController)
+                }
+                composable<LogViewRoute> {
+                    LogViewScreen(navController = navController)
+                }
+                composable<SyncSettingsRoute> {
+                    SyncSettingsScreen(navHostController = navController)
+                }
+                composable<UiSettingsRoute> {
+                    UiSettingsScreen(navHostController = navController)
+                }
+                composable<AboutRoute> {
+                    AboutScreen(navHostController = navController, showBackButton = false)
+                }
+            }
+        }
+    }
+    } // end CompositionLocalProvider
+}
+
+@SuppressLint("WrongStartDestinationType")
+@Composable
+private fun ExpandedAppShell(
+    navController: NavHostController,
+    settingsDataStore: SettingsDataStore?,
+    bookmarkListViewModel: BookmarkListViewModel,
+    drawerPreset: com.mydeck.app.domain.model.DrawerPreset,
+    activeLabel: String?,
+    bookmarkCounts: com.mydeck.app.domain.model.BookmarkCounts,
+    labelsWithCounts: Map<String, Int>,
+    isOnline: Boolean,
+    hideNavigation: Boolean,
+) {
+    LaunchedEffect(Unit) {
+        bookmarkListViewModel.navigationEvent.collectLatest { event ->
+            when (event) {
+                is BookmarkListViewModel.NavigationEvent.NavigateToSettings -> {
+                    navController.navigate(SettingsRoute) { launchSingleTop = true }
+                }
+
+                is BookmarkListViewModel.NavigationEvent.NavigateToAbout -> {
+                    navController.navigate(AboutRoute) { launchSingleTop = true }
+                }
+
+                is BookmarkListViewModel.NavigationEvent.NavigateToBookmarkDetail -> {
+                    navController.navigate(
+                        BookmarkDetailRoute(event.bookmarkId, event.showOriginal)
+                    )
+                }
+            }
+        }
+    }
+
+    fun navigateToListAndApply(action: () -> Unit) {
+        val currentRoute = navController.currentBackStackEntry?.destination?.route
+        if (currentRoute?.startsWith(BookmarkListRoute::class.qualifiedName ?: "") != true) {
+            navController.navigate(BookmarkListRoute()) {
+                popUpTo(BookmarkListRoute()) { inclusive = true }
+                launchSingleTop = true
+            }
+        }
+        action()
+    }
+
+    CompositionLocalProvider(LocalIsWideLayout provides true) {
+    Row(modifier = Modifier.fillMaxSize()) {
+        AnimatedVisibility(
+            visible = !hideNavigation,
+            enter = expandHorizontally(
+                animationSpec = tween(300),
+                expandFrom = Alignment.Start
+            ),
+            exit = shrinkHorizontally(
+                animationSpec = tween(300),
+                shrinkTowards = Alignment.Start
+            )
+        ) {
+            AppDrawerContent(
+                usePermanentSheet = true,
+                drawerPreset = drawerPreset,
+                activeLabel = activeLabel,
+                bookmarkCounts = bookmarkCounts,
+                labelsWithCounts = labelsWithCounts,
+                isOnline = isOnline,
+                onClickMyList = { navigateToListAndApply { bookmarkListViewModel.onClickMyList() } },
+                onClickArchive = { navigateToListAndApply { bookmarkListViewModel.onClickArchive() } },
+                onClickFavorite = { navigateToListAndApply { bookmarkListViewModel.onClickFavorite() } },
+                onClickArticles = { navigateToListAndApply { bookmarkListViewModel.onClickArticles() } },
+                onClickVideos = { navigateToListAndApply { bookmarkListViewModel.onClickVideos() } },
+                onClickPictures = { navigateToListAndApply { bookmarkListViewModel.onClickPictures() } },
+                onClickLabels = { navigateToListAndApply { bookmarkListViewModel.onOpenLabelsSheet() } },
+                onClickSettings = { bookmarkListViewModel.onClickSettings() },
+                onClickAbout = { bookmarkListViewModel.onClickAbout() },
+            )
+        }
+
+        Surface(
+            modifier = Modifier.weight(1f).fillMaxSize(),
+            color = MaterialTheme.colorScheme.background,
+        ) {
+            // Determine start destination based on auth state
+            val token = settingsDataStore?.tokenFlow?.collectAsState()?.value
+            val startDestination: Any = if (token.isNullOrBlank()) {
+                WelcomeRoute
+            } else {
+                BookmarkListRoute()
+            }
+
+            NavHost(
+                navController = navController,
+                startDestination = startDestination,
+                enterTransition = {
+                    slideInHorizontally(animationSpec = tween(300)) { it } +
+                        fadeIn(animationSpec = tween(300))
+                },
+                exitTransition = {
+                    slideOutHorizontally(animationSpec = tween(300)) { -it } +
+                        fadeOut(animationSpec = tween(300))
+                },
+                popEnterTransition = {
+                    slideInHorizontally(animationSpec = tween(300)) { -it } +
+                        fadeIn(animationSpec = tween(300))
+                },
+                popExitTransition = {
+                    slideOutHorizontally(animationSpec = tween(300)) { it } +
+                        fadeOut(animationSpec = tween(300))
+                },
+            ) {
+                composable<BookmarkListRoute> {
+                    BookmarkListScreen(
+                        navController,
+                        bookmarkListViewModel,
+                        drawerState = rememberDrawerState(DrawerValue.Closed),
+                        showNavigationIcon = false,
+                    )
+                }
+                composable<SettingsRoute> { SettingsScreen(navController, showBackButton = false) }
+                composable<WelcomeRoute> { WelcomeScreen(navController) }
+                composable<AccountSettingsRoute> { AccountSettingsScreen(navController) }
+                composable<BookmarkDetailRoute> { backStackEntry ->
+                    val route = backStackEntry.toRoute<BookmarkDetailRoute>()
+                    BookmarkDetailScreen(
+                        navController,
+                        route.bookmarkId,
+                        showOriginal = route.showOriginal
+                    )
+                }
+                composable<OpenSourceLibrariesRoute> {
+                    OpenSourceLibrariesScreen(navHostController = navController)
+                }
+                composable<LogViewRoute> {
+                    LogViewScreen(navController = navController)
+                }
+                composable<SyncSettingsRoute> {
+                    SyncSettingsScreen(navHostController = navController)
+                }
+                composable<UiSettingsRoute> {
+                    UiSettingsScreen(navHostController = navController)
+                }
+                composable<AboutRoute> {
+                    AboutScreen(navHostController = navController, showBackButton = false)
+                }
+            }
+        }
+    }
+    } // end CompositionLocalProvider
 }

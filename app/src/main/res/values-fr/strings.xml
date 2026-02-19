@@ -170,4 +170,5 @@
     <string name="layout">Layout</string>
     <string name="ui_settings_sepia_title">Thème de lecture sépia</string>
     <string name="ui_settings_sepia_description">Utiliser des couleurs chaudes pour la lecture en mode clair</string>
+    <string name="select_bookmark">Select a bookmark to read</string>
 </resources>

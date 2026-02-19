@@ -1,6 +1,10 @@
 package com.mydeck.app.ui.theme
 
+import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+
+val LocalReaderMaxWidth = compositionLocalOf { Dp.Unspecified }
 
 object Dimens {
     // Spacing
@@ -19,4 +23,8 @@ object Dimens {
     // Corner radius
     val CornerRadiusCard = 12.dp
     val CornerRadiusSheet = 28.dp
+
+    // Reader max widths
+    val ReaderMaxWidthMedium = 720.dp
+    val ReaderMaxWidthExpanded = 840.dp
 }

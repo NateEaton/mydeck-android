@@ -42,7 +42,7 @@ import java.util.Date
 import java.util.Locale
 
 @Composable
-fun AboutScreen(navHostController: NavHostController) {
+fun AboutScreen(navHostController: NavHostController, showBackButton: Boolean = true) {
     val viewModel: AboutViewModel = hiltViewModel()
     val navigationEvent = viewModel.navigationEvent.collectAsState()
 
@@ -64,7 +64,8 @@ fun AboutScreen(navHostController: NavHostController) {
     AboutScreenContent(
         onBackClick = { viewModel.onClickBack() },
         onOpenSourceLibrariesClick = { viewModel.onClickOpenSourceLibraries() },
-        onUrlClick = { url -> openUrlInCustomTab(context, url) }
+        onUrlClick = { url -> openUrlInCustomTab(context, url) },
+        showBackButton = showBackButton,
     )
 }
 
@@ -73,18 +74,21 @@ fun AboutScreen(navHostController: NavHostController) {
 fun AboutScreenContent(
     onBackClick: () -> Unit,
     onOpenSourceLibrariesClick: () -> Unit,
-    onUrlClick: (String) -> Unit
+    onUrlClick: (String) -> Unit,
+    showBackButton: Boolean = true,
 ) {
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.about_title)) },
                 navigationIcon = {
-                    IconButton(onClick = onBackClick) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(R.string.back)
-                        )
+                    if (showBackButton) {
+                        IconButton(onClick = onBackClick) {
+                            Icon(
+                                Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = stringResource(R.string.back)
+                            )
+                        }
                     }
                 }
             )

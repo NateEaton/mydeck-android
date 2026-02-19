@@ -237,4 +237,5 @@ other{}
     <string name="layout">Layout</string>
     <string name="ui_settings_sepia_title">Tema de lectura sepia</string>
     <string name="ui_settings_sepia_description">Usar cores quentes para a lectura no modo claro</string>
+    <string name="select_bookmark">Select a bookmark to read</string>
 </resources>

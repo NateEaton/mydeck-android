@@ -81,6 +81,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.mydeck.app.ui.theme.Dimens
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
@@ -102,6 +103,19 @@ import com.mydeck.app.ui.detail.components.*
 @Composable
 fun BookmarkDetailScreen(navHostController: NavController, bookmarkId: String?, showOriginal: Boolean = false) {
     val viewModel: BookmarkDetailViewModel = hiltViewModel()
+    BookmarkDetailHost(
+        viewModel = viewModel,
+        showOriginal = showOriginal,
+        onNavigateBack = { navHostController.popBackStack() }
+    )
+}
+
+@Composable
+fun BookmarkDetailHost(
+    viewModel: BookmarkDetailViewModel,
+    showOriginal: Boolean,
+    onNavigateBack: () -> Unit
+) {
     val onClickBack: () -> Unit = { viewModel.onClickBack() }
     val onClickToggleFavorite: (String, Boolean) -> Unit =
         { id, isFavorite -> viewModel.onToggleFavorite(id, isFavorite) }
@@ -151,7 +165,7 @@ fun BookmarkDetailScreen(navHostController: NavController, bookmarkId: String?, 
     val onArticleSearchPrevious = { viewModel.onArticleSearchPrevious() }
     val onArticleSearchUpdateResults = { totalMatches: Int -> viewModel.onArticleSearchUpdateResults(totalMatches) }
 
-    DisposableEffect(lifecycleOwner, bookmarkId) {
+    DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_STOP) {
                 val state = viewModel.uiState.value
@@ -173,7 +187,7 @@ fun BookmarkDetailScreen(navHostController: NavController, bookmarkId: String?, 
         viewModel.navigationEvent.collectLatest { event ->
             when (event) {
                 is BookmarkDetailViewModel.NavigationEvent.NavigateBack -> {
-                    navHostController.popBackStack()
+                    onNavigateBack()
                 }
             }
         }
@@ -292,7 +306,6 @@ fun BookmarkDetailScreen(navHostController: NavController, bookmarkId: String?, 
             BookmarkDetailErrorScreen()
         }
     }
-
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -351,18 +364,23 @@ fun BookmarkDetailScreen(
             )
         }
     ) { padding ->
-        BookmarkDetailContent(
-            modifier = Modifier.padding(padding),
-            uiState = uiState,
-            onClickOpenUrl = onClickOpenUrl,
-            onScrollProgressChanged = onScrollProgressChanged,
-            initialReadProgress = initialReadProgress,
-            contentMode = contentMode,
-            contentLoadState = contentLoadState,
-            articleSearchState = articleSearchState,
-            onArticleSearchUpdateResults = onArticleSearchUpdateResults,
-            onTitleChanged = onTitleChanged
-        )
+        Box(
+            modifier = Modifier.fillMaxSize().padding(padding),
+            contentAlignment = Alignment.TopCenter
+        ) {
+            BookmarkDetailContent(
+                modifier = Modifier,
+                uiState = uiState,
+                onClickOpenUrl = onClickOpenUrl,
+                onScrollProgressChanged = onScrollProgressChanged,
+                initialReadProgress = initialReadProgress,
+                contentMode = contentMode,
+                contentLoadState = contentLoadState,
+                articleSearchState = articleSearchState,
+                onArticleSearchUpdateResults = onArticleSearchUpdateResults,
+                onTitleChanged = onTitleChanged
+            )
+        }
     }
 }
 
@@ -432,12 +450,12 @@ fun BookmarkDetailContent(
                     .alpha(if (hasRestoredPosition) 1f else 0f),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                val headerWidthModifier = when (uiState.typographySettings.textWidth) {
-                    TextWidth.WIDE -> Modifier.fillMaxWidth(0.9f)
-                    TextWidth.NARROW -> Modifier.fillMaxWidth(0.75f)
+                val contentWidthFraction = when (uiState.typographySettings.textWidth) {
+                    TextWidth.WIDE -> 0.9f
+                    TextWidth.NARROW -> 0.8f
                 }
                 BookmarkDetailHeader(
-                    modifier = headerWidthModifier,
+                    modifier = Modifier.fillMaxWidth(contentWidthFraction),
                     uiState = uiState,
                     onClickOpenUrl = onClickOpenUrl,
                     onTitleChanged = onTitleChanged
@@ -446,7 +464,7 @@ fun BookmarkDetailContent(
                 val hasContent = uiState.bookmark.hasContent
                 if (hasContent) {
                     BookmarkDetailArticle(
-                        modifier = Modifier,
+                        modifier = Modifier.fillMaxWidth(contentWidthFraction),
                         uiState = uiState,
                         articleSearchState = articleSearchState,
                         onArticleSearchUpdateResults = onArticleSearchUpdateResults
