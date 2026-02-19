@@ -4,7 +4,9 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.width
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarData
@@ -33,7 +35,7 @@ fun TimedDeleteSnackbar(snackbarData: SnackbarData) {
         snackbarData.dismiss()
     }
 
-    Box {
+    Box(modifier = Modifier.width(IntrinsicSize.Min)) {
         Snackbar(snackbarData = snackbarData)
         LinearProgressIndicator(
             progress = { progress.value },
