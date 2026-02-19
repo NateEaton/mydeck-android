@@ -37,13 +37,15 @@ class CreateBookmarkWorkerTest {
         url: String? = "https://example.com",
         title: String? = "Test Title",
         labels: Array<String>? = arrayOf("label1", "label2"),
-        isArchived: Boolean = false
+        isArchived: Boolean = false,
+        isFavorite: Boolean = false
     ): Data {
         val data = mockk<Data>()
         every { data.getString(CreateBookmarkWorker.PARAM_URL) } returns url
         every { data.getString(CreateBookmarkWorker.PARAM_TITLE) } returns title
         every { data.getStringArray(CreateBookmarkWorker.PARAM_LABELS) } returns labels
         every { data.getBoolean(CreateBookmarkWorker.PARAM_IS_ARCHIVED, false) } returns isArchived
+        every { data.getBoolean(CreateBookmarkWorker.PARAM_IS_FAVORITE, false) } returns isFavorite
         return data
     }
 
@@ -94,12 +96,31 @@ class CreateBookmarkWorkerTest {
         val inputData = createInputData(isArchived = true)
         val worker = createWorker(inputData)
         coEvery { bookmarkRepository.createBookmark(any(), any(), any()) } returns "bookmark-123"
+        coEvery { bookmarkRepository.getBookmarkById(any()) } returns mockk(relaxed = true) {
+            every { state } returns com.mydeck.app.domain.model.Bookmark.State.LOADED
+        }
         coEvery { bookmarkRepository.updateBookmark(any(), any(), any(), any()) } returns BookmarkRepository.UpdateResult.Success
 
         val result = worker.doWork()
 
         assert(result is ListenableWorker.Result.Success)
         coVerify { bookmarkRepository.updateBookmark("bookmark-123", null, true, null) }
+    }
+
+    @Test
+    fun `doWork marks bookmark as favorite when isFavorite is true`() = runTest {
+        val inputData = createInputData(isFavorite = true)
+        val worker = createWorker(inputData)
+        coEvery { bookmarkRepository.createBookmark(any(), any(), any()) } returns "bookmark-123"
+        coEvery { bookmarkRepository.getBookmarkById(any()) } returns mockk(relaxed = true) {
+            every { state } returns com.mydeck.app.domain.model.Bookmark.State.LOADED
+        }
+        coEvery { bookmarkRepository.updateBookmark(any(), any(), any(), any()) } returns BookmarkRepository.UpdateResult.Success
+
+        val result = worker.doWork()
+
+        assert(result is ListenableWorker.Result.Success)
+        coVerify { bookmarkRepository.updateBookmark("bookmark-123", true, null, null) }
     }
 
     @Test
