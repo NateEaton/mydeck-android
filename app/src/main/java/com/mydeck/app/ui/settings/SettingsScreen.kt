@@ -126,7 +126,7 @@ fun SettingScreenView(
                 onClick = onClickAccount,
                 testTag = SettingsScreenTestTags.SETTINGS_ITEM_ACCOUNT
             )
-            HorizontalDivider()
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
             SettingItem(
                 icon = Icons.Filled.Sync,
                 title = stringResource(R.string.settings_sync),
@@ -134,7 +134,7 @@ fun SettingScreenView(
                 onClick = onClickSync,
                 testTag = SettingsScreenTestTags.SETTINGS_ITEM_SYNC
             )
-            HorizontalDivider()
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
             SettingItem(
                 icon = Icons.Filled.Visibility,
                 title = stringResource(R.string.settings_ui),
@@ -142,7 +142,7 @@ fun SettingScreenView(
                 onClick = onClickUi,
                 testTag = SettingsScreenTestTags.SETTINGS_ITEM_UI
             )
-            HorizontalDivider()
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
             SettingItem(
                 icon = Icons.Filled.Info,
                 title = stringResource(R.string.settings_logs),

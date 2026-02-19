@@ -81,10 +81,6 @@ fun AppDrawerContent(
                     )
                 }
             }
-            HorizontalDivider(
-                modifier = Modifier.fillMaxWidth(),
-                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-            )
             NavigationDrawerItem(
                 label = { Text(
                     style = MaterialTheme.typography.bodyLarge,
@@ -125,10 +121,6 @@ fun AppDrawerContent(
                 },
                 selected = !isLabelMode && drawerPreset == DrawerPreset.ARCHIVE,
                 onClick = onClickArchive
-            )
-            HorizontalDivider(
-                modifier = Modifier.fillMaxWidth(),
-                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
             )
             NavigationDrawerItem(
                 label = { Text(

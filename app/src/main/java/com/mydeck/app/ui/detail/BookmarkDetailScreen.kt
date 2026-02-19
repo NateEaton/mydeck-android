@@ -91,6 +91,7 @@ import com.mydeck.app.domain.model.Template
 import com.mydeck.app.domain.model.TextWidth
 import com.mydeck.app.util.openUrlInCustomTab
 import com.mydeck.app.ui.components.ShareBookmarkChooser
+import com.mydeck.app.ui.components.TimedDeleteSnackbar
 import com.mydeck.app.ui.detail.BookmarkDetailViewModel.ContentLoadState
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.Dispatchers
@@ -125,7 +126,7 @@ fun BookmarkDetailScreen(navHostController: NavController, bookmarkId: String?, 
             val result = snackbarHostState.showSnackbar(
                 message = "Bookmark deleted",
                 actionLabel = "UNDO",
-                duration = SnackbarDuration.Long
+                duration = SnackbarDuration.Indefinite
             )
             if (result == SnackbarResult.ActionPerformed) {
                 viewModel.onCancelDeleteBookmark()
@@ -325,7 +326,7 @@ fun BookmarkDetailScreen(
     onTitleChanged: ((String) -> Unit)? = null
 ) {
     Scaffold(
-        snackbarHost = { SnackbarHost(snackbarHostState) },
+        snackbarHost = { SnackbarHost(snackbarHostState) { data -> TimedDeleteSnackbar(data) } },
         modifier = modifier,
         topBar = {
             BookmarkDetailTopBar(

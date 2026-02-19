@@ -1,6 +1,5 @@
 package com.mydeck.app.ui.settings
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -19,9 +18,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -187,28 +185,20 @@ fun SyncSettingsView(
                 style = MaterialTheme.typography.titleMedium
             )
 
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
-                )
+            Column(
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    BookmarkSyncSection(
-                        frequency = settingsUiState.bookmarkSyncFrequency,
-                        nextRun = settingsUiState.nextAutoSyncRun,
-                        isSyncRunning = settingsUiState.isBookmarkSyncRunning,
-                        onClickFrequency = onClickBookmarkSyncFrequency,
-                        onClickSyncBookmarksNow = onClickSyncBookmarksNow
-                    )
-                }
+                BookmarkSyncSection(
+                    frequency = settingsUiState.bookmarkSyncFrequency,
+                    nextRun = settingsUiState.nextAutoSyncRun,
+                    isSyncRunning = settingsUiState.isBookmarkSyncRunning,
+                    onClickFrequency = onClickBookmarkSyncFrequency,
+                    onClickSyncBookmarksNow = onClickSyncBookmarksNow
+                )
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
 
             // --- Section 2: Content Sync (with Constraints) ---
             Text(
@@ -216,56 +206,48 @@ fun SyncSettingsView(
                 style = MaterialTheme.typography.titleMedium
             )
 
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
-                )
+            Column(
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    // Content Sync Mode
-                    Text(
-                        text = "Content Sync Mode",
-                        style = MaterialTheme.typography.titleSmall,
-                        color = MaterialTheme.colorScheme.primary
-                    )
+                // Content Sync Mode
+                Text(
+                    text = "Content Sync Mode",
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.primary
+                )
 
-                    ContentSyncSection(
-                        contentSyncMode = settingsUiState.contentSyncMode,
-                        dateRangePreset = settingsUiState.dateRangePreset,
-                        dateRangeFrom = settingsUiState.dateRangeFrom,
-                        dateRangeTo = settingsUiState.dateRangeTo,
-                        isDateRangeDownloading = settingsUiState.isDateRangeDownloading,
-                        onContentSyncModeSelected = onContentSyncModeSelected,
-                        onDateRangePresetSelected = onDateRangePresetSelected,
-                        onClickDateFrom = onClickDateFrom,
-                        onClickDateTo = onClickDateTo,
-                        onClickDateRangeDownload = onClickDateRangeDownload
-                    )
+                ContentSyncSection(
+                    contentSyncMode = settingsUiState.contentSyncMode,
+                    dateRangePreset = settingsUiState.dateRangePreset,
+                    dateRangeFrom = settingsUiState.dateRangeFrom,
+                    dateRangeTo = settingsUiState.dateRangeTo,
+                    isDateRangeDownloading = settingsUiState.isDateRangeDownloading,
+                    onContentSyncModeSelected = onContentSyncModeSelected,
+                    onDateRangePresetSelected = onDateRangePresetSelected,
+                    onClickDateFrom = onClickDateFrom,
+                    onClickDateTo = onClickDateTo,
+                    onClickDateRangeDownload = onClickDateRangeDownload
+                )
 
-                    Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(4.dp))
 
-                    // Constraints heading
-                    Text(
-                        text = stringResource(R.string.sync_constraints_section_title),
-                        style = MaterialTheme.typography.titleSmall,
-                        color = MaterialTheme.colorScheme.primary
-                    )
+                // Constraints heading
+                Text(
+                    text = stringResource(R.string.sync_constraints_section_title),
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.primary
+                )
 
-                    ConstraintsSection(
-                        wifiOnly = settingsUiState.wifiOnly,
-                        allowBatterySaver = settingsUiState.allowBatterySaver,
-                        onWifiOnlyChanged = onWifiOnlyChanged,
-                        onAllowBatterySaverChanged = onAllowBatterySaverChanged
-                    )
-                }
+                ConstraintsSection(
+                    wifiOnly = settingsUiState.wifiOnly,
+                    allowBatterySaver = settingsUiState.allowBatterySaver,
+                    onWifiOnlyChanged = onWifiOnlyChanged,
+                    onAllowBatterySaverChanged = onAllowBatterySaverChanged
+                )
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
 
             // --- Section 3: Sync Status ---
             Text(
@@ -578,17 +560,10 @@ private fun ConstraintsSection(
 // --- Section 4: Sync Status ---
 @Composable
 private fun SyncStatusSection(syncStatus: SyncStatus) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
-        )
+    Column(
+        modifier = Modifier.padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp)
-        ) {
             // Bookmark counts
             Text(
                 text = stringResource(R.string.sync_status_bookmarks_heading),
@@ -653,7 +628,6 @@ private fun SyncStatusSection(syncStatus: SyncStatus) {
                 )
             }
         }
-    }
 }
 
 // --- Date Picker Dialog ---

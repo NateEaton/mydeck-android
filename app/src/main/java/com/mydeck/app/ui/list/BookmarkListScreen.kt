@@ -3,9 +3,6 @@ package com.mydeck.app.ui.list
 
 
 
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -42,9 +39,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DrawerState
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Snackbar
-import androidx.compose.material3.SnackbarData
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -82,6 +77,7 @@ import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
@@ -98,9 +94,9 @@ import com.mydeck.app.domain.model.SortOption
 import com.mydeck.app.ui.components.FilterBar
 import com.mydeck.app.ui.components.FilterBottomSheet
 import com.mydeck.app.ui.components.ShareBookmarkChooser
+import com.mydeck.app.ui.components.TimedDeleteSnackbar
 import com.mydeck.app.ui.components.VerticalScrollbar
 import com.mydeck.app.util.openUrlInCustomTab
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.collectLatest
 import androidx.compose.foundation.lazy.LazyColumn
@@ -195,7 +191,15 @@ fun BookmarkListScreen(
     }
 
     Scaffold(
-        snackbarHost = { SnackbarHost(snackbarHostState) { data -> TimedDeleteSnackbar(data) } },
+        snackbarHost = {
+            SnackbarHost(snackbarHostState) { data ->
+                if (data.visuals.actionLabel != null) {
+                    TimedDeleteSnackbar(data)
+                } else {
+                    Snackbar(snackbarData = data)
+                }
+            }
+        },
         topBar = {
             TopAppBar(
                 title = {
@@ -248,7 +252,7 @@ fun BookmarkListScreen(
                                 Triple("Published", SortOption.PUBLISHED_NEWEST, SortOption.PUBLISHED_OLDEST),
                                 Triple("Title", SortOption.TITLE_A_TO_Z, SortOption.TITLE_Z_TO_A),
                                 Triple("Site Name", SortOption.SITE_A_TO_Z, SortOption.SITE_Z_TO_A),
-                                Triple("Duration", SortOption.DURATION_SHORTEST, SortOption.DURATION_LONGEST)
+                                Triple("Duration", SortOption.DURATION_LONGEST, SortOption.DURATION_SHORTEST)
                             )
                             sortGroups.forEach { (label, firstOption, secondOption) ->
                                 val isFirstSelected = sortOption.value == firstOption
@@ -271,7 +275,8 @@ fun BookmarkListScreen(
                                     text = {
                                         Text(
                                             text = label,
-                                            color = if (isGroupSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                                            color = if (isGroupSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                                            fontWeight = if (isGroupSelected) FontWeight.Bold else FontWeight.Normal
                                         )
                                     },
                                     onClick = {
@@ -725,30 +730,6 @@ fun BookmarkListView(
                 .fillMaxHeight(),
             lazyListState = lazyListState
         )
-    }
-}
-
-@Composable
-private fun TimedDeleteSnackbar(snackbarData: SnackbarData) {
-    val progress = remember { Animatable(1f) }
-
-    LaunchedEffect(snackbarData) {
-        launch {
-            progress.animateTo(
-                targetValue = 0f,
-                animationSpec = tween(durationMillis = 5000, easing = LinearEasing)
-            )
-        }
-        delay(5000L)
-        snackbarData.dismiss()
-    }
-
-    Column {
-        LinearProgressIndicator(
-            progress = { progress.value },
-            modifier = Modifier.fillMaxWidth()
-        )
-        Snackbar(snackbarData = snackbarData)
     }
 }
 
