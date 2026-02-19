@@ -1,5 +1,8 @@
 package com.mydeck.app.ui.list
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -16,6 +19,8 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.Icon
@@ -45,6 +50,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.input.pointer.pointerInput
 import com.mydeck.app.R
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 private const val AUTO_SAVE_SECONDS = 5
 
@@ -56,9 +62,11 @@ fun AddBookmarkSheet(
     urlError: Int?,
     isCreateEnabled: Boolean,
     labels: List<String>,
+    isFavorite: Boolean = false,
     onUrlChange: (String) -> Unit,
     onTitleChange: (String) -> Unit,
     onLabelsChange: (List<String>) -> Unit,
+    onFavoriteToggle: ((Boolean) -> Unit)? = null,
     onCreateBookmark: () -> Unit,
     mode: SheetMode = SheetMode.IN_APP,
     onAction: ((SaveAction) -> Unit)? = null,
@@ -68,12 +76,22 @@ fun AddBookmarkSheet(
     val keyboardController = LocalSoftwareKeyboardController.current
     val scrollState = rememberScrollState()
 
+    val autoSaveProgress = remember { Animatable(1f) }
     var autoSaveSecondsRemaining by remember { mutableIntStateOf(AUTO_SAVE_SECONDS) }
     var autoSaveCancelled by remember { mutableStateOf(false) }
 
-    // Auto-save timer for share intent mode
+    // Auto-save timer for share intent mode: smooth progress bar + integer countdown text
     if (mode == SheetMode.SHARE_INTENT && !autoSaveCancelled && urlError == null) {
         LaunchedEffect(Unit) {
+            launch {
+                autoSaveProgress.animateTo(
+                    targetValue = 0f,
+                    animationSpec = tween(
+                        durationMillis = AUTO_SAVE_SECONDS * 1000,
+                        easing = LinearEasing
+                    )
+                )
+            }
             while (autoSaveSecondsRemaining > 0) {
                 delay(1000L)
                 autoSaveSecondsRemaining--
@@ -134,7 +152,7 @@ fun AddBookmarkSheet(
         if (mode == SheetMode.SHARE_INTENT && !autoSaveCancelled && urlError == null) {
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 LinearProgressIndicator(
-                    progress = { autoSaveSecondsRemaining.toFloat() / AUTO_SAVE_SECONDS },
+                    progress = { autoSaveProgress.value },
                     modifier = Modifier.fillMaxWidth()
                 )
                 Text(
@@ -174,6 +192,7 @@ fun AddBookmarkSheet(
         CreateBookmarkLabelsSection(
             labels = labels,
             newLabelInput = newLabelInput,
+            isFavorite = isFavorite,
             onNewLabelChange = {
                 newLabelInput = it
                 cancelAutoSave()
@@ -193,7 +212,8 @@ fun AddBookmarkSheet(
             onRemoveLabel = { label ->
                 onLabelsChange(labels.filter { it != label })
                 cancelAutoSave()
-            }
+            },
+            onFavoriteToggle = { onFavoriteToggle?.invoke(it) }
         )
 
         Spacer(modifier = Modifier.size(4.dp))
@@ -257,10 +277,12 @@ private fun commitPendingLabels(
 private fun CreateBookmarkLabelsSection(
     labels: List<String>,
     newLabelInput: String,
+    isFavorite: Boolean = false,
     onNewLabelChange: (String) -> Unit,
     onFocusLabel: () -> Unit = {},
     onAddLabel: () -> Unit,
-    onRemoveLabel: (String) -> Unit
+    onRemoveLabel: (String) -> Unit,
+    onFavoriteToggle: (Boolean) -> Unit = {}
 ) {
     Column(
         modifier = Modifier.fillMaxWidth(),
@@ -287,18 +309,31 @@ private fun CreateBookmarkLabelsSection(
             }
         }
 
-        OutlinedTextField(
-            value = newLabelInput,
-            onValueChange = onNewLabelChange,
-            placeholder = { Text(stringResource(R.string.detail_label_placeholder)) },
-            modifier = Modifier
-                .fillMaxWidth()
-                .onFocusChanged { if (it.isFocused) onFocusLabel() },
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-            keyboardActions = KeyboardActions(onDone = { onAddLabel() }),
-            textStyle = MaterialTheme.typography.bodySmall
-        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            OutlinedTextField(
+                value = newLabelInput,
+                onValueChange = onNewLabelChange,
+                placeholder = { Text(stringResource(R.string.detail_label_placeholder)) },
+                modifier = Modifier
+                    .weight(1f)
+                    .onFocusChanged { if (it.isFocused) onFocusLabel() },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                keyboardActions = KeyboardActions(onDone = { onAddLabel() }),
+                textStyle = MaterialTheme.typography.bodySmall
+            )
+            IconButton(onClick = { onFavoriteToggle(!isFavorite) }) {
+                Icon(
+                    imageVector = if (isFavorite) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
+                    contentDescription = stringResource(R.string.action_favorite),
+                    tint = if (isFavorite) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
     }
 }
 

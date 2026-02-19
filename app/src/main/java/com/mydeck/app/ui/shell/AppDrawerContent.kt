@@ -12,7 +12,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CloudOff
-import androidx.compose.material.icons.filled.Grade
+import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.automirrored.outlined.Article
 import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material.icons.outlined.Info
@@ -124,9 +124,8 @@ private fun DrawerColumnContent(
             .padding(horizontal = 16.dp)
             .verticalScroll(rememberScrollState())
     ) {
-        Spacer(Modifier.height(28.dp))
         Row(
-            modifier = Modifier.padding(16.dp),
+            modifier = Modifier.padding(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
@@ -144,7 +143,7 @@ private fun DrawerColumnContent(
             }
         }
         HorizontalDivider(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.padding(vertical = 4.dp).fillMaxWidth(),
             color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
         )
         NavigationDrawerItem(
@@ -188,16 +187,12 @@ private fun DrawerColumnContent(
             selected = !isLabelMode && drawerPreset == DrawerPreset.ARCHIVE,
             onClick = onClickArchive
         )
-        HorizontalDivider(
-            modifier = Modifier.fillMaxWidth(),
-            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-        )
         NavigationDrawerItem(
             label = { Text(
                 style = MaterialTheme.typography.bodyLarge,
                 text = stringResource(id = R.string.favorites)
             ) },
-            icon = { Icon(imageVector = Icons.Filled.Grade, contentDescription = null) },
+            icon = { Icon(imageVector = Icons.Outlined.FavoriteBorder, contentDescription = null) },
             badge = {
                 bookmarkCounts.favorite.let { count ->
                     if (count > 0) {
@@ -214,7 +209,7 @@ private fun DrawerColumnContent(
             onClick = onClickFavorite
         )
         HorizontalDivider(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.padding(vertical = 4.dp).fillMaxWidth(),
             color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
         )
         NavigationDrawerItem(
@@ -281,7 +276,7 @@ private fun DrawerColumnContent(
             onClick = onClickPictures
         )
         HorizontalDivider(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.padding(vertical = 4.dp).fillMaxWidth(),
             color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
         )
         NavigationDrawerItem(
@@ -304,7 +299,7 @@ private fun DrawerColumnContent(
             onClick = onClickLabels
         )
         HorizontalDivider(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.padding(vertical = 4.dp).fillMaxWidth(),
             color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
         )
         NavigationDrawerItem(

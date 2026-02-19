@@ -4,7 +4,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Article
 import androidx.compose.material.icons.automirrored.outlined.Label
-import androidx.compose.material.icons.filled.Grade
+import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Inventory2
@@ -48,7 +48,7 @@ fun AppNavigationRailContent(
         NavigationRailItem(
             selected = !isLabelMode && drawerPreset == DrawerPreset.FAVORITES,
             onClick = onClickFavorite,
-            icon = { Icon(imageVector = Icons.Filled.Grade, contentDescription = null) }
+            icon = { Icon(imageVector = Icons.Outlined.FavoriteBorder, contentDescription = null) }
         )
         NavigationRailItem(
             selected = !isLabelMode && drawerPreset == DrawerPreset.ARTICLES,

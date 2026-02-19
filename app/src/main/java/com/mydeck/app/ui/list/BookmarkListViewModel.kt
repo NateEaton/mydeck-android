@@ -485,6 +485,14 @@ class BookmarkListViewModel @Inject constructor(
         }
     }
 
+    fun updateCreateBookmarkFavorite(isFavorite: Boolean) {
+        _createBookmarkUiState.update {
+            (it as? CreateBookmarkUiState.Open)?.copy(
+                isFavorite = isFavorite
+            ) ?: it
+        }
+    }
+
     fun createBookmark() {
         handleCreateBookmarkAction(SaveAction.ADD)
     }
@@ -494,6 +502,7 @@ class BookmarkListViewModel @Inject constructor(
         val url = state.url
         val title = state.title
         val labels = state.labels
+        val isFavorite = state.isFavorite
 
         when (action) {
             SaveAction.ADD -> {
@@ -502,7 +511,8 @@ class BookmarkListViewModel @Inject constructor(
                     url = url,
                     title = title,
                     labels = labels,
-                    isArchived = false
+                    isArchived = false,
+                    isFavorite = isFavorite
                 )
                 _createBookmarkUiState.value = CreateBookmarkUiState.Success
             }
@@ -512,7 +522,8 @@ class BookmarkListViewModel @Inject constructor(
                     url = url,
                     title = title,
                     labels = labels,
-                    isArchived = true
+                    isArchived = true,
+                    isFavorite = isFavorite
                 )
                 _createBookmarkUiState.value = CreateBookmarkUiState.Success
             }
@@ -595,7 +606,8 @@ class BookmarkListViewModel @Inject constructor(
             val url: String,
             val urlError: Int?,
             val isCreateEnabled: Boolean,
-            val labels: List<String> = emptyList()
+            val labels: List<String> = emptyList(),
+            val isFavorite: Boolean = false
         ) : CreateBookmarkUiState()
 
         data object Loading : CreateBookmarkUiState()

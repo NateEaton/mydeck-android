@@ -26,7 +26,6 @@ import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.outlined.FindInPage
-import androidx.compose.material.icons.filled.Grade
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Movie
@@ -37,7 +36,6 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.FormatSize
 import androidx.compose.material.icons.outlined.Description
-import androidx.compose.material.icons.outlined.Grade
 import androidx.compose.material.icons.outlined.Inventory2
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Share
@@ -94,6 +92,7 @@ import com.mydeck.app.domain.model.Template
 import com.mydeck.app.domain.model.TextWidth
 import com.mydeck.app.util.openUrlInCustomTab
 import com.mydeck.app.ui.components.ShareBookmarkChooser
+import com.mydeck.app.ui.components.TimedDeleteSnackbar
 import com.mydeck.app.ui.detail.BookmarkDetailViewModel.ContentLoadState
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.Dispatchers
@@ -141,7 +140,7 @@ fun BookmarkDetailHost(
             val result = snackbarHostState.showSnackbar(
                 message = "Bookmark deleted",
                 actionLabel = "UNDO",
-                duration = SnackbarDuration.Long
+                duration = SnackbarDuration.Indefinite
             )
             if (result == SnackbarResult.ActionPerformed) {
                 viewModel.onCancelDeleteBookmark()
@@ -340,7 +339,7 @@ fun BookmarkDetailScreen(
     onTitleChanged: ((String) -> Unit)? = null
 ) {
     Scaffold(
-        snackbarHost = { SnackbarHost(snackbarHostState) },
+        snackbarHost = { SnackbarHost(snackbarHostState) { data -> TimedDeleteSnackbar(data) } },
         modifier = modifier,
         topBar = {
             BookmarkDetailTopBar(
@@ -471,27 +470,18 @@ fun BookmarkDetailContent(
                         onArticleSearchUpdateResults = onArticleSearchUpdateResults
                     )
                 } else {
-                    // No content yet — show loading spinner while fetch is in progress.
-                    // Auto-switch to Original mode is handled by LaunchedEffect above
-                    // when the content load state transitions to Failed.
-                    when (contentLoadState) {
-                        is ContentLoadState.Loading -> {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(200.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                CircularProgressIndicator()
-                            }
-                        }
-                        else -> {
-                            // Brief fallback while auto-switch hasn't happened yet
-                            EmptyBookmarkDetailArticle(
-                                modifier = Modifier
-                            )
-                        }
-                    }
+                    // Brief fallback while auto-switch to Original hasn't happened yet
+                    EmptyBookmarkDetailArticle(modifier = Modifier)
+                }
+            }
+
+            // Full-screen loading overlay while article content is being fetched
+            if (!uiState.bookmark.hasContent && contentLoadState is ContentLoadState.Loading) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator()
                 }
             }
 

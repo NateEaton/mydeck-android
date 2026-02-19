@@ -91,7 +91,7 @@ other{}
     <string name="settings_ui_subtitle">Appearance</string>
     <string name="ui_settings_topbar_title">User Interface Settings</string>
     <string name="ui_settings_theme_title">Theme</string>
-    <string name="theme_system">System default</string>
+    <string name="theme_system">System</string>
     <string name="theme_light">Light</string>
     <string name="theme_dark">Dark</string>
     <string name="theme_sepia">Sepia</string>

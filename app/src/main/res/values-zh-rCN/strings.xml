@@ -79,7 +79,7 @@
     <string name="notification_authentication_error_title">需要验证</string>
     <string name="ui_settings_topbar_title">用户界面设置</string>
     <string name="ui_settings_theme_title">主题</string>
-    <string name="theme_system">系统默认</string>
+    <string name="theme_system">系统</string>
     <string name="theme_light">浅色</string>
     <string name="theme_dark">深色</string>
     <string name="ui_settings_theme_heading">主题设置</string>

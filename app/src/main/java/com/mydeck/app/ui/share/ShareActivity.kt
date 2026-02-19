@@ -94,8 +94,8 @@ class ShareActivity : ComponentActivity() {
                 ShareBookmarkContent(
                     initialUrl = sharedText.first,
                     initialTitle = sharedText.second,
-                    onAction = { action, url, title, labels ->
-                        handleAction(action, url, title, labels)
+                    onAction = { action, url, title, labels, isFavorite ->
+                        handleAction(action, url, title, labels, isFavorite)
                     },
                     onDismiss = { finish() }
                 )
@@ -123,7 +123,8 @@ class ShareActivity : ComponentActivity() {
         action: SaveAction,
         url: String,
         title: String,
-        labels: List<String>
+        labels: List<String>,
+        isFavorite: Boolean = false
     ) {
         when (action) {
             SaveAction.ADD -> {
@@ -132,7 +133,8 @@ class ShareActivity : ComponentActivity() {
                     url = url,
                     title = title,
                     labels = labels,
-                    isArchived = false
+                    isArchived = false,
+                    isFavorite = isFavorite
                 )
                 finish()
             }
@@ -142,17 +144,18 @@ class ShareActivity : ComponentActivity() {
                     url = url,
                     title = title,
                     labels = labels,
-                    isArchived = true
+                    isArchived = true,
+                    isFavorite = isFavorite
                 )
                 finish()
             }
             SaveAction.VIEW -> {
-                handleViewAction(url, title, labels)
+                handleViewAction(url, title, labels, isFavorite)
             }
         }
     }
 
-    private fun handleViewAction(url: String, title: String, labels: List<String>) {
+    private fun handleViewAction(url: String, title: String, labels: List<String>, isFavorite: Boolean = false) {
         CoroutineScope(Dispatchers.Main).launch {
             try {
                 val bookmarkId = bookmarkRepository.createBookmark(
@@ -163,7 +166,18 @@ class ShareActivity : ComponentActivity() {
 
                 // Wait for bookmark content to be ready before navigating,
                 // otherwise the detail screen shows Original mode with no article content.
+                // Also update isFavorite after LOADING completes, so pollForBookmarkReady()
+                // inside createBookmark doesn't overwrite the local flag.
                 waitForBookmarkReady(bookmarkId)
+
+                if (isFavorite) {
+                    bookmarkRepository.updateBookmark(
+                        bookmarkId = bookmarkId,
+                        isFavorite = true,
+                        isArchived = null,
+                        isRead = null
+                    )
+                }
 
                 val intent = Intent(this@ShareActivity, MainActivity::class.java).apply {
                     flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
@@ -207,12 +221,13 @@ class ShareActivity : ComponentActivity() {
 private fun ShareBookmarkContent(
     initialUrl: String,
     initialTitle: String,
-    onAction: (SaveAction, String, String, List<String>) -> Unit,
+    onAction: (SaveAction, String, String, List<String>, Boolean) -> Unit,
     onDismiss: () -> Unit
 ) {
     var url by remember { mutableStateOf(initialUrl) }
     var title by remember { mutableStateOf(initialTitle) }
     var labels by remember { mutableStateOf<List<String>>(emptyList()) }
+    var isFavorite by remember { mutableStateOf(false) }
     var isLoading by remember { mutableStateOf(false) }
 
     val urlError: Int? = if (!url.isValidUrl() && url.isNotEmpty()) {
@@ -242,16 +257,18 @@ private fun ShareBookmarkContent(
                 urlError = urlError,
                 isCreateEnabled = isCreateEnabled,
                 labels = labels,
+                isFavorite = isFavorite,
                 onUrlChange = { url = it },
                 onTitleChange = { title = it },
                 onLabelsChange = { labels = it },
+                onFavoriteToggle = { isFavorite = it },
                 onCreateBookmark = { },
                 mode = SheetMode.SHARE_INTENT,
                 onAction = { action ->
                     if (action == SaveAction.VIEW) {
                         isLoading = true
                     }
-                    onAction(action, url, title, labels)
+                    onAction(action, url, title, labels, isFavorite)
                 },
                 onInteraction = { }
             )
