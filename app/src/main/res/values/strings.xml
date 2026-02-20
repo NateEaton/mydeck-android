@@ -358,4 +358,21 @@ other{}
     <string name="sort">Sort</string>
     <string name="layout">Layout</string>
     <string name="select_bookmark">Select a bookmark to read</string>
+    <!-- Long-press accessibility label -->
+    <string name="long_press_for_options">Long press for options</string>
+    <!-- Label autocomplete -->
+    <string name="label_suggestion_hint">Suggestions</string>
+    <!-- Long-press body actions -->
+    <string name="action_copy_link">Copy Link Address</string>
+    <string name="action_copy_link_text">Copy Link Text</string>
+    <string name="action_share_link">Share Link</string>
+    <string name="link_copied">Link copied</string>
+    <string name="link_text_copied">Link text copied</string>
+    <!-- Long-press image actions -->
+    <string name="action_copy_image">Copy Image</string>
+    <string name="action_copy_image_url">Copy Image URL</string>
+    <string name="action_download_image">Download Image</string>
+    <string name="action_share_image">Share Image</string>
+    <string name="image_url_copied">Image URL copied</string>
+    <string name="download_started">Download started</string>
 </resources>

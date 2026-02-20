@@ -39,6 +39,7 @@ import com.mydeck.app.worker.CreateBookmarkWorker
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import timber.log.Timber
 import javax.inject.Inject
@@ -76,6 +77,7 @@ class ShareActivity : ComponentActivity() {
         setContent {
             val themeString = settingsDataStore.themeFlow
             val themeState = remember { mutableStateOf(Theme.SYSTEM) }
+            val existingLabels = remember { mutableStateOf<List<String>>(emptyList()) }
 
             LaunchedEffect(Unit) {
                 themeString.collect { value ->
@@ -83,6 +85,11 @@ class ShareActivity : ComponentActivity() {
                         try { Theme.valueOf(it) } catch (_: Exception) { Theme.SYSTEM }
                     } ?: Theme.SYSTEM
                 }
+            }
+
+            LaunchedEffect(Unit) {
+                val labelsMap = bookmarkRepository.observeAllLabelsWithCounts().first()
+                existingLabels.value = labelsMap.keys.toList()
             }
 
             val themeValue = when (themeState.value) {
@@ -94,6 +101,7 @@ class ShareActivity : ComponentActivity() {
                 ShareBookmarkContent(
                     initialUrl = sharedText.first,
                     initialTitle = sharedText.second,
+                    existingLabels = existingLabels.value,
                     onAction = { action, url, title, labels, isFavorite ->
                         handleAction(action, url, title, labels, isFavorite)
                     },
@@ -221,6 +229,7 @@ class ShareActivity : ComponentActivity() {
 private fun ShareBookmarkContent(
     initialUrl: String,
     initialTitle: String,
+    existingLabels: List<String> = emptyList(),
     onAction: (SaveAction, String, String, List<String>, Boolean) -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -258,6 +267,7 @@ private fun ShareBookmarkContent(
                 isCreateEnabled = isCreateEnabled,
                 labels = labels,
                 isFavorite = isFavorite,
+                existingLabels = existingLabels,
                 onUrlChange = { url = it },
                 onTitleChange = { title = it },
                 onLabelsChange = { labels = it },

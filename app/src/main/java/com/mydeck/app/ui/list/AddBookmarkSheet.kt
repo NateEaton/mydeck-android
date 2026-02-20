@@ -49,6 +49,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.input.pointer.pointerInput
 import com.mydeck.app.R
+import com.mydeck.app.ui.components.LabelAutocompleteTextField
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -63,6 +64,7 @@ fun AddBookmarkSheet(
     isCreateEnabled: Boolean,
     labels: List<String>,
     isFavorite: Boolean = false,
+    existingLabels: List<String> = emptyList(),
     onUrlChange: (String) -> Unit,
     onTitleChange: (String) -> Unit,
     onLabelsChange: (List<String>) -> Unit,
@@ -193,6 +195,7 @@ fun AddBookmarkSheet(
             labels = labels,
             newLabelInput = newLabelInput,
             isFavorite = isFavorite,
+            existingLabels = existingLabels,
             onNewLabelChange = {
                 newLabelInput = it
                 cancelAutoSave()
@@ -278,6 +281,7 @@ private fun CreateBookmarkLabelsSection(
     labels: List<String>,
     newLabelInput: String,
     isFavorite: Boolean = false,
+    existingLabels: List<String> = emptyList(),
     onNewLabelChange: (String) -> Unit,
     onFocusLabel: () -> Unit = {},
     onAddLabel: () -> Unit,
@@ -311,20 +315,22 @@ private fun CreateBookmarkLabelsSection(
 
         Row(
             modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
+            verticalAlignment = Alignment.Top,
             horizontalArrangement = Arrangement.spacedBy(4.dp)
         ) {
-            OutlinedTextField(
+            LabelAutocompleteTextField(
                 value = newLabelInput,
-                onValueChange = onNewLabelChange,
-                placeholder = { Text(stringResource(R.string.detail_label_placeholder)) },
-                modifier = Modifier
-                    .weight(1f)
-                    .onFocusChanged { if (it.isFocused) onFocusLabel() },
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                keyboardActions = KeyboardActions(onDone = { onAddLabel() }),
-                textStyle = MaterialTheme.typography.bodySmall
+                onValueChange = {
+                    onNewLabelChange(it)
+                    onFocusLabel()
+                },
+                onLabelSelected = { selected ->
+                    onNewLabelChange(selected.trim())
+                    onAddLabel()
+                },
+                existingLabels = existingLabels,
+                currentLabels = labels,
+                modifier = Modifier.weight(1f)
             )
             IconButton(onClick = { onFavoriteToggle(!isFavorite) }) {
                 Icon(

@@ -62,6 +62,7 @@ class BookmarkDetailViewModelTest {
         every { settingsDataStore.sepiaEnabledFlow } returns MutableStateFlow(false)
         every { settingsDataStore.zoomFactorFlow } returns MutableStateFlow(100)
         every { settingsDataStore.typographySettingsFlow } returns MutableStateFlow(com.mydeck.app.domain.model.TypographySettings())
+        every { bookmarkRepository.observeAllLabelsWithCounts() } returns MutableStateFlow(emptyMap())
         viewModel = BookmarkDetailViewModel(updateBookmarkUseCase, bookmarkRepository, assetLoader, settingsDataStore, loadArticleUseCase, savedStateHandle)
     }
 

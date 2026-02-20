@@ -171,4 +171,17 @@
     <string name="ui_settings_sepia_title">Motyw czytania sepii</string>
     <string name="ui_settings_sepia_description">Użyj ciepłych kolorów do czytania w trybie jasnym</string>
     <string name="select_bookmark">Select a bookmark to read</string>
+    <string name="long_press_for_options">Long press for options</string>
+    <string name="label_suggestion_hint">Suggestions</string>
+    <string name="action_copy_link">Copy Link Address</string>
+    <string name="action_copy_link_text">Copy Link Text</string>
+    <string name="action_share_link">Share Link</string>
+    <string name="link_copied">Link copied</string>
+    <string name="link_text_copied">Link text copied</string>
+    <string name="action_copy_image">Copy Image</string>
+    <string name="action_copy_image_url">Copy Image URL</string>
+    <string name="action_download_image">Download Image</string>
+    <string name="action_share_image">Share Image</string>
+    <string name="image_url_copied">Image URL copied</string>
+    <string name="download_started">Download started</string>
 </resources>

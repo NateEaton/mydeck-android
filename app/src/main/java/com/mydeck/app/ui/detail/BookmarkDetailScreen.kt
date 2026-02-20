@@ -130,6 +130,7 @@ fun BookmarkDetailHost(
     val uiState = viewModel.uiState.collectAsState().value
     val contentLoadState = viewModel.contentLoadState.collectAsState().value
     val articleSearchState = viewModel.articleSearchState.collectAsState().value
+    val labelsWithCounts = viewModel.labelsWithCounts.collectAsState().value
     var showDetailsDialog by remember { mutableStateOf(false) }
     var showTypographyPanel by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
@@ -279,7 +280,8 @@ fun BookmarkDetailHost(
                     onDismissRequest = { showDetailsDialog = false },
                     onLabelsUpdate = { newLabels ->
                         onUpdateLabels(uiState.bookmark.bookmarkId, newLabels)
-                    }
+                    },
+                    existingLabels = labelsWithCounts.keys.toList()
                 )
             }
             if (showTypographyPanel) {
