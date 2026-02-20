@@ -3,7 +3,6 @@
 .gradle
 /local.properties
 /.idea/
-.DS_Store
 /build
 /captures
 .externalNativeBuild
@@ -15,7 +14,13 @@ local.properties
 .attach_pid*
 app/backup-icons/
 .vscode/
+
+# Ignore transient files
+
 logs/
+*.txt
+*.diff
+*.sh
 
 # --- System / OS Files --- Ignore macOS and Windows specific files
 .DS_Store 
