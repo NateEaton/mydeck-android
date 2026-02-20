@@ -251,7 +251,7 @@ fun BookmarkMosaicCard(
                         .align(Alignment.BottomStart)
                         .fillMaxWidth()
                         .combinedClickable(
-                            onClick = {},
+                            onClick = { onClickCard(bookmark.id) },
                             onLongClick = { showBodyContextMenu = true },
                             onLongClickLabel = stringResource(R.string.long_press_for_options)
                         )
@@ -528,7 +528,7 @@ private fun BookmarkGridCardNarrow(
                         .width(100.dp)
                         .height(80.dp)
                         .combinedClickable(
-                            onClick = {},
+                            onClick = { onClickCard(bookmark.id) },
                             onLongClick = { showImageContextMenu = true },
                             onLongClickLabel = stringResource(R.string.long_press_for_options)
                         )
@@ -868,7 +868,7 @@ private fun BookmarkGridCardWide(
                     modifier = Modifier
                         .fillMaxSize()
                         .combinedClickable(
-                            onClick = {},
+                            onClick = { onClickCard(bookmark.id) },
                             onLongClick = { showImageContextMenu = true },
                             onLongClickLabel = stringResource(R.string.long_press_for_options)
                         )
