@@ -65,6 +65,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.mydeck.app.BuildConfig
 import com.mydeck.app.R
+import com.mydeck.app.ui.components.LabelAutocompleteTextField
 import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
@@ -72,7 +73,8 @@ import java.util.Locale
 fun BookmarkDetailsDialog(
     bookmark: BookmarkDetailViewModel.Bookmark,
     onDismissRequest: () -> Unit,
-    onLabelsUpdate: (List<String>) -> Unit = {}
+    onLabelsUpdate: (List<String>) -> Unit = {},
+    existingLabels: List<String> = emptyList()
 ) {
     var labels by remember { mutableStateOf(bookmark.labels.toMutableList()) }
     var newLabelInput by remember { mutableStateOf("") }
@@ -226,6 +228,7 @@ fun BookmarkDetailsDialog(
             LabelsSection(
                 labels = labels,
                 newLabelInput = newLabelInput,
+                existingLabels = existingLabels,
                 onNewLabelChange = { newLabelInput = it },
                 onAddLabel = {
                     if (newLabelInput.isNotBlank()) {
@@ -304,6 +307,7 @@ private fun MetadataFieldWithIcon(
 private fun LabelsSection(
     labels: List<String>,
     newLabelInput: String,
+    existingLabels: List<String> = emptyList(),
     onNewLabelChange: (String) -> Unit,
     onAddLabel: () -> Unit,
     onRemoveLabel: (String) -> Unit
@@ -335,17 +339,16 @@ private fun LabelsSection(
         }
 
         // Input field for new label
-        OutlinedTextField(
+        LabelAutocompleteTextField(
             value = newLabelInput,
             onValueChange = onNewLabelChange,
-            placeholder = { Text(stringResource(R.string.detail_label_placeholder)) },
-            modifier = Modifier.fillMaxWidth(),
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-            keyboardActions = KeyboardActions(
-                onDone = { onAddLabel() }
-            ),
-            textStyle = MaterialTheme.typography.bodySmall
+            onLabelSelected = { selected ->
+                onNewLabelChange(selected.trim())
+                onAddLabel()
+            },
+            existingLabels = existingLabels,
+            currentLabels = labels,
+            modifier = Modifier.fillMaxWidth()
         )
     }
 }

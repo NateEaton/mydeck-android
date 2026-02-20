@@ -179,6 +179,68 @@ fun BookmarkListScreen(
     }
 
     val context = LocalContext.current
+    val clipboardManager = LocalClipboardManager.current
+
+    val onClickCopyLink: (String) -> Unit = { url ->
+        clipboardManager.setText(androidx.compose.ui.text.AnnotatedString(url))
+        scope.launch {
+            snackbarHostState.showSnackbar(
+                message = context.getString(R.string.link_copied),
+                duration = SnackbarDuration.Short
+            )
+        }
+    }
+    val onClickShareLink: (String) -> Unit = { url ->
+        viewModel.onClickShareBookmark(url)
+    }
+    val onClickCopyImageUrl: (String) -> Unit = { imageUrl ->
+        clipboardManager.setText(androidx.compose.ui.text.AnnotatedString(imageUrl))
+        scope.launch {
+            snackbarHostState.showSnackbar(
+                message = context.getString(R.string.image_url_copied),
+                duration = SnackbarDuration.Short
+            )
+        }
+    }
+    val onClickDownloadImage: (String) -> Unit = { imageUrl ->
+        val request = android.app.DownloadManager.Request(
+            android.net.Uri.parse(imageUrl)
+        ).apply {
+            setNotificationVisibility(android.app.DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
+            setDestinationInExternalPublicDir(
+                android.os.Environment.DIRECTORY_DOWNLOADS,
+                imageUrl.substringAfterLast('/').ifBlank { "image" }
+            )
+        }
+        val dm = context.getSystemService(android.content.Context.DOWNLOAD_SERVICE) as android.app.DownloadManager
+        dm.enqueue(request)
+        scope.launch {
+            snackbarHostState.showSnackbar(
+                message = context.getString(R.string.download_started),
+                duration = SnackbarDuration.Short
+            )
+        }
+    }
+    val onClickShareImage: (String) -> Unit = { imageUrl ->
+        val intent = android.content.Intent().apply {
+            action = android.content.Intent.ACTION_SEND
+            putExtra(android.content.Intent.EXTRA_TEXT, imageUrl)
+            type = "text/plain"
+        }
+        context.startActivity(android.content.Intent.createChooser(intent, null))
+    }
+    val onClickCopyLinkText: (String) -> Unit = { text ->
+        clipboardManager.setText(androidx.compose.ui.text.AnnotatedString(text))
+        scope.launch {
+            snackbarHostState.showSnackbar(
+                message = context.getString(R.string.link_text_copied),
+                duration = SnackbarDuration.Short
+            )
+        }
+    }
+    val onClickOpenInBrowserFromMenu: (String) -> Unit = { url ->
+        viewModel.onClickOpenInBrowser(url)
+    }
     LaunchedEffect(Unit) {
           viewModel.openUrlEvent.collectLatest { url ->
               openUrlInCustomTab(context, url)
@@ -439,7 +501,14 @@ fun BookmarkListScreen(
                                 onClickShareBookmark = onClickShareBookmark,
                                 onClickLabel = { label -> viewModel.onClickLabel(label) },
                                 onClickOpenUrl = onClickOpenUrl,
-                                onClickOpenInBrowser = onClickOpenInBrowser
+                                onClickOpenInBrowser = onClickOpenInBrowser,
+                                onClickCopyLink = onClickCopyLink,
+                                onClickCopyLinkText = onClickCopyLinkText,
+                                onClickShareLink = onClickShareLink,
+                                onClickOpenInBrowserFromMenu = onClickOpenInBrowserFromMenu,
+                                onClickCopyImageUrl = onClickCopyImageUrl,
+                                onClickDownloadImage = onClickDownloadImage,
+                                onClickShareImage = onClickShareImage
                             )
                         }
                         // Consumes a shareIntent and creates the corresponding share dialog
@@ -463,6 +532,7 @@ fun BookmarkListScreen(
                     isCreateEnabled = createBookmarkUiState.isCreateEnabled,
                     labels = createBookmarkUiState.labels,
                     isFavorite = createBookmarkUiState.isFavorite,
+                    existingLabels = labelsWithCounts.value.keys.toList(),
                     onTitleChange = { viewModel.updateCreateBookmarkTitle(it) },
                     onUrlChange = { viewModel.updateCreateBookmarkUrl(it) },
                     onLabelsChange = { viewModel.updateCreateBookmarkLabels(it) },
@@ -604,6 +674,7 @@ private fun AddBookmarkBottomSheet(
     isCreateEnabled: Boolean,
     labels: List<String>,
     isFavorite: Boolean = false,
+    existingLabels: List<String> = emptyList(),
     onTitleChange: (String) -> Unit,
     onUrlChange: (String) -> Unit,
     onLabelsChange: (List<String>) -> Unit,
@@ -625,6 +696,7 @@ private fun AddBookmarkBottomSheet(
             isCreateEnabled = isCreateEnabled,
             labels = labels,
             isFavorite = isFavorite,
+            existingLabels = existingLabels,
             onUrlChange = onUrlChange,
             onTitleChange = onTitleChange,
             onLabelsChange = onLabelsChange,
@@ -684,7 +756,14 @@ fun BookmarkListView(
     onClickShareBookmark: (String) -> Unit,
     onClickLabel: (String) -> Unit = {},
     onClickOpenUrl: (String) -> Unit = {},
-    onClickOpenInBrowser: (String) -> Unit = {}
+    onClickOpenInBrowser: (String) -> Unit = {},
+    onClickCopyLink: (String) -> Unit = {},
+    onClickCopyLinkText: (String) -> Unit = {},
+    onClickShareLink: (String) -> Unit = {},
+    onClickOpenInBrowserFromMenu: (String) -> Unit = {},
+    onClickCopyImageUrl: (String) -> Unit = {},
+    onClickDownloadImage: (String) -> Unit = {},
+    onClickShareImage: (String) -> Unit = {}
 ) {
     if (isMultiColumn && layoutMode != LayoutMode.COMPACT) {
         val columns = when (layoutMode) {
@@ -723,6 +802,13 @@ fun BookmarkListView(
                             onClickLabel = onClickLabel,
                             onClickOpenUrl = onClickOpenUrl,
                             onClickOpenInBrowser = onClickOpenInBrowser,
+                            onClickCopyLink = onClickCopyLink,
+                            onClickCopyLinkText = onClickCopyLinkText,
+                            onClickShareLink = onClickShareLink,
+                            onClickOpenInBrowserFromMenu = onClickOpenInBrowserFromMenu,
+                            onClickCopyImageUrl = onClickCopyImageUrl,
+                            onClickDownloadImage = onClickDownloadImage,
+                            onClickShareImage = onClickShareImage,
                             isInGrid = true,
                         )
                         LayoutMode.COMPACT -> BookmarkCompactCard(
@@ -734,7 +820,14 @@ fun BookmarkListView(
                             onClickShareBookmark = onClickShareBookmark,
                             onClickLabel = onClickLabel,
                             onClickOpenUrl = onClickOpenUrl,
-                            onClickOpenInBrowser = onClickOpenInBrowser
+                            onClickOpenInBrowser = onClickOpenInBrowser,
+                            onClickCopyLink = onClickCopyLink,
+                            onClickCopyLinkText = onClickCopyLinkText,
+                            onClickShareLink = onClickShareLink,
+                            onClickOpenInBrowserFromMenu = onClickOpenInBrowserFromMenu,
+                            onClickCopyImageUrl = onClickCopyImageUrl,
+                            onClickDownloadImage = onClickDownloadImage,
+                            onClickShareImage = onClickShareImage
                         )
                         LayoutMode.MOSAIC -> BookmarkMosaicCard(
                             bookmark = bookmark,
@@ -745,7 +838,14 @@ fun BookmarkListView(
                             onClickShareBookmark = onClickShareBookmark,
                             onClickLabel = onClickLabel,
                             onClickOpenUrl = onClickOpenUrl,
-                            onClickOpenInBrowser = onClickOpenInBrowser
+                            onClickOpenInBrowser = onClickOpenInBrowser,
+                            onClickCopyLink = onClickCopyLink,
+                            onClickCopyLinkText = onClickCopyLinkText,
+                            onClickShareLink = onClickShareLink,
+                            onClickOpenInBrowserFromMenu = onClickOpenInBrowserFromMenu,
+                            onClickCopyImageUrl = onClickCopyImageUrl,
+                            onClickDownloadImage = onClickDownloadImage,
+                            onClickShareImage = onClickShareImage
                         )
                     }
                 }
@@ -777,7 +877,14 @@ fun BookmarkListView(
                             onClickShareBookmark = onClickShareBookmark,
                             onClickLabel = onClickLabel,
                             onClickOpenUrl = onClickOpenUrl,
-                            onClickOpenInBrowser = onClickOpenInBrowser
+                            onClickOpenInBrowser = onClickOpenInBrowser,
+                            onClickCopyLink = onClickCopyLink,
+                            onClickCopyLinkText = onClickCopyLinkText,
+                            onClickShareLink = onClickShareLink,
+                            onClickOpenInBrowserFromMenu = onClickOpenInBrowserFromMenu,
+                            onClickCopyImageUrl = onClickCopyImageUrl,
+                            onClickDownloadImage = onClickDownloadImage,
+                            onClickShareImage = onClickShareImage
                         )
                         LayoutMode.COMPACT -> BookmarkCompactCard(
                             bookmark = bookmark,
@@ -788,7 +895,14 @@ fun BookmarkListView(
                             onClickShareBookmark = onClickShareBookmark,
                             onClickLabel = onClickLabel,
                             onClickOpenUrl = onClickOpenUrl,
-                            onClickOpenInBrowser = onClickOpenInBrowser
+                            onClickOpenInBrowser = onClickOpenInBrowser,
+                            onClickCopyLink = onClickCopyLink,
+                            onClickCopyLinkText = onClickCopyLinkText,
+                            onClickShareLink = onClickShareLink,
+                            onClickOpenInBrowserFromMenu = onClickOpenInBrowserFromMenu,
+                            onClickCopyImageUrl = onClickCopyImageUrl,
+                            onClickDownloadImage = onClickDownloadImage,
+                            onClickShareImage = onClickShareImage
                         )
                         LayoutMode.MOSAIC -> BookmarkMosaicCard(
                             bookmark = bookmark,
@@ -799,7 +913,14 @@ fun BookmarkListView(
                             onClickShareBookmark = onClickShareBookmark,
                             onClickLabel = onClickLabel,
                             onClickOpenUrl = onClickOpenUrl,
-                            onClickOpenInBrowser = onClickOpenInBrowser
+                            onClickOpenInBrowser = onClickOpenInBrowser,
+                            onClickCopyLink = onClickCopyLink,
+                            onClickCopyLinkText = onClickCopyLinkText,
+                            onClickShareLink = onClickShareLink,
+                            onClickOpenInBrowserFromMenu = onClickOpenInBrowserFromMenu,
+                            onClickCopyImageUrl = onClickCopyImageUrl,
+                            onClickDownloadImage = onClickDownloadImage,
+                            onClickShareImage = onClickShareImage
                         )
                     }
                 }

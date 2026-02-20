@@ -92,6 +92,10 @@ class BookmarkDetailViewModel @Inject constructor(
     private val typographySettings = settingsDataStore.typographySettingsFlow
     private val updateState = MutableStateFlow<UpdateBookmarkState?>(null)
 
+    val labelsWithCounts: StateFlow<Map<String, Int>> = bookmarkRepository
+        .observeAllLabelsWithCounts()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
+
     // Local tracking of scroll progress (not immediately persisted)
     private var currentScrollProgress = 0
     private var initialReadProgress = 0
