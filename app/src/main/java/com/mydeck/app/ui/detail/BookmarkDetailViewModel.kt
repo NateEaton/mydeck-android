@@ -27,6 +27,8 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
@@ -39,7 +41,7 @@ import timber.log.Timber
 import java.text.DateFormat
 import java.util.Date
 import javax.inject.Inject
-import kotlin.io.encoding.ExperimentalEncodingApi
+
 
 @HiltViewModel
 class BookmarkDetailViewModel @Inject constructor(
@@ -59,7 +61,7 @@ class BookmarkDetailViewModel @Inject constructor(
     private val _shareIntent = Channel<Intent>(Channel.BUFFERED)
     val shareIntent: Flow<Intent> = _shareIntent.receiveAsFlow()
 
-    private val bookmarkId: String? = savedStateHandle["bookmarkId"]
+    private val _bookmarkId = MutableStateFlow<String?>(savedStateHandle["bookmarkId"])
     private val template: Flow<Template?> = combine(
         settingsDataStore.themeFlow,
         settingsDataStore.sepiaEnabledFlow
@@ -114,53 +116,73 @@ class BookmarkDetailViewModel @Inject constructor(
     private var searchDebounceJob: Job? = null
 
     init {
+        _bookmarkId.value?.let { initializeBookmark(it) }
+    }
+
+    /**
+     * Load a new bookmark into this ViewModel. Resets local state and triggers
+     * observation of the new bookmark. Used by the expanded detail pane where
+     * SavedStateHandle is not available.
+     */
+    fun loadBookmark(bookmarkId: String) {
+        // Reset local reading state for the new bookmark
+        currentScrollProgress = 0
+        initialReadProgress = 0
+        bookmarkType = null
+        isReadLocked = false
+        _contentLoadState.value = ContentLoadState.Idle
+        _articleSearchState.value = ArticleSearchState()
+
+        _bookmarkId.value = bookmarkId
+        initializeBookmark(bookmarkId)
+    }
+
+    private fun initializeBookmark(id: String) {
         // Load initial progress and handle type-specific behavior
-        if (bookmarkId != null) {
-            viewModelScope.launch {
-                try {
-                    val bookmark = bookmarkRepository.getBookmarkById(bookmarkId)
-                    initialReadProgress = bookmark.readProgress
-                    bookmarkType = bookmark.type
+        viewModelScope.launch {
+            try {
+                val bookmark = bookmarkRepository.getBookmarkById(id)
+                initialReadProgress = bookmark.readProgress
+                bookmarkType = bookmark.type
 
-                    // For photos and videos, auto-mark as 100% when opened
-                    // and refresh from API to ensure embed data is available
-                    when (bookmark.type) {
-                        is com.mydeck.app.domain.model.Bookmark.Type.Picture,
-                        is com.mydeck.app.domain.model.Bookmark.Type.Video -> {
-                            if (bookmark.readProgress < 100) {
-                                bookmarkRepository.updateReadProgress(bookmarkId, 100)
-                                currentScrollProgress = 100
-                            }
-                            // Refresh from API to get embed and other fields
-                            // that may not have been present during initial sync
-                            bookmarkRepository.refreshBookmarkFromApi(bookmarkId)
+                // For photos and videos, auto-mark as 100% when opened
+                // and refresh from API to ensure embed data is available
+                when (bookmark.type) {
+                    is com.mydeck.app.domain.model.Bookmark.Type.Picture,
+                    is com.mydeck.app.domain.model.Bookmark.Type.Video -> {
+                        if (bookmark.readProgress < 100) {
+                            bookmarkRepository.updateReadProgress(id, 100)
+                            currentScrollProgress = 100
                         }
-                        is com.mydeck.app.domain.model.Bookmark.Type.Article -> {
-                            currentScrollProgress = bookmark.readProgress
-                            // If article was already completed, lock scroll tracking
-                            // so scrolling back up doesn't reduce progress from 100
-                            isReadLocked = bookmark.isRead()
+                        // Refresh from API to get embed and other fields
+                        // that may not have been present during initial sync
+                        bookmarkRepository.refreshBookmarkFromApi(id)
+                    }
+                    is com.mydeck.app.domain.model.Bookmark.Type.Article -> {
+                        currentScrollProgress = bookmark.readProgress
+                        // If article was already completed, lock scroll tracking
+                        // so scrolling back up doesn't reduce progress from 100
+                        isReadLocked = bookmark.isRead()
 
-                            // Handle content availability
-                            when (bookmark.contentState) {
-                                ContentState.DOWNLOADED -> { /* Content available, nothing to do */ }
-                                ContentState.PERMANENT_NO_CONTENT -> {
-                                    // Signal to UI that content is permanently unavailable
-                                    _contentLoadState.value = ContentLoadState.Failed(
-                                        reason = bookmark.contentFailureReason ?: "No content available",
-                                        canRetry = false
-                                    )
-                                }
-                                else -> {
-                                    // NOT_ATTEMPTED or DIRTY — attempt on-demand fetch
-                                    fetchContentOnDemand(bookmarkId)
-                                }
+                        // Handle content availability
+                        when (bookmark.contentState) {
+                            ContentState.DOWNLOADED -> { /* Content available, nothing to do */ }
+                            ContentState.PERMANENT_NO_CONTENT -> {
+                                // Signal to UI that content is permanently unavailable
+                                _contentLoadState.value = ContentLoadState.Failed(
+                                    reason = bookmark.contentFailureReason ?: "No content available",
+                                    canRetry = false
+                                )
+                            }
+                            else -> {
+                                // NOT_ATTEMPTED or DIRTY — attempt on-demand fetch
+                                fetchContentOnDemand(id)
                             }
                         }
                     }
-                } catch (e: Exception) {
-                    Timber.e(e, "Error initializing bookmark progress: ${e.message}")
                 }
+            } catch (e: Exception) {
+                Timber.e(e, "Error initializing bookmark progress: ${e.message}")
             }
         }
     }
@@ -180,15 +202,16 @@ class BookmarkDetailViewModel @Inject constructor(
     fun getInitialReadProgress(): Int = currentScrollProgress.takeIf { it > 0 } ?: initialReadProgress
 
     private suspend fun saveCurrentProgress() {
-        if (bookmarkId != null && currentScrollProgress > 0) {
+        val id = _bookmarkId.value
+        if (id != null && currentScrollProgress > 0) {
             try {
-                bookmarkRepository.updateReadProgress(bookmarkId, currentScrollProgress)
+                bookmarkRepository.updateReadProgress(id, currentScrollProgress)
                 Timber.w("Saved final read progress: $currentScrollProgress%")
             } catch (e: Exception) {
                 Timber.e(e, "Error saving final progress: ${e.message}")
             }
         } else {
-            Timber.w("Skipping progress save - bookmarkId: $bookmarkId, progress: $currentScrollProgress")
+            Timber.w("Skipping progress save - bookmarkId: $id, progress: $currentScrollProgress")
         }
     }
 
@@ -198,68 +221,72 @@ class BookmarkDetailViewModel @Inject constructor(
      */
     fun saveProgressOnPause() {
         viewModelScope.launch {
-            Timber.w("saveProgressOnPause called for bookmark: $bookmarkId, progress: $currentScrollProgress%")
+            Timber.w("saveProgressOnPause called for bookmark: ${_bookmarkId.value}, progress: $currentScrollProgress%")
             saveCurrentProgress()
         }
     }
 
-    @OptIn(ExperimentalEncodingApi::class)
-    val uiState = combine(
-        bookmarkRepository.observeBookmark(bookmarkId!!),
-        updateState,
-        template,
-        zoomFactor,
-        typographySettings
-    ) { bookmark, updateState, template, zoomFactor, typographySettings ->
-        if (bookmark == null) {
-            Timber.e("Error loading bookmark [bookmarkId=$bookmarkId]")
-            UiState.Error
-        } else if (template == null) {
-            Timber.e("Error loading template(s)")
-            UiState.Error
-        } else {
-            UiState.Success(
-                bookmark = Bookmark(
-                    url = bookmark.url,
-                    title = bookmark.title,
-                    authors = bookmark.authors,
-                    createdDate = formatLocalDateTimeWithDateFormat(bookmark.created),
-                    publishedDate = bookmark.published?.let { formatLocalDateTimeWithDateFormat(it) },
-                    bookmarkId = bookmarkId,
-                    siteName = bookmark.siteName,
-                    imgSrc = bookmark.image.src,
-                    iconSrc = bookmark.icon.src,
-                    thumbnailSrc = bookmark.thumbnail.src,
-                    isFavorite = bookmark.isMarked,
-                    isArchived = bookmark.isArchived,
-                    isRead = bookmark.isRead(),
-                    type = when (bookmark.type) {
-                        is com.mydeck.app.domain.model.Bookmark.Type.Article -> Bookmark.Type.ARTICLE
-                        is com.mydeck.app.domain.model.Bookmark.Type.Picture -> Bookmark.Type.PHOTO
-                        is com.mydeck.app.domain.model.Bookmark.Type.Video -> Bookmark.Type.VIDEO
-                    },
-                    articleContent = bookmark.articleContent,
-                    embed = bookmark.embed,
-                    lang = bookmark.lang,
-                    wordCount = bookmark.wordCount,
-                    readingTime = bookmark.readingTime,
-                    description = bookmark.description,
-                    labels = bookmark.labels,
-                    readProgress = bookmark.readProgress,
-                    debugInfo = buildDebugInfo(bookmark),
-                    hasContent = when (bookmark.type) {
-                        is com.mydeck.app.domain.model.Bookmark.Type.Article -> !bookmark.articleContent.isNullOrBlank()
-                        is com.mydeck.app.domain.model.Bookmark.Type.Video -> !bookmark.articleContent.isNullOrBlank() || !bookmark.embed.isNullOrBlank()
-                        is com.mydeck.app.domain.model.Bookmark.Type.Picture -> true
-                    }
-                ),
-                updateBookmarkState = updateState,
-                template = template,
-                zoomFactor = zoomFactor,
-                typographySettings = typographySettings
-            )
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    val uiState: StateFlow<UiState> = _bookmarkId
+        .filterNotNull()
+        .flatMapLatest { id ->
+            combine(
+                bookmarkRepository.observeBookmark(id),
+                updateState,
+                template,
+                zoomFactor,
+                typographySettings
+            ) { bookmark, updateState, template, zoomFactor, typographySettings ->
+                if (bookmark == null) {
+                    Timber.e("Error loading bookmark [bookmarkId=$id]")
+                    UiState.Error
+                } else if (template == null) {
+                    Timber.e("Error loading template(s)")
+                    UiState.Error
+                } else {
+                    UiState.Success(
+                        bookmark = Bookmark(
+                            url = bookmark.url,
+                            title = bookmark.title,
+                            authors = bookmark.authors,
+                            createdDate = formatLocalDateTimeWithDateFormat(bookmark.created),
+                            publishedDate = bookmark.published?.let { formatLocalDateTimeWithDateFormat(it) },
+                            bookmarkId = id,
+                            siteName = bookmark.siteName,
+                            imgSrc = bookmark.image.src,
+                            iconSrc = bookmark.icon.src,
+                            thumbnailSrc = bookmark.thumbnail.src,
+                            isFavorite = bookmark.isMarked,
+                            isArchived = bookmark.isArchived,
+                            isRead = bookmark.isRead(),
+                            type = when (bookmark.type) {
+                                is com.mydeck.app.domain.model.Bookmark.Type.Article -> Bookmark.Type.ARTICLE
+                                is com.mydeck.app.domain.model.Bookmark.Type.Picture -> Bookmark.Type.PHOTO
+                                is com.mydeck.app.domain.model.Bookmark.Type.Video -> Bookmark.Type.VIDEO
+                            },
+                            articleContent = bookmark.articleContent,
+                            embed = bookmark.embed,
+                            lang = bookmark.lang,
+                            wordCount = bookmark.wordCount,
+                            readingTime = bookmark.readingTime,
+                            description = bookmark.description,
+                            labels = bookmark.labels,
+                            readProgress = bookmark.readProgress,
+                            debugInfo = buildDebugInfo(bookmark),
+                            hasContent = when (bookmark.type) {
+                                is com.mydeck.app.domain.model.Bookmark.Type.Article -> !bookmark.articleContent.isNullOrBlank()
+                                is com.mydeck.app.domain.model.Bookmark.Type.Video -> !bookmark.articleContent.isNullOrBlank() || !bookmark.embed.isNullOrBlank()
+                                is com.mydeck.app.domain.model.Bookmark.Type.Picture -> true
+                            }
+                        ),
+                        updateBookmarkState = updateState,
+                        template = template,
+                        zoomFactor = zoomFactor,
+                        typographySettings = typographySettings
+                    )
+                }
+            }
         }
-    }
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
@@ -469,7 +496,7 @@ class BookmarkDetailViewModel @Inject constructor(
     }
 
     fun retryContentFetch() {
-        bookmarkId?.let { fetchContentOnDemand(it) }
+        _bookmarkId.value?.let { fetchContentOnDemand(it) }
     }
 
     sealed class ContentLoadState {

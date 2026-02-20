@@ -11,6 +11,7 @@ import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
@@ -37,7 +38,8 @@ import com.mydeck.app.ui.navigation.UiSettingsRoute
 
 @Composable
 fun SettingsScreen(
-    navHostController: NavHostController
+    navHostController: NavHostController,
+    showBackButton: Boolean = true,
 ) {
     val viewModel: SettingsViewModel = hiltViewModel()
     val settingsUiState = viewModel.uiState.collectAsState().value
@@ -80,7 +82,8 @@ fun SettingsScreen(
         onClickOpenSourceLibraries = onClickOpenSourceLibraries,
         onClickLogs = onClickLogs,
         onClickSync = onClickSync,
-        onClickUi = onClickUi
+        onClickUi = onClickUi,
+        showBackButton = showBackButton,
     )
 }
 
@@ -93,7 +96,8 @@ fun SettingScreenView(
     onClickOpenSourceLibraries: () -> Unit,
     onClickLogs: () -> Unit,
     onClickSync: () -> Unit,
-    onClickUi: () -> Unit
+    onClickUi: () -> Unit,
+    showBackButton: Boolean = true,
 ) {
     Scaffold(
         topBar = {
@@ -101,14 +105,16 @@ fun SettingScreenView(
                 modifier = Modifier.testTag(SettingsScreenTestTags.TOPBAR),
                 title = { Text(stringResource(R.string.settings_topbar_title)) },
                 navigationIcon = {
-                    IconButton(
-                        onClick = onClickBack,
-                        modifier = Modifier.testTag(SettingsScreenTestTags.BACK_BUTTON)
-                    ) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(R.string.back)
-                        )
+                    if (showBackButton) {
+                        IconButton(
+                            onClick = onClickBack,
+                            modifier = Modifier.testTag(SettingsScreenTestTags.BACK_BUTTON)
+                        ) {
+                            Icon(
+                                Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = stringResource(R.string.back)
+                            )
+                        }
                     }
                 }
             )
@@ -125,8 +131,7 @@ fun SettingScreenView(
                 onClick = onClickAccount,
                 testTag = SettingsScreenTestTags.SETTINGS_ITEM_ACCOUNT
             )
-
-
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
             SettingItem(
                 icon = Icons.Filled.Sync,
                 title = stringResource(R.string.settings_sync),
@@ -134,7 +139,7 @@ fun SettingScreenView(
                 onClick = onClickSync,
                 testTag = SettingsScreenTestTags.SETTINGS_ITEM_SYNC
             )
-
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
             SettingItem(
                 icon = Icons.Filled.Visibility,
                 title = stringResource(R.string.settings_ui),
@@ -142,6 +147,7 @@ fun SettingScreenView(
                 onClick = onClickUi,
                 testTag = SettingsScreenTestTags.SETTINGS_ITEM_UI
             )
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
             SettingItem(
                 icon = Icons.Filled.Info,
                 title = stringResource(R.string.settings_logs),

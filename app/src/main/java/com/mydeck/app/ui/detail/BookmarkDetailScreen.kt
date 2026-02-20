@@ -26,7 +26,6 @@ import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.outlined.FindInPage
-import androidx.compose.material.icons.filled.Grade
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Movie
@@ -37,7 +36,6 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.FormatSize
 import androidx.compose.material.icons.outlined.Description
-import androidx.compose.material.icons.outlined.Grade
 import androidx.compose.material.icons.outlined.Inventory2
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Share
@@ -83,6 +81,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.mydeck.app.ui.theme.Dimens
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
@@ -93,6 +92,7 @@ import com.mydeck.app.domain.model.Template
 import com.mydeck.app.domain.model.TextWidth
 import com.mydeck.app.util.openUrlInCustomTab
 import com.mydeck.app.ui.components.ShareBookmarkChooser
+import com.mydeck.app.ui.components.TimedDeleteSnackbar
 import com.mydeck.app.ui.detail.BookmarkDetailViewModel.ContentLoadState
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.Dispatchers
@@ -103,6 +103,19 @@ import com.mydeck.app.ui.detail.components.*
 @Composable
 fun BookmarkDetailScreen(navHostController: NavController, bookmarkId: String?, showOriginal: Boolean = false) {
     val viewModel: BookmarkDetailViewModel = hiltViewModel()
+    BookmarkDetailHost(
+        viewModel = viewModel,
+        showOriginal = showOriginal,
+        onNavigateBack = { navHostController.popBackStack() }
+    )
+}
+
+@Composable
+fun BookmarkDetailHost(
+    viewModel: BookmarkDetailViewModel,
+    showOriginal: Boolean,
+    onNavigateBack: () -> Unit
+) {
     val onClickBack: () -> Unit = { viewModel.onClickBack() }
     val onClickToggleFavorite: (String, Boolean) -> Unit =
         { id, isFavorite -> viewModel.onToggleFavorite(id, isFavorite) }
@@ -127,7 +140,7 @@ fun BookmarkDetailScreen(navHostController: NavController, bookmarkId: String?, 
             val result = snackbarHostState.showSnackbar(
                 message = "Bookmark deleted",
                 actionLabel = "UNDO",
-                duration = SnackbarDuration.Long
+                duration = SnackbarDuration.Indefinite
             )
             if (result == SnackbarResult.ActionPerformed) {
                 viewModel.onCancelDeleteBookmark()
@@ -152,7 +165,7 @@ fun BookmarkDetailScreen(navHostController: NavController, bookmarkId: String?, 
     val onArticleSearchPrevious = { viewModel.onArticleSearchPrevious() }
     val onArticleSearchUpdateResults = { totalMatches: Int -> viewModel.onArticleSearchUpdateResults(totalMatches) }
 
-    DisposableEffect(lifecycleOwner, bookmarkId) {
+    DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_STOP) {
                 val state = viewModel.uiState.value
@@ -174,7 +187,7 @@ fun BookmarkDetailScreen(navHostController: NavController, bookmarkId: String?, 
         viewModel.navigationEvent.collectLatest { event ->
             when (event) {
                 is BookmarkDetailViewModel.NavigationEvent.NavigateBack -> {
-                    navHostController.popBackStack()
+                    onNavigateBack()
                 }
             }
         }
@@ -293,7 +306,6 @@ fun BookmarkDetailScreen(navHostController: NavController, bookmarkId: String?, 
             BookmarkDetailErrorScreen()
         }
     }
-
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -327,7 +339,7 @@ fun BookmarkDetailScreen(
     onTitleChanged: ((String) -> Unit)? = null
 ) {
     Scaffold(
-        snackbarHost = { SnackbarHost(snackbarHostState) },
+        snackbarHost = { SnackbarHost(snackbarHostState) { data -> TimedDeleteSnackbar(data) } },
         modifier = modifier,
         topBar = {
             BookmarkDetailTopBar(
@@ -352,18 +364,23 @@ fun BookmarkDetailScreen(
             )
         }
     ) { padding ->
-        BookmarkDetailContent(
-            modifier = Modifier.padding(padding),
-            uiState = uiState,
-            onClickOpenUrl = onClickOpenUrl,
-            onScrollProgressChanged = onScrollProgressChanged,
-            initialReadProgress = initialReadProgress,
-            contentMode = contentMode,
-            contentLoadState = contentLoadState,
-            articleSearchState = articleSearchState,
-            onArticleSearchUpdateResults = onArticleSearchUpdateResults,
-            onTitleChanged = onTitleChanged
-        )
+        Box(
+            modifier = Modifier.fillMaxSize().padding(padding),
+            contentAlignment = Alignment.TopCenter
+        ) {
+            BookmarkDetailContent(
+                modifier = Modifier,
+                uiState = uiState,
+                onClickOpenUrl = onClickOpenUrl,
+                onScrollProgressChanged = onScrollProgressChanged,
+                initialReadProgress = initialReadProgress,
+                contentMode = contentMode,
+                contentLoadState = contentLoadState,
+                articleSearchState = articleSearchState,
+                onArticleSearchUpdateResults = onArticleSearchUpdateResults,
+                onTitleChanged = onTitleChanged
+            )
+        }
     }
 }
 
@@ -433,12 +450,12 @@ fun BookmarkDetailContent(
                     .alpha(if (hasRestoredPosition) 1f else 0f),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                val headerWidthModifier = when (uiState.typographySettings.textWidth) {
-                    TextWidth.WIDE -> Modifier.fillMaxWidth(0.9f)
-                    TextWidth.NARROW -> Modifier.fillMaxWidth(0.75f)
+                val contentWidthFraction = when (uiState.typographySettings.textWidth) {
+                    TextWidth.WIDE -> 0.9f
+                    TextWidth.NARROW -> 0.8f
                 }
                 BookmarkDetailHeader(
-                    modifier = headerWidthModifier,
+                    modifier = Modifier.fillMaxWidth(contentWidthFraction),
                     uiState = uiState,
                     onClickOpenUrl = onClickOpenUrl,
                     onTitleChanged = onTitleChanged
@@ -447,33 +464,24 @@ fun BookmarkDetailContent(
                 val hasContent = uiState.bookmark.hasContent
                 if (hasContent) {
                     BookmarkDetailArticle(
-                        modifier = Modifier,
+                        modifier = Modifier.fillMaxWidth(contentWidthFraction),
                         uiState = uiState,
                         articleSearchState = articleSearchState,
                         onArticleSearchUpdateResults = onArticleSearchUpdateResults
                     )
                 } else {
-                    // No content yet — show loading spinner while fetch is in progress.
-                    // Auto-switch to Original mode is handled by LaunchedEffect above
-                    // when the content load state transitions to Failed.
-                    when (contentLoadState) {
-                        is ContentLoadState.Loading -> {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(200.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                CircularProgressIndicator()
-                            }
-                        }
-                        else -> {
-                            // Brief fallback while auto-switch hasn't happened yet
-                            EmptyBookmarkDetailArticle(
-                                modifier = Modifier
-                            )
-                        }
-                    }
+                    // Brief fallback while auto-switch to Original hasn't happened yet
+                    EmptyBookmarkDetailArticle(modifier = Modifier)
+                }
+            }
+
+            // Full-screen loading overlay while article content is being fetched
+            if (!uiState.bookmark.hasContent && contentLoadState is ContentLoadState.Loading) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator()
                 }
             }
 

@@ -24,3 +24,5 @@ Thumbs.db
 # Ignore Synology system directories globally
 @eaDir/
 \#recycle/
+
+screenshots/
