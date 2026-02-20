@@ -177,7 +177,7 @@ fun BookmarkMosaicCard(
                         .fillMaxWidth()
                         .height(200.dp)
                         .combinedClickable(
-                            onClick = {},
+                            onClick = { onClickCard(bookmark.id) },
                             onLongClick = { showImageContextMenu = true },
                             onLongClickLabel = stringResource(R.string.long_press_for_options)
                         )

@@ -203,31 +203,90 @@ fun BookmarkListScreen(
         }
     }
     val onClickDownloadImage: (String) -> Unit = { imageUrl ->
-        val request = android.app.DownloadManager.Request(
-            android.net.Uri.parse(imageUrl)
-        ).apply {
-            setNotificationVisibility(android.app.DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
-            setDestinationInExternalPublicDir(
-                android.os.Environment.DIRECTORY_DOWNLOADS,
-                imageUrl.substringAfterLast('/').ifBlank { "image" }
-            )
-        }
-        val dm = context.getSystemService(android.content.Context.DOWNLOAD_SERVICE) as android.app.DownloadManager
-        dm.enqueue(request)
-        scope.launch {
-            snackbarHostState.showSnackbar(
-                message = context.getString(R.string.download_started),
-                duration = SnackbarDuration.Short
-            )
+        if (imageUrl.isNotBlank() && imageUrl.startsWith("http")) {
+            val request = android.app.DownloadManager.Request(
+                android.net.Uri.parse(imageUrl)
+            ).apply {
+                setNotificationVisibility(android.app.DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
+                setDestinationInExternalPublicDir(
+                    android.os.Environment.DIRECTORY_DOWNLOADS,
+                    imageUrl.substringAfterLast('/').ifBlank { "image" }
+                )
+            }
+            val dm = context.getSystemService(android.content.Context.DOWNLOAD_SERVICE) as android.app.DownloadManager
+            dm.enqueue(request)
+            scope.launch {
+                snackbarHostState.showSnackbar(
+                    message = context.getString(R.string.download_started),
+                    duration = SnackbarDuration.Short
+                )
+            }
+        } else {
+            scope.launch {
+                snackbarHostState.showSnackbar(
+                    message = context.getString(R.string.error_no_article_content),
+                    duration = SnackbarDuration.Short
+                )
+            }
         }
     }
     val onClickShareImage: (String) -> Unit = { imageUrl ->
-        val intent = android.content.Intent().apply {
-            action = android.content.Intent.ACTION_SEND
-            putExtra(android.content.Intent.EXTRA_TEXT, imageUrl)
-            type = "text/plain"
+        if (imageUrl.isNotBlank() && imageUrl.startsWith("http")) {
+            scope.launch {
+                try {
+                    // Download image to cache
+                    val url = java.net.URL(imageUrl)
+                    val connection = url.openConnection()
+                    connection.connect()
+                    val inputStream = connection.getInputStream()
+                    
+                    // Create unique file in cache
+                    val fileName = imageUrl.substringAfterLast('/').ifBlank { "shared_image" }
+                    val cacheDir = java.io.File(context.cacheDir, "images")
+                    cacheDir.mkdirs()
+                    val imageFile = java.io.File(cacheDir, "${fileName}_${System.currentTimeMillis()}")
+                    
+                    // Save image to file
+                    inputStream.use { input ->
+                        imageFile.outputStream().use { output ->
+                            input.copyTo(output)
+                        }
+                    }
+                    
+                    // Share via FileProvider
+                    val imageUri = androidx.core.content.FileProvider.getUriForFile(
+                        context,
+                        "${context.packageName}.provider",
+                        imageFile
+                    )
+                    
+                    val shareIntent = android.content.Intent().apply {
+                        action = android.content.Intent.ACTION_SEND
+                        putExtra(android.content.Intent.EXTRA_STREAM, imageUri)
+                        type = "image/*"
+                        addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    }
+                    
+                    context.startActivity(android.content.Intent.createChooser(shareIntent, null))
+                } catch (e: Exception) {
+                    // Fallback to URL sharing on error
+                    val fallbackIntent = android.content.Intent().apply {
+                        action = android.content.Intent.ACTION_SEND
+                        putExtra(android.content.Intent.EXTRA_TEXT, imageUrl)
+                        type = "text/plain"
+                    }
+                    context.startActivity(android.content.Intent.createChooser(fallbackIntent, null))
+                }
+            }
+        } else {
+            // Fallback for invalid URLs
+            scope.launch {
+                snackbarHostState.showSnackbar(
+                    message = context.getString(R.string.error_no_article_content),
+                    duration = SnackbarDuration.Short
+                )
+            }
         }
-        context.startActivity(android.content.Intent.createChooser(intent, null))
     }
     val onClickCopyLinkText: (String) -> Unit = { text ->
         clipboardManager.setText(androidx.compose.ui.text.AnnotatedString(text))
