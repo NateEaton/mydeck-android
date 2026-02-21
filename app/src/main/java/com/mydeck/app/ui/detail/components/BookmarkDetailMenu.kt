@@ -118,8 +118,8 @@ fun BookmarkDetailMenu(
             DropdownMenuItem(
                 text = {
                     Text(
-                        if (uiState.bookmark.isRead) stringResource(R.string.action_mark_unread)
-                        else stringResource(R.string.action_mark_read)
+                        if (uiState.bookmark.isRead) stringResource(R.string.action_mark_read)
+                        else stringResource(R.string.action_mark_unread)
                     )
                 },
                 onClick = {
@@ -128,7 +128,7 @@ fun BookmarkDetailMenu(
                 },
                 leadingIcon = {
                     Icon(
-                        if (uiState.bookmark.isRead) Icons.Outlined.CheckCircle else Icons.Filled.CheckCircle,
+                        if (uiState.bookmark.isRead) Icons.Filled.CheckCircle else Icons.Outlined.CheckCircle,
                         contentDescription = null
                     )
                 }
