@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
@@ -53,6 +54,7 @@ import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -92,7 +94,6 @@ import com.mydeck.app.domain.model.Template
 import com.mydeck.app.domain.model.TextWidth
 import com.mydeck.app.util.openUrlInCustomTab
 import com.mydeck.app.ui.components.ShareBookmarkChooser
-import com.mydeck.app.ui.components.TimedDeleteSnackbar
 import com.mydeck.app.ui.detail.BookmarkDetailViewModel.ContentLoadState
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.Dispatchers
@@ -116,17 +117,39 @@ fun BookmarkDetailHost(
     showOriginal: Boolean,
     onNavigateBack: () -> Unit
 ) {
-    val onClickBack: () -> Unit = { viewModel.onClickBack() }
-    val onClickToggleFavorite: (String, Boolean) -> Unit =
-        { id, isFavorite -> viewModel.onToggleFavorite(id, isFavorite) }
-    val onClickToggleArchive: (String, Boolean) -> Unit =
-        { id, isArchived -> viewModel.onToggleArchive(id, isArchived) }
-    val context = LocalContext.current
-    val onClickOpenUrl: (String) -> Unit = { viewModel.onClickOpenUrl(it) }
-    val onClickShareBookmark: (String) -> Unit = { url -> viewModel.onClickShareBookmark(url) }
-    val onClickToggleRead: (String, Boolean) -> Unit = { id, isRead -> viewModel.onToggleRead(id, isRead) }
-    val onUpdateLabels: (String, List<String>) -> Unit = { id, labels -> viewModel.onUpdateLabels(id, labels) }
     val snackbarHostState = remember { SnackbarHostState() }
+    val dismissPendingDeleteSnackbar: () -> Unit = {
+        snackbarHostState.currentSnackbarData?.dismiss()
+    }
+
+    val onClickBack: () -> Unit = {
+        dismissPendingDeleteSnackbar()
+        viewModel.onClickBack()
+    }
+    val onClickToggleFavorite: (String, Boolean) -> Unit =
+        { id, isFavorite ->
+            dismissPendingDeleteSnackbar()
+            viewModel.onToggleFavorite(id, isFavorite)
+        }
+    val onClickToggleArchive: (String, Boolean) -> Unit =
+        { id, isArchived ->
+            dismissPendingDeleteSnackbar()
+            viewModel.onToggleArchive(id, isArchived)
+        }
+    val context = LocalContext.current
+    val onClickOpenUrl: (String) -> Unit = {
+        dismissPendingDeleteSnackbar()
+        viewModel.onClickOpenUrl(it)
+    }
+    val onClickShareBookmark: (String) -> Unit = { url ->
+        dismissPendingDeleteSnackbar()
+        viewModel.onClickShareBookmark(url)
+    }
+    val onClickToggleRead: (String, Boolean) -> Unit = { id, isRead ->
+        dismissPendingDeleteSnackbar()
+        viewModel.onToggleRead(id, isRead)
+    }
+    val onUpdateLabels: (String, List<String>) -> Unit = { id, labels -> viewModel.onUpdateLabels(id, labels) }
     val uiState = viewModel.uiState.collectAsState().value
     val contentLoadState = viewModel.contentLoadState.collectAsState().value
     val articleSearchState = viewModel.articleSearchState.collectAsState().value
@@ -145,11 +168,14 @@ fun BookmarkDetailHost(
             )
             if (result == SnackbarResult.ActionPerformed) {
                 viewModel.onCancelDeleteBookmark()
+            } else {
+                viewModel.confirmDeleteBookmark()
             }
         }
     }
 
     val onClickOpenInBrowser: (String) -> Unit = { url ->
+        dismissPendingDeleteSnackbar()
         try {
             val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url))
             context.startActivity(intent)
@@ -169,6 +195,7 @@ fun BookmarkDetailHost(
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_STOP) {
+                snackbarHostState.currentSnackbarData?.dismiss()
                 val state = viewModel.uiState.value
                 if (state is BookmarkDetailViewModel.UiState.Success &&
                     state.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.ARTICLE) {
@@ -340,9 +367,11 @@ fun BookmarkDetailScreen(
     onShowTypographyPanel: () -> Unit = {},
     onTitleChanged: ((String) -> Unit)? = null
 ) {
+    val topBarScrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior()
+
     Scaffold(
-        snackbarHost = { SnackbarHost(snackbarHostState) { data -> TimedDeleteSnackbar(data) } },
-        modifier = modifier,
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+        modifier = modifier.nestedScroll(topBarScrollBehavior.nestedScrollConnection),
         topBar = {
             BookmarkDetailTopBar(
                 articleSearchState = articleSearchState,
@@ -362,7 +391,8 @@ fun BookmarkDetailScreen(
                 onClickDeleteBookmark = onClickDeleteBookmark,
                 onArticleSearchActivate = onArticleSearchActivate,
                 onClickOpenInBrowser = onClickOpenInBrowser,
-                onContentModeChange = onContentModeChange
+                onContentModeChange = onContentModeChange,
+                scrollBehavior = topBarScrollBehavior,
             )
         }
     ) { padding ->
@@ -602,4 +632,3 @@ private val sampleBookmark = BookmarkDetailViewModel.Bookmark(
     readProgress = 0,
     hasContent = true
 )
-

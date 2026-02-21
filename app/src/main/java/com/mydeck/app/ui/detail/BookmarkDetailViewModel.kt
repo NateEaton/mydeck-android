@@ -13,7 +13,6 @@ import com.mydeck.app.domain.usecase.LoadArticleUseCase
 import com.mydeck.app.domain.usecase.UpdateBookmarkUseCase
 import com.mydeck.app.io.AssetLoader
 import com.mydeck.app.io.prefs.SettingsDataStore
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -107,9 +106,7 @@ class BookmarkDetailViewModel @Inject constructor(
     val contentLoadState: StateFlow<ContentLoadState> = _contentLoadState.asStateFlow()
 
     // Pending deletion state (for undo functionality)
-    // Uses a separate scope so deletion survives ViewModel clearing (e.g. user navigates back)
-    private val deletionScope = CoroutineScope(Dispatchers.IO)
-    private var pendingDeletionJob: Job? = null
+    private var pendingDeletionBookmarkId: String? = null
     private val _pendingDeletion = MutableStateFlow(false)
     val pendingDeletion: StateFlow<Boolean> = _pendingDeletion.asStateFlow()
 
@@ -404,15 +401,16 @@ class BookmarkDetailViewModel @Inject constructor(
     }
 
     fun deleteBookmark(bookmarkId: String) {
-        // Cancel any existing pending deletion
-        pendingDeletionJob?.cancel()
-
+        pendingDeletionBookmarkId = bookmarkId
         _pendingDeletion.value = true
+    }
 
-        pendingDeletionJob = deletionScope.launch {
+    fun confirmDeleteBookmark() {
+        val bookmarkId = pendingDeletionBookmarkId ?: return
+        pendingDeletionBookmarkId = null
+
+        viewModelScope.launch {
             try {
-                delay(10000)
-
                 val state = when (val result = updateBookmarkUseCase.deleteBookmark(bookmarkId)) {
                     is UpdateBookmarkUseCase.Result.Success -> UpdateBookmarkState.Success
                     is UpdateBookmarkUseCase.Result.GenericError -> UpdateBookmarkState.Error(result.message)
@@ -422,21 +420,16 @@ class BookmarkDetailViewModel @Inject constructor(
                     _navigationEvent.send(NavigationEvent.NavigateBack)
                 }
                 updateState.value = state
-                _pendingDeletion.value = false
-            } catch (e: CancellationException) {
-                Timber.d("Deletion cancelled by user")
-                _pendingDeletion.value = false
-                throw e
             } catch (e: Exception) {
                 Timber.e(e, "Error deleting bookmark: ${e.message}")
+            } finally {
                 _pendingDeletion.value = false
             }
         }
     }
 
     fun onCancelDeleteBookmark() {
-        pendingDeletionJob?.cancel()
-        pendingDeletionJob = null
+        pendingDeletionBookmarkId = null
         _pendingDeletion.value = false
         Timber.d("Delete bookmark cancelled")
     }

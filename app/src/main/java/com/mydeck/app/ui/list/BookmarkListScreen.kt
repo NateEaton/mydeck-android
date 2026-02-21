@@ -61,6 +61,7 @@ import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -82,6 +83,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.navigation.NavHostController
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import kotlinx.datetime.Clock
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
@@ -94,7 +98,6 @@ import com.mydeck.app.domain.model.SortOption
 import com.mydeck.app.ui.components.FilterBar
 import com.mydeck.app.ui.components.FilterBottomSheet
 import com.mydeck.app.ui.components.ShareBookmarkChooser
-import com.mydeck.app.ui.components.TimedDeleteSnackbar
 import com.mydeck.app.ui.components.VerticalScrollbar
 import com.mydeck.app.util.openUrlInCustomTab
 import kotlinx.coroutines.launch
@@ -141,14 +144,21 @@ fun BookmarkListScreen(
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
     val hapticFeedback = LocalHapticFeedback.current
+    val lifecycleOwner = LocalLifecycleOwner.current
 
     val pullToRefreshState = rememberPullToRefreshState()
     val isLoading by viewModel.loadBookmarksIsRunning.collectAsState()
 
     val isLabelMode = activeLabel.value != null
+    val dismissPendingDeleteSnackbar: () -> Unit = {
+        snackbarHostState.currentSnackbarData?.dismiss()
+    }
 
     // UI event handlers (pass filter update functions)
-    val onClickBookmark: (String) -> Unit = { bookmarkId -> viewModel.onClickBookmark(bookmarkId) }
+    val onClickBookmark: (String) -> Unit = { bookmarkId ->
+        dismissPendingDeleteSnackbar()
+        viewModel.onClickBookmark(bookmarkId)
+    }
     val onClickDelete: (String) -> Unit = { bookmarkId ->
         hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
         viewModel.onDeleteBookmark(bookmarkId)
@@ -156,23 +166,28 @@ fun BookmarkListScreen(
             val result = snackbarHostState.showSnackbar(
                 message = "Bookmark deleted",
                 actionLabel = "UNDO",
-                duration = SnackbarDuration.Long
+                duration = SnackbarDuration.Indefinite
             )
             if (result == androidx.compose.material3.SnackbarResult.ActionPerformed) {
                 viewModel.onCancelDeleteBookmark()
+            } else {
+                viewModel.onConfirmDeleteBookmark()
             }
         }
     }
     val onClickFavorite: (String, Boolean) -> Unit = { bookmarkId, isFavorite ->
+        dismissPendingDeleteSnackbar()
         hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
         viewModel.onToggleFavoriteBookmark(bookmarkId, isFavorite)
     }
     val onClickArchive: (String, Boolean) -> Unit = { bookmarkId, isArchived ->
+        dismissPendingDeleteSnackbar()
         hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
         viewModel.onToggleArchiveBookmark(bookmarkId, isArchived)
     }
     val onClickShareBookmark: (String) -> Unit = { url -> viewModel.onClickShareBookmark(url) }
     val onClickOpenUrl: (String) -> Unit = { bookmarkId ->
+        dismissPendingDeleteSnackbar()
         viewModel.onClickBookmarkOpenOriginal(bookmarkId)
     }
     val onClickOpenInBrowser: (String) -> Unit = { url ->
@@ -307,6 +322,19 @@ fun BookmarkListScreen(
           }
     }
 
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_STOP) {
+                snackbarHostState.currentSnackbarData?.dismiss()
+            }
+        }
+
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+
     // Determine the current view title based on drawer preset
     val currentViewTitle = when (drawerPreset.value) {
         DrawerPreset.MY_LIST -> stringResource(id = R.string.my_list)
@@ -319,13 +347,7 @@ fun BookmarkListScreen(
 
     Scaffold(
         snackbarHost = {
-            SnackbarHost(snackbarHostState) { data ->
-                if (data.visuals.actionLabel != null) {
-                    TimedDeleteSnackbar(data)
-                } else {
-                    androidx.compose.material3.Snackbar(snackbarData = data)
-                }
-            }
+            SnackbarHost(snackbarHostState)
         },
         topBar = {
             TopAppBar(
