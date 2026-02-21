@@ -105,11 +105,6 @@ class BookmarkDetailViewModel @Inject constructor(
     private val _contentLoadState = MutableStateFlow<ContentLoadState>(ContentLoadState.Idle)
     val contentLoadState: StateFlow<ContentLoadState> = _contentLoadState.asStateFlow()
 
-    // Pending deletion state (for undo functionality)
-    private var pendingDeletionBookmarkId: String? = null
-    private val _pendingDeletion = MutableStateFlow(false)
-    val pendingDeletion: StateFlow<Boolean> = _pendingDeletion.asStateFlow()
-
     // Article search state
     private val _articleSearchState = MutableStateFlow(ArticleSearchState())
     val articleSearchState: StateFlow<ArticleSearchState> = _articleSearchState.asStateFlow()
@@ -398,40 +393,6 @@ class BookmarkDetailViewModel @Inject constructor(
 
             _shareIntent.send(intent)
         }
-    }
-
-    fun deleteBookmark(bookmarkId: String) {
-        pendingDeletionBookmarkId = bookmarkId
-        _pendingDeletion.value = true
-    }
-
-    fun confirmDeleteBookmark() {
-        val bookmarkId = pendingDeletionBookmarkId ?: return
-        pendingDeletionBookmarkId = null
-
-        viewModelScope.launch {
-            try {
-                val state = when (val result = updateBookmarkUseCase.deleteBookmark(bookmarkId)) {
-                    is UpdateBookmarkUseCase.Result.Success -> UpdateBookmarkState.Success
-                    is UpdateBookmarkUseCase.Result.GenericError -> UpdateBookmarkState.Error(result.message)
-                    is UpdateBookmarkUseCase.Result.NetworkError -> UpdateBookmarkState.Error(result.message)
-                }
-                if (state is UpdateBookmarkState.Success) {
-                    _navigationEvent.send(NavigationEvent.NavigateBack)
-                }
-                updateState.value = state
-            } catch (e: Exception) {
-                Timber.e(e, "Error deleting bookmark: ${e.message}")
-            } finally {
-                _pendingDeletion.value = false
-            }
-        }
-    }
-
-    fun onCancelDeleteBookmark() {
-        pendingDeletionBookmarkId = null
-        _pendingDeletion.value = false
-        Timber.d("Delete bookmark cancelled")
     }
 
     fun onClickOpenUrl(url: String){

@@ -53,9 +53,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -101,13 +99,22 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import com.mydeck.app.ui.detail.components.*
 
+private const val PendingDeleteFromDetailKey = "pending_delete_bookmark_id"
+
 @Composable
 fun BookmarkDetailScreen(navHostController: NavController, bookmarkId: String?, showOriginal: Boolean = false) {
     val viewModel: BookmarkDetailViewModel = hiltViewModel()
     BookmarkDetailHost(
         viewModel = viewModel,
         showOriginal = showOriginal,
-        onNavigateBack = { navHostController.popBackStack() }
+        onNavigateBack = { pendingDeleteBookmarkId ->
+            if (pendingDeleteBookmarkId != null) {
+                navHostController.previousBackStackEntry
+                    ?.savedStateHandle
+                    ?.set(PendingDeleteFromDetailKey, pendingDeleteBookmarkId)
+            }
+            navHostController.popBackStack()
+        }
     )
 }
 
@@ -115,7 +122,7 @@ fun BookmarkDetailScreen(navHostController: NavController, bookmarkId: String?, 
 fun BookmarkDetailHost(
     viewModel: BookmarkDetailViewModel,
     showOriginal: Boolean,
-    onNavigateBack: () -> Unit
+    onNavigateBack: (String?) -> Unit
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
     val dismissPendingDeleteSnackbar: () -> Unit = {
@@ -156,22 +163,10 @@ fun BookmarkDetailHost(
     val labelsWithCounts = viewModel.labelsWithCounts.collectAsState().value
     var showDetailsDialog by remember { mutableStateOf(false) }
     var showTypographyPanel by remember { mutableStateOf(false) }
-    val scope = rememberCoroutineScope()
     val lifecycleOwner = LocalLifecycleOwner.current
     val onClickDeleteBookmark: (String) -> Unit = { id ->
-        viewModel.deleteBookmark(id)
-        scope.launch {
-            val result = snackbarHostState.showSnackbar(
-                message = "Bookmark deleted",
-                actionLabel = "UNDO",
-                duration = SnackbarDuration.Indefinite
-            )
-            if (result == SnackbarResult.ActionPerformed) {
-                viewModel.onCancelDeleteBookmark()
-            } else {
-                viewModel.confirmDeleteBookmark()
-            }
-        }
+        // Hand off deletion flow to list screen (Gmail-like): immediate back + staged delete there.
+        onNavigateBack(id)
     }
 
     val onClickOpenInBrowser: (String) -> Unit = { url ->
@@ -215,7 +210,7 @@ fun BookmarkDetailHost(
         viewModel.navigationEvent.collectLatest { event ->
             when (event) {
                 is BookmarkDetailViewModel.NavigationEvent.NavigateBack -> {
-                    onNavigateBack()
+                    onNavigateBack(null)
                 }
             }
         }
@@ -410,7 +405,10 @@ fun BookmarkDetailScreen(
                 contentLoadState = contentLoadState,
                 articleSearchState = articleSearchState,
                 onArticleSearchUpdateResults = onArticleSearchUpdateResults,
-                onTitleChanged = onTitleChanged
+                onTitleChanged = onTitleChanged,
+                onReachedBottom = {
+                    topBarScrollBehavior.state.heightOffset = 0f
+                },
             )
         }
     }
@@ -427,7 +425,8 @@ fun BookmarkDetailContent(
     contentLoadState: ContentLoadState = ContentLoadState.Idle,
     articleSearchState: BookmarkDetailViewModel.ArticleSearchState = BookmarkDetailViewModel.ArticleSearchState(),
     onArticleSearchUpdateResults: (Int) -> Unit = {},
-    onTitleChanged: ((String) -> Unit)? = null
+    onTitleChanged: ((String) -> Unit)? = null,
+    onReachedBottom: () -> Unit = {},
 ) {
     val scrollState = rememberScrollState()
     val hasArticleContent = uiState.bookmark.articleContent != null
@@ -462,6 +461,10 @@ fun BookmarkDetailContent(
         if (progress != lastReportedProgress) {
             lastReportedProgress = progress
             onScrollProgressChanged(progress)
+        }
+
+        if (scrollState.maxValue > 0 && scrollState.value >= scrollState.maxValue) {
+            onReachedBottom()
         }
     }
 

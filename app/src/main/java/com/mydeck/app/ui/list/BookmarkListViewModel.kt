@@ -43,6 +43,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.distinctUntilChanged
 import timber.log.Timber
 import javax.inject.Inject
 
@@ -82,8 +83,9 @@ class BookmarkListViewModel @Inject constructor(
     private val _shareIntent = MutableStateFlow<Intent?>(null)
     val shareIntent = _shareIntent.asStateFlow()
 
-    // Pending deletion
-    private var pendingDeletionBookmarkId: String? = null
+    // Pending deletion (single-item Gmail-style staging)
+    private val _pendingDeletionBookmarkId = MutableStateFlow<String?>(null)
+    val pendingDeletionBookmarkId = _pendingDeletionBookmarkId.asStateFlow()
 
     init {
         viewModelScope.launch {
@@ -178,15 +180,17 @@ class BookmarkListViewModel @Inject constructor(
                         orderBy = sort.sqlOrderBy
                     )
                 }
-            }.collectLatest { bookmarks ->
+            }.combine(_pendingDeletionBookmarkId.distinctUntilChanged()) { bookmarks, pendingDeletionId ->
+                if (pendingDeletionId == null) bookmarks else bookmarks.filterNot { it.id == pendingDeletionId }
+            }.collectLatest { visibleBookmarks ->
                 _uiState.update { currentState ->
                     if (currentState is UiState.Success) {
-                        currentState.copy(bookmarks = bookmarks)
+                        currentState.copy(bookmarks = visibleBookmarks)
                     } else {
-                        if (bookmarks.isEmpty() && _activeLabel.value == null && _filterFormState.value == FilterFormState.fromPreset(DrawerPreset.MY_LIST)) {
+                        if (visibleBookmarks.isEmpty() && _activeLabel.value == null && _filterFormState.value == FilterFormState.fromPreset(DrawerPreset.MY_LIST)) {
                              UiState.Empty(R.string.list_view_empty_nothing_to_see)
                         } else {
-                            UiState.Success(bookmarks, null)
+                            UiState.Success(visibleBookmarks, null)
                         }
                     }
                 }
@@ -343,12 +347,12 @@ class BookmarkListViewModel @Inject constructor(
 
     fun onDeleteBookmark(bookmarkId: String) {
         // Store bookmark ID for potential undo; actual deletion occurs on snackbar dismissal.
-        pendingDeletionBookmarkId = bookmarkId
+        _pendingDeletionBookmarkId.value = bookmarkId
     }
 
     fun onConfirmDeleteBookmark() {
-        val bookmarkId = pendingDeletionBookmarkId ?: return
-        pendingDeletionBookmarkId = null
+        val bookmarkId = _pendingDeletionBookmarkId.value ?: return
+        _pendingDeletionBookmarkId.value = null
 
         viewModelScope.launch {
             try {
@@ -362,7 +366,7 @@ class BookmarkListViewModel @Inject constructor(
     }
 
     fun onCancelDeleteBookmark() {
-        pendingDeletionBookmarkId = null
+        _pendingDeletionBookmarkId.value = null
         Timber.d("Delete bookmark cancelled")
     }
 
