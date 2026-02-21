@@ -51,6 +51,7 @@ import androidx.compose.material.icons.outlined.Inventory2
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CardDefaults.outlinedCardBorder
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
@@ -162,7 +163,12 @@ fun BookmarkMosaicCard(
                 .padding(if (isWideLayout) 1.dp else 8.dp)
                 .height(200.dp)
                 .clickable { onClickCard(bookmark.id) },
-            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+            border = outlinedCardBorder().copy(
+                brush = androidx.compose.ui.graphics.SolidColor(
+                    MaterialTheme.colorScheme.outlineVariant.copy(alpha = BookmarkCardBorderAlpha)
+                )
+            )
         ) {
             Box(modifier = Modifier.fillMaxWidth()) {
                 // Full height thumbnail as background — Zone B (image long-press)
@@ -231,18 +237,18 @@ fun BookmarkMosaicCard(
                     }
                 }
 
-                // 3-stop gradient overlay (~90-100dp) for improved contrast
+                // Darker, taller gradient overlay for stronger contrast
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(96.dp)
+                        .height(124.dp)
                         .align(Alignment.BottomCenter)
                         .background(
                             brush = Brush.verticalGradient(
                                 colorStops = arrayOf(
                                     0f to Color.Transparent,
-                                    0.4f to Color.Black.copy(alpha = 0.3f),
-                                    1f to Color.Black.copy(alpha = 0.85f)
+                                    0.2f to Color.Black.copy(alpha = 0.45f),
+                                    1f to Color.Black.copy(alpha = 0.95f)
                                 )
                             )
                         )
@@ -501,6 +507,7 @@ fun BookmarkGridCard(
 private val MobilePortraitGridCardHeight = 152.dp
 private const val MobilePortraitThumbnailWeight = 0.25f
 private val MobilePortraitLabelRowHeight = 32.dp
+private val BookmarkCardBorderAlpha = 0.4f
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -534,7 +541,12 @@ private fun BookmarkGridCardMobilePortrait(
                     onClick = { onClickCard(bookmark.id) },
                     onLongClick = { showBodyContextMenu = true },
                     onLongClickLabel = stringResource(R.string.long_press_for_options)
+                ),
+            border = outlinedCardBorder().copy(
+                brush = androidx.compose.ui.graphics.SolidColor(
+                    MaterialTheme.colorScheme.outlineVariant.copy(alpha = BookmarkCardBorderAlpha)
                 )
+            )
         ) {
             Row(modifier = Modifier.fillMaxSize()) {
                 Box(
@@ -619,7 +631,7 @@ private fun BookmarkGridCardMobilePortrait(
                     modifier = Modifier
                         .weight(1f - MobilePortraitThumbnailWeight)
                         .fillMaxHeight()
-                        .padding(horizontal = 10.dp, vertical = 8.dp)
+                        .padding(start = 10.dp, end = 10.dp, top = 8.dp, bottom = 2.dp)
                 ) {
                     Text(
                         text = bookmark.title,
@@ -697,7 +709,7 @@ private fun BookmarkGridCardMobilePortrait(
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(4.dp))
+                    Spacer(modifier = Modifier.height(3.dp))
 
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -880,7 +892,12 @@ private fun BookmarkGridCardNarrow(
                     onClick = { onClickCard(bookmark.id) },
                     onLongClick = { showBodyContextMenu = true },
                     onLongClickLabel = stringResource(R.string.long_press_for_options)
+                ),
+            border = outlinedCardBorder().copy(
+                brush = androidx.compose.ui.graphics.SolidColor(
+                    MaterialTheme.colorScheme.outlineVariant.copy(alpha = BookmarkCardBorderAlpha)
                 )
+            )
         ) {
         Row(
             modifier = Modifier.fillMaxWidth()
@@ -1218,7 +1235,12 @@ private fun BookmarkGridCardWide(
                 onClick = { onClickCard(bookmark.id) },
                 onLongClick = { showBodyContextMenu = true },
                 onLongClickLabel = stringResource(R.string.long_press_for_options)
+            ),
+        border = outlinedCardBorder().copy(
+            brush = androidx.compose.ui.graphics.SolidColor(
+                MaterialTheme.colorScheme.outlineVariant.copy(alpha = BookmarkCardBorderAlpha)
             )
+        )
     ) {
         Column(modifier = if (isInGrid) Modifier.fillMaxHeight() else Modifier) {
             // Full-width image above content (16:9)
@@ -1704,22 +1726,23 @@ private fun BookmarkCompactCardNarrow(
             }
         }
 
-        // Labels row — all labels as tappable chips
+        // Labels row — all labels as tappable chips, single-line horizontal scroll
         if (bookmark.labels.isNotEmpty()) {
-            FlowRow(
+            LazyRow(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(start = 36.dp, top = 4.dp),
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                verticalArrangement = Arrangement.spacedBy(2.dp)
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                bookmark.labels.forEach { label ->
+                items(bookmark.labels) { label ->
                     SuggestionChip(
                         onClick = { onClickLabel(label) },
                         label = {
                             Text(
                                 text = label,
-                                style = MaterialTheme.typography.labelSmall
+                                style = MaterialTheme.typography.labelSmall,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
                         },
                         modifier = Modifier.height(24.dp)
@@ -2033,20 +2056,22 @@ private fun BookmarkCompactCardWide(
                 )
             }
 
-            // Labels inline after site name
+            // Labels inline after site name, single-line horizontal scroll
             if (bookmark.labels.isNotEmpty()) {
                 Spacer(Modifier.width(6.dp))
-                FlowRow(
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                LazyRow(
+                    modifier = Modifier.weight(1f),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    bookmark.labels.forEach { label ->
+                    items(bookmark.labels) { label ->
                         SuggestionChip(
                             onClick = { onClickLabel(label) },
                             label = {
                                 Text(
                                     text = label,
-                                    style = MaterialTheme.typography.labelSmall
+                                    style = MaterialTheme.typography.labelSmall,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
                                 )
                             },
                             modifier = Modifier.height(20.dp)

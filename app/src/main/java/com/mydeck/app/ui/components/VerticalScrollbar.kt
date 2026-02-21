@@ -62,14 +62,14 @@ fun VerticalScrollbar(
     color: Color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
     padding: Dp = 4.dp
 ) {
-    val isScrollable by remember {
+    val isScrollable by remember(lazyListState) {
         derivedStateOf {
             val layoutInfo = lazyListState.layoutInfo
             layoutInfo.totalItemsCount > layoutInfo.visibleItemsInfo.size
         }
     }
 
-    val progress by remember {
+    val progress by remember(lazyListState) {
         derivedStateOf {
             val layoutInfo = lazyListState.layoutInfo
             val totalItems = layoutInfo.totalItemsCount
@@ -103,14 +103,14 @@ fun VerticalScrollbar(
     color: Color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
     padding: Dp = 4.dp
 ) {
-    val isScrollable by remember {
+    val isScrollable by remember(lazyGridState) {
         derivedStateOf {
             val layoutInfo = lazyGridState.layoutInfo
             layoutInfo.totalItemsCount > layoutInfo.visibleItemsInfo.size
         }
     }
 
-    val progress by remember {
+    val progress by remember(lazyGridState) {
         derivedStateOf {
             val layoutInfo = lazyGridState.layoutInfo
             val totalItems = layoutInfo.totalItemsCount
