@@ -43,7 +43,6 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.distinctUntilChanged
 import timber.log.Timber
 import javax.inject.Inject
 
@@ -180,7 +179,7 @@ class BookmarkListViewModel @Inject constructor(
                         orderBy = sort.sqlOrderBy
                     )
                 }
-            }.combine(_pendingDeletionBookmarkId.distinctUntilChanged()) { bookmarks, pendingDeletionId ->
+            }.combine(_pendingDeletionBookmarkId) { bookmarks, pendingDeletionId ->
                 if (pendingDeletionId == null) bookmarks else bookmarks.filterNot { it.id == pendingDeletionId }
             }.collectLatest { visibleBookmarks ->
                 _uiState.update { currentState ->
