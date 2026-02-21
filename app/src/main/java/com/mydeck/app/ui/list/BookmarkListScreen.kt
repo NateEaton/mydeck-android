@@ -596,6 +596,10 @@ fun BookmarkListScreen(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 when (uiState) {
+                    is BookmarkListViewModel.UiState.Loading -> {
+                        // Intentionally blank — avoids flash of empty state while Room emits first value
+                        Box(modifier = Modifier.fillMaxSize())
+                    }
                     is BookmarkListViewModel.UiState.Empty -> {
                         val emptyIcon = when (uiState.messageResource) {
                             R.string.list_view_empty_error_loading_bookmarks -> Icons.Outlined.CloudOff
@@ -620,7 +624,10 @@ fun BookmarkListScreen(
                                 onClickArchive = onClickArchive,
                                 onClickFavorite = onClickFavorite,
                                 onClickShareBookmark = onClickShareBookmark,
-                                onClickLabel = { label -> viewModel.onClickLabel(label) },
+                                onClickLabel = { label ->
+                                    dismissPendingDeleteSnackbar()
+                                    viewModel.onClickLabel(label)
+                                },
                                 onClickOpenUrl = onClickOpenUrl,
                                 onClickOpenInBrowser = onClickOpenInBrowser,
                                 onClickCopyLink = onClickCopyLink,

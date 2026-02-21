@@ -141,7 +141,7 @@ class BookmarkListViewModel @Inject constructor(
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
-    private val _uiState = MutableStateFlow<UiState>(UiState.Empty(R.string.list_view_empty_not_loaded_yet))
+    private val _uiState = MutableStateFlow<UiState>(UiState.Loading)
     val uiState = _uiState.asStateFlow()
 
     init {
@@ -574,6 +574,8 @@ class BookmarkListViewModel @Inject constructor(
     }
 
     sealed class UiState {
+        data object Loading : UiState()
+
         data class Success(
             val bookmarks: List<BookmarkListItem>,
             val updateBookmarkState: UpdateBookmarkState?

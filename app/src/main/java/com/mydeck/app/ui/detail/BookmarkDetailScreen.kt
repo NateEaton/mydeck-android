@@ -62,9 +62,13 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import kotlinx.coroutines.flow.collectLatest
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -363,10 +367,33 @@ fun BookmarkDetailScreen(
     onTitleChanged: ((String) -> Unit)? = null
 ) {
     val topBarScrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior()
+    var scrollPercent by remember { mutableIntStateOf(0) }
+
+    // Wrap the nested scroll connection so it becomes a no-op near the bottom of
+    // the article (≥95%).  This prevents the enter-always behavior from re-hiding
+    // the top bar when overscroll / bounce sends a few pixels of downward delta.
+    // When the threshold is crossed the bar is snapped visible once.
+    val guardedScrollConnection = remember(topBarScrollBehavior) {
+        object : NestedScrollConnection {
+            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                if (scrollPercent >= 95) {
+                    // Ensure bar is fully visible and swallow the delta
+                    topBarScrollBehavior.state.heightOffset = 0f
+                    return Offset.Zero
+                }
+                return topBarScrollBehavior.nestedScrollConnection.onPreScroll(available, source)
+            }
+
+            override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset {
+                if (scrollPercent >= 95) return Offset.Zero
+                return topBarScrollBehavior.nestedScrollConnection.onPostScroll(consumed, available, source)
+            }
+        }
+    }
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
-        modifier = modifier.nestedScroll(topBarScrollBehavior.nestedScrollConnection),
+        modifier = modifier.nestedScroll(guardedScrollConnection),
         topBar = {
             BookmarkDetailTopBar(
                 articleSearchState = articleSearchState,
@@ -406,9 +433,7 @@ fun BookmarkDetailScreen(
                 articleSearchState = articleSearchState,
                 onArticleSearchUpdateResults = onArticleSearchUpdateResults,
                 onTitleChanged = onTitleChanged,
-                onReachedBottom = {
-                    topBarScrollBehavior.state.heightOffset = 0f
-                },
+                onScrollPercentChanged = { scrollPercent = it },
             )
         }
     }
@@ -426,7 +451,7 @@ fun BookmarkDetailContent(
     articleSearchState: BookmarkDetailViewModel.ArticleSearchState = BookmarkDetailViewModel.ArticleSearchState(),
     onArticleSearchUpdateResults: (Int) -> Unit = {},
     onTitleChanged: ((String) -> Unit)? = null,
-    onReachedBottom: () -> Unit = {},
+    onScrollPercentChanged: (Int) -> Unit = {},
 ) {
     val scrollState = rememberScrollState()
     val hasArticleContent = uiState.bookmark.articleContent != null
@@ -461,10 +486,7 @@ fun BookmarkDetailContent(
         if (progress != lastReportedProgress) {
             lastReportedProgress = progress
             onScrollProgressChanged(progress)
-        }
-
-        if (scrollState.maxValue > 0 && scrollState.value >= scrollState.maxValue) {
-            onReachedBottom()
+            onScrollPercentChanged(progress)
         }
     }
 

@@ -246,9 +246,12 @@ fun BookmarkMosaicCard(
                         .background(
                             brush = Brush.verticalGradient(
                                 colorStops = arrayOf(
-                                    0f to Color.Transparent,
-                                    0.2f to Color.Black.copy(alpha = 0.45f),
-                                    1f to Color.Black.copy(alpha = 0.95f)
+                                    0.0f to Color.Transparent,
+                                    0.15f to Color.Black.copy(alpha = 0.05f),
+                                    0.35f to Color.Black.copy(alpha = 0.25f),
+                                    0.55f to Color.Black.copy(alpha = 0.55f),
+                                    0.75f to Color.Black.copy(alpha = 0.80f),
+                                    1.0f to Color.Black.copy(alpha = 0.95f)
                                 )
                             )
                         )
@@ -504,7 +507,7 @@ fun BookmarkGridCard(
     }
 }
 
-private val MobilePortraitGridCardHeight = 152.dp
+private val MobilePortraitGridCardHeight = 168.dp
 private const val MobilePortraitThumbnailWeight = 0.25f
 private val MobilePortraitLabelRowHeight = 32.dp
 private val BookmarkCardBorderAlpha = 0.4f
@@ -631,11 +634,11 @@ private fun BookmarkGridCardMobilePortrait(
                     modifier = Modifier
                         .weight(1f - MobilePortraitThumbnailWeight)
                         .fillMaxHeight()
-                        .padding(start = 10.dp, end = 10.dp, top = 8.dp, bottom = 2.dp)
+                        .padding(start = 10.dp, end = 10.dp, top = 8.dp, bottom = 4.dp)
                 ) {
                     Text(
                         text = bookmark.title,
-                        style = MaterialTheme.typography.titleSmall,
+                        style = MaterialTheme.typography.titleMedium,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
                         onTextLayout = { result ->
@@ -644,7 +647,7 @@ private fun BookmarkGridCardMobilePortrait(
                         }
                     )
 
-                    Spacer(modifier = Modifier.height(6.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
 
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -990,7 +993,7 @@ private fun BookmarkGridCardNarrow(
                 // Title
                 Text(
                     text = bookmark.title,
-                    style = MaterialTheme.typography.titleSmall,
+                    style = MaterialTheme.typography.titleMedium,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.padding(bottom = 4.dp)
@@ -1661,7 +1664,7 @@ private fun BookmarkCompactCardNarrow(
             // Title
             Text(
                 text = bookmark.title,
-                style = MaterialTheme.typography.bodyMedium,
+                style = MaterialTheme.typography.titleSmall,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f)
@@ -1952,7 +1955,7 @@ private fun BookmarkCompactCardWide(
             // Title
             Text(
                 text = bookmark.title,
-                style = MaterialTheme.typography.bodyMedium,
+                style = MaterialTheme.typography.titleSmall,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f)
