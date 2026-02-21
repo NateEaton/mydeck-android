@@ -537,25 +537,83 @@ private fun BookmarkGridCardMobilePortrait(
                 )
         ) {
             Row(modifier = Modifier.fillMaxSize()) {
-                SubcomposeAsyncImage(
-                    model = ImageRequest.Builder(LocalContext.current)
-                        .data(bookmark.thumbnailSrc)
-                        .crossfade(true)
-                        .error(ReadeckPlaceholderDrawable(bookmark.url).asImage())
-                        .fallback(ReadeckPlaceholderDrawable(bookmark.url).asImage())
-                        .build(),
-                    contentDescription = stringResource(R.string.common_bookmark_image_content_description),
-                    contentScale = ContentScale.Crop,
-                    loading = { BookmarkShimmerBox(modifier = Modifier.fillMaxSize()) },
+                Box(
                     modifier = Modifier
                         .weight(MobilePortraitThumbnailWeight)
                         .fillMaxHeight()
-                        .combinedClickable(
-                            onClick = { onClickCard(bookmark.id) },
-                            onLongClick = { showImageContextMenu = true },
-                            onLongClickLabel = stringResource(R.string.long_press_for_options)
-                        )
-                )
+                ) {
+                    SubcomposeAsyncImage(
+                        model = ImageRequest.Builder(LocalContext.current)
+                            .data(bookmark.thumbnailSrc)
+                            .crossfade(true)
+                            .error(ReadeckPlaceholderDrawable(bookmark.url).asImage())
+                            .fallback(ReadeckPlaceholderDrawable(bookmark.url).asImage())
+                            .build(),
+                        contentDescription = stringResource(R.string.common_bookmark_image_content_description),
+                        contentScale = ContentScale.Crop,
+                        loading = { BookmarkShimmerBox(modifier = Modifier.fillMaxSize()) },
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .combinedClickable(
+                                onClick = { onClickCard(bookmark.id) },
+                                onLongClick = { showImageContextMenu = true },
+                                onLongClickLabel = stringResource(R.string.long_press_for_options)
+                            )
+                    )
+
+                    if (bookmark.type is Bookmark.Type.Video || bookmark.type is Bookmark.Type.Picture) {
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.TopStart)
+                                .padding(6.dp)
+                        ) {
+                            Icon(
+                                imageVector = if (bookmark.type is Bookmark.Type.Video) Icons.Filled.Movie else Icons.Filled.Image,
+                                contentDescription = null,
+                                tint = Color.White,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    }
+
+                    if (bookmark.readProgress > 0) {
+                        Box(
+                            modifier = Modifier
+                                .size(28.dp)
+                                .align(Alignment.TopEnd)
+                                .padding(4.dp)
+                                .background(
+                                    color = Color.Gray.copy(alpha = 0.5f),
+                                    shape = CircleShape
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            if (bookmark.readProgress == 100) {
+                                Icon(
+                                    imageVector = Icons.Filled.Check,
+                                    contentDescription = stringResource(R.string.action_mark_read),
+                                    tint = Color.White,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            } else {
+                                Canvas(modifier = Modifier.size(20.dp)) {
+                                    val progressColor = Color.White
+                                    val strokeWidth = 2.dp.toPx()
+                                    val diameter = size.minDimension
+                                    val sweepAngle = (bookmark.readProgress / 100f) * 360f
+                                    drawArc(
+                                        color = progressColor,
+                                        startAngle = -90f,
+                                        sweepAngle = sweepAngle,
+                                        useCenter = false,
+                                        size = Size(diameter - strokeWidth, diameter - strokeWidth),
+                                        style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
 
                 Column(
                     modifier = Modifier
@@ -574,7 +632,7 @@ private fun BookmarkGridCardMobilePortrait(
                         }
                     )
 
-                    Spacer(modifier = Modifier.height(4.dp))
+                    Spacer(modifier = Modifier.height(6.dp))
 
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -597,9 +655,21 @@ private fun BookmarkGridCardMobilePortrait(
                             overflow = TextOverflow.Ellipsis,
                             modifier = Modifier.weight(1f)
                         )
+                        bookmark.readingTime?.let {
+                            Text(
+                                text = " · ",
+                                style = MaterialTheme.typography.labelMedium
+                            )
+                            Text(
+                                text = "$it min",
+                                style = MaterialTheme.typography.labelMedium
+                            )
+                        }
                     }
 
-                    Spacer(modifier = Modifier.height(if (titleLineCount == 1) 0.dp else 4.dp))
+                    Spacer(modifier = Modifier.height(if (titleLineCount == 1) 8.dp else 6.dp))
+
+                    Spacer(modifier = Modifier.weight(1f))
 
                     Box(
                         modifier = Modifier
@@ -626,6 +696,8 @@ private fun BookmarkGridCardMobilePortrait(
                             }
                         }
                     }
+
+                    Spacer(modifier = Modifier.height(4.dp))
 
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -674,7 +746,6 @@ private fun BookmarkGridCardMobilePortrait(
             }
         }
 
-        HorizontalDivider()
         DropdownMenu(
             expanded = showBodyContextMenu,
             onDismissRequest = { showBodyContextMenu = false }
@@ -1019,7 +1090,6 @@ private fun BookmarkGridCardNarrow(
             }
         }
         }
-        HorizontalDivider()
         DropdownMenu(
             expanded = showBodyContextMenu,
             onDismissRequest = { showBodyContextMenu = false }
@@ -1361,7 +1431,6 @@ private fun BookmarkGridCardWide(
             }
         }
         }
-        HorizontalDivider()
         DropdownMenu(
             expanded = showBodyContextMenu,
             onDismissRequest = { showBodyContextMenu = false }
