@@ -40,13 +40,35 @@ jobs:
       # - name: Run tests
       #   run: ./gradlew testGithubReleaseDebugUnitTest testGithubSnapshotDebugUnitTest
 
-      - name: Upload Debug APKs
+      - name: Upload Debug APKs (Not for device install)
         uses: actions/upload-artifact@v4
         with:
-          name: debug-apks
+          name: debug-apks-not-for-install
           path: |
             app/build/outputs/apk/githubRelease/debug/*.apk
             app/build/outputs/apk/githubSnapshot/debug/*.apk
+          retention-days: 14
+
+      - name: Decode Keystore (for signed snapshot release)
+        if: github.event_name != 'pull_request' && secrets.SIGNING_KEY != ''
+        run: |
+          echo "${{ secrets.SIGNING_KEY }}" | base64 --decode > ${{ github.workspace }}/keystore.jks
+
+      - name: Build signed Snapshot Release APK
+        if: github.event_name != 'pull_request' && secrets.SIGNING_KEY != ''
+        run: ./gradlew assembleGithubSnapshotRelease
+        env:
+          KEY_ALIAS: ${{ secrets.ALIAS }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEY_STORE_PASSWORD }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          KEYSTORE: ${{ github.workspace }}/keystore.jks
+
+      - name: Upload signed Snapshot Release APK
+        if: github.event_name != 'pull_request' && secrets.SIGNING_KEY != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: signed-snapshot-release-apk
+          path: app/build/outputs/apk/githubSnapshot/release/*.apk
           retention-days: 14
 
       # TEMPORARILY DISABLED - No test results while tests are disabled
