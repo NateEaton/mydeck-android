@@ -75,6 +75,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
@@ -824,6 +825,10 @@ fun BookmarkListView(
     onClickDownloadImage: (String) -> Unit = {},
     onClickShareImage: (String) -> Unit = {}
 ) {
+    val configuration = LocalConfiguration.current
+    val isPortrait = configuration.screenHeightDp >= configuration.screenWidthDp
+    val useMobilePortraitGridLayout = !isMultiColumn && isPortrait && layoutMode == LayoutMode.GRID
+
     if (isMultiColumn && layoutMode != LayoutMode.COMPACT) {
         val columns = when (layoutMode) {
             LayoutMode.GRID -> GridCells.Adaptive(minSize = 250.dp)
@@ -886,7 +891,7 @@ fun BookmarkListView(
                             onClickOpenInBrowserFromMenu = onClickOpenInBrowserFromMenu,
                             onClickCopyImageUrl = onClickCopyImageUrl,
                             onClickDownloadImage = onClickDownloadImage,
-                            onClickShareImage = onClickShareImage
+                            onClickShareImage = onClickShareImage,
                         )
                         LayoutMode.MOSAIC -> BookmarkMosaicCard(
                             bookmark = bookmark,
@@ -943,7 +948,8 @@ fun BookmarkListView(
                             onClickOpenInBrowserFromMenu = onClickOpenInBrowserFromMenu,
                             onClickCopyImageUrl = onClickCopyImageUrl,
                             onClickDownloadImage = onClickDownloadImage,
-                            onClickShareImage = onClickShareImage
+                            onClickShareImage = onClickShareImage,
+                            useMobilePortraitLayout = useMobilePortraitGridLayout,
                         )
                         LayoutMode.COMPACT -> BookmarkCompactCard(
                             bookmark = bookmark,

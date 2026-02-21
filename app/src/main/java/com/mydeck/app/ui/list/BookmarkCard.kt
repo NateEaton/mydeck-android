@@ -30,6 +30,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.Check
@@ -61,6 +63,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -437,9 +440,27 @@ fun BookmarkGridCard(
     onClickDownloadImage: (String) -> Unit = {},
     onClickShareImage: (String) -> Unit = {},
     isWideLayout: Boolean = LocalIsWideLayout.current,
-    isInGrid: Boolean = false
+    isInGrid: Boolean = false,
+    useMobilePortraitLayout: Boolean = false,
 ) {
-    if (isWideLayout) {
+    if (useMobilePortraitLayout) {
+        BookmarkGridCardMobilePortrait(
+            bookmark = bookmark,
+            onClickCard = onClickCard,
+            onClickDelete = onClickDelete,
+            onClickFavorite = onClickFavorite,
+            onClickArchive = onClickArchive,
+            onClickLabel = onClickLabel,
+            onClickOpenUrl = onClickOpenUrl,
+            onClickCopyLink = onClickCopyLink,
+            onClickCopyLinkText = onClickCopyLinkText,
+            onClickShareLink = onClickShareLink,
+            onClickOpenInBrowserFromMenu = onClickOpenInBrowserFromMenu,
+            onClickCopyImageUrl = onClickCopyImageUrl,
+            onClickDownloadImage = onClickDownloadImage,
+            onClickShareImage = onClickShareImage,
+        )
+    } else if (isWideLayout) {
         BookmarkGridCardWide(
             bookmark = bookmark,
             onClickCard = onClickCard,
@@ -474,6 +495,287 @@ fun BookmarkGridCard(
             onClickDownloadImage = onClickDownloadImage,
             onClickShareImage = onClickShareImage,
         )
+    }
+}
+
+private val MobilePortraitGridCardHeight = 152.dp
+private const val MobilePortraitThumbnailWeight = 0.25f
+private val MobilePortraitLabelRowHeight = 32.dp
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun BookmarkGridCardMobilePortrait(
+    bookmark: BookmarkListItem,
+    onClickCard: (String) -> Unit,
+    onClickDelete: (String) -> Unit,
+    onClickFavorite: (String, Boolean) -> Unit,
+    onClickArchive: (String, Boolean) -> Unit,
+    onClickLabel: (String) -> Unit = {},
+    onClickOpenUrl: (String) -> Unit = {},
+    onClickCopyLink: (String) -> Unit = {},
+    onClickCopyLinkText: (String) -> Unit = {},
+    onClickShareLink: (String) -> Unit = {},
+    onClickOpenInBrowserFromMenu: (String) -> Unit = {},
+    onClickCopyImageUrl: (String) -> Unit = {},
+    onClickDownloadImage: (String) -> Unit = {},
+    onClickShareImage: (String) -> Unit = {},
+) {
+    var showBodyContextMenu by remember { mutableStateOf(false) }
+    var showImageContextMenu by remember { mutableStateOf(false) }
+    var titleLineCount by remember(bookmark.id) { mutableIntStateOf(2) }
+
+    Box {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 8.dp)
+                .height(MobilePortraitGridCardHeight)
+                .combinedClickable(
+                    onClick = { onClickCard(bookmark.id) },
+                    onLongClick = { showBodyContextMenu = true },
+                    onLongClickLabel = stringResource(R.string.long_press_for_options)
+                )
+        ) {
+            Row(modifier = Modifier.fillMaxSize()) {
+                SubcomposeAsyncImage(
+                    model = ImageRequest.Builder(LocalContext.current)
+                        .data(bookmark.thumbnailSrc)
+                        .crossfade(true)
+                        .error(ReadeckPlaceholderDrawable(bookmark.url).asImage())
+                        .fallback(ReadeckPlaceholderDrawable(bookmark.url).asImage())
+                        .build(),
+                    contentDescription = stringResource(R.string.common_bookmark_image_content_description),
+                    contentScale = ContentScale.Crop,
+                    loading = { BookmarkShimmerBox(modifier = Modifier.fillMaxSize()) },
+                    modifier = Modifier
+                        .weight(MobilePortraitThumbnailWeight)
+                        .fillMaxHeight()
+                        .combinedClickable(
+                            onClick = { onClickCard(bookmark.id) },
+                            onLongClick = { showImageContextMenu = true },
+                            onLongClickLabel = stringResource(R.string.long_press_for_options)
+                        )
+                )
+
+                Column(
+                    modifier = Modifier
+                        .weight(1f - MobilePortraitThumbnailWeight)
+                        .fillMaxHeight()
+                        .padding(horizontal = 10.dp, vertical = 8.dp)
+                ) {
+                    Text(
+                        text = bookmark.title,
+                        style = MaterialTheme.typography.titleSmall,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                        onTextLayout = { result ->
+                            val measuredLines = result.lineCount.coerceIn(1, 2)
+                            if (measuredLines != titleLineCount) titleLineCount = measuredLines
+                        }
+                    )
+
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        AsyncImage(
+                            model = ImageRequest.Builder(LocalContext.current)
+                                .data(bookmark.iconSrc)
+                                .crossfade(true)
+                                .build(),
+                            contentDescription = "site icon",
+                            contentScale = ContentScale.Fit,
+                            modifier = Modifier.size(16.dp),
+                        )
+                        Spacer(Modifier.width(4.dp))
+                        Text(
+                            text = bookmark.siteName,
+                            style = MaterialTheme.typography.labelMedium,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(if (titleLineCount == 1) 0.dp else 4.dp))
+
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(MobilePortraitLabelRowHeight),
+                        contentAlignment = Alignment.CenterStart
+                    ) {
+                        if (bookmark.labels.isNotEmpty()) {
+                            LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                items(bookmark.labels) { label ->
+                                    SuggestionChip(
+                                        onClick = { onClickLabel(label) },
+                                        label = {
+                                            Text(
+                                                text = label,
+                                                style = MaterialTheme.typography.labelSmall,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+                                        },
+                                        modifier = Modifier.height(28.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(horizontalArrangement = Arrangement.Start) {
+                            IconButton(
+                                onClick = { onClickFavorite(bookmark.id, !bookmark.isMarked) },
+                                modifier = Modifier.size(48.dp)
+                            ) {
+                                Icon(
+                                    imageVector = if (bookmark.isMarked) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
+                                    contentDescription = stringResource(R.string.action_favorite),
+                                )
+                            }
+                            IconButton(
+                                onClick = { onClickArchive(bookmark.id, !bookmark.isArchived) },
+                                modifier = Modifier.size(48.dp)
+                            ) {
+                                Icon(
+                                    imageVector = if (bookmark.isArchived) Icons.Filled.Inventory2 else Icons.Outlined.Inventory2,
+                                    contentDescription = stringResource(R.string.action_archive),
+                                )
+                            }
+                            IconButton(
+                                onClick = { onClickOpenUrl(bookmark.id) },
+                                modifier = Modifier.size(48.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Language,
+                                    contentDescription = stringResource(R.string.action_view_original),
+                                )
+                            }
+                        }
+                        IconButton(
+                            onClick = { onClickDelete(bookmark.id) },
+                            modifier = Modifier.size(48.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Delete,
+                                contentDescription = stringResource(R.string.action_delete),
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        HorizontalDivider()
+        DropdownMenu(
+            expanded = showBodyContextMenu,
+            onDismissRequest = { showBodyContextMenu = false }
+        ) {
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.action_copy_link)) },
+                leadingIcon = { Icon(Icons.Outlined.ContentCopy, null) },
+                onClick = {
+                    showBodyContextMenu = false
+                    onClickCopyLink(bookmark.url)
+                }
+            )
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.action_copy_link_text)) },
+                leadingIcon = { Icon(Icons.Outlined.ContentCopy, null) },
+                onClick = {
+                    showBodyContextMenu = false
+                    onClickCopyLinkText(bookmark.title)
+                }
+            )
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.action_share_link)) },
+                leadingIcon = { Icon(Icons.Outlined.Share, null) },
+                onClick = {
+                    showBodyContextMenu = false
+                    onClickShareLink(bookmark.url)
+                }
+            )
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.action_open_in_browser)) },
+                leadingIcon = { Icon(Icons.AutoMirrored.Filled.OpenInNew, null) },
+                onClick = {
+                    showBodyContextMenu = false
+                    onClickOpenInBrowserFromMenu(bookmark.url)
+                }
+            )
+        }
+        if (bookmark.imageSrc.isNotBlank()) {
+            DropdownMenu(
+                expanded = showImageContextMenu,
+                onDismissRequest = { showImageContextMenu = false }
+            ) {
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.action_copy_link)) },
+                    leadingIcon = { Icon(Icons.Outlined.ContentCopy, null) },
+                    onClick = {
+                        showImageContextMenu = false
+                        onClickCopyLink(bookmark.url)
+                    }
+                )
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.action_copy_link_text)) },
+                    leadingIcon = { Icon(Icons.Outlined.ContentCopy, null) },
+                    onClick = {
+                        showImageContextMenu = false
+                        onClickCopyLinkText(bookmark.title)
+                    }
+                )
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.action_share_link)) },
+                    leadingIcon = { Icon(Icons.Outlined.Share, null) },
+                    onClick = {
+                        showImageContextMenu = false
+                        onClickShareLink(bookmark.url)
+                    }
+                )
+                HorizontalDivider()
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.action_copy_image)) },
+                    leadingIcon = { Icon(Icons.Outlined.ContentCopy, null) },
+                    onClick = {
+                        showImageContextMenu = false
+                        onClickCopyImageUrl(bookmark.imageSrc)
+                    }
+                )
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.action_download_image)) },
+                    leadingIcon = { Icon(Icons.Outlined.Download, null) },
+                    onClick = {
+                        showImageContextMenu = false
+                        onClickDownloadImage(bookmark.imageSrc)
+                    }
+                )
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.action_share_image)) },
+                    leadingIcon = { Icon(Icons.Outlined.Share, null) },
+                    onClick = {
+                        showImageContextMenu = false
+                        onClickShareImage(bookmark.imageSrc)
+                    }
+                )
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.action_open_in_browser)) },
+                    leadingIcon = { Icon(Icons.AutoMirrored.Filled.OpenInNew, null) },
+                    onClick = {
+                        showImageContextMenu = false
+                        onClickOpenInBrowserFromMenu(bookmark.url)
+                    }
+                )
+            }
+        }
     }
 }
 
