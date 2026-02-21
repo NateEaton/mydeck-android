@@ -61,6 +61,7 @@ import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -75,12 +76,16 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.navigation.NavHostController
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import kotlinx.datetime.Clock
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
@@ -93,7 +98,6 @@ import com.mydeck.app.domain.model.SortOption
 import com.mydeck.app.ui.components.FilterBar
 import com.mydeck.app.ui.components.FilterBottomSheet
 import com.mydeck.app.ui.components.ShareBookmarkChooser
-import com.mydeck.app.ui.components.TimedDeleteSnackbar
 import com.mydeck.app.ui.components.VerticalScrollbar
 import com.mydeck.app.util.openUrlInCustomTab
 import kotlinx.coroutines.launch
@@ -108,6 +112,8 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.navigation.compose.rememberNavController
+
+private const val PendingDeleteFromDetailKey = "pending_delete_bookmark_id"
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -140,38 +146,56 @@ fun BookmarkListScreen(
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
     val hapticFeedback = LocalHapticFeedback.current
+    val lifecycleOwner = LocalLifecycleOwner.current
 
     val pullToRefreshState = rememberPullToRefreshState()
     val isLoading by viewModel.loadBookmarksIsRunning.collectAsState()
 
     val isLabelMode = activeLabel.value != null
+    val dismissPendingDeleteSnackbar: () -> Unit = {
+        snackbarHostState.currentSnackbarData?.dismiss()
+    }
 
-    // UI event handlers (pass filter update functions)
-    val onClickBookmark: (String) -> Unit = { bookmarkId -> viewModel.onClickBookmark(bookmarkId) }
-    val onClickDelete: (String) -> Unit = { bookmarkId ->
-        hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+    fun stageDeleteWithSnackbar(bookmarkId: String, withHaptic: Boolean = false) {
+        if (withHaptic) {
+            hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+        }
         viewModel.onDeleteBookmark(bookmarkId)
         scope.launch {
             val result = snackbarHostState.showSnackbar(
                 message = "Bookmark deleted",
                 actionLabel = "UNDO",
-                duration = SnackbarDuration.Long
+                duration = SnackbarDuration.Indefinite
             )
             if (result == androidx.compose.material3.SnackbarResult.ActionPerformed) {
                 viewModel.onCancelDeleteBookmark()
+            } else {
+                viewModel.onConfirmDeleteBookmark()
             }
         }
     }
+
+    // UI event handlers (pass filter update functions)
+    val onClickBookmark: (String) -> Unit = { bookmarkId ->
+        dismissPendingDeleteSnackbar()
+        viewModel.onClickBookmark(bookmarkId)
+    }
+    val onClickDelete: (String) -> Unit = { bookmarkId ->
+        stageDeleteWithSnackbar(bookmarkId, withHaptic = true)
+    }
     val onClickFavorite: (String, Boolean) -> Unit = { bookmarkId, isFavorite ->
+        dismissPendingDeleteSnackbar()
         hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
         viewModel.onToggleFavoriteBookmark(bookmarkId, isFavorite)
     }
     val onClickArchive: (String, Boolean) -> Unit = { bookmarkId, isArchived ->
+        dismissPendingDeleteSnackbar()
         hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
         viewModel.onToggleArchiveBookmark(bookmarkId, isArchived)
     }
     val onClickShareBookmark: (String) -> Unit = { url -> viewModel.onClickShareBookmark(url) }
     val onClickOpenUrl: (String) -> Unit = { bookmarkId ->
+        dismissPendingDeleteSnackbar()
         viewModel.onClickBookmarkOpenOriginal(bookmarkId)
     }
     val onClickOpenInBrowser: (String) -> Unit = { url ->
@@ -306,6 +330,30 @@ fun BookmarkListScreen(
           }
     }
 
+    LaunchedEffect(navHostController) {
+        val stateHandle = navHostController.currentBackStackEntry?.savedStateHandle ?: return@LaunchedEffect
+        stateHandle.getStateFlow<String?>(PendingDeleteFromDetailKey, null).collectLatest { bookmarkId ->
+            if (bookmarkId != null) {
+                stateHandle[PendingDeleteFromDetailKey] = null
+                dismissPendingDeleteSnackbar()
+                stageDeleteWithSnackbar(bookmarkId)
+            }
+        }
+    }
+
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_STOP) {
+                snackbarHostState.currentSnackbarData?.dismiss()
+            }
+        }
+
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+
     // Determine the current view title based on drawer preset
     val currentViewTitle = when (drawerPreset.value) {
         DrawerPreset.MY_LIST -> stringResource(id = R.string.my_list)
@@ -318,13 +366,7 @@ fun BookmarkListScreen(
 
     Scaffold(
         snackbarHost = {
-            SnackbarHost(snackbarHostState) { data ->
-                if (data.visuals.actionLabel != null) {
-                    TimedDeleteSnackbar(data)
-                } else {
-                    androidx.compose.material3.Snackbar(snackbarData = data)
-                }
-            }
+            SnackbarHost(snackbarHostState)
         },
         topBar = {
             TopAppBar(
@@ -332,7 +374,10 @@ fun BookmarkListScreen(
                     if (isLabelMode) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.clickable { scrollToTopTrigger++ }
+                            modifier = Modifier.clickable {
+                                dismissPendingDeleteSnackbar()
+                                scrollToTopTrigger++
+                            }
                         ) {
                             Icon(
                                 imageVector = Icons.AutoMirrored.Outlined.Label,
@@ -347,6 +392,7 @@ fun BookmarkListScreen(
                         Text(
                             text = currentViewTitle,
                             modifier = Modifier.clickable {
+                                dismissPendingDeleteSnackbar()
                                 scrollToTopTrigger++
                             }
                         )
@@ -355,7 +401,10 @@ fun BookmarkListScreen(
                 navigationIcon = {
                     if (showNavigationIcon) {
                         IconButton(
-                            onClick = { scope.launch { drawerState.open() } }
+                            onClick = {
+                                dismissPendingDeleteSnackbar()
+                                scope.launch { drawerState.open() }
+                            }
                         ) {
                             Icon(
                                 imageVector = Icons.Filled.Menu,
@@ -367,7 +416,10 @@ fun BookmarkListScreen(
                 actions = {
                     // Sort button with dropdown — one row per category, arrow shows direction of active sort
                     Box {
-                        IconButton(onClick = { showSortMenu = true }) {
+                        IconButton(onClick = {
+                            dismissPendingDeleteSnackbar()
+                            showSortMenu = true
+                        }) {
                             Icon(Icons.Filled.SwapVert, contentDescription = stringResource(R.string.sort))
                         }
                         DropdownMenu(
@@ -428,7 +480,10 @@ fun BookmarkListScreen(
                             LayoutMode.COMPACT -> Icons.AutoMirrored.Filled.List
                             LayoutMode.MOSAIC -> Icons.Filled.GridView
                         }
-                        IconButton(onClick = { showLayoutMenu = true }) {
+                        IconButton(onClick = {
+                            dismissPendingDeleteSnackbar()
+                            showLayoutMenu = true
+                        }) {
                             Icon(currentLayoutIcon, contentDescription = stringResource(R.string.layout))
                         }
                         DropdownMenu(
@@ -465,7 +520,10 @@ fun BookmarkListScreen(
                     if (isLabelMode) {
                         // Overflow menu with Rename/Delete label options
                         Box {
-                            IconButton(onClick = { showOverflowMenu = true }) {
+                            IconButton(onClick = {
+                                dismissPendingDeleteSnackbar()
+                                showOverflowMenu = true
+                            }) {
                                 Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.more_options))
                             }
                             DropdownMenu(
@@ -490,7 +548,10 @@ fun BookmarkListScreen(
                         }
                     } else {
                         // Filter button (non-label mode only)
-                        IconButton(onClick = { viewModel.onOpenFilterSheet() }) {
+                        IconButton(onClick = {
+                            dismissPendingDeleteSnackbar()
+                            viewModel.onOpenFilterSheet()
+                        }) {
                             Icon(Icons.Filled.FilterList, contentDescription = stringResource(R.string.filter_bookmarks))
                         }
                     }
@@ -501,6 +562,7 @@ fun BookmarkListScreen(
             val clipboardManager = LocalClipboardManager.current
             FloatingActionButton(
                 onClick = {
+                    dismissPendingDeleteSnackbar()
                     val clipboardText = clipboardManager.getText()?.text
                     viewModel.openCreateBookmarkDialog(clipboardText)
                 }
@@ -534,6 +596,10 @@ fun BookmarkListScreen(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 when (uiState) {
+                    is BookmarkListViewModel.UiState.Loading -> {
+                        // Intentionally blank — avoids flash of empty state while Room emits first value
+                        Box(modifier = Modifier.fillMaxSize())
+                    }
                     is BookmarkListViewModel.UiState.Empty -> {
                         val emptyIcon = when (uiState.messageResource) {
                             R.string.list_view_empty_error_loading_bookmarks -> Icons.Outlined.CloudOff
@@ -548,7 +614,7 @@ fun BookmarkListScreen(
                                 headlineResource = R.string.filter_no_results
                             )
                         } else {
-                            BookmarkListView(
+                    BookmarkListView(
                                 filterKey = Pair(filterFormState.value, activeLabel.value),
                                 scrollToTopTrigger = scrollToTopTrigger,
                                 layoutMode = layoutMode.value,
@@ -558,18 +624,22 @@ fun BookmarkListScreen(
                                 onClickArchive = onClickArchive,
                                 onClickFavorite = onClickFavorite,
                                 onClickShareBookmark = onClickShareBookmark,
-                                onClickLabel = { label -> viewModel.onClickLabel(label) },
+                                onClickLabel = { label ->
+                                    dismissPendingDeleteSnackbar()
+                                    viewModel.onClickLabel(label)
+                                },
                                 onClickOpenUrl = onClickOpenUrl,
                                 onClickOpenInBrowser = onClickOpenInBrowser,
                                 onClickCopyLink = onClickCopyLink,
                                 onClickCopyLinkText = onClickCopyLinkText,
                                 onClickShareLink = onClickShareLink,
-                                onClickOpenInBrowserFromMenu = onClickOpenInBrowserFromMenu,
-                                onClickCopyImageUrl = onClickCopyImageUrl,
-                                onClickDownloadImage = onClickDownloadImage,
-                                onClickShareImage = onClickShareImage
-                            )
-                        }
+                        onClickOpenInBrowserFromMenu = onClickOpenInBrowserFromMenu,
+                        onClickCopyImageUrl = onClickCopyImageUrl,
+                        onClickDownloadImage = onClickDownloadImage,
+                        onClickShareImage = onClickShareImage,
+                        onUserInteraction = dismissPendingDeleteSnackbar,
+                    )
+                }
                         // Consumes a shareIntent and creates the corresponding share dialog
                         ShareBookmarkChooser(
                             context = LocalContext.current,
@@ -822,8 +892,13 @@ fun BookmarkListView(
     onClickOpenInBrowserFromMenu: (String) -> Unit = {},
     onClickCopyImageUrl: (String) -> Unit = {},
     onClickDownloadImage: (String) -> Unit = {},
-    onClickShareImage: (String) -> Unit = {}
+    onClickShareImage: (String) -> Unit = {},
+    onUserInteraction: () -> Unit = {},
 ) {
+    val configuration = LocalConfiguration.current
+    val isPortrait = configuration.screenHeightDp >= configuration.screenWidthDp
+    val useMobilePortraitGridLayout = !isMultiColumn && isPortrait && layoutMode == LayoutMode.GRID
+
     if (isMultiColumn && layoutMode != LayoutMode.COMPACT) {
         val columns = when (layoutMode) {
             LayoutMode.GRID -> GridCells.Adaptive(minSize = 250.dp)
@@ -839,6 +914,9 @@ fun BookmarkListView(
             if (scrollToTopTrigger > 0) {
                 lazyGridState.animateScrollToItem(0)
             }
+        }
+        LaunchedEffect(lazyGridState.isScrollInProgress) {
+            if (lazyGridState.isScrollInProgress) onUserInteraction()
         }
         Box(modifier = modifier) {
             LazyVerticalGrid(
@@ -886,7 +964,7 @@ fun BookmarkListView(
                             onClickOpenInBrowserFromMenu = onClickOpenInBrowserFromMenu,
                             onClickCopyImageUrl = onClickCopyImageUrl,
                             onClickDownloadImage = onClickDownloadImage,
-                            onClickShareImage = onClickShareImage
+                            onClickShareImage = onClickShareImage,
                         )
                         LayoutMode.MOSAIC -> BookmarkMosaicCard(
                             bookmark = bookmark,
@@ -923,6 +1001,9 @@ fun BookmarkListView(
                 lazyListState.animateScrollToItem(0)
             }
         }
+        LaunchedEffect(lazyListState.isScrollInProgress) {
+            if (lazyListState.isScrollInProgress) onUserInteraction()
+        }
         Box(modifier = modifier) {
             LazyColumn(state = lazyListState, modifier = Modifier.fillMaxSize()) {
                 items(bookmarks) { bookmark ->
@@ -943,7 +1024,8 @@ fun BookmarkListView(
                             onClickOpenInBrowserFromMenu = onClickOpenInBrowserFromMenu,
                             onClickCopyImageUrl = onClickCopyImageUrl,
                             onClickDownloadImage = onClickDownloadImage,
-                            onClickShareImage = onClickShareImage
+                            onClickShareImage = onClickShareImage,
+                            useMobilePortraitLayout = useMobilePortraitGridLayout,
                         )
                         LayoutMode.COMPACT -> BookmarkCompactCard(
                             bookmark = bookmark,

@@ -43,8 +43,6 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.CancellationException
 import timber.log.Timber
 import javax.inject.Inject
 
@@ -84,9 +82,9 @@ class BookmarkListViewModel @Inject constructor(
     private val _shareIntent = MutableStateFlow<Intent?>(null)
     val shareIntent = _shareIntent.asStateFlow()
 
-    // Pending deletion
-    private var pendingDeletionJob: Job? = null
-    private var pendingDeletionBookmarkId: String? = null
+    // Pending deletion (single-item Gmail-style staging)
+    private val _pendingDeletionBookmarkId = MutableStateFlow<String?>(null)
+    val pendingDeletionBookmarkId = _pendingDeletionBookmarkId.asStateFlow()
 
     init {
         viewModelScope.launch {
@@ -143,7 +141,7 @@ class BookmarkListViewModel @Inject constructor(
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
-    private val _uiState = MutableStateFlow<UiState>(UiState.Empty(R.string.list_view_empty_not_loaded_yet))
+    private val _uiState = MutableStateFlow<UiState>(UiState.Loading)
     val uiState = _uiState.asStateFlow()
 
     init {
@@ -181,15 +179,17 @@ class BookmarkListViewModel @Inject constructor(
                         orderBy = sort.sqlOrderBy
                     )
                 }
-            }.collectLatest { bookmarks ->
+            }.combine(_pendingDeletionBookmarkId) { bookmarks, pendingDeletionId ->
+                if (pendingDeletionId == null) bookmarks else bookmarks.filterNot { it.id == pendingDeletionId }
+            }.collectLatest { visibleBookmarks ->
                 _uiState.update { currentState ->
                     if (currentState is UiState.Success) {
-                        currentState.copy(bookmarks = bookmarks)
+                        currentState.copy(bookmarks = visibleBookmarks)
                     } else {
-                        if (bookmarks.isEmpty() && _activeLabel.value == null && _filterFormState.value == FilterFormState.fromPreset(DrawerPreset.MY_LIST)) {
+                        if (visibleBookmarks.isEmpty() && _activeLabel.value == null && _filterFormState.value == FilterFormState.fromPreset(DrawerPreset.MY_LIST)) {
                              UiState.Empty(R.string.list_view_empty_nothing_to_see)
                         } else {
-                            UiState.Success(bookmarks, null)
+                            UiState.Success(visibleBookmarks, null)
                         }
                     }
                 }
@@ -345,42 +345,27 @@ class BookmarkListViewModel @Inject constructor(
     }
 
     fun onDeleteBookmark(bookmarkId: String) {
-        // Cancel any existing pending deletion
-        pendingDeletionJob?.cancel()
+        // Store bookmark ID for potential undo; actual deletion occurs on snackbar dismissal.
+        _pendingDeletionBookmarkId.value = bookmarkId
+    }
 
-        // Store the bookmark ID for potential undo
-        pendingDeletionBookmarkId = bookmarkId
+    fun onConfirmDeleteBookmark() {
+        val bookmarkId = _pendingDeletionBookmarkId.value ?: return
+        _pendingDeletionBookmarkId.value = null
 
-        // Start a new deletion job with 10-second delay
-        pendingDeletionJob = viewModelScope.launch {
+        viewModelScope.launch {
             try {
-                // Wait 10 seconds before actually deleting
-                delay(10000)
-
-                // After delay, perform the actual deletion
                 updateBookmark {
                     updateBookmarkUseCase.deleteBookmark(bookmarkId)
                 }
-
-                // Clear pending deletion state
-                pendingDeletionBookmarkId = null
-                pendingDeletionJob = null
-            } catch (e: CancellationException) {
-                // Job was cancelled (undo was clicked), just rethrow
-                Timber.d("Deletion cancelled by user")
-                throw e
             } catch (e: Exception) {
-                // Some other error occurred
                 Timber.e(e, "Error deleting bookmark: ${e.message}")
             }
         }
     }
 
     fun onCancelDeleteBookmark() {
-        // Cancel the pending deletion job
-        pendingDeletionJob?.cancel()
-        pendingDeletionJob = null
-        pendingDeletionBookmarkId = null
+        _pendingDeletionBookmarkId.value = null
         Timber.d("Delete bookmark cancelled")
     }
 
@@ -589,6 +574,8 @@ class BookmarkListViewModel @Inject constructor(
     }
 
     sealed class UiState {
+        data object Loading : UiState()
+
         data class Success(
             val bookmarks: List<BookmarkListItem>,
             val updateBookmarkState: UpdateBookmarkState?

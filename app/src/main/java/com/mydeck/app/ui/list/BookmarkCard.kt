@@ -30,6 +30,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.Check
@@ -49,6 +51,7 @@ import androidx.compose.material.icons.outlined.Inventory2
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CardDefaults.outlinedCardBorder
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
@@ -61,6 +64,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -159,7 +163,12 @@ fun BookmarkMosaicCard(
                 .padding(if (isWideLayout) 1.dp else 8.dp)
                 .height(200.dp)
                 .clickable { onClickCard(bookmark.id) },
-            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+            border = outlinedCardBorder().copy(
+                brush = androidx.compose.ui.graphics.SolidColor(
+                    MaterialTheme.colorScheme.outlineVariant.copy(alpha = BookmarkCardBorderAlpha)
+                )
+            )
         ) {
             Box(modifier = Modifier.fillMaxWidth()) {
                 // Full height thumbnail as background — Zone B (image long-press)
@@ -228,18 +237,21 @@ fun BookmarkMosaicCard(
                     }
                 }
 
-                // 3-stop gradient overlay (~90-100dp) for improved contrast
+                // Darker, taller gradient overlay for stronger contrast
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(96.dp)
+                        .height(124.dp)
                         .align(Alignment.BottomCenter)
                         .background(
                             brush = Brush.verticalGradient(
                                 colorStops = arrayOf(
-                                    0f to Color.Transparent,
-                                    0.4f to Color.Black.copy(alpha = 0.3f),
-                                    1f to Color.Black.copy(alpha = 0.85f)
+                                    0.0f to Color.Transparent,
+                                    0.15f to Color.Black.copy(alpha = 0.05f),
+                                    0.35f to Color.Black.copy(alpha = 0.25f),
+                                    0.55f to Color.Black.copy(alpha = 0.55f),
+                                    0.75f to Color.Black.copy(alpha = 0.80f),
+                                    1.0f to Color.Black.copy(alpha = 0.95f)
                                 )
                             )
                         )
@@ -437,9 +449,27 @@ fun BookmarkGridCard(
     onClickDownloadImage: (String) -> Unit = {},
     onClickShareImage: (String) -> Unit = {},
     isWideLayout: Boolean = LocalIsWideLayout.current,
-    isInGrid: Boolean = false
+    isInGrid: Boolean = false,
+    useMobilePortraitLayout: Boolean = false,
 ) {
-    if (isWideLayout) {
+    if (useMobilePortraitLayout) {
+        BookmarkGridCardMobilePortrait(
+            bookmark = bookmark,
+            onClickCard = onClickCard,
+            onClickDelete = onClickDelete,
+            onClickFavorite = onClickFavorite,
+            onClickArchive = onClickArchive,
+            onClickLabel = onClickLabel,
+            onClickOpenUrl = onClickOpenUrl,
+            onClickCopyLink = onClickCopyLink,
+            onClickCopyLinkText = onClickCopyLinkText,
+            onClickShareLink = onClickShareLink,
+            onClickOpenInBrowserFromMenu = onClickOpenInBrowserFromMenu,
+            onClickCopyImageUrl = onClickCopyImageUrl,
+            onClickDownloadImage = onClickDownloadImage,
+            onClickShareImage = onClickShareImage,
+        )
+    } else if (isWideLayout) {
         BookmarkGridCardWide(
             bookmark = bookmark,
             onClickCard = onClickCard,
@@ -477,6 +507,364 @@ fun BookmarkGridCard(
     }
 }
 
+private val MobilePortraitGridCardHeight = 168.dp
+private const val MobilePortraitThumbnailWeight = 0.25f
+private val MobilePortraitLabelRowHeight = 32.dp
+private val BookmarkCardBorderAlpha = 0.4f
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun BookmarkGridCardMobilePortrait(
+    bookmark: BookmarkListItem,
+    onClickCard: (String) -> Unit,
+    onClickDelete: (String) -> Unit,
+    onClickFavorite: (String, Boolean) -> Unit,
+    onClickArchive: (String, Boolean) -> Unit,
+    onClickLabel: (String) -> Unit = {},
+    onClickOpenUrl: (String) -> Unit = {},
+    onClickCopyLink: (String) -> Unit = {},
+    onClickCopyLinkText: (String) -> Unit = {},
+    onClickShareLink: (String) -> Unit = {},
+    onClickOpenInBrowserFromMenu: (String) -> Unit = {},
+    onClickCopyImageUrl: (String) -> Unit = {},
+    onClickDownloadImage: (String) -> Unit = {},
+    onClickShareImage: (String) -> Unit = {},
+) {
+    var showBodyContextMenu by remember { mutableStateOf(false) }
+    var showImageContextMenu by remember { mutableStateOf(false) }
+    var titleLineCount by remember(bookmark.id) { mutableIntStateOf(2) }
+
+    Box {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 8.dp)
+                .height(MobilePortraitGridCardHeight)
+                .combinedClickable(
+                    onClick = { onClickCard(bookmark.id) },
+                    onLongClick = { showBodyContextMenu = true },
+                    onLongClickLabel = stringResource(R.string.long_press_for_options)
+                ),
+            border = outlinedCardBorder().copy(
+                brush = androidx.compose.ui.graphics.SolidColor(
+                    MaterialTheme.colorScheme.outlineVariant.copy(alpha = BookmarkCardBorderAlpha)
+                )
+            )
+        ) {
+            Row(modifier = Modifier.fillMaxSize()) {
+                Box(
+                    modifier = Modifier
+                        .weight(MobilePortraitThumbnailWeight)
+                        .fillMaxHeight()
+                ) {
+                    SubcomposeAsyncImage(
+                        model = ImageRequest.Builder(LocalContext.current)
+                            .data(bookmark.thumbnailSrc)
+                            .crossfade(true)
+                            .error(ReadeckPlaceholderDrawable(bookmark.url).asImage())
+                            .fallback(ReadeckPlaceholderDrawable(bookmark.url).asImage())
+                            .build(),
+                        contentDescription = stringResource(R.string.common_bookmark_image_content_description),
+                        contentScale = ContentScale.Crop,
+                        loading = { BookmarkShimmerBox(modifier = Modifier.fillMaxSize()) },
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .combinedClickable(
+                                onClick = { onClickCard(bookmark.id) },
+                                onLongClick = { showImageContextMenu = true },
+                                onLongClickLabel = stringResource(R.string.long_press_for_options)
+                            )
+                    )
+
+                    if (bookmark.type is Bookmark.Type.Video || bookmark.type is Bookmark.Type.Picture) {
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.TopStart)
+                                .padding(6.dp)
+                        ) {
+                            Icon(
+                                imageVector = if (bookmark.type is Bookmark.Type.Video) Icons.Filled.Movie else Icons.Filled.Image,
+                                contentDescription = null,
+                                tint = Color.White,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    }
+
+                    if (bookmark.readProgress > 0) {
+                        Box(
+                            modifier = Modifier
+                                .size(28.dp)
+                                .align(Alignment.TopEnd)
+                                .padding(4.dp)
+                                .background(
+                                    color = Color.Gray.copy(alpha = 0.5f),
+                                    shape = CircleShape
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            if (bookmark.readProgress == 100) {
+                                Icon(
+                                    imageVector = Icons.Filled.Check,
+                                    contentDescription = stringResource(R.string.action_mark_read),
+                                    tint = Color.White,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            } else {
+                                Canvas(modifier = Modifier.size(20.dp)) {
+                                    val progressColor = Color.White
+                                    val strokeWidth = 2.dp.toPx()
+                                    val diameter = size.minDimension
+                                    val sweepAngle = (bookmark.readProgress / 100f) * 360f
+                                    drawArc(
+                                        color = progressColor,
+                                        startAngle = -90f,
+                                        sweepAngle = sweepAngle,
+                                        useCenter = false,
+                                        size = Size(diameter - strokeWidth, diameter - strokeWidth),
+                                        style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Column(
+                    modifier = Modifier
+                        .weight(1f - MobilePortraitThumbnailWeight)
+                        .fillMaxHeight()
+                        .padding(start = 10.dp, end = 10.dp, top = 8.dp, bottom = 4.dp)
+                ) {
+                    Text(
+                        text = bookmark.title,
+                        style = MaterialTheme.typography.titleMedium,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                        onTextLayout = { result ->
+                            val measuredLines = result.lineCount.coerceIn(1, 2)
+                            if (measuredLines != titleLineCount) titleLineCount = measuredLines
+                        }
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        AsyncImage(
+                            model = ImageRequest.Builder(LocalContext.current)
+                                .data(bookmark.iconSrc)
+                                .crossfade(true)
+                                .build(),
+                            contentDescription = "site icon",
+                            contentScale = ContentScale.Fit,
+                            modifier = Modifier.size(16.dp),
+                        )
+                        Spacer(Modifier.width(4.dp))
+                        Text(
+                            text = bookmark.siteName,
+                            style = MaterialTheme.typography.labelMedium,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f)
+                        )
+                        bookmark.readingTime?.let {
+                            Text(
+                                text = " · ",
+                                style = MaterialTheme.typography.labelMedium
+                            )
+                            Text(
+                                text = "$it min",
+                                style = MaterialTheme.typography.labelMedium
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(if (titleLineCount == 1) 8.dp else 6.dp))
+
+                    Spacer(modifier = Modifier.weight(1f))
+
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(MobilePortraitLabelRowHeight),
+                        contentAlignment = Alignment.CenterStart
+                    ) {
+                        if (bookmark.labels.isNotEmpty()) {
+                            LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                items(bookmark.labels) { label ->
+                                    SuggestionChip(
+                                        onClick = { onClickLabel(label) },
+                                        label = {
+                                            Text(
+                                                text = label,
+                                                style = MaterialTheme.typography.labelSmall,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+                                        },
+                                        modifier = Modifier.height(28.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(3.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(horizontalArrangement = Arrangement.Start) {
+                            IconButton(
+                                onClick = { onClickFavorite(bookmark.id, !bookmark.isMarked) },
+                                modifier = Modifier.size(48.dp)
+                            ) {
+                                Icon(
+                                    imageVector = if (bookmark.isMarked) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
+                                    contentDescription = stringResource(R.string.action_favorite),
+                                )
+                            }
+                            IconButton(
+                                onClick = { onClickArchive(bookmark.id, !bookmark.isArchived) },
+                                modifier = Modifier.size(48.dp)
+                            ) {
+                                Icon(
+                                    imageVector = if (bookmark.isArchived) Icons.Filled.Inventory2 else Icons.Outlined.Inventory2,
+                                    contentDescription = stringResource(R.string.action_archive),
+                                )
+                            }
+                            IconButton(
+                                onClick = { onClickOpenUrl(bookmark.id) },
+                                modifier = Modifier.size(48.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Language,
+                                    contentDescription = stringResource(R.string.action_view_original),
+                                )
+                            }
+                        }
+                        IconButton(
+                            onClick = { onClickDelete(bookmark.id) },
+                            modifier = Modifier.size(48.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Delete,
+                                contentDescription = stringResource(R.string.action_delete),
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        DropdownMenu(
+            expanded = showBodyContextMenu,
+            onDismissRequest = { showBodyContextMenu = false }
+        ) {
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.action_copy_link)) },
+                leadingIcon = { Icon(Icons.Outlined.ContentCopy, null) },
+                onClick = {
+                    showBodyContextMenu = false
+                    onClickCopyLink(bookmark.url)
+                }
+            )
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.action_copy_link_text)) },
+                leadingIcon = { Icon(Icons.Outlined.ContentCopy, null) },
+                onClick = {
+                    showBodyContextMenu = false
+                    onClickCopyLinkText(bookmark.title)
+                }
+            )
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.action_share_link)) },
+                leadingIcon = { Icon(Icons.Outlined.Share, null) },
+                onClick = {
+                    showBodyContextMenu = false
+                    onClickShareLink(bookmark.url)
+                }
+            )
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.action_open_in_browser)) },
+                leadingIcon = { Icon(Icons.AutoMirrored.Filled.OpenInNew, null) },
+                onClick = {
+                    showBodyContextMenu = false
+                    onClickOpenInBrowserFromMenu(bookmark.url)
+                }
+            )
+        }
+        if (bookmark.imageSrc.isNotBlank()) {
+            DropdownMenu(
+                expanded = showImageContextMenu,
+                onDismissRequest = { showImageContextMenu = false }
+            ) {
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.action_copy_link)) },
+                    leadingIcon = { Icon(Icons.Outlined.ContentCopy, null) },
+                    onClick = {
+                        showImageContextMenu = false
+                        onClickCopyLink(bookmark.url)
+                    }
+                )
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.action_copy_link_text)) },
+                    leadingIcon = { Icon(Icons.Outlined.ContentCopy, null) },
+                    onClick = {
+                        showImageContextMenu = false
+                        onClickCopyLinkText(bookmark.title)
+                    }
+                )
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.action_share_link)) },
+                    leadingIcon = { Icon(Icons.Outlined.Share, null) },
+                    onClick = {
+                        showImageContextMenu = false
+                        onClickShareLink(bookmark.url)
+                    }
+                )
+                HorizontalDivider()
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.action_copy_image)) },
+                    leadingIcon = { Icon(Icons.Outlined.ContentCopy, null) },
+                    onClick = {
+                        showImageContextMenu = false
+                        onClickCopyImageUrl(bookmark.imageSrc)
+                    }
+                )
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.action_download_image)) },
+                    leadingIcon = { Icon(Icons.Outlined.Download, null) },
+                    onClick = {
+                        showImageContextMenu = false
+                        onClickDownloadImage(bookmark.imageSrc)
+                    }
+                )
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.action_share_image)) },
+                    leadingIcon = { Icon(Icons.Outlined.Share, null) },
+                    onClick = {
+                        showImageContextMenu = false
+                        onClickShareImage(bookmark.imageSrc)
+                    }
+                )
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.action_open_in_browser)) },
+                    leadingIcon = { Icon(Icons.AutoMirrored.Filled.OpenInNew, null) },
+                    onClick = {
+                        showImageContextMenu = false
+                        onClickOpenInBrowserFromMenu(bookmark.url)
+                    }
+                )
+            }
+        }
+    }
+}
+
 @OptIn(ExperimentalLayoutApi::class, ExperimentalFoundationApi::class)
 @Composable
 private fun BookmarkGridCardNarrow(
@@ -507,7 +895,12 @@ private fun BookmarkGridCardNarrow(
                     onClick = { onClickCard(bookmark.id) },
                     onLongClick = { showBodyContextMenu = true },
                     onLongClickLabel = stringResource(R.string.long_press_for_options)
+                ),
+            border = outlinedCardBorder().copy(
+                brush = androidx.compose.ui.graphics.SolidColor(
+                    MaterialTheme.colorScheme.outlineVariant.copy(alpha = BookmarkCardBorderAlpha)
                 )
+            )
         ) {
         Row(
             modifier = Modifier.fillMaxWidth()
@@ -600,7 +993,7 @@ private fun BookmarkGridCardNarrow(
                 // Title
                 Text(
                     text = bookmark.title,
-                    style = MaterialTheme.typography.titleSmall,
+                    style = MaterialTheme.typography.titleMedium,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.padding(bottom = 4.dp)
@@ -717,7 +1110,6 @@ private fun BookmarkGridCardNarrow(
             }
         }
         }
-        HorizontalDivider()
         DropdownMenu(
             expanded = showBodyContextMenu,
             onDismissRequest = { showBodyContextMenu = false }
@@ -846,7 +1238,12 @@ private fun BookmarkGridCardWide(
                 onClick = { onClickCard(bookmark.id) },
                 onLongClick = { showBodyContextMenu = true },
                 onLongClickLabel = stringResource(R.string.long_press_for_options)
+            ),
+        border = outlinedCardBorder().copy(
+            brush = androidx.compose.ui.graphics.SolidColor(
+                MaterialTheme.colorScheme.outlineVariant.copy(alpha = BookmarkCardBorderAlpha)
             )
+        )
     ) {
         Column(modifier = if (isInGrid) Modifier.fillMaxHeight() else Modifier) {
             // Full-width image above content (16:9)
@@ -1059,7 +1456,6 @@ private fun BookmarkGridCardWide(
             }
         }
         }
-        HorizontalDivider()
         DropdownMenu(
             expanded = showBodyContextMenu,
             onDismissRequest = { showBodyContextMenu = false }
@@ -1268,7 +1664,7 @@ private fun BookmarkCompactCardNarrow(
             // Title
             Text(
                 text = bookmark.title,
-                style = MaterialTheme.typography.bodyMedium,
+                style = MaterialTheme.typography.titleSmall,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f)
@@ -1333,22 +1729,23 @@ private fun BookmarkCompactCardNarrow(
             }
         }
 
-        // Labels row — all labels as tappable chips
+        // Labels row — all labels as tappable chips, single-line horizontal scroll
         if (bookmark.labels.isNotEmpty()) {
-            FlowRow(
+            LazyRow(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(start = 36.dp, top = 4.dp),
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                verticalArrangement = Arrangement.spacedBy(2.dp)
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                bookmark.labels.forEach { label ->
+                items(bookmark.labels) { label ->
                     SuggestionChip(
                         onClick = { onClickLabel(label) },
                         label = {
                             Text(
                                 text = label,
-                                style = MaterialTheme.typography.labelSmall
+                                style = MaterialTheme.typography.labelSmall,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
                         },
                         modifier = Modifier.height(24.dp)
@@ -1558,7 +1955,7 @@ private fun BookmarkCompactCardWide(
             // Title
             Text(
                 text = bookmark.title,
-                style = MaterialTheme.typography.bodyMedium,
+                style = MaterialTheme.typography.titleSmall,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f)
@@ -1662,20 +2059,22 @@ private fun BookmarkCompactCardWide(
                 )
             }
 
-            // Labels inline after site name
+            // Labels inline after site name, single-line horizontal scroll
             if (bookmark.labels.isNotEmpty()) {
                 Spacer(Modifier.width(6.dp))
-                FlowRow(
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                LazyRow(
+                    modifier = Modifier.weight(1f),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    bookmark.labels.forEach { label ->
+                    items(bookmark.labels) { label ->
                         SuggestionChip(
                             onClick = { onClickLabel(label) },
                             label = {
                                 Text(
                                     text = label,
-                                    style = MaterialTheme.typography.labelSmall
+                                    style = MaterialTheme.typography.labelSmall,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
                                 )
                             },
                             modifier = Modifier.height(20.dp)

@@ -111,7 +111,7 @@ class BookmarkListViewModelTest {
     }
 
     @Test
-    fun `initial uiState is Empty`() {
+    fun `initial uiState is Loading`() {
         coEvery { settingsDataStore.isInitialSyncPerformed() } returns false
         viewModel = BookmarkListViewModel(
             updateBookmarkUseCase,
@@ -124,8 +124,8 @@ class BookmarkListViewModelTest {
             connectivityMonitor
         )
         // Since we emit empty list by default from mock, and filter/query are empty/default,
-        // it should be Empty state.
-        assertEquals(BookmarkListViewModel.UiState.Empty(R.string.list_view_empty_not_loaded_yet), viewModel.uiState.value)
+        // it should be Loading state.
+        assertEquals(BookmarkListViewModel.UiState.Loading, viewModel.uiState.value)
     }
 
     @Test
@@ -314,7 +314,7 @@ class BookmarkListViewModelTest {
         val empty = uiStates[0]
         val success = uiStates[1]
         // Assert initial state
-        assert(empty is BookmarkListViewModel.UiState.Empty)
+        assert(empty is BookmarkListViewModel.UiState.Loading)
         // Assert success state
         assertEquals(
             BookmarkListViewModel.UiState.Success(expectedBookmarks, null),
@@ -570,7 +570,7 @@ class BookmarkListViewModelTest {
             val emptyState = uiStates[0]
             val successState = uiStates[1]
             // Assert initial state
-            assert(emptyState is BookmarkListViewModel.UiState.Empty)
+            assert(emptyState is BookmarkListViewModel.UiState.Loading)
             // Assert success state
             assertEquals(
                 BookmarkListViewModel.UiState.Success(
@@ -631,7 +631,7 @@ class BookmarkListViewModelTest {
             val emptyState = uiStates[0]
             val successState = uiStates[1]
             // Assert initial state
-            assert(emptyState is BookmarkListViewModel.UiState.Empty)
+            assert(emptyState is BookmarkListViewModel.UiState.Loading)
             // Assert success state
             assertEquals(
                 BookmarkListViewModel.UiState.Success(
@@ -692,7 +692,7 @@ class BookmarkListViewModelTest {
             val emptyState = uiStates[0]
             val successState = uiStates[1]
             // Assert initial state
-            assert(emptyState is BookmarkListViewModel.UiState.Empty)
+            assert(emptyState is BookmarkListViewModel.UiState.Loading)
             // Assert success state
             assertEquals(
                 BookmarkListViewModel.UiState.Success(
@@ -752,7 +752,7 @@ class BookmarkListViewModelTest {
             val emptyState = uiStates[0]
             val successState = uiStates[1]
             // Assert initial state
-            assert(emptyState is BookmarkListViewModel.UiState.Empty)
+            assert(emptyState is BookmarkListViewModel.UiState.Loading)
             // Assert success state
             assertEquals(
                 BookmarkListViewModel.UiState.Success(
@@ -813,7 +813,7 @@ class BookmarkListViewModelTest {
             val emptyState = uiStates[0]
             val successState = uiStates[1]
             // Assert initial state
-            assert(emptyState is BookmarkListViewModel.UiState.Empty)
+            assert(emptyState is BookmarkListViewModel.UiState.Loading)
             // Assert success state
             assertEquals(
                 BookmarkListViewModel.UiState.Success(
@@ -874,7 +874,7 @@ class BookmarkListViewModelTest {
             val emptyState = uiStates[0]
             val successState = uiStates[1]
             // Assert initial state
-            assert(emptyState is BookmarkListViewModel.UiState.Empty)
+            assert(emptyState is BookmarkListViewModel.UiState.Loading)
             // Assert success state
             assertEquals(
                 BookmarkListViewModel.UiState.Success(
@@ -935,7 +935,7 @@ class BookmarkListViewModelTest {
             val emptyState = uiStates[0]
             val successState = uiStates[1]
             // Assert initial state
-            assert(emptyState is BookmarkListViewModel.UiState.Empty)
+            assert(emptyState is BookmarkListViewModel.UiState.Loading)
             // Assert success state
             assertEquals(
                 BookmarkListViewModel.UiState.Success(
@@ -996,7 +996,7 @@ class BookmarkListViewModelTest {
             val emptyState = uiStates[0]
             val successState = uiStates[1]
             // Assert initial state
-            assert(emptyState is BookmarkListViewModel.UiState.Empty)
+            assert(emptyState is BookmarkListViewModel.UiState.Loading)
             // Assert success state
             assertEquals(
                 BookmarkListViewModel.UiState.Success(
@@ -1057,7 +1057,7 @@ class BookmarkListViewModelTest {
             val emptyState = uiStates[0]
             val successState = uiStates[1]
             // Assert initial state
-            assert(emptyState is BookmarkListViewModel.UiState.Empty)
+            assert(emptyState is BookmarkListViewModel.UiState.Loading)
             // Assert success state
             assertEquals(
                 BookmarkListViewModel.UiState.Success(

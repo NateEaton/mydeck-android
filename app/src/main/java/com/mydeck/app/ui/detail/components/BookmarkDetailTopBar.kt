@@ -12,6 +12,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.res.stringResource
 import com.mydeck.app.R
@@ -38,7 +39,8 @@ fun BookmarkDetailTopBar(
     onClickDeleteBookmark: (String) -> Unit,
     onArticleSearchActivate: () -> Unit,
     onClickOpenInBrowser: (String) -> Unit,
-    onContentModeChange: (ContentMode) -> Unit
+    onContentModeChange: (ContentMode) -> Unit,
+    scrollBehavior: TopAppBarScrollBehavior,
 ) {
     if (articleSearchState.isActive) {
         ArticleSearchBar(
@@ -52,6 +54,7 @@ fun BookmarkDetailTopBar(
         )
     } else {
         TopAppBar(
+            scrollBehavior = scrollBehavior,
             title = { },
             navigationIcon = {
                 IconButton(onClick = onClickBack) {

@@ -13,7 +13,6 @@ import com.mydeck.app.domain.usecase.LoadArticleUseCase
 import com.mydeck.app.domain.usecase.UpdateBookmarkUseCase
 import com.mydeck.app.io.AssetLoader
 import com.mydeck.app.io.prefs.SettingsDataStore
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -105,13 +104,6 @@ class BookmarkDetailViewModel @Inject constructor(
     // Content loading state for on-demand fetch
     private val _contentLoadState = MutableStateFlow<ContentLoadState>(ContentLoadState.Idle)
     val contentLoadState: StateFlow<ContentLoadState> = _contentLoadState.asStateFlow()
-
-    // Pending deletion state (for undo functionality)
-    // Uses a separate scope so deletion survives ViewModel clearing (e.g. user navigates back)
-    private val deletionScope = CoroutineScope(Dispatchers.IO)
-    private var pendingDeletionJob: Job? = null
-    private val _pendingDeletion = MutableStateFlow(false)
-    val pendingDeletion: StateFlow<Boolean> = _pendingDeletion.asStateFlow()
 
     // Article search state
     private val _articleSearchState = MutableStateFlow(ArticleSearchState())
@@ -401,44 +393,6 @@ class BookmarkDetailViewModel @Inject constructor(
 
             _shareIntent.send(intent)
         }
-    }
-
-    fun deleteBookmark(bookmarkId: String) {
-        // Cancel any existing pending deletion
-        pendingDeletionJob?.cancel()
-
-        _pendingDeletion.value = true
-
-        pendingDeletionJob = deletionScope.launch {
-            try {
-                delay(10000)
-
-                val state = when (val result = updateBookmarkUseCase.deleteBookmark(bookmarkId)) {
-                    is UpdateBookmarkUseCase.Result.Success -> UpdateBookmarkState.Success
-                    is UpdateBookmarkUseCase.Result.GenericError -> UpdateBookmarkState.Error(result.message)
-                    is UpdateBookmarkUseCase.Result.NetworkError -> UpdateBookmarkState.Error(result.message)
-                }
-                if (state is UpdateBookmarkState.Success) {
-                    _navigationEvent.send(NavigationEvent.NavigateBack)
-                }
-                updateState.value = state
-                _pendingDeletion.value = false
-            } catch (e: CancellationException) {
-                Timber.d("Deletion cancelled by user")
-                _pendingDeletion.value = false
-                throw e
-            } catch (e: Exception) {
-                Timber.e(e, "Error deleting bookmark: ${e.message}")
-                _pendingDeletion.value = false
-            }
-        }
-    }
-
-    fun onCancelDeleteBookmark() {
-        pendingDeletionJob?.cancel()
-        pendingDeletionJob = null
-        _pendingDeletion.value = false
-        Timber.d("Delete bookmark cancelled")
     }
 
     fun onClickOpenUrl(url: String){
