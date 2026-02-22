@@ -4,7 +4,7 @@
 
 ## Overview
 
-MyDeck is an Android application for managing and reading your saved articles and bookmarks with a Pocket-like user experience. It is forked from [ReadeckApp](https://github.com/jensomato/ReadeckApp) and is currently being refactored to provide a more streamlined and intuitive interface.
+MyDeck is an Android application for managing and reading your saved articles and bookmarks with a Pocket-like user experience. It is forked from [ReadeckApp](https://github.com/jensomato/ReadeckApp) and is currently being refactored to provide an alternative client experience for Readeck.
 
 This app is a companion to [Readeck](https://readeck.org/en/), a self-hosted read-it-later service. To use this app, you'll need a Readeck account and server instance.
 
