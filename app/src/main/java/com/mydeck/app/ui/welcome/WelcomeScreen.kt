@@ -63,11 +63,11 @@ fun WelcomeScreen(
                 modifier = Modifier
                     .padding(scaffoldPadding)
                     .fillMaxSize()
-                    .padding(horizontal = 32.dp),
+                    .padding(horizontal = 20.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Top
             ) {
-                Spacer(modifier = Modifier.height(120.dp))
+                Spacer(modifier = Modifier.height(48.dp))
 
                 MyDeckBrandHeader()
 

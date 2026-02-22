@@ -245,10 +245,10 @@ fun DeviceAuthorizationScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .padding(horizontal = 32.dp, vertical = 24.dp),
+            .padding(horizontal = 20.dp, vertical = 24.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Spacer(modifier = Modifier.height(96.dp))
+        Spacer(modifier = Modifier.height(32.dp))
 
         MyDeckBrandHeader()
 
