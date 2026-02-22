@@ -74,14 +74,6 @@ fun WelcomeScreen(
                 Spacer(modifier = Modifier.height(28.dp))
 
                 Text(
-                    text = stringResource(R.string.welcome_title),
-                    style = MaterialTheme.typography.headlineMedium,
-                    textAlign = TextAlign.Center
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                Text(
                     text = stringResource(R.string.welcome_message),
                     style = MaterialTheme.typography.bodyMedium,
                     textAlign = TextAlign.Center,

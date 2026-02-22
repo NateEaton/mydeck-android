@@ -22,12 +22,16 @@ import com.mydeck.app.R
 @Composable
 fun MyDeckBrandHeader(
     modifier: Modifier = Modifier,
-    iconSize: Dp = 84.dp
+    iconSize: Dp = 180.dp
 ) {
+    val titleStyle = MaterialTheme.typography.headlineMedium.copy(
+        fontSize = MaterialTheme.typography.headlineMedium.fontSize * 1.2f
+    )
+
     Row(
         modifier = modifier,
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(16.dp)
+        horizontalArrangement = Arrangement.spacedBy(20.dp)
     ) {
         Image(
             painter = painterResource(id = R.mipmap.ic_launcher_foreground),
@@ -38,13 +42,13 @@ fun MyDeckBrandHeader(
         Box(
             modifier = Modifier
                 .width(1.dp)
-                .height(iconSize)
+                .height(44.dp)
                 .background(MaterialTheme.colorScheme.outline.copy(alpha = 0.7f))
         )
 
         Text(
             text = stringResource(R.string.app_name),
-            style = MaterialTheme.typography.headlineMedium
+            style = titleStyle
         )
     }
 }
