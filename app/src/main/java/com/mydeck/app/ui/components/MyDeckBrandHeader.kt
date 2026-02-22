@@ -35,7 +35,7 @@ fun MyDeckBrandHeader(
         horizontalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         Image(
-            painter = painterResource(id = R.mipmap.ic_launcher_foreground),
+            painter = painterResource(id = R.mipmap.ic_launcher),
             contentDescription = stringResource(R.string.app_name),
             modifier = Modifier.size(iconSize)
         )
