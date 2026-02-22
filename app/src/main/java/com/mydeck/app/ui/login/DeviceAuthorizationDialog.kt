@@ -20,6 +20,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.mydeck.app.R
+import com.mydeck.app.ui.components.MyDeckBrandHeader
 import kotlinx.coroutines.delay
 import kotlin.time.Duration.Companion.seconds
 
@@ -244,14 +245,22 @@ fun DeviceAuthorizationScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+            .padding(horizontal = 32.dp, vertical = 24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
+        Spacer(modifier = Modifier.height(96.dp))
+
+        MyDeckBrandHeader()
+
+        Spacer(modifier = Modifier.height(28.dp))
+
         Text(
             text = stringResource(R.string.oauth_device_auth_instructions),
-            style = MaterialTheme.typography.bodyMedium
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.fillMaxWidth()
         )
+
+        Spacer(modifier = Modifier.height(16.dp))
 
         // Step 1: URL
         Text(
@@ -285,6 +294,8 @@ fun DeviceAuthorizationScreen(
                 }
             }
         }
+
+        Spacer(modifier = Modifier.height(16.dp))
 
         // Step 2: User Code
         Text(

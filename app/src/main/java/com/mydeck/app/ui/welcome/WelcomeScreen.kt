@@ -1,6 +1,5 @@
 package com.mydeck.app.ui.welcome
 
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -9,7 +8,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
@@ -17,6 +15,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import com.mydeck.app.R
+import com.mydeck.app.ui.components.MyDeckBrandHeader
 import com.mydeck.app.ui.login.DeviceAuthorizationScreen
 import com.mydeck.app.ui.navigation.BookmarkListRoute
 import com.mydeck.app.ui.navigation.WelcomeRoute
@@ -66,15 +65,13 @@ fun WelcomeScreen(
                     .fillMaxSize()
                     .padding(horizontal = 32.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
+                verticalArrangement = Arrangement.Top
             ) {
-                Image(
-                    painter = painterResource(id = R.mipmap.ic_launcher_foreground),
-                    contentDescription = stringResource(R.string.app_name),
-                    modifier = Modifier.size(120.dp)
-                )
+                Spacer(modifier = Modifier.height(120.dp))
 
-                Spacer(modifier = Modifier.height(8.dp))
+                MyDeckBrandHeader()
+
+                Spacer(modifier = Modifier.height(28.dp))
 
                 Text(
                     text = stringResource(R.string.welcome_title),
