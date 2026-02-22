@@ -104,13 +104,13 @@ Use GitHub's built-in **Milestones** to track work toward a version target.
 2.  ☁️ For every task, create a **GitHub Issue** and assign it to the milestone.
 3.  `main` is the working branch for the current milestone. It contains the last release plus any completed features. 
 
-### What requires a Release?
-
-`main` may include changes that are not tied to a released APK. A GitHub Release is only needed to publish a new installable build (tagged vX.Y.Z) for testers/users.
-
-No release needed: documentation changes (docs/*, README), spec updates, repo hygiene, CI tweaks, formatting/typos, and other non-shipping changes.
-
-Release recommended: user-visible behavior/UI changes, bug fixes intended for testers/users, dependency/runtime changes, or anything to be distributed as an APK.
+> ### What requires a Release?
+> 
+> `main` may include changes that are not tied to a released APK. A GitHub Release is  only needed to publish a new installable build (tagged vX.Y.Z) for testers/users.
+> 
+> No release needed: documentation changes (docs/*, README), spec updates, repo hygiene, CI tweaks, formatting/typos, and other non-shipping changes.
+> 
+> Release recommended: user-visible behavior/UI changes, bug fixes intended for testers/users, dependency/runtime changes, or anything to be distributed as an APK.
 
 ---
 
