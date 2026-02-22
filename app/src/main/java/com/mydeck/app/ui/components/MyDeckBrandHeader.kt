@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.MaterialTheme
@@ -20,38 +21,48 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.text.style.TextOverflow
 import com.mydeck.app.R
 
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.sp
+
 @Composable
 fun MyDeckBrandHeader(
     modifier: Modifier = Modifier,
-    iconSize: Dp = 180.dp
+    iconSize: Dp = 128.dp // 80% of 160dp
 ) {
     val titleStyle = MaterialTheme.typography.headlineMedium.copy(
-        fontSize = MaterialTheme.typography.headlineMedium.fontSize * 1.2f
-    )
+        fontSize = MaterialTheme.typography.headlineMedium.fontSize * 1.2f )
+
+    val fontHeight = with(LocalDensity.current) { titleStyle.fontSize.toDp() }
+    val spacing = fontHeight * 0.8f // 80% of font height
 
     Row(
-        modifier = modifier,
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(10.dp)
+        modifier = modifier.offset(x = -spacing), // Shift left by spacing amount
+        verticalAlignment = Alignment.CenterVertically
     ) {
         Image(
-            painter = painterResource(id = R.mipmap.ic_launcher),
+            painter = painterResource(id = R.drawable.ic_brand_logo),
             contentDescription = stringResource(R.string.app_name),
             modifier = Modifier.size(iconSize)
         )
 
-        Box(
-            modifier = Modifier
-                .width(1.dp)
-                .height(40.dp)
-                .background(MaterialTheme.colorScheme.outline.copy(alpha = 0.7f))
-        )
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(spacing),
+            modifier = Modifier.offset(x = (-20).dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .width(1.dp)
+                    .height(24.dp)
+                    .background(MaterialTheme.colorScheme.outline.copy(alpha = 0.7f))
+            )
 
-        Text(
-            text = stringResource(R.string.app_name),
-            style = titleStyle,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
+            Text(
+                text = stringResource(R.string.app_name),
+                style = titleStyle,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
     }
 }
