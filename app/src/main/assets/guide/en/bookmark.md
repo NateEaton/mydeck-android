@@ -38,7 +38,7 @@ Tap the **TT** button in the top bar to open the reading settings sheet.
 ![Bookmark typography settings](./img/bookmark-typography.webp)
 Reading settings.
 
-- **Font** — System Default, Noto Serif, or Literata
+- **Font** — System Default, Noto Serif, Literata, Source Serif, Noto Sans, or JetBrains Mono (scroll the font selector to see all options)
 - **Font size** — adjust with − and + (shown as a percentage)
 - **Spacing** — Tight or Loose
 - **Width** — Wide or Narrow
@@ -63,18 +63,9 @@ Tap the **⋮** button in the top bar for additional actions:
 
 The **Bookmark Details** screen (opened from the overflow menu) shows the bookmark's full metadata: thumbnail, author, the dates it was added and published, reading time, and word count.
 
-It also includes the **Labels** section where you can add or remove labels for the bookmark. Tap the **X** on an existing label to remove it, or type in the **Add label** field to add a new one. There's no limit on what a label can be, and emojis work too.
+It also includes the **Labels** section where you can add or remove labels for the bookmark. Tap the **X** on an existing label to remove it, or start typing in the **Add label** field to add a new one — a list of your existing labels matching what you've typed will appear below the field as you go. There's no limit on what a label can be, and emojis work too.
 
 ![Bookmark labels form](./img/bookmark-labels.webp)
 Managing labels in Bookmark Details.
 
 See [Labels](./labels.md) for information about label management across your whole collection.
-
-## Highlights
-
-You can highlight any text in an article. Select text in the reading view and choose **Highlight** from the menu that appears.
-
-![Bookmark highlight creation](./img/bookmark-highlight.webp)
-Creating a highlight.
-
-Your highlights are saved to the bookmark and synced back to your Readeck server. To remove a highlight, select the highlighted text and choose the delete option from the menu.
