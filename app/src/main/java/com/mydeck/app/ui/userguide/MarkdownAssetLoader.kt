@@ -21,11 +21,12 @@ class MarkdownAssetLoader @Inject constructor(
     companion object {
         private const val ASSETS_BASE_PATH = "guide"
         private const val DEFAULT_LOCALE = "en"
-        private val DEFAULT_SECTIONS = listOf(
-            GuideSection("Getting Started", "index.md", 0),
-            GuideSection("Bookmarks", "bookmark.md", 1),
-            GuideSection("Bookmark List", "bookmark-list.md", 2),
-            GuideSection("Labels", "labels.md", 3)
+        val DEFAULT_SECTIONS = listOf(
+            GuideSection("Getting Started", "getting-started.md", 0),
+            GuideSection("Bookmarks",       "bookmark-list.md",   1),
+            GuideSection("Bookmark View",   "bookmark.md",        2),
+            GuideSection("Labels",          "labels.md",          3),
+            GuideSection("Settings",        "settings.md",        4)
         )
     }
     
@@ -50,6 +51,7 @@ class MarkdownAssetLoader @Inject constructor(
             }
             raw
                 .replace(Regex("^---[\\s\\S]*?---\\n*"), "")
+                .replace(Regex("^# [^\n]+\\n+"), "")
                 .replace("(./img/", "(file:///android_asset/$localePath/img/")
                 .replace(Regex("""\[([^\]]+)\]\(readeck-instance://[^)]+\)"""), "$1")
         } catch (e: IOException) {

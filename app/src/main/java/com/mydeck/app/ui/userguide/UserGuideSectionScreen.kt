@@ -38,18 +38,13 @@ fun UserGuideSectionScreen(
 
     val markwon = rememberMarkwon(
         onSectionNavigate = { fileName ->
-            val section = GuideSection(
-                title = fileName.removeSuffix(".md")
+            val title = MarkdownAssetLoader.DEFAULT_SECTIONS
+                .find { it.fileName == fileName }?.title
+                ?: fileName.removeSuffix(".md")
                     .replace("-", " ")
-                    .replaceFirstChar { it.uppercase() },
-                fileName = fileName,
-                order = -1
-            )
+                    .replaceFirstChar { it.uppercase() }
             navHostController.navigate(
-                UserGuideSectionRoute(
-                    fileName = section.fileName,
-                    title = section.title
-                )
+                UserGuideSectionRoute(fileName = fileName, title = title)
             )
         }
     )

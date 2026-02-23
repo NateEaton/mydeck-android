@@ -11,8 +11,9 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.Label
 import androidx.compose.material.icons.filled.Bookmark
-import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.CollectionsBookmark
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -34,11 +35,12 @@ import com.mydeck.app.ui.navigation.UserGuideSectionRoute
 import androidx.compose.foundation.clickable
 
 fun getSectionIcon(fileName: String) = when (fileName) {
-    "index.md" -> Icons.Default.Info
-    "bookmark.md" -> Icons.Default.Bookmark
-    "bookmark-list.md" -> Icons.Default.CollectionsBookmark
-    "labels.md" -> Icons.AutoMirrored.Filled.Label
-    else -> Icons.Default.Info
+    "getting-started.md" -> Icons.Default.Info
+    "bookmark-list.md"   -> Icons.Default.CollectionsBookmark
+    "bookmark.md"        -> Icons.Default.Bookmark
+    "labels.md"          -> Icons.AutoMirrored.Filled.Label
+    "settings.md"        -> Icons.Outlined.Settings
+    else                 -> Icons.Default.Info
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
