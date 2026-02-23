@@ -36,7 +36,6 @@ You can save any link directly to MyDeck using Android's share sheet. In a brows
 
 Tap the **menu icon** (☰) in the top-left corner to open the navigation drawer. The drawer lets you filter your list to a specific subset of your bookmarks:
 
-- **All** — every bookmark you've saved
 - **My List** — unread bookmarks (not archived)
 - **Archive** — bookmarks you've moved to the archive
 - **Favorites** — bookmarks you've marked as a favorite
@@ -87,13 +86,12 @@ Grid view
 
 A card shows the bookmark's **title**, **site name**, estimated **reading time**, and any **labels** assigned to it. Tap the card to open the bookmark.
 
-Each card includes quick-action buttons:
+Each card has four quick-action buttons:
 
-- **Favorite** — toggle the favorite status
+- **Favorite** (❤️) — toggle the favorite status
 - **Archive** — move the bookmark to the archive (or remove it from there)
-- **Delete** — mark the bookmark for deletion; a brief undo option appears immediately after
-
-Additional actions (share link, open in browser, mark as read) are available from the card's action menu.
+- **Open in Browser** (🌐) — open the original page in your default browser
+- **Delete** (🗑️) — mark the bookmark for deletion; a brief undo option appears immediately after
 
 ## List Layout
 

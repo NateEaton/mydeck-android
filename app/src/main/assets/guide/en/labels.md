@@ -6,8 +6,15 @@ To add labels to a bookmark, see [Bookmark View](./bookmark.md#labels).
 
 ## Label List
 
-Open the navigation drawer and tap **Labels** to see all your labels. Each label shows a count of how many bookmarks carry it. Tap a label to filter the bookmark list to only bookmarks with that label.
+Open the navigation drawer and tap **Labels** to open the Labels sheet. It shows all your labels with a count of how many bookmarks each one has.
+
+Tap a label to see all bookmarks carrying that label.
 
 ## Rename or Delete a Label
 
-From the **Labels** section in the navigation drawer, you can rename or delete existing labels. Renaming a label updates it across all bookmarks that carry it.
+There are two ways to rename or delete a label:
+
+- **From the label list:** Long-press a label in the Labels sheet to rename or delete it.
+- **From a label's bookmark list:** When viewing bookmarks for a given label, tap the **⋮** overflow menu in the top bar and choose **Rename label** or **Delete label**.
+
+Renaming a label updates it across all bookmarks that carry it.

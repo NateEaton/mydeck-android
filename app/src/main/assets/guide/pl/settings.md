@@ -31,6 +31,6 @@ The **Sync Status** area shows the number of bookmarks with downloaded article c
 
 The **Logs** section lets you view the app's log files, which can be useful for troubleshooting. You can also share log files directly from this screen, and configure how long logs are retained before being automatically deleted.
 
-## About
+---
 
-The **About** screen shows the current app version, build details, device information, and links to the MyDeck and Readeck project repositories. It also includes open source library attributions.
+The navigation drawer also has an **About** entry, which shows the current app version, build details, device information, and links to the MyDeck and Readeck project repositories.
