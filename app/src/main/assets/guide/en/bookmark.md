@@ -1,92 +1,70 @@
 # Bookmark View
 
-## The view
+Tap any bookmark card to open it. MyDeck displays the bookmark's content based on its type.
 
 ![The bookmark view](./img/bookmark-view.webp)
-The bookmark view of an article.
+Bookmark view — article.
 
-The bookmark view is divided in 3 sections:
-
-- On top, the navigation and presentation settings,
-- The content,
-- A sidebar with information, labels, highlights and actions.
-
-
-A bookmark renders its content based on its type. There are 3 types:
+## Content Types
 
 ### Article
 
-An article is a page from which the text content was extracted. It renders as a readable version of its content.
+The article text is extracted and rendered as a clean, distraction-free reading view.
 
 ### Picture
 
-A picture is a page that was recognized as a picture container (ie. a link to Unsplash). It renders the stored picture.
+The stored image is displayed full-screen.
 
 ### Video
 
-A video is a page that was identified as a video container (ie. a link to Youtube or Vimeo). It renders a video player. Please note that videos are played from their respective remote servers.
+A video player loads the content. Note that videos stream from their original servers (YouTube, Vimeo, etc.) and require an internet connection.
 
+## Reading View
 
-## Navigation and presentation settings
+For article bookmarks, MyDeck displays the extracted text in a comfortable reading layout. If you'd prefer to see the original web page instead, use the **View Original** option from the top-bar menu. You can switch back to the article view with **View Article**.
 
-On top of the bookmark view, a link takes you back to the previous page.
+## Typography Settings
 
-If the bookmark contains an article, a button on the other side lets you change some typography settings.
+Tap the **reader settings** button in the top bar to adjust the reading experience.
 
 ![Bookmark typography settings](./img/bookmark-typography.webp)
-Typography settings.
+Reader settings.
 
-There you can set the font used for the text, the font size and the line height.\
-This settings are automatically saved for you and will apply to any article you read later.
+You can change the **font**, **font size**, and **line height**. These settings are saved automatically and apply to all articles you read going forward.
 
+## Find in Article
 
-## Change the title
-
-The bookmark's title is automatically grabbed when you create it. If, for some reason, you need something else, you can change it by clicking on it and then click the button on the title side.
-
+Use the **Find in Article** option from the top-bar menu to search for text within the current bookmark. Matches are highlighted as you type.
 
 ## Actions
 
-On the bookmark sidebar, you can perform actions.
+The top-bar menu provides the following actions:
 
-### Favorite
+- **Favorite** — toggle the favorite status
+- **Archive** — move the bookmark to the archive (or remove it from there)
+- **Mark as Read / Unread** — track your reading progress
+- **Share Link** — open the Android share sheet to share the bookmark's URL
+- **Open in Browser** — open the original page in your default browser
+- **Delete** — mark the bookmark for deletion; an undo option appears briefly
 
-This toggles the favorite status of the bookmark.
+## Editing the Title
 
-### Archive
-
-This moves the bookmark to the archives (or removes it from there).
-
-### Share
-
-The share button opens a menu from which you can create a link if you want to share an article with someone.
-
-On the same menu, you can export your bookmark (only EPUB for now) to read it on a different device.
-
-
-### Delete
-
-This marks the bookmark for deletion.\
-No worries if you click on this by mistake! This action can be canceled before actual deletion.
-
+The bookmark title is captured automatically when the bookmark is created. To change it, use the **Edit Title** option from the menu.
 
 ## Labels
 
-You can add as many labels as you want to a bookmark. To do so, enter some text in the label field and click on **Add label**. There is no limit as to what can be a label. You can even add emojis if you like them.
+You can add any number of labels to help organise your bookmarks. Open the bookmark details to manage labels — there's no limit on what a label can be, and emojis work too.
 
 ![Bookmark labels form](./img/bookmark-labels.webp)
-Add a new label.
+Adding a label.
 
-Please read the [Labels](./labels.md) section for more information.
+See [Labels](./labels.md) for more.
 
 ## Highlights
 
-Found some interesting part in an article? You can highlight it!\
-When you select any text in the article, a menu appears that lets you create a new highlight.
+You can highlight any text in an article. Select text in the reading view and choose **Highlight** from the menu that appears.
 
 ![Bookmark highlight creation](./img/bookmark-highlight.webp)
-Create a new highlight.
+Creating a highlight.
 
-Your highlights appear in the sidebar.
-
-When you need to remove an highlight, you can do it from the sidebar or by selecting it in the article.
+Your highlights are saved to the bookmark and synced back to your Readeck server. To remove a highlight, select the highlighted text in the article and choose the delete option, or manage highlights from the bookmark details.

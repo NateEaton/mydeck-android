@@ -1,152 +1,107 @@
 # Bookmarks
 
-Bookmarks are where you save the web content you like.
+Bookmarks are the web pages, articles, and videos you've saved to your Readeck server. MyDeck syncs them to your device so you can read them anytime, even offline.
 
-## Create a new Bookmark
+## Bookmark Types
 
-Found a web page you like? Great! Copy its link into the text field named **new bookmark** on the [Bookmark List](readeck-instance://bookmarks).
-
-![New Bookmark form](./img/bookmark-new.webp)
-
-After a few seconds, your bookmark will be ready. You can then open it to read or watch its content, add labels, highlight text or export an ebook. For more information, please read the [Bookmark View](./bookmark.md) section.
-
-## Bookmark type
-
-Readeck recognizes 3 different types of web content:
+Readeck recognizes three types of web content:
 
 ### Article
 
-An article is a page from which the text content was extracted. It renders as a readable version of its content.
+A page from which the text content was extracted and stored. MyDeck renders it as a clean, readable article.
 
 ### Picture
 
-A picture is a page that was recognized as a picture container (ie. a link to Unsplash). It renders the stored picture.
+A page identified as an image (for example, a link to Unsplash). MyDeck displays the stored image.
 
 ### Video
 
-A video is a page that was identified as a video container (ie. a link to Youtube or Vimeo). It renders a video player. Please note that videos are played from their respective remote servers.
+A page identified as a video (for example, YouTube or Vimeo). MyDeck renders a video player. Note that videos stream from their original servers and require an internet connection.
 
+## Adding Bookmarks
 
-## Bookmark List
+### From within MyDeck
 
-The [bookmark list](readeck-instance://bookmarks) is where you'll find all your saved bookmarks.
+Tap the **+** button at the bottom right of the bookmark list to open the **Add Bookmark** sheet. Enter the URL of the page you want to save, and optionally a title, then tap **Create**.
 
-### Navigation
+![New Bookmark form](./img/bookmark-new.webp)
 
-On the sidebar, you'll find a search field and links that will take you to filtered bookmark lists.
+After a moment the bookmark will appear in your list. Readeck processes it on the server and MyDeck downloads the content in the background.
+
+### From another app
+
+You can save any link directly to MyDeck using Android's share sheet. In a browser or another app, tap **Share** and choose **MyDeck** from the list. The link is sent to your Readeck server immediately.
+
+## Navigating Your Bookmarks
+
+Tap the **menu icon** (☰) in the top-left corner to open the navigation drawer. The drawer lets you filter your list to a specific subset of your bookmarks:
+
+- **All** — every bookmark you've saved
+- **My List** — unread bookmarks (not archived)
+- **Archive** — bookmarks you've moved to the archive
+- **Favorites** — bookmarks you've marked as a favorite
+- **Articles** — article-type bookmarks only
+- **Videos** — video-type bookmarks only
+- **Pictures** — picture-type bookmarks only
+- **[Labels](./labels.md)** — browse bookmarks by label
 
 ![Bookmark list sidebar](./img/bookmark-sidebar.webp)
 
-- **Search** \
-  Enter any search term (title, content, website...)
-- **All** \
-  All your bookmarks.
-- **Unread** \
-  The bookmarks that are not in the archive.
-- **Archive** \
-  The bookmarks you marked as archived.
-- **Favorites** \
-  The bookmarks you marked as favorite.
+## Searching
 
-
-Once you start saving pages, you'll see the following additional links:
-
-- **Articles** \
-  Your article bookmarks
-- **Videos** \
-  Your video bookmarks
-- **Pictures** \
-  Your picture bookmarks
-
-Finally, you'll see 3 more sections that take you to bookmark related pages:
-
-- **[Labels](./labels.md)** \
-  All your bookmark labels
-- **Highlights** \
-  All the highlights created on your bookmarks
-- **[Collections](./collections.md)** \
-  The list of all your collections
-
-### Bookmark Cards
-
-Each item on a list is called a Bookmark Card.
-
-![Bookmark List](./img/bookmark-list.webp)
-Grid Bookmark List
-
-A card shows:
-
-- the **title** on which you can click to watch or read the bookmark,
-- the **site name**,
-- the estimated **reading time**,
-- the **label list**,
-- **action buttons**
-
-The action buttons perform the following:
-
-- **Favorite** \
-  This toggles the favorite status of the bookmark.
-- **Archive** \
-  This moves the bookmark to the archives (or removes it from there).
-- **Delete** \
-  This marks the bookmark for deletion (it can be canceled during a few seconds).
-
-### Compact List
-
-If you find the bookmark grid view too busy, you can switch to a more compact list with less images. Click on the button next to the title to switch from the grid view to the compact view.
-
-![Bookmark Compact List](./img/bookmark-list-compact.webp)
-Compact Bookmark List
+Tap the **search icon** in the top bar to search across your bookmarks. The search runs against titles, article text, authors, site names, and labels.
 
 ## Filter Bookmarks {#filters}
 
-On the bookmark list, you can filter your results based on one or several criteria. Click on the button "Filter list" next to the page title to open the filtering form.
+For more specific filtering, tap the **filter icon** to open the filter sheet.
 
 ![Bookmark list filters](./img/bookmark-filters.webp)
-The filter form
-
-Enter any criteria and click on **Search**.
-
-### Available filters
 
 You can combine the following filters:
 
-- **Search**\
-  Search in the bookmark's text, its title, its authors, its site name and domain and the labels.
-- **Title**\
-  Search in the title only.
-- **Author**\
-  Search in the author list only.
-- **Site**\
-  Search in the site title and the site domain name.
-- **Label**\
-  Search for specific labels.
-- **Is Favorite**, **Is Archived**, **Type**\
-  This filters let you restrict your search to any of these criteria.
-- **From date**, **To date**\
-  This last filters let you restrict from when and to when the bookmark was saved. For example, this lets you retrieve the bookmark list saved during the past 4 weeks but not after the last week.
+- **Search** — search across text, title, authors, site name, and labels
+- **Title** — search in the title only
+- **Author** — search in the author list only
+- **Site** — search in the site title and domain name
+- **Label** — filter by one or more labels
+- **Is Favorite**, **Is Archived**, **Type** — restrict to bookmarks matching these properties
+- **From date**, **To date** — restrict to bookmarks saved within a date range
 
-### Search query
+Tap **Apply** to run the filtered search.
 
-The **Search**, **Title**, **Author**, **Site** and **Label** fields understand search criteria the same way:
+### Search query syntax
 
-- `startled cat` will find the content with the words **startled** and **cat**
-- `"startled cat"` will find the content with the exact words **startled cat** together.
-- `cat*` will find the content with the words starting with **cat** (cat, catnip and caterpillar would be a match).
-- `-startled cat` will find the content with the word **cat** but NOT the word **startled**.
+Text search fields support the following operators:
 
+- `startled cat` — finds bookmarks containing both **startled** and **cat**
+- `"startled cat"` — finds the exact phrase **startled cat**
+- `cat*` — finds words starting with **cat** (cat, catnip, caterpillar, etc.)
+- `-startled cat` — finds **cat** but excludes **startled**
 
-After you performed a search, you can save it into a new [collection](./collections.md) to make it permanent.
+## Bookmark Cards
 
-## Export and Import Bookmarks
+Each item in the list is a bookmark card.
 
-![Menu](./img/bookmark-list-menu.webp)
-Bookmark list menu
+![Bookmark List](./img/bookmark-list.webp)
+Grid view
 
-### Export bookmarks
+A card shows the bookmark's **title**, **site name**, estimated **reading time**, and any **labels** assigned to it. Tap the card to open the bookmark.
 
-The menu button next to the filters button let you download an EPUB file of the current list of bookmarks. It exports one e-book containing all the articles organized in chapters.
+Each card includes quick-action buttons:
 
-### Import bookmarks
+- **Favorite** — toggle the favorite status
+- **Archive** — move the bookmark to the archive (or remove it from there)
+- **Delete** — mark the bookmark for deletion; a brief undo option appears immediately after
 
-In the same menu, you'll find a [Import bookmarks](readeck-instance://bookmarks/import) link. It will take you to an import wizard that lets you import your existing bookmarks from various sources.
+Additional actions (share link, open in browser, mark as read) are available from the card's action menu.
+
+## List Layout
+
+You can switch between a **grid view** and a **compact list** using the layout toggle in the top bar. The compact view shows less imagery and fits more bookmarks on screen at once.
+
+![Bookmark Compact List](./img/bookmark-list-compact.webp)
+Compact list view
+
+## Refreshing
+
+Pull down on the list to sync with your Readeck server, or tap the **refresh icon** in the top bar. This checks for new and updated bookmarks. Deleted bookmarks are reconciled during background sync (see [Settings](./settings.md) for sync options).

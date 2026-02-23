@@ -3,20 +3,21 @@ Title: Table of Contents
 # !! IMPORTANT: DO NOT TRANSLATE THE PART BELOW
 TOC:
     - ""
+    - getting-started
     - bookmark-list
     - bookmark
     - labels
-    - collections
-    - opds
-    - user-profile
+    - settings
 ---
 
-# Readeck Help
+# MyDeck Help
 
-Welcome to Readeck! Here you'll find the answers to most of your questions regarding Readeck and some tips to improve your experience even more.
+MyDeck is a mobile reader for [Readeck](https://readeck.org), a self-hosted read-later service. Save articles, videos, and web pages to your Readeck server and read them in MyDeck — on the go or offline.
 
 ## Contents
 
+- [Getting Started](./getting-started.md)
 - [Bookmarks](./bookmark-list.md)
 - [Bookmark View](./bookmark.md)
 - [Labels](./labels.md)
+- [Settings](./settings.md)
