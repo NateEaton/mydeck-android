@@ -1,8 +1,8 @@
-# Bookmark List
+# Your Bookmarks
 
 Bookmarks are the web pages, articles, and videos you've saved to your Readeck server. MyDeck syncs them to your device so you can read them anytime, even offline.
 
-## Navigating Your Library
+## Navigating Your Bookmarks
 
 Tap the **menu icon** (☰) in the top-left corner to open the navigation drawer. The drawer lets you browse a specific subset of your bookmarks:
 
@@ -12,7 +12,7 @@ Tap the **menu icon** (☰) in the top-left corner to open the navigation drawer
 - **Articles** — article-type bookmarks only
 - **Videos** — video-type bookmarks only
 - **Pictures** — picture-type bookmarks only
-- **[Labels](./labels.md)** — browse bookmarks by label
+- **Labels** — browse bookmarks by label; tap a label to see all bookmarks with that label
 
 Each item shows a count of how many bookmarks it contains.
 
@@ -57,7 +57,9 @@ Each card has four action buttons:
 - **❤️ Favorite** — toggle the favorite status; filled when set
 - **Archive** — move the bookmark to the archive (or back to My List if already archived); the card is removed from the current view when toggled
 - **🌐 View Original** — open the original web page in an in-app viewer
-- **🗑️ Delete** — delete the bookmark; a **"Bookmark deleted"** bar appears at the bottom with an **Undo** option. The deletion is not finalized until you tap anywhere other than Undo or navigate away.
+- **🗑️ Delete** — delete the bookmark; a **"Bookmark deleted"** bar appears at the bottom with an **Undo** option
+
+See [Organising](./organising.md) for more on how favorites, archive, labels, and deletion work across your whole collection.
 
 ## Long-press Context Menu
 

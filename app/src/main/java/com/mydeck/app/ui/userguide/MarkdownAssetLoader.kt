@@ -23,9 +23,9 @@ class MarkdownAssetLoader @Inject constructor(
         private const val DEFAULT_LOCALE = "en"
         val DEFAULT_SECTIONS = listOf(
             GuideSection("Getting Started", "getting-started.md", 0),
-            GuideSection("Bookmarks",       "bookmark-list.md",   1),
-            GuideSection("Bookmark View",   "bookmark.md",        2),
-            GuideSection("Labels",          "labels.md",          3),
+            GuideSection("Your Bookmarks",  "your-bookmarks.md",  1),
+            GuideSection("Reading",         "reading.md",         2),
+            GuideSection("Organising",      "organising.md",      3),
             GuideSection("Settings",        "settings.md",        4)
         )
     }

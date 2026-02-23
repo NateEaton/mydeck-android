@@ -1,4 +1,4 @@
-# Bookmark View
+# Reading
 
 Tap any bookmark card to open it. MyDeck displays the bookmark in a view suited to its type.
 
@@ -86,7 +86,4 @@ Long-pressing an image opens an extended menu that also includes Copy Image, Dow
 - Thumbnail
 - Author, date added, date published, reading time, word count
 - Description
-
-It also includes the **Labels** section where you can add or remove labels for the bookmark. Tap the **×** on an existing label chip to remove it, or type in the **Add label** field to add one — your existing labels that match what you've typed appear as suggestions below the field. Labels can be any word, phrase, or emoji.
-
-See [Labels](./labels.md) for information about managing labels across your whole collection.
+- **Labels** — add or remove labels for this bookmark; see [Organising](./organising.md) for the full guide to working with labels

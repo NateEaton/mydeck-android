@@ -36,9 +36,9 @@ import androidx.compose.foundation.clickable
 
 fun getSectionIcon(fileName: String) = when (fileName) {
     "getting-started.md" -> Icons.Default.Info
-    "bookmark-list.md"   -> Icons.Default.CollectionsBookmark
-    "bookmark.md"        -> Icons.Default.Bookmark
-    "labels.md"          -> Icons.AutoMirrored.Filled.Label
+    "your-bookmarks.md"  -> Icons.Default.CollectionsBookmark
+    "reading.md"         -> Icons.Default.Bookmark
+    "organising.md"      -> Icons.AutoMirrored.Filled.Label
     "settings.md"        -> Icons.Outlined.Settings
     else                 -> Icons.Default.Info
 }
