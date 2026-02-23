@@ -1,45 +1,34 @@
 # Bookmark View
 
-Tap any bookmark card to open it. MyDeck displays the bookmark's content based on its type.
+Tap any bookmark card to open it. MyDeck displays the bookmark in a view suited to its type.
 
-![The bookmark view](./img/bookmark-view.webp)
-Bookmark view — article.
+## Article View
 
-## Content Types
+For articles, MyDeck shows the extracted text in a clean, distraction-free reading layout. The bookmark title appears at the top — tap the **✏️** icon beside it to edit the title inline and confirm with the **✓** checkmark.
 
-### Article
-
-The article text is extracted and rendered as a clean, distraction-free reading view.
-
-### Picture
-
-The stored image is displayed full-screen.
-
-### Video
-
-A video player loads the content. Note that videos stream from their original servers (YouTube, Vimeo, etc.) and require an internet connection.
-
-## Reading View
-
-For articles, MyDeck shows the extracted text in a comfortable reading layout. The bookmark title appears at the top — tap the **✏️** icon beside it to edit the title.
+### Top Bar
 
 The top bar provides quick access to the most-used actions:
 
+- **← Back** — return to the bookmark list
 - **❤️ Favorite** — toggle the favorite status
-- **Archive** — move the bookmark to the archive (or remove it from there)
-- **TT Typography** — open the reading settings sheet (see below)
-- **🔍 Find in Article** — search for text within the article; matches are highlighted as you type
+- **Archive** — move the bookmark to the archive (or back to My List)
+- **TT Typography** — open the reading settings sheet
+- **🔍 Find in Article** — search for text within the article
 - **⋮ More** — overflow menu with additional actions
+
+As you scroll down to read, the top bar hides to give you more screen space. It reappears when you scroll back toward the top or when you reach the end of the article.
+
+### Finding Text
+
+Tap **🔍** to open the in-article search bar. Type to search; matching text in the article is highlighted. If there are multiple matches, the current one is highlighted in amber and others in yellow. Use the **↑** and **↓** arrows to move between matches. The counter shows your current position (e.g., "2/5").
 
 ## Typography Settings
 
-Tap the **TT** button in the top bar to open the reading settings sheet.
+Tap **TT** in the top bar to open the reading settings sheet.
 
-![Bookmark typography settings](./img/bookmark-typography.webp)
-Reading settings.
-
-- **Font** — System Default, Noto Serif, Literata, Source Serif, Noto Sans, or JetBrains Mono (scroll the font selector to see all options)
-- **Font size** — adjust with − and + (shown as a percentage)
+- **Font** — scroll the font row to choose from: System Default, Noto Serif, Literata, Source Serif, Noto Sans, or JetBrains Mono
+- **Font size** — tap **−** or **+** to adjust (shown as a percentage of the default)
 - **Spacing** — Tight or Loose
 - **Width** — Wide or Narrow
 - **Justify text** — toggle on or off
@@ -48,24 +37,56 @@ Reading settings.
 
 These settings are saved automatically and apply to every article you read.
 
+## Video View
+
+For video bookmarks (YouTube, Vimeo, etc.), MyDeck shows the title, a description, and an embedded video player. Videos stream from their original servers and require an internet connection.
+
+The top bar in video view shows **← Back**, **❤️**, **Archive**, and **⋮** only — Typography and Find in Article are not available for video bookmarks.
+
+## Picture View
+
+For picture bookmarks, MyDeck shows the title, a description, and the stored image at full content width.
+
+The top bar in picture view shows **← Back**, **❤️**, **Archive**, and **⋮** only.
+
+## View Original
+
+Any bookmark can be opened in its original form in an in-app web viewer.
+
+- **From article view:** tap **⋮** → **View Original**
+- **From View Original:** tap **⋮** → **View Article** to return to the reading view
+
+> **No article content:** If Readeck was unable to extract article content when the bookmark was saved, MyDeck automatically opens the bookmark in View Original instead of showing an empty reading view. In that case, the overflow menu will show **View Article** (to attempt the reading view) rather than **View Original**.
+
 ## Overflow Menu
 
-Tap the **⋮** button in the top bar for additional actions:
+Tap **⋮** in the top bar for additional actions:
 
-- **View Original** (🌐) — opens the original web page in an in-app viewer
-- **Open in Browser** — opens the original URL in your default browser
-- **Share Link** — opens the Android share sheet to share the bookmark's URL
-- **Unread / Read** — toggle whether the bookmark has been read
-- **Bookmark Details** — opens the Bookmark Details screen (see below)
-- **Delete** — mark the bookmark for deletion; a brief undo option appears
+- **View Original / View Article** — switch between the reading view and the original web page in an in-app viewer (see above)
+- **Open in Browser** — open the original URL in your default browser
+- **Share Link** — open the Android share sheet to share the bookmark's URL
+- **Unread / Read** — toggle whether the bookmark has been read; this is reflected back in the bookmark list
+- **Bookmark Details** — open the Bookmark Details screen (see below)
+- **Delete** — delete the bookmark; a **"Bookmark deleted"** bar appears with an **Undo** option
+
+## Long-press Context Menu
+
+Long-pressing a link in the article opens a context menu:
+- Copy Link Address
+- Copy Link Text
+- Share Link
+- Open in Browser
+
+Long-pressing an image opens an extended menu that also includes Copy Image, Download Image, and Share Image.
 
 ## Bookmark Details
 
-The **Bookmark Details** screen (opened from the overflow menu) shows the bookmark's full metadata: thumbnail, author, the dates it was added and published, reading time, and word count.
+**Bookmark Details** (opened from the overflow menu) shows the bookmark's full metadata:
 
-It also includes the **Labels** section where you can add or remove labels for the bookmark. Tap the **X** on an existing label to remove it, or start typing in the **Add label** field to add a new one — a list of your existing labels matching what you've typed will appear below the field as you go. There's no limit on what a label can be, and emojis work too.
+- Thumbnail
+- Author, date added, date published, reading time, word count
+- Description
 
-![Bookmark labels form](./img/bookmark-labels.webp)
-Managing labels in Bookmark Details.
+It also includes the **Labels** section where you can add or remove labels for the bookmark. Tap the **×** on an existing label chip to remove it, or type in the **Add label** field to add one — your existing labels that match what you've typed appear as suggestions below the field. Labels can be any word, phrase, or emoji.
 
-See [Labels](./labels.md) for information about label management across your whole collection.
+See [Labels](./labels.md) for information about managing labels across your whole collection.

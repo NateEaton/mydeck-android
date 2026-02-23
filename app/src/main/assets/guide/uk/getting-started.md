@@ -6,29 +6,32 @@ To use MyDeck you need access to a running Readeck server.
 
 ## Connecting to Your Server
 
-When you first open MyDeck, you'll see the welcome screen. Enter the URL of your Readeck server's API endpoint in the **Readeck URL** field — for example, `https://readeck.example.com/api` — then tap **Connect**.
+When you first open MyDeck, you'll see the welcome screen with a **Readeck URL** field pre-filled with `https://`. Enter the address of your Readeck server — for example, `https://readeck.example.com` — and tap **Connect**. MyDeck automatically appends the `/api` path, so you don't need to include it yourself.
 
 If the URL is invalid or the server cannot be reached, an error message will appear below the field. Double-check the address and make sure your device has network access to the server.
 
 ## Signing In
 
-After tapping **Connect**, MyDeck uses a secure authorization flow to sign you in to your Readeck account. The screen will show two things:
+MyDeck uses the OAuth device authorization flow to sign you in securely without ever handling your password. After tapping **Connect**, the screen shows two things:
 
-- **A verification URL** — the address to visit in your browser
-- **Your user code** — a short code to enter on that page
+1. **A verification URL** — the address to visit in your browser (for example, `https://readeck.example.com/device`)
+2. **Your user code** — a short one-time code to enter on that page
 
-The easiest way to sign in is to tap **Open in Browser**. This opens the verification page in your browser with your code already included, so you only need to log in to Readeck and approve the connection.
+The easiest way to sign in is to tap **Open in Browser**, which opens the Readeck authorization page directly. Log in to Readeck if prompted, review the permissions requested, and tap **Authorize**.
 
-If you prefer to do it manually, tap **Copy URL** to copy the address, open it in a browser yourself, and enter the code shown on screen when prompted.
+If you prefer to do it manually, tap **Copy URL** to copy the verification address and open it yourself, then tap **Copy Code** to copy the code and enter it when prompted.
 
-Once you approve the connection, return to MyDeck. The app will detect the authorization automatically — you don't need to tap anything else.
+Once you tap Authorize, MyDeck detects the approval automatically — you don't need to return to the app or tap anything else.
 
-> **Note:** The user code expires after a few minutes. If the countdown reaches zero before you finish, tap **Cancel** and start the connection process again.
+> **Note:** The user code expires after 5 minutes. If the countdown reaches zero before you finish, go back and start the connection process again.
 
 ## First Load
 
-After signing in, MyDeck syncs your existing bookmarks from the server. Depending on how many bookmarks you have, this initial load may take a moment. Article content is downloaded in the background so your bookmarks are available to read offline.
+After signing in, MyDeck syncs your bookmarks from the server. Depending on how many you have, this initial sync may take a moment. Article content is downloaded in the background as you read or according to your sync settings, so your bookmarks are available offline.
 
 ## Signing Out or Switching Servers
 
-To sign out or connect to a different server, go to **Settings → Account**. Signing out removes all locally stored bookmarks from the device.
+To sign out or connect to a different server, open the navigation drawer and tap **Settings**, then tap **Account**.
+
+- To **switch servers**, update the **Readeck URL** field and tap **Login** to re-authenticate.
+- To **sign out**, tap **Sign Out**. This removes all locally stored bookmarks from the device and returns you to the welcome screen.
