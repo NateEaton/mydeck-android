@@ -90,7 +90,7 @@ Each card has four quick-action buttons:
 
 - **Favorite** (❤️) — toggle the favorite status
 - **Archive** — move the bookmark to the archive (or remove it from there)
-- **Open in Browser** (🌐) — open the original page in your default browser
+- **View Original** (🌐) — open the original page in an in-app viewer
 - **Delete** (🗑️) — mark the bookmark for deletion; a brief undo option appears immediately after
 
 ## List Layout

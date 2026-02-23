@@ -21,44 +21,54 @@ A video player loads the content. Note that videos stream from their original se
 
 ## Reading View
 
-For article bookmarks, MyDeck displays the extracted text in a comfortable reading layout. If you'd prefer to see the original web page instead, use the **View Original** option from the top-bar menu. You can switch back to the article view with **View Article**.
+For articles, MyDeck shows the extracted text in a comfortable reading layout. The bookmark title appears at the top — tap the **✏️** icon beside it to edit the title.
+
+The top bar provides quick access to the most-used actions:
+
+- **❤️ Favorite** — toggle the favorite status
+- **Archive** — move the bookmark to the archive (or remove it from there)
+- **TT Typography** — open the reading settings sheet (see below)
+- **🔍 Find in Article** — search for text within the article; matches are highlighted as you type
+- **⋮ More** — overflow menu with additional actions
 
 ## Typography Settings
 
-Tap the **reader settings** button in the top bar to adjust the reading experience.
+Tap the **TT** button in the top bar to open the reading settings sheet.
 
 ![Bookmark typography settings](./img/bookmark-typography.webp)
-Reader settings.
+Reading settings.
 
-You can change the **font**, **font size**, and **line height**. These settings are saved automatically and apply to all articles you read going forward.
+- **Font** — System Default, Noto Serif, or Literata
+- **Font size** — adjust with − and + (shown as a percentage)
+- **Spacing** — Tight or Loose
+- **Width** — Wide or Narrow
+- **Justify text** — toggle on or off
+- **Hyphenate words** — toggle on or off
+- **Reset to defaults** — restore all reading settings at once
 
-## Find in Article
+These settings are saved automatically and apply to every article you read.
 
-Use the **Find in Article** option from the top-bar menu to search for text within the current bookmark. Matches are highlighted as you type.
+## Overflow Menu
 
-## Actions
+Tap the **⋮** button in the top bar for additional actions:
 
-The top-bar menu provides the following actions:
+- **View Original** (🌐) — opens the original web page in an in-app viewer
+- **Open in Browser** — opens the original URL in your default browser
+- **Share Link** — opens the Android share sheet to share the bookmark's URL
+- **Unread / Read** — toggle whether the bookmark has been read
+- **Bookmark Details** — opens the Bookmark Details screen (see below)
+- **Delete** — mark the bookmark for deletion; a brief undo option appears
 
-- **Favorite** — toggle the favorite status
-- **Archive** — move the bookmark to the archive (or remove it from there)
-- **Mark as Read / Unread** — track your reading progress
-- **Share Link** — open the Android share sheet to share the bookmark's URL
-- **Open in Browser** — open the original page in your default browser
-- **Delete** — mark the bookmark for deletion; an undo option appears briefly
+## Bookmark Details
 
-## Editing the Title
+The **Bookmark Details** screen (opened from the overflow menu) shows the bookmark's full metadata: thumbnail, author, the dates it was added and published, reading time, and word count.
 
-The bookmark title is captured automatically when the bookmark is created. To change it, use the **Edit Title** option from the menu.
-
-## Labels
-
-You can add any number of labels to help organise your bookmarks. Open the bookmark details to manage labels — there's no limit on what a label can be, and emojis work too.
+It also includes the **Labels** section where you can add or remove labels for the bookmark. Tap the **X** on an existing label to remove it, or type in the **Add label** field to add a new one. There's no limit on what a label can be, and emojis work too.
 
 ![Bookmark labels form](./img/bookmark-labels.webp)
-Adding a label.
+Managing labels in Bookmark Details.
 
-See [Labels](./labels.md) for more.
+See [Labels](./labels.md) for information about label management across your whole collection.
 
 ## Highlights
 
@@ -67,4 +77,4 @@ You can highlight any text in an article. Select text in the reading view and ch
 ![Bookmark highlight creation](./img/bookmark-highlight.webp)
 Creating a highlight.
 
-Your highlights are saved to the bookmark and synced back to your Readeck server. To remove a highlight, select the highlighted text in the article and choose the delete option, or manage highlights from the bookmark details.
+Your highlights are saved to the bookmark and synced back to your Readeck server. To remove a highlight, select the highlighted text and choose the delete option from the menu.
