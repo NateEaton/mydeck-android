@@ -51,7 +51,7 @@ The top bar in picture view shows **← Back**, **❤️**, **Archive**, and **�
 
 ## View Original
 
-Any bookmark can be opened in its original form in an in-app web viewer.
+Any bookmark can be opened in its original format in an in-app web viewer.
 
 - **From article view:** tap **⋮** → **View Original**
 - **From View Original:** tap **⋮** → **View Article** to return to the reading view
