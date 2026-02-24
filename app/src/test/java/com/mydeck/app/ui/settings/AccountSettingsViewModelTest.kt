@@ -99,6 +99,25 @@ class AccountSettingsViewModelTest {
         assertTrue(uiState.isLoggedIn) // Should be true since token is not empty
     }
 
+
+    @Test
+    fun `initial uiState should strip api suffix from saved url for display`() = runTest {
+        every { settingsDataStore.urlFlow } returns MutableStateFlow("https://example.com/api")
+        every { settingsDataStore.tokenFlow } returns MutableStateFlow("valid-token")
+        viewModel = AccountSettingsViewModel(
+            settingsDataStore = settingsDataStore,
+            userRepository = userRepository,
+            oauthDeviceAuthUseCase = oauthDeviceAuthUseCase,
+            bookmarkRepository = bookmarkRepository,
+            context = context,
+            applicationScope = applicationScope
+        )
+
+        advanceUntilIdle()
+
+        assertEquals("https://example.com", viewModel.uiState.value.url)
+    }
+
     private fun assertInitialUiState(settingsUiState: AccountSettingsViewModel.AccountSettingsUiState) {
         assertEquals("", settingsUiState.url)
         assertNull(settingsUiState.urlError)
