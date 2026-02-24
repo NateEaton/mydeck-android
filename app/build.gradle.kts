@@ -205,6 +205,26 @@ dependencies {
     implementation(libs.aboutlibraries.compose.m3)
     implementation(libs.treessence)
     implementation(libs.accompanist.permissions)
+    
+    // Markdown rendering
+    implementation(libs.markwon.core) {
+        exclude(group = "org.jetbrains", module = "annotations-java5")
+    }
+    implementation(libs.markwon.ext.strikethrough) {
+        exclude(group = "org.jetbrains", module = "annotations-java5")
+    }
+    implementation(libs.markwon.ext.tables) {
+        exclude(group = "org.jetbrains", module = "annotations-java5")
+    }
+    implementation(libs.markwon.ext.tasklist) {
+        exclude(group = "org.jetbrains", module = "annotations-java5")
+    }
+    implementation(libs.markwon.image) {
+        exclude(group = "org.jetbrains", module = "annotations-java5")
+    }
+    implementation(libs.markwon.syntax.highlight) {
+        exclude(group = "org.jetbrains", module = "annotations-java5")
+    }
 }
 
 aboutLibraries {
