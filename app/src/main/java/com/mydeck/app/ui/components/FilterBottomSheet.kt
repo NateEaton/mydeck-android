@@ -170,6 +170,8 @@ fun FilterBottomSheet(
                         }
                     },
                     singleLine = true,
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                    keyboardActions = KeyboardActions(onSearch = { applyFilter() }),
                     modifier = Modifier.weight(1f)
                 )
                 OutlinedTextField(
@@ -184,6 +186,8 @@ fun FilterBottomSheet(
                         }
                     },
                     singleLine = true,
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                    keyboardActions = KeyboardActions(onSearch = { applyFilter() }),
                     modifier = Modifier.weight(1f)
                 )
             }
@@ -204,6 +208,8 @@ fun FilterBottomSheet(
                         }
                     },
                     singleLine = true,
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                    keyboardActions = KeyboardActions(onSearch = { applyFilter() }),
                     modifier = Modifier.weight(1f)
                 )
                 OutlinedTextField(
