@@ -50,10 +50,11 @@ This is the initial MyDeck release, representing a comprehensive rebranding and 
 - Navigation drawer item count badges for all views (My List, Archive, Favorites, Articles, Videos, Pictures, Labels)
 - Dedicated Labels view with searchable label list and per-label bookmark counts
 - Three bookmark list layouts: Grid, Compact, and Mosaic
-- Reading progress indicators on bookmark cards: unviewed (none), in-progress (arc proportional to progress), completed (checkmark)
+- Reading progress tracking: visual indicator on each bookmark card (unviewed, in-progress arc proportional to progress, completed checkmark); automatically marks a bookmark as Read when the end of content is reached; reopening a bookmark resumes at the furthest scroll position from the previous session
 - Full label management: add, rename, delete labels; add/remove labels on individual bookmarks from cards or the details dialog
 - Clickable label chips on bookmark cards for one-tap label filtering
-- Bookmark details dialog with full metadata (type, language, word count, reading time, authors, description) and label management
+- Bookmark Details screen (accessible from reading view overflow menu) with full metadata (thumbnail, site, author, type, language, word count, reading time, description) and label management
+- Enhanced log viewer: clear-logs action, configurable log file granularity, multi-file zip export for sharing, and log retention policy
 - Dual content view modes: Article (Readeck-extracted content) and Original (embedded webview), toggleable from the reading view header
 - Full support for photo and video bookmark types with embedded media content
 - Global full-text search across bookmark titles, site names, and labels
@@ -79,6 +80,7 @@ This is the initial MyDeck release, representing a comprehensive rebranding and 
 
 - Rebranded from ReadeckApp to MyDeck (application ID, name, icon, and assets)
 - Reading view action buttons moved from the floating action button to the top bar
+- Bookmark metadata (thumbnail, site name, author) moved from the top of article content to the Bookmark Details screen
 - Theme system redesigned: app theme (Light, Dark, System Default) separated from Sepia, which is now a reading theme toggle that applies when the app is in light mode
 - Account page shown automatically on first launch if not signed in
 

@@ -66,6 +66,7 @@ ReadeckApp 0.8.0 had no label management in the Android client — labels visibl
 | Article content only | Article mode + Original (embedded webview) toggle |
 | Photo and video bookmarks show description with external link | Embedded media renders inline in a dedicated reading view |
 | Reading view actions in floating action button | Reading view actions in top bar |
+| Bookmark thumbnail, site name, and author shown at top of article content | Bookmark metadata consolidated into a separate Bookmark Details screen |
 | Typography: font size adjustment (increase/decrease) | Full typography panel: font family, size, line spacing, content width, justification, hyphenation |
 | No in-article search | Find in Article with highlighted match navigation |
 | No inline title editing | Tap pencil icon to edit bookmark title inline |
@@ -99,7 +100,9 @@ ReadeckApp 0.8.0 had no label management in the Android client — labels visibl
 - **Rebranding:** Application ID, name, and assets changed from ReadeckApp to MyDeck.
 - **Theming:** ReadeckApp offered Light, Dark, Sepia, and System Default as a single theme selector. MyDeck separates these into an app theme (Light, Dark, System Default) and a Sepia reading theme toggle that applies whenever the app is in light mode.
 - **About screen:** A dedicated About screen accessible from the navigation drawer, including open-source library attributions.
-- **Bookmark details dialog:** Full metadata (type, word count, reading time, language, authors, description) accessible from the reading view overflow menu.
+- **Bookmark details:** A dedicated Bookmark Details screen (accessible from the reading view overflow menu) consolidates the thumbnail, site name, and author that ReadeckApp displayed at the top of article content, together with additional metadata: type, word count, reading time, language, description, and label management.
+- **Reading progress:** Beyond the visual indicator on bookmark cards, MyDeck automatically marks a bookmark as Read when the end of its content is reached, and reopening a bookmark resumes at the furthest scroll position from the previous session.
+- **Logs:** ReadeckApp includes an in-app log viewer. MyDeck extends this with a clear-logs option, configurable log file granularity, multi-file zip export for sharing, and a log retention policy.
 - **Delete with Undo:** Deleting a bookmark shows a snackbar with an Undo action; the deletion is not committed until the snackbar is dismissed.
 - **Material Design 3:** Full migration to Material 3 components and theming throughout the app.
 - **Offline action queue:** State changes (favorite, archive, read, delete) made without network are queued and applied when connectivity is restored.
