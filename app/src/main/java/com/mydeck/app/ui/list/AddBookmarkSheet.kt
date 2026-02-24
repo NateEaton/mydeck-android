@@ -129,12 +129,12 @@ fun AddBookmarkSheet(
         if (mode == SheetMode.SHARE_INTENT) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Image(
-                    painter = painterResource(id = R.mipmap.ic_launcher_foreground),
+                    painter = painterResource(id = R.drawable.ic_brand_logo),
                     contentDescription = null,
-                    modifier = Modifier.size(64.dp)
+                    modifier = Modifier.size(48.dp)
                 )
                 Text(
                     text = stringResource(id = R.string.save_to_mydeck),
@@ -144,7 +144,7 @@ fun AddBookmarkSheet(
             }
         } else {
             Text(
-                text = stringResource(id = R.string.add_link),
+                text = stringResource(id = R.string.add_bookmark),
                 style = MaterialTheme.typography.titleLarge,
                 color = MaterialTheme.colorScheme.onSurface
             )

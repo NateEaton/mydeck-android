@@ -35,6 +35,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import com.mydeck.app.BuildConfig
 import com.mydeck.app.R
+import com.mydeck.app.ui.components.MyDeckBrandHeader
 import com.mydeck.app.ui.navigation.OpenSourceLibrariesRoute
 import com.mydeck.app.util.openUrlInCustomTab
 import java.text.SimpleDateFormat
@@ -103,13 +104,9 @@ fun AboutScreenContent(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             // App Header
-            Text(
-                text = stringResource(R.string.app_name),
-                style = MaterialTheme.typography.headlineMedium,
-                textAlign = TextAlign.Center
-            )
+            MyDeckBrandHeader(iconSize = 96.dp)
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
             Text(
                 text = stringResource(R.string.about_version, BuildConfig.VERSION_NAME),
