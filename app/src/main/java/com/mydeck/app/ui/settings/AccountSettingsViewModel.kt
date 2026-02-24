@@ -75,7 +75,7 @@ class AccountSettingsViewModel @Inject constructor(
             _uiState.update {
                 it.copy(
                     isLoggedIn = !token.isNullOrBlank(),
-                    url = url ?: "https://"
+                    url = toDisplayUrl(url)
                 )
             }
         }
@@ -281,6 +281,15 @@ class AccountSettingsViewModel @Inject constructor(
             url = "$url/api"
         }
         return url
+    }
+
+    private fun toDisplayUrl(rawUrl: String?): String {
+        if (rawUrl.isNullOrBlank()) {
+            return "https://"
+        }
+        return rawUrl
+            .trimEnd('/')
+            .removeSuffix("/api")
     }
 
     private fun isValidUrlForCurrentSettings(url: String?): Boolean {
