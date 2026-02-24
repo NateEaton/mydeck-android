@@ -47,13 +47,12 @@ fun MyDeckBrandHeader(
 
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(spacing),
-            modifier = Modifier.offset(x = (-20).dp)
+            horizontalArrangement = Arrangement.spacedBy(spacing)
         ) {
             Box(
                 modifier = Modifier
                     .width(1.dp)
-                    .height(24.dp)
+                    .height(fontHeight * 1.5f) // 50% taller than font height
                     .background(MaterialTheme.colorScheme.outline.copy(alpha = 0.7f))
             )
 
