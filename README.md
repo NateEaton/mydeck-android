@@ -3,7 +3,9 @@
 [![License](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
 [![Latest Release](https://img.shields.io/github/v/release/NateEaton/mydeck-android)](https://github.com/NateEaton/mydeck-android/releases/latest)
 
-MyDeck is an independently maintained Android client for [Readeck](https://readeck.org/en/), a self-hosted read-it-later service. It provides a Pocket-style interface for managing and reading your saved articles, videos, and photos.
+MyDeck is an Android client for [Readeck](https://readeck.org/en/), a self-hosted read-it-later service. It provides a Pocket-inspired interface for managing and reading your saved articles, videos, and photos.
+
+It began as a fork of ReadeckApp and has evolved into an independently developed client with its own UX direction while remaining fully compatible with Readeck servers.
 
 **Requirements:** A Readeck account and self-hosted Readeck server instance.
 
@@ -42,7 +44,7 @@ The debug APK will be at `app/build/outputs/apk/githubSnapshot/debug/`. Release 
 
 Contributions are welcome. Please open an issue before starting significant work to align on approach. See [docs/WORKFLOW.md](docs/WORKFLOW.md) for the development and release workflow.
 
-When adding new string resources, English placeholder strings must be added to all language files — see [CLAUDE.md](CLAUDE.md) for details.
+When adding new string resources, English placeholder strings must be added to all language files — see [CLAUDE.md](CLAUDE.md) for details. Contributors willing to help with translations are welcome.
 
 ## Acknowledgements
 
@@ -55,7 +57,7 @@ When adding new string resources, English placeholder strings must be added to a
 
 ### Development
 
-This project was developed with assistance from AI tools including **[Claude](https://claude.ai/)** (Anthropic). The underlying concept, architecture decisions, implementation, and testing were performed by the developer.
+This project was developed with assistance from AI tools including **[Claude](https://claude.ai/)** (Anthropic), **[ChatGPT](https://chatgpt.com/)** (OpenAI), and **[AIStudio](https://aistudio.google.com/)** (Google). The underlying concept, architecture decisions, implementation, and testing were performed by the developer.
 
 ### Influences
 

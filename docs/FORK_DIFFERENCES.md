@@ -1,6 +1,6 @@
 # Fork Differences: ReadeckApp → MyDeck
 
-This document summarizes the differences between [ReadeckApp](https://github.com/jensomato/ReadeckApp) at its 0.8.0 release and MyDeck at its 0.9.0 release. It is a point-in-time snapshot and is not intended to be kept continuously updated.
+This document summarizes the differences between [ReadeckApp](https://github.com/jensomato/ReadeckApp) at its 0.8.0 release and MyDeck at its 0.9.0 release. It is a point-in-time snapshot and is not intended to be kept continuously updated. My sincere thanks to Jens for creating ReadeckApp and making it open source, and the contributors to ReadeckApp.
 
 ## GPL Compliance
 
