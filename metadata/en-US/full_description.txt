@@ -1,3 +1,17 @@
-<b>Readeck App</b> is an Android application designed to help users manage and read their saved articles and bookmarks.
+<b>MyDeck</b> is an Android client for Readeck, a self-hosted read-it-later service. It provides a Pocket-inspired interface for managing and reading your saved articles, videos, and photos.
 
-This app is a companion to Readeck <i>(https://readeck.org/en/)</i>, a self-hosted read-it-later service. To use this app, you'll need a Readeck account and server instance.
+To use this app, you'll need a Readeck account and a self-hosted Readeck server instance. See <i>https://readeck.org/en/</i> for more information.
+
+<b>Features</b>
+- Pocket-style navigation: My List, Archive, and Favorites views
+- Three bookmark list layouts: Grid, Compact, and Mosaic
+- Full label management: add, rename, delete, and filter by labels
+- Dual reading modes: Readeck-extracted Article view and embedded Original webview
+- Article, photo, and video bookmark support with embedded media
+- Reading progress tracking with per-card visual indicators
+- Reading typography customization (font family, size, line spacing, content width)
+- In-article text search with highlighted match navigation
+- Share from any app — lightweight bottom sheet with auto-submit timer
+- Adaptive layouts for tablet and landscape orientation
+- OAuth Device Code Grant authentication
+- Configurable content sync with Wi-Fi and battery-saver constraints
