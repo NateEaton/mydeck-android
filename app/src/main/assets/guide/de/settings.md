@@ -9,7 +9,7 @@ The **Account** option in the drawer shows your username. Tapping it opens the *
 - **Readeck URL** — the API address of your Readeck server. To switch to a different server, update this field and tap **Login** to re-authenticate.
 - **Sign Out** — disconnects MyDeck from your Readeck account and removes all locally stored bookmarks from the device. You'll be returned to the welcome screen.
 
-> **Note:** Signing out removes all local bookmark data. Everything is stored on the server so the data will still be available the next tiem you sign into the same server.
+> **Note:** Signing out removes all local bookmark data. Everything is stored on the server so the data will still be available the next time you sign into the same server.
 
 ## Synchronization
 
