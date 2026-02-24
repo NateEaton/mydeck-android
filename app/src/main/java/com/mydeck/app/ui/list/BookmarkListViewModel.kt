@@ -276,7 +276,7 @@ class BookmarkListViewModel @Inject constructor(
     }
 
     fun onResetFilter() {
-        _filterFormState.value = FilterFormState()
+        _filterFormState.value = FilterFormState.fromPreset(_drawerPreset.value)
         _isFilterSheetOpen.value = false
     }
 
