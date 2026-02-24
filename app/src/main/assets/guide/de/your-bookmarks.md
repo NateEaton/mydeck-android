@@ -1,6 +1,6 @@
 # Your Bookmarks
 
-Bookmarks are the web pages, articles, and videos you've saved to your Readeck server. MyDeck syncs them to your device so you can read them anytime, even offline.
+Bookmarks are the web pages (articles, videos and pictures) you've saved to your Readeck server. MyDeck syncs them to your device so you can read them anytime, even offline.
 
 ## Navigating Your Bookmarks
 
@@ -24,7 +24,7 @@ Tap anywhere on a card (except the action buttons) to open the bookmark.
 
 ### Grid Layout
 
-The default layout. Each card has a **thumbnail** on the left and the title, source, and other details on the right. A **reading progress indicator** appears in the top-right corner of the thumbnail (see [Reading Progress](#reading-progress) below).
+The default layout. Each card has a **thumbnail** on the left and the title, source, and other details on the right. A **reading progress indicator** appears in the top-right corner of the thumbnail, described in the Reading Progress section below.
 
 ### Compact Layout
 
@@ -38,7 +38,7 @@ Each card is a large tile with the thumbnail filling the entire card and the tit
 
 Tap the **layout icon** in the top bar to choose between Grid, Compact, and Mosaic. The icon updates to reflect your current choice.
 
-## Reading Progress {#reading-progress}
+## Reading Progress
 
 In Grid and Mosaic layouts, the top-right corner of each card's thumbnail shows the bookmark's reading status:
 
@@ -46,9 +46,9 @@ In Grid and Mosaic layouts, the top-right corner of each card's thumbnail shows 
 - **Partial circle** — in progress; the arc angle represents how far through the article you've read
 - **Checkmark (✓)** — read (completed)
 
-Progress is tracked based on how far you scroll in the article — it reflects the farthest point you've reached, not your position when you leave.
+Progress is tracked based on how far you scroll in the article — it reflects the farthest point you've reached, not your position close the bookmark.
 
-A **video icon** or **picture icon** appears in the same corner for video and picture bookmarks respectively.
+A **video icon** or **picture icon** appears in the top left corner for video and picture bookmarks respectively.
 
 ## Card Actions
 
@@ -80,10 +80,10 @@ Long-pressing anywhere on a card opens a context menu for actions related to the
 
 ### From within MyDeck
 
-Tap the **+** button at the bottom-right of the list to open the **Add Link** sheet. Enter the URL of the page you want to save, and optionally a title and labels, then tap **Add**.
+Tap the **+** button at the bottom-right of the list to open the **Add Link** sheet. Enter the URL of the page you want to save, and optionally a title, labels, and mark it as a favorite (❤️), then tap **Add**.
 
 - **Add** — saves the bookmark and closes the sheet
-- **View** — saves the bookmark and immediately opens it
+- **View** — saves the bookmark and immediately opens it to read
 - **Archive** — saves the bookmark directly to the archive
 
 ### From another app
@@ -94,7 +94,7 @@ When opened via the share sheet, a 5-second countdown starts and the bookmark is
 
 ## Searching and Filtering
 
-Tap the **filter icon** (≡) in the top bar to open the filter sheet. The sheet opens at roughly the top half of the screen. Scroll down within the sheet to see all options.
+Tap the **filter icon** (≡) in the top bar to open the filter sheet. The sheet opens showing the top half of the options. Scroll down within the sheet to see all options.
 
 Active filters are shown as chips below the top bar. Tap the **×** on a chip to clear that filter.
 
@@ -120,15 +120,6 @@ When no bookmarks match the current filters, the list shows a "No bookmarks matc
 - Is Favorite, Is Archived, Is Loaded, With Labels, With Errors
 
 Tap **Search** to apply, or **Reset** to clear all filters.
-
-### Search query syntax
-
-The text search fields support the following operators:
-
-- `startled cat` — finds bookmarks containing both **startled** and **cat**
-- `"startled cat"` — finds the exact phrase **startled cat**
-- `cat*` — finds words starting with **cat** (cat, catnip, caterpillar, etc.)
-- `-startled cat` — finds **cat** but excludes **startled**
 
 ## Sorting
 

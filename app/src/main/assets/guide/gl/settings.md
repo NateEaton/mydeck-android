@@ -4,18 +4,18 @@ Open the navigation drawer and tap **Settings** to access the app's settings.
 
 ## Account
 
-The **Account** screen shows the Readeck server your app is connected to and your username.
+The **Account** option in the drawer shows your username. Tapping it opens the **Account** screen, which shows the Readeck server your app is connected to.
 
 - **Readeck URL** — the API address of your Readeck server. To switch to a different server, update this field and tap **Login** to re-authenticate.
 - **Sign Out** — disconnects MyDeck from your Readeck account and removes all locally stored bookmarks from the device. You'll be returned to the welcome screen.
 
-> **Warning:** Signing out removes all local bookmark data. Make sure your bookmarks are safely stored on the server before signing out.
+> **Note:** Signing out removes all local bookmark data. Everything is stored on the server so the data will still be available the next tiem you sign into the same server.
 
 ## Synchronization
 
 The **Synchronization Settings** screen controls how MyDeck keeps your bookmarks and their content in sync with the Readeck server.
 
-MyDeck automatically syncs your bookmark list when you first sign in and each time the app is opened.
+MyDeck automatically syncs your bookmark list when you first sign in and each time the app is opened. The periodic sync is for detecting if bookmarks were deleted on the server so they can be removed from the app.
 
 ### Bookmark Sync
 
@@ -29,7 +29,8 @@ Controls when the full article content for bookmarks is downloaded.
 
 **Content Sync Mode:**
 - **Automatic** — content is downloaded automatically during each bookmark sync
-- **Manual** — content is downloaded only when you open a bookmark (On demand), or you can trigger a batch download for bookmarks added within a date range (Date Range — choose from Past day, Past week, Past month, Past year, or Custom date range, then tap **Download**)
+- **Manual (on demand)** — content is downloaded only when you open a bookmark; this is the default when the app is installed. 
+- **Manual (date range)** — you can trigger a batch download for bookmarks added within a date range (Date Range — choose from Past day, Past week, Past month, Past year, or Custom date range, then tap **Download**)
 
 **Constraints:**
 - **Only download on Wi-Fi** — prevents content from downloading over mobile data

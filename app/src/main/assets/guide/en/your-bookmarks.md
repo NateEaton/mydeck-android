@@ -24,7 +24,7 @@ Tap anywhere on a card (except the action buttons) to open the bookmark.
 
 ### Grid Layout
 
-The default layout. Each card has a **thumbnail** on the left and the title, source, and other details on the right. A **reading progress indicator** appears in the top-right corner of the thumbnail (see [Reading Progress](#reading-progress) below).
+The default layout. Each card has a **thumbnail** on the left and the title, source, and other details on the right. A **reading progress indicator** appears in the top-right corner of the thumbnail, described in the Reading Progress section below.
 
 ### Compact Layout
 
@@ -38,7 +38,7 @@ Each card is a large tile with the thumbnail filling the entire card and the tit
 
 Tap the **layout icon** in the top bar to choose between Grid, Compact, and Mosaic. The icon updates to reflect your current choice.
 
-## Reading Progress {#reading-progress}
+## Reading Progress
 
 In Grid and Mosaic layouts, the top-right corner of each card's thumbnail shows the bookmark's reading status:
 
@@ -120,15 +120,6 @@ When no bookmarks match the current filters, the list shows a "No bookmarks matc
 - Is Favorite, Is Archived, Is Loaded, With Labels, With Errors
 
 Tap **Search** to apply, or **Reset** to clear all filters.
-
-### Search query syntax
-
-The text search fields support the following operators:
-
-- `startled cat` — finds bookmarks containing both **startled** and **cat**
-- `"startled cat"` — finds the exact phrase **startled cat**
-- `cat*` — finds words starting with **cat** (cat, catnip, caterpillar, etc.)
-- `-startled cat` — finds **cat** but excludes **startled**
 
 ## Sorting
 

@@ -1,6 +1,6 @@
 # Getting Started
 
-MyDeck is a mobile reader for [Readeck](https://readeck.org), a self-hosted read-later service. You save web pages (articles, videos, and pictures) to your Readeck server and read them in MyDeck — including offline.
+MyDeck is a mobile reader for Readeck, a self-hosted read-later service. You save web pages (articles, videos, and pictures) to your Readeck server and read them in MyDeck — including offline.
 
 To use MyDeck you need access to a running Readeck server.
 

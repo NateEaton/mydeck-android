@@ -69,15 +69,9 @@ Tap **⋮** in the top bar for additional actions:
 - **Bookmark Details** — open the Bookmark Details screen (see below)
 - **Delete** — delete the bookmark; a **"Bookmark deleted"** bar appears with an **Undo** option
 
-## Long-press Context Menu
+## Links in Articles
 
-Long-pressing a link in the article opens a context menu:
-- Copy Link Address
-- Copy Link Text
-- Share Link
-- Open in Browser
-
-Long-pressing an image opens an extended menu that also includes Copy Image, Download Image, and Share Image.
+Tapping a link within article text opens the associated web page in a browser overlay. Links in articles open in the browser rather than MyDeck's in-app web viewer, which is reserved for a bookmark's own original URL via View Original.
 
 ## Bookmark Details
 

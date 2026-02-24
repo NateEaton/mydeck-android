@@ -1,12 +1,12 @@
 # Getting Started
 
-MyDeck is a mobile reader for [Readeck](https://readeck.org), a self-hosted read-later service. You save articles, videos, and web pages to your Readeck server and read them in MyDeck — including offline.
+MyDeck is a mobile reader for Readeck, a self-hosted read-later service. You save web pages (articles, videos, and pictures) to your Readeck server and read them in MyDeck — including offline.
 
 To use MyDeck you need access to a running Readeck server.
 
 ## Connecting to Your Server
 
-When you first open MyDeck, you'll see the welcome screen with a **Readeck URL** field pre-filled with `https://`. Enter the address of your Readeck server — for example, `https://readeck.example.com` — and tap **Connect**. MyDeck automatically appends the `/api` path, so you don't need to include it yourself.
+When you first open MyDeck, you'll see the welcome screen with a **Readeck URL** field pre-filled with `https://`. Enter the address of your Readeck server — for example, `https://readeck.example.com` — and tap **Connect**. 
 
 If the URL is invalid or the server cannot be reached, an error message will appear below the field. Double-check the address and make sure your device has network access to the server.
 
@@ -21,7 +21,7 @@ The easiest way to sign in is to tap **Open in Browser**, which opens the Readec
 
 If you prefer to do it manually, tap **Copy URL** to copy the verification address and open it yourself, then tap **Copy Code** to copy the code and enter it when prompted.
 
-Once you tap Authorize, MyDeck detects the approval automatically — you don't need to return to the app or tap anything else.
+Once you tap Authorize, MyDeck detects the approval automatically. Once you see the Readeck page with the "Return to MyDeck" button, you can close Readeck and return to MyDeck.
 
 > **Note:** The user code expires after 5 minutes. If the countdown reaches zero before you finish, go back and start the connection process again.
 
