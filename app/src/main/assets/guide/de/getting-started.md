@@ -21,7 +21,7 @@ The easiest way to sign in is to tap **Open in Browser**, which opens the Readec
 
 If you prefer to do it manually, tap **Copy URL** to copy the verification address and open it yourself, then tap **Copy Code** to copy the code and enter it when prompted.
 
-Once you tap Authorize, MyDeck detects the approval automatically. Once you see the Readeck page with the "Return to MyDeck" button, you can close Readeck and return to MyDeck.
+Once you tap Authorize, MyDeck detects the approval automatically and the sign-in is complete. When the Readeck page updates to show a "Return to Readeck" button, close the browser and return to MyDeck.
 
 > **Note:** The user code expires after 5 minutes. If the countdown reaches zero before you finish, go back and start the connection process again.
 
