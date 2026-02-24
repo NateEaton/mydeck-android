@@ -134,7 +134,7 @@ fun AddBookmarkSheet(
                 Image(
                     painter = painterResource(id = R.drawable.ic_brand_logo),
                     contentDescription = null,
-                    modifier = Modifier.size(64.dp)
+                    modifier = Modifier.size(96.dp)
                 )
                 Text(
                     text = stringResource(id = R.string.save_to_mydeck),

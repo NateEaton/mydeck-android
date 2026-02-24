@@ -103,7 +103,7 @@ fun AboutScreenContent(
                 .padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            MyDeckBrandHeader(iconSize = 96.dp)
+            MyDeckBrandHeader()
 
             Spacer(modifier = Modifier.height(16.dp))
 
