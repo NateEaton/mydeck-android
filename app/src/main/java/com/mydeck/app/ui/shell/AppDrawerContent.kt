@@ -14,6 +14,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.automirrored.outlined.Article
+import androidx.compose.material.icons.outlined.HelpOutline
 import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Inventory2
@@ -53,6 +54,7 @@ fun AppDrawerContent(
     onClickPictures: () -> Unit,
     onClickLabels: () -> Unit,
     onClickSettings: () -> Unit,
+    onClickUserGuide: () -> Unit,
     onClickAbout: () -> Unit,
     usePermanentSheet: Boolean = false,
 ) {
@@ -75,6 +77,7 @@ fun AppDrawerContent(
                 onClickPictures = onClickPictures,
                 onClickLabels = onClickLabels,
                 onClickSettings = onClickSettings,
+                onClickUserGuide = onClickUserGuide,
                 onClickAbout = onClickAbout,
             )
         }
@@ -95,6 +98,7 @@ fun AppDrawerContent(
                 onClickPictures = onClickPictures,
                 onClickLabels = onClickLabels,
                 onClickSettings = onClickSettings,
+                onClickUserGuide = onClickUserGuide,
                 onClickAbout = onClickAbout,
             )
         }
@@ -117,6 +121,7 @@ private fun DrawerColumnContent(
     onClickPictures: () -> Unit,
     onClickLabels: () -> Unit,
     onClickSettings: () -> Unit,
+    onClickUserGuide: () -> Unit,
     onClickAbout: () -> Unit,
 ) {
     Column(
@@ -310,6 +315,15 @@ private fun DrawerColumnContent(
             icon = { Icon(imageVector = Icons.Outlined.Settings, contentDescription = null) },
             selected = false,
             onClick = onClickSettings
+        )
+        NavigationDrawerItem(
+            label = { Text(
+                style = MaterialTheme.typography.bodyLarge,
+                text = stringResource(id = R.string.user_guide)
+            ) },
+            icon = { Icon(imageVector = Icons.Outlined.HelpOutline, contentDescription = null) },
+            selected = false,
+            onClick = onClickUserGuide
         )
         NavigationDrawerItem(
             label = { Text(

@@ -5,6 +5,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Article
 import androidx.compose.material.icons.automirrored.outlined.Label
 import androidx.compose.material.icons.outlined.FavoriteBorder
+import androidx.compose.material.icons.outlined.HelpOutline
 import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Inventory2
@@ -30,6 +31,7 @@ fun AppNavigationRailContent(
     onClickPictures: () -> Unit,
     onClickLabels: () -> Unit,
     onClickSettings: () -> Unit,
+    onClickUserGuide: () -> Unit,
     onClickAbout: () -> Unit,
 ) {
     val isLabelMode = activeLabel != null
@@ -75,6 +77,11 @@ fun AppNavigationRailContent(
             selected = false,
             onClick = onClickSettings,
             icon = { Icon(imageVector = Icons.Outlined.Settings, contentDescription = null) }
+        )
+        NavigationRailItem(
+            selected = false,
+            onClick = onClickUserGuide,
+            icon = { Icon(imageVector = Icons.Outlined.HelpOutline, contentDescription = null) }
         )
         NavigationRailItem(
             selected = false,
