@@ -48,7 +48,7 @@ In Grid and Mosaic layouts, the top-right corner of each card's thumbnail shows 
 
 Progress is tracked based on how far you scroll in the article — it reflects the farthest point you've reached, not your position when you close the bookmark.
 
-A **video icon** or **picture icon** appears in the top-right corner for video and picture bookmarks respectively.
+A **video icon** or **picture icon** appears in the top-left corner for video and picture bookmarks respectively.
 
 ## Card Actions
 
