@@ -46,7 +46,22 @@ When adding new string resources, English placeholder strings must be added to a
 
 ## Acknowledgements
 
-MyDeck is derived from [ReadeckApp](https://github.com/jensomato/ReadeckApp) by jensomato, licensed under the GNU General Public License v3.0. For a summary of changes from the original, see [docs/FORK_DIFFERENCES.md](docs/FORK_DIFFERENCES.md).
+### Built With
+
+- **[Kotlin](https://kotlinlang.org/)** — Primary development language
+- **[Jetpack Compose](https://developer.android.com/compose)** — UI framework
+- **[Material Design 3](https://m3.material.io/)** — Design system
+- **[Room](https://developer.android.com/training/data-storage/room)**, **[Retrofit](https://square.github.io/retrofit/)**, **[Hilt](https://dagger.dev/hilt/)**, **[WorkManager](https://developer.android.com/topic/libraries/architecture/workmanager)** — Persistence, networking, dependency injection, and background sync
+
+### Development
+
+This project was developed with assistance from AI tools including **[Claude](https://claude.ai/)** (Anthropic). The underlying concept, architecture decisions, implementation, and testing were performed by the developer.
+
+### Influences
+
+MyDeck is derived from **[ReadeckApp](https://github.com/jensomato/ReadeckApp)** by jensomato — the Android client that made this project possible. It is a companion to **[Readeck](https://readeck.org/en/)** by the Readeck team. The UX and navigation model were inspired in part by **[Pocket](https://getpocket.com/)** (Mozilla) and **[Instapaper](https://www.instapaper.com/)**.
+
+For a summary of code and feature changes from ReadeckApp, see [docs/FORK_DIFFERENCES.md](docs/FORK_DIFFERENCES.md).
 
 ## License
 

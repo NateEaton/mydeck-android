@@ -60,7 +60,7 @@ This is the initial MyDeck release, representing a comprehensive rebranding and 
 - Reading typography customization: font family (System Default, Noto Serif, Literata, Source Serif, Noto Sans, JetBrains Mono), size, line spacing, content width, justification, and hyphenation
 - Find in Article: in-reading-view text search with highlighted current and secondary matches and previous/next navigation
 - Inline title editing in reading view (tap pencil icon to edit, confirm with checkmark)
-- Long-press context menus in reading view: links (copy address, copy text, share, open in browser) and images (copy, download, share, open in browser)
+- About screen accessible from the navigation drawer, including open-source library attributions
 - Unified bookmark addition: sharing a URL from another app opens a focused bottom sheet rather than the full application
 - URL auto-captured from clipboard when opening the add bookmark dialog
 - Add bookmark bottom sheet auto-submits after a 5-second countdown timer; timer pauses if the user interacts with the sheet
@@ -79,7 +79,7 @@ This is the initial MyDeck release, representing a comprehensive rebranding and 
 
 - Rebranded from ReadeckApp to MyDeck (application ID, name, icon, and assets)
 - Reading view action buttons moved from the floating action button to the top bar
-- Floating action button repurposed to add new bookmarks
+- Theme system redesigned: app theme (Light, Dark, System Default) separated from Sepia, which is now a reading theme toggle that applies when the app is in light mode
 - Account page shown automatically on first launch if not signed in
 
 ## [0.8.0] - 2025-11-11

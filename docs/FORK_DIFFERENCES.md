@@ -29,8 +29,7 @@ MyDeck uses the OAuth Device Code Grant standard: when signing in, the app provi
 | ReadeckApp 0.8.0 | MyDeck 0.9.0 |
 |---|---|
 | All / Unread top-level views | My List / Archive / Favorites views (Pocket-style) |
-| No navigation badges | Item counts on every drawer item |
-| No dedicated Labels view | Labels view with searchable list and count badges |
+| No dedicated Labels view | Labels view with searchable label list and count badges |
 | Phone-only layout | Adaptive: drawer on phone, icon rail on landscape/tablet portrait, persistent drawer on tablet landscape |
 
 ---
@@ -42,7 +41,7 @@ MyDeck uses the OAuth Device Code Grant standard: when signing in, the app provi
 | Single list layout | Three layouts: Grid, Compact, and Mosaic |
 | 3-dot overflow menu per card | Inline action icons: Favorite, Archive, View Original, Delete |
 | No reading progress on cards | Progress indicator: unviewed (none), in-progress (arc), completed (checkmark) |
-| No label display on cards | Label chips on cards; tap a chip to filter the list |
+| Labels displayed as text on cards | Tappable label chips on cards; tap a chip to filter the list |
 | Sort by Added only | Sort by Added, Published, Title, Site Name, or Duration; toggle ascending/descending |
 
 ---
@@ -65,12 +64,11 @@ ReadeckApp 0.8.0 had no label management in the Android client — labels visibl
 | ReadeckApp 0.8.0 | MyDeck 0.9.0 |
 |---|---|
 | Article content only | Article mode + Original (embedded webview) toggle |
-| Photo/video bookmarks not well supported | Embedded media for photo and video bookmarks |
-| Actions in floating action button | Actions in top bar; FAB repurposed to add bookmarks |
-| No typography controls | Font family, size, line spacing, content width, justification, hyphenation |
+| Photo and video bookmarks show description with external link | Embedded media renders inline in a dedicated reading view |
+| Reading view actions in floating action button | Reading view actions in top bar |
+| Typography: font size adjustment (increase/decrease) | Full typography panel: font family, size, line spacing, content width, justification, hyphenation |
 | No in-article search | Find in Article with highlighted match navigation |
 | No inline title editing | Tap pencil icon to edit bookmark title inline |
-| Long-press: no context menu | Long-press links or images: copy, share, open, download options |
 
 ---
 
@@ -91,7 +89,7 @@ ReadeckApp 0.8.0 had no label management in the Android client — labels visibl
 |---|---|
 | Single sync model | Split: bookmark list sync (always) + content sync (configurable) |
 | No content sync modes | Content sync: Automatic, Manual (on demand or date range) |
-| No download constraints | Wi-Fi-only and battery-saver constraint toggles |
+| Download constraints present but not user-configurable | Wi-Fi-only and battery-saver constraint toggles in settings |
 | Basic sync status | Sync status panel: bookmark counts + content download status |
 
 ---
@@ -99,6 +97,8 @@ ReadeckApp 0.8.0 had no label management in the Android client — labels visibl
 ### Other Changes
 
 - **Rebranding:** Application ID, name, and assets changed from ReadeckApp to MyDeck.
+- **Theming:** ReadeckApp offered Light, Dark, Sepia, and System Default as a single theme selector. MyDeck separates these into an app theme (Light, Dark, System Default) and a Sepia reading theme toggle that applies whenever the app is in light mode.
+- **About screen:** A dedicated About screen accessible from the navigation drawer, including open-source library attributions.
 - **Bookmark details dialog:** Full metadata (type, word count, reading time, language, authors, description) accessible from the reading view overflow menu.
 - **Delete with Undo:** Deleting a bookmark shows a snackbar with an Undo action; the deletion is not committed until the snackbar is dismissed.
 - **Material Design 3:** Full migration to Material 3 components and theming throughout the app.
