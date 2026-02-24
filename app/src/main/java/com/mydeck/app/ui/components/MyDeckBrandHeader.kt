@@ -2,7 +2,6 @@ package com.mydeck.app.ui.components
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.height
@@ -22,7 +21,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import com.mydeck.app.R
 
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.unit.sp
 
 @Composable
 fun MyDeckBrandHeader(
@@ -34,6 +32,7 @@ fun MyDeckBrandHeader(
 
     val fontHeight = with(LocalDensity.current) { titleStyle.fontSize.toDp() }
     val spacing = fontHeight * 0.8f // 80% of font height
+    val dividerGap = ((spacing - 20.dp) / 2).coerceAtLeast(0.dp)
 
     Row(
         modifier = modifier.offset(x = -spacing), // Shift left by spacing amount
@@ -47,15 +46,16 @@ fun MyDeckBrandHeader(
 
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(spacing),
             modifier = Modifier.offset(x = (-20).dp)
         ) {
+            Box(modifier = Modifier.width(dividerGap))
             Box(
                 modifier = Modifier
                     .width(1.dp)
                     .height(24.dp)
                     .background(MaterialTheme.colorScheme.outline.copy(alpha = 0.7f))
             )
+            Box(modifier = Modifier.width(dividerGap))
 
             Text(
                 text = stringResource(R.string.app_name),
