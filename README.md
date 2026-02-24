@@ -10,7 +10,6 @@ MyDeck is an independently maintained Android client for [Readeck](https://reade
 ## Download
 
 - **GitHub Releases:** [Latest release](https://github.com/NateEaton/mydeck-android/releases/latest)
-- **F-Droid:** Available via the [IzzyOnDroid repository](https://apt.izzysoft.de/fdroid/)
 
 ## Key Features
 
