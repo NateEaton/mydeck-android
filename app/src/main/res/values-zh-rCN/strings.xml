@@ -282,4 +282,6 @@
     <string name="action_share_image">Share Image</string>
     <string name="image_url_copied">Image URL copied</string>
     <string name="download_started">Download started</string>
+    <string name="user_guide">用户指南</string>
 </resources>
+

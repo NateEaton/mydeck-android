@@ -40,6 +40,7 @@ treessence = "1.1.2"
 accompanist = "0.37.3"
 browser = "1.8.0"
 material3Adaptive = "1.1.0"
+markwon = "4.6.2"
 
 [libraries]
 timber = { group = "com.jakewharton.timber", name = "timber", version.ref = "timber" }
@@ -106,6 +107,13 @@ treessence = { module = "com.github.bastienpaulfr:Treessence", version.ref = "tr
 accompanist-permissions = { group = "com.google.accompanist", name = "accompanist-permissions", version.ref = "accompanist" }
 androidx-browser = { group = "androidx.browser", name = "browser", version.ref = "browser" }
 desugar-jdk-libs = { group ="com.android.tools" ,name = "desugar_jdk_libs", version.ref = "desugarJdkLibs" }
+markwon-core = { group = "io.noties.markwon", name = "core", version.ref = "markwon" }
+markwon-ext-strikethrough = { group = "io.noties.markwon", name = "ext-strikethrough", version.ref = "markwon" }
+markwon-ext-tables = { group = "io.noties.markwon", name = "ext-tables", version.ref = "markwon" }
+markwon-ext-tasklist = { group = "io.noties.markwon", name = "ext-tasklist", version.ref = "markwon" }
+markwon-image = { group = "io.noties.markwon", name = "image", version.ref = "markwon" }
+markwon-syntax-highlight = { group = "io.noties.markwon", name = "syntax-highlight", version.ref = "markwon" }
+
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
 kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }

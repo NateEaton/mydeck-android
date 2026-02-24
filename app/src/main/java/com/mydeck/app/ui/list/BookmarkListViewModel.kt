@@ -292,6 +292,11 @@ class BookmarkListViewModel @Inject constructor(
         viewModelScope.launch { _navigationEvent.send(NavigationEvent.NavigateToAbout) }
     }
 
+    fun onClickUserGuide() {
+        Timber.d("onClickUserGuide")
+        viewModelScope.launch { _navigationEvent.send(NavigationEvent.NavigateToUserGuide) }
+    }
+
     fun onClickBookmark(bookmarkId: String) {
         Timber.d("onClickBookmark")
         viewModelScope.launch { _navigationEvent.send(NavigationEvent.NavigateToBookmarkDetail(bookmarkId)) }
@@ -570,6 +575,7 @@ class BookmarkListViewModel @Inject constructor(
     sealed class NavigationEvent {
         data object NavigateToSettings : NavigationEvent()
         data object NavigateToAbout : NavigationEvent()
+        data object NavigateToUserGuide : NavigationEvent()
         data class NavigateToBookmarkDetail(val bookmarkId: String, val showOriginal: Boolean = false) : NavigationEvent()
     }
 

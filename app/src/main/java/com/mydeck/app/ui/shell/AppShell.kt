@@ -54,6 +54,8 @@ import com.mydeck.app.ui.navigation.OpenSourceLibrariesRoute
 import com.mydeck.app.ui.navigation.SettingsRoute
 import com.mydeck.app.ui.navigation.SyncSettingsRoute
 import com.mydeck.app.ui.navigation.UiSettingsRoute
+import com.mydeck.app.ui.navigation.UserGuideRoute
+import com.mydeck.app.ui.navigation.UserGuideSectionRoute
 import com.mydeck.app.ui.navigation.WelcomeRoute
 import com.mydeck.app.ui.settings.AccountSettingsScreen
 import com.mydeck.app.ui.settings.LogViewScreen
@@ -61,6 +63,8 @@ import com.mydeck.app.ui.settings.OpenSourceLibrariesScreen
 import com.mydeck.app.ui.settings.SettingsScreen
 import com.mydeck.app.ui.settings.SyncSettingsScreen
 import com.mydeck.app.ui.settings.UiSettingsScreen
+import com.mydeck.app.ui.userguide.UserGuideIndexScreen
+import com.mydeck.app.ui.userguide.UserGuideSectionScreen
 import com.mydeck.app.ui.welcome.WelcomeScreen
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
@@ -168,6 +172,11 @@ private fun CompactAppShell(
                     scope.launch { drawerState.close() }
                 }
 
+                is BookmarkListViewModel.NavigationEvent.NavigateToUserGuide -> {
+                    navController.navigate(UserGuideRoute) { launchSingleTop = true }
+                    scope.launch { drawerState.close() }
+                }
+
                 is BookmarkListViewModel.NavigationEvent.NavigateToAbout -> {
                     navController.navigate(AboutRoute) { launchSingleTop = true }
                     scope.launch { drawerState.close() }
@@ -227,6 +236,10 @@ private fun CompactAppShell(
                 },
                 onClickSettings = {
                     bookmarkListViewModel.onClickSettings()
+                    scope.launch { drawerState.close() }
+                },
+                onClickUserGuide = {
+                    bookmarkListViewModel.onClickUserGuide()
                     scope.launch { drawerState.close() }
                 },
                 onClickAbout = {
@@ -292,6 +305,12 @@ private fun CompactAppShell(
                 composable<UiSettingsRoute> {
                     UiSettingsScreen(navHostController = navController)
                 }
+                composable<UserGuideRoute> {
+                    UserGuideIndexScreen(navHostController = navController)
+                }
+                composable<UserGuideSectionRoute> {
+                    UserGuideSectionScreen(navHostController = navController)
+                }
                 composable<AboutRoute> {
                     AboutScreen(navHostController = navController)
                 }
@@ -315,6 +334,10 @@ private fun MediumAppShell(
             when (event) {
                 is BookmarkListViewModel.NavigationEvent.NavigateToSettings -> {
                     navController.navigate(SettingsRoute) { launchSingleTop = true }
+                }
+
+                is BookmarkListViewModel.NavigationEvent.NavigateToUserGuide -> {
+                    navController.navigate(UserGuideRoute) { launchSingleTop = true }
                 }
 
                 is BookmarkListViewModel.NavigationEvent.NavigateToAbout -> {
@@ -370,6 +393,7 @@ private fun MediumAppShell(
                     onClickPictures = { navigateToListAndApply { bookmarkListViewModel.onClickPictures() } },
                     onClickLabels = { navigateToListAndApply { bookmarkListViewModel.onOpenLabelsSheet() } },
                     onClickSettings = { bookmarkListViewModel.onClickSettings() },
+                    onClickUserGuide = { bookmarkListViewModel.onClickUserGuide() },
                     onClickAbout = { bookmarkListViewModel.onClickAbout() },
                 )
             }
@@ -439,6 +463,12 @@ private fun MediumAppShell(
                 composable<UiSettingsRoute> {
                     UiSettingsScreen(navHostController = navController)
                 }
+                composable<UserGuideRoute> {
+                    UserGuideIndexScreen(navHostController = navController)
+                }
+                composable<UserGuideSectionRoute> {
+                    UserGuideSectionScreen(navHostController = navController)
+                }
                 composable<AboutRoute> {
                     AboutScreen(navHostController = navController, showBackButton = false)
                 }
@@ -466,6 +496,10 @@ private fun ExpandedAppShell(
             when (event) {
                 is BookmarkListViewModel.NavigationEvent.NavigateToSettings -> {
                     navController.navigate(SettingsRoute) { launchSingleTop = true }
+                }
+
+                is BookmarkListViewModel.NavigationEvent.NavigateToUserGuide -> {
+                    navController.navigate(UserGuideRoute) { launchSingleTop = true }
                 }
 
                 is BookmarkListViewModel.NavigationEvent.NavigateToAbout -> {
@@ -520,6 +554,7 @@ private fun ExpandedAppShell(
                 onClickPictures = { navigateToListAndApply { bookmarkListViewModel.onClickPictures() } },
                 onClickLabels = { navigateToListAndApply { bookmarkListViewModel.onOpenLabelsSheet() } },
                 onClickSettings = { bookmarkListViewModel.onClickSettings() },
+                onClickUserGuide = { bookmarkListViewModel.onClickUserGuide() },
                 onClickAbout = { bookmarkListViewModel.onClickAbout() },
             )
         }
@@ -586,6 +621,12 @@ private fun ExpandedAppShell(
                 }
                 composable<UiSettingsRoute> {
                     UiSettingsScreen(navHostController = navController)
+                }
+                composable<UserGuideRoute> {
+                    UserGuideIndexScreen(navHostController = navController)
+                }
+                composable<UserGuideSectionRoute> {
+                    UserGuideSectionScreen(navHostController = navController)
                 }
                 composable<AboutRoute> {
                     AboutScreen(navHostController = navController, showBackButton = false)
