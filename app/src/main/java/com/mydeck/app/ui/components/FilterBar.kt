@@ -112,14 +112,14 @@ fun FilterBar(
         if (filterFormState.isFavorite != null && filterFormState.isFavorite != preset.isFavorite) {
             val yesNo = if (filterFormState.isFavorite) stringResource(R.string.tri_state_yes) else stringResource(R.string.tri_state_no)
             add(Chip("${stringResource(R.string.filter_is_favorite)}: $yesNo") {
-                onFilterChanged(filterFormState.copy(isFavorite = null))
+                onFilterChanged(filterFormState.copy(isFavorite = preset.isFavorite))
             })
         }
         // isArchived — only show if differs from preset and is non-null
         if (filterFormState.isArchived != null && filterFormState.isArchived != preset.isArchived) {
             val yesNo = if (filterFormState.isArchived) stringResource(R.string.tri_state_yes) else stringResource(R.string.tri_state_no)
             add(Chip("${stringResource(R.string.filter_is_archived)}: $yesNo") {
-                onFilterChanged(filterFormState.copy(isArchived = null))
+                onFilterChanged(filterFormState.copy(isArchived = preset.isArchived))
             })
         }
         filterFormState.isLoaded?.let { v ->
