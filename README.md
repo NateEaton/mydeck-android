@@ -5,7 +5,7 @@
 
 MyDeck is an Android client for [Readeck](https://readeck.org/en/), a self-hosted read-it-later service. It provides a Pocket-inspired interface for managing and reading your saved articles, videos, and photos.
 
-It began as a fork of ReadeckApp and has evolved into an independently developed client with its own UX direction while remaining fully compatible with Readeck servers.
+It began as a fork of [ReadeckApp](https://github.com/jensomato/ReadeckApp) and has evolved into an independently developed client with its own UX direction while remaining fully compatible with Readeck servers.
 
 **Requirements:** A Readeck account and self-hosted Readeck server instance.
 
@@ -44,20 +44,20 @@ The debug APK will be at `app/build/outputs/apk/githubSnapshot/debug/`. Release 
 
 Contributions are welcome. Please open an issue before starting significant work to align on approach. See [docs/WORKFLOW.md](docs/WORKFLOW.md) for the development and release workflow.
 
-When adding new string resources, English placeholder strings must be added to all language files — see [CLAUDE.md](CLAUDE.md) for details. Contributors willing to help with translations are welcome.
+When adding new string resources, English placeholder strings must be added to all language files — see [CLAUDE.md](CLAUDE.md) for details. Contributors willing to help with translations are especially welcome given the investment made in multi-language support for [ReadeckApp](https://github.com/jensomato/ReadeckApp).
 
 ## Acknowledgements
 
 ### Built With
 
-- **[Kotlin](https://kotlinlang.org/)** — Primary development language
-- **[Jetpack Compose](https://developer.android.com/compose)** — UI framework
-- **[Material Design 3](https://m3.material.io/)** — Design system
-- **[Room](https://developer.android.com/training/data-storage/room)**, **[Retrofit](https://square.github.io/retrofit/)**, **[Hilt](https://dagger.dev/hilt/)**, **[WorkManager](https://developer.android.com/topic/libraries/architecture/workmanager)** — Persistence, networking, dependency injection, and background sync
+- [Kotlin](https://kotlinlang.org/) — Primary development language
+- [Jetpack Compose](https://developer.android.com/compose) — UI framework
+- [Material Design 3](https://m3.material.io/) — Design system
+- [Room](https://developer.android.com/training/data-storage/room), [Retrofit](https://square.github.io/retrofit/), [Hilt](https://dagger.dev/hilt/), [WorkManager](https://developer.android.com/topic/libraries/architecture/workmanager) — Persistence, networking, dependency injection, and background sync
 
 ### Development
 
-This project was developed with assistance from AI tools including **[Claude](https://claude.ai/)** (Anthropic), **[ChatGPT](https://chatgpt.com/)** (OpenAI), and **[AIStudio](https://aistudio.google.com/)** (Google). The underlying concept, architecture decisions, implementation, and testing were performed by the developer.
+This project was developed with assistance from AI tools including [Claude](https://claude.ai/) (Anthropic), [ChatGPT](https://chatgpt.com/) (OpenAI), and [AIStudio](https://aistudio.google.com/) (Google). The underlying concept, architecture decisions, implementation, and testing were performed by the developer.
 
 ### Influences
 
@@ -67,4 +67,4 @@ For a summary of code and feature changes from ReadeckApp, see [docs/FORK_DIFFER
 
 ## License
 
-[GNU General Public License v3.0](LICENSE)
+This project is licensed under the [GNU General Public License v3.0](LICENSE). Some of the used libraries are released under different licenses.
