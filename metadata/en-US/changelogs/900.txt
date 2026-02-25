@@ -1,0 +1,12 @@
+Initial MyDeck release. Major changes from the upstream ReadeckApp fork include:
+- OAuth Device Code Grant authentication
+- Pocket-style navigation (My List, Archive, Favorites)
+- Multiple list layouts (Grid, Compact, Mosaic)
+- Full label management and filtering
+- Dual reading modes (Article and Original webview)
+- Reading progress tracking with auto-mark-as-read
+- Typography customization panel
+- Find in Article search
+- Revised sync model with configurable content sync modes
+- Tablet and landscape adaptive layouts
+- Material Design 3 throughout
