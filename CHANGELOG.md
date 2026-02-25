@@ -7,6 +7,83 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- In-app user guide accessible from the About screen
+
+### Changed
+
+- Account settings now displays only the base server URL
+- Adjusted branding layouts for welcome and authorization screens
+
+### Fixed
+
+- Filter UX improvements: keyboard action support and preset reset behavior
+
+## [0.9.2] - 2026-02-22
+
+### Changed
+
+- Mobile-portrait grid layout redesigned: fixed-height (168dp) cards with left thumbnail and right content split
+- Grid card title upgraded to `titleMedium` typography across all grid variants
+
+### Fixed
+
+- Prevented TopBar jitter during overscroll bounce in reading view
+- Fixed empty state flash on cold start with proper loading state indicator
+- Fixed label chips not dismissing pending delete snackbars before navigation
+
+## [0.9.1] - 2026-02-21
+
+### Fixed
+
+- Fixed read/unread icon and text state inconsistency in reading view overflow menu
+
+## [0.9.0] - 2026-02-20
+
+This is the initial MyDeck release, representing a comprehensive rebranding and feature expansion.
+
+### Added
+
+- OAuth Device Code Grant authentication: app provides a URL and one-time code; user authorizes via the Readeck web interface; app detects authorization automatically
+- Pocket-style sidebar navigation with My List, Archive, and Favorites views
+- Navigation drawer item count badges for all views (My List, Archive, Favorites, Articles, Videos, Pictures, Labels)
+- Dedicated Labels view with searchable label list and per-label bookmark counts
+- Three bookmark list layouts: Grid, Compact, and Mosaic
+- Reading progress tracking: visual indicator on each bookmark card (unviewed, in-progress arc proportional to progress, completed checkmark); automatically marks a bookmark as Read when the end of content is reached; reopening a bookmark resumes at the furthest scroll position from the previous session
+- Full label management: add, rename, delete labels; add/remove labels on individual bookmarks from cards or the details dialog
+- Clickable label chips on bookmark cards for one-tap label filtering
+- Bookmark Details screen (accessible from reading view overflow menu) with full metadata (thumbnail, site, author, type, language, word count, reading time, description) and label management
+- Enhanced log viewer: clear-logs action, configurable log file granularity, multi-file zip export for sharing, and log retention policy
+- Dual content view modes: Article (Readeck-extracted content) and Original (embedded webview), toggleable from the reading view header
+- Full support for photo and video bookmark types with embedded media content
+- Global full-text search across bookmark titles, site names, and labels
+- Reading typography customization: font family (System Default, Noto Serif, Literata, Source Serif, Noto Sans, JetBrains Mono), size, line spacing, content width, justification, and hyphenation
+- Find in Article: in-reading-view text search with highlighted current and secondary matches and previous/next navigation
+- Inline title editing in reading view (tap pencil icon to edit, confirm with checkmark)
+- About screen accessible from the navigation drawer, including open-source library attributions
+- Unified bookmark addition: sharing a URL from another app opens a focused bottom sheet rather than the full application
+- URL auto-captured from clipboard when opening the add bookmark dialog
+- Add bookmark bottom sheet auto-submits after a 5-second countdown timer; timer pauses if the user interacts with the sheet
+- Inline action icons on bookmark cards (Favorite, Archive, View Original, Delete) replacing the previous overflow menu
+- Sorting by Added, Published, Title, Site Name, or Duration with ascending/descending toggle
+- Offline action queue: state changes (favorite, archive, read, delete) made without connectivity are queued and applied when connection is restored
+- Revised sync model: bookmark list sync (automatic) decoupled from content sync (configurable)
+- Content sync modes: Automatic (synced with bookmark list), Manual on demand, or Manual by date range
+- Content sync constraints: Wi-Fi-only and battery-saver-aware download toggles
+- Sync status panel: bookmark counts (My List, Archived, Favorites) and content download status (downloaded, available, failed, no content)
+- Tablet and landscape adaptive layouts: icon navigation rail for phone landscape and tablet portrait; persistent full drawer for tablet landscape
+- Material Design 3 migration throughout the application
+- Delete with Undo: bookmark deletions are reversible via a snackbar action until dismissed
+
+### Changed
+
+- Rebranded from ReadeckApp to MyDeck (application ID, name, icon, and assets)
+- Reading view action buttons moved from the floating action button to the top bar
+- Bookmark metadata (thumbnail, site name, author) moved from the top of article content to the Bookmark Details screen
+- Theme system redesigned: app theme (Light, Dark, System Default) separated from Sepia, which is now a reading theme toggle that applies when the app is in light mode
+- Account page shown automatically on first launch if not signed in
+
 ## [0.8.0] - 2025-11-11
 
 ### Added
@@ -128,7 +205,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Initial release of ReadeckApp.
+- Initial release (as ReadeckApp, the upstream fork base).
 - Implemented adding bookmarks.
 - Implemented bookmark listing and detail screens.
 - Implemented settings screen with account settings.
@@ -141,11 +218,3 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Initial implementation of the ReadeckApp.
-
-### Deprecated
-
-### Removed
-
-### Fixed
-
-### Security

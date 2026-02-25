@@ -121,11 +121,14 @@ Use GitHub's built-in **Milestones** to track work toward a version target.
 ### Step 1: Prepare the Release (Local) 💻
 1.  Checkout the branch you are about to merge (or create `chore/prepare-vX.Y.Z`).
 2.  **Update Version:** Open `app/build.gradle.kts`.
-    *   Increment `versionCode` (Integer +1).
+    *   Set `versionCode` using the formula `(major × 1,000,000) + (minor × 1,000) + patch` — e.g., 0.10.0 → 10000, 0.10.5 → 10005, 1.0.0 → 1000000.
     *   Update `versionName` (String "X.Y.Z").
     *   Sync Gradle.
-3.  **Commit:** `chore(release): bump version to X.Y.Z`.
-4.  **Verify:** Generate a signed APK locally and install it to ensure the "About" screen shows the correct version.
+3.  **Add Changelog:** Create `metadata/en-US/changelogs/<versionCode>.txt`.
+    *   Use `<b>Added</b>`, `<b>Changed</b>`, `<b>Fixed</b>` sections as needed (HTML supported).
+    *   Summarise user-visible changes only; omit doc/CI/internal changes.
+4.  **Commit:** `chore(release): bump version to X.Y.Z`.
+5.  **Verify:** Generate a signed APK locally and install it to ensure the "About" screen shows the correct version.
 
 ### Step 2: Merge to Main (GitHub) ☁️
 1.  Push the branch.

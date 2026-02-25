@@ -1,1 +1,1 @@
-Android client for the Readeck self-hosted read-it-later service
+Pocket-style Android client for the Readeck self-hosted read-it-later service

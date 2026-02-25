@@ -1,0 +1,2 @@
+<b>Fixed</b>
+- Fixed read/unread icon and text state in reading view overflow menu

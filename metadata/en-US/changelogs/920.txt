@@ -1,0 +1,7 @@
+<b>Changed</b>
+- Mobile-portrait grid layout redesigned with fixed-height cards and left thumbnail
+- Grid card title upgraded to larger typography
+
+<b>Fixed</b>
+- Fixed empty state flash on cold start
+- Fixed label chips not dismissing pending delete snackbars before navigation
