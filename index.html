@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MyDeck</title>
+  <meta http-equiv="refresh" content="0; url=en/" />
+  <link rel="canonical" href="https://nateeaton.github.io/mydeck-android/en/" />
+  <style>
+    body {
+      font-family: -apple-system, 'Segoe UI', sans-serif;
+      background: #f8f7f2;
+      color: #1a1a1a;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      margin: 0;
+    }
+    .wrap { text-align: center; }
+    h1 { font-size: 1.5rem; margin-bottom: 1.5rem; font-weight: 600; }
+    .langs { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+    .langs a {
+      padding: 8px 20px;
+      border-radius: 6px;
+      background: #6364ff;
+      color: #fff;
+      text-decoration: none;
+      font-weight: 500;
+      transition: opacity 0.15s;
+    }
+    .langs a:hover { opacity: 0.85; }
+    .langs a.secondary {
+      background: transparent;
+      color: #6364ff;
+      border: 1px solid #6364ff;
+    }
+    p { color: #666; font-size: 0.9rem; margin-top: 1.5rem; }
+  </style>
+  <script>
+    // Attempt browser-language redirect
+    (function() {
+      var lang = (navigator.language || 'en').split('-')[0].toLowerCase();
+      var supported = ['en'];
+      if (supported.indexOf(lang) !== -1 && lang !== 'en') {
+        window.location.replace(lang + '/');
+      } else {
+        window.location.replace('en/');
+      }
+    })();
+  </script>
+</head>
+<body>
+  <div class="wrap">
+    <h1>MyDeck</h1>
+    <div class="langs">
+      <a href="en/">English</a>
+      <!-- Additional languages will be added here as they become available -->
+    </div>
+    <p>Redirecting&hellip;</p>
+  </div>
+</body>
+</html>

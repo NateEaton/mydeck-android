@@ -1,0 +1,8 @@
+# Ignore everything
+*
+
+# Un-ignore the landing page
+!index.html
+!en/
+!en/**
+!.gitignore
