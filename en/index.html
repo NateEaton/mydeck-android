@@ -332,6 +332,10 @@
       flex: 0 0 52%;
     }
 
+    /* Panel 3 (reader): slightly wider text, narrower but taller image crop */
+    .panel--reader .panel-text  { flex: 0 0 46%; }
+    .panel--reader .panel-visual { flex: 0 0 47%; }
+
     .panel-text h2 {
       font-size: 1.9rem;
       font-weight: 700;
@@ -1149,7 +1153,7 @@
 
     <!-- Panel 3: Reader (text left, visual right) -->
     <div class="panel-wrap">
-      <div class="panel">
+      <div class="panel panel--reader">
         <div class="panel-text">
           <h2>Read it your <mark>way</mark>.</h2>
           <p>Choose between Readeck's extracted Article view for clean, distraction-free reading, or the embedded
@@ -1158,7 +1162,7 @@
             highlighted matches without ever leaving the reader.</p>
         </div>
         <div class="panel-visual">
-          <div class="panel-shot" style="aspect-ratio:1837/699">
+          <div class="panel-shot" style="aspect-ratio:1837/1050">
             <img src="../metadata/en-US/images/tabletScreenshots/screenshot17.png"
               alt="MyDeck tablet article reader showing clean reading view" draggable="false" />
           </div>
@@ -1403,7 +1407,13 @@
       function gap() { return 14; }
       function slideW() { return slides[0].offsetWidth + gap(); }
       function vis() { var w = window.innerWidth; return w < 500 ? 2 : w < 720 ? 3 : w < 960 ? 4 : 5; }
-      function maxOff() { return Math.max(0, (n - vis()) * slideW()); }
+      // Use actual container width so the last slide is never clipped regardless
+      // of the page's max-width cap (container is 70 rem, not the full viewport).
+      function maxOff() {
+        var outerW = track.parentElement.offsetWidth;
+        var totalW = n * slides[0].offsetWidth + (n - 1) * gap();
+        return Math.max(0, totalW - outerW);
+      }
 
       function setOff(px, animated) {
         track.style.transition = animated
