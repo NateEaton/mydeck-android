@@ -39,8 +39,8 @@
       --yellow: #e8a400;           /* yellow ribbon */
       --red:    #d43f3f;           /* red ribbon    */
 
-      /* Pocket hero dark */
-      --hero-bg: #1c1c1c;
+      /* Hero: icon background dark teal */
+      --hero-bg: #1E5F5E;
 
       /* Pocket alternating panel backgrounds */
       --panel-light:  #f8f8f8;     /* Pocket --light-gray */
@@ -167,12 +167,6 @@
     ══════════════════════════════════════════════════ */
     .hero {
       background-color: var(--hero-bg);
-      /* Subtle depth without a real photo */
-      background-image:
-        radial-gradient(ellipse 80% 60% at 20% 50%,
-          rgba(11,142,172,0.18) 0%, transparent 65%),
-        radial-gradient(ellipse 50% 70% at 85% 30%,
-          rgba(119,185,20,0.10) 0%, transparent 55%);
       min-height: 520px;
       display: flex;
       align-items: center;
@@ -434,9 +428,7 @@
        exact colors: #96d1df (with 55% alpha) → #eaecc6 (47% alpha)
     ══════════════════════════════════════════════════ */
     .ss-band {
-      background-image: linear-gradient(to bottom,
-        #96d1df8c 0%,
-        #eaecc679 100%);
+      background-color: #fceaea;
       padding: 3.5rem 1rem;
     }
     .ss-head { margin-bottom: 2rem; }
