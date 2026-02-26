@@ -198,9 +198,9 @@
       background-color: #1c2c1c;
       background-image:
         radial-gradient(ellipse 70% 60% at 50% 50%,
-          rgba(119,185,20,0.15) 0%, transparent 65%),
+          rgba(119, 185, 20, 0.15) 0%, transparent 65%),
         radial-gradient(ellipse 40% 50% at 20% 70%,
-          rgba(11,142,172,0.12) 0%, transparent 55%);
+          rgba(11, 142, 172, 0.12) 0%, transparent 55%);
       min-height: 520px;
       display: flex;
       align-items: center;
@@ -537,10 +537,16 @@
 
     .ss-head p {
       font-size: 1rem;
-      color: rgba(255,255,255,0.72);
+      color: rgba(255, 255, 255, 0.72);
     }
-    .ss-head p a { color: rgba(255,255,255,0.9); }
-    .ss-head p a:hover { color: #fff; }
+
+    .ss-head p a {
+      color: rgba(255, 255, 255, 0.9);
+    }
+
+    .ss-head p a:hover {
+      color: #fff;
+    }
 
     .car-outer {
       overflow: hidden;
@@ -556,7 +562,11 @@
       cursor: grab;
       touch-action: pan-y;
     }
-    .car-track.dragging { cursor: grabbing; transition: none; }
+
+    .car-track.dragging {
+      cursor: grabbing;
+      transition: none;
+    }
 
     .car-slide {
       flex-shrink: 0;
@@ -575,7 +585,10 @@
       object-fit: cover;
       -webkit-user-drag: none;
     }
-    .car-slide img { cursor: zoom-in; }
+
+    .car-slide img {
+      cursor: zoom-in;
+    }
 
     .sph {
       background: linear-gradient(160deg,
@@ -591,10 +604,16 @@
     .slbl {
       margin-top: 0.5rem;
       font-size: 0.73rem;
-      color: rgba(255,255,255,0.65);
+      color: rgba(255, 255, 255, 0.65);
     }
-    .ss-band .cdot { background: rgba(255,255,255,0.35); }
-    .ss-band .cdot.on { background: #fff; }
+
+    .ss-band .cdot {
+      background: rgba(255, 255, 255, 0.35);
+    }
+
+    .ss-band .cdot.on {
+      background: #fff;
+    }
 
     .car-nav {
       display: flex;
@@ -800,6 +819,7 @@
       columns: 2;
       column-gap: 1.5rem;
     }
+
     .footer-col li {
       margin-bottom: 0.4rem;
       break-inside: avoid;
@@ -1088,20 +1108,22 @@
       <div class="panel">
         <div class="panel-text">
           <h2>Your reading list,<br><mark>your</mark> server.</h2>
-          <p>MyDeck is an Android client for <a href="https://readeck.org/en/" target="_blank" rel="noopener noreferrer">Readeck</a>, the self-hosted app that
+          <p>MyDeck is an Android client for <a href="https://readeck.org/en/" target="_blank"
+              rel="noopener noreferrer">Readeck</a>, the self-hosted app that
             saves the readable content of pages you want to keep forever.</p>
           <p>Connect it to your own Readeck server and your library stays entirely under your control — no cloud
             middlemen, no subscriptions, no algorithms.</p>
           <div class="panel-callout">
-            🔗 Requires a self-hosted <a href="https://readeck.org/en/" target="_blank" rel="noopener noreferrer"><strong>Readeck</strong></a> server.
-            <a href="https://readeck.org/en/start" target="_blank" rel="noopener noreferrer">Getting started</a> takes just a few minutes.
+            🔗 Requires a self-hosted <a href="https://readeck.org/en/" target="_blank"
+              rel="noopener noreferrer"><strong>Readeck</strong></a> server.
+            <a href="https://readeck.org/en/start" target="_blank" rel="noopener noreferrer">Getting started</a> takes
+            just a few minutes.
           </div>
         </div>
         <div class="panel-visual">
           <div class="panel-shot" style="aspect-ratio:1837/932">
-            <img src="../metadata/en-US/images/tabletScreenshots/screenshot11.png"
-                 alt="MyDeck tablet showing My List with navigation rail"
-                 draggable="false" />
+            <img src="../metadata/en-US/images/tabletScreenshots/screenshot16.png"
+              alt="MyDeck tablet showing My List with navigation rail" draggable="false" />
           </div>
         </div>
       </div>
@@ -1118,9 +1140,8 @@
         </div>
         <div class="panel-visual">
           <div class="panel-shot" style="aspect-ratio:2798/1837">
-            <img src="../metadata/en-US/images/tabletScreenshots/screenshot10.png"
-                 alt="MyDeck tablet in landscape showing nav drawer and grid view"
-                 draggable="false" />
+            <img src="../metadata/en-US/images/tabletScreenshots/screenshot15.png"
+              alt="MyDeck tablet in landscape showing nav drawer and grid view" draggable="false" />
           </div>
         </div>
       </div>
@@ -1138,9 +1159,8 @@
         </div>
         <div class="panel-visual">
           <div class="panel-shot" style="aspect-ratio:1837/699">
-            <img src="../metadata/en-US/images/tabletScreenshots/screenshot12.png"
-                 alt="MyDeck tablet article reader showing clean reading view"
-                 draggable="false" />
+            <img src="../metadata/en-US/images/tabletScreenshots/screenshot17.png"
+              alt="MyDeck tablet article reader showing clean reading view" draggable="false" />
           </div>
         </div>
       </div>
@@ -1157,32 +1177,61 @@
       </div>
       <div class="car-outer">
         <div class="car-track" id="carouselTrack">
-          <div class="car-slide"><img src="../metadata/en-US/images/phoneScreenshots/screenshot1.png" alt="My List" draggable="false" />
+          <div class="car-slide"><img src="../metadata/en-US/images/phoneScreenshots/screenshot1.png" alt="My List"
+              draggable="false" />
             <div class="slbl">My List</div>
           </div>
-          <div class="car-slide"><img src="../metadata/en-US/images/phoneScreenshots/screenshot2.png" alt="Grid Layout" draggable="false" />
+          <div class="car-slide"><img src="../metadata/en-US/images/phoneScreenshots/screenshot2.png" alt="Grid Layout"
+              draggable="false" />
             <div class="slbl">Grid Layout</div>
           </div>
-          <div class="car-slide"><img src="../metadata/en-US/images/phoneScreenshots/screenshot3.png" alt="Compact View" draggable="false" />
+          <div class="car-slide"><img src="../metadata/en-US/images/phoneScreenshots/screenshot3.png" alt="Compact View"
+              draggable="false" />
             <div class="slbl">Compact View</div>
           </div>
-          <div class="car-slide"><img src="../metadata/en-US/images/phoneScreenshots/screenshot4.png" alt="Mosaic View" draggable="false" />
+          <div class="car-slide"><img src="../metadata/en-US/images/phoneScreenshots/screenshot4.png" alt="Mosaic View"
+              draggable="false" />
             <div class="slbl">Mosaic View</div>
           </div>
-          <div class="car-slide"><img src="../metadata/en-US/images/phoneScreenshots/screenshot5.png" alt="Article Reader" draggable="false" />
+          <div class="car-slide"><img src="../metadata/en-US/images/phoneScreenshots/screenshot5.png"
+              alt="Article Reader" draggable="false" />
             <div class="slbl">Article Reader</div>
           </div>
-          <div class="car-slide"><img src="../metadata/en-US/images/phoneScreenshots/screenshot6.png" alt="Reading Settings" draggable="false" />
+          <div class="car-slide"><img src="../metadata/en-US/images/phoneScreenshots/screenshot6.png" alt="Video Viewer"
+              draggable="false" />
+            <div class="slbl">Video Viewer</div>
+          </div>
+          <div class="car-slide"><img src="../metadata/en-US/images/phoneScreenshots/screenshot7.png"
+              alt="Picture Viewer" draggable="false" />
+            <div class="slbl">Picture Viewer</div>
+          </div>
+          <div class="car-slide"><img src="../metadata/en-US/images/phoneScreenshots/screenshot8.png"
+              alt="Reading Settings" draggable="false" />
             <div class="slbl">Reading Settings</div>
           </div>
-          <div class="car-slide"><img src="../metadata/en-US/images/phoneScreenshots/screenshot7.png" alt="Label Filter" draggable="false" />
+          <div class="car-slide"><img src="../metadata/en-US/images/phoneScreenshots/screenshot9.png" alt="Label Filter"
+              draggable="false" />
             <div class="slbl">Label Filter</div>
           </div>
-          <div class="car-slide"><img src="../metadata/en-US/images/phoneScreenshots/screenshot8.png" alt="Save to MyDeck" draggable="false" />
+          <div class="car-slide"><img src="../metadata/en-US/images/phoneScreenshots/screenshot10.png"
+              alt="Full Text Search" draggable="false" />
+            <div class="slbl">Full Text Search</div>
+          </div>
+          <div class="car-slide"><img src="../metadata/en-US/images/phoneScreenshots/screenshot11.png"
+              alt="Save to MyDeck" draggable="false" />
             <div class="slbl">Save to MyDeck</div>
           </div>
-          <div class="car-slide"><img src="../metadata/en-US/images/phoneScreenshots/screenshot9.png" alt="App Settings" draggable="false" />
+          <div class="car-slide"><img src="../metadata/en-US/images/phoneScreenshots/screenshot12.png"
+              alt="App Navigation" draggable="false" />
+            <div class="slbl">App Navigation</div>
+          </div>
+          <div class="car-slide"><img src="../metadata/en-US/images/phoneScreenshots/screenshot13.png"
+              alt="App Settings" draggable="false" />
             <div class="slbl">App Settings</div>
+          </div>
+          <div class="car-slide"><img src="../metadata/en-US/images/phoneScreenshots/screenshot14.png" alt="User Guide"
+              draggable="false" />
+            <div class="slbl">User Guide</div>
           </div>
         </div>
       </div>
@@ -1256,7 +1305,8 @@
         <div class="step-card">
           <div class="step-num">1</div>
           <div class="step-title">Set up Readeck</div>
-          <div class="step-desc"><a href="https://readeck.org/en/start" target="_blank" rel="noopener noreferrer">Self-host Readeck</a> — runs anywhere Docker
+          <div class="step-desc"><a href="https://readeck.org/en/start" target="_blank"
+              rel="noopener noreferrer">Self-host Readeck</a> — runs anywhere Docker
             does, or as a standalone binary. Yours forever.</div>
         </div>
         <div class="step-card">
@@ -1293,9 +1343,11 @@
         <div class="footer-about">
           <h3>MyDeck</h3>
           <p>
-            An Android client for <a href="https://readeck.org/en/" target="_blank" rel="noopener noreferrer">Readeck</a>, your self-hosted read-it-later service.
+            An Android client for <a href="https://readeck.org/en/" target="_blank"
+              rel="noopener noreferrer">Readeck</a>, your self-hosted read-it-later service.
             Developed by Nathan A. Eaton Jr. (with help from AI).
-            Built on the foundation of <a href="https://github.com/jensomato/ReadeckApp" target="_blank" rel="noopener noreferrer">ReadeckApp</a> by jensomato.
+            Built on the foundation of <a href="https://github.com/jensomato/ReadeckApp" target="_blank"
+              rel="noopener noreferrer">ReadeckApp</a> by jensomato.
             Licensed under the <a href="https://github.com/NateEaton/mydeck-android/blob/main/LICENSE">GPL v3</a>.
           </p>
         </div>
@@ -1306,7 +1358,8 @@
             <li><a href="https://github.com/NateEaton/mydeck-android/releases">Releases</a></li>
             <li><a href="https://github.com/NateEaton/mydeck-android/issues">Report Issues</a></li>
             <li><a href="https://readeck.org/en/" target="_blank" rel="noopener noreferrer">Readeck</a></li>
-            <li><a href="https://github.com/jensomato/ReadeckApp" target="_blank" rel="noopener noreferrer">ReadeckApp</a></li>
+            <li><a href="https://github.com/jensomato/ReadeckApp" target="_blank"
+                rel="noopener noreferrer">ReadeckApp</a></li>
             <li><a href="https://github.com/NateEaton/mydeck-android/blob/main/LICENSE">GPL v3 License</a></li>
           </ul>
         </div>
@@ -1329,9 +1382,9 @@
   <script>
     (function () {
       // ── Carousel ─────────────────────────────────────────────────────────
-      var track   = document.getElementById('carouselTrack');
-      var dotsEl  = document.getElementById('cDots');
-      var slides  = Array.from(track.querySelectorAll('.car-slide'));
+      var track = document.getElementById('carouselTrack');
+      var dotsEl = document.getElementById('cDots');
+      var slides = Array.from(track.querySelectorAll('.car-slide'));
       var n = slides.length, cur = 0;
       var offset = 0;              // current px offset
       var isDragging = false;
@@ -1347,10 +1400,10 @@
         dotsEl.appendChild(d);
       });
 
-      function gap()     { return 14; }
-      function slideW()  { return slides[0].offsetWidth + gap(); }
-      function vis()     { var w = window.innerWidth; return w < 500 ? 2 : w < 720 ? 3 : w < 960 ? 4 : 5; }
-      function maxOff()  { return Math.max(0, (n - vis()) * slideW()); }
+      function gap() { return 14; }
+      function slideW() { return slides[0].offsetWidth + gap(); }
+      function vis() { var w = window.innerWidth; return w < 500 ? 2 : w < 720 ? 3 : w < 960 ? 4 : 5; }
+      function maxOff() { return Math.max(0, (n - vis()) * slideW()); }
 
       function setOff(px, animated) {
         track.style.transition = animated
@@ -1372,9 +1425,9 @@
       track.addEventListener('pointerdown', function (e) {
         if (e.button !== 0) return;          // left-click / primary touch only
         isDragging = true;
-        startX     = e.clientX;
-        startY     = e.clientY;
-        startOff   = offset;
+        startX = e.clientX;
+        startY = e.clientY;
+        startOff = offset;
         velX = 0; lastX = e.clientX; lastT = performance.now();
         track.setPointerCapture(e.pointerId);
         track.classList.add('dragging');
@@ -1385,7 +1438,7 @@
         if (!isDragging) return;
         var dx = e.clientX - startX;
         var now = performance.now();
-        velX  = (e.clientX - lastX) / Math.max(1, now - lastT);
+        velX = (e.clientX - lastX) / Math.max(1, now - lastT);
         lastX = e.clientX;
         lastT = now;
         // rubber-band past edges
@@ -1425,7 +1478,7 @@
       // Keyboard
       window.addEventListener('keydown', function (e) {
         if (overlay.classList.contains('open')) return;
-        if (e.key === 'ArrowLeft')  go(cur - 1);
+        if (e.key === 'ArrowLeft') go(cur - 1);
         if (e.key === 'ArrowRight') go(cur + 1);
       });
 
@@ -1434,13 +1487,13 @@
       window.addEventListener('resize', function () { go(cur); });
 
       // ── Lightbox ─────────────────────────────────────────────────────────
-      var overlay  = document.getElementById('lbOverlay');
-      var lbImg    = document.getElementById('lbImg');
+      var overlay = document.getElementById('lbOverlay');
+      var lbImg = document.getElementById('lbImg');
       var lbCaption = document.getElementById('lbCaption');
 
       function openLb(src, alt) {
-        lbImg.src      = src;
-        lbImg.alt      = alt;
+        lbImg.src = src;
+        lbImg.alt = alt;
         lbCaption.textContent = alt;
         overlay.classList.add('open');
         document.body.style.overflow = 'hidden';
