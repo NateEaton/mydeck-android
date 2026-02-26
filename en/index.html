@@ -183,7 +183,7 @@
       gap: 0.6rem;
       font-weight: 200;
       /* Readeck uses font-weight:100 for its nav h1 */
-      font-size: 1.5rem;
+      font-size: 1.8rem;
       color: rgb(var(--c-gray-900));
       letter-spacing: -0.02em;
     }
@@ -194,9 +194,9 @@
     }
 
     .nav-brand img {
-      width: 32px;
-      height: 32px;
-      border-radius: 7px;
+      width: 38px;
+      height: 38px;
+      border-radius: 8px;
       background: rgb(var(--c-primary)/0.15);
     }
 
@@ -1075,7 +1075,7 @@
   <nav class="site-nav">
     <div class="container">
       <a href="#" class="nav-brand">
-        <img src="../metadata/en-US/images/icon.png" alt="MyDeck icon" class="nav-brand-icon" width="32" height="32" />
+        <img src="../metadata/en-US/images/icon.png" alt="MyDeck icon" class="nav-brand-icon" width="38" height="38" />
         MyDeck
       </a>
       <div class="nav-links">
@@ -1272,7 +1272,7 @@
           Replace .sph with <img src="../docs/screenshots/name.png" alt="..." />
           once screenshots are ready.
         -->
-          <div class="car-slide"><img src="../metadata/en-US/images/phoneScreenshots/screenshot1.png" alt="My List" />
+          <div class="car-slide"><img src="../metadata/en-US/images/phoneScreenshots/screenshot1.png" alt="My List" draggable="false" />
             <div class="slbl">My List</div>
           </div>
           <div class="car-slide">
@@ -1454,8 +1454,7 @@
       var n = slides.length, cur = 0;
       var offset = 0;              // current px offset
       var isDragging = false;
-      var didDrag    = false;      // true if pointer moved enough to count as drag
-      var startX = 0, startOff = 0;
+      var startX = 0, startY = 0, startOff = 0;
       var velX = 0, lastX = 0, lastT = 0;
 
       // Build dot nav
@@ -1492,8 +1491,8 @@
       track.addEventListener('pointerdown', function (e) {
         if (e.button !== 0) return;          // left-click / primary touch only
         isDragging = true;
-        didDrag    = false;
         startX     = e.clientX;
+        startY     = e.clientY;
         startOff   = offset;
         velX = 0; lastX = e.clientX; lastT = performance.now();
         track.setPointerCapture(e.pointerId);
@@ -1504,7 +1503,6 @@
       track.addEventListener('pointermove', function (e) {
         if (!isDragging) return;
         var dx = e.clientX - startX;
-        if (Math.abs(dx) > 5) didDrag = true;
         var now = performance.now();
         velX  = (e.clientX - lastX) / Math.max(1, now - lastT);
         lastX = e.clientX;
@@ -1515,7 +1513,7 @@
         setOff(clamped, false);
       });
 
-      track.addEventListener('pointerup', function () {
+      track.addEventListener('pointerup', function (e) {
         if (!isDragging) return;
         isDragging = false;
         track.classList.remove('dragging');
@@ -1523,6 +1521,18 @@
         var projected = offset - velX * 150;
         projected = Math.max(0, Math.min(maxOff(), projected));
         go(Math.round(projected / slideW()));
+        // Tap detection: if pointer barely moved, open lightbox.
+        // Uses elementFromPoint so it works regardless of setPointerCapture.
+        var dx = e.clientX - startX, dy = e.clientY - startY;
+        var dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < 10) {
+          var el = document.elementFromPoint(e.clientX, e.clientY);
+          var slide = el && (el.closest ? el.closest('.car-slide') : null);
+          if (slide) {
+            var img = slide.querySelector('img');
+            if (img) openLb(img.src, img.alt || (slide.querySelector('.slbl') || {}).textContent || '');
+          }
+        }
       });
 
       track.addEventListener('pointercancel', function () {
@@ -1531,14 +1541,9 @@
         go(cur);
       });
 
-      // Swallow click if it was actually a drag
-      track.addEventListener('click', function (e) {
-        if (didDrag) { e.stopPropagation(); e.preventDefault(); }
-      }, true);
-
       // Keyboard
       window.addEventListener('keydown', function (e) {
-        if (document.getElementById('lbOverlay').classList.contains('open')) return;
+        if (overlay.classList.contains('open')) return;
         if (e.key === 'ArrowLeft')  go(cur - 1);
         if (e.key === 'ArrowRight') go(cur + 1);
       });
@@ -1564,15 +1569,6 @@
         overlay.classList.remove('open');
         document.body.style.overflow = '';
       }
-
-      slides.forEach(function (slide) {
-        var img = slide.querySelector('img');
-        if (!img) return;
-        slide.addEventListener('click', function () {
-          if (didDrag) return;
-          openLb(img.src, img.alt || slide.querySelector('.slbl').textContent);
-        });
-      });
 
       overlay.addEventListener('click', function (e) {
         if (e.target === overlay) closeLb();
