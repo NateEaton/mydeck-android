@@ -212,7 +212,12 @@
        Pocket hero was 600px tall with background image.
     ══════════════════════════════════════════════════ */
     .hero {
-      background-color: var(--hero-bg);
+      background-color: #1c2c1c;
+      background-image:
+        radial-gradient(ellipse 70% 60% at 50% 50%,
+          rgba(119,185,20,0.15) 0%, transparent 65%),
+        radial-gradient(ellipse 40% 50% at 20% 70%,
+          rgba(11,142,172,0.12) 0%, transparent 55%);
       min-height: 520px;
       display: flex;
       align-items: center;
@@ -229,7 +234,7 @@
 
     .hero h1 {
       font-size: clamp(2.6rem, 6vw, 4.2rem);
-      font-weight: 800;
+      font-weight: 200;
       line-height: 1.05;
       letter-spacing: -0.045em;
       color: #fff;
@@ -529,7 +534,7 @@
        exact colors: #96d1df (with 55% alpha) → #eaecc6 (47% alpha)
     ══════════════════════════════════════════════════ */
     .ss-band {
-      background-color: #fceaea;
+      background-color: #1E5F5E;
       padding: 3.5rem 1rem;
     }
 
@@ -541,14 +546,16 @@
       font-size: 1.8rem;
       font-weight: 700;
       letter-spacing: -0.025em;
-      color: rgb(var(--c-gray-900));
+      color: #fff;
       margin-bottom: 0.5rem;
     }
 
     .ss-head p {
       font-size: 1rem;
-      color: rgb(var(--c-gray-700));
+      color: rgba(255,255,255,0.72);
     }
+    .ss-head p a { color: rgba(255,255,255,0.9); }
+    .ss-head p a:hover { color: #fff; }
 
     .car-outer {
       overflow: hidden;
@@ -592,8 +599,10 @@
     .slbl {
       margin-top: 0.5rem;
       font-size: 0.73rem;
-      color: rgb(var(--c-gray-600));
+      color: rgba(255,255,255,0.65);
     }
+    .ss-band .cdot { background: rgba(255,255,255,0.35); }
+    .ss-band .cdot.on { background: #fff; }
 
     .car-nav {
       display: flex;
@@ -776,7 +785,7 @@
 
     .footer-grid {
       display: grid;
-      grid-template-columns: 2fr 1fr 1fr;
+      grid-template-columns: 2fr 1fr;
       gap: 2rem;
       margin-bottom: 1.5rem;
     }
@@ -960,11 +969,7 @@
       }
 
       .footer-grid {
-        grid-template-columns: 1fr 1fr;
-      }
-
-      .footer-about {
-        grid-column: 1/-1;
+        grid-template-columns: 1fr;
       }
 
       .nav-links .btn-outline {
@@ -1015,7 +1020,7 @@
       <h1>Your <span class="accent">Readeck</span>.<br>Your way.</h1>
       <p class="hero-sub">
         A Pocket-inspired Android client for
-        <a href="https://readeck.org/en/">Readeck</a>,
+        <a href="https://readeck.org/en/" target="_blank" rel="noopener noreferrer">Readeck</a>,
         your self-hosted read-it-later service.
       </p>
       <div class="hero-actions">
@@ -1035,13 +1040,13 @@
       <div class="panel">
         <div class="panel-text">
           <h2>Your reading list,<br><mark>your</mark> server.</h2>
-          <p>MyDeck is an Android client for <a href="https://readeck.org/en/">Readeck</a>, the self-hosted app that
+          <p>MyDeck is an Android client for <a href="https://readeck.org/en/" target="_blank" rel="noopener noreferrer">Readeck</a>, the self-hosted app that
             saves the readable content of pages you want to keep forever.</p>
           <p>Connect it to your own Readeck server and your library stays entirely under your control — no cloud
             middlemen, no subscriptions, no algorithms.</p>
           <div class="panel-callout">
-            🔗 Requires a self-hosted <a href="https://readeck.org/en/"><strong>Readeck</strong></a> server.
-            <a href="https://readeck.org/en/start">Getting started</a> takes just a few minutes.
+            🔗 Requires a self-hosted <a href="https://readeck.org/en/" target="_blank" rel="noopener noreferrer"><strong>Readeck</strong></a> server.
+            <a href="https://readeck.org/en/start" target="_blank" rel="noopener noreferrer">Getting started</a> takes just a few minutes.
           </div>
         </div>
         <div class="panel-visual">
@@ -1299,7 +1304,7 @@
         <div class="step-card">
           <div class="step-num">1</div>
           <div class="step-title">Set up Readeck</div>
-          <div class="step-desc"><a href="https://readeck.org/en/start">Self-host Readeck</a> — runs anywhere Docker
+          <div class="step-desc"><a href="https://readeck.org/en/start" target="_blank" rel="noopener noreferrer">Self-host Readeck</a> — runs anywhere Docker
             does, or as a standalone binary. Yours forever.</div>
         </div>
         <div class="step-card">
@@ -1336,27 +1341,20 @@
         <div class="footer-about">
           <h3>MyDeck</h3>
           <p>
-            An Android client for <a href="https://readeck.org/en/">Readeck</a>, your self-hosted read-it-later service.
+            An Android client for <a href="https://readeck.org/en/" target="_blank" rel="noopener noreferrer">Readeck</a>, your self-hosted read-it-later service.
             Developed by Nathan A. Eaton Jr. (with help from AI).
-            Built on the foundation of <a href="https://github.com/jensomato/ReadeckApp">ReadeckApp</a> by jensomato.
+            Built on the foundation of <a href="https://github.com/jensomato/ReadeckApp" target="_blank" rel="noopener noreferrer">ReadeckApp</a> by jensomato.
             Licensed under the <a href="https://github.com/NateEaton/mydeck-android/blob/main/LICENSE">GPL v3</a>.
           </p>
         </div>
         <div class="footer-col">
-          <h3>MyDeck</h3>
+          <h3>Links</h3>
           <ul>
-            <li><a href="https://github.com/NateEaton/mydeck-android/releases/latest">Download</a></li>
             <li><a href="https://github.com/NateEaton/mydeck-android">GitHub</a></li>
             <li><a href="https://github.com/NateEaton/mydeck-android/releases">Releases</a></li>
             <li><a href="https://github.com/NateEaton/mydeck-android/issues">Report Issues</a></li>
-          </ul>
-        </div>
-        <div class="footer-col">
-          <h3>Links</h3>
-          <ul>
-            <li><a href="https://readeck.org/en/">Readeck</a></li>
-            <li><a href="https://readeck.org/en/start">Get Readeck</a></li>
-            <li><a href="https://github.com/jensomato/ReadeckApp">ReadeckApp</a></li>
+            <li><a href="https://readeck.org/en/" target="_blank" rel="noopener noreferrer">Readeck</a></li>
+            <li><a href="https://github.com/jensomato/ReadeckApp" target="_blank" rel="noopener noreferrer">ReadeckApp</a></li>
             <li><a href="https://github.com/NateEaton/mydeck-android/blob/main/LICENSE">GPL v3 License</a></li>
           </ul>
         </div>
