@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -7,7 +8,9 @@
   <meta name="description" content="A Pocket-inspired Android client for your self-hosted Readeck server." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Public+Sans:ital,wght@0,200;0,400;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet" />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Public+Sans:ital,wght@0,200;0,400;0,600;0,700;0,800;1,400&display=swap"
+    rel="stylesheet" />
   <style>
     /* ══════════════════════════════════════════════════
        DESIGN TOKENS
@@ -18,47 +21,71 @@
     ══════════════════════════════════════════════════ */
     :root {
       /* ── Readeck exact color scale (rgb channel values) ── */
-      --c-gray-50:  252 251 251;   /* page bg */
+      --c-gray-50: 252 251 251;
+      /* page bg */
       --c-gray-100: 246 244 242;
       --c-gray-200: 228 223 220;
-      --c-gray-300: 206 197 190;   /* borders */
-      --c-gray-700: 112  97  86;   /* body text mid */
-      --c-gray-900:  43  37  33;   /* headings */
+      --c-gray-300: 206 197 190;
+      /* borders */
+      --c-gray-700: 112 97 86;
+      /* body text mid */
+      --c-gray-900: 43 37 33;
+      /* headings */
 
       /* Readeck primary = blue-600 (teal-cyan) */
-      --c-primary:  11 142 172;    /* rgb(11,142,172) */
+      --c-primary: 11 142 172;
+      /* rgb(11,142,172) */
       --c-primary-d: 9 111 134;
 
       /* Readeck CTA = green-600 */
-      --c-green:   119 185  20;    /* rgb(119,185,20) */
-      --c-green-d:  86 134  14;
+      --c-green: 119 185 20;
+      /* rgb(119,185,20) */
+      --c-green-d: 86 134 14;
 
       /* MyDeck icon ribbon accents */
-      --teal:   #0b8eac;           /* icon bg, close to readeck primary */
-      --green:  #77b914;           /* green ribbon  → readeck green-600 */
-      --yellow: #e8a400;           /* yellow ribbon */
-      --red:    #d43f3f;           /* red ribbon    */
+      --teal: #0b8eac;
+      /* icon bg, close to readeck primary */
+      --green: #77b914;
+      /* green ribbon  → readeck green-600 */
+      --yellow: #e8a400;
+      /* yellow ribbon */
+      --red: #d43f3f;
+      /* red ribbon    */
 
       /* Hero: icon background dark teal */
       --hero-bg: #1E5F5E;
 
       /* Pocket alternating panel backgrounds */
-      --panel-light:  #f8f8f8;     /* Pocket --light-gray */
-      --panel-mid:    #f2f2f2;     /* Pocket --mid-gray */
+      --panel-light: #f8f8f8;
+      /* Pocket --light-gray */
+      --panel-mid: #f2f2f2;
+      /* Pocket --mid-gray */
 
       /* Readeck screenshot gradient (exact from CSS) */
       --grad-from: #96d1df8c;
-      --grad-to:   #eaecc679;
+      --grad-to: #eaecc679;
 
       /* Typography */
       --font: 'Public Sans', 'Helvetica Neue', Arial, sans-serif;
 
-      --mw: 70rem;   /* matches both Readeck and Pocket ~900-1120px */
-      --r: 4px;      /* Readeck uses 0.25rem radius */
+      --mw: 70rem;
+      /* matches both Readeck and Pocket ~900-1120px */
+      --r: 4px;
+      /* Readeck uses 0.25rem radius */
     }
 
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    html { scroll-behavior: smooth; font-size: 16px; }
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html {
+      scroll-behavior: smooth;
+      font-size: 16px;
+    }
 
     body {
       font-family: var(--font);
@@ -68,9 +95,20 @@
       overflow-x: hidden;
     }
 
-    img { display: block; max-width: 100%; }
-    a { color: rgb(var(--c-primary)); text-decoration: none; }
-    a:hover { color: rgb(var(--c-primary-d)); text-decoration: underline; }
+    img {
+      display: block;
+      max-width: 100%;
+    }
+
+    a {
+      color: rgb(var(--c-primary));
+      text-decoration: none;
+    }
+
+    a:hover {
+      color: rgb(var(--c-primary-d));
+      text-decoration: underline;
+    }
 
     .container {
       max-width: var(--mw);
@@ -93,6 +131,7 @@
       transition: background 0.15s, border-color 0.15s;
       white-space: nowrap;
     }
+
     .btn-cta:hover {
       background: rgb(var(--c-green-d));
       border-color: rgb(var(--c-green-d));
@@ -112,6 +151,7 @@
       text-decoration: none;
       transition: border-color 0.15s, background 0.15s;
     }
+
     .btn-outline:hover {
       border-color: rgb(var(--c-gray-700));
       background: rgb(var(--c-gray-100));
@@ -129,29 +169,42 @@
       background: #fff;
       border-bottom: 1px solid rgb(var(--c-gray-200));
     }
+
     .site-nav .container {
       display: flex;
       align-items: center;
       justify-content: space-between;
       height: 56px;
     }
+
     .nav-brand {
       display: flex;
       align-items: center;
       gap: 0.6rem;
-      font-weight: 200;        /* Readeck uses font-weight:100 for its nav h1 */
+      font-weight: 200;
+      /* Readeck uses font-weight:100 for its nav h1 */
       font-size: 1.5rem;
       color: rgb(var(--c-gray-900));
       letter-spacing: -0.02em;
     }
-    .nav-brand:hover { color: rgb(var(--c-gray-900)); text-decoration: none; }
+
+    .nav-brand:hover {
+      color: rgb(var(--c-gray-900));
+      text-decoration: none;
+    }
+
     .nav-brand img {
       width: 32px;
       height: 32px;
       border-radius: 7px;
       background: rgb(var(--c-primary)/0.15);
     }
-    .nav-links { display: flex; gap: 0.5rem; align-items: center; }
+
+    .nav-links {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+    }
 
     /* ══════════════════════════════════════════════════
        HERO — Pocket-style: full-width dark photo band,
@@ -165,6 +218,7 @@
       align-items: center;
       padding: 6rem 0;
     }
+
     .hero-inner {
       max-width: var(--mw);
       margin: 0 auto;
@@ -172,6 +226,7 @@
       text-align: left;
       max-width: 680px;
     }
+
     .hero h1 {
       font-size: clamp(2.6rem, 6vw, 4.2rem);
       font-weight: 800;
@@ -180,29 +235,42 @@
       color: #fff;
       margin-bottom: 1.25rem;
     }
+
     /* Ribbon-gradient underline on accent word */
     .hero h1 .accent {
       position: relative;
       display: inline;
     }
+
     .hero h1 .accent::after {
       content: '';
       position: absolute;
-      left: 0; right: 0; bottom: -5px;
+      left: 0;
+      right: 0;
+      bottom: -5px;
       height: 4px;
       border-radius: 2px;
       background: linear-gradient(90deg, var(--green), var(--yellow), var(--red));
     }
+
     .hero-sub {
       font-size: 1.15rem;
       font-weight: 600;
       line-height: 1.55;
-      color: rgba(255,255,255,0.7);
+      color: rgba(255, 255, 255, 0.7);
       margin-bottom: 2rem;
       max-width: 480px;
     }
-    .hero-sub a { color: rgba(255,255,255,0.85); text-decoration: underline; }
-    .hero-sub a:hover { color: #fff; }
+
+    .hero-sub a {
+      color: rgba(255, 255, 255, 0.85);
+      text-decoration: underline;
+    }
+
+    .hero-sub a:hover {
+      color: #fff;
+    }
+
     .hero-actions {
       display: flex;
       gap: 0.75rem;
@@ -210,32 +278,36 @@
       align-items: center;
       margin-bottom: 1.25rem;
     }
+
     .btn-cta-lg {
       font-size: 1rem;
       padding: 0.7rem 1.75rem;
     }
+
     .btn-ghost {
       display: inline-block;
       border-radius: var(--r);
-      border: 2px solid rgba(255,255,255,0.35);
-      background: rgba(255,255,255,0.08);
+      border: 2px solid rgba(255, 255, 255, 0.35);
+      background: rgba(255, 255, 255, 0.08);
       font-family: var(--font);
       font-weight: 600;
       font-size: 1rem;
       padding: 0.7rem 1.75rem;
-      color: rgba(255,255,255,0.82);
+      color: rgba(255, 255, 255, 0.82);
       text-decoration: none;
       transition: background 0.15s, border-color 0.15s;
     }
+
     .btn-ghost:hover {
-      background: rgba(255,255,255,0.16);
-      border-color: rgba(255,255,255,0.55);
+      background: rgba(255, 255, 255, 0.16);
+      border-color: rgba(255, 255, 255, 0.55);
       color: #fff;
       text-decoration: none;
     }
+
     .hero-note {
       font-size: 0.78rem;
-      color: rgba(255,255,255,0.3);
+      color: rgba(255, 255, 255, 0.3);
     }
 
     /* ══════════════════════════════════════════════════
@@ -246,11 +318,18 @@
     .panel-section {
       padding: 0;
     }
+
     .panel-wrap {
       padding: 5rem 1rem;
     }
-    .panel-wrap:nth-child(odd)  { background: var(--panel-mid); }
-    .panel-wrap:nth-child(even) { background: var(--panel-light); }
+
+    .panel-wrap:nth-child(odd) {
+      background: var(--panel-mid);
+    }
+
+    .panel-wrap:nth-child(even) {
+      background: var(--panel-light);
+    }
 
     .panel {
       max-width: 900px;
@@ -260,10 +339,18 @@
       justify-content: space-between;
       gap: 3rem;
     }
-    .panel.reverse { flex-direction: row-reverse; }
 
-    .panel-text { flex: 0 0 42%; }
-    .panel-visual { flex: 0 0 52%; }
+    .panel.reverse {
+      flex-direction: row-reverse;
+    }
+
+    .panel-text {
+      flex: 0 0 42%;
+    }
+
+    .panel-visual {
+      flex: 0 0 52%;
+    }
 
     .panel-text h2 {
       font-size: 1.9rem;
@@ -273,6 +360,7 @@
       color: rgb(var(--c-gray-900));
       margin-bottom: 0.75rem;
     }
+
     /* Readeck mark: SVG wavy highlight #ffe1a1 */
     .panel-text mark {
       background-color: transparent;
@@ -283,13 +371,18 @@
       padding-bottom: 2px;
       color: inherit;
     }
+
     .panel-text p {
       font-size: 1rem;
       line-height: 1.75;
       color: rgb(var(--c-gray-700));
       margin-bottom: 0.6rem;
     }
-    .panel-text p:last-child { margin-bottom: 0; }
+
+    .panel-text p:last-child {
+      margin-bottom: 0;
+    }
+
     .panel-callout {
       margin-top: 1.25rem;
       padding: 0.75rem 1rem;
@@ -300,7 +393,10 @@
       color: rgb(var(--c-gray-700));
       line-height: 1.55;
     }
-    .panel-callout a { color: rgb(var(--c-primary)); }
+
+    .panel-callout a {
+      color: rgb(var(--c-primary));
+    }
 
     /* Mock UI for panel visuals */
     .mock {
@@ -308,8 +404,9 @@
       border: 1px solid rgb(var(--c-gray-200));
       border-radius: 8px;
       padding: 1rem;
-      box-shadow: 0 4px 16px rgba(112,97,86,0.1), 0 1px 4px rgba(112,97,86,0.07);
+      box-shadow: 0 4px 16px rgba(112, 97, 86, 0.1), 0 1px 4px rgba(112, 97, 86, 0.07);
     }
+
     .mock-tabs {
       display: flex;
       gap: 0.4rem;
@@ -317,6 +414,7 @@
       padding-bottom: 0.7rem;
       border-bottom: 1px solid rgb(var(--c-gray-200));
     }
+
     .mock-tab {
       padding: 0.2rem 0.65rem;
       border-radius: 100px;
@@ -325,11 +423,18 @@
       background: rgb(var(--c-gray-100));
       color: rgb(var(--c-gray-700));
     }
+
     .mock-tab.active {
       background: rgb(var(--c-primary));
       color: #fff;
     }
-    .mock-rows { display: flex; flex-direction: column; gap: 0.55rem; }
+
+    .mock-rows {
+      display: flex;
+      flex-direction: column;
+      gap: 0.55rem;
+    }
+
     .mock-row {
       display: flex;
       gap: 0.6rem;
@@ -339,56 +444,85 @@
       border: 1px solid rgb(var(--c-gray-100));
       border-radius: 4px;
     }
+
     .mock-thumb {
-      width: 44px; height: 34px;
+      width: 44px;
+      height: 34px;
       border-radius: 3px;
       flex-shrink: 0;
     }
-    .mock-lines { flex: 1; padding-top: 3px; }
+
+    .mock-lines {
+      flex: 1;
+      padding-top: 3px;
+    }
+
     .mock-line {
-      height: 6px; border-radius: 3px;
+      height: 6px;
+      border-radius: 3px;
       background: rgb(var(--c-gray-200));
       margin-bottom: 5px;
     }
-    .mock-line.m { width: 78%; }
-    .mock-line.s { width: 52%; }
+
+    .mock-line.m {
+      width: 78%;
+    }
+
+    .mock-line.s {
+      width: 52%;
+    }
+
     .mock-line.tag {
       width: 36%;
       background: rgb(var(--c-primary)/0.2);
     }
+
     .mock-prog {
-      height: 2px; border-radius: 1px;
+      height: 2px;
+      border-radius: 1px;
       background: rgb(var(--c-gray-200));
-      margin-top: 4px; overflow: hidden;
+      margin-top: 4px;
+      overflow: hidden;
     }
+
     .mock-prog-fill {
-      height: 100%; border-radius: 1px;
+      height: 100%;
+      border-radius: 1px;
       background: rgb(var(--c-primary));
     }
+
     .mock-grid2 {
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 0.5rem;
     }
+
     .mock-card {
       border: 1px solid rgb(var(--c-gray-200));
       border-radius: 4px;
       overflow: hidden;
       background: #fff;
     }
+
     .mock-card-thumb {
       width: 100%;
       aspect-ratio: 16/9;
     }
+
     .mock-card-body {
       padding: 0.4rem 0.5rem;
     }
+
     .mock-card-line {
-      height: 5px; border-radius: 3px;
+      height: 5px;
+      border-radius: 3px;
       background: rgb(var(--c-gray-200));
       margin-bottom: 4px;
     }
-    .mock-card-line.s { width: 58%; }
+
+    .mock-card-line.s {
+      width: 58%;
+    }
 
     /* ══════════════════════════════════════════════════
        SCREENSHOT BAND — Readeck style gradient
@@ -398,7 +532,11 @@
       background-color: #fceaea;
       padding: 3.5rem 1rem;
     }
-    .ss-head { margin-bottom: 2rem; }
+
+    .ss-head {
+      margin-bottom: 2rem;
+    }
+
     .ss-head h2 {
       font-size: 1.8rem;
       font-weight: 700;
@@ -406,57 +544,103 @@
       color: rgb(var(--c-gray-900));
       margin-bottom: 0.5rem;
     }
+
     .ss-head p {
       font-size: 1rem;
       color: rgb(var(--c-gray-700));
     }
 
-    .car-outer { overflow: hidden; }
+    .car-outer {
+      overflow: hidden;
+    }
+
     .car-track {
       display: flex;
       gap: 14px;
-      transition: transform 0.4s cubic-bezier(0.25,0.46,0.45,0.94);
+      transition: transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
       will-change: transform;
     }
-    .car-slide { flex-shrink: 0; width: 175px; text-align: center; }
-    .car-slide img, .sph {
-      width: 100%; aspect-ratio: 9/19.5;
-      border-radius: 12px; display: block;
-      border: 1px solid rgba(0,0,0,0.08);
-      box-shadow: 0 4px 18px rgba(0,0,0,0.13);
+
+    .car-slide {
+      flex-shrink: 0;
+      width: 175px;
+      text-align: center;
+    }
+
+    .car-slide img,
+    .sph {
+      width: 100%;
+      aspect-ratio: 9/19.5;
+      border-radius: 12px;
+      display: block;
+      border: 1px solid rgba(0, 0, 0, 0.08);
+      box-shadow: 0 4px 18px rgba(0, 0, 0, 0.13);
       object-fit: cover;
     }
+
     .sph {
       background: linear-gradient(160deg,
-        rgba(255,255,255,0.8), rgba(200,235,240,0.6));
-      display: flex; align-items: center; justify-content: center;
+          rgba(255, 255, 255, 0.8), rgba(200, 235, 240, 0.6));
+      display: flex;
+      align-items: center;
+      justify-content: center;
       color: rgb(var(--c-gray-400));
-      font-size: 0.72rem; letter-spacing: 0.05em;
+      font-size: 0.72rem;
+      letter-spacing: 0.05em;
     }
-    .slbl { margin-top: 0.5rem; font-size: 0.73rem; color: rgb(var(--c-gray-600)); }
+
+    .slbl {
+      margin-top: 0.5rem;
+      font-size: 0.73rem;
+      color: rgb(var(--c-gray-600));
+    }
+
     .car-nav {
-      display: flex; align-items: center; justify-content: center;
-      gap: 0.75rem; margin-top: 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.75rem;
+      margin-top: 1.5rem;
     }
+
     .cbtn {
-      width: 32px; height: 32px; border-radius: 50%;
-      background: #fff; border: 1px solid rgb(var(--c-gray-300));
-      color: rgb(var(--c-gray-700)); font-size: 0.9rem; cursor: pointer;
-      display: flex; align-items: center; justify-content: center;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: #fff;
+      border: 1px solid rgb(var(--c-gray-300));
+      color: rgb(var(--c-gray-700));
+      font-size: 0.9rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
       transition: background 0.15s, color 0.15s, border-color 0.15s;
     }
+
     .cbtn:hover {
       background: rgb(var(--c-primary));
-      color: #fff; border-color: rgb(var(--c-primary));
+      color: #fff;
+      border-color: rgb(var(--c-primary));
     }
-    .cdots { display: flex; gap: 6px; }
+
+    .cdots {
+      display: flex;
+      gap: 6px;
+    }
+
     .cdot {
-      width: 7px; height: 7px; border-radius: 50%;
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
       background: rgb(var(--c-gray-300));
-      border: none; padding: 0; cursor: pointer;
+      border: none;
+      padding: 0;
+      cursor: pointer;
       transition: background 0.15s, transform 0.15s;
     }
+
     .cdot.on {
       background: rgb(var(--c-primary));
       transform: scale(1.35);
@@ -470,13 +654,16 @@
       padding: 4rem 1rem 5rem;
       background: #fff;
     }
+
     .features-section .container {
       max-width: var(--mw);
     }
+
     .features-head {
       margin-bottom: 3rem;
       text-align: center;
     }
+
     .features-head h2 {
       font-size: 2rem;
       font-weight: 700;
@@ -484,15 +671,18 @@
       color: rgb(var(--c-gray-900));
       margin-bottom: 0.5rem;
     }
+
     .features-head p {
       font-size: 1rem;
       color: rgb(var(--c-gray-700));
     }
+
     .features-grid {
       display: grid;
       grid-template-columns: repeat(3, minmax(0, 1fr));
       gap: 3rem;
     }
+
     .feat h3 {
       font-size: 1.3rem;
       font-weight: 600;
@@ -502,17 +692,20 @@
       align-items: center;
       gap: 0.5rem;
     }
+
     .feat h3 .feat-icon {
       color: rgb(var(--c-primary));
       font-size: 1.1rem;
       flex-shrink: 0;
     }
+
     .feat p {
       font-size: 0.93rem;
       line-height: 1.7;
       color: rgb(var(--c-gray-700));
       margin-bottom: 0.2rem;
     }
+
     /* Readeck mark inside features */
     .feat mark {
       background-color: transparent;
@@ -532,12 +725,13 @@
       background-color: #1c2c1c;
       background-image:
         radial-gradient(ellipse 70% 60% at 50% 50%,
-          rgba(119,185,20,0.15) 0%, transparent 65%),
+          rgba(119, 185, 20, 0.15) 0%, transparent 65%),
         radial-gradient(ellipse 40% 50% at 20% 70%,
-          rgba(11,142,172,0.12) 0%, transparent 55%);
+          rgba(11, 142, 172, 0.12) 0%, transparent 55%);
       padding: 5.5rem 1rem;
       text-align: center;
     }
+
     .start-band h2 {
       font-size: clamp(1.8rem, 3.5vw, 2.5rem);
       font-weight: 700;
@@ -545,18 +739,25 @@
       color: #fff;
       margin-bottom: 0.65rem;
     }
+
     .start-band p {
       font-size: 1.05rem;
-      color: rgba(255,255,255,0.6);
+      color: rgba(255, 255, 255, 0.6);
       margin-bottom: 2rem;
       max-width: 400px;
-      margin-left: auto; margin-right: auto;
+      margin-left: auto;
+      margin-right: auto;
     }
-    .start-band .btn-cta { font-size: 1rem; padding: 0.7rem 2rem; }
+
+    .start-band .btn-cta {
+      font-size: 1rem;
+      padding: 0.7rem 2rem;
+    }
+
     .start-note {
       margin-top: 1rem;
       font-size: 0.77rem;
-      color: rgba(255,255,255,0.28);
+      color: rgba(255, 255, 255, 0.28);
     }
 
     /* ══════════════════════════════════════════════════
@@ -565,28 +766,38 @@
     footer {
       border-top: 1px solid rgb(var(--c-gray-300));
       background-image: linear-gradient(to bottom,
-        rgb(var(--c-gray-100)), rgb(var(--c-gray-50)));
+          rgb(var(--c-gray-100)), rgb(var(--c-gray-50)));
       padding: 2.5rem 1rem 2rem;
     }
-    footer .container { max-width: var(--mw); }
+
+    footer .container {
+      max-width: var(--mw);
+    }
+
     .footer-grid {
       display: grid;
       grid-template-columns: 2fr 1fr 1fr;
       gap: 2rem;
       margin-bottom: 1.5rem;
     }
+
     .footer-about h3 {
       font-size: 1rem;
       font-weight: 700;
       color: rgb(var(--c-gray-900));
       margin-bottom: 0.5rem;
     }
+
     .footer-about p {
       font-size: 0.83rem;
       color: rgb(var(--c-gray-600));
       line-height: 1.7;
     }
-    .footer-about a { color: rgb(var(--c-primary)); }
+
+    .footer-about a {
+      color: rgb(var(--c-primary));
+    }
+
     .footer-col h3 {
       font-size: 0.78rem;
       font-weight: 700;
@@ -595,12 +806,24 @@
       color: rgb(var(--c-gray-600));
       margin-bottom: 0.75rem;
     }
-    .footer-col ul { list-style: none; display: flex; flex-direction: column; gap: 0.4rem; }
+
+    .footer-col ul {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+    }
+
     .footer-col li a {
       font-size: 0.86rem;
       color: rgb(var(--c-gray-700));
     }
-    .footer-col li a:hover { color: rgb(var(--c-primary)); text-decoration: none; }
+
+    .footer-col li a:hover {
+      color: rgb(var(--c-primary));
+      text-decoration: none;
+    }
+
     .footer-bottom {
       border-top: 1px solid rgb(var(--c-gray-200));
       padding-top: 1rem;
@@ -614,13 +837,23 @@
       padding: 4rem 1rem;
       background: rgb(var(--c-gray-100));
     }
-    .steps-section .container { max-width: var(--mw); }
-    .steps-head { text-align: center; margin-bottom: 2.5rem; }
+
+    .steps-section .container {
+      max-width: var(--mw);
+    }
+
+    .steps-head {
+      text-align: center;
+      margin-bottom: 2.5rem;
+    }
+
     .steps-head h2 {
-      font-size: 1.9rem; font-weight: 700;
+      font-size: 1.9rem;
+      font-weight: 700;
       letter-spacing: -0.025em;
       color: rgb(var(--c-gray-900));
     }
+
     .steps-row {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
@@ -629,6 +862,7 @@
       max-width: 860px;
       margin: 0 auto;
     }
+
     /* Connecting line using ribbon colors */
     .steps-row::before {
       content: '';
@@ -639,6 +873,7 @@
       height: 2px;
       background: linear-gradient(90deg, var(--green), var(--yellow), var(--red));
     }
+
     .step-card {
       background: #fff;
       border: 1px solid rgb(var(--c-gray-200));
@@ -646,400 +881,534 @@
       padding: 1.5rem 1.25rem;
       text-align: center;
       position: relative;
-      box-shadow: 0 1px 4px rgba(112,97,86,0.07);
+      box-shadow: 0 1px 4px rgba(112, 97, 86, 0.07);
     }
+
     .step-num {
-      width: 40px; height: 40px;
+      width: 40px;
+      height: 40px;
       border-radius: 50%;
-      display: flex; align-items: center; justify-content: center;
-      font-weight: 800; font-size: 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 1rem;
       margin: 0 auto 1rem;
-      position: relative; z-index: 1;
+      position: relative;
+      z-index: 1;
     }
-    .step-card:nth-child(1) .step-num { background:#e8f6ea; color:var(--green); border:2px solid var(--green); }
-    .step-card:nth-child(2) .step-num { background:#fdf3d5; color:var(--yellow); border:2px solid var(--yellow); }
-    .step-card:nth-child(3) .step-num { background:#fdecec; color:var(--red); border:2px solid var(--red); }
-    .step-title { font-weight: 700; font-size: 0.97rem; margin-bottom: 0.45rem; color: rgb(var(--c-gray-900)); }
-    .step-desc { font-size: 0.85rem; line-height: 1.65; color: rgb(var(--c-gray-700)); }
+
+    .step-card:nth-child(1) .step-num {
+      background: #e8f6ea;
+      color: var(--green);
+      border: 2px solid var(--green);
+    }
+
+    .step-card:nth-child(2) .step-num {
+      background: #fdf3d5;
+      color: var(--yellow);
+      border: 2px solid var(--yellow);
+    }
+
+    .step-card:nth-child(3) .step-num {
+      background: #fdecec;
+      color: var(--red);
+      border: 2px solid var(--red);
+    }
+
+    .step-title {
+      font-weight: 700;
+      font-size: 0.97rem;
+      margin-bottom: 0.45rem;
+      color: rgb(var(--c-gray-900));
+    }
+
+    .step-desc {
+      font-size: 0.85rem;
+      line-height: 1.65;
+      color: rgb(var(--c-gray-700));
+    }
 
     /* Responsive ────────────────────────────── */
     @media (max-width: 820px) {
-      .panel { flex-direction: column; gap: 2rem; }
-      .panel.reverse { flex-direction: column; }
-      .panel-text, .panel-visual { flex: none; width: 100%; }
-      .features-grid { grid-template-columns: 1fr 1fr; gap: 2rem; }
-      .steps-row { grid-template-columns: 1fr; }
-      .steps-row::before { display: none; }
-      .footer-grid { grid-template-columns: 1fr 1fr; }
-      .footer-about { grid-column: 1/-1; }
-      .nav-links .btn-outline { display: none; }
+      .panel {
+        flex-direction: column;
+        gap: 2rem;
+      }
+
+      .panel.reverse {
+        flex-direction: column;
+      }
+
+      .panel-text,
+      .panel-visual {
+        flex: none;
+        width: 100%;
+      }
+
+      .features-grid {
+        grid-template-columns: 1fr 1fr;
+        gap: 2rem;
+      }
+
+      .steps-row {
+        grid-template-columns: 1fr;
+      }
+
+      .steps-row::before {
+        display: none;
+      }
+
+      .footer-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .footer-about {
+        grid-column: 1/-1;
+      }
+
+      .nav-links .btn-outline {
+        display: none;
+      }
     }
+
     @media (max-width: 540px) {
-      .hero { min-height: auto; padding: 4rem 0; }
-      .features-grid { grid-template-columns: 1fr; }
-      .footer-grid { grid-template-columns: 1fr; }
-      .hero h1 { font-size: 2.4rem; }
+      .hero {
+        min-height: auto;
+        padding: 4rem 0;
+      }
+
+      .features-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .footer-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .hero h1 {
+        font-size: 2.4rem;
+      }
     }
   </style>
 </head>
+
 <body>
 
-<!-- NAV ══════════════════════════════════ -->
-<nav class="site-nav">
-  <div class="container">
-    <a href="#" class="nav-brand">
-      <img src="../metadata/en-US/images/icon.png" alt="MyDeck icon" class="nav-brand-icon" width="32" height="32" />
-      MyDeck
-    </a>
-    <div class="nav-links">
-      <a href="#features" class="btn-outline">Features</a>
-      <a href="https://github.com/NateEaton/mydeck-android/releases/latest"
-         class="btn-cta">⬇ Download</a>
-    </div>
-  </div>
-</nav>
-
-<!-- HERO ══════════════════════════════════ -->
-<section class="hero">
-  <div class="hero-inner">
-    <h1>Your <span class="accent">Readeck</span>.<br>Your way.</h1>
-    <p class="hero-sub">
-      A Pocket-inspired Android client for
-      <a href="https://readeck.org/en/">Readeck</a>,
-      your self-hosted read-it-later service.
-    </p>
-    <div class="hero-actions">
-      <a href="https://github.com/NateEaton/mydeck-android/releases/latest"
-         class="btn-cta btn-cta-lg">⬇ Download APK</a>
-      <a href="https://github.com/NateEaton/mydeck-android"
-         class="btn-ghost">View on GitHub</a>
-    </div>
-    <p class="hero-note">Requires a self-hosted Readeck server &nbsp;·&nbsp; GPL v3 &nbsp;·&nbsp; Free forever</p>
-  </div>
-</section>
-
-<!-- ALTERNATING PANELS ════════════════════ -->
-<div class="panel-section">
-
-  <!-- Panel 1: About (text left, visual right) -->
-  <div class="panel-wrap">
-    <div class="panel">
-      <div class="panel-text">
-        <h2>Your reading list,<br><mark>your</mark> server.</h2>
-        <p>MyDeck is an Android client for <a href="https://readeck.org/en/">Readeck</a>, the self-hosted app that saves the readable content of pages you want to keep forever.</p>
-        <p>Connect it to your own Readeck server and your library stays entirely under your control — no cloud middlemen, no subscriptions, no algorithms.</p>
-        <div class="panel-callout">
-          🔗 Requires a self-hosted <a href="https://readeck.org/en/"><strong>Readeck</strong></a> server.
-          <a href="https://readeck.org/en/start">Getting started</a> takes just a few minutes.
-        </div>
+  <!-- NAV ══════════════════════════════════ -->
+  <nav class="site-nav">
+    <div class="container">
+      <a href="#" class="nav-brand">
+        <img src="../metadata/en-US/images/icon.png" alt="MyDeck icon" class="nav-brand-icon" width="32" height="32" />
+        MyDeck
+      </a>
+      <div class="nav-links">
+        <a href="#features" class="btn-outline">Features</a>
+        <a href="https://github.com/NateEaton/mydeck-android/releases/latest" class="btn-cta">⬇ Download</a>
       </div>
-      <div class="panel-visual">
-        <div class="mock" aria-hidden="true">
-          <div class="mock-tabs">
-            <div class="mock-tab active">My List</div>
-            <div class="mock-tab">Archive</div>
-            <div class="mock-tab">Favorites</div>
+    </div>
+  </nav>
+
+  <!-- HERO ══════════════════════════════════ -->
+  <section class="hero">
+    <div class="hero-inner">
+      <h1>Your <span class="accent">Readeck</span>.<br>Your way.</h1>
+      <p class="hero-sub">
+        A Pocket-inspired Android client for
+        <a href="https://readeck.org/en/">Readeck</a>,
+        your self-hosted read-it-later service.
+      </p>
+      <div class="hero-actions">
+        <a href="https://github.com/NateEaton/mydeck-android/releases/latest" class="btn-cta btn-cta-lg">⬇ Download
+          APK</a>
+        <a href="https://github.com/NateEaton/mydeck-android" class="btn-ghost">View on GitHub</a>
+      </div>
+      <p class="hero-note">Requires a self-hosted Readeck server &nbsp;·&nbsp; GPL v3 &nbsp;·&nbsp; Free forever</p>
+    </div>
+  </section>
+
+  <!-- ALTERNATING PANELS ════════════════════ -->
+  <div class="panel-section">
+
+    <!-- Panel 1: About (text left, visual right) -->
+    <div class="panel-wrap">
+      <div class="panel">
+        <div class="panel-text">
+          <h2>Your reading list,<br><mark>your</mark> server.</h2>
+          <p>MyDeck is an Android client for <a href="https://readeck.org/en/">Readeck</a>, the self-hosted app that
+            saves the readable content of pages you want to keep forever.</p>
+          <p>Connect it to your own Readeck server and your library stays entirely under your control — no cloud
+            middlemen, no subscriptions, no algorithms.</p>
+          <div class="panel-callout">
+            🔗 Requires a self-hosted <a href="https://readeck.org/en/"><strong>Readeck</strong></a> server.
+            <a href="https://readeck.org/en/start">Getting started</a> takes just a few minutes.
           </div>
-          <div class="mock-rows">
-            <div class="mock-row">
-              <div class="mock-thumb" style="background:linear-gradient(135deg,#dff3f3,#a8dede)"></div>
-              <div class="mock-lines">
-                <div class="mock-line m"></div><div class="mock-line s"></div>
-                <div class="mock-line tag"></div>
-                <div class="mock-prog"><div class="mock-prog-fill" style="width:65%"></div></div>
+        </div>
+        <div class="panel-visual">
+          <div class="mock" aria-hidden="true">
+            <div class="mock-tabs">
+              <div class="mock-tab active">My List</div>
+              <div class="mock-tab">Archive</div>
+              <div class="mock-tab">Favorites</div>
+            </div>
+            <div class="mock-rows">
+              <div class="mock-row">
+                <div class="mock-thumb" style="background:linear-gradient(135deg,#dff3f3,#a8dede)"></div>
+                <div class="mock-lines">
+                  <div class="mock-line m"></div>
+                  <div class="mock-line s"></div>
+                  <div class="mock-line tag"></div>
+                  <div class="mock-prog">
+                    <div class="mock-prog-fill" style="width:65%"></div>
+                  </div>
+                </div>
+              </div>
+              <div class="mock-row">
+                <div class="mock-thumb" style="background:linear-gradient(135deg,#e8f6ea,#b8dca0)"></div>
+                <div class="mock-lines">
+                  <div class="mock-line m"></div>
+                  <div class="mock-line s"></div>
+                  <div class="mock-line tag"></div>
+                  <div class="mock-prog">
+                    <div class="mock-prog-fill" style="width:30%"></div>
+                  </div>
+                </div>
+              </div>
+              <div class="mock-row">
+                <div class="mock-thumb" style="background:linear-gradient(135deg,#fdf3d5,#f5d98a)"></div>
+                <div class="mock-lines">
+                  <div class="mock-line m"></div>
+                  <div class="mock-line s"></div>
+                  <div class="mock-line tag"></div>
+                  <div class="mock-prog">
+                    <div class="mock-prog-fill" style="width:10%"></div>
+                  </div>
+                </div>
               </div>
             </div>
-            <div class="mock-row">
-              <div class="mock-thumb" style="background:linear-gradient(135deg,#e8f6ea,#b8dca0)"></div>
-              <div class="mock-lines">
-                <div class="mock-line m"></div><div class="mock-line s"></div>
-                <div class="mock-line tag"></div>
-                <div class="mock-prog"><div class="mock-prog-fill" style="width:30%"></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Panel 2: Layouts (visual left, text right — reversed) -->
+    <div class="panel-wrap">
+      <div class="panel reverse">
+        <div class="panel-text">
+          <h2>Three layouts.<br>One <mark>library</mark>.</h2>
+          <p>Switch between Grid, Compact, and Mosaic views to match your content and reading mood. Optimized for
+            tablets and landscape orientation too — not just portrait phones.</p>
+          <p>Your preferred layout is saved so the app always opens exactly how you left it.</p>
+        </div>
+        <div class="panel-visual">
+          <div class="mock" aria-hidden="true">
+            <div class="mock-tabs">
+              <div class="mock-tab active">Mosaic</div>
+              <div class="mock-tab">Grid</div>
+              <div class="mock-tab">Compact</div>
+            </div>
+            <div class="mock-grid2">
+              <div class="mock-card">
+                <div class="mock-card-thumb" style="background:linear-gradient(135deg,#dff3f3,#a8dede)"></div>
+                <div class="mock-card-body">
+                  <div class="mock-card-line"></div>
+                  <div class="mock-card-line s"></div>
+                </div>
+              </div>
+              <div class="mock-card">
+                <div class="mock-card-thumb" style="background:linear-gradient(135deg,#e8f6ea,#b8dca0)"></div>
+                <div class="mock-card-body">
+                  <div class="mock-card-line"></div>
+                  <div class="mock-card-line s"></div>
+                </div>
+              </div>
+              <div class="mock-card">
+                <div class="mock-card-thumb" style="background:linear-gradient(135deg,#fdf3d5,#f5d98a)"></div>
+                <div class="mock-card-body">
+                  <div class="mock-card-line"></div>
+                  <div class="mock-card-line s"></div>
+                </div>
+              </div>
+              <div class="mock-card">
+                <div class="mock-card-thumb" style="background:linear-gradient(135deg,#fdecec,#f0aeae)"></div>
+                <div class="mock-card-body">
+                  <div class="mock-card-line"></div>
+                  <div class="mock-card-line s"></div>
+                </div>
               </div>
             </div>
-            <div class="mock-row">
-              <div class="mock-thumb" style="background:linear-gradient(135deg,#fdf3d5,#f5d98a)"></div>
-              <div class="mock-lines">
-                <div class="mock-line m"></div><div class="mock-line s"></div>
-                <div class="mock-line tag"></div>
-                <div class="mock-prog"><div class="mock-prog-fill" style="width:10%"></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Panel 3: Reader (text left, visual right) -->
+    <div class="panel-wrap">
+      <div class="panel">
+        <div class="panel-text">
+          <h2>Read it your <mark>way</mark>.</h2>
+          <p>Choose between Readeck's extracted Article view for clean, distraction-free reading, or the embedded
+            Original webview when you need the full page.</p>
+          <p>Set your preferred font, size, line height, and content width. Search within articles and jump between
+            highlighted matches without ever leaving the reader.</p>
+        </div>
+        <div class="panel-visual">
+          <div class="mock" aria-hidden="true">
+            <div style="padding:.35rem 0 .65rem;border-bottom:1px solid rgb(228,223,220);margin-bottom:.65rem;">
+              <div
+                style="height:9px;border-radius:4px;background:rgb(43,37,33);width:68%;margin-bottom:5px;opacity:.85;">
+              </div>
+              <div style="height:6px;border-radius:3px;background:rgb(228,223,220);width:40%;margin-bottom:4px;"></div>
+              <div style="display:flex;gap:5px;">
+                <div style="height:5px;border-radius:2px;background:rgb(11,142,172,0.2);width:44px;"></div>
+                <div style="height:5px;border-radius:2px;background:rgb(228,223,220);width:26px;"></div>
               </div>
             </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Panel 2: Layouts (visual left, text right — reversed) -->
-  <div class="panel-wrap">
-    <div class="panel reverse">
-      <div class="panel-text">
-        <h2>Three layouts.<br>One <mark>library</mark>.</h2>
-        <p>Switch between Grid, Compact, and Mosaic views to match your content and reading mood. Optimized for tablets and landscape orientation too — not just portrait phones.</p>
-        <p>Your preferred layout is saved so the app always opens exactly how you left it.</p>
-      </div>
-      <div class="panel-visual">
-        <div class="mock" aria-hidden="true">
-          <div class="mock-tabs">
-            <div class="mock-tab active">Mosaic</div>
-            <div class="mock-tab">Grid</div>
-            <div class="mock-tab">Compact</div>
-          </div>
-          <div class="mock-grid2">
-            <div class="mock-card">
-              <div class="mock-card-thumb" style="background:linear-gradient(135deg,#dff3f3,#a8dede)"></div>
-              <div class="mock-card-body"><div class="mock-card-line"></div><div class="mock-card-line s"></div></div>
-            </div>
-            <div class="mock-card">
-              <div class="mock-card-thumb" style="background:linear-gradient(135deg,#e8f6ea,#b8dca0)"></div>
-              <div class="mock-card-body"><div class="mock-card-line"></div><div class="mock-card-line s"></div></div>
-            </div>
-            <div class="mock-card">
-              <div class="mock-card-thumb" style="background:linear-gradient(135deg,#fdf3d5,#f5d98a)"></div>
-              <div class="mock-card-body"><div class="mock-card-line"></div><div class="mock-card-line s"></div></div>
-            </div>
-            <div class="mock-card">
-              <div class="mock-card-thumb" style="background:linear-gradient(135deg,#fdecec,#f0aeae)"></div>
-              <div class="mock-card-body"><div class="mock-card-line"></div><div class="mock-card-line s"></div></div>
+            <div style="display:flex;flex-direction:column;gap:5px;">
+              <div style="height:6px;border-radius:3px;background:rgb(228,223,220);width:100%;"></div>
+              <div style="height:6px;border-radius:3px;background:rgb(228,223,220);width:93%;"></div>
+              <div style="height:6px;border-radius:3px;background:rgb(228,223,220);width:87%;"></div>
+              <!-- highlighted line (Readeck mark color #ffe1a1) -->
+              <div style="height:6px;border-radius:3px;background:#ffe1a1;width:76%;"></div>
+              <div style="height:6px;border-radius:3px;background:rgb(228,223,220);width:95%;"></div>
+              <div style="height:6px;border-radius:3px;background:rgb(228,223,220);width:82%;"></div>
+              <div style="height:6px;border-radius:3px;background:rgb(228,223,220);width:100%;"></div>
+              <div style="height:6px;border-radius:3px;background:rgb(228,223,220);width:55%;"></div>
             </div>
           </div>
         </div>
       </div>
     </div>
+
   </div>
 
-  <!-- Panel 3: Reader (text left, visual right) -->
-  <div class="panel-wrap">
-    <div class="panel">
-      <div class="panel-text">
-        <h2>Read it your <mark>way</mark>.</h2>
-        <p>Choose between Readeck's extracted Article view for clean, distraction-free reading, or the embedded Original webview when you need the full page.</p>
-        <p>Set your preferred font, size, line height, and content width. Search within articles and jump between highlighted matches without ever leaving the reader.</p>
+  <!-- SCREENSHOTS ═══════════════════════════ -->
+  <div class="ss-band" id="screenshots">
+    <div class="container">
+      <div class="ss-head">
+        <h2>See it in action</h2>
+        <p>Screenshots coming soon — visit the <a href="https://github.com/NateEaton/mydeck-android">GitHub
+            repository</a> for more details.</p>
       </div>
-      <div class="panel-visual">
-        <div class="mock" aria-hidden="true">
-          <div style="padding:.35rem 0 .65rem;border-bottom:1px solid rgb(228,223,220);margin-bottom:.65rem;">
-            <div style="height:9px;border-radius:4px;background:rgb(43,37,33);width:68%;margin-bottom:5px;opacity:.85;"></div>
-            <div style="height:6px;border-radius:3px;background:rgb(228,223,220);width:40%;margin-bottom:4px;"></div>
-            <div style="display:flex;gap:5px;">
-              <div style="height:5px;border-radius:2px;background:rgb(11,142,172,0.2);width:44px;"></div>
-              <div style="height:5px;border-radius:2px;background:rgb(228,223,220);width:26px;"></div>
-            </div>
-          </div>
-          <div style="display:flex;flex-direction:column;gap:5px;">
-            <div style="height:6px;border-radius:3px;background:rgb(228,223,220);width:100%;"></div>
-            <div style="height:6px;border-radius:3px;background:rgb(228,223,220);width:93%;"></div>
-            <div style="height:6px;border-radius:3px;background:rgb(228,223,220);width:87%;"></div>
-            <!-- highlighted line (Readeck mark color #ffe1a1) -->
-            <div style="height:6px;border-radius:3px;background:#ffe1a1;width:76%;"></div>
-            <div style="height:6px;border-radius:3px;background:rgb(228,223,220);width:95%;"></div>
-            <div style="height:6px;border-radius:3px;background:rgb(228,223,220);width:82%;"></div>
-            <div style="height:6px;border-radius:3px;background:rgb(228,223,220);width:100%;"></div>
-            <div style="height:6px;border-radius:3px;background:rgb(228,223,220);width:55%;"></div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-</div>
-
-<!-- SCREENSHOTS ═══════════════════════════ -->
-<div class="ss-band" id="screenshots">
-  <div class="container">
-    <div class="ss-head">
-      <h2>See it in action</h2>
-      <p>Screenshots coming soon — visit the <a href="https://github.com/NateEaton/mydeck-android">GitHub repository</a> for more details.</p>
-    </div>
-    <div class="car-outer">
-      <div class="car-track" id="carouselTrack">
-        <!--
+      <div class="car-outer">
+        <div class="car-track" id="carouselTrack">
+          <!--
           Replace .sph with <img src="../docs/screenshots/name.png" alt="..." />
           once screenshots are ready.
         -->
-        <div class="car-slide"><img src="../metadata/en-US/images/phoneScreenshots/screenshot1.png" alt="My List" /><div class="slbl">My List</div></div>
-        <div class="car-slide"><div class="sph">Grid Layout</div><div class="slbl">Grid Layout</div></div>
-        <div class="car-slide"><div class="sph">Mosaic Layout</div><div class="slbl">Mosaic Layout</div></div>
-        <div class="car-slide"><div class="sph">Article Reader</div><div class="slbl">Article Reader</div></div>
-        <div class="car-slide"><div class="sph">Typography</div><div class="slbl">Typography</div></div>
-        <div class="car-slide"><div class="sph">Labels</div><div class="slbl">Labels</div></div>
-        <div class="car-slide"><div class="sph">Share Sheet</div><div class="slbl">Share Sheet</div></div>
-        <div class="car-slide"><div class="sph">Settings</div><div class="slbl">Settings</div></div>
+          <div class="car-slide"><img src="../metadata/en-US/images/phoneScreenshots/screenshot1.png" alt="My List" />
+            <div class="slbl">My List</div>
+          </div>
+          <div class="car-slide">
+            <div class="sph">Grid Layout</div>
+            <div class="slbl">Grid Layout</div>
+          </div>
+          <div class="car-slide">
+            <div class="sph">Mosaic Layout</div>
+            <div class="slbl">Mosaic Layout</div>
+          </div>
+          <div class="car-slide">
+            <div class="sph">Article Reader</div>
+            <div class="slbl">Article Reader</div>
+          </div>
+          <div class="car-slide">
+            <div class="sph">Typography</div>
+            <div class="slbl">Typography</div>
+          </div>
+          <div class="car-slide">
+            <div class="sph">Labels</div>
+            <div class="slbl">Labels</div>
+          </div>
+          <div class="car-slide">
+            <div class="sph">Share Sheet</div>
+            <div class="slbl">Share Sheet</div>
+          </div>
+          <div class="car-slide">
+            <div class="sph">Settings</div>
+            <div class="slbl">Settings</div>
+          </div>
+        </div>
       </div>
-    </div>
-    <div class="car-nav">
-      <button class="cbtn" id="prevBtn" aria-label="Previous">&#8592;</button>
-      <div class="cdots" id="cDots"></div>
-      <button class="cbtn" id="nextBtn" aria-label="Next">&#8594;</button>
-    </div>
-  </div>
-</div>
-
-<!-- FEATURES ══════════════════════════════ -->
-<div class="features-section" id="features">
-  <div class="container">
-    <div class="features-head">
-      <h2>Everything you need to read without friction</h2>
-      <p>Built around one idea: your reading experience should work the way you want.</p>
-    </div>
-    <div class="features-grid">
-      <div class="feat">
-        <h3><span class="feat-icon">&#9776;</span> Pocket-style Navigation</h3>
-        <p><mark>My List</mark>, <mark>Archive</mark>, and <mark>Favorites</mark> — an interface that feels immediately familiar.</p>
-      </div>
-      <div class="feat">
-        <h3><span class="feat-icon">&#127991;</span> Full Label Management</h3>
-        <p>Add, rename, delete, and <mark>filter</mark> by labels directly in the app — no web UI required.</p>
-      </div>
-      <div class="feat">
-        <h3><span class="feat-icon">&#8599;</span> Quick Share</h3>
-        <p>Save any link from any app via a lightweight bottom sheet with an optional <mark>auto-submit timer</mark>.</p>
-      </div>
-      <div class="feat">
-        <h3><span class="feat-icon">&#9646;</span> Reading Progress</h3>
-        <p>Per-card <mark>visual progress</mark> indicators so you always know where you left off at a glance.</p>
-      </div>
-      <div class="feat">
-        <h3><span class="feat-icon">&#128269;</span> In-Article Search</h3>
-        <p>Full-text search with <mark>highlighted match</mark> navigation — find anything without leaving the reader.</p>
-      </div>
-      <div class="feat">
-        <h3><span class="feat-icon">&#128316;</span> Typography Controls</h3>
-        <p>Font, size, line spacing, and content width — your reader, <mark>tuned to your taste</mark>.</p>
-      </div>
-      <div class="feat">
-        <h3><span class="feat-icon">&#128366;</span> Dual Reading Modes</h3>
-        <p>Extracted <mark>Article</mark> view for clean reading, or <mark>Original</mark> webview when you need the full page.</p>
-      </div>
-      <div class="feat">
-        <h3><span class="feat-icon">&#128274;</span> Secure OAuth Login</h3>
-        <p>OAuth <mark>Device Code Grant</mark> — no password stored in the app, ever.</p>
-      </div>
-      <div class="feat">
-        <h3><span class="feat-icon">&#8635;</span> Smart Background Sync</h3>
-        <p>Wi-Fi and battery-saver constraints keep your library <mark>fresh</mark> without draining your phone.</p>
+      <div class="car-nav">
+        <button class="cbtn" id="prevBtn" aria-label="Previous">&#8592;</button>
+        <div class="cdots" id="cDots"></div>
+        <button class="cbtn" id="nextBtn" aria-label="Next">&#8594;</button>
       </div>
     </div>
   </div>
-</div>
 
-<!-- HOW IT WORKS ══════════════════════════ -->
-<div class="steps-section">
-  <div class="container">
-    <div class="steps-head">
-      <h2>Up and reading in minutes</h2>
-    </div>
-    <div class="steps-row">
-      <div class="step-card">
-        <div class="step-num">1</div>
-        <div class="step-title">Set up Readeck</div>
-        <div class="step-desc"><a href="https://readeck.org/en/start">Self-host Readeck</a> — runs anywhere Docker does, or as a standalone binary. Yours forever.</div>
+  <!-- FEATURES ══════════════════════════════ -->
+  <div class="features-section" id="features">
+    <div class="container">
+      <div class="features-head">
+        <h2>Everything you need to read without friction</h2>
+        <p>Built around one idea: your reading experience should work the way you want.</p>
       </div>
-      <div class="step-card">
-        <div class="step-num">2</div>
-        <div class="step-title">Install MyDeck</div>
-        <div class="step-desc">Download the APK from GitHub Releases, install it, and authenticate via OAuth with your server URL.</div>
-      </div>
-      <div class="step-card">
-        <div class="step-num">3</div>
-        <div class="step-title">Save &amp; Read</div>
-        <div class="step-desc">Share any link from any app into MyDeck. Bookmarks sync automatically — always ready when you are.</div>
+      <div class="features-grid">
+        <div class="feat">
+          <h3><span class="feat-icon">&#9776;</span> Pocket-inspired Navigation</h3>
+          <p><mark>My List</mark>, <mark>Archive</mark>, and <mark>Favorites</mark> — an interface that feels
+            immediately familiar.</p>
+        </div>
+        <div class="feat">
+          <h3><span class="feat-icon">&#127991;</span> Full Label Management</h3>
+          <p>Add, rename, delete, and <mark>filter</mark> by labels directly in the app — no web UI required.</p>
+        </div>
+        <div class="feat">
+          <h3><span class="feat-icon">&#8599;</span> Quick Share</h3>
+          <p>Save links from other apps via a dialog that allows you to also add a title, labels or mark as a favorite.
+          </p>
+        </div>
+        <div class="feat">
+          <h3><span class="feat-icon">&#9646;</span> Reading Progress</h3>
+          <p><mark>Visual progress</mark> indicators so you always know where you left off at a glance.</p>
+        </div>
+        <div class="feat">
+          <h3><span class="feat-icon">&#128269;</span> In-Article Search</h3>
+          <p>Full-text search with <mark>highlighted match</mark> navigation — find anything without leaving the reader.
+          </p>
+        </div>
+        <div class="feat">
+          <h3><span class="feat-icon">&#128316;</span> Typography Controls</h3>
+          <p>Font, size, line spacing, and content width — your reader, <mark>tuned to your taste</mark>.</p>
+        </div>
+        <div class="feat">
+          <h3><span class="feat-icon">&#128366;</span> Dual Reading Modes</h3>
+          <p>Extracted <mark>article</mark> view for clean reading, or <mark>original</mark> webview when you need the
+            full page.</p>
+        </div>
+        <div class="feat">
+          <h3><span class="feat-icon">&#128274;</span> Secure OAuth Login</h3>
+          <p>OAuth <mark>Device Code Grant</mark> — no password stored in the app, ever.</p>
+        </div>
+        <div class="feat">
+          <h3><span class="feat-icon">&#8635;</span> Smart Background Sync</h3>
+          <p>Wi-Fi and battery-saver constraints keep your library <mark>fresh</mark> without draining your phone.</p>
+        </div>
       </div>
     </div>
   </div>
-</div>
 
-<!-- START SAVING BAND ═════════════════════ -->
-<div class="start-band">
-  <div class="container">
-    <h2>Own your reading.</h2>
-    <p>No algorithms. No tracking. No subscription.</p>
-    <a href="https://github.com/NateEaton/mydeck-android/releases/latest"
-       class="btn-cta">⬇ Download Latest Release</a>
-    <p class="start-note">GPL v3 &nbsp;·&nbsp; Free forever &nbsp;·&nbsp; v0.10.0 coming soon</p>
-  </div>
-</div>
-
-<!-- FOOTER ════════════════════════════════ -->
-<footer>
-  <div class="container">
-    <div class="footer-grid">
-      <div class="footer-about">
-        <h3>MyDeck</h3>
-        <p>
-          An Android client for <a href="https://readeck.org/en/">Readeck</a>, your self-hosted read-it-later service.
-          Developed by Nathan A. Eaton Jr. (with help from AI).
-          Built on the foundation of <a href="https://github.com/jensomato/ReadeckApp">ReadeckApp</a> by jensomato.
-          Licensed under the <a href="https://github.com/NateEaton/mydeck-android/blob/main/LICENSE">GPL v3</a>.
-        </p>
+  <!-- HOW IT WORKS ══════════════════════════ -->
+  <div class="steps-section">
+    <div class="container">
+      <div class="steps-head">
+        <h2>Up and reading in minutes</h2>
       </div>
-      <div class="footer-col">
-        <h3>MyDeck</h3>
-        <ul>
-          <li><a href="https://github.com/NateEaton/mydeck-android/releases/latest">Download</a></li>
-          <li><a href="https://github.com/NateEaton/mydeck-android">GitHub</a></li>
-          <li><a href="https://github.com/NateEaton/mydeck-android/releases">Releases</a></li>
-          <li><a href="https://github.com/NateEaton/mydeck-android/issues">Report Issues</a></li>
-        </ul>
-      </div>
-      <div class="footer-col">
-        <h3>Links</h3>
-        <ul>
-          <li><a href="https://readeck.org/en/">Readeck</a></li>
-          <li><a href="https://readeck.org/en/start">Get Readeck</a></li>
-          <li><a href="https://github.com/jensomato/ReadeckApp">ReadeckApp</a></li>
-          <li><a href="https://github.com/NateEaton/mydeck-android/blob/main/LICENSE">GPL v3 License</a></li>
-        </ul>
+      <div class="steps-row">
+        <div class="step-card">
+          <div class="step-num">1</div>
+          <div class="step-title">Set up Readeck</div>
+          <div class="step-desc"><a href="https://readeck.org/en/start">Self-host Readeck</a> — runs anywhere Docker
+            does, or as a standalone binary. Yours forever.</div>
+        </div>
+        <div class="step-card">
+          <div class="step-num">2</div>
+          <div class="step-title">Install MyDeck</div>
+          <div class="step-desc">Download the APK from GitHub Releases, install it, and authenticate via OAuth with your
+            server URL.</div>
+        </div>
+        <div class="step-card">
+          <div class="step-num">3</div>
+          <div class="step-title">Save &amp; Read</div>
+          <div class="step-desc">Share any link from any app into MyDeck. Bookmarks sync automatically — always ready
+            when you are.</div>
+        </div>
       </div>
     </div>
-    <div class="footer-bottom">
-      © 2025 Nathan A. Eaton Jr. &nbsp;·&nbsp; MyDeck is not affiliated with the Readeck project.
+  </div>
+
+  <!-- START SAVING BAND ═════════════════════ -->
+  <div class="start-band">
+    <div class="container">
+      <h2>Own your reading.</h2>
+      <p>No algorithms. No tracking. No subscription.</p>
+      <a href="https://github.com/NateEaton/mydeck-android/releases/latest" class="btn-cta">⬇ Download Latest
+        Release</a>
+      <p class="start-note">GPL v3 &nbsp;·&nbsp; Free forever &nbsp;</p>
     </div>
   </div>
-</footer>
 
-<script>
-// Carousel
-(function() {
-  var track  = document.getElementById('carouselTrack');
-  var dotsEl = document.getElementById('cDots');
-  var slides = Array.from(track.querySelectorAll('.car-slide'));
-  var n = slides.length, cur = 0;
+  <!-- FOOTER ════════════════════════════════ -->
+  <footer>
+    <div class="container">
+      <div class="footer-grid">
+        <div class="footer-about">
+          <h3>MyDeck</h3>
+          <p>
+            An Android client for <a href="https://readeck.org/en/">Readeck</a>, your self-hosted read-it-later service.
+            Developed by Nathan A. Eaton Jr. (with help from AI).
+            Built on the foundation of <a href="https://github.com/jensomato/ReadeckApp">ReadeckApp</a> by jensomato.
+            Licensed under the <a href="https://github.com/NateEaton/mydeck-android/blob/main/LICENSE">GPL v3</a>.
+          </p>
+        </div>
+        <div class="footer-col">
+          <h3>MyDeck</h3>
+          <ul>
+            <li><a href="https://github.com/NateEaton/mydeck-android/releases/latest">Download</a></li>
+            <li><a href="https://github.com/NateEaton/mydeck-android">GitHub</a></li>
+            <li><a href="https://github.com/NateEaton/mydeck-android/releases">Releases</a></li>
+            <li><a href="https://github.com/NateEaton/mydeck-android/issues">Report Issues</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h3>Links</h3>
+          <ul>
+            <li><a href="https://readeck.org/en/">Readeck</a></li>
+            <li><a href="https://readeck.org/en/start">Get Readeck</a></li>
+            <li><a href="https://github.com/jensomato/ReadeckApp">ReadeckApp</a></li>
+            <li><a href="https://github.com/NateEaton/mydeck-android/blob/main/LICENSE">GPL v3 License</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        © 2025 Nathan A. Eaton Jr. &nbsp;·&nbsp; MyDeck is not affiliated with the Readeck project.
+      </div>
+    </div>
+  </footer>
 
-  slides.forEach(function(_, i) {
-    var d = document.createElement('button');
-    d.className = 'cdot' + (i===0 ? ' on' : '');
-    d.setAttribute('aria-label', 'Slide ' + (i+1));
-    d.addEventListener('click', function() { go(i); });
-    dotsEl.appendChild(d);
-  });
+  <script>
+    // Carousel
+    (function () {
+      var track = document.getElementById('carouselTrack');
+      var dotsEl = document.getElementById('cDots');
+      var slides = Array.from(track.querySelectorAll('.car-slide'));
+      var n = slides.length, cur = 0;
 
-  function vis() {
-    var w = window.innerWidth;
-    return w < 500 ? 2 : w < 720 ? 3 : w < 960 ? 4 : 5;
-  }
+      slides.forEach(function (_, i) {
+        var d = document.createElement('button');
+        d.className = 'cdot' + (i === 0 ? ' on' : '');
+        d.setAttribute('aria-label', 'Slide ' + (i + 1));
+        d.addEventListener('click', function () { go(i); });
+        dotsEl.appendChild(d);
+      });
 
-  function go(idx) {
-    cur = Math.max(0, Math.min(idx, n - vis()));
-    track.style.transform = 'translateX(-' + (cur*(slides[0].offsetWidth+14)) + 'px)';
-    dotsEl.querySelectorAll('.cdot').forEach(function(d,i) {
-      d.classList.toggle('on', i===cur);
-    });
-  }
+      function vis() {
+        var w = window.innerWidth;
+        return w < 500 ? 2 : w < 720 ? 3 : w < 960 ? 4 : 5;
+      }
 
-  document.getElementById('prevBtn').addEventListener('click', function() { go(cur-1); });
-  document.getElementById('nextBtn').addEventListener('click', function() { go(cur+1); });
+      function go(idx) {
+        cur = Math.max(0, Math.min(idx, n - vis()));
+        track.style.transform = 'translateX(-' + (cur * (slides[0].offsetWidth + 14)) + 'px)';
+        dotsEl.querySelectorAll('.cdot').forEach(function (d, i) {
+          d.classList.toggle('on', i === cur);
+        });
+      }
 
-  var sx=0;
-  track.addEventListener('touchstart', function(e) { sx=e.touches[0].clientX; }, {passive:true});
-  track.addEventListener('touchend', function(e) {
-    var dx = e.changedTouches[0].clientX - sx;
-    if (Math.abs(dx) > 36) go(cur + (dx<0 ? 1 : -1));
-  }, {passive:true});
+      document.getElementById('prevBtn').addEventListener('click', function () { go(cur - 1); });
+      document.getElementById('nextBtn').addEventListener('click', function () { go(cur + 1); });
 
-  window.addEventListener('resize', function() { go(cur); });
-})();
-</script>
+      var sx = 0;
+      track.addEventListener('touchstart', function (e) { sx = e.touches[0].clientX; }, { passive: true });
+      track.addEventListener('touchend', function (e) {
+        var dx = e.changedTouches[0].clientX - sx;
+        if (Math.abs(dx) > 36) go(cur + (dx < 0 ? 1 : -1));
+      }, { passive: true });
+
+      window.addEventListener('resize', function () { go(cur); });
+    })();
+  </script>
 </body>
+
 </html>
