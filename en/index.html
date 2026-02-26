@@ -14,13 +14,11 @@
   <style>
     /* ══════════════════════════════════════════════════
        DESIGN TOKENS
-       Faithfully derived from the actual source CSS of
-       readeck.org (via MHT inspection) and Pocket 2020.
+       Color palette aligned with Readeck's design identity.
        Accent palette from MyDeck icon: teal bg, green/
        yellow/red ribbons.
     ══════════════════════════════════════════════════ */
     :root {
-      /* ── Readeck exact color scale (rgb channel values) ── */
       --c-gray-50: 252 251 251;
       /* page bg */
       --c-gray-100: 246 244 242;
@@ -55,23 +53,11 @@
       /* Hero: icon background dark teal */
       --hero-bg: #1E5F5E;
 
-      /* Pocket alternating panel backgrounds */
-      --panel-light: #f8f8f8;
-      /* Pocket --light-gray */
-      --panel-mid: #f2f2f2;
-      /* Pocket --mid-gray */
-
-      /* Readeck screenshot gradient (exact from CSS) */
-      --grad-from: #96d1df8c;
-      --grad-to: #eaecc679;
-
       /* Typography */
       --font: 'Public Sans', 'Helvetica Neue', Arial, sans-serif;
 
       --mw: 70rem;
-      /* matches both Readeck and Pocket ~900-1120px */
       --r: 4px;
-      /* Readeck uses 0.25rem radius */
     }
 
     *,
@@ -116,7 +102,7 @@
       padding: 0 1rem;
     }
 
-    /* ── BTN-CTA: exact Readeck style ── */
+    /* ── BTN-CTA ── */
     .btn-cta {
       display: inline-block;
       border-radius: var(--r);
@@ -160,7 +146,7 @@
     }
 
     /* ══════════════════════════════════════════════════
-       NAV — Readeck style: white, sticky, thin border
+       NAV — white, sticky, thin border
     ══════════════════════════════════════════════════ */
     .site-nav {
       position: sticky;
@@ -182,7 +168,6 @@
       align-items: center;
       gap: 0.6rem;
       font-weight: 200;
-      /* Readeck uses font-weight:100 for its nav h1 */
       font-size: 1.8rem;
       color: rgb(var(--c-gray-900));
       letter-spacing: -0.02em;
@@ -207,9 +192,7 @@
     }
 
     /* ══════════════════════════════════════════════════
-       HERO — Pocket-style: full-width dark photo band,
-       text only (no image column), big headline, CTA.
-       Pocket hero was 600px tall with background image.
+       HERO — full-width dark band, text only, big headline, CTA.
     ══════════════════════════════════════════════════ */
     .hero {
       background-color: #1c2c1c;
@@ -316,9 +299,8 @@
     }
 
     /* ══════════════════════════════════════════════════
-       ALTERNATING PANELS — Pocket style.
+       PANELS — full-width alternating content sections.
        max-width 900px, padding 80px 0, flex row / row-reverse
-       alternating --panel-light / --panel-mid backgrounds
     ══════════════════════════════════════════════════ */
     .panel-section {
       padding: 0;
@@ -361,14 +343,8 @@
       padding-left: 0.75rem;
     }
 
-    /* Readeck mark: SVG wavy highlight #ffe1a1 */
     .panel-text mark {
-      background-color: transparent;
-      background-image: "data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='96' height='48' viewBox='0 0 300 150'%3E%3Cpath fill='%23ffe1a1' d='M12 48c0 2.09-.21 6.99.6 8.72 2.99 6.46 13.49-.08 20.4 6.28-2.16.18-9.95.87-11.2 2.02-3.78 2.86-.51 11.33 0 14.98v6L40 87c-.07 1.88.06 4.04-1.02 5.69-1.47 2.24-3.83 2.06-6.39 3.51-4.26 2.41-5.72 6.02-5.25 10.8l2.68 16.41c1.8 2.34 9.99 4.54 12.98 4.59h44c1.08-6.44 4.16-6.2 10-5.96l12 .96h19l54-1c12.58-.03 6.42-2.97 19-3h42l15-1c1.53-8.9 8.01-4.63 12.4-8.85 2.21-2.12 1.9-8.3 1.6-11.15l8-1c0-2.9.26-8.45-.74-10.98-2.77-7.04-14.63-9.14-21.26-10.02 7.15-6.81 18.4-2.97 16.85-13.96-.38-2.69-1.12-3.19-2.85-5.04 9.68-3.23 9-2.72 9-13l-23-1.62c-8-1.54-6.52-4.35-23-4.38l-46 1-12 .82L159 38h-31c-11.1.02-7.84 1.4-15 2.67l-16 1.5-10 1.66L57 45l-25 3z'/%3E%3C/svg%3E";
-      background-repeat: no-repeat;
-      background-position: 0 95%;
-      background-size: 100% 45%;
-      padding-bottom: 2px;
+      background-color: #ffe1a1;
       color: inherit;
     }
 
@@ -525,8 +501,7 @@
     }
 
     /* ══════════════════════════════════════════════════
-       SCREENSHOT BAND — Readeck style gradient
-       exact colors: #96d1df (with 55% alpha) → #eaecc6 (47% alpha)
+       SCREENSHOT BAND
     ══════════════════════════════════════════════════ */
     .ss-band {
       background-color: #1E5F5E;
@@ -658,8 +633,7 @@
     }
 
     /* ══════════════════════════════════════════════════
-       FEATURES — Readeck style 3-col grid
-       h2 with teal icon, mark highlights, generous margin
+       FEATURES — 3-col grid, h2 with teal icon, mark highlights
     ══════════════════════════════════════════════════ */
     .features-section {
       padding: 4rem 1rem 5rem;
@@ -717,20 +691,13 @@
       margin-bottom: 0.2rem;
     }
 
-    /* Readeck mark inside features */
     .feat mark {
-      background-color: transparent;
-      background-image: "data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='96' height='48' viewBox='0 0 300 150'%3E%3Cpath fill='%23ffe1a1' d='M12 48c0 2.09-.21 6.99.6 8.72 2.99 6.46 13.49-.08 20.4 6.28-2.16.18-9.95.87-11.2 2.02-3.78 2.86-.51 11.33 0 14.98v6L40 87c-.07 1.88.06 4.04-1.02 5.69-1.47 2.24-3.83 2.06-6.39 3.51-4.26 2.41-5.72 6.02-5.25 10.8l2.68 16.41c1.8 2.34 9.99 4.54 12.98 4.59h44c1.08-6.44 4.16-6.2 10-5.96l12 .96h19l54-1c12.58-.03 6.42-2.97 19-3h42l15-1c1.53-8.9 8.01-4.63 12.4-8.85 2.21-2.12 1.9-8.3 1.6-11.15l8-1c0-2.9.26-8.45-.74-10.98-2.77-7.04-14.63-9.14-21.26-10.02 7.15-6.81 18.4-2.97 16.85-13.96-.38-2.69-1.12-3.19-2.85-5.04 9.68-3.23 9-2.72 9-13l-23-1.62c-8-1.54-6.52-4.35-23-4.38l-46 1-12 .82L159 38h-31c-11.1.02-7.84 1.4-15 2.67l-16 1.5-10 1.66L57 45l-25 3z'/%3E%3C/svg%3E";
-      background-repeat: no-repeat;
-      background-position: 0 95%;
-      background-size: 100% 45%;
-      padding-bottom: 2px;
+      background-color: #ffe1a1;
       color: inherit;
     }
 
     /* ══════════════════════════════════════════════════
-       START SAVING BAND — Pocket style: dark photo band
-       with centered CTA. We use a gradient instead of photo.
+       START SAVING BAND — dark gradient band with centered CTA.
     ══════════════════════════════════════════════════ */
     .start-band {
       background-color: #1c2c1c;
@@ -772,7 +739,7 @@
     }
 
     /* ══════════════════════════════════════════════════
-       FOOTER — Readeck style: gray gradient, 3-col links
+       FOOTER — gray gradient, link columns
     ══════════════════════════════════════════════════ */
     footer {
       border-top: 1px solid rgb(var(--c-gray-300));
@@ -1244,7 +1211,6 @@
               <div style="height:6px;border-radius:3px;background:rgb(228,223,220);width:100%;"></div>
               <div style="height:6px;border-radius:3px;background:rgb(228,223,220);width:93%;"></div>
               <div style="height:6px;border-radius:3px;background:rgb(228,223,220);width:87%;"></div>
-              <!-- highlighted line (Readeck mark color #ffe1a1) -->
               <div style="height:6px;border-radius:3px;background:#ffe1a1;width:76%;"></div>
               <div style="height:6px;border-radius:3px;background:rgb(228,223,220);width:95%;"></div>
               <div style="height:6px;border-radius:3px;background:rgb(228,223,220);width:82%;"></div>
