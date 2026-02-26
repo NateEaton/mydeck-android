@@ -9,16 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- In-app user guide accessible from the About screen
-
 ### Changed
-
-- Account settings now displays only the base server URL
-- Adjusted branding layouts for welcome and authorization screens
 
 ### Fixed
 
-- Filter UX improvements: keyboard action support and preset reset behavior
+## [0.10.0] - 2026-02-26
+
+### Added
+
+- docs: Add fork differences, contributing guide, and issue templates
+
+### Changed
+
+- Refine sign-on and authorization screen branding layout
+- Show base server URL in Account settings (hide /api)
+- Improve filter UX with keyboard actions and preset reset behavior
+- docs: Refactor README
 
 ## [0.9.2] - 2026-02-22
 
