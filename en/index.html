@@ -564,6 +564,7 @@
       will-change: transform;
       user-select: none;
       cursor: grab;
+      touch-action: pan-y;
     }
     .car-track.dragging { cursor: grabbing; transition: none; }
 
@@ -819,9 +820,12 @@
 
     .footer-col ul {
       list-style: none;
-      display: flex;
-      flex-direction: column;
-      gap: 0.4rem;
+      columns: 2;
+      column-gap: 1.5rem;
+    }
+    .footer-col li {
+      margin-bottom: 0.4rem;
+      break-inside: avoid;
     }
 
     .footer-col li a {
@@ -1167,7 +1171,7 @@
     <div class="panel-wrap">
       <div class="panel reverse">
         <div class="panel-text">
-          <h2>Three layouts.<br>One <mark>library</mark>.</h2>
+          <h2>Three layouts.<br>One <mark>list</mark>.</h2>
           <p>Switch between Grid, Compact, and Mosaic views to match your content and reading mood. Optimized for
             tablets and landscape orientation too — not just portrait phones.</p>
           <p>Your preferred layout is saved so the app always opens exactly how you left it.</p>
@@ -1432,6 +1436,15 @@
     </div>
   </footer>
 
+
+  <!-- LIGHTBOX ══════════════════════════════ -->
+  <div class="lb-overlay" id="lbOverlay" role="dialog" aria-modal="true" aria-label="Screenshot preview">
+    <div class="lb-img-wrap">
+      <button class="lb-close" id="lbClose" aria-label="Close">&#x2715;</button>
+      <img id="lbImg" src="" alt="" />
+      <div class="lb-caption" id="lbCaption"></div>
+    </div>
+  </div>
   <script>
     (function () {
       // ── Carousel ─────────────────────────────────────────────────────────
@@ -1571,14 +1584,6 @@
     })();
   </script>
 
-  <!-- LIGHTBOX ══════════════════════════════ -->
-  <div class="lb-overlay" id="lbOverlay" role="dialog" aria-modal="true" aria-label="Screenshot preview">
-    <div class="lb-img-wrap">
-      <button class="lb-close" id="lbClose" aria-label="Close">&#x2715;</button>
-      <img id="lbImg" src="" alt="" />
-      <div class="lb-caption" id="lbCaption"></div>
-    </div>
-  </div>
 
 </body>
 
