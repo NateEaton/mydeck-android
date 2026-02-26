@@ -26,3 +26,6 @@
 # Helpful for Retrofit / JSON reflection frameworks
 -keepattributes *Annotation*
 -keepattributes Signature
+ 
+ # Suppress warnings/errors for missing GIF library (likely transitive dependency from Markwon/Coil)
+ -dontwarn pl.droidsonroids.gif.GifDrawable
