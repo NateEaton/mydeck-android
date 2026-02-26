@@ -208,11 +208,10 @@
     }
 
     .hero-inner {
-      max-width: var(--mw);
+      max-width: 680px;
       margin: 0 auto;
       padding: 0 1rem;
       text-align: left;
-      max-width: 680px;
     }
 
     .hero h1 {
@@ -1456,6 +1455,7 @@
       // ── Pointer drag (mouse + touch + pen) ─────────────────────────────
       track.addEventListener('pointerdown', function (e) {
         if (e.button !== 0) return;          // left-click / primary touch only
+        e.preventDefault();                  // prevent text-selection / back-nav gesture on mobile
         isDragging = true;
         startX = e.clientX;
         startY = e.clientY;
