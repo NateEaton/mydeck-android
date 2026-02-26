@@ -375,6 +375,21 @@
     }
 
     /* Mock UI for panel visuals */
+    /* Real screenshot panels */
+    .panel-shot {
+      border-radius: 10px;
+      overflow: hidden;
+      border: 1px solid rgb(var(--c-gray-200));
+      box-shadow: 0 4px 16px rgba(112, 97, 86, 0.12), 0 1px 4px rgba(112, 97, 86, 0.07);
+    }
+
+    .panel-shot img {
+      display: block;
+      width: 100%;
+      height: auto;
+      -webkit-user-drag: none;
+    }
+
     .mock {
       background: #fff;
       border: 1px solid rgb(var(--c-gray-200));
@@ -1083,47 +1098,10 @@
           </div>
         </div>
         <div class="panel-visual">
-          <div class="mock" aria-hidden="true">
-            <div class="mock-tabs">
-              <div class="mock-tab active">My List</div>
-              <div class="mock-tab">Archive</div>
-              <div class="mock-tab">Favorites</div>
-            </div>
-            <div class="mock-rows">
-              <div class="mock-row">
-                <div class="mock-thumb" style="background:linear-gradient(135deg,#dff3f3,#a8dede)"></div>
-                <div class="mock-lines">
-                  <div class="mock-line m"></div>
-                  <div class="mock-line s"></div>
-                  <div class="mock-line tag"></div>
-                  <div class="mock-prog">
-                    <div class="mock-prog-fill" style="width:65%"></div>
-                  </div>
-                </div>
-              </div>
-              <div class="mock-row">
-                <div class="mock-thumb" style="background:linear-gradient(135deg,#e8f6ea,#b8dca0)"></div>
-                <div class="mock-lines">
-                  <div class="mock-line m"></div>
-                  <div class="mock-line s"></div>
-                  <div class="mock-line tag"></div>
-                  <div class="mock-prog">
-                    <div class="mock-prog-fill" style="width:30%"></div>
-                  </div>
-                </div>
-              </div>
-              <div class="mock-row">
-                <div class="mock-thumb" style="background:linear-gradient(135deg,#fdf3d5,#f5d98a)"></div>
-                <div class="mock-lines">
-                  <div class="mock-line m"></div>
-                  <div class="mock-line s"></div>
-                  <div class="mock-line tag"></div>
-                  <div class="mock-prog">
-                    <div class="mock-prog-fill" style="width:10%"></div>
-                  </div>
-                </div>
-              </div>
-            </div>
+          <div class="panel-shot" style="aspect-ratio:1837/932">
+            <img src="../metadata/en-US/images/tabletScreenshots/screenshot11.png"
+                 alt="MyDeck tablet showing My List with navigation rail"
+                 draggable="false" />
           </div>
         </div>
       </div>
@@ -1139,42 +1117,10 @@
           <p>Your preferred layout is saved so the app always opens exactly how you left it.</p>
         </div>
         <div class="panel-visual">
-          <div class="mock" aria-hidden="true">
-            <div class="mock-tabs">
-              <div class="mock-tab active">Mosaic</div>
-              <div class="mock-tab">Grid</div>
-              <div class="mock-tab">Compact</div>
-            </div>
-            <div class="mock-grid2">
-              <div class="mock-card">
-                <div class="mock-card-thumb" style="background:linear-gradient(135deg,#dff3f3,#a8dede)"></div>
-                <div class="mock-card-body">
-                  <div class="mock-card-line"></div>
-                  <div class="mock-card-line s"></div>
-                </div>
-              </div>
-              <div class="mock-card">
-                <div class="mock-card-thumb" style="background:linear-gradient(135deg,#e8f6ea,#b8dca0)"></div>
-                <div class="mock-card-body">
-                  <div class="mock-card-line"></div>
-                  <div class="mock-card-line s"></div>
-                </div>
-              </div>
-              <div class="mock-card">
-                <div class="mock-card-thumb" style="background:linear-gradient(135deg,#fdf3d5,#f5d98a)"></div>
-                <div class="mock-card-body">
-                  <div class="mock-card-line"></div>
-                  <div class="mock-card-line s"></div>
-                </div>
-              </div>
-              <div class="mock-card">
-                <div class="mock-card-thumb" style="background:linear-gradient(135deg,#fdecec,#f0aeae)"></div>
-                <div class="mock-card-body">
-                  <div class="mock-card-line"></div>
-                  <div class="mock-card-line s"></div>
-                </div>
-              </div>
-            </div>
+          <div class="panel-shot" style="aspect-ratio:2798/1837">
+            <img src="../metadata/en-US/images/tabletScreenshots/screenshot10.png"
+                 alt="MyDeck tablet in landscape showing nav drawer and grid view"
+                 draggable="false" />
           </div>
         </div>
       </div>
@@ -1191,27 +1137,10 @@
             highlighted matches without ever leaving the reader.</p>
         </div>
         <div class="panel-visual">
-          <div class="mock" aria-hidden="true">
-            <div style="padding:.35rem 0 .65rem;border-bottom:1px solid rgb(228,223,220);margin-bottom:.65rem;">
-              <div
-                style="height:9px;border-radius:4px;background:rgb(43,37,33);width:68%;margin-bottom:5px;opacity:.85;">
-              </div>
-              <div style="height:6px;border-radius:3px;background:rgb(228,223,220);width:40%;margin-bottom:4px;"></div>
-              <div style="display:flex;gap:5px;">
-                <div style="height:5px;border-radius:2px;background:rgb(11,142,172,0.2);width:44px;"></div>
-                <div style="height:5px;border-radius:2px;background:rgb(228,223,220);width:26px;"></div>
-              </div>
-            </div>
-            <div style="display:flex;flex-direction:column;gap:5px;">
-              <div style="height:6px;border-radius:3px;background:rgb(228,223,220);width:100%;"></div>
-              <div style="height:6px;border-radius:3px;background:rgb(228,223,220);width:93%;"></div>
-              <div style="height:6px;border-radius:3px;background:rgb(228,223,220);width:87%;"></div>
-              <div style="height:6px;border-radius:3px;background:#ffe1a1;width:76%;"></div>
-              <div style="height:6px;border-radius:3px;background:rgb(228,223,220);width:95%;"></div>
-              <div style="height:6px;border-radius:3px;background:rgb(228,223,220);width:82%;"></div>
-              <div style="height:6px;border-radius:3px;background:rgb(228,223,220);width:100%;"></div>
-              <div style="height:6px;border-radius:3px;background:rgb(228,223,220);width:55%;"></div>
-            </div>
+          <div class="panel-shot" style="aspect-ratio:1837/699">
+            <img src="../metadata/en-US/images/tabletScreenshots/screenshot12.png"
+                 alt="MyDeck tablet article reader showing clean reading view"
+                 draggable="false" />
           </div>
         </div>
       </div>
@@ -1224,45 +1153,36 @@
     <div class="container">
       <div class="ss-head">
         <h2>See it in action</h2>
-        <p>Screenshots coming soon — visit the <a href="https://github.com/NateEaton/mydeck-android">GitHub
-            repository</a> for more details.</p>
+        <p>Tap any screenshot to zoom in.</p>
       </div>
       <div class="car-outer">
         <div class="car-track" id="carouselTrack">
-          <!--
-          Replace .sph with <img src="../docs/screenshots/name.png" alt="..." />
-          once screenshots are ready.
-        -->
           <div class="car-slide"><img src="../metadata/en-US/images/phoneScreenshots/screenshot1.png" alt="My List" draggable="false" />
             <div class="slbl">My List</div>
           </div>
-          <div class="car-slide">
-            <div class="sph">Grid Layout</div>
+          <div class="car-slide"><img src="../metadata/en-US/images/phoneScreenshots/screenshot2.png" alt="Grid Layout" draggable="false" />
             <div class="slbl">Grid Layout</div>
           </div>
-          <div class="car-slide">
-            <div class="sph">Mosaic Layout</div>
-            <div class="slbl">Mosaic Layout</div>
+          <div class="car-slide"><img src="../metadata/en-US/images/phoneScreenshots/screenshot3.png" alt="Compact View" draggable="false" />
+            <div class="slbl">Compact View</div>
           </div>
-          <div class="car-slide">
-            <div class="sph">Article Reader</div>
+          <div class="car-slide"><img src="../metadata/en-US/images/phoneScreenshots/screenshot4.png" alt="Mosaic View" draggable="false" />
+            <div class="slbl">Mosaic View</div>
+          </div>
+          <div class="car-slide"><img src="../metadata/en-US/images/phoneScreenshots/screenshot5.png" alt="Article Reader" draggable="false" />
             <div class="slbl">Article Reader</div>
           </div>
-          <div class="car-slide">
-            <div class="sph">Typography</div>
-            <div class="slbl">Typography</div>
+          <div class="car-slide"><img src="../metadata/en-US/images/phoneScreenshots/screenshot6.png" alt="Reading Settings" draggable="false" />
+            <div class="slbl">Reading Settings</div>
           </div>
-          <div class="car-slide">
-            <div class="sph">Labels</div>
-            <div class="slbl">Labels</div>
+          <div class="car-slide"><img src="../metadata/en-US/images/phoneScreenshots/screenshot7.png" alt="Label Filter" draggable="false" />
+            <div class="slbl">Label Filter</div>
           </div>
-          <div class="car-slide">
-            <div class="sph">Share Sheet</div>
-            <div class="slbl">Share Sheet</div>
+          <div class="car-slide"><img src="../metadata/en-US/images/phoneScreenshots/screenshot8.png" alt="Save to MyDeck" draggable="false" />
+            <div class="slbl">Save to MyDeck</div>
           </div>
-          <div class="car-slide">
-            <div class="sph">Settings</div>
-            <div class="slbl">Settings</div>
+          <div class="car-slide"><img src="../metadata/en-US/images/phoneScreenshots/screenshot9.png" alt="App Settings" draggable="false" />
+            <div class="slbl">App Settings</div>
           </div>
         </div>
       </div>
