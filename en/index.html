@@ -554,18 +554,22 @@
 
     .car-outer {
       overflow: hidden;
+      position: relative;
     }
 
     .car-track {
       display: flex;
       gap: 14px;
-      transition: transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+      transition: transform 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94);
       will-change: transform;
+      user-select: none;
+      cursor: grab;
     }
+    .car-track.dragging { cursor: grabbing; transition: none; }
 
     .car-slide {
       flex-shrink: 0;
-      width: 175px;
+      width: 220px;
       text-align: center;
     }
 
@@ -578,7 +582,9 @@
       border: 1px solid rgba(0, 0, 0, 0.08);
       box-shadow: 0 4px 18px rgba(0, 0, 0, 0.13);
       object-fit: cover;
+      -webkit-user-drag: none;
     }
+    .car-slide img { cursor: zoom-in; }
 
     .sph {
       background: linear-gradient(160deg,
@@ -990,6 +996,72 @@
         font-size: 2.4rem;
       }
     }
+
+    /* ── Lightbox ─────────────────────────────── */
+    .lb-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.9);
+      z-index: 200;
+      align-items: center;
+      justify-content: center;
+      cursor: zoom-out;
+    }
+
+    .lb-overlay.open {
+      display: flex;
+    }
+
+    .lb-img-wrap {
+      position: relative;
+      max-width: 90vw;
+      max-height: 90vh;
+    }
+
+    .lb-overlay img {
+      display: block;
+      max-width: 90vw;
+      max-height: 90vh;
+      border-radius: 12px;
+      box-shadow: 0 12px 60px rgba(0, 0, 0, 0.6);
+      pointer-events: none;
+    }
+
+    .lb-close {
+      position: absolute;
+      top: -14px;
+      right: -14px;
+      background: rgba(255, 255, 255, 0.15);
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      backdrop-filter: blur(6px);
+      color: #fff;
+      font-size: 1rem;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.15s;
+      z-index: 1;
+    }
+
+    .lb-close:hover {
+      background: rgba(255, 255, 255, 0.28);
+    }
+
+    .lb-caption {
+      position: absolute;
+      bottom: -2rem;
+      left: 0;
+      right: 0;
+      text-align: center;
+      font-size: 0.78rem;
+      color: rgba(255, 255, 255, 0.5);
+      letter-spacing: 0.04em;
+    }
   </style>
 </head>
 
@@ -1361,13 +1433,19 @@
   </footer>
 
   <script>
-    // Carousel
     (function () {
-      var track = document.getElementById('carouselTrack');
-      var dotsEl = document.getElementById('cDots');
-      var slides = Array.from(track.querySelectorAll('.car-slide'));
+      // ── Carousel ─────────────────────────────────────────────────────────
+      var track   = document.getElementById('carouselTrack');
+      var dotsEl  = document.getElementById('cDots');
+      var slides  = Array.from(track.querySelectorAll('.car-slide'));
       var n = slides.length, cur = 0;
+      var offset = 0;              // current px offset
+      var isDragging = false;
+      var didDrag    = false;      // true if pointer moved enough to count as drag
+      var startX = 0, startOff = 0;
+      var velX = 0, lastX = 0, lastT = 0;
 
+      // Build dot nav
       slides.forEach(function (_, i) {
         var d = document.createElement('button');
         d.className = 'cdot' + (i === 0 ? ' on' : '');
@@ -1376,32 +1454,132 @@
         dotsEl.appendChild(d);
       });
 
-      function vis() {
-        var w = window.innerWidth;
-        return w < 500 ? 2 : w < 720 ? 3 : w < 960 ? 4 : 5;
+      function gap()     { return 14; }
+      function slideW()  { return slides[0].offsetWidth + gap(); }
+      function vis()     { var w = window.innerWidth; return w < 500 ? 2 : w < 720 ? 3 : w < 960 ? 4 : 5; }
+      function maxOff()  { return Math.max(0, (n - vis()) * slideW()); }
+
+      function setOff(px, animated) {
+        track.style.transition = animated
+          ? 'transform 0.35s cubic-bezier(0.25,0.46,0.45,0.94)'
+          : 'none';
+        track.style.transform = 'translateX(-' + px + 'px)';
+        offset = px;
       }
 
       function go(idx) {
         cur = Math.max(0, Math.min(idx, n - vis()));
-        track.style.transform = 'translateX(-' + (cur * (slides[0].offsetWidth + 14)) + 'px)';
+        setOff(cur * slideW(), true);
         dotsEl.querySelectorAll('.cdot').forEach(function (d, i) {
           d.classList.toggle('on', i === cur);
         });
       }
 
+      // ── Pointer drag (mouse + touch + pen) ─────────────────────────────
+      track.addEventListener('pointerdown', function (e) {
+        if (e.button !== 0) return;          // left-click / primary touch only
+        isDragging = true;
+        didDrag    = false;
+        startX     = e.clientX;
+        startOff   = offset;
+        velX = 0; lastX = e.clientX; lastT = performance.now();
+        track.setPointerCapture(e.pointerId);
+        track.classList.add('dragging');
+        setOff(offset, false);               // kill any running transition
+      });
+
+      track.addEventListener('pointermove', function (e) {
+        if (!isDragging) return;
+        var dx = e.clientX - startX;
+        if (Math.abs(dx) > 5) didDrag = true;
+        var now = performance.now();
+        velX  = (e.clientX - lastX) / Math.max(1, now - lastT);
+        lastX = e.clientX;
+        lastT = now;
+        // rubber-band past edges
+        var raw = startOff - dx;
+        var clamped = Math.max(-60, Math.min(maxOff() + 60, raw));
+        setOff(clamped, false);
+      });
+
+      track.addEventListener('pointerup', function () {
+        if (!isDragging) return;
+        isDragging = false;
+        track.classList.remove('dragging');
+        // project forward by ~150 ms of velocity, snap to nearest
+        var projected = offset - velX * 150;
+        projected = Math.max(0, Math.min(maxOff(), projected));
+        go(Math.round(projected / slideW()));
+      });
+
+      track.addEventListener('pointercancel', function () {
+        isDragging = false;
+        track.classList.remove('dragging');
+        go(cur);
+      });
+
+      // Swallow click if it was actually a drag
+      track.addEventListener('click', function (e) {
+        if (didDrag) { e.stopPropagation(); e.preventDefault(); }
+      }, true);
+
+      // Keyboard
+      window.addEventListener('keydown', function (e) {
+        if (document.getElementById('lbOverlay').classList.contains('open')) return;
+        if (e.key === 'ArrowLeft')  go(cur - 1);
+        if (e.key === 'ArrowRight') go(cur + 1);
+      });
+
       document.getElementById('prevBtn').addEventListener('click', function () { go(cur - 1); });
       document.getElementById('nextBtn').addEventListener('click', function () { go(cur + 1); });
-
-      var sx = 0;
-      track.addEventListener('touchstart', function (e) { sx = e.touches[0].clientX; }, { passive: true });
-      track.addEventListener('touchend', function (e) {
-        var dx = e.changedTouches[0].clientX - sx;
-        if (Math.abs(dx) > 36) go(cur + (dx < 0 ? 1 : -1));
-      }, { passive: true });
-
       window.addEventListener('resize', function () { go(cur); });
+
+      // ── Lightbox ─────────────────────────────────────────────────────────
+      var overlay  = document.getElementById('lbOverlay');
+      var lbImg    = document.getElementById('lbImg');
+      var lbCaption = document.getElementById('lbCaption');
+
+      function openLb(src, alt) {
+        lbImg.src      = src;
+        lbImg.alt      = alt;
+        lbCaption.textContent = alt;
+        overlay.classList.add('open');
+        document.body.style.overflow = 'hidden';
+      }
+
+      function closeLb() {
+        overlay.classList.remove('open');
+        document.body.style.overflow = '';
+      }
+
+      slides.forEach(function (slide) {
+        var img = slide.querySelector('img');
+        if (!img) return;
+        slide.addEventListener('click', function () {
+          if (didDrag) return;
+          openLb(img.src, img.alt || slide.querySelector('.slbl').textContent);
+        });
+      });
+
+      overlay.addEventListener('click', function (e) {
+        if (e.target === overlay) closeLb();
+      });
+      document.getElementById('lbClose').addEventListener('click', closeLb);
+      window.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') closeLb();
+      });
     })();
   </script>
+
+  <!-- LIGHTBOX ══════════════════════════════ -->
+  <div class="lb-overlay" id="lbOverlay" role="dialog" aria-modal="true" aria-label="Screenshot preview">
+    <div class="lb-img-wrap">
+      <button class="lb-close" id="lbClose" aria-label="Close">&#x2715;</button>
+      <img id="lbImg" src="" alt="" />
+      <div class="lb-caption" id="lbCaption"></div>
+    </div>
+  </div>
+
 </body>
 
 </html>
