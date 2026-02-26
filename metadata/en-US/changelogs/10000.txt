@@ -1,0 +1,8 @@
+<b>Added</b>
+- docs: Add fork differences, contributing guide, and issue templates
+
+<b>Changed</b>
+- Refine sign-on and authorization screen branding layout
+- Show base server URL in Account settings (hide /api)
+- Improve filter UX with keyboard actions and preset reset behavior
+- docs: Refactor README
