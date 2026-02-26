@@ -325,15 +325,8 @@
     }
 
     .panel-wrap {
+      background: rgb(var(--c-gray-100));
       padding: 5rem 1rem;
-    }
-
-    .panel-wrap:nth-child(odd) {
-      background: var(--panel-mid);
-    }
-
-    .panel-wrap:nth-child(even) {
-      background: var(--panel-light);
     }
 
     .panel {
@@ -364,6 +357,8 @@
       letter-spacing: -0.025em;
       color: rgb(var(--c-gray-900));
       margin-bottom: 0.75rem;
+      border-left: 3px solid rgb(var(--c-primary));
+      padding-left: 0.75rem;
     }
 
     /* Readeck mark: SVG wavy highlight #ffe1a1 */
