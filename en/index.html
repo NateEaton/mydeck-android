@@ -1130,7 +1130,7 @@
           </div>
         </div>
         <div class="panel-visual">
-          <div class="panel-shot" style="aspect-ratio:1837/932">
+          <div class="panel-shot" style="aspect-ratio:1837/1250">
             <img src="../metadata/en-US/images/tabletScreenshots/screenshot16.png"
               alt="MyDeck tablet showing My List with navigation rail" draggable="false" />
           </div>
@@ -1402,25 +1402,35 @@
       var startX = 0, startY = 0, startOff = 0;
       var velX = 0, lastX = 0, lastT = 0;
 
-      // Build dot nav
-      slides.forEach(function (_, i) {
-        var d = document.createElement('button');
-        d.className = 'cdot' + (i === 0 ? ' on' : '');
-        d.setAttribute('aria-label', 'Slide ' + (i + 1));
-        d.addEventListener('click', function () { go(i); });
-        dotsEl.appendChild(d);
-      });
-
       function gap() { return 14; }
       function slideW() { return slides[0].offsetWidth + gap(); }
       function vis() { var w = window.innerWidth; return w < 500 ? 2 : w < 720 ? 3 : w < 960 ? 4 : 5; }
-      // Use actual container width so the last slide is never clipped regardless
-      // of the page's max-width cap (container is 70 rem, not the full viewport).
+      // Compute scroll limit from actual container width, not viewport width.
+      // This matters because the container is capped at 70rem; using window.innerWidth
+      // caused the last slide to land a few dozen px past the right edge.
       function maxOff() {
         var outerW = track.parentElement.offsetWidth;
         var totalW = n * slides[0].offsetWidth + (n - 1) * gap();
         return Math.max(0, totalW - outerW);
       }
+
+      // Build one dot per navigatable *position* (not per slide).
+      // The number of positions is n - vis() + 1, which is viewport-dependent,
+      // so we rebuild on every resize.
+      function buildDots() {
+        var numPos = Math.max(1, n - vis() + 1);
+        dotsEl.innerHTML = '';
+        for (var j = 0; j < numPos; j++) {
+          (function (jj) {
+            var d = document.createElement('button');
+            d.className = 'cdot' + (jj === cur ? ' on' : '');
+            d.setAttribute('aria-label', 'Slide ' + (jj + 1));
+            d.addEventListener('click', function () { go(jj); });
+            dotsEl.appendChild(d);
+          })(j);
+        }
+      }
+      buildDots();
 
       function setOff(px, animated) {
         track.style.transition = animated
@@ -1431,8 +1441,12 @@
       }
 
       function go(idx) {
-        cur = Math.max(0, Math.min(idx, n - vis()));
-        setOff(cur * slideW(), true);
+        var maxIdx = Math.max(0, n - vis());
+        cur = Math.max(0, Math.min(idx, maxIdx));
+        // At the rightmost position use maxOff() exactly so the last slide is
+        // never clipped (cur * slideW() can undershoot by the container-padding delta).
+        var px = (cur >= maxIdx) ? maxOff() : cur * slideW();
+        setOff(px, true);
         dotsEl.querySelectorAll('.cdot').forEach(function (d, i) {
           d.classList.toggle('on', i === cur);
         });
@@ -1501,7 +1515,7 @@
 
       document.getElementById('prevBtn').addEventListener('click', function () { go(cur - 1); });
       document.getElementById('nextBtn').addEventListener('click', function () { go(cur + 1); });
-      window.addEventListener('resize', function () { go(cur); });
+      window.addEventListener('resize', function () { buildDots(); go(cur); });
 
       // ── Lightbox ─────────────────────────────────────────────────────────
       var overlay = document.getElementById('lbOverlay');
