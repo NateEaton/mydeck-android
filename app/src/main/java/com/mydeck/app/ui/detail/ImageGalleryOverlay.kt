@@ -47,6 +47,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
@@ -88,19 +89,23 @@ fun ImageGalleryOverlay(
         )
     ) {
         // Force the Dialog window to fill the screen in all orientations.
-        // usePlatformDefaultWidth = false alone is insufficient — the default dialog
-        // background drawable adds margins that produce the "floating card" look.
-        // Setting it to transparent removes that padding, and setLayout(MATCH_PARENT,
-        // MATCH_PARENT) ensures the window fills the full display in all orientations.
+        //
+        // Two issues to address:
+        //  1. The default dialog background drawable adds padding that produces the
+        //     "floating card" look → cleared with setBackgroundDrawableResource(transparent).
+        //  2. setLayout(MATCH_PARENT, MATCH_PARENT) uses the special -1 value which
+        //     Android resolves as "fill parent" and then clamps to the theme's
+        //     windowMaxWidth (~560dp in Material3). In landscape the screen is wider
+        //     than that limit, so the dialog is narrower than the screen.
+        //     Explicit pixel values from DisplayMetrics bypass the clamp entirely.
+        val context = LocalContext.current
         val dialogWindow = (LocalView.current.parent as? DialogWindowProvider)?.window
         SideEffect {
             dialogWindow?.let { window ->
                 @Suppress("DEPRECATION")
                 window.setBackgroundDrawableResource(android.R.color.transparent)
-                window.setLayout(
-                    ViewGroup.LayoutParams.MATCH_PARENT,
-                    ViewGroup.LayoutParams.MATCH_PARENT,
-                )
+                val dm = context.resources.displayMetrics
+                window.setLayout(dm.widthPixels, dm.heightPixels)
             }
         }
 
