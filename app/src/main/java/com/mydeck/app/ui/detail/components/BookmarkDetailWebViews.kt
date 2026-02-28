@@ -205,15 +205,11 @@ fun BookmarkDetailArticle(
                             )
                             when (result.type) {
                                 WebView.HitTestResult.IMAGE_TYPE -> {
-                                    onImageLongPress(
-                                        imageUrl = result.extra ?: "",
-                                        linkUrl = null,
-                                        linkType = "none"
-                                    )
+                                    onImageLongPress(result.extra ?: "", null, "none")
                                     true
                                 }
                                 WebView.HitTestResult.SRC_ANCHOR_TYPE -> {
-                                    onLinkLongPress(linkUrl = result.extra ?: "")
+                                    onLinkLongPress(result.extra ?: "")
                                     true
                                 }
                                 WebView.HitTestResult.SRC_IMAGE_ANCHOR_TYPE -> {
@@ -223,11 +219,7 @@ fun BookmarkDetailArticle(
                                     ) { imageUrl ->
                                         val cleanUrl = imageUrl?.trim('"') ?: ""
                                         val linkType = if (imageExtRe.containsMatchIn(linkUrl)) "image" else "page"
-                                        onImageLongPress(
-                                            imageUrl = cleanUrl,
-                                            linkUrl = linkUrl,
-                                            linkType = linkType
-                                        )
+                                        onImageLongPress(cleanUrl, linkUrl, linkType)
                                     }
                                     true
                                 }
