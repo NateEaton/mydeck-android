@@ -278,50 +278,56 @@ fun BookmarkDetailHost(
                     viewModel.onUpdateBookmarkStateConsumed()
                 }
             }
-            BookmarkDetailScreen(
-                modifier = Modifier,
-                snackbarHostState = snackbarHostState,
-                onClickBack = if (articleSearchState.isActive) onArticleSearchDeactivate else onClickBack,
-                onClickToggleFavorite = onClickToggleFavorite,
-                onClickToggleArchive = onClickToggleArchive,
-                onClickToggleRead = onClickToggleRead,
-                onClickShareBookmark = onClickShareBookmark,
-                onClickDeleteBookmark = onClickDeleteBookmark,
-                onClickOpenInBrowser = onClickOpenInBrowser,
-                onArticleSearchActivate = onArticleSearchActivate,
-                uiState = uiState,
-                onClickOpenUrl = onClickOpenUrl,
-                onShowDetails = { showDetailsDialog = true },
-                onScrollProgressChanged = { progress ->
-                    viewModel.onScrollProgressChanged(progress)
-                },
-                initialReadProgress = viewModel.getInitialReadProgress(),
-                contentMode = contentMode,
-                onContentModeChange = { contentMode = it },
-                contentLoadState = contentLoadState,
-                articleSearchState = articleSearchState,
-                onArticleSearchDeactivate = onArticleSearchDeactivate,
-                onArticleSearchQueryChange = onArticleSearchQueryChange,
-                onArticleSearchNext = onArticleSearchNext,
-                onArticleSearchPrevious = onArticleSearchPrevious,
-                onArticleSearchUpdateResults = onArticleSearchUpdateResults,
-                onShowTypographyPanel = { showTypographyPanel = true },
-                onTitleChanged = { newTitle ->
-                    viewModel.onUpdateTitle(uiState.bookmark.bookmarkId, newTitle)
-                },
-                onImageTapped = onImageTapped,
-                onImageLongPress = onImageLongPress,
-                onLinkLongPress = onLinkLongPress,
-            )
-
-            // Image gallery overlay
-            if (galleryData != null) {
-                ImageGalleryOverlay(
-                    galleryData = galleryData,
-                    onDismiss = { viewModel.onDismissGallery() },
-                    onOpenLink = { url -> openUrlInCustomTab(context, url) },
-                    onPageChanged = { page -> viewModel.onGalleryPageChanged(page) },
+            // Box ensures the gallery overlay stacks directly on top of the
+            // reader screen regardless of how the NavHost lays out its children.
+            Box(modifier = Modifier.fillMaxSize()) {
+                BookmarkDetailScreen(
+                    modifier = Modifier,
+                    snackbarHostState = snackbarHostState,
+                    onClickBack = if (articleSearchState.isActive) onArticleSearchDeactivate else onClickBack,
+                    onClickToggleFavorite = onClickToggleFavorite,
+                    onClickToggleArchive = onClickToggleArchive,
+                    onClickToggleRead = onClickToggleRead,
+                    onClickShareBookmark = onClickShareBookmark,
+                    onClickDeleteBookmark = onClickDeleteBookmark,
+                    onClickOpenInBrowser = onClickOpenInBrowser,
+                    onArticleSearchActivate = onArticleSearchActivate,
+                    uiState = uiState,
+                    onClickOpenUrl = onClickOpenUrl,
+                    onShowDetails = { showDetailsDialog = true },
+                    onScrollProgressChanged = { progress ->
+                        viewModel.onScrollProgressChanged(progress)
+                    },
+                    initialReadProgress = viewModel.getInitialReadProgress(),
+                    contentMode = contentMode,
+                    onContentModeChange = { contentMode = it },
+                    contentLoadState = contentLoadState,
+                    articleSearchState = articleSearchState,
+                    onArticleSearchDeactivate = onArticleSearchDeactivate,
+                    onArticleSearchQueryChange = onArticleSearchQueryChange,
+                    onArticleSearchNext = onArticleSearchNext,
+                    onArticleSearchPrevious = onArticleSearchPrevious,
+                    onArticleSearchUpdateResults = onArticleSearchUpdateResults,
+                    onShowTypographyPanel = { showTypographyPanel = true },
+                    onTitleChanged = { newTitle ->
+                        viewModel.onUpdateTitle(uiState.bookmark.bookmarkId, newTitle)
+                    },
+                    onImageTapped = onImageTapped,
+                    onImageLongPress = onImageLongPress,
+                    onLinkLongPress = onLinkLongPress,
                 )
+
+                // Gallery draws on top of the reader screen. fillMaxSize() fills the
+                // full edge-to-edge area; system bar insets are handled within the
+                // gallery composable itself.
+                if (galleryData != null) {
+                    ImageGalleryOverlay(
+                        galleryData = galleryData,
+                        onDismiss = { viewModel.onDismissGallery() },
+                        onOpenLink = { url -> openUrlInCustomTab(context, url) },
+                        onPageChanged = { page -> viewModel.onGalleryPageChanged(page) },
+                    )
+                }
             }
 
             // Reader context menu

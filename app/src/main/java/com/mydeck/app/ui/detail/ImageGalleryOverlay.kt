@@ -1,6 +1,6 @@
 package com.mydeck.app.ui.detail
 
-import android.view.ViewGroup
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
@@ -34,7 +35,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -47,14 +47,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
-import androidx.compose.ui.window.DialogWindowProvider
 import coil3.compose.AsyncImage
 import com.mydeck.app.R
 import com.mydeck.app.domain.model.GalleryImage
@@ -80,92 +75,68 @@ fun ImageGalleryOverlay(
         onPageChanged(pagerState.currentPage)
     }
 
-    Dialog(
-        onDismissRequest = onDismiss,
-        properties = DialogProperties(
-            usePlatformDefaultWidth = false,
-            dismissOnBackPress = true,
-            dismissOnClickOutside = false,
-        )
+    // Back press dismisses the gallery (replaces Dialog's dismissOnBackPress).
+    BackHandler(onBack = onDismiss)
+
+    // The gallery is a plain in-tree composable, not a Dialog window. Because the
+    // app uses enableEdgeToEdge(), fillMaxSize() here covers the entire physical
+    // screen automatically in all orientations — no window-management needed.
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black)
     ) {
-        // Force the Dialog window to fill the screen in all orientations.
-        //
-        // Two issues to address:
-        //  1. The default dialog background drawable adds padding that produces the
-        //     "floating card" look → cleared with setBackgroundDrawableResource(transparent).
-        //  2. setLayout(MATCH_PARENT, MATCH_PARENT) uses the special -1 value which
-        //     Android resolves as "fill parent" and then clamps to the theme's
-        //     windowMaxWidth (~560dp in Material3). In landscape the screen is wider
-        //     than that limit, so the dialog is narrower than the screen.
-        //     Explicit pixel values from DisplayMetrics bypass the clamp entirely.
-        val context = LocalContext.current
-        val dialogWindow = (LocalView.current.parent as? DialogWindowProvider)?.window
-        SideEffect {
-            dialogWindow?.let { window ->
-                @Suppress("DEPRECATION")
-                window.setBackgroundDrawableResource(android.R.color.transparent)
-                val dm = context.resources.displayMetrics
-                window.setLayout(dm.widthPixels, dm.heightPixels)
-            }
+        HorizontalPager(
+            state = pagerState,
+            modifier = Modifier.fillMaxSize()
+        ) { page ->
+            val image = galleryData.images[page]
+            ZoomableImage(
+                imageUrl = image.src,
+                contentDescription = image.alt.takeIf { it.isNotBlank() },
+                onClick = { chromeVisible = !chromeVisible },
+                onZoomChanged = { zoom ->
+                    if (zoom > 1f) chromeVisible = false else chromeVisible = true
+                }
+            )
         }
 
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Color.Black)
+        AnimatedVisibility(
+            visible = chromeVisible,
+            enter = fadeIn(),
+            exit = fadeOut(),
+            modifier = Modifier.align(Alignment.TopCenter)
         ) {
-            HorizontalPager(
-                state = pagerState,
-                modifier = Modifier.fillMaxSize()
-            ) { page ->
-                val image = galleryData.images[page]
-                ZoomableImage(
-                    imageUrl = image.src,
-                    contentDescription = image.alt.takeIf { it.isNotBlank() },
-                    onClick = { chromeVisible = !chromeVisible },
-                    onZoomChanged = { zoom ->
-                        if (zoom > 1f) chromeVisible = false else chromeVisible = true
-                    }
-                )
-            }
+            GalleryTopBar(
+                currentImage = galleryData.images[pagerState.currentPage],
+                imageIndex = pagerState.currentPage + 1,
+                totalImages = galleryData.images.size,
+                onClose = onDismiss,
+                onOpenLink = { url ->
+                    onDismiss()
+                    onOpenLink(url)
+                },
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
 
+        if (galleryData.images.size > 1) {
             AnimatedVisibility(
                 visible = chromeVisible,
                 enter = fadeIn(),
                 exit = fadeOut(),
-                modifier = Modifier.align(Alignment.TopCenter)
+                modifier = Modifier.align(Alignment.BottomCenter)
             ) {
-                GalleryTopBar(
-                    currentImage = galleryData.images[pagerState.currentPage],
-                    imageIndex = pagerState.currentPage + 1,
-                    totalImages = galleryData.images.size,
-                    onClose = onDismiss,
-                    onOpenLink = { url ->
-                        onDismiss()
-                        onOpenLink(url)
+                ThumbnailStrip(
+                    images = galleryData.images,
+                    currentIndex = pagerState.currentPage,
+                    onThumbnailClick = { index ->
+                        coroutineScope.launch {
+                            pagerState.animateScrollToPage(index)
+                        }
                     },
                     modifier = Modifier.fillMaxWidth()
                 )
-            }
-
-            if (galleryData.images.size > 1) {
-                AnimatedVisibility(
-                    visible = chromeVisible,
-                    enter = fadeIn(),
-                    exit = fadeOut(),
-                    modifier = Modifier.align(Alignment.BottomCenter)
-                ) {
-                    ThumbnailStrip(
-                        images = galleryData.images,
-                        currentIndex = pagerState.currentPage,
-                        onThumbnailClick = { index ->
-                            coroutineScope.launch {
-                                pagerState.animateScrollToPage(index)
-                            }
-                        },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
             }
         }
     }
@@ -281,6 +252,10 @@ private fun ThumbnailStrip(
         state = lazyListState,
         modifier = modifier
             .background(Color.Black.copy(alpha = 0.6f))
+            // Keep thumbnail content above the navigation bar (portrait bottom,
+            // landscape side). The background extends into the nav bar area so
+            // the strip's semi-transparent black blends with the gallery.
+            .windowInsetsPadding(WindowInsets.navigationBars)
             .padding(vertical = 8.dp, horizontal = 4.dp),
         horizontalArrangement = Arrangement.spacedBy(4.dp),
     ) {
