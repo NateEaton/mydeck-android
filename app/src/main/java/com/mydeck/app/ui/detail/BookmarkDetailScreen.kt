@@ -300,6 +300,34 @@ fun BookmarkDetailHost(
                     context.startActivity(chooser)
                 }
             }
+            // Handle debug export events
+            LaunchedEffect(Unit) {
+                viewModel.debugExportEvent.collectLatest { event ->
+                    when (event) {
+                        is BookmarkDetailViewModel.DebugExportEvent.Ready -> {
+                            val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                                type = "application/json"
+                                putExtra(Intent.EXTRA_STREAM, event.uri)
+                                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                            }
+                            val chooser = Intent.createChooser(shareIntent, "Export Debug JSON")
+                            context.startActivity(chooser)
+                        }
+                        is BookmarkDetailViewModel.DebugExportEvent.Error -> {
+                            snackbarHostState.showSnackbar(
+                                message = "Export failed: ${event.message}",
+                                duration = SnackbarDuration.Short
+                            )
+                        }
+                        is BookmarkDetailViewModel.DebugExportEvent.Exporting -> {
+                            snackbarHostState.showSnackbar(
+                                message = "Exporting debug data...",
+                                duration = SnackbarDuration.Short
+                            )
+                        }
+                    }
+                }
+            }
             if (showDetailsDialog) {
                 BookmarkDetailsDialog(
                     bookmark = uiState.bookmark,
@@ -307,7 +335,8 @@ fun BookmarkDetailHost(
                     onLabelsUpdate = { newLabels ->
                         onUpdateLabels(uiState.bookmark.bookmarkId, newLabels)
                     },
-                    existingLabels = labelsWithCounts.keys.toList()
+                    existingLabels = labelsWithCounts.keys.toList(),
+                    onExportDebugJson = { viewModel.onExportDebugJson() }
                 )
             }
             if (showTypographyPanel) {

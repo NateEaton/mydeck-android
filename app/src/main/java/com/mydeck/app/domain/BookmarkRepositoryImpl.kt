@@ -835,4 +835,37 @@ class BookmarkRepositoryImpl @Inject constructor(
                 BookmarkRepository.UpdateResult.Error("Failed to delete label: ${e.message}")
             }
         }
+
+    override suspend fun fetchRawBookmarkJson(bookmarkId: String): String? =
+        withContext(dispatcher) {
+            try {
+                val response = readeckApi.getBookmarkById(bookmarkId)
+                if (response.isSuccessful) {
+                    val dto = response.body()
+                    dto?.let { json.encodeToString(BookmarkDto.serializer(), it) }
+                } else {
+                    Timber.w("Failed to fetch bookmark from API: ${response.code()}")
+                    null
+                }
+            } catch (e: Exception) {
+                Timber.e(e, "Error fetching raw bookmark JSON")
+                null
+            }
+        }
+
+    override suspend fun fetchRawArticleHtml(bookmarkId: String): String? =
+        withContext(dispatcher) {
+            try {
+                val response = readeckApi.getArticle(bookmarkId)
+                if (response.isSuccessful) {
+                    response.body()
+                } else {
+                    Timber.w("Failed to fetch article HTML from API: ${response.code()}")
+                    null
+                }
+            } catch (e: Exception) {
+                Timber.e(e, "Error fetching raw article HTML")
+                null
+            }
+        }
 }

@@ -1,10 +1,14 @@
 package com.mydeck.app.ui.detail
 
+import android.content.Context
 import android.content.Intent
+import android.net.Uri
+import androidx.core.content.FileProvider
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import com.mydeck.app.domain.BookmarkRepository
 import com.mydeck.app.domain.model.Bookmark.ContentState
 import com.mydeck.app.domain.model.Template
@@ -13,6 +17,7 @@ import com.mydeck.app.domain.usecase.LoadArticleUseCase
 import com.mydeck.app.domain.usecase.UpdateBookmarkUseCase
 import com.mydeck.app.io.AssetLoader
 import com.mydeck.app.io.prefs.SettingsDataStore
+import com.mydeck.app.util.BookmarkDebugExporter
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -36,6 +41,7 @@ import kotlinx.coroutines.launch
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toInstant
+import kotlinx.serialization.json.Json
 import timber.log.Timber
 import java.text.DateFormat
 import java.util.Date
@@ -49,6 +55,8 @@ class BookmarkDetailViewModel @Inject constructor(
     private val assetLoader: AssetLoader,
     private val settingsDataStore: SettingsDataStore,
     private val loadArticleUseCase: LoadArticleUseCase,
+    @ApplicationContext private val context: Context,
+    private val json: Json,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
     private val _navigationEvent = Channel<NavigationEvent>(Channel.BUFFERED)
@@ -59,6 +67,9 @@ class BookmarkDetailViewModel @Inject constructor(
 
     private val _shareIntent = Channel<Intent>(Channel.BUFFERED)
     val shareIntent: Flow<Intent> = _shareIntent.receiveAsFlow()
+
+    private val _debugExportEvent = Channel<DebugExportEvent>(Channel.BUFFERED)
+    val debugExportEvent: Flow<DebugExportEvent> = _debugExportEvent.receiveAsFlow()
 
     private val _bookmarkId = MutableStateFlow<String?>(savedStateHandle["bookmarkId"])
     private val template: Flow<Template?> = combine(
@@ -401,6 +412,27 @@ class BookmarkDetailViewModel @Inject constructor(
         }
     }
 
+    fun onExportDebugJson() {
+        val bookmarkId = _bookmarkId.value ?: return
+        viewModelScope.launch {
+            _debugExportEvent.send(DebugExportEvent.Exporting)
+            val exporter = BookmarkDebugExporter(context, bookmarkRepository, json)
+            val result = exporter.exportBookmarkDebugJson(bookmarkId)
+            if (result.success) {
+                val uri = FileProvider.getUriForFile(
+                    context,
+                    "${context.packageName}.provider",
+                    result.file
+                )
+                _debugExportEvent.send(DebugExportEvent.Ready(uri, result.file.name))
+            } else {
+                _debugExportEvent.send(
+                    DebugExportEvent.Error(result.errorMessage ?: "Export failed")
+                )
+            }
+        }
+    }
+
     fun onClickBack() {
         // Save progress before navigating back
         viewModelScope.launch {
@@ -466,6 +498,12 @@ class BookmarkDetailViewModel @Inject constructor(
 
     sealed class NavigationEvent {
         data object NavigateBack : NavigationEvent()
+    }
+
+    sealed class DebugExportEvent {
+        data object Exporting : DebugExportEvent()
+        data class Ready(val uri: Uri, val fileName: String) : DebugExportEvent()
+        data class Error(val message: String) : DebugExportEvent()
     }
 
     sealed class UiState {
