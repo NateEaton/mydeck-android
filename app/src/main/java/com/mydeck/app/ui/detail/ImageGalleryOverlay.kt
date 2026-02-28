@@ -88,13 +88,20 @@ fun ImageGalleryOverlay(
         )
     ) {
         // Force the Dialog window to fill the screen in all orientations.
-        // usePlatformDefaultWidth = false alone is not sufficient in landscape.
+        // usePlatformDefaultWidth = false alone is insufficient — the default dialog
+        // background drawable adds margins that produce the "floating card" look.
+        // Setting it to transparent removes that padding, and setLayout(MATCH_PARENT,
+        // MATCH_PARENT) ensures the window fills the full display in all orientations.
         val dialogWindow = (LocalView.current.parent as? DialogWindowProvider)?.window
         SideEffect {
-            dialogWindow?.setLayout(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.MATCH_PARENT,
-            )
+            dialogWindow?.let { window ->
+                @Suppress("DEPRECATION")
+                window.setBackgroundDrawableResource(android.R.color.transparent)
+                window.setLayout(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                )
+            }
         }
 
         Box(

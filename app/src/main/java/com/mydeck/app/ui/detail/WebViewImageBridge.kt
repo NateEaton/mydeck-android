@@ -68,6 +68,13 @@ class WebViewImageBridge(
                         return false;
                     }
 
+                    function isSvg(img) {
+                        // SVGs are icons / decorative overlays, not gallery-worthy photos.
+                        // Check both file extension and data-URI prefix.
+                        return /\.svg(\?.*)?$/i.test(img.src) ||
+                               img.src.indexOf('data:image/svg') === 0;
+                    }
+
                     function classifyLink(a) {
                         if (!a || a.tagName !== 'A' || a.children.length !== 1) {
                             return { href: null, type: 'none' };
@@ -85,6 +92,7 @@ class WebViewImageBridge(
 
                     function processImage(img, slotIndex) {
                         if (isSmall(img)) return;
+                        if (isSvg(img)) return;
 
                         var parent = img.parentElement;
                         var link = classifyLink(parent);
