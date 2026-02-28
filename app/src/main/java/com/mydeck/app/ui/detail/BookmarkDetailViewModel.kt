@@ -24,6 +24,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
+import com.mydeck.app.domain.model.ImageGalleryData
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -119,6 +120,14 @@ class BookmarkDetailViewModel @Inject constructor(
     // Article search state
     private val _articleSearchState = MutableStateFlow(ArticleSearchState())
     val articleSearchState: StateFlow<ArticleSearchState> = _articleSearchState.asStateFlow()
+
+    // Gallery state
+    private val _galleryData = MutableStateFlow<ImageGalleryData?>(null)
+    val galleryData: StateFlow<ImageGalleryData?> = _galleryData.asStateFlow()
+
+    // Reader context menu state
+    private val _readerContextMenu = MutableStateFlow(ReaderContextMenuState())
+    val readerContextMenu: StateFlow<ReaderContextMenuState> = _readerContextMenu.asStateFlow()
 
     private var searchDebounceJob: Job? = null
 
@@ -658,6 +667,38 @@ class BookmarkDetailViewModel @Inject constructor(
         }
     }
 
+    // Gallery functions
+    fun onImageTapped(data: ImageGalleryData) {
+        _galleryData.value = data
+    }
+
+    fun onDismissGallery() {
+        _galleryData.value = null
+    }
+
+    // Reader context menu functions
+    fun onShowImageContextMenu(imageUrl: String, linkUrl: String?, linkType: String) {
+        _readerContextMenu.value = ReaderContextMenuState(
+            visible = true,
+            imageUrl = imageUrl,
+            linkUrl = linkUrl,
+            linkType = linkType,
+        )
+    }
+
+    fun onShowLinkContextMenu(linkUrl: String) {
+        _readerContextMenu.value = ReaderContextMenuState(
+            visible = true,
+            imageUrl = null,
+            linkUrl = linkUrl,
+            linkType = "page",
+        )
+    }
+
+    fun onDismissReaderContextMenu() {
+        _readerContextMenu.value = ReaderContextMenuState()
+    }
+
     // Article search functions
     fun onArticleSearchActivate() {
         _articleSearchState.update { it.copy(isActive = true) }
@@ -717,5 +758,12 @@ class BookmarkDetailViewModel @Inject constructor(
         val query: String = "",
         val totalMatches: Int = 0,
         val currentMatch: Int = 0  // 1-based, 0 when no matches
+    )
+
+    data class ReaderContextMenuState(
+        val visible: Boolean = false,
+        val imageUrl: String? = null,
+        val linkUrl: String? = null,
+        val linkType: String = "none",  // "none" | "image" | "page"
     )
 }
