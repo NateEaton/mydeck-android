@@ -1,12 +1,16 @@
 package com.mydeck.app.ui.detail
 
+import android.view.ViewGroup
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.calculatePan
+import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -30,6 +34,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -42,11 +47,13 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.window.DialogWindowProvider
 import coil3.compose.AsyncImage
 import com.mydeck.app.R
 import com.mydeck.app.domain.model.GalleryImage
@@ -58,6 +65,7 @@ fun ImageGalleryOverlay(
     galleryData: ImageGalleryData,
     onDismiss: () -> Unit,
     onOpenLink: (String) -> Unit,
+    onPageChanged: (Int) -> Unit = {},
 ) {
     val pagerState = rememberPagerState(
         initialPage = galleryData.currentIndex,
@@ -65,6 +73,11 @@ fun ImageGalleryOverlay(
     )
     val coroutineScope = rememberCoroutineScope()
     var chromeVisible by remember { mutableStateOf(true) }
+
+    // Notify ViewModel of page changes so the current index survives rotation.
+    LaunchedEffect(pagerState.currentPage) {
+        onPageChanged(pagerState.currentPage)
+    }
 
     Dialog(
         onDismissRequest = onDismiss,
@@ -74,6 +87,16 @@ fun ImageGalleryOverlay(
             dismissOnClickOutside = false,
         )
     ) {
+        // Force the Dialog window to fill the screen in all orientations.
+        // usePlatformDefaultWidth = false alone is not sufficient in landscape.
+        val dialogWindow = (LocalView.current.parent as? DialogWindowProvider)?.window
+        SideEffect {
+            dialogWindow?.setLayout(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT,
+            )
+        }
+
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -150,6 +173,7 @@ private fun ZoomableImage(
     Box(
         modifier = Modifier
             .fillMaxSize()
+            // Tap / double-tap: toggle chrome and zoom level.
             .pointerInput(Unit) {
                 detectTapGestures(
                     onTap = { onClick() },
@@ -164,18 +188,47 @@ private fun ZoomableImage(
                     }
                 )
             }
+            // Pinch-to-zoom and pan while zoomed.
+            //
+            // Critically, single-finger gestures at 1x zoom are NOT consumed here,
+            // so HorizontalPager receives them as page-swipe events.
+            // Multi-touch (pinch) is always consumed.
+            // Single-finger pan is only consumed when scale > 1f.
             .pointerInput(Unit) {
-                detectTransformGestures { _, pan, zoom, _ ->
-                    val newScale = (scale * zoom).coerceIn(1f, 5f)
-                    scale = newScale
-                    if (newScale > 1f) {
-                        offsetX += pan.x
-                        offsetY += pan.y
-                    } else {
-                        offsetX = 0f
-                        offsetY = 0f
-                    }
-                    onZoomChanged(newScale)
+                awaitEachGesture {
+                    awaitFirstDown(requireUnconsumed = false)
+                    do {
+                        val event = awaitPointerEvent()
+                        if (event.changes.any { it.isConsumed }) break
+
+                        val pointerCount = event.changes.count { it.pressed }
+                        if (pointerCount >= 2) {
+                            // Multi-touch pinch — always consume.
+                            val zoomChange = event.calculateZoom()
+                            val panChange = event.calculatePan()
+                            val newScale = (scale * zoomChange).coerceIn(1f, 5f)
+                            scale = newScale
+                            if (newScale > 1f) {
+                                offsetX += panChange.x
+                                offsetY += panChange.y
+                            } else {
+                                offsetX = 0f
+                                offsetY = 0f
+                            }
+                            onZoomChanged(newScale)
+                            event.changes.forEach { it.consume() }
+                        } else if (scale > 1f) {
+                            // Single-finger pan while zoomed — consume so pager doesn't swipe.
+                            // Only consume if the pointer actually moved (preserve tap events).
+                            val panChange = event.calculatePan()
+                            if (panChange.x != 0f || panChange.y != 0f) {
+                                offsetX += panChange.x
+                                offsetY += panChange.y
+                                event.changes.forEach { it.consume() }
+                            }
+                        }
+                        // else: single-finger at 1x — don't consume → HorizontalPager swipes.
+                    } while (event.changes.any { it.pressed })
                 }
             },
         contentAlignment = Alignment.Center
@@ -280,7 +333,6 @@ private fun GalleryTopBar(
                 )
             }
         } else {
-            // Placeholder to keep counter centered
             Box(modifier = Modifier.size(48.dp))
         }
     }

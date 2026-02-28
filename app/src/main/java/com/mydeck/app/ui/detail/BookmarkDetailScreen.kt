@@ -319,7 +319,8 @@ fun BookmarkDetailHost(
                 ImageGalleryOverlay(
                     galleryData = galleryData,
                     onDismiss = { viewModel.onDismissGallery() },
-                    onOpenLink = { url -> openUrlInCustomTab(context, url) }
+                    onOpenLink = { url -> openUrlInCustomTab(context, url) },
+                    onPageChanged = { page -> viewModel.onGalleryPageChanged(page) },
                 )
             }
 

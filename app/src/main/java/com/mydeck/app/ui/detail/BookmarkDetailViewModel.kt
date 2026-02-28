@@ -676,6 +676,10 @@ class BookmarkDetailViewModel @Inject constructor(
         _galleryData.value = null
     }
 
+    fun onGalleryPageChanged(page: Int) {
+        _galleryData.update { current -> current?.copy(currentIndex = page) }
+    }
+
     // Reader context menu functions
     fun onShowImageContextMenu(imageUrl: String, linkUrl: String?, linkType: String) {
         _readerContextMenu.value = ReaderContextMenuState(
