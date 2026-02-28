@@ -1,0 +1,131 @@
+{
+    "exportInfo": {
+        "exportTimestamp": "2026-02-28T13:50:30.183-0600",
+        "appVersion": "0.10.0",
+        "appVersionCode": 10000,
+        "buildType": "debug",
+        "apiDataAvailable": true,
+        "articleHtmlAvailable": true
+    },
+    "apiResponse": {
+        "id": "PZcQM2wwPzGVc1QwUTBhTz",
+        "href": "http://192.168.0.11:8889/api/bookmarks/PZcQM2wwPzGVc1QwUTBhTz",
+        "created": "2026-02-10T22:49:49.741036751Z",
+        "updated": "2026-02-10T22:49:52.087837981Z",
+        "state": 0,
+        "loaded": true,
+        "url": "https://www.usatoday.com/story/entertainment/music/2025/02/14/becoming-led-zeppelin-documentary-inside-story/78388174007/",
+        "title": "'They always said 'No': Why Led Zeppelin's surviving members agreed to a documentary",
+        "site_name": "USA TODAY",
+        "site": "www.usatoday.com",
+        "authors": [
+            "Marco della Cava"
+        ],
+        "lang": "en",
+        "text_direction": "",
+        "document_type": "article",
+        "type": "article",
+        "has_article": true,
+        "description": "Despite having shut down legions of authors and filmmakers interested in their story, the members of Led Zeppelin said yes to Bernard MacMahon. Why?",
+        "is_deleted": false,
+        "is_marked": false,
+        "is_archived": false,
+        "labels": [],
+        "read_progress": 0,
+        "resources": {
+            "article": {
+                "src": "http://192.168.0.11:8889/api/bookmarks/PZcQM2wwPzGVc1QwUTBhTz/article"
+            },
+            "icon": {
+                "src": "http://192.168.0.11:8889/bm/PZ/PZcQM2wwPzGVc1QwUTBhTz/img/icon.ico",
+                "width": 32,
+                "height": 32
+            },
+            "image": {
+                "src": "http://192.168.0.11:8889/bm/PZ/PZcQM2wwPzGVc1QwUTBhTz/img/image.webp",
+                "width": 800,
+                "height": 450
+            },
+            "log": {
+                "src": "http://192.168.0.11:8889/api/bookmarks/PZcQM2wwPzGVc1QwUTBhTz/x/log"
+            },
+            "props": {
+                "src": "http://192.168.0.11:8889/api/bookmarks/PZcQM2wwPzGVc1QwUTBhTz/x/props.json"
+            },
+            "thumbnail": {
+                "src": "http://192.168.0.11:8889/bm/PZ/PZcQM2wwPzGVc1QwUTBhTz/img/thumbnail.jpeg",
+                "width": 380,
+                "height": 213
+            }
+        },
+        "word_count": 1635,
+        "reading_time": 8,
+        "published": "2025-02-14T12:02:22Z"
+    },
+    "localState": {
+        "bookmarkId": "PZcQM2wwPzGVc1QwUTBhTz",
+        "contentState": "DOWNLOADED",
+        "contentFailureReason": "none",
+        "hasLocalArticleContent": false,
+        "localArticleContentLength": 0,
+        "readProgress": 0,
+        "isMarked": false,
+        "isArchived": false,
+        "isDeleted": false
+    },
+    "bookmarkMetadata": {
+        "id": "PZcQM2wwPzGVc1QwUTBhTz",
+        "title": "'They always said 'No': Why Led Zeppelin's surviving members agreed to a documentary",
+        "url": "https://www.usatoday.com/story/entertainment/music/2025/02/14/becoming-led-zeppelin-documentary-inside-story/78388174007/",
+        "href": "http://192.168.0.11:8889/api/bookmarks/PZcQM2wwPzGVc1QwUTBhTz",
+        "site": "www.usatoday.com",
+        "siteName": "USA TODAY",
+        "state": "LOADED",
+        "loaded": true,
+        "type": "article",
+        "documentType": "article",
+        "hasArticle": true,
+        "lang": "en",
+        "textDirection": "",
+        "wordCount": 1635,
+        "readingTime": 8,
+        "readProgress": 0,
+        "created": "2026-02-10T16:49:49.741",
+        "updated": "2026-02-10T16:49:52.087",
+        "published": "2025-02-14T06:02:22",
+        "description": "Despite having shut down legions of authors and filmmakers interested in their story, the members of Led Zeppelin said yes to Bernard MacMahon. Why?",
+        "embed": "null",
+        "embedHostname": "null",
+        "authors": [
+            "Marco della Cava"
+        ],
+        "labels": [],
+        "resources": {
+            "article": {
+                "src": "http://192.168.0.11:8889/api/bookmarks/PZcQM2wwPzGVc1QwUTBhTz/article"
+            },
+            "icon": {
+                "src": "http://192.168.0.11:8889/bm/PZ/PZcQM2wwPzGVc1QwUTBhTz/img/icon.ico",
+                "width": 32,
+                "height": 32
+            },
+            "image": {
+                "src": "http://192.168.0.11:8889/bm/PZ/PZcQM2wwPzGVc1QwUTBhTz/img/image.webp",
+                "width": 800,
+                "height": 450
+            },
+            "thumbnail": {
+                "src": "http://192.168.0.11:8889/bm/PZ/PZcQM2wwPzGVc1QwUTBhTz/img/thumbnail.jpeg",
+                "width": 380,
+                "height": 213
+            },
+            "log": {
+                "src": "http://192.168.0.11:8889/api/bookmarks/PZcQM2wwPzGVc1QwUTBhTz/x/log"
+            },
+            "props": {
+                "src": "http://192.168.0.11:8889/api/bookmarks/PZcQM2wwPzGVc1QwUTBhTz/x/props.json"
+            }
+        }
+    },
+    "articleHtml": "<section id=\"za.dWCP.readability-page-1\"><p>Feb. 14, 2025<span>Updated Feb. 16, 2025, 6:07 p.m. ET</span></p><div><p>The amazing thing about &#34;<a href=\"https://www.youtube.com/watch?v=EDKC77QS8WM\" rel=\"nofollow noopener noreferrer\">Becoming Led Zeppelin</a>&#34; is that it shouldn&#39;t exist.</p><p>The new documentary about the colossally successful &#39;70s rock band (in select theaters and IMAX now) features candid interviews with all three surviving members (guitarist and founder Jimmy Page, singer Robert Plant and bass player John Paul Jones), a trio that when <a href=\"https://www.usatoday.com/story/entertainment/books/2021/11/10/led-zeppelin-bob-spitz-band-biography/6357929001/\" target=\"_blank\" rel=\"nofollow noopener noreferrer\">approached over the decades by documentarians and authors</a> &#34;always said &#39;No,&#39;&#34; says &#34;Becoming&#34; director Bernard MacMahon.</p><p>&#34;They never planned to do this sort of thing, despite being courted by major filmmakers,&#34; he says of the rock icons, <a href=\"https://www.usatoday.com/story/entertainment/music/2020/03/09/led-zeppelin-wins-latest-copyright-battle-over-stairway-heaven/5002366002/\" target=\"_blank\" rel=\"nofollow noopener noreferrer\">whose hits &#34;Stairway to Heaven,&#34;</a> &#34;Kashmir&#34; and &#34;Whole Lotta Love&#34; arguably ignited the heavy metal movement.</p><p>So why the change of heart?</p><p>Suffice it to say the story of convincing these rock giants to talk on camera is about as fascinating as the doc itself, which focuses intensely on the musical backstories of the four members – drummer John Bonham died in 1980 – as well as the very first year of Zep&#39;s existence, which arced from sparse concerts before puzzled crowds in late 1968 to a riotous reception at London&#39;s Royal Albert Music Hall in January 1970.</p><figure><img loading=\"lazy\" fetchpriority=\"high\" decoding=\"async\" alt=\"An early photo of Led Zeppelin shortly after their formation in London in 1968: John Paul Jones (left to right), bass; Robert Plant, vocals; John Bonham, drums; and Jimmy Page, founder and guitarist. They are the focus of the new documentary, &#34;Becoming Led Zeppelin.&#34;\" src=\"http://192.168.0.11:8889/bm/PZ/PZcQM2wwPzGVc1QwUTBhTz/_resources/79HUGhuE2N4GsCxmBMiK61.jpg\" width=\"660\" height=\"607\"/></figure><p>A quick word about &#34;Becoming Led Zeppelin&#34;: If what you&#39;ve heard about the band is focused more on their rock star excesses, from groupies to drugs, that fare is not part of this movie. Simply put, those high jinks started once the band became famous, and truly took wing during a debauched 1972 U.S. tour.</p><p>&#34;One thing that&#39;s clear from this early period of Led Zeppelin&#39;s existence is that you can&#39;t reach their level of musical success if you&#39;re out of your mind,&#34; MacMahon says. &#34;And yet most books that have been written about the band focus on those later years, and not on what made them who they were.&#34;</p><h2>The roots of Led Zeppelin? Everything from blues to James Bond</h2><p>The film boasts wonderful archival footage, much never-before seen, of the band members as aspiring musicians. In their early 20s, Page and Jones spent countless hours performing everything from Muzak to James Bond theme songs as London studio musicians, while teenage West Midlands buddies Plant and Bonham barnstormed around the countryside in a variety of bar bands.</p><p>The very short summary of the quartet&#39;s meet-up: Page, who&#39;d made a name for himself in the Yardbirds, decided in 1968 to form his own band to push the envelope of British blues; John Paul Jones&#39; wife encouraged her husband to make contact with Page, who hired him; Page then went to hear Plant, who was singing in the little known band Obs-Tweedle, liked what he heard and agreed to also hire Plant&#39;s thunderous drummer pal, Bonham.</p><figure><img loading=\"lazy\" fetchpriority=\"high\" decoding=\"async\" alt=\"In this 1970 photo, Led Zeppelin (left to right, Robert Plant, Jimmy Page and John Paul Jones, with drummer John Bonham not visible) play a triumphant gig at Royal Albert Hall after touring the US for a year. That journey is a focus of &#34;Becoming Led Zeppelin.&#34;\" src=\"http://192.168.0.11:8889/bm/PZ/PZcQM2wwPzGVc1QwUTBhTz/_resources/UKvXcrpMTFdhaiTNDwbPA6.jpg\" width=\"660\" height=\"644\"/></figure><p>&#34;This was a most powerful but unusual pairing,&#34; MacMahon says. &#34;Most British groups were from one place. The Beatles all from Liverpool. The Stones all from London. But these guys were from different worlds. The U.S. equivalent would be like two members of the Velvet Underground joining up with two guys from Lynyrd Skynyrd.&#34;</p><p>In &#34;Becoming Led Zeppelin,&#34; the band members all agree that the group&#39;s first rehearsal in a London basement was utter magic.</p><p>Despite that, the new group was virtually ignored both by fans and top groups such as The Who, The Beatles and The Rolling Stones. &#34;All of them decided not to sign Zeppelin to their labels,&#34; MacMahon says. &#34;They all said the same thing (of Zeppelin&#39;s bombastic blues), &#39;We don&#39;t get it.&#39;&#34;</p><p>Then came negative press, including a <a href=\"https://www.rollingstone.com/music/music-album-reviews/led-zeppelin-i-187298/\" target=\"_blank\" rel=\"nofollow noopener noreferrer\">famously savage debut-album review in Rolling Stone</a>, which described Page as &#34;a very limited producer and a writer of weak, unimaginative songs.&#34; But by playing U.S. clubs throughout 1969, Zeppelin got a growing amount of airplay on FM radio, which had taken to playing entire album sides as opposed to hit singles. Zep were on their way.</p><h2>The secret to the creation of &#39;Becoming Led Zeppelin&#39; lies in two words: &#39;American Epic&#39;</h2><figure><img loading=\"lazy\" fetchpriority=\"high\" decoding=\"async\" alt=\"Captured here in Austin, Texas, in 2022, Robert Plant and Alison Krauss perform on their Raising the Roof Tour. Plant revisits he early years with Led Zeppelin in a new doc, &#34;Becoming Led Zeppelin.&#34;\" src=\"http://192.168.0.11:8889/bm/PZ/PZcQM2wwPzGVc1QwUTBhTz/_resources/Xu6CgMSpB6KDhR6DJ6ZF4V.jpg\" width=\"660\" height=\"439\"/></figure><p>Now back to our story. Why did the three guys talk to MacMahon and his partner, Allison McGourty? In two words: &#34;American Epic,&#34; <a href=\"https://www.americanepic.com/\" target=\"_blank\" rel=\"nofollow noopener noreferrer\">the duo&#39;s comprehensive four-part documentary</a> from 2017 that explores the early roots of American popular music, from blues to Cajun, Native American to country.</p><p>MacMahon and McGourty felt Zeppelin were in essence a continuation of that story, four musicians who had drawn inspiration from American roots music to create their innovative sound. What the two soon came to learn was that both Page and Plant were unabashed fans of the series. &#34;They saw what we did with that, how we dug around to find images and footage no one had seen, and felt that we were serious people,&#34; MacMahon says.</p><p>First, the two filmmakers approached Page, who showed up to their meeting carrying a bunch of plastic grocery bags. &#34;I thought he was bringing us lunch or something,&#34; jokes MacMahon. Instead they were filled with photos, newspaper clips, diaries and other invaluable memorabilia. &#34;That meeting lasted seven hours,&#34; McGourty says.</p><p>Next, Page, 81, asked the pair to travel with him to a home he lived in the late &#39;60s up the River Thames from London. They eagerly agreed, strolling near a riverside house where Zeppelin spent weeks woodshedding after they first met. &#34;The next day, Jimmy called and said, &#39;That was a test, that invitation, to see how serious you are.&#39; And I thought, who has he been dealing with that would have said, &#39;Sorry, I&#39;m too busy to do that&#39;?&#34;</p><p>Page was in. Next up: Jones. The duo sent the reclusive and taciturn bass player a copy of &#34;American Epic&#34; with a note saying, &#34;Would you please watch the first 20 minutes of this, and if you don&#39;t like it, you&#39;ll never hear from us again.&#34; It was a genuine gamble. But Jones, 79, a passionate fan of early country, was riveted. He too agreed.</p><h2>To convince Robert Plant, &#39;Becoming Led Zeppelin&#39; creators had to follow him around the world</h2><a href=\"https://www.usatoday.com/picture-gallery/entertainment/music/2025/02/12/rock-and-roll-hall-of-fame-nominees-2025-photos/78426971007/\" aria-label=\"View Gallery - Rock &amp; Roll Hall of Fame nominees: See the 14 stars up for induction in 2025\" target=\"_blank\" rel=\"nofollow noopener noreferrer\"><img loading=\"lazy\" decoding=\"async\" alt=\"\" width=\"660\" height=\"372\" src=\"http://192.168.0.11:8889/bm/PZ/PZcQM2wwPzGVc1QwUTBhTz/_resources/HqT1mgPQjuwJ16tTSSDvap.jpg\"/><img loading=\"lazy\" src=\"http://192.168.0.11:8889/bm/PZ/PZcQM2wwPzGVc1QwUTBhTz/_resources/B2TmnyS6mtgbtgFE8SNG7W.svg\" width=\"300\" height=\"150\"/><p><img loading=\"lazy\" src=\"http://192.168.0.11:8889/bm/PZ/PZcQM2wwPzGVc1QwUTBhTz/_resources/5LakE3yFVXwZhKgG2Ta47L.svg\" width=\"300\" height=\"150\"/></p></a><p>Then there was Plant. The singer remains a vital force on the music scene at age 76, thanks in part to his successful recording and touring <a href=\"https://www.usatoday.com/story/entertainment/music/2024/06/19/robert-plant-and-alison-krauss-concert-review/74146902007/\" target=\"_blank\" rel=\"nofollow noopener noreferrer\">partnership with bluegrass icon Alison Krauss</a>. Through some contacts, MacMahon and McGourty got invited to the green room after a Plant concert in Scotland. The three met and Plant expressed his deep affection for &#34;American Epic.&#34;</p><p>But what followed was a goose chase. MacMahon and McGourty received successive invitations to Plant concerts. &#34;He said, &#39;I&#39;m game, meet me in Sheffield,&#39;&#34; MacMahon recalls with a laugh. &#34;At the very end of that show, he says &#39;Meet me in Los Angeles,&#39; so we went there, too.&#34;</p><p>The green room in LA featured hundreds of fans, and MacMahon felt discouraged when Plant said a quick hello and then attended to the other guests for hours. &#34;I said to Allison, let&#39;s just go, I can&#39;t take this anymore, it&#39;s too stressful,&#34; MacMahon says.</p><p>&#34;I told him, &#39;No, we have to stay, we have to know one way or the other,&#39;&#34; McGourty says. &#34;Then Robert came up to us and said, &#39;Meet me in Birmingham (England).&#39; And off we went.&#34;</p><p>&#34;There, the skies parted and the sun shone,&#34; MacMahon says. Plant walked into their hotel room with an unexpected guest. &#34;We were ready to pitch him all over, but he entered with Pat Bonham, John&#39;s widow. And then we knew, he was in.&#34;</p><h2>The biggest challenge of &#39;Becoming Led Zeppelin&#39;? How to include late drummer John Bonham</h2><p>With all three bandmembers agreeing to work with the filmmakers, the work began in earnest, ranging from recording their interviews to filming and photographing the mementos provided by the band, from old ads to ticket stubs to childhood photos and even some Super 8 home movies.</p><p>But there was still one critical hunt that had to be undertaken in order to make the film work. &#34;Robert was adamant about one thing,&#34; MacMahon says. &#34;He said, &#39;How are you going to include John, because I haven&#39;t heard many interviews with him at all from that (early) period of Led Zeppelin?&#39;&#34;</p><p>MacMahon and McGourty got to work, eventually finding <a href=\"https://www.aol.com/led-zeppelin-drummer-john-bonham-160500190.html\" target=\"_blank\" rel=\"nofollow noopener noreferrer\">a static-filled bootleg recording of a radio interview</a> Plant and Bonham had done shortly after the band formed with an Australian radio reporter. MacMahon eventually found the radio station in question, but they didn&#39;t have the tape.</p><figure><img loading=\"lazy\" fetchpriority=\"high\" decoding=\"async\" alt=\"In this 1999 photo taken at the RIAA Diamond Awards, Led Zeppelin bandmates John Paul Jones (left) and Jimmy Page reunite. The two plus Robert Plant are all featured in a new documentary, &#34;Becoming Led Zeppelin.&#34;\" src=\"http://192.168.0.11:8889/bm/PZ/PZcQM2wwPzGVc1QwUTBhTz/_resources/KdeKNpMfie1fHMp67fHiXV.jpg\" width=\"660\" height=\"440\"/></figure><p>&#34;I asked if they ever just transferred audio files to archives and it turns out, they sent a lot of the University of Canberra,&#34; he says. &#34;I called the university but they said they didn&#39;t have it. I then asked if they had stockpiles of unfiled archival audio donations, and they said yes. So I asked them to please look, and three months later I got a call at midnight in LA saying &#39;Look at your email.&#39; And attached there was a pristine recording of John talking about being in Led Zeppelin. Kind of a miracle really.&#34;</p><p>One very touching moment in &#34;Becoming Led Zeppelin&#34; is fleeting but indelible: Plant listening to his old friend&#39;s voice. He is smiling.</p><p>&#34;Listening to John talk was very emotional for all of them,&#34; MacMahon says. Adds McGourty, &#34;You can see it all in Robert&#39;s eyes.&#34;</p><p>MacMahon says all three members of Led Zeppelin expressed their gratitude for the way the band&#39;s early years are laid out in &#34;Becoming Led Zeppelin.&#34;</p><p>But the filmmakers&#39; greatest reward came the night of the movie&#39;s premiere at Hollywood&#39;s famous TCL Chinese Theater. When the lights went up, a &#34;tall handsome man came up to me, and stuck out his hand,&#34; MacMahon says.</p><p>&#34;He had tears in his eyes, and he said, &#39;I just want to thank you, you introduced me to my grandfather because that&#39;s the first time I&#39;d ever heard him talk.&#39; It was John&#39;s grandson, Jager Bonham,&#34; MacMahon says. &#34;Not much to say after that, is there?&#34;</p></div></section>\n"
+}
