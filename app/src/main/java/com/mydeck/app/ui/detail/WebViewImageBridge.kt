@@ -44,11 +44,25 @@ class WebViewImageBridge(
                     var MIN_COMBINED = 128;
                     var IMAGE_EXT_RE = /\.(jpg|jpeg|png|gif|webp|svg|bmp|tiff|avif)(\?.*)?${'$'}/i;
 
-                    var registry = [];
+                    var container = document.querySelector('.container');
+                    if (!container) return;
+
+                    // Capture all img elements in DOM order NOW (synchronous).
+                    // This locks in the article order before any async loads complete.
+                    var allImgElements = Array.from(container.querySelectorAll('img[src]'));
+
+                    // Parallel sparse array: null = not qualifying, object = gallery entry.
+                    // Index matches allImgElements, so DOM order is preserved no matter
+                    // what order the 'load' events fire.
+                    var slots = new Array(allImgElements.length).fill(null);
 
                     function isSmall(img) {
-                        var w = img.naturalWidth || img.width;
-                        var h = img.naturalHeight || img.height;
+                        // Use only intrinsic (natural) dimensions — never the CSS/rendered
+                        // size, which can make a 16px icon look huge when styled to fill
+                        // its container.
+                        var w = img.naturalWidth;
+                        var h = img.naturalHeight;
+                        if (w === 0 || h === 0) return true;
                         if (w < MIN_DIM || h < MIN_DIM) return true;
                         if (w < MIN_COMBINED && h < MIN_COMBINED) return true;
                         return false;
@@ -64,43 +78,49 @@ class WebViewImageBridge(
                         return { href: href, type: type };
                     }
 
-                    function processImage(img) {
+                    function buildRegistry() {
+                        // Filter nulls while preserving slot order = DOM order.
+                        return slots.filter(function(item) { return item !== null; });
+                    }
+
+                    function processImage(img, slotIndex) {
                         if (isSmall(img)) return;
 
                         var parent = img.parentElement;
                         var link = classifyLink(parent);
-                        var index = registry.length;
 
-                        registry.push({
+                        slots[slotIndex] = {
                             src: img.src,
                             alt: img.alt || '',
                             linkHref: link.href,
                             linkType: link.type
-                        });
+                        };
 
-                        img.dataset.mydeckGalleryIndex = index;
                         img.style.cursor = 'pointer';
 
                         var clickTarget = (link.href && parent.tagName === 'A') ? parent : img;
                         clickTarget.addEventListener('click', function(e) {
                             e.preventDefault();
                             e.stopPropagation();
-                            MyDeckImageBridge.onImageTapped(JSON.stringify({
-                                images: registry,
-                                currentIndex: index
-                            }));
+                            // Build registry at tap time so async-loaded images are included.
+                            var registry = buildRegistry();
+                            var entry = slots[slotIndex];
+                            var currentIndex = registry.indexOf(entry);
+                            if (currentIndex >= 0) {
+                                MyDeckImageBridge.onImageTapped(JSON.stringify({
+                                    images: registry,
+                                    currentIndex: currentIndex
+                                }));
+                            }
                         }, true);
                     }
 
-                    var container = document.querySelector('.container');
-                    if (!container) return;
-
-                    container.querySelectorAll('img[src]').forEach(function(img) {
+                    allImgElements.forEach(function(img, slotIndex) {
                         if (img.complete && img.naturalWidth > 0) {
-                            processImage(img);
+                            processImage(img, slotIndex);
                         } else {
                             img.addEventListener('load', function() {
-                                processImage(img);
+                                processImage(img, slotIndex);
                             }, { once: true });
                         }
                     });
