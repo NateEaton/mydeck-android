@@ -243,7 +243,10 @@ private fun ZoomableImage(
         AsyncImage(
             model = imageUrl,
             contentDescription = contentDescription,
-            contentScale = ContentScale.Fit,
+            // Inside = scale down to fit the viewport if the image is larger, but
+            // never upscale an image that is already smaller than the viewport.
+            // This prevents blurry stretching of low-res article thumbnails.
+            contentScale = ContentScale.Inside,
             modifier = Modifier
                 .fillMaxSize()
                 .graphicsLayer(

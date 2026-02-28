@@ -741,9 +741,15 @@ private fun readerContextMenuCopyToClipboard(context: Context, text: String) {
 }
 
 private fun readerContextMenuDownloadImage(context: Context, imageUrl: String) {
-    val request = DownloadManager.Request(Uri.parse(imageUrl))
+    val uri = Uri.parse(imageUrl)
+    // lastPathSegment strips query params; fall back to a timestamp-based name when the
+    // URL has no usable filename (e.g., an opaque path). A null or blank subPath would
+    // crash DownloadManager with NullPointerException on all API levels.
+    val fileName = uri.lastPathSegment?.takeIf { it.isNotBlank() }
+        ?: "image_${System.currentTimeMillis()}.jpg"
+    val request = DownloadManager.Request(uri)
         .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
-        .setDestinationInExternalPublicDir(android.os.Environment.DIRECTORY_DOWNLOADS, null)
+        .setDestinationInExternalPublicDir(android.os.Environment.DIRECTORY_DOWNLOADS, fileName)
     val dm = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
     dm.enqueue(request)
 }
