@@ -8,9 +8,11 @@ import com.mydeck.app.domain.usecase.LoadArticleUseCase
 import com.mydeck.app.domain.usecase.UpdateBookmarkUseCase
 import com.mydeck.app.io.AssetLoader
 import com.mydeck.app.io.prefs.SettingsDataStore
+import io.mockk.Runs
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
+import io.mockk.just
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -24,6 +26,7 @@ import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import kotlinx.datetime.toInstant
+import kotlinx.serialization.json.Json
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -31,6 +34,7 @@ import org.junit.Before
 import org.junit.Test
 import java.text.DateFormat
 import java.util.Date
+import android.content.Context
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class BookmarkDetailViewModelTest {
@@ -43,6 +47,8 @@ class BookmarkDetailViewModelTest {
     private lateinit var updateBookmarkUseCase: UpdateBookmarkUseCase
     private lateinit var settingsDataStore: SettingsDataStore
     private lateinit var loadArticleUseCase: LoadArticleUseCase
+    private lateinit var context: Context
+    private val json = Json { ignoreUnknownKeys = true }
 
     @Before
     fun setup() {
@@ -53,6 +59,8 @@ class BookmarkDetailViewModelTest {
         updateBookmarkUseCase = mockk()
         settingsDataStore = mockk()
         loadArticleUseCase = mockk(relaxed = true)
+        context = mockk(relaxed = true)
+        every { context.packageName } returns "com.mydeck.app"
         every { bookmarkRepository.observeBookmark(any()) } returns MutableStateFlow(sampleBookmark)
         coEvery { bookmarkRepository.getBookmarkById(any()) } returns sampleBookmark
         coEvery { bookmarkRepository.refreshBookmarkFromApi(any()) } returns Unit
@@ -63,7 +71,7 @@ class BookmarkDetailViewModelTest {
         every { settingsDataStore.zoomFactorFlow } returns MutableStateFlow(100)
         every { settingsDataStore.typographySettingsFlow } returns MutableStateFlow(com.mydeck.app.domain.model.TypographySettings())
         every { bookmarkRepository.observeAllLabelsWithCounts() } returns MutableStateFlow(emptyMap())
-        viewModel = BookmarkDetailViewModel(updateBookmarkUseCase, bookmarkRepository, assetLoader, settingsDataStore, loadArticleUseCase, savedStateHandle)
+        viewModel = BookmarkDetailViewModel(updateBookmarkUseCase, bookmarkRepository, assetLoader, settingsDataStore, loadArticleUseCase, context, json, savedStateHandle)
     }
 
     @After
@@ -120,7 +128,7 @@ class BookmarkDetailViewModelTest {
         coEvery { assetLoader.loadAsset("html_template_light.html") } returns htmlTemplate
 
         // Act
-        viewModel = BookmarkDetailViewModel(updateBookmarkUseCase, bookmarkRepository, assetLoader, settingsDataStore, loadArticleUseCase, savedStateHandle)
+        viewModel = BookmarkDetailViewModel(updateBookmarkUseCase, bookmarkRepository, assetLoader, settingsDataStore, loadArticleUseCase, context, json, savedStateHandle)
         val uiStates = viewModel.uiState.take(2).toList()
         val loading = uiStates[0]
         val success = uiStates[1]
@@ -179,7 +187,7 @@ class BookmarkDetailViewModelTest {
         coEvery { assetLoader.loadAsset("html_template_light.html") } returns null
 
         // Act
-        viewModel = BookmarkDetailViewModel(updateBookmarkUseCase, bookmarkRepository, assetLoader, settingsDataStore, loadArticleUseCase, savedStateHandle)
+        viewModel = BookmarkDetailViewModel(updateBookmarkUseCase, bookmarkRepository, assetLoader, settingsDataStore, loadArticleUseCase, context, json, savedStateHandle)
         val uiStates = viewModel.uiState.take(2).toList()
         val loading = uiStates[0]
         val error = uiStates[1]
@@ -232,7 +240,7 @@ class BookmarkDetailViewModelTest {
         coEvery { assetLoader.loadAsset("html_template_light.html") } returns "template"
 
         // Act
-        viewModel = BookmarkDetailViewModel(updateBookmarkUseCase, bookmarkRepository, assetLoader, settingsDataStore, loadArticleUseCase, savedStateHandle)
+        viewModel = BookmarkDetailViewModel(updateBookmarkUseCase, bookmarkRepository, assetLoader, settingsDataStore, loadArticleUseCase, context, json, savedStateHandle)
 
         // Assert
         assertEquals(BookmarkDetailViewModel.UiState.Loading, viewModel.uiState.value)
@@ -240,7 +248,7 @@ class BookmarkDetailViewModelTest {
 
     @Test
     fun `onClickBack should set NavigateBack navigation event`() = runTest {
-        viewModel = BookmarkDetailViewModel(updateBookmarkUseCase, bookmarkRepository, assetLoader, settingsDataStore, loadArticleUseCase, savedStateHandle)
+        viewModel = BookmarkDetailViewModel(updateBookmarkUseCase, bookmarkRepository, assetLoader, settingsDataStore, loadArticleUseCase, context, json, savedStateHandle)
         viewModel.onClickBack()
         advanceUntilIdle()
         assertEquals(BookmarkDetailViewModel.NavigationEvent.NavigateBack, viewModel.navigationEvent.first())
@@ -256,7 +264,7 @@ class BookmarkDetailViewModelTest {
         coEvery { assetLoader.loadAsset("html_template_light.html") } returns htmlTemplate
 
         // Act
-        viewModel = BookmarkDetailViewModel(updateBookmarkUseCase, bookmarkRepository, assetLoader, settingsDataStore, loadArticleUseCase, savedStateHandle)
+        viewModel = BookmarkDetailViewModel(updateBookmarkUseCase, bookmarkRepository, assetLoader, settingsDataStore, loadArticleUseCase, context, json, savedStateHandle)
         viewModel.onToggleFavorite(bookmarkId, isFavorite)
         advanceUntilIdle()
 
@@ -280,7 +288,7 @@ class BookmarkDetailViewModelTest {
         coEvery { assetLoader.loadAsset("html_template_light.html") } returns htmlTemplate
 
         // Act
-        viewModel = BookmarkDetailViewModel(updateBookmarkUseCase, bookmarkRepository, assetLoader, settingsDataStore, loadArticleUseCase, savedStateHandle)
+        viewModel = BookmarkDetailViewModel(updateBookmarkUseCase, bookmarkRepository, assetLoader, settingsDataStore, loadArticleUseCase, context, json, savedStateHandle)
         viewModel.onToggleFavorite(bookmarkId, isFavorite)
         advanceUntilIdle()
 
@@ -305,7 +313,7 @@ class BookmarkDetailViewModelTest {
         coEvery { assetLoader.loadAsset("html_template_light.html") } returns htmlTemplate
 
         // Act
-        viewModel = BookmarkDetailViewModel(updateBookmarkUseCase, bookmarkRepository, assetLoader, settingsDataStore, loadArticleUseCase, savedStateHandle)
+        viewModel = BookmarkDetailViewModel(updateBookmarkUseCase, bookmarkRepository, assetLoader, settingsDataStore, loadArticleUseCase, context, json, savedStateHandle)
         viewModel.onToggleFavorite(bookmarkId, isFavorite)
         advanceUntilIdle()
 
@@ -329,7 +337,7 @@ class BookmarkDetailViewModelTest {
         coEvery { assetLoader.loadAsset("html_template_light.html") } returns htmlTemplate
 
         // Act
-        viewModel = BookmarkDetailViewModel(updateBookmarkUseCase, bookmarkRepository, assetLoader, settingsDataStore, loadArticleUseCase, savedStateHandle)
+        viewModel = BookmarkDetailViewModel(updateBookmarkUseCase, bookmarkRepository, assetLoader, settingsDataStore, loadArticleUseCase, context, json, savedStateHandle)
         viewModel.onToggleArchive(bookmarkId, isArchived)
         advanceUntilIdle()
 
@@ -353,7 +361,7 @@ class BookmarkDetailViewModelTest {
         coEvery { assetLoader.loadAsset("html_template_light.html") } returns htmlTemplate
 
         // Act
-        viewModel = BookmarkDetailViewModel(updateBookmarkUseCase, bookmarkRepository, assetLoader, settingsDataStore, loadArticleUseCase, savedStateHandle)
+        viewModel = BookmarkDetailViewModel(updateBookmarkUseCase, bookmarkRepository, assetLoader, settingsDataStore, loadArticleUseCase, context, json, savedStateHandle)
         viewModel.onToggleArchive(bookmarkId, isArchived)
         advanceUntilIdle()
 
@@ -378,7 +386,7 @@ class BookmarkDetailViewModelTest {
         coEvery { assetLoader.loadAsset("html_template_light.html") } returns htmlTemplate
 
         // Act
-        viewModel = BookmarkDetailViewModel(updateBookmarkUseCase, bookmarkRepository, assetLoader, settingsDataStore, loadArticleUseCase, savedStateHandle)
+        viewModel = BookmarkDetailViewModel(updateBookmarkUseCase, bookmarkRepository, assetLoader, settingsDataStore, loadArticleUseCase, context, json, savedStateHandle)
         viewModel.onToggleArchive(bookmarkId, isArchived)
         advanceUntilIdle()
 
@@ -401,7 +409,7 @@ class BookmarkDetailViewModelTest {
         coEvery { assetLoader.loadAsset("html_template_light.html") } returns htmlTemplate
 
         // Act
-        viewModel = BookmarkDetailViewModel(updateBookmarkUseCase, bookmarkRepository, assetLoader, settingsDataStore, loadArticleUseCase, savedStateHandle)
+        viewModel = BookmarkDetailViewModel(updateBookmarkUseCase, bookmarkRepository, assetLoader, settingsDataStore, loadArticleUseCase, context, json, savedStateHandle)
         viewModel.onToggleMarkRead(bookmarkId, isRead)
         advanceUntilIdle()
 
@@ -425,7 +433,7 @@ class BookmarkDetailViewModelTest {
         coEvery { assetLoader.loadAsset("html_template_light.html") } returns htmlTemplate
 
         // Act
-        viewModel = BookmarkDetailViewModel(updateBookmarkUseCase, bookmarkRepository, assetLoader, settingsDataStore, loadArticleUseCase, savedStateHandle)
+        viewModel = BookmarkDetailViewModel(updateBookmarkUseCase, bookmarkRepository, assetLoader, settingsDataStore, loadArticleUseCase, context, json, savedStateHandle)
         viewModel.onToggleMarkRead(bookmarkId, isRead)
         advanceUntilIdle()
 
@@ -450,7 +458,7 @@ class BookmarkDetailViewModelTest {
         coEvery { assetLoader.loadAsset("html_template_light.html") } returns htmlTemplate
 
         // Act
-        viewModel = BookmarkDetailViewModel(updateBookmarkUseCase, bookmarkRepository, assetLoader, settingsDataStore, loadArticleUseCase, savedStateHandle)
+        viewModel = BookmarkDetailViewModel(updateBookmarkUseCase, bookmarkRepository, assetLoader, settingsDataStore, loadArticleUseCase, context, json, savedStateHandle)
         viewModel.onToggleMarkRead(bookmarkId, isRead)
         advanceUntilIdle()
 
@@ -478,7 +486,7 @@ class BookmarkDetailViewModelTest {
         coEvery { loadArticleUseCase.execute("123") } returns LoadArticleUseCase.Result.Success
 
         // Act
-        viewModel = BookmarkDetailViewModel(updateBookmarkUseCase, bookmarkRepository, assetLoader, settingsDataStore, loadArticleUseCase, savedStateHandle)
+        viewModel = BookmarkDetailViewModel(updateBookmarkUseCase, bookmarkRepository, assetLoader, settingsDataStore, loadArticleUseCase, context, json, savedStateHandle)
         advanceUntilIdle()
 
         // Assert
@@ -498,7 +506,7 @@ class BookmarkDetailViewModelTest {
         coEvery { bookmarkRepository.refreshBookmarkFromApi(any()) } returns Unit
 
         // Act
-        viewModel = BookmarkDetailViewModel(updateBookmarkUseCase, bookmarkRepository, assetLoader, settingsDataStore, loadArticleUseCase, savedStateHandle)
+        viewModel = BookmarkDetailViewModel(updateBookmarkUseCase, bookmarkRepository, assetLoader, settingsDataStore, loadArticleUseCase, context, json, savedStateHandle)
         advanceUntilIdle()
 
         // Assert
@@ -519,7 +527,7 @@ class BookmarkDetailViewModelTest {
         coEvery { bookmarkRepository.refreshBookmarkFromApi(any()) } returns Unit
 
         // Act
-        viewModel = BookmarkDetailViewModel(updateBookmarkUseCase, bookmarkRepository, assetLoader, settingsDataStore, loadArticleUseCase, savedStateHandle)
+        viewModel = BookmarkDetailViewModel(updateBookmarkUseCase, bookmarkRepository, assetLoader, settingsDataStore, loadArticleUseCase, context, json, savedStateHandle)
         advanceUntilIdle()
 
         // Assert
@@ -545,7 +553,7 @@ class BookmarkDetailViewModelTest {
         coEvery { loadArticleUseCase.execute("123") } returns LoadArticleUseCase.Result.PermanentFailure("Article extraction not supported for this site")
 
         // Act
-        viewModel = BookmarkDetailViewModel(updateBookmarkUseCase, bookmarkRepository, assetLoader, settingsDataStore, loadArticleUseCase, savedStateHandle)
+        viewModel = BookmarkDetailViewModel(updateBookmarkUseCase, bookmarkRepository, assetLoader, settingsDataStore, loadArticleUseCase, context, json, savedStateHandle)
         advanceUntilIdle()
 
         // Assert
