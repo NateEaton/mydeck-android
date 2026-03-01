@@ -1,10 +1,14 @@
 package com.mydeck.app.ui.detail
 
+import android.content.Context
 import android.content.Intent
+import android.net.Uri
+import androidx.core.content.FileProvider
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import com.mydeck.app.domain.BookmarkRepository
 import com.mydeck.app.domain.model.Bookmark.ContentState
 import com.mydeck.app.domain.model.Template
@@ -13,12 +17,14 @@ import com.mydeck.app.domain.usecase.LoadArticleUseCase
 import com.mydeck.app.domain.usecase.UpdateBookmarkUseCase
 import com.mydeck.app.io.AssetLoader
 import com.mydeck.app.io.prefs.SettingsDataStore
+import com.mydeck.app.util.BookmarkDebugExporter
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
+import com.mydeck.app.domain.model.ImageGalleryData
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -36,6 +42,7 @@ import kotlinx.coroutines.launch
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toInstant
+import kotlinx.serialization.json.Json
 import timber.log.Timber
 import java.text.DateFormat
 import java.util.Date
@@ -49,6 +56,8 @@ class BookmarkDetailViewModel @Inject constructor(
     private val assetLoader: AssetLoader,
     private val settingsDataStore: SettingsDataStore,
     private val loadArticleUseCase: LoadArticleUseCase,
+    @ApplicationContext private val context: Context,
+    private val json: Json,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
     private val _navigationEvent = Channel<NavigationEvent>(Channel.BUFFERED)
@@ -59,6 +68,9 @@ class BookmarkDetailViewModel @Inject constructor(
 
     private val _shareIntent = Channel<Intent>(Channel.BUFFERED)
     val shareIntent: Flow<Intent> = _shareIntent.receiveAsFlow()
+
+    private val _debugExportEvent = Channel<DebugExportEvent>(Channel.BUFFERED)
+    val debugExportEvent: Flow<DebugExportEvent> = _debugExportEvent.receiveAsFlow()
 
     private val _bookmarkId = MutableStateFlow<String?>(savedStateHandle["bookmarkId"])
     private val template: Flow<Template?> = combine(
@@ -108,6 +120,14 @@ class BookmarkDetailViewModel @Inject constructor(
     // Article search state
     private val _articleSearchState = MutableStateFlow(ArticleSearchState())
     val articleSearchState: StateFlow<ArticleSearchState> = _articleSearchState.asStateFlow()
+
+    // Gallery state
+    private val _galleryData = MutableStateFlow<ImageGalleryData?>(null)
+    val galleryData: StateFlow<ImageGalleryData?> = _galleryData.asStateFlow()
+
+    // Reader context menu state
+    private val _readerContextMenu = MutableStateFlow(ReaderContextMenuState())
+    val readerContextMenu: StateFlow<ReaderContextMenuState> = _readerContextMenu.asStateFlow()
 
     private var searchDebounceJob: Job? = null
 
@@ -401,6 +421,27 @@ class BookmarkDetailViewModel @Inject constructor(
         }
     }
 
+    fun onExportDebugJson() {
+        val bookmarkId = _bookmarkId.value ?: return
+        viewModelScope.launch {
+            _debugExportEvent.send(DebugExportEvent.Exporting)
+            val exporter = BookmarkDebugExporter(context, bookmarkRepository, json)
+            val result = exporter.exportBookmarkDebugJson(bookmarkId)
+            if (result.success) {
+                val uri = FileProvider.getUriForFile(
+                    context,
+                    "${context.packageName}.provider",
+                    result.file
+                )
+                _debugExportEvent.send(DebugExportEvent.Ready(uri, result.file.name))
+            } else {
+                _debugExportEvent.send(
+                    DebugExportEvent.Error(result.errorMessage ?: "Export failed")
+                )
+            }
+        }
+    }
+
     fun onClickBack() {
         // Save progress before navigating back
         viewModelScope.launch {
@@ -466,6 +507,12 @@ class BookmarkDetailViewModel @Inject constructor(
 
     sealed class NavigationEvent {
         data object NavigateBack : NavigationEvent()
+    }
+
+    sealed class DebugExportEvent {
+        data object Exporting : DebugExportEvent()
+        data class Ready(val uri: Uri, val fileName: String) : DebugExportEvent()
+        data class Error(val message: String) : DebugExportEvent()
     }
 
     sealed class UiState {
@@ -620,6 +667,42 @@ class BookmarkDetailViewModel @Inject constructor(
         }
     }
 
+    // Gallery functions
+    fun onImageTapped(data: ImageGalleryData) {
+        _galleryData.value = data
+    }
+
+    fun onDismissGallery() {
+        _galleryData.value = null
+    }
+
+    fun onGalleryPageChanged(page: Int) {
+        _galleryData.update { current -> current?.copy(currentIndex = page) }
+    }
+
+    // Reader context menu functions
+    fun onShowImageContextMenu(imageUrl: String, linkUrl: String?, linkType: String) {
+        _readerContextMenu.value = ReaderContextMenuState(
+            visible = true,
+            imageUrl = imageUrl,
+            linkUrl = linkUrl,
+            linkType = linkType,
+        )
+    }
+
+    fun onShowLinkContextMenu(linkUrl: String) {
+        _readerContextMenu.value = ReaderContextMenuState(
+            visible = true,
+            imageUrl = null,
+            linkUrl = linkUrl,
+            linkType = "page",
+        )
+    }
+
+    fun onDismissReaderContextMenu() {
+        _readerContextMenu.value = ReaderContextMenuState()
+    }
+
     // Article search functions
     fun onArticleSearchActivate() {
         _articleSearchState.update { it.copy(isActive = true) }
@@ -679,5 +762,12 @@ class BookmarkDetailViewModel @Inject constructor(
         val query: String = "",
         val totalMatches: Int = 0,
         val currentMatch: Int = 0  // 1-based, 0 when no matches
+    )
+
+    data class ReaderContextMenuState(
+        val visible: Boolean = false,
+        val imageUrl: String? = null,
+        val linkUrl: String? = null,
+        val linkType: String = "none",  // "none" | "image" | "page"
     )
 }

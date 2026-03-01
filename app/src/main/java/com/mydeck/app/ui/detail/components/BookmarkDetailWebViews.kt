@@ -3,6 +3,8 @@ package com.mydeck.app.ui.detail.components
 import android.net.Uri
 import android.view.View
 import android.webkit.WebView
+import com.mydeck.app.domain.model.ImageGalleryData
+import com.mydeck.app.ui.detail.WebViewImageBridge
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -43,6 +45,7 @@ import com.mydeck.app.util.openUrlInCustomTab
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.Json
 
 @Composable
 fun EmptyBookmarkDetailArticle(
@@ -59,13 +62,17 @@ fun BookmarkDetailArticle(
     modifier: Modifier,
     uiState: BookmarkDetailViewModel.UiState.Success,
     articleSearchState: BookmarkDetailViewModel.ArticleSearchState = BookmarkDetailViewModel.ArticleSearchState(),
-    onArticleSearchUpdateResults: (Int) -> Unit = {}
+    onArticleSearchUpdateResults: (Int) -> Unit = {},
+    onImageTapped: (ImageGalleryData) -> Unit = {},
+    onImageLongPress: (imageUrl: String, linkUrl: String?, linkType: String) -> Unit = { _, _, _ -> },
+    onLinkLongPress: (linkUrl: String) -> Unit = {},
 ) {
     val isSystemInDarkMode = isSystemInDarkTheme()
     val content = remember(uiState.bookmark.bookmarkId, isSystemInDarkMode, uiState.template) {
         mutableStateOf<String?>(null)
     }
     val webViewRef = remember { mutableStateOf<WebView?>(null) }
+    val json = remember { Json { ignoreUnknownKeys = true } }
 
     LaunchedEffect(uiState.bookmark.bookmarkId, isSystemInDarkMode, uiState.template) {
         content.value = getTemplate(uiState, isSystemInDarkMode)
@@ -153,6 +160,15 @@ fun BookmarkDetailArticle(
                         isHorizontalScrollBarEnabled = false
                         settings.textZoom = uiState.typographySettings.fontSizePercent
 
+                        // Register the JS-to-native image bridge
+                        addJavascriptInterface(
+                            WebViewImageBridge(
+                                json = json,
+                                onImageTapped = { data -> onImageTapped(data) }
+                            ),
+                            WebViewImageBridge.BRIDGE_NAME
+                        )
+
                         // Intercept link clicks and open in Chrome Custom Tabs
                         // Apply typography after page finishes loading
                         webViewClient = object : android.webkit.WebViewClient() {
@@ -171,9 +187,43 @@ fun BookmarkDetailArticle(
                             override fun onPageFinished(view: WebView?, url: String?) {
                                 super.onPageFinished(view, url)
                                 view?.let {
-                                    val js = WebViewTypographyBridge.applyTypography(uiState.typographySettings)
-                                    it.evaluateJavascript(js, null)
+                                    val typographyJs = WebViewTypographyBridge.applyTypography(uiState.typographySettings)
+                                    it.evaluateJavascript(typographyJs, null)
+                                    val imageJs = WebViewImageBridge.injectImageInterceptor()
+                                    it.evaluateJavascript(imageJs, null)
                                 }
+                            }
+                        }
+
+                        // Long-press context menu via native hit testing
+                        setOnLongClickListener { view ->
+                            val webView = view as WebView
+                            val result = webView.hitTestResult
+                            val imageExtRe = Regex(
+                                """\.(jpg|jpeg|png|gif|webp|svg|bmp|tiff|avif)(\?.*)?$""",
+                                RegexOption.IGNORE_CASE
+                            )
+                            when (result.type) {
+                                WebView.HitTestResult.IMAGE_TYPE -> {
+                                    onImageLongPress(result.extra ?: "", null, "none")
+                                    true
+                                }
+                                WebView.HitTestResult.SRC_ANCHOR_TYPE -> {
+                                    onLinkLongPress(result.extra ?: "")
+                                    true
+                                }
+                                WebView.HitTestResult.SRC_IMAGE_ANCHOR_TYPE -> {
+                                    val linkUrl = result.extra ?: ""
+                                    webView.evaluateJavascript(
+                                        WebViewImageBridge.getImageUrlAtLink(linkUrl)
+                                    ) { imageUrl ->
+                                        val cleanUrl = imageUrl?.trim('"') ?: ""
+                                        val linkType = if (imageExtRe.containsMatchIn(linkUrl)) "image" else "page"
+                                        onImageLongPress(cleanUrl, linkUrl, linkType)
+                                    }
+                                    true
+                                }
+                                else -> false
                             }
                         }
 

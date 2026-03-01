@@ -77,6 +77,8 @@ interface BookmarkRepository {
     suspend fun updateTitle(bookmarkId: String, title: String): UpdateResult
     suspend fun renameLabel(oldLabel: String, newLabel: String): UpdateResult
     suspend fun deleteLabel(label: String): UpdateResult
+    suspend fun fetchRawBookmarkJson(bookmarkId: String): String?
+    suspend fun fetchRawArticleHtml(bookmarkId: String): String?
     sealed class UpdateResult {
         data object Success: UpdateResult()
         data class Error(val errorMessage: String, val code: Int? = null, val ex: Exception? = null): UpdateResult()

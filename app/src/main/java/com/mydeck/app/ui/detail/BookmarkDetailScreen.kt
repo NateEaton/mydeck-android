@@ -1,11 +1,18 @@
 package com.mydeck.app.ui.detail
 
+import android.app.DownloadManager
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 import android.content.Intent
 import android.icu.text.MessageFormat
 import android.net.Uri
 import android.view.View
 import android.webkit.WebView
 import androidx.compose.foundation.clickable
+import androidx.compose.material.icons.outlined.ContentCopy
+import androidx.compose.material.icons.outlined.Download
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.ui.draw.alpha
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
@@ -65,6 +72,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
@@ -92,6 +100,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.navigation.NavController
 import com.mydeck.app.R
+import com.mydeck.app.domain.model.ImageGalleryData
 import com.mydeck.app.domain.model.Template
 import com.mydeck.app.domain.model.TextWidth
 import com.mydeck.app.util.openUrlInCustomTab
@@ -165,6 +174,8 @@ fun BookmarkDetailHost(
     val contentLoadState = viewModel.contentLoadState.collectAsState().value
     val articleSearchState = viewModel.articleSearchState.collectAsState().value
     val labelsWithCounts = viewModel.labelsWithCounts.collectAsState().value
+    val galleryData = viewModel.galleryData.collectAsState().value
+    val readerContextMenu = viewModel.readerContextMenu.collectAsState().value
     var showDetailsDialog by remember { mutableStateOf(false) }
     var showTypographyPanel by remember { mutableStateOf(false) }
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -190,6 +201,13 @@ fun BookmarkDetailHost(
     val onArticleSearchNext = { viewModel.onArticleSearchNext() }
     val onArticleSearchPrevious = { viewModel.onArticleSearchPrevious() }
     val onArticleSearchUpdateResults = { totalMatches: Int -> viewModel.onArticleSearchUpdateResults(totalMatches) }
+
+    // Gallery and context menu callbacks
+    val onImageTapped = { data: ImageGalleryData -> viewModel.onImageTapped(data) }
+    val onImageLongPress = { imageUrl: String, linkUrl: String?, linkType: String ->
+        viewModel.onShowImageContextMenu(imageUrl, linkUrl, linkType)
+    }
+    val onLinkLongPress = { linkUrl: String -> viewModel.onShowLinkContextMenu(linkUrl) }
 
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
@@ -260,44 +278,100 @@ fun BookmarkDetailHost(
                     viewModel.onUpdateBookmarkStateConsumed()
                 }
             }
-            BookmarkDetailScreen(
-                modifier = Modifier,
-                snackbarHostState = snackbarHostState,
-                onClickBack = if (articleSearchState.isActive) onArticleSearchDeactivate else onClickBack,
-                onClickToggleFavorite = onClickToggleFavorite,
-                onClickToggleArchive = onClickToggleArchive,
-                onClickToggleRead = onClickToggleRead,
-                onClickShareBookmark = onClickShareBookmark,
-                onClickDeleteBookmark = onClickDeleteBookmark,
-                onClickOpenInBrowser = onClickOpenInBrowser,
-                onArticleSearchActivate = onArticleSearchActivate,
-                uiState = uiState,
-                onClickOpenUrl = onClickOpenUrl,
-                onShowDetails = { showDetailsDialog = true },
-                onScrollProgressChanged = { progress ->
-                    viewModel.onScrollProgressChanged(progress)
-                },
-                initialReadProgress = viewModel.getInitialReadProgress(),
-                contentMode = contentMode,
-                onContentModeChange = { contentMode = it },
-                contentLoadState = contentLoadState,
-                articleSearchState = articleSearchState,
-                onArticleSearchDeactivate = onArticleSearchDeactivate,
-                onArticleSearchQueryChange = onArticleSearchQueryChange,
-                onArticleSearchNext = onArticleSearchNext,
-                onArticleSearchPrevious = onArticleSearchPrevious,
-                onArticleSearchUpdateResults = onArticleSearchUpdateResults,
-                onShowTypographyPanel = { showTypographyPanel = true },
-                onTitleChanged = { newTitle ->
-                    viewModel.onUpdateTitle(uiState.bookmark.bookmarkId, newTitle)
+            // Box ensures the gallery overlay stacks directly on top of the
+            // reader screen regardless of how the NavHost lays out its children.
+            Box(modifier = Modifier.fillMaxSize()) {
+                BookmarkDetailScreen(
+                    modifier = Modifier,
+                    snackbarHostState = snackbarHostState,
+                    onClickBack = if (articleSearchState.isActive) onArticleSearchDeactivate else onClickBack,
+                    onClickToggleFavorite = onClickToggleFavorite,
+                    onClickToggleArchive = onClickToggleArchive,
+                    onClickToggleRead = onClickToggleRead,
+                    onClickShareBookmark = onClickShareBookmark,
+                    onClickDeleteBookmark = onClickDeleteBookmark,
+                    onClickOpenInBrowser = onClickOpenInBrowser,
+                    onArticleSearchActivate = onArticleSearchActivate,
+                    uiState = uiState,
+                    onClickOpenUrl = onClickOpenUrl,
+                    onShowDetails = { showDetailsDialog = true },
+                    onScrollProgressChanged = { progress ->
+                        viewModel.onScrollProgressChanged(progress)
+                    },
+                    initialReadProgress = viewModel.getInitialReadProgress(),
+                    contentMode = contentMode,
+                    onContentModeChange = { contentMode = it },
+                    contentLoadState = contentLoadState,
+                    articleSearchState = articleSearchState,
+                    onArticleSearchDeactivate = onArticleSearchDeactivate,
+                    onArticleSearchQueryChange = onArticleSearchQueryChange,
+                    onArticleSearchNext = onArticleSearchNext,
+                    onArticleSearchPrevious = onArticleSearchPrevious,
+                    onArticleSearchUpdateResults = onArticleSearchUpdateResults,
+                    onShowTypographyPanel = { showTypographyPanel = true },
+                    onTitleChanged = { newTitle ->
+                        viewModel.onUpdateTitle(uiState.bookmark.bookmarkId, newTitle)
+                    },
+                    onImageTapped = onImageTapped,
+                    onImageLongPress = onImageLongPress,
+                    onLinkLongPress = onLinkLongPress,
+                )
+
+                // Gallery draws on top of the reader screen. fillMaxSize() fills the
+                // full edge-to-edge area; system bar insets are handled within the
+                // gallery composable itself.
+                if (galleryData != null) {
+                    ImageGalleryOverlay(
+                        galleryData = galleryData,
+                        onDismiss = { viewModel.onDismissGallery() },
+                        onOpenLink = { url -> openUrlInCustomTab(context, url) },
+                        onPageChanged = { page -> viewModel.onGalleryPageChanged(page) },
+                    )
                 }
-            )
+            }
+
+            // Reader context menu
+            if (readerContextMenu.visible) {
+                ReaderContextMenu(
+                    state = readerContextMenu,
+                    onDismiss = { viewModel.onDismissReaderContextMenu() },
+                    snackbarHostState = snackbarHostState,
+                )
+            }
 
             // Handle share intent events
             LaunchedEffect(Unit) {
                 viewModel.shareIntent.collectLatest { intent ->
                     val chooser = Intent.createChooser(intent, null)
                     context.startActivity(chooser)
+                }
+            }
+            // Handle debug export events
+            LaunchedEffect(Unit) {
+                viewModel.debugExportEvent.collectLatest { event ->
+                    when (event) {
+                        is BookmarkDetailViewModel.DebugExportEvent.Ready -> {
+                            val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                                type = "application/json"
+                                putExtra(Intent.EXTRA_STREAM, event.uri)
+                                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                            }
+                            val chooser = Intent.createChooser(shareIntent, "Export Debug JSON")
+                            context.startActivity(chooser)
+                        }
+                        is BookmarkDetailViewModel.DebugExportEvent.Error -> {
+                            snackbarHostState.showSnackbar(
+                                message = "Export failed: ${event.message}",
+                                duration = SnackbarDuration.Short
+                            )
+                        }
+                        is BookmarkDetailViewModel.DebugExportEvent.Exporting -> {
+                            snackbarHostState.showSnackbar(
+                                message = "Exporting debug data...",
+                                duration = SnackbarDuration.Short
+                            )
+                        }
+                    }
                 }
             }
             if (showDetailsDialog) {
@@ -307,7 +381,8 @@ fun BookmarkDetailHost(
                     onLabelsUpdate = { newLabels ->
                         onUpdateLabels(uiState.bookmark.bookmarkId, newLabels)
                     },
-                    existingLabels = labelsWithCounts.keys.toList()
+                    existingLabels = labelsWithCounts.keys.toList(),
+                    onExportDebugJson = { viewModel.onExportDebugJson() }
                 )
             }
             if (showTypographyPanel) {
@@ -364,7 +439,10 @@ fun BookmarkDetailScreen(
     onArticleSearchPrevious: () -> Unit = {},
     onArticleSearchUpdateResults: (Int) -> Unit = {},
     onShowTypographyPanel: () -> Unit = {},
-    onTitleChanged: ((String) -> Unit)? = null
+    onTitleChanged: ((String) -> Unit)? = null,
+    onImageTapped: (ImageGalleryData) -> Unit = {},
+    onImageLongPress: (imageUrl: String, linkUrl: String?, linkType: String) -> Unit = { _, _, _ -> },
+    onLinkLongPress: (linkUrl: String) -> Unit = {},
 ) {
     val topBarScrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior()
     var scrollPercent by remember { mutableIntStateOf(0) }
@@ -434,6 +512,9 @@ fun BookmarkDetailScreen(
                 onArticleSearchUpdateResults = onArticleSearchUpdateResults,
                 onTitleChanged = onTitleChanged,
                 onScrollPercentChanged = { scrollPercent = it },
+                onImageTapped = onImageTapped,
+                onImageLongPress = onImageLongPress,
+                onLinkLongPress = onLinkLongPress,
             )
         }
     }
@@ -452,6 +533,9 @@ fun BookmarkDetailContent(
     onArticleSearchUpdateResults: (Int) -> Unit = {},
     onTitleChanged: ((String) -> Unit)? = null,
     onScrollPercentChanged: (Int) -> Unit = {},
+    onImageTapped: (ImageGalleryData) -> Unit = {},
+    onImageLongPress: (imageUrl: String, linkUrl: String?, linkType: String) -> Unit = { _, _, _ -> },
+    onLinkLongPress: (linkUrl: String) -> Unit = {},
 ) {
     val scrollState = rememberScrollState()
     val hasArticleContent = uiState.bookmark.articleContent != null
@@ -524,7 +608,10 @@ fun BookmarkDetailContent(
                         modifier = Modifier.fillMaxWidth(contentWidthFraction),
                         uiState = uiState,
                         articleSearchState = articleSearchState,
-                        onArticleSearchUpdateResults = onArticleSearchUpdateResults
+                        onArticleSearchUpdateResults = onArticleSearchUpdateResults,
+                        onImageTapped = onImageTapped,
+                        onImageLongPress = onImageLongPress,
+                        onLinkLongPress = onLinkLongPress,
                     )
                 } else {
                     // Brief fallback while auto-switch to Original hasn't happened yet
@@ -553,6 +640,155 @@ fun BookmarkDetailContent(
     }
     }
 
+
+@Composable
+private fun ReaderContextMenu(
+    state: BookmarkDetailViewModel.ReaderContextMenuState,
+    onDismiss: () -> Unit,
+    snackbarHostState: SnackbarHostState,
+) {
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
+
+    Box(modifier = Modifier.size(0.dp)) {
+        DropdownMenu(
+            expanded = state.visible,
+            onDismissRequest = onDismiss,
+        ) {
+            if (state.imageUrl != null) {
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.action_copy_image_url)) },
+                    leadingIcon = { Icon(Icons.Outlined.ContentCopy, contentDescription = null) },
+                    onClick = {
+                        readerContextMenuCopyToClipboard(context, state.imageUrl)
+                        coroutineScope.launch {
+                            snackbarHostState.showSnackbar(
+                                context.getString(R.string.image_url_copied),
+                                duration = SnackbarDuration.Short
+                            )
+                        }
+                        onDismiss()
+                    }
+                )
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.action_download_image)) },
+                    leadingIcon = { Icon(Icons.Outlined.Download, contentDescription = null) },
+                    onClick = {
+                        readerContextMenuDownloadImage(context, state.imageUrl)
+                        coroutineScope.launch {
+                            snackbarHostState.showSnackbar(
+                                context.getString(R.string.download_started),
+                                duration = SnackbarDuration.Short
+                            )
+                        }
+                        onDismiss()
+                    }
+                )
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.action_share_image)) },
+                    leadingIcon = { Icon(Icons.Outlined.Share, contentDescription = null) },
+                    onClick = {
+                        coroutineScope.launch {
+                            readerContextMenuShareImage(context, state.imageUrl)
+                        }
+                        onDismiss()
+                    }
+                )
+                if (state.linkUrl != null) {
+                    HorizontalDivider()
+                }
+            }
+
+            if (state.linkUrl != null) {
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.action_copy_link)) },
+                    leadingIcon = { Icon(Icons.Outlined.ContentCopy, contentDescription = null) },
+                    onClick = {
+                        readerContextMenuCopyToClipboard(context, state.linkUrl)
+                        coroutineScope.launch {
+                            snackbarHostState.showSnackbar(
+                                context.getString(R.string.link_copied),
+                                duration = SnackbarDuration.Short
+                            )
+                        }
+                        onDismiss()
+                    }
+                )
+                if (state.imageUrl == null) {
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.action_share_link)) },
+                        leadingIcon = { Icon(Icons.Outlined.Share, contentDescription = null) },
+                        onClick = {
+                            val intent = Intent(Intent.ACTION_SEND).apply {
+                                type = "text/plain"
+                                putExtra(Intent.EXTRA_TEXT, state.linkUrl)
+                            }
+                            context.startActivity(Intent.createChooser(intent, null))
+                            onDismiss()
+                        }
+                    )
+                }
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.action_open_in_browser)) },
+                    leadingIcon = { Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = null) },
+                    onClick = {
+                        openUrlInCustomTab(context, state.linkUrl)
+                        onDismiss()
+                    }
+                )
+            }
+        }
+    }
+}
+
+private fun readerContextMenuCopyToClipboard(context: Context, text: String) {
+    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+    clipboard.setPrimaryClip(ClipData.newPlainText("", text))
+}
+
+private fun readerContextMenuDownloadImage(context: Context, imageUrl: String) {
+    val uri = Uri.parse(imageUrl)
+    // lastPathSegment strips query params; fall back to a timestamp-based name when the
+    // URL has no usable filename (e.g., an opaque path). A null or blank subPath would
+    // crash DownloadManager with NullPointerException on all API levels.
+    val fileName = uri.lastPathSegment?.takeIf { it.isNotBlank() }
+        ?: "image_${System.currentTimeMillis()}.jpg"
+    val request = DownloadManager.Request(uri)
+        .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
+        .setDestinationInExternalPublicDir(android.os.Environment.DIRECTORY_DOWNLOADS, fileName)
+    val dm = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
+    dm.enqueue(request)
+}
+
+private suspend fun readerContextMenuShareImage(context: Context, imageUrl: String) {
+    withContext(Dispatchers.IO) {
+        try {
+            val cacheDir = java.io.File(context.cacheDir, "images").also { it.mkdirs() }
+            val fileName = imageUrl.substringAfterLast('/').substringBefore('?').ifEmpty { "image.jpg" }
+            val file = java.io.File(cacheDir, fileName)
+            val connection = java.net.URL(imageUrl).openConnection()
+            connection.connect()
+            file.outputStream().use { out ->
+                connection.getInputStream().use { it.copyTo(out) }
+            }
+            val uri = androidx.core.content.FileProvider.getUriForFile(
+                context,
+                "${context.packageName}.provider",
+                file
+            )
+            val intent = Intent(Intent.ACTION_SEND).apply {
+                type = "image/*"
+                putExtra(Intent.EXTRA_STREAM, uri)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            withContext(Dispatchers.Main) {
+                context.startActivity(Intent.createChooser(intent, null))
+            }
+        } catch (e: Exception) {
+            timber.log.Timber.w(e, "Failed to share image")
+        }
+    }
+}
 
 @Composable
 fun BookmarkDetailErrorScreen() {
