@@ -149,7 +149,8 @@ fun BookmarkDetailArticle(
                     WebView(context).apply {
                         val isVideo = uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.VIDEO
                         val isArticle = uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.ARTICLE
-                        settings.javaScriptEnabled = isVideo || isArticle  // Enable JS for articles (needed for search)
+                        val isPhoto = uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.PHOTO
+                        settings.javaScriptEnabled = isVideo || isArticle || isPhoto  // Enable JS for articles (search) and photos (lightbox)
                         settings.domStorageEnabled = isVideo
                         settings.mediaPlaybackRequiresUserGesture = true
                         settings.useWideViewPort = false
