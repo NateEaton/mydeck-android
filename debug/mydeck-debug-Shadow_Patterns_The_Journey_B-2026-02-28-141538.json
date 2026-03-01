@@ -1,0 +1,126 @@
+{
+    "exportInfo": {
+        "exportTimestamp": "2026-02-28T14:15:38.810-0600",
+        "appVersion": "0.10.0",
+        "appVersionCode": 10000,
+        "buildType": "debug",
+        "apiDataAvailable": true,
+        "articleHtmlAvailable": true
+    },
+    "apiResponse": {
+        "id": "D6BxirS4xbJcGfQPW3vrsa",
+        "href": "http://192.168.0.11:8889/api/bookmarks/D6BxirS4xbJcGfQPW3vrsa",
+        "created": "2026-02-28T20:04:14.626842982Z",
+        "updated": "2026-02-28T20:14:54.145101843Z",
+        "state": 0,
+        "loaded": true,
+        "url": "http://wind-n-sky.blogspot.com/2025/03/shadow-patterns-journey-begins.html",
+        "title": "Shadow Patterns: The Journey Begins",
+        "site_name": "wind-n-sky.blogspot.com",
+        "site": "wind-n-sky.blogspot.com",
+        "authors": [],
+        "lang": "",
+        "text_direction": "ltr",
+        "document_type": "article",
+        "type": "article",
+        "has_article": true,
+        "description": "As described in my last post , I was inspired by an APOD entry last December featuring a solar analemma captured by a security camera on so...",
+        "is_deleted": false,
+        "is_marked": false,
+        "is_archived": false,
+        "labels": [],
+        "read_progress": 100,
+        "resources": {
+            "article": {
+                "src": "http://192.168.0.11:8889/api/bookmarks/D6BxirS4xbJcGfQPW3vrsa/article"
+            },
+            "icon": {
+                "src": "http://192.168.0.11:8889/bm/D6/D6BxirS4xbJcGfQPW3vrsa/img/icon.ico",
+                "width": 16,
+                "height": 16
+            },
+            "image": {
+                "src": "http://192.168.0.11:8889/bm/D6/D6BxirS4xbJcGfQPW3vrsa/img/image.png",
+                "width": 800,
+                "height": 420
+            },
+            "log": {
+                "src": "http://192.168.0.11:8889/api/bookmarks/D6BxirS4xbJcGfQPW3vrsa/x/log"
+            },
+            "props": {
+                "src": "http://192.168.0.11:8889/api/bookmarks/D6BxirS4xbJcGfQPW3vrsa/x/props.json"
+            },
+            "thumbnail": {
+                "src": "http://192.168.0.11:8889/bm/D6/D6BxirS4xbJcGfQPW3vrsa/img/thumbnail.png",
+                "width": 380,
+                "height": 199
+            }
+        },
+        "word_count": 1175,
+        "reading_time": 5
+    },
+    "localState": {
+        "bookmarkId": "D6BxirS4xbJcGfQPW3vrsa",
+        "contentState": "DOWNLOADED",
+        "contentFailureReason": "none",
+        "hasLocalArticleContent": false,
+        "localArticleContentLength": 0,
+        "readProgress": 100,
+        "isMarked": false,
+        "isArchived": false,
+        "isDeleted": false
+    },
+    "bookmarkMetadata": {
+        "id": "D6BxirS4xbJcGfQPW3vrsa",
+        "title": "Shadow Patterns: The Journey Begins",
+        "url": "http://wind-n-sky.blogspot.com/2025/03/shadow-patterns-journey-begins.html",
+        "href": "http://192.168.0.11:8889/api/bookmarks/D6BxirS4xbJcGfQPW3vrsa",
+        "site": "wind-n-sky.blogspot.com",
+        "siteName": "wind-n-sky.blogspot.com",
+        "state": "LOADED",
+        "loaded": true,
+        "type": "article",
+        "documentType": "article",
+        "hasArticle": true,
+        "lang": "",
+        "textDirection": "ltr",
+        "wordCount": 1175,
+        "readingTime": 5,
+        "readProgress": 100,
+        "created": "2026-02-28T14:04:14.626",
+        "updated": "2026-02-28T14:04:18.614",
+        "published": "null",
+        "description": "As described in my last post , I was inspired by an APOD entry last December featuring a solar analemma captured by a security camera on so...",
+        "embed": "null",
+        "embedHostname": "null",
+        "authors": [],
+        "labels": [],
+        "resources": {
+            "article": {
+                "src": "http://192.168.0.11:8889/api/bookmarks/D6BxirS4xbJcGfQPW3vrsa/article"
+            },
+            "icon": {
+                "src": "http://192.168.0.11:8889/bm/D6/D6BxirS4xbJcGfQPW3vrsa/img/icon.ico",
+                "width": 16,
+                "height": 16
+            },
+            "image": {
+                "src": "http://192.168.0.11:8889/bm/D6/D6BxirS4xbJcGfQPW3vrsa/img/image.png",
+                "width": 800,
+                "height": 420
+            },
+            "thumbnail": {
+                "src": "http://192.168.0.11:8889/bm/D6/D6BxirS4xbJcGfQPW3vrsa/img/thumbnail.png",
+                "width": 380,
+                "height": 199
+            },
+            "log": {
+                "src": "http://192.168.0.11:8889/api/bookmarks/D6BxirS4xbJcGfQPW3vrsa/x/log"
+            },
+            "props": {
+                "src": "http://192.168.0.11:8889/api/bookmarks/D6BxirS4xbJcGfQPW3vrsa/x/props.json"
+            }
+        }
+    },
+    "articleHtml": "<section id=\"dH.EfuI.article\">\n<p>As described in my <a href=\"https://wind-n-sky.blogspot.com/2025/02/year-long-journey-following-the-sun.html\" target=\"_blank\" rel=\"nofollow noopener noreferrer\">last post</a>, I was inspired by an APOD entry last December featuring a solar <a href=\"https://en.wikipedia.org/wiki/Analemma\" target=\"_blank\" rel=\"nofollow noopener noreferrer\">analemma</a> captured by a security camera on someone&#39;s driveway to create my own timelapse video tracing the path of the Sun over a year, capturing the distinctive figure eight shape of the analemma as the shadow moves day by day. This project recreates a technique used for timekeeping, calendar making, and as the basis for religious and cultural rituals going back thousands of years. But as with the APOD that inspired it, I&#39;m putting a modern spin on this ancient concept by leveraging programming, computers, digital cameras, photo and video editing software, design software, and 3D printing. In this post, I&#39;ll provide an overview of my setup, including how I planned out the project, created a custom <a href=\"https://en.wikipedia.org/wiki/Gnomon\" target=\"_blank\" rel=\"nofollow noopener noreferrer\">gnomon</a> (the part of a solar timepiece that casts the shadow), set up the camera and automation system, and the initial image processing and results.</p><h4>Decision #1: What to Shoot With</h4><table><tbody><tr><td><a href=\"https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEjgugfkWNyTEptKt77fyJ0dQgTLGumZwWTLGXWaBthejoLnoE82spbryrrcTAxdxnth1MI3xAxKf1HkZW7tWUSwWzKcP_xkH2TxjuE-o91SIg466sawsQjoNs2PvoyN0ax1rf35Jcigip8pKi8R1hoN58xnhx0GSJA4OgQLRRQspriLOyWKuUaNGfUodoAK/s4080/PXL_20241220_200602395.PORTRAIT.jpg\" rel=\"nofollow noopener noreferrer\"><img loading=\"lazy\" height=\"200\" src=\"http://192.168.0.11:8889/bm/D6/D6BxirS4xbJcGfQPW3vrsa/_resources/VGi8UPb9n5YX42JnsR9K6k.jpg\" width=\"151\"/></a></td></tr><tr><td>Blink camera</td></tr></tbody></table><p>First off, I had to pick a camera to capture each image with. As the subject is outdoors - and the project lasts for a year - using a DSLR like my Nikon D750 wouldn&#39;t be feasible. I could easily dedicate one of the IP cameras I have for a year but they aren&#39;t weather-proof and they have to be plugged in. Luckily, we have a set of Blink outdoor cameras around the house. They are weather-proof, battery-powered and can be accessed over a network connection. The only concern I had with them is the mount is easy to move which could interfere with having the same point of view for every image over the course of the year. I solved that by 3D printing a new mount that I could lock in place with a set screw.</p><h4>Decision #2: Where to Shoot</h4><p>My first thought was to do something like in the referenced APOD... shoot to the north with the shadow to track being cast in front of the camera with the Sun shining from behind. I even considered mounting the camera so that its own shadow would be what traces out the analemma. However, while our house faces north-northeast, we have 6 huge cedar elm trees out front; during the summer any shadow cast from the edge of the house would be lost in the shade of the trees. Given that, I settled on shooting in the back yard. </p><h4>Decision #3: When to Shoot</h4><table><tbody><tr><td><a href=\"https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEh_yWl51CtEXHeH0WqGQiJNKphaCLMEUHHLMAOZFSgNJMI2lgPPe54TOBxKa6ZqoJ9KFVLrSA_wOzyLlhHigZlYSipdY_jySrIHgdatWsseJmZySZwB9BFYP4ryTbGynn426r_ucDdTZdPtJt5f1OStbW2R6Qy7UbZrV7A8GXe0dmINwIO_16qoksw69dyY/s1920/patio_analemma_2025-01-02T12-30-00.jpg\" rel=\"nofollow noopener noreferrer\"><img loading=\"lazy\" height=\"112\" src=\"http://192.168.0.11:8889/bm/D6/D6BxirS4xbJcGfQPW3vrsa/_resources/VUFSZrkoowLMLK38nSqLVJ.jpg\" width=\"200\"/></a></td></tr><tr><td>View to be captured</td></tr></tbody></table><p>The decision of when to shoot and where to shoot go hand-in-hand. Deciding to shoot in the back yard was fine but incomplete till I figured out what time of day to shoot. Long story short, as we already have a Blink camera on our side fence, I figured out that as that fence runs on a line that&#39;s about 153 degrees (approximately south-southeast), I could shoot at just after noon each day and the shadow would trace out the figure eight of an analemma on the ground just on our side of the fence and in the field of view of that camera. </p><h4>Decision #4: What to Shoot</h4><table><tbody><tr><td><a href=\"https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEiMXA4SlP-Y_I7DZD3ITA3m6xLFgSyLSi9czLcHcO9BGOxvmRYfLQPE4Sv1QVKAYGZScRWuL5B_3IYJqqglNmIy87lG8D2mXvZF_ZBZmt84k6CkNcO_fTq8JFC9QTFuAeAeIpdg_n7RL1H6ZeJBfquSxmlotI7uKcBOLLe15jGCRrRrvWQcYuQFxMSsp9_Y/s4080/PXL_20241220_174000648.PORTRAIT.jpg\" rel=\"nofollow noopener noreferrer\"><img loading=\"lazy\" height=\"200\" src=\"http://192.168.0.11:8889/bm/D6/D6BxirS4xbJcGfQPW3vrsa/_resources/CDrHEg25KuQj6WoFSHNRuj.jpg\" width=\"151\"/></a></td></tr><tr><td>Gnomon on fence</td></tr></tbody></table><p>Although I could have mounted just anything on top of the fence to cast a shadow, I took advantage to having access to a 3D printer and designed and printed my own gnomon in the form of a stylized Sun mounted on a post. It was printed in black but I took yellow Plasti-Dip both for a &#34;sunny&#34; look and also to give it a bit of additional protection against the elements. </p><h4>Decision #5: How to Shoot</h4><p>Early photographic attempts to capture a solar analemma in the sky with a film camera required incredible dedication, shooting at the exact same time of day, one day a week or every few weeks for an entire year. Because I am creating a timelapse video rather than a composite photo, I need to capture an image more frequently (every day) so I decided to automate the process. I have a home automation solution called Home Assistant. With it, I was able to write a script that takes a photo with the Blink camera in the back yard at 12:30pm (1:30pm during Daylight Saving Time) every day. The system also records metadata about weather conditions (overcast, sunny, etc.) in a text file, storing both the images and data on a home computer for later use in assembling the video. </p><h4>Progress To-date</h4><p>Although I only recently began posting about this project, I started planning it in December and started shooting the day after the winter solstice which fell on December 21st. Things are going well but there have been a few bumps in the road:</p><ul><li>It turned out that the shadow cast by the first gnomon I created was a little too small so I redesigned a larger version and replaced the first one with it at the end of December. </li><li>Although the camera mount is locked in place, it appears that the image framing shifts a very small amount over the course of several days. My guess is that the weather going from sub-freezing to springtime temperatures, the plastic mount is expanding and contracting, affecting the alignment of the camera. Thankfully, the difference from image to image is small enough that I can align all the images using Photoshop so that they don&#39;t shift from day to day. </li><li>Early on, rain left water drops on the camera lens that affected the images but we&#39;ve had quite a bit of rain since then and it hasn&#39;t happened again. If it does, I may need to add a hood to the camera mount.</li></ul><p>In spite of these issues, my first pass at assembling the images into timelapse format looks promising. This version has two sections. In the first, watch for the yellow dot on the ground... it overlays the gnomon&#39;s shadow. In the second section, watch that same area of the ground and you&#39;ll see the shadow of the gnomon trace out the beginning of an analemma. </p>\n<br/><div><figure><img loading=\"lazy\" alt=\"Youtube - Shadow Analemma First Draft\" data-iframe-params=\"src=https%3A%2F%2Fwww.youtube-nocookie.com%2Fembed%2Fxa-vX85qvRk%3Frel%3D0&amp;w=1280&amp;h=720\" src=\"http://192.168.0.11:8889/bm/D6/D6BxirS4xbJcGfQPW3vrsa/_resources/KSnr6EG6XYzvkaToqtcqbG.jpg\" width=\"1280\" height=\"720\"/><figcaption><a href=\"https://www.youtube.com/watch?v=xa-vX85qvRk\" rel=\"nofollow noopener noreferrer\">Youtube - Shadow Analemma First Draft</a></figcaption></figure></div>\n<p>\n    Timelapse showing 6 weeks of daily shadow captures<br/>(with gnomon shadow highlighted and with raw video)</p>\n<div><p>As you can see, at just 6 weeks, there is not enough of the analemma yet to make out its distinctive figure eight shape but a pattern is beginning to take form. And there are some oddities in the video - gaps from overcast days (and some rain) and other things moving besides the shadow cast by the fence and gnomon (leaves, chairs, our dog, etc.) - all things I expected given my past experience creating timelapse videos. </p><p>But how exactly did I create the gnomon? What tools did I use to automate the daily image capture? And what techniques am I using to process and align the images? To create the video? In my next post, I&#39;ll dive into these technical details and more, sharing the nuts and bolts of my analemma timelapse setup for those who want to explore further.</p></div>\n\n</section>\n"
+}

@@ -74,7 +74,8 @@ fun BookmarkDetailsDialog(
     bookmark: BookmarkDetailViewModel.Bookmark,
     onDismissRequest: () -> Unit,
     onLabelsUpdate: (List<String>) -> Unit = {},
-    existingLabels: List<String> = emptyList()
+    existingLabels: List<String> = emptyList(),
+    onExportDebugJson: () -> Unit = {}
 ) {
     var labels by remember { mutableStateOf(bookmark.labels.toMutableList()) }
     var newLabelInput by remember { mutableStateOf("") }
@@ -249,7 +250,10 @@ fun BookmarkDetailsDialog(
 
             // Debug Info Section (only show in debug builds)
             if (BuildConfig.DEBUG && bookmark.debugInfo.isNotBlank()) {
-                DebugInfoSection(debugInfo = bookmark.debugInfo)
+                DebugInfoSection(
+                    debugInfo = bookmark.debugInfo,
+                    onExportDebugJson = onExportDebugJson
+                )
             }
         }
     }
@@ -388,7 +392,10 @@ private fun LabelChip(
 }
 
 @Composable
-private fun DebugInfoSection(debugInfo: String) {
+private fun DebugInfoSection(
+    debugInfo: String,
+    onExportDebugJson: () -> Unit = {}
+) {
     val clipboardManager = LocalClipboardManager.current
     val context = LocalContext.current
 
@@ -409,6 +416,17 @@ private fun DebugInfoSection(debugInfo: String) {
             )
 
             Row {
+                // Export JSON button
+                IconButton(
+                    onClick = onExportDebugJson
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Download,
+                        contentDescription = "Export debug JSON",
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                }
+
                 // Copy button
                 IconButton(
                     onClick = {
