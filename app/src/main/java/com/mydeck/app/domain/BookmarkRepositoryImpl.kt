@@ -120,6 +120,7 @@ class BookmarkRepositoryImpl @Inject constructor(
             listItems.map { listItem ->
                 BookmarkListItem(
                     id = listItem.id,
+                    href = listItem.href,
                     url = listItem.url,
                     title = listItem.title,
                     siteName = listItem.siteName,
@@ -180,6 +181,7 @@ class BookmarkRepositoryImpl @Inject constructor(
             listItems.map { listItem ->
                 BookmarkListItem(
                     id = listItem.id,
+                    href = listItem.href,
                     url = listItem.url,
                     title = listItem.title,
                     siteName = listItem.siteName,
@@ -256,6 +258,7 @@ class BookmarkRepositoryImpl @Inject constructor(
             listItems.map { listItem ->
                 BookmarkListItem(
                     id = listItem.id,
+                    href = listItem.href,
                     url = listItem.url,
                     title = listItem.title,
                     siteName = listItem.siteName,

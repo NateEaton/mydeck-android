@@ -137,16 +137,20 @@ class WebViewImageBridge(
         }
 
         /**
-         * Returns JS that extracts the visible text of the anchor element at (x, y).
-         * Walks up from the element at the point until it finds an <a> tag.
-         * Returns the trimmed innerText, or an empty string if no anchor is found.
+         * Returns JS that finds the anchor element matching [linkUrl] and returns its text.
+         * More reliable than coordinate-based lookup since we know the exact href.
          */
-        fun getLinkTextAtPoint(x: Int, y: Int): String {
+        fun getLinkTextForUrl(linkUrl: String): String {
+            val escaped = linkUrl.replace("\\", "\\\\").replace("\"", "\\\"")
             return """
                 (function() {
-                    var el = document.elementFromPoint($x, $y);
-                    while (el && el.tagName !== 'A') { el = el.parentElement; }
-                    return el ? (el.innerText || el.textContent || '').trim() : '';
+                    var links = document.querySelectorAll('a[href]');
+                    for (var i = 0; i < links.length; i++) {
+                        if (links[i].href === "$escaped" || links[i].getAttribute('href') === "$escaped") {
+                            return (links[i].innerText || links[i].textContent || '').trim();
+                        }
+                    }
+                    return '';
                 })();
             """.trimIndent()
         }

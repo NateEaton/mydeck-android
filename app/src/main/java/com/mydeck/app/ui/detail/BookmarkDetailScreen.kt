@@ -109,6 +109,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import coil3.imageLoader
 import com.mydeck.app.ui.detail.components.*
 
 private const val PendingDeleteFromDetailKey = "pending_delete_bookmark_id"
@@ -334,7 +335,6 @@ fun BookmarkDetailHost(
                 ReaderContextMenu(
                     state = readerContextMenu,
                     onDismiss = { viewModel.onDismissReaderContextMenu() },
-                    snackbarHostState = snackbarHostState,
                     bookmarkTitle = uiState.bookmark.title,
                     bookmarkIconUrl = uiState.bookmark.iconSrc,
                 )
@@ -646,7 +646,6 @@ fun BookmarkDetailContent(
 private fun ReaderContextMenu(
     state: BookmarkDetailViewModel.ReaderContextMenuState,
     onDismiss: () -> Unit,
-    snackbarHostState: SnackbarHostState,
     bookmarkTitle: String,
     bookmarkIconUrl: String,
 ) {
@@ -654,7 +653,6 @@ private fun ReaderContextMenu(
     val coroutineScope = rememberCoroutineScope()
 
     if (state.imageUrl != null) {
-        // Image long-press popup: Copy Image (bitmap), Download Image, Share Image
         LongPressContextMenuDialog(
             headerImageUrl = state.imageUrl,
             title = bookmarkTitle,
@@ -665,9 +663,7 @@ private fun ReaderContextMenu(
                 icon = Icons.Outlined.ContentCopy,
                 text = stringResource(R.string.action_copy_image),
                 onClick = {
-                    coroutineScope.launch {
-                        readerContextMenuCopyImage(context, state.imageUrl, snackbarHostState)
-                    }
+                    coroutineScope.launch { readerContextMenuCopyImage(context, state.imageUrl) }
                     onDismiss()
                 }
             )
@@ -676,12 +672,6 @@ private fun ReaderContextMenu(
                 text = stringResource(R.string.action_download_image),
                 onClick = {
                     readerContextMenuDownloadImage(context, state.imageUrl)
-                    coroutineScope.launch {
-                        snackbarHostState.showSnackbar(
-                            context.getString(R.string.download_started),
-                            duration = SnackbarDuration.Short
-                        )
-                    }
                     onDismiss()
                 }
             )
@@ -693,9 +683,16 @@ private fun ReaderContextMenu(
                     onDismiss()
                 }
             )
+            LongPressContextMenuItem(
+                icon = Icons.AutoMirrored.Filled.OpenInNew,
+                text = stringResource(R.string.action_open_in_browser),
+                onClick = {
+                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(state.imageUrl)))
+                    onDismiss()
+                }
+            )
         }
     } else if (state.linkUrl != null) {
-        // Link long-press popup: Copy Link, Copy Link Text (if available), Download Link, Share Link, Open in Browser
         LongPressContextMenuDialog(
             headerImageUrl = bookmarkIconUrl,
             title = bookmarkTitle,
@@ -707,12 +704,6 @@ private fun ReaderContextMenu(
                 text = stringResource(R.string.action_copy_link),
                 onClick = {
                     readerContextMenuCopyToClipboard(context, state.linkUrl)
-                    coroutineScope.launch {
-                        snackbarHostState.showSnackbar(
-                            context.getString(R.string.link_copied),
-                            duration = SnackbarDuration.Short
-                        )
-                    }
                     onDismiss()
                 }
             )
@@ -720,14 +711,7 @@ private fun ReaderContextMenu(
                 icon = Icons.Outlined.ContentCopy,
                 text = stringResource(R.string.action_copy_link_text),
                 onClick = {
-                    val textToCopy = if (!state.linkText.isNullOrBlank()) state.linkText else state.linkUrl
-                    readerContextMenuCopyToClipboard(context, textToCopy)
-                    coroutineScope.launch {
-                        snackbarHostState.showSnackbar(
-                            context.getString(R.string.link_text_copied),
-                            duration = SnackbarDuration.Short
-                        )
-                    }
+                    readerContextMenuCopyToClipboard(context, state.linkText.orEmpty())
                     onDismiss()
                 }
             )
@@ -735,13 +719,9 @@ private fun ReaderContextMenu(
                 icon = Icons.Outlined.Download,
                 text = stringResource(R.string.action_download_link),
                 onClick = {
-                    readerContextMenuDownloadUrl(context, state.linkUrl)
-                    coroutineScope.launch {
-                        snackbarHostState.showSnackbar(
-                            context.getString(R.string.download_started),
-                            duration = SnackbarDuration.Short
-                        )
-                    }
+                    val fileName = state.linkText?.ifBlank { null }
+                        ?: state.linkUrl.substringAfterLast('/').ifBlank { "download" }
+                    readerContextMenuDownloadUrl(context, state.linkUrl, fileName)
                     onDismiss()
                 }
             )
@@ -761,8 +741,7 @@ private fun ReaderContextMenu(
                 icon = Icons.AutoMirrored.Filled.OpenInNew,
                 text = stringResource(R.string.action_open_in_browser),
                 onClick = {
-                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(state.linkUrl))
-                    context.startActivity(intent)
+                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(state.linkUrl)))
                     onDismiss()
                 }
             )
@@ -775,21 +754,17 @@ private fun readerContextMenuCopyToClipboard(context: Context, text: String) {
     clipboard.setPrimaryClip(ClipData.newPlainText("", text))
 }
 
-private suspend fun readerContextMenuCopyImage(
-    context: Context,
-    imageUrl: String,
-    snackbarHostState: SnackbarHostState,
-) {
+private suspend fun readerContextMenuCopyImage(context: Context, imageUrl: String) {
     try {
         val imageUri = withContext(Dispatchers.IO) {
-            val url = java.net.URL(imageUrl)
-            val connection = url.openConnection()
-            connection.connect()
+            val request = coil3.request.ImageRequest.Builder(context)
+                .data(imageUrl).allowHardware(false).build()
+            val bitmap = (context.imageLoader.execute(request) as? coil3.request.SuccessResult)
+                ?.image as? coil3.BitmapImage ?: throw Exception("no bitmap")
             val cacheDir = java.io.File(context.cacheDir, "images").also { it.mkdirs() }
-            val fileName = imageUrl.substringAfterLast('/').ifBlank { "image" }
-            val file = java.io.File(cacheDir, "copy_${fileName}_${System.currentTimeMillis()}")
-            connection.getInputStream().use { input ->
-                file.outputStream().use { output -> input.copyTo(output) }
+            val file = java.io.File(cacheDir, "copy_${System.currentTimeMillis()}.jpg")
+            file.outputStream().use {
+                bitmap.bitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG, 90, it)
             }
             androidx.core.content.FileProvider.getUriForFile(
                 context, "${context.packageName}.provider", file
@@ -797,23 +772,16 @@ private suspend fun readerContextMenuCopyImage(
         }
         val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
         clipboard.setPrimaryClip(ClipData.newUri(context.contentResolver, "image", imageUri))
-        snackbarHostState.showSnackbar(
-            context.getString(R.string.image_copied),
-            duration = SnackbarDuration.Short
-        )
     } catch (e: Exception) {
-        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-        clipboard.setPrimaryClip(ClipData.newPlainText("", imageUrl))
-        snackbarHostState.showSnackbar(
-            context.getString(R.string.image_url_copied),
-            duration = SnackbarDuration.Short
-        )
+        timber.log.Timber.w(e, "Copy image failed")
     }
 }
 
-private fun readerContextMenuDownloadUrl(context: Context, url: String) {
+private fun readerContextMenuDownloadUrl(context: Context, url: String, fileName: String) {
+    val sanitized = fileName.take(100).replace(Regex("[/\\\\:*?\"<>|]"), "_") + ".html"
     val request = DownloadManager.Request(Uri.parse(url))
         .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
+        .setDestinationInExternalPublicDir(android.os.Environment.DIRECTORY_DOWNLOADS, sanitized)
     val dm = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
     dm.enqueue(request)
 }
@@ -833,32 +801,29 @@ private fun readerContextMenuDownloadImage(context: Context, imageUrl: String) {
 }
 
 private suspend fun readerContextMenuShareImage(context: Context, imageUrl: String) {
-    withContext(Dispatchers.IO) {
-        try {
+    try {
+        val file = withContext(Dispatchers.IO) {
+            val request = coil3.request.ImageRequest.Builder(context)
+                .data(imageUrl).allowHardware(false).build()
+            val bitmap = (context.imageLoader.execute(request) as? coil3.request.SuccessResult)
+                ?.image as? coil3.BitmapImage ?: throw Exception("no bitmap")
             val cacheDir = java.io.File(context.cacheDir, "images").also { it.mkdirs() }
-            val fileName = imageUrl.substringAfterLast('/').substringBefore('?').ifEmpty { "image" }
-            val file = java.io.File(cacheDir, "${fileName}_${System.currentTimeMillis()}.jpg")
-            val connection = java.net.URL(imageUrl).openConnection()
-            connection.connect()
-            file.outputStream().use { out ->
-                connection.getInputStream().use { it.copyTo(out) }
+            val f = java.io.File(cacheDir, "share_${System.currentTimeMillis()}.jpg")
+            f.outputStream().use {
+                bitmap.bitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG, 90, it)
             }
-            val uri = androidx.core.content.FileProvider.getUriForFile(
-                context,
-                "${context.packageName}.provider",
-                file
-            )
-            val intent = Intent(Intent.ACTION_SEND).apply {
-                type = "image/*"
-                putExtra(Intent.EXTRA_STREAM, uri)
-                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            }
-            withContext(Dispatchers.Main) {
-                context.startActivity(Intent.createChooser(intent, null))
-            }
-        } catch (e: Exception) {
-            timber.log.Timber.w(e, "Failed to share image")
+            f
         }
+        val uri = androidx.core.content.FileProvider.getUriForFile(
+            context, "${context.packageName}.provider", file
+        )
+        context.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).apply {
+            type = "image/jpeg"
+            putExtra(Intent.EXTRA_STREAM, uri)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }, null))
+    } catch (e: Exception) {
+        timber.log.Timber.w(e, "Share image failed")
     }
 }
 

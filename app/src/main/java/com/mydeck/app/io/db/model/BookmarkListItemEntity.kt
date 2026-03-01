@@ -4,6 +4,7 @@ import kotlinx.datetime.Instant
 
 data class BookmarkListItemEntity(
     val id: String,
+    val href: String,
     val url: String,
     val title: String,
     val siteName: String,

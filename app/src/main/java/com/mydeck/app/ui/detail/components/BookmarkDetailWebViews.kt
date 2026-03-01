@@ -196,17 +196,6 @@ fun BookmarkDetailArticle(
                             }
                         }
 
-                        // Track last touch-down position for JS anchor-text extraction
-                        var lastTouchX = 0
-                        var lastTouchY = 0
-                        setOnTouchListener { _, event ->
-                            if (event.action == android.view.MotionEvent.ACTION_DOWN) {
-                                lastTouchX = event.x.toInt()
-                                lastTouchY = event.y.toInt()
-                            }
-                            false
-                        }
-
                         // Long-press context menu via native hit testing
                         setOnLongClickListener { view ->
                             val webView = view as WebView
@@ -223,7 +212,7 @@ fun BookmarkDetailArticle(
                                 WebView.HitTestResult.SRC_ANCHOR_TYPE -> {
                                     val linkUrl = result.extra ?: ""
                                     webView.evaluateJavascript(
-                                        WebViewImageBridge.getLinkTextAtPoint(lastTouchX, lastTouchY)
+                                        WebViewImageBridge.getLinkTextForUrl(linkUrl)
                                     ) { text ->
                                         onLinkLongPress(linkUrl, text?.trim('"') ?: "")
                                     }
