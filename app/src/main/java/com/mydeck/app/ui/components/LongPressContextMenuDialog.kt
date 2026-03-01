@@ -46,7 +46,7 @@ fun LongPressContextMenuDialog(
 ) {
     Dialog(onDismissRequest = onDismiss) {
         Card(
-            modifier = Modifier.fillMaxWidth(0.60f),
+            modifier = Modifier.fillMaxWidth(0.75f),
             shape = RoundedCornerShape(28.dp),
         ) {
             Column {

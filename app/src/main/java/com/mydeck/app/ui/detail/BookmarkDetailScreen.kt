@@ -716,22 +716,21 @@ private fun ReaderContextMenu(
                     onDismiss()
                 }
             )
-            if (!state.linkText.isNullOrBlank()) {
-                LongPressContextMenuItem(
-                    icon = Icons.Outlined.ContentCopy,
-                    text = stringResource(R.string.action_copy_link_text),
-                    onClick = {
-                        readerContextMenuCopyToClipboard(context, state.linkText)
-                        coroutineScope.launch {
-                            snackbarHostState.showSnackbar(
-                                context.getString(R.string.link_text_copied),
-                                duration = SnackbarDuration.Short
-                            )
-                        }
-                        onDismiss()
+            LongPressContextMenuItem(
+                icon = Icons.Outlined.ContentCopy,
+                text = stringResource(R.string.action_copy_link_text),
+                onClick = {
+                    val textToCopy = if (!state.linkText.isNullOrBlank()) state.linkText else state.linkUrl
+                    readerContextMenuCopyToClipboard(context, textToCopy)
+                    coroutineScope.launch {
+                        snackbarHostState.showSnackbar(
+                            context.getString(R.string.link_text_copied),
+                            duration = SnackbarDuration.Short
+                        )
                     }
-                )
-            }
+                    onDismiss()
+                }
+            )
             LongPressContextMenuItem(
                 icon = Icons.Outlined.Download,
                 text = stringResource(R.string.action_download_link),
@@ -762,7 +761,8 @@ private fun ReaderContextMenu(
                 icon = Icons.AutoMirrored.Filled.OpenInNew,
                 text = stringResource(R.string.action_open_in_browser),
                 onClick = {
-                    openUrlInCustomTab(context, state.linkUrl)
+                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(state.linkUrl))
+                    context.startActivity(intent)
                     onDismiss()
                 }
             )
@@ -836,8 +836,8 @@ private suspend fun readerContextMenuShareImage(context: Context, imageUrl: Stri
     withContext(Dispatchers.IO) {
         try {
             val cacheDir = java.io.File(context.cacheDir, "images").also { it.mkdirs() }
-            val fileName = imageUrl.substringAfterLast('/').substringBefore('?').ifEmpty { "image.jpg" }
-            val file = java.io.File(cacheDir, fileName)
+            val fileName = imageUrl.substringAfterLast('/').substringBefore('?').ifEmpty { "image" }
+            val file = java.io.File(cacheDir, "${fileName}_${System.currentTimeMillis()}.jpg")
             val connection = java.net.URL(imageUrl).openConnection()
             connection.connect()
             file.outputStream().use { out ->
