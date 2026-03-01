@@ -52,8 +52,6 @@ import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CardDefaults.outlinedCardBorder
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -100,6 +98,8 @@ import com.mydeck.app.R
 import com.mydeck.app.domain.model.Bookmark
 import com.mydeck.app.domain.model.BookmarkListItem
 import com.mydeck.app.ui.components.ErrorPlaceholderImage
+import com.mydeck.app.ui.components.LongPressContextMenuDialog
+import com.mydeck.app.ui.components.LongPressContextMenuItem
 import com.mydeck.app.ui.drawable.ReadeckPlaceholderDrawable
 
 @Composable
@@ -145,9 +145,10 @@ fun BookmarkMosaicCard(
     onClickOpenInBrowser: (String) -> Unit = {},
     onClickCopyLink: (String) -> Unit = {},
     onClickCopyLinkText: (String) -> Unit = {},
+    onClickDownloadLink: (String) -> Unit = {},
     onClickShareLink: (String) -> Unit = {},
     onClickOpenInBrowserFromMenu: (String) -> Unit = {},
-    onClickCopyImageUrl: (String) -> Unit = {},
+    onClickCopyImage: (String) -> Unit = {},
     onClickDownloadImage: (String) -> Unit = {},
     onClickShareImage: (String) -> Unit = {},
     isWideLayout: Boolean = LocalIsWideLayout.current
@@ -334,96 +335,61 @@ fun BookmarkMosaicCard(
                 }
             }
         }
-        DropdownMenu(
-            expanded = showBodyContextMenu,
-            onDismissRequest = { showBodyContextMenu = false }
-        ) {
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.action_copy_link)) },
-                leadingIcon = { Icon(Icons.Outlined.ContentCopy, null) },
-                onClick = {
-                    showBodyContextMenu = false
-                    onClickCopyLink(bookmark.url)
-                }
-            )
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.action_copy_link_text)) },
-                leadingIcon = { Icon(Icons.Outlined.ContentCopy, null) },
-                onClick = {
-                    showBodyContextMenu = false
-                    onClickCopyLinkText(bookmark.title)
-                }
-            )
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.action_share_link)) },
-                leadingIcon = { Icon(Icons.Outlined.Share, null) },
-                onClick = {
-                    showBodyContextMenu = false
-                    onClickShareLink(bookmark.url)
-                }
-            )
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.action_open_in_browser)) },
-                leadingIcon = { Icon(Icons.AutoMirrored.Filled.OpenInNew, null) },
-                onClick = {
-                    showBodyContextMenu = false
-                    onClickOpenInBrowserFromMenu(bookmark.url)
-                }
-            )
-        }
-        if (bookmark.imageSrc.isNotBlank()) {
-            DropdownMenu(
-                expanded = showImageContextMenu,
-                onDismissRequest = { showImageContextMenu = false }
+        if (showBodyContextMenu) {
+            LongPressContextMenuDialog(
+                headerImageUrl = bookmark.iconSrc,
+                title = bookmark.title,
+                subtitle = bookmark.url,
+                onDismiss = { showBodyContextMenu = false },
             ) {
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.action_copy_link)) },
-                    leadingIcon = { Icon(Icons.Outlined.ContentCopy, null) },
-                    onClick = {
-                        showImageContextMenu = false
-                        onClickCopyLink(bookmark.url)
-                    }
+                LongPressContextMenuItem(
+                    icon = Icons.Outlined.ContentCopy,
+                    text = stringResource(R.string.action_copy_link),
+                    onClick = { showBodyContextMenu = false; onClickCopyLink(bookmark.url) },
                 )
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.action_share_link)) },
-                    leadingIcon = { Icon(Icons.Outlined.Share, null) },
-                    onClick = {
-                        showImageContextMenu = false
-                        onClickShareLink(bookmark.url)
-                    }
+                LongPressContextMenuItem(
+                    icon = Icons.Outlined.ContentCopy,
+                    text = stringResource(R.string.action_copy_link_text),
+                    onClick = { showBodyContextMenu = false; onClickCopyLinkText(bookmark.title) },
                 )
-                HorizontalDivider()
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.action_copy_image)) },
-                    leadingIcon = { Icon(Icons.Outlined.ContentCopy, null) },
-                    onClick = {
-                        showImageContextMenu = false
-                        onClickCopyImageUrl(bookmark.imageSrc)
-                    }
+                LongPressContextMenuItem(
+                    icon = Icons.Outlined.Download,
+                    text = stringResource(R.string.action_download_link),
+                    onClick = { showBodyContextMenu = false; onClickDownloadLink(bookmark.url) },
                 )
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.action_download_image)) },
-                    leadingIcon = { Icon(Icons.Outlined.Download, null) },
-                    onClick = {
-                        showImageContextMenu = false
-                        onClickDownloadImage(bookmark.imageSrc)
-                    }
+                LongPressContextMenuItem(
+                    icon = Icons.Outlined.Share,
+                    text = stringResource(R.string.action_share_link),
+                    onClick = { showBodyContextMenu = false; onClickShareLink(bookmark.url) },
                 )
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.action_share_image)) },
-                    leadingIcon = { Icon(Icons.Outlined.Share, null) },
-                    onClick = {
-                        showImageContextMenu = false
-                        onClickShareImage(bookmark.imageSrc)
-                    }
+                LongPressContextMenuItem(
+                    icon = Icons.AutoMirrored.Filled.OpenInNew,
+                    text = stringResource(R.string.action_open_in_browser),
+                    onClick = { showBodyContextMenu = false; onClickOpenInBrowserFromMenu(bookmark.url) },
                 )
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.action_open_in_browser)) },
-                    leadingIcon = { Icon(Icons.AutoMirrored.Filled.OpenInNew, null) },
-                    onClick = {
-                        showImageContextMenu = false
-                        onClickOpenInBrowserFromMenu(bookmark.url)
-                    }
+            }
+        }
+        if (showImageContextMenu && bookmark.imageSrc.isNotBlank()) {
+            LongPressContextMenuDialog(
+                headerImageUrl = bookmark.imageSrc,
+                title = bookmark.title,
+                subtitle = bookmark.imageSrc,
+                onDismiss = { showImageContextMenu = false },
+            ) {
+                LongPressContextMenuItem(
+                    icon = Icons.Outlined.ContentCopy,
+                    text = stringResource(R.string.action_copy_image),
+                    onClick = { showImageContextMenu = false; onClickCopyImage(bookmark.imageSrc) },
+                )
+                LongPressContextMenuItem(
+                    icon = Icons.Outlined.Download,
+                    text = stringResource(R.string.action_download_image),
+                    onClick = { showImageContextMenu = false; onClickDownloadImage(bookmark.imageSrc) },
+                )
+                LongPressContextMenuItem(
+                    icon = Icons.Outlined.Share,
+                    text = stringResource(R.string.action_share_image),
+                    onClick = { showImageContextMenu = false; onClickShareImage(bookmark.imageSrc) },
                 )
             }
         }
@@ -443,9 +409,10 @@ fun BookmarkGridCard(
     onClickOpenInBrowser: (String) -> Unit = {},
     onClickCopyLink: (String) -> Unit = {},
     onClickCopyLinkText: (String) -> Unit = {},
+    onClickDownloadLink: (String) -> Unit = {},
     onClickShareLink: (String) -> Unit = {},
     onClickOpenInBrowserFromMenu: (String) -> Unit = {},
-    onClickCopyImageUrl: (String) -> Unit = {},
+    onClickCopyImage: (String) -> Unit = {},
     onClickDownloadImage: (String) -> Unit = {},
     onClickShareImage: (String) -> Unit = {},
     isWideLayout: Boolean = LocalIsWideLayout.current,
@@ -463,9 +430,10 @@ fun BookmarkGridCard(
             onClickOpenUrl = onClickOpenUrl,
             onClickCopyLink = onClickCopyLink,
             onClickCopyLinkText = onClickCopyLinkText,
+            onClickDownloadLink = onClickDownloadLink,
             onClickShareLink = onClickShareLink,
             onClickOpenInBrowserFromMenu = onClickOpenInBrowserFromMenu,
-            onClickCopyImageUrl = onClickCopyImageUrl,
+            onClickCopyImage = onClickCopyImage,
             onClickDownloadImage = onClickDownloadImage,
             onClickShareImage = onClickShareImage,
         )
@@ -480,9 +448,10 @@ fun BookmarkGridCard(
             onClickOpenUrl = onClickOpenUrl,
             onClickCopyLink = onClickCopyLink,
             onClickCopyLinkText = onClickCopyLinkText,
+            onClickDownloadLink = onClickDownloadLink,
             onClickShareLink = onClickShareLink,
             onClickOpenInBrowserFromMenu = onClickOpenInBrowserFromMenu,
-            onClickCopyImageUrl = onClickCopyImageUrl,
+            onClickCopyImage = onClickCopyImage,
             onClickDownloadImage = onClickDownloadImage,
             onClickShareImage = onClickShareImage,
             isInGrid = isInGrid,
@@ -498,9 +467,10 @@ fun BookmarkGridCard(
             onClickOpenUrl = onClickOpenUrl,
             onClickCopyLink = onClickCopyLink,
             onClickCopyLinkText = onClickCopyLinkText,
+            onClickDownloadLink = onClickDownloadLink,
             onClickShareLink = onClickShareLink,
             onClickOpenInBrowserFromMenu = onClickOpenInBrowserFromMenu,
-            onClickCopyImageUrl = onClickCopyImageUrl,
+            onClickCopyImage = onClickCopyImage,
             onClickDownloadImage = onClickDownloadImage,
             onClickShareImage = onClickShareImage,
         )
@@ -524,9 +494,10 @@ private fun BookmarkGridCardMobilePortrait(
     onClickOpenUrl: (String) -> Unit = {},
     onClickCopyLink: (String) -> Unit = {},
     onClickCopyLinkText: (String) -> Unit = {},
+    onClickDownloadLink: (String) -> Unit = {},
     onClickShareLink: (String) -> Unit = {},
     onClickOpenInBrowserFromMenu: (String) -> Unit = {},
-    onClickCopyImageUrl: (String) -> Unit = {},
+    onClickCopyImage: (String) -> Unit = {},
     onClickDownloadImage: (String) -> Unit = {},
     onClickShareImage: (String) -> Unit = {},
 ) {
@@ -761,104 +732,61 @@ private fun BookmarkGridCardMobilePortrait(
             }
         }
 
-        DropdownMenu(
-            expanded = showBodyContextMenu,
-            onDismissRequest = { showBodyContextMenu = false }
-        ) {
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.action_copy_link)) },
-                leadingIcon = { Icon(Icons.Outlined.ContentCopy, null) },
-                onClick = {
-                    showBodyContextMenu = false
-                    onClickCopyLink(bookmark.url)
-                }
-            )
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.action_copy_link_text)) },
-                leadingIcon = { Icon(Icons.Outlined.ContentCopy, null) },
-                onClick = {
-                    showBodyContextMenu = false
-                    onClickCopyLinkText(bookmark.title)
-                }
-            )
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.action_share_link)) },
-                leadingIcon = { Icon(Icons.Outlined.Share, null) },
-                onClick = {
-                    showBodyContextMenu = false
-                    onClickShareLink(bookmark.url)
-                }
-            )
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.action_open_in_browser)) },
-                leadingIcon = { Icon(Icons.AutoMirrored.Filled.OpenInNew, null) },
-                onClick = {
-                    showBodyContextMenu = false
-                    onClickOpenInBrowserFromMenu(bookmark.url)
-                }
-            )
-        }
-        if (bookmark.imageSrc.isNotBlank()) {
-            DropdownMenu(
-                expanded = showImageContextMenu,
-                onDismissRequest = { showImageContextMenu = false }
+        if (showBodyContextMenu) {
+            LongPressContextMenuDialog(
+                headerImageUrl = bookmark.iconSrc,
+                title = bookmark.title,
+                subtitle = bookmark.url,
+                onDismiss = { showBodyContextMenu = false },
             ) {
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.action_copy_link)) },
-                    leadingIcon = { Icon(Icons.Outlined.ContentCopy, null) },
-                    onClick = {
-                        showImageContextMenu = false
-                        onClickCopyLink(bookmark.url)
-                    }
+                LongPressContextMenuItem(
+                    icon = Icons.Outlined.ContentCopy,
+                    text = stringResource(R.string.action_copy_link),
+                    onClick = { showBodyContextMenu = false; onClickCopyLink(bookmark.url) },
                 )
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.action_copy_link_text)) },
-                    leadingIcon = { Icon(Icons.Outlined.ContentCopy, null) },
-                    onClick = {
-                        showImageContextMenu = false
-                        onClickCopyLinkText(bookmark.title)
-                    }
+                LongPressContextMenuItem(
+                    icon = Icons.Outlined.ContentCopy,
+                    text = stringResource(R.string.action_copy_link_text),
+                    onClick = { showBodyContextMenu = false; onClickCopyLinkText(bookmark.title) },
                 )
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.action_share_link)) },
-                    leadingIcon = { Icon(Icons.Outlined.Share, null) },
-                    onClick = {
-                        showImageContextMenu = false
-                        onClickShareLink(bookmark.url)
-                    }
+                LongPressContextMenuItem(
+                    icon = Icons.Outlined.Download,
+                    text = stringResource(R.string.action_download_link),
+                    onClick = { showBodyContextMenu = false; onClickDownloadLink(bookmark.url) },
                 )
-                HorizontalDivider()
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.action_copy_image)) },
-                    leadingIcon = { Icon(Icons.Outlined.ContentCopy, null) },
-                    onClick = {
-                        showImageContextMenu = false
-                        onClickCopyImageUrl(bookmark.imageSrc)
-                    }
+                LongPressContextMenuItem(
+                    icon = Icons.Outlined.Share,
+                    text = stringResource(R.string.action_share_link),
+                    onClick = { showBodyContextMenu = false; onClickShareLink(bookmark.url) },
                 )
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.action_download_image)) },
-                    leadingIcon = { Icon(Icons.Outlined.Download, null) },
-                    onClick = {
-                        showImageContextMenu = false
-                        onClickDownloadImage(bookmark.imageSrc)
-                    }
+                LongPressContextMenuItem(
+                    icon = Icons.AutoMirrored.Filled.OpenInNew,
+                    text = stringResource(R.string.action_open_in_browser),
+                    onClick = { showBodyContextMenu = false; onClickOpenInBrowserFromMenu(bookmark.url) },
                 )
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.action_share_image)) },
-                    leadingIcon = { Icon(Icons.Outlined.Share, null) },
-                    onClick = {
-                        showImageContextMenu = false
-                        onClickShareImage(bookmark.imageSrc)
-                    }
+            }
+        }
+        if (showImageContextMenu && bookmark.imageSrc.isNotBlank()) {
+            LongPressContextMenuDialog(
+                headerImageUrl = bookmark.imageSrc,
+                title = bookmark.title,
+                subtitle = bookmark.imageSrc,
+                onDismiss = { showImageContextMenu = false },
+            ) {
+                LongPressContextMenuItem(
+                    icon = Icons.Outlined.ContentCopy,
+                    text = stringResource(R.string.action_copy_image),
+                    onClick = { showImageContextMenu = false; onClickCopyImage(bookmark.imageSrc) },
                 )
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.action_open_in_browser)) },
-                    leadingIcon = { Icon(Icons.AutoMirrored.Filled.OpenInNew, null) },
-                    onClick = {
-                        showImageContextMenu = false
-                        onClickOpenInBrowserFromMenu(bookmark.url)
-                    }
+                LongPressContextMenuItem(
+                    icon = Icons.Outlined.Download,
+                    text = stringResource(R.string.action_download_image),
+                    onClick = { showImageContextMenu = false; onClickDownloadImage(bookmark.imageSrc) },
+                )
+                LongPressContextMenuItem(
+                    icon = Icons.Outlined.Share,
+                    text = stringResource(R.string.action_share_image),
+                    onClick = { showImageContextMenu = false; onClickShareImage(bookmark.imageSrc) },
                 )
             }
         }
@@ -877,9 +805,10 @@ private fun BookmarkGridCardNarrow(
     onClickOpenUrl: (String) -> Unit = {},
     onClickCopyLink: (String) -> Unit = {},
     onClickCopyLinkText: (String) -> Unit = {},
+    onClickDownloadLink: (String) -> Unit = {},
     onClickShareLink: (String) -> Unit = {},
     onClickOpenInBrowserFromMenu: (String) -> Unit = {},
-    onClickCopyImageUrl: (String) -> Unit = {},
+    onClickCopyImage: (String) -> Unit = {},
     onClickDownloadImage: (String) -> Unit = {},
     onClickShareImage: (String) -> Unit = {},
 ) {
@@ -1110,96 +1039,61 @@ private fun BookmarkGridCardNarrow(
             }
         }
         }
-        DropdownMenu(
-            expanded = showBodyContextMenu,
-            onDismissRequest = { showBodyContextMenu = false }
-        ) {
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.action_copy_link)) },
-                leadingIcon = { Icon(Icons.Outlined.ContentCopy, null) },
-                onClick = {
-                    showBodyContextMenu = false
-                    onClickCopyLink(bookmark.url)
-                }
-            )
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.action_copy_link_text)) },
-                leadingIcon = { Icon(Icons.Outlined.ContentCopy, null) },
-                onClick = {
-                    showBodyContextMenu = false
-                    onClickCopyLinkText(bookmark.title)
-                }
-            )
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.action_share_link)) },
-                leadingIcon = { Icon(Icons.Outlined.Share, null) },
-                onClick = {
-                    showBodyContextMenu = false
-                    onClickShareLink(bookmark.url)
-                }
-            )
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.action_open_in_browser)) },
-                leadingIcon = { Icon(Icons.AutoMirrored.Filled.OpenInNew, null) },
-                onClick = {
-                    showBodyContextMenu = false
-                    onClickOpenInBrowserFromMenu(bookmark.url)
-                }
-            )
-        }
-        if (bookmark.imageSrc.isNotBlank()) {
-            DropdownMenu(
-                expanded = showImageContextMenu,
-                onDismissRequest = { showImageContextMenu = false }
+        if (showBodyContextMenu) {
+            LongPressContextMenuDialog(
+                headerImageUrl = bookmark.iconSrc,
+                title = bookmark.title,
+                subtitle = bookmark.url,
+                onDismiss = { showBodyContextMenu = false },
             ) {
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.action_copy_link)) },
-                    leadingIcon = { Icon(Icons.Outlined.ContentCopy, null) },
-                    onClick = {
-                        showImageContextMenu = false
-                        onClickCopyLink(bookmark.url)
-                    }
+                LongPressContextMenuItem(
+                    icon = Icons.Outlined.ContentCopy,
+                    text = stringResource(R.string.action_copy_link),
+                    onClick = { showBodyContextMenu = false; onClickCopyLink(bookmark.url) },
                 )
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.action_share_link)) },
-                    leadingIcon = { Icon(Icons.Outlined.Share, null) },
-                    onClick = {
-                        showImageContextMenu = false
-                        onClickShareLink(bookmark.url)
-                    }
+                LongPressContextMenuItem(
+                    icon = Icons.Outlined.ContentCopy,
+                    text = stringResource(R.string.action_copy_link_text),
+                    onClick = { showBodyContextMenu = false; onClickCopyLinkText(bookmark.title) },
                 )
-                HorizontalDivider()
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.action_copy_image)) },
-                    leadingIcon = { Icon(Icons.Outlined.ContentCopy, null) },
-                    onClick = {
-                        showImageContextMenu = false
-                        onClickCopyImageUrl(bookmark.imageSrc)
-                    }
+                LongPressContextMenuItem(
+                    icon = Icons.Outlined.Download,
+                    text = stringResource(R.string.action_download_link),
+                    onClick = { showBodyContextMenu = false; onClickDownloadLink(bookmark.url) },
                 )
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.action_download_image)) },
-                    leadingIcon = { Icon(Icons.Outlined.Download, null) },
-                    onClick = {
-                        showImageContextMenu = false
-                        onClickDownloadImage(bookmark.imageSrc)
-                    }
+                LongPressContextMenuItem(
+                    icon = Icons.Outlined.Share,
+                    text = stringResource(R.string.action_share_link),
+                    onClick = { showBodyContextMenu = false; onClickShareLink(bookmark.url) },
                 )
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.action_share_image)) },
-                    leadingIcon = { Icon(Icons.Outlined.Share, null) },
-                    onClick = {
-                        showImageContextMenu = false
-                        onClickShareImage(bookmark.imageSrc)
-                    }
+                LongPressContextMenuItem(
+                    icon = Icons.AutoMirrored.Filled.OpenInNew,
+                    text = stringResource(R.string.action_open_in_browser),
+                    onClick = { showBodyContextMenu = false; onClickOpenInBrowserFromMenu(bookmark.url) },
                 )
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.action_open_in_browser)) },
-                    leadingIcon = { Icon(Icons.AutoMirrored.Filled.OpenInNew, null) },
-                    onClick = {
-                        showImageContextMenu = false
-                        onClickOpenInBrowserFromMenu(bookmark.url)
-                    }
+            }
+        }
+        if (showImageContextMenu && bookmark.imageSrc.isNotBlank()) {
+            LongPressContextMenuDialog(
+                headerImageUrl = bookmark.imageSrc,
+                title = bookmark.title,
+                subtitle = bookmark.imageSrc,
+                onDismiss = { showImageContextMenu = false },
+            ) {
+                LongPressContextMenuItem(
+                    icon = Icons.Outlined.ContentCopy,
+                    text = stringResource(R.string.action_copy_image),
+                    onClick = { showImageContextMenu = false; onClickCopyImage(bookmark.imageSrc) },
+                )
+                LongPressContextMenuItem(
+                    icon = Icons.Outlined.Download,
+                    text = stringResource(R.string.action_download_image),
+                    onClick = { showImageContextMenu = false; onClickDownloadImage(bookmark.imageSrc) },
+                )
+                LongPressContextMenuItem(
+                    icon = Icons.Outlined.Share,
+                    text = stringResource(R.string.action_share_image),
+                    onClick = { showImageContextMenu = false; onClickShareImage(bookmark.imageSrc) },
                 )
             }
         }
@@ -1218,9 +1112,10 @@ private fun BookmarkGridCardWide(
     onClickOpenUrl: (String) -> Unit = {},
     onClickCopyLink: (String) -> Unit = {},
     onClickCopyLinkText: (String) -> Unit = {},
+    onClickDownloadLink: (String) -> Unit = {},
     onClickShareLink: (String) -> Unit = {},
     onClickOpenInBrowserFromMenu: (String) -> Unit = {},
-    onClickCopyImageUrl: (String) -> Unit = {},
+    onClickCopyImage: (String) -> Unit = {},
     onClickDownloadImage: (String) -> Unit = {},
     onClickShareImage: (String) -> Unit = {},
     isInGrid: Boolean = false,
@@ -1456,96 +1351,61 @@ private fun BookmarkGridCardWide(
             }
         }
         }
-        DropdownMenu(
-            expanded = showBodyContextMenu,
-            onDismissRequest = { showBodyContextMenu = false }
-        ) {
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.action_copy_link)) },
-                leadingIcon = { Icon(Icons.Outlined.ContentCopy, null) },
-                onClick = {
-                    showBodyContextMenu = false
-                    onClickCopyLink(bookmark.url)
-                }
-            )
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.action_copy_link_text)) },
-                leadingIcon = { Icon(Icons.Outlined.ContentCopy, null) },
-                onClick = {
-                    showBodyContextMenu = false
-                    onClickCopyLinkText(bookmark.title)
-                }
-            )
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.action_share_link)) },
-                leadingIcon = { Icon(Icons.Outlined.Share, null) },
-                onClick = {
-                    showBodyContextMenu = false
-                    onClickShareLink(bookmark.url)
-                }
-            )
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.action_open_in_browser)) },
-                leadingIcon = { Icon(Icons.AutoMirrored.Filled.OpenInNew, null) },
-                onClick = {
-                    showBodyContextMenu = false
-                    onClickOpenInBrowserFromMenu(bookmark.url)
-                }
-            )
-        }
-        if (bookmark.imageSrc.isNotBlank()) {
-            DropdownMenu(
-                expanded = showImageContextMenu,
-                onDismissRequest = { showImageContextMenu = false }
+        if (showBodyContextMenu) {
+            LongPressContextMenuDialog(
+                headerImageUrl = bookmark.iconSrc,
+                title = bookmark.title,
+                subtitle = bookmark.url,
+                onDismiss = { showBodyContextMenu = false },
             ) {
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.action_copy_link)) },
-                    leadingIcon = { Icon(Icons.Outlined.ContentCopy, null) },
-                    onClick = {
-                        showImageContextMenu = false
-                        onClickCopyLink(bookmark.url)
-                    }
+                LongPressContextMenuItem(
+                    icon = Icons.Outlined.ContentCopy,
+                    text = stringResource(R.string.action_copy_link),
+                    onClick = { showBodyContextMenu = false; onClickCopyLink(bookmark.url) },
                 )
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.action_share_link)) },
-                    leadingIcon = { Icon(Icons.Outlined.Share, null) },
-                    onClick = {
-                        showImageContextMenu = false
-                        onClickShareLink(bookmark.url)
-                    }
+                LongPressContextMenuItem(
+                    icon = Icons.Outlined.ContentCopy,
+                    text = stringResource(R.string.action_copy_link_text),
+                    onClick = { showBodyContextMenu = false; onClickCopyLinkText(bookmark.title) },
                 )
-                HorizontalDivider()
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.action_copy_image)) },
-                    leadingIcon = { Icon(Icons.Outlined.ContentCopy, null) },
-                    onClick = {
-                        showImageContextMenu = false
-                        onClickCopyImageUrl(bookmark.imageSrc)
-                    }
+                LongPressContextMenuItem(
+                    icon = Icons.Outlined.Download,
+                    text = stringResource(R.string.action_download_link),
+                    onClick = { showBodyContextMenu = false; onClickDownloadLink(bookmark.url) },
                 )
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.action_download_image)) },
-                    leadingIcon = { Icon(Icons.Outlined.Download, null) },
-                    onClick = {
-                        showImageContextMenu = false
-                        onClickDownloadImage(bookmark.imageSrc)
-                    }
+                LongPressContextMenuItem(
+                    icon = Icons.Outlined.Share,
+                    text = stringResource(R.string.action_share_link),
+                    onClick = { showBodyContextMenu = false; onClickShareLink(bookmark.url) },
                 )
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.action_share_image)) },
-                    leadingIcon = { Icon(Icons.Outlined.Share, null) },
-                    onClick = {
-                        showImageContextMenu = false
-                        onClickShareImage(bookmark.imageSrc)
-                    }
+                LongPressContextMenuItem(
+                    icon = Icons.AutoMirrored.Filled.OpenInNew,
+                    text = stringResource(R.string.action_open_in_browser),
+                    onClick = { showBodyContextMenu = false; onClickOpenInBrowserFromMenu(bookmark.url) },
                 )
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.action_open_in_browser)) },
-                    leadingIcon = { Icon(Icons.AutoMirrored.Filled.OpenInNew, null) },
-                    onClick = {
-                        showImageContextMenu = false
-                        onClickOpenInBrowserFromMenu(bookmark.url)
-                    }
+            }
+        }
+        if (showImageContextMenu && bookmark.imageSrc.isNotBlank()) {
+            LongPressContextMenuDialog(
+                headerImageUrl = bookmark.imageSrc,
+                title = bookmark.title,
+                subtitle = bookmark.imageSrc,
+                onDismiss = { showImageContextMenu = false },
+            ) {
+                LongPressContextMenuItem(
+                    icon = Icons.Outlined.ContentCopy,
+                    text = stringResource(R.string.action_copy_image),
+                    onClick = { showImageContextMenu = false; onClickCopyImage(bookmark.imageSrc) },
+                )
+                LongPressContextMenuItem(
+                    icon = Icons.Outlined.Download,
+                    text = stringResource(R.string.action_download_image),
+                    onClick = { showImageContextMenu = false; onClickDownloadImage(bookmark.imageSrc) },
+                )
+                LongPressContextMenuItem(
+                    icon = Icons.Outlined.Share,
+                    text = stringResource(R.string.action_share_image),
+                    onClick = { showImageContextMenu = false; onClickShareImage(bookmark.imageSrc) },
                 )
             }
         }
@@ -1565,9 +1425,10 @@ fun BookmarkCompactCard(
     onClickOpenInBrowser: (String) -> Unit = {},
     onClickCopyLink: (String) -> Unit = {},
     onClickCopyLinkText: (String) -> Unit = {},
+    onClickDownloadLink: (String) -> Unit = {},
     onClickShareLink: (String) -> Unit = {},
     onClickOpenInBrowserFromMenu: (String) -> Unit = {},
-    onClickCopyImageUrl: (String) -> Unit = {},
+    onClickCopyImage: (String) -> Unit = {},
     onClickDownloadImage: (String) -> Unit = {},
     onClickShareImage: (String) -> Unit = {},
     isWideLayout: Boolean = LocalIsWideLayout.current
@@ -1583,9 +1444,10 @@ fun BookmarkCompactCard(
             onClickOpenUrl = onClickOpenUrl,
             onClickCopyLink = onClickCopyLink,
             onClickCopyLinkText = onClickCopyLinkText,
+            onClickDownloadLink = onClickDownloadLink,
             onClickShareLink = onClickShareLink,
             onClickOpenInBrowserFromMenu = onClickOpenInBrowserFromMenu,
-            onClickCopyImageUrl = onClickCopyImageUrl,
+            onClickCopyImage = onClickCopyImage,
             onClickDownloadImage = onClickDownloadImage,
             onClickShareImage = onClickShareImage,
         )
@@ -1600,9 +1462,10 @@ fun BookmarkCompactCard(
             onClickOpenUrl = onClickOpenUrl,
             onClickCopyLink = onClickCopyLink,
             onClickCopyLinkText = onClickCopyLinkText,
+            onClickDownloadLink = onClickDownloadLink,
             onClickShareLink = onClickShareLink,
             onClickOpenInBrowserFromMenu = onClickOpenInBrowserFromMenu,
-            onClickCopyImageUrl = onClickCopyImageUrl,
+            onClickCopyImage = onClickCopyImage,
             onClickDownloadImage = onClickDownloadImage,
             onClickShareImage = onClickShareImage,
         )
@@ -1621,9 +1484,10 @@ private fun BookmarkCompactCardNarrow(
     onClickOpenUrl: (String) -> Unit = {},
     onClickCopyLink: (String) -> Unit = {},
     onClickCopyLinkText: (String) -> Unit = {},
+    onClickDownloadLink: (String) -> Unit = {},
     onClickShareLink: (String) -> Unit = {},
     onClickOpenInBrowserFromMenu: (String) -> Unit = {},
-    onClickCopyImageUrl: (String) -> Unit = {},
+    onClickCopyImage: (String) -> Unit = {},
     onClickDownloadImage: (String) -> Unit = {},
     onClickShareImage: (String) -> Unit = {},
 ) {
@@ -1805,96 +1669,61 @@ private fun BookmarkCompactCardNarrow(
         }
     }
         HorizontalDivider()
-        DropdownMenu(
-            expanded = showBodyContextMenu,
-            onDismissRequest = { showBodyContextMenu = false }
-        ) {
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.action_copy_link)) },
-                leadingIcon = { Icon(Icons.Outlined.ContentCopy, null) },
-                onClick = {
-                    showBodyContextMenu = false
-                    onClickCopyLink(bookmark.url)
-                }
-            )
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.action_copy_link_text)) },
-                leadingIcon = { Icon(Icons.Outlined.ContentCopy, null) },
-                onClick = {
-                    showBodyContextMenu = false
-                    onClickCopyLinkText(bookmark.title)
-                }
-            )
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.action_share_link)) },
-                leadingIcon = { Icon(Icons.Outlined.Share, null) },
-                onClick = {
-                    showBodyContextMenu = false
-                    onClickShareLink(bookmark.url)
-                }
-            )
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.action_open_in_browser)) },
-                leadingIcon = { Icon(Icons.AutoMirrored.Filled.OpenInNew, null) },
-                onClick = {
-                    showBodyContextMenu = false
-                    onClickOpenInBrowserFromMenu(bookmark.url)
-                }
-            )
-        }
-        if (bookmark.imageSrc.isNotBlank()) {
-            DropdownMenu(
-                expanded = showImageContextMenu,
-                onDismissRequest = { showImageContextMenu = false }
+        if (showBodyContextMenu) {
+            LongPressContextMenuDialog(
+                headerImageUrl = bookmark.iconSrc,
+                title = bookmark.title,
+                subtitle = bookmark.url,
+                onDismiss = { showBodyContextMenu = false },
             ) {
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.action_copy_link)) },
-                    leadingIcon = { Icon(Icons.Outlined.ContentCopy, null) },
-                    onClick = {
-                        showImageContextMenu = false
-                        onClickCopyLink(bookmark.url)
-                    }
+                LongPressContextMenuItem(
+                    icon = Icons.Outlined.ContentCopy,
+                    text = stringResource(R.string.action_copy_link),
+                    onClick = { showBodyContextMenu = false; onClickCopyLink(bookmark.url) },
                 )
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.action_share_link)) },
-                    leadingIcon = { Icon(Icons.Outlined.Share, null) },
-                    onClick = {
-                        showImageContextMenu = false
-                        onClickShareLink(bookmark.url)
-                    }
+                LongPressContextMenuItem(
+                    icon = Icons.Outlined.ContentCopy,
+                    text = stringResource(R.string.action_copy_link_text),
+                    onClick = { showBodyContextMenu = false; onClickCopyLinkText(bookmark.title) },
                 )
-                HorizontalDivider()
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.action_copy_image)) },
-                    leadingIcon = { Icon(Icons.Outlined.ContentCopy, null) },
-                    onClick = {
-                        showImageContextMenu = false
-                        onClickCopyImageUrl(bookmark.imageSrc)
-                    }
+                LongPressContextMenuItem(
+                    icon = Icons.Outlined.Download,
+                    text = stringResource(R.string.action_download_link),
+                    onClick = { showBodyContextMenu = false; onClickDownloadLink(bookmark.url) },
                 )
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.action_download_image)) },
-                    leadingIcon = { Icon(Icons.Outlined.Download, null) },
-                    onClick = {
-                        showImageContextMenu = false
-                        onClickDownloadImage(bookmark.imageSrc)
-                    }
+                LongPressContextMenuItem(
+                    icon = Icons.Outlined.Share,
+                    text = stringResource(R.string.action_share_link),
+                    onClick = { showBodyContextMenu = false; onClickShareLink(bookmark.url) },
                 )
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.action_share_image)) },
-                    leadingIcon = { Icon(Icons.Outlined.Share, null) },
-                    onClick = {
-                        showImageContextMenu = false
-                        onClickShareImage(bookmark.imageSrc)
-                    }
+                LongPressContextMenuItem(
+                    icon = Icons.AutoMirrored.Filled.OpenInNew,
+                    text = stringResource(R.string.action_open_in_browser),
+                    onClick = { showBodyContextMenu = false; onClickOpenInBrowserFromMenu(bookmark.url) },
                 )
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.action_open_in_browser)) },
-                    leadingIcon = { Icon(Icons.AutoMirrored.Filled.OpenInNew, null) },
-                    onClick = {
-                        showImageContextMenu = false
-                        onClickOpenInBrowserFromMenu(bookmark.url)
-                    }
+            }
+        }
+        if (showImageContextMenu && bookmark.imageSrc.isNotBlank()) {
+            LongPressContextMenuDialog(
+                headerImageUrl = bookmark.imageSrc,
+                title = bookmark.title,
+                subtitle = bookmark.imageSrc,
+                onDismiss = { showImageContextMenu = false },
+            ) {
+                LongPressContextMenuItem(
+                    icon = Icons.Outlined.ContentCopy,
+                    text = stringResource(R.string.action_copy_image),
+                    onClick = { showImageContextMenu = false; onClickCopyImage(bookmark.imageSrc) },
+                )
+                LongPressContextMenuItem(
+                    icon = Icons.Outlined.Download,
+                    text = stringResource(R.string.action_download_image),
+                    onClick = { showImageContextMenu = false; onClickDownloadImage(bookmark.imageSrc) },
+                )
+                LongPressContextMenuItem(
+                    icon = Icons.Outlined.Share,
+                    text = stringResource(R.string.action_share_image),
+                    onClick = { showImageContextMenu = false; onClickShareImage(bookmark.imageSrc) },
                 )
             }
         }
@@ -1913,9 +1742,10 @@ private fun BookmarkCompactCardWide(
     onClickOpenUrl: (String) -> Unit = {},
     onClickCopyLink: (String) -> Unit = {},
     onClickCopyLinkText: (String) -> Unit = {},
+    onClickDownloadLink: (String) -> Unit = {},
     onClickShareLink: (String) -> Unit = {},
     onClickOpenInBrowserFromMenu: (String) -> Unit = {},
-    onClickCopyImageUrl: (String) -> Unit = {},
+    onClickCopyImage: (String) -> Unit = {},
     onClickDownloadImage: (String) -> Unit = {},
     onClickShareImage: (String) -> Unit = {},
 ) {
@@ -2084,96 +1914,61 @@ private fun BookmarkCompactCardWide(
         }
     }
         HorizontalDivider()
-        DropdownMenu(
-            expanded = showBodyContextMenu,
-            onDismissRequest = { showBodyContextMenu = false }
-        ) {
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.action_copy_link)) },
-                leadingIcon = { Icon(Icons.Outlined.ContentCopy, null) },
-                onClick = {
-                    showBodyContextMenu = false
-                    onClickCopyLink(bookmark.url)
-                }
-            )
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.action_copy_link_text)) },
-                leadingIcon = { Icon(Icons.Outlined.ContentCopy, null) },
-                onClick = {
-                    showBodyContextMenu = false
-                    onClickCopyLinkText(bookmark.title)
-                }
-            )
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.action_share_link)) },
-                leadingIcon = { Icon(Icons.Outlined.Share, null) },
-                onClick = {
-                    showBodyContextMenu = false
-                    onClickShareLink(bookmark.url)
-                }
-            )
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.action_open_in_browser)) },
-                leadingIcon = { Icon(Icons.AutoMirrored.Filled.OpenInNew, null) },
-                onClick = {
-                    showBodyContextMenu = false
-                    onClickOpenInBrowserFromMenu(bookmark.url)
-                }
-            )
-        }
-        if (bookmark.imageSrc.isNotBlank()) {
-            DropdownMenu(
-                expanded = showImageContextMenu,
-                onDismissRequest = { showImageContextMenu = false }
+        if (showBodyContextMenu) {
+            LongPressContextMenuDialog(
+                headerImageUrl = bookmark.iconSrc,
+                title = bookmark.title,
+                subtitle = bookmark.url,
+                onDismiss = { showBodyContextMenu = false },
             ) {
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.action_copy_link)) },
-                    leadingIcon = { Icon(Icons.Outlined.ContentCopy, null) },
-                    onClick = {
-                        showImageContextMenu = false
-                        onClickCopyLink(bookmark.url)
-                    }
+                LongPressContextMenuItem(
+                    icon = Icons.Outlined.ContentCopy,
+                    text = stringResource(R.string.action_copy_link),
+                    onClick = { showBodyContextMenu = false; onClickCopyLink(bookmark.url) },
                 )
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.action_share_link)) },
-                    leadingIcon = { Icon(Icons.Outlined.Share, null) },
-                    onClick = {
-                        showImageContextMenu = false
-                        onClickShareLink(bookmark.url)
-                    }
+                LongPressContextMenuItem(
+                    icon = Icons.Outlined.ContentCopy,
+                    text = stringResource(R.string.action_copy_link_text),
+                    onClick = { showBodyContextMenu = false; onClickCopyLinkText(bookmark.title) },
                 )
-                HorizontalDivider()
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.action_copy_image)) },
-                    leadingIcon = { Icon(Icons.Outlined.ContentCopy, null) },
-                    onClick = {
-                        showImageContextMenu = false
-                        onClickCopyImageUrl(bookmark.imageSrc)
-                    }
+                LongPressContextMenuItem(
+                    icon = Icons.Outlined.Download,
+                    text = stringResource(R.string.action_download_link),
+                    onClick = { showBodyContextMenu = false; onClickDownloadLink(bookmark.url) },
                 )
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.action_download_image)) },
-                    leadingIcon = { Icon(Icons.Outlined.Download, null) },
-                    onClick = {
-                        showImageContextMenu = false
-                        onClickDownloadImage(bookmark.imageSrc)
-                    }
+                LongPressContextMenuItem(
+                    icon = Icons.Outlined.Share,
+                    text = stringResource(R.string.action_share_link),
+                    onClick = { showBodyContextMenu = false; onClickShareLink(bookmark.url) },
                 )
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.action_share_image)) },
-                    leadingIcon = { Icon(Icons.Outlined.Share, null) },
-                    onClick = {
-                        showImageContextMenu = false
-                        onClickShareImage(bookmark.imageSrc)
-                    }
+                LongPressContextMenuItem(
+                    icon = Icons.AutoMirrored.Filled.OpenInNew,
+                    text = stringResource(R.string.action_open_in_browser),
+                    onClick = { showBodyContextMenu = false; onClickOpenInBrowserFromMenu(bookmark.url) },
                 )
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.action_open_in_browser)) },
-                    leadingIcon = { Icon(Icons.AutoMirrored.Filled.OpenInNew, null) },
-                    onClick = {
-                        showImageContextMenu = false
-                        onClickOpenInBrowserFromMenu(bookmark.url)
-                    }
+            }
+        }
+        if (showImageContextMenu && bookmark.imageSrc.isNotBlank()) {
+            LongPressContextMenuDialog(
+                headerImageUrl = bookmark.imageSrc,
+                title = bookmark.title,
+                subtitle = bookmark.imageSrc,
+                onDismiss = { showImageContextMenu = false },
+            ) {
+                LongPressContextMenuItem(
+                    icon = Icons.Outlined.ContentCopy,
+                    text = stringResource(R.string.action_copy_image),
+                    onClick = { showImageContextMenu = false; onClickCopyImage(bookmark.imageSrc) },
+                )
+                LongPressContextMenuItem(
+                    icon = Icons.Outlined.Download,
+                    text = stringResource(R.string.action_download_image),
+                    onClick = { showImageContextMenu = false; onClickDownloadImage(bookmark.imageSrc) },
+                )
+                LongPressContextMenuItem(
+                    icon = Icons.Outlined.Share,
+                    text = stringResource(R.string.action_share_image),
+                    onClick = { showImageContextMenu = false; onClickShareImage(bookmark.imageSrc) },
                 )
             }
         }

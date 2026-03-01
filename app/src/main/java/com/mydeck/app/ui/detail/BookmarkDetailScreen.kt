@@ -12,7 +12,8 @@ import android.webkit.WebView
 import androidx.compose.foundation.clickable
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.Download
-import androidx.compose.material3.HorizontalDivider
+import com.mydeck.app.ui.components.LongPressContextMenuDialog
+import com.mydeck.app.ui.components.LongPressContextMenuItem
 import androidx.compose.ui.draw.alpha
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
@@ -50,8 +51,6 @@ import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.LocalContentColor
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -207,7 +206,7 @@ fun BookmarkDetailHost(
     val onImageLongPress = { imageUrl: String, linkUrl: String?, linkType: String ->
         viewModel.onShowImageContextMenu(imageUrl, linkUrl, linkType)
     }
-    val onLinkLongPress = { linkUrl: String -> viewModel.onShowLinkContextMenu(linkUrl) }
+    val onLinkLongPress = { linkUrl: String, linkText: String -> viewModel.onShowLinkContextMenu(linkUrl, linkText) }
 
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
@@ -336,6 +335,8 @@ fun BookmarkDetailHost(
                     state = readerContextMenu,
                     onDismiss = { viewModel.onDismissReaderContextMenu() },
                     snackbarHostState = snackbarHostState,
+                    bookmarkTitle = uiState.bookmark.title,
+                    bookmarkIconUrl = uiState.bookmark.iconSrc,
                 )
             }
 
@@ -442,7 +443,7 @@ fun BookmarkDetailScreen(
     onTitleChanged: ((String) -> Unit)? = null,
     onImageTapped: (ImageGalleryData) -> Unit = {},
     onImageLongPress: (imageUrl: String, linkUrl: String?, linkType: String) -> Unit = { _, _, _ -> },
-    onLinkLongPress: (linkUrl: String) -> Unit = {},
+    onLinkLongPress: (linkUrl: String, linkText: String) -> Unit = { _, _ -> },
 ) {
     val topBarScrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior()
     var scrollPercent by remember { mutableIntStateOf(0) }
@@ -535,7 +536,7 @@ fun BookmarkDetailContent(
     onScrollPercentChanged: (Int) -> Unit = {},
     onImageTapped: (ImageGalleryData) -> Unit = {},
     onImageLongPress: (imageUrl: String, linkUrl: String?, linkType: String) -> Unit = { _, _, _ -> },
-    onLinkLongPress: (linkUrl: String) -> Unit = {},
+    onLinkLongPress: (linkUrl: String, linkText: String) -> Unit = { _, _ -> },
 ) {
     val scrollState = rememberScrollState()
     val hasArticleContent = uiState.bookmark.articleContent != null
@@ -646,97 +647,125 @@ private fun ReaderContextMenu(
     state: BookmarkDetailViewModel.ReaderContextMenuState,
     onDismiss: () -> Unit,
     snackbarHostState: SnackbarHostState,
+    bookmarkTitle: String,
+    bookmarkIconUrl: String,
 ) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
 
-    Box(modifier = Modifier.size(0.dp)) {
-        DropdownMenu(
-            expanded = state.visible,
-            onDismissRequest = onDismiss,
+    if (state.imageUrl != null) {
+        // Image long-press popup: Copy Image (bitmap), Download Image, Share Image
+        LongPressContextMenuDialog(
+            headerImageUrl = state.imageUrl,
+            title = bookmarkTitle,
+            subtitle = state.imageUrl,
+            onDismiss = onDismiss,
         ) {
-            if (state.imageUrl != null) {
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.action_copy_image_url)) },
-                    leadingIcon = { Icon(Icons.Outlined.ContentCopy, contentDescription = null) },
-                    onClick = {
-                        readerContextMenuCopyToClipboard(context, state.imageUrl)
-                        coroutineScope.launch {
-                            snackbarHostState.showSnackbar(
-                                context.getString(R.string.image_url_copied),
-                                duration = SnackbarDuration.Short
-                            )
-                        }
-                        onDismiss()
+            LongPressContextMenuItem(
+                icon = Icons.Outlined.ContentCopy,
+                text = stringResource(R.string.action_copy_image),
+                onClick = {
+                    coroutineScope.launch {
+                        readerContextMenuCopyImage(context, state.imageUrl, snackbarHostState)
                     }
-                )
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.action_download_image)) },
-                    leadingIcon = { Icon(Icons.Outlined.Download, contentDescription = null) },
-                    onClick = {
-                        readerContextMenuDownloadImage(context, state.imageUrl)
-                        coroutineScope.launch {
-                            snackbarHostState.showSnackbar(
-                                context.getString(R.string.download_started),
-                                duration = SnackbarDuration.Short
-                            )
-                        }
-                        onDismiss()
-                    }
-                )
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.action_share_image)) },
-                    leadingIcon = { Icon(Icons.Outlined.Share, contentDescription = null) },
-                    onClick = {
-                        coroutineScope.launch {
-                            readerContextMenuShareImage(context, state.imageUrl)
-                        }
-                        onDismiss()
-                    }
-                )
-                if (state.linkUrl != null) {
-                    HorizontalDivider()
+                    onDismiss()
                 }
-            }
-
-            if (state.linkUrl != null) {
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.action_copy_link)) },
-                    leadingIcon = { Icon(Icons.Outlined.ContentCopy, contentDescription = null) },
+            )
+            LongPressContextMenuItem(
+                icon = Icons.Outlined.Download,
+                text = stringResource(R.string.action_download_image),
+                onClick = {
+                    readerContextMenuDownloadImage(context, state.imageUrl)
+                    coroutineScope.launch {
+                        snackbarHostState.showSnackbar(
+                            context.getString(R.string.download_started),
+                            duration = SnackbarDuration.Short
+                        )
+                    }
+                    onDismiss()
+                }
+            )
+            LongPressContextMenuItem(
+                icon = Icons.Outlined.Share,
+                text = stringResource(R.string.action_share_image),
+                onClick = {
+                    coroutineScope.launch { readerContextMenuShareImage(context, state.imageUrl) }
+                    onDismiss()
+                }
+            )
+        }
+    } else if (state.linkUrl != null) {
+        // Link long-press popup: Copy Link, Copy Link Text (if available), Download Link, Share Link, Open in Browser
+        LongPressContextMenuDialog(
+            headerImageUrl = bookmarkIconUrl,
+            title = bookmarkTitle,
+            subtitle = state.linkUrl,
+            onDismiss = onDismiss,
+        ) {
+            LongPressContextMenuItem(
+                icon = Icons.Outlined.ContentCopy,
+                text = stringResource(R.string.action_copy_link),
+                onClick = {
+                    readerContextMenuCopyToClipboard(context, state.linkUrl)
+                    coroutineScope.launch {
+                        snackbarHostState.showSnackbar(
+                            context.getString(R.string.link_copied),
+                            duration = SnackbarDuration.Short
+                        )
+                    }
+                    onDismiss()
+                }
+            )
+            if (!state.linkText.isNullOrBlank()) {
+                LongPressContextMenuItem(
+                    icon = Icons.Outlined.ContentCopy,
+                    text = stringResource(R.string.action_copy_link_text),
                     onClick = {
-                        readerContextMenuCopyToClipboard(context, state.linkUrl)
+                        readerContextMenuCopyToClipboard(context, state.linkText)
                         coroutineScope.launch {
                             snackbarHostState.showSnackbar(
-                                context.getString(R.string.link_copied),
+                                context.getString(R.string.link_text_copied),
                                 duration = SnackbarDuration.Short
                             )
                         }
-                        onDismiss()
-                    }
-                )
-                if (state.imageUrl == null) {
-                    DropdownMenuItem(
-                        text = { Text(stringResource(R.string.action_share_link)) },
-                        leadingIcon = { Icon(Icons.Outlined.Share, contentDescription = null) },
-                        onClick = {
-                            val intent = Intent(Intent.ACTION_SEND).apply {
-                                type = "text/plain"
-                                putExtra(Intent.EXTRA_TEXT, state.linkUrl)
-                            }
-                            context.startActivity(Intent.createChooser(intent, null))
-                            onDismiss()
-                        }
-                    )
-                }
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.action_open_in_browser)) },
-                    leadingIcon = { Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = null) },
-                    onClick = {
-                        openUrlInCustomTab(context, state.linkUrl)
                         onDismiss()
                     }
                 )
             }
+            LongPressContextMenuItem(
+                icon = Icons.Outlined.Download,
+                text = stringResource(R.string.action_download_link),
+                onClick = {
+                    readerContextMenuDownloadUrl(context, state.linkUrl)
+                    coroutineScope.launch {
+                        snackbarHostState.showSnackbar(
+                            context.getString(R.string.download_started),
+                            duration = SnackbarDuration.Short
+                        )
+                    }
+                    onDismiss()
+                }
+            )
+            LongPressContextMenuItem(
+                icon = Icons.Outlined.Share,
+                text = stringResource(R.string.action_share_link),
+                onClick = {
+                    val intent = Intent(Intent.ACTION_SEND).apply {
+                        type = "text/plain"
+                        putExtra(Intent.EXTRA_TEXT, state.linkUrl)
+                    }
+                    context.startActivity(Intent.createChooser(intent, null))
+                    onDismiss()
+                }
+            )
+            LongPressContextMenuItem(
+                icon = Icons.AutoMirrored.Filled.OpenInNew,
+                text = stringResource(R.string.action_open_in_browser),
+                onClick = {
+                    openUrlInCustomTab(context, state.linkUrl)
+                    onDismiss()
+                }
+            )
         }
     }
 }
@@ -744,6 +773,49 @@ private fun ReaderContextMenu(
 private fun readerContextMenuCopyToClipboard(context: Context, text: String) {
     val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
     clipboard.setPrimaryClip(ClipData.newPlainText("", text))
+}
+
+private suspend fun readerContextMenuCopyImage(
+    context: Context,
+    imageUrl: String,
+    snackbarHostState: SnackbarHostState,
+) {
+    try {
+        val imageUri = withContext(Dispatchers.IO) {
+            val url = java.net.URL(imageUrl)
+            val connection = url.openConnection()
+            connection.connect()
+            val cacheDir = java.io.File(context.cacheDir, "images").also { it.mkdirs() }
+            val fileName = imageUrl.substringAfterLast('/').ifBlank { "image" }
+            val file = java.io.File(cacheDir, "copy_${fileName}_${System.currentTimeMillis()}")
+            connection.getInputStream().use { input ->
+                file.outputStream().use { output -> input.copyTo(output) }
+            }
+            androidx.core.content.FileProvider.getUriForFile(
+                context, "${context.packageName}.provider", file
+            )
+        }
+        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        clipboard.setPrimaryClip(ClipData.newUri(context.contentResolver, "image", imageUri))
+        snackbarHostState.showSnackbar(
+            context.getString(R.string.image_copied),
+            duration = SnackbarDuration.Short
+        )
+    } catch (e: Exception) {
+        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        clipboard.setPrimaryClip(ClipData.newPlainText("", imageUrl))
+        snackbarHostState.showSnackbar(
+            context.getString(R.string.image_url_copied),
+            duration = SnackbarDuration.Short
+        )
+    }
+}
+
+private fun readerContextMenuDownloadUrl(context: Context, url: String) {
+    val request = DownloadManager.Request(Uri.parse(url))
+        .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
+    val dm = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
+    dm.enqueue(request)
 }
 
 private fun readerContextMenuDownloadImage(context: Context, imageUrl: String) {

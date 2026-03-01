@@ -65,7 +65,7 @@ fun BookmarkDetailArticle(
     onArticleSearchUpdateResults: (Int) -> Unit = {},
     onImageTapped: (ImageGalleryData) -> Unit = {},
     onImageLongPress: (imageUrl: String, linkUrl: String?, linkType: String) -> Unit = { _, _, _ -> },
-    onLinkLongPress: (linkUrl: String) -> Unit = {},
+    onLinkLongPress: (linkUrl: String, linkText: String) -> Unit = { _, _ -> },
 ) {
     val isSystemInDarkMode = isSystemInDarkTheme()
     val content = remember(uiState.bookmark.bookmarkId, isSystemInDarkMode, uiState.template) {
@@ -196,6 +196,17 @@ fun BookmarkDetailArticle(
                             }
                         }
 
+                        // Track last touch-down position for JS anchor-text extraction
+                        var lastTouchX = 0
+                        var lastTouchY = 0
+                        setOnTouchListener { _, event ->
+                            if (event.action == android.view.MotionEvent.ACTION_DOWN) {
+                                lastTouchX = event.x.toInt()
+                                lastTouchY = event.y.toInt()
+                            }
+                            false
+                        }
+
                         // Long-press context menu via native hit testing
                         setOnLongClickListener { view ->
                             val webView = view as WebView
@@ -210,7 +221,12 @@ fun BookmarkDetailArticle(
                                     true
                                 }
                                 WebView.HitTestResult.SRC_ANCHOR_TYPE -> {
-                                    onLinkLongPress(result.extra ?: "")
+                                    val linkUrl = result.extra ?: ""
+                                    webView.evaluateJavascript(
+                                        WebViewImageBridge.getLinkTextAtPoint(lastTouchX, lastTouchY)
+                                    ) { text ->
+                                        onLinkLongPress(linkUrl, text?.trim('"') ?: "")
+                                    }
                                     true
                                 }
                                 WebView.HitTestResult.SRC_IMAGE_ANCHOR_TYPE -> {
