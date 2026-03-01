@@ -100,8 +100,10 @@ import com.mydeck.app.ui.components.FilterBottomSheet
 import com.mydeck.app.ui.components.ShareBookmarkChooser
 import com.mydeck.app.ui.components.VerticalScrollbar
 import com.mydeck.app.util.openUrlInCustomTab
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.withContext
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -193,7 +195,6 @@ fun BookmarkListScreen(
         hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
         viewModel.onToggleArchiveBookmark(bookmarkId, isArchived)
     }
-    val onClickShareBookmark: (String) -> Unit = { url -> viewModel.onClickShareBookmark(url) }
     val onClickOpenUrl: (String) -> Unit = { bookmarkId ->
         dismissPendingDeleteSnackbar()
         viewModel.onClickBookmarkOpenOriginal(bookmarkId)
@@ -258,39 +259,42 @@ fun BookmarkListScreen(
         if (imageUrl.isNotBlank() && imageUrl.startsWith("http")) {
             scope.launch {
                 try {
-                    // Download image to cache
-                    val url = java.net.URL(imageUrl)
-                    val connection = url.openConnection()
-                    connection.connect()
-                    val inputStream = connection.getInputStream()
-                    
-                    // Create unique file in cache
-                    val fileName = imageUrl.substringAfterLast('/').ifBlank { "shared_image" }
-                    val cacheDir = java.io.File(context.cacheDir, "images")
-                    cacheDir.mkdirs()
-                    val imageFile = java.io.File(cacheDir, "${fileName}_${System.currentTimeMillis()}")
-                    
-                    // Save image to file
-                    inputStream.use { input ->
-                        imageFile.outputStream().use { output ->
-                            input.copyTo(output)
+                    val imageFile = withContext(Dispatchers.IO) {
+                        // Download image to cache
+                        val url = java.net.URL(imageUrl)
+                        val connection = url.openConnection()
+                        connection.connect()
+                        val inputStream = connection.getInputStream()
+
+                        // Create unique file in cache
+                        val fileName = imageUrl.substringAfterLast('/').ifBlank { "shared_image" }
+                        val cacheDir = java.io.File(context.cacheDir, "images")
+                        cacheDir.mkdirs()
+                        val file = java.io.File(cacheDir, "${fileName}_${System.currentTimeMillis()}")
+
+                        // Save image to file
+                        inputStream.use { input ->
+                            file.outputStream().use { output ->
+                                input.copyTo(output)
+                            }
                         }
+                        file
                     }
-                    
-                    // Share via FileProvider
+
+                    // Share via FileProvider (must run on Main)
                     val imageUri = androidx.core.content.FileProvider.getUriForFile(
                         context,
                         "${context.packageName}.provider",
                         imageFile
                     )
-                    
+
                     val shareIntent = android.content.Intent().apply {
                         action = android.content.Intent.ACTION_SEND
                         putExtra(android.content.Intent.EXTRA_STREAM, imageUri)
                         type = "image/*"
                         addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
                     }
-                    
+
                     context.startActivity(android.content.Intent.createChooser(shareIntent, null))
                 } catch (e: Exception) {
                     // Fallback to URL sharing on error
@@ -623,7 +627,6 @@ fun BookmarkListScreen(
                                 onClickDelete = onClickDelete,
                                 onClickArchive = onClickArchive,
                                 onClickFavorite = onClickFavorite,
-                                onClickShareBookmark = onClickShareBookmark,
                                 onClickLabel = { label ->
                                     dismissPendingDeleteSnackbar()
                                     viewModel.onClickLabel(label)
@@ -882,7 +885,6 @@ fun BookmarkListView(
     onClickDelete: (String) -> Unit,
     onClickFavorite: (String, Boolean) -> Unit,
     onClickArchive: (String, Boolean) -> Unit,
-    onClickShareBookmark: (String) -> Unit,
     onClickLabel: (String) -> Unit = {},
     onClickOpenUrl: (String) -> Unit = {},
     onClickOpenInBrowser: (String) -> Unit = {},
@@ -935,7 +937,6 @@ fun BookmarkListView(
                             onClickDelete = onClickDelete,
                             onClickArchive = onClickArchive,
                             onClickFavorite = onClickFavorite,
-                            onClickShareBookmark = onClickShareBookmark,
                             onClickLabel = onClickLabel,
                             onClickOpenUrl = onClickOpenUrl,
                             onClickOpenInBrowser = onClickOpenInBrowser,
@@ -954,7 +955,6 @@ fun BookmarkListView(
                             onClickDelete = onClickDelete,
                             onClickArchive = onClickArchive,
                             onClickFavorite = onClickFavorite,
-                            onClickShareBookmark = onClickShareBookmark,
                             onClickLabel = onClickLabel,
                             onClickOpenUrl = onClickOpenUrl,
                             onClickOpenInBrowser = onClickOpenInBrowser,
@@ -972,7 +972,6 @@ fun BookmarkListView(
                             onClickDelete = onClickDelete,
                             onClickArchive = onClickArchive,
                             onClickFavorite = onClickFavorite,
-                            onClickShareBookmark = onClickShareBookmark,
                             onClickLabel = onClickLabel,
                             onClickOpenUrl = onClickOpenUrl,
                             onClickOpenInBrowser = onClickOpenInBrowser,
@@ -1014,7 +1013,6 @@ fun BookmarkListView(
                             onClickDelete = onClickDelete,
                             onClickArchive = onClickArchive,
                             onClickFavorite = onClickFavorite,
-                            onClickShareBookmark = onClickShareBookmark,
                             onClickLabel = onClickLabel,
                             onClickOpenUrl = onClickOpenUrl,
                             onClickOpenInBrowser = onClickOpenInBrowser,
@@ -1033,7 +1031,6 @@ fun BookmarkListView(
                             onClickDelete = onClickDelete,
                             onClickArchive = onClickArchive,
                             onClickFavorite = onClickFavorite,
-                            onClickShareBookmark = onClickShareBookmark,
                             onClickLabel = onClickLabel,
                             onClickOpenUrl = onClickOpenUrl,
                             onClickOpenInBrowser = onClickOpenInBrowser,
@@ -1051,7 +1048,6 @@ fun BookmarkListView(
                             onClickDelete = onClickDelete,
                             onClickArchive = onClickArchive,
                             onClickFavorite = onClickFavorite,
-                            onClickShareBookmark = onClickShareBookmark,
                             onClickLabel = onClickLabel,
                             onClickOpenUrl = onClickOpenUrl,
                             onClickOpenInBrowser = onClickOpenInBrowser,
@@ -1122,7 +1118,6 @@ fun BookmarkListViewPreview() {
         onClickDelete = {},
         onClickArchive = { _, _ -> },
         onClickFavorite = { _, _ -> },
-        onClickShareBookmark = {_ -> },
         onClickLabel = {}
     )
 }

@@ -139,7 +139,6 @@ fun BookmarkMosaicCard(
     onClickCard: (String) -> Unit,
     onClickDelete: (String) -> Unit,
     onClickFavorite: (String, Boolean) -> Unit,
-    onClickShareBookmark: (String) -> Unit,
     onClickArchive: (String, Boolean) -> Unit,
     onClickLabel: (String) -> Unit = {},
     onClickOpenUrl: (String) -> Unit = {},
@@ -372,59 +371,61 @@ fun BookmarkMosaicCard(
                 }
             )
         }
-        DropdownMenu(
-            expanded = showImageContextMenu,
-            onDismissRequest = { showImageContextMenu = false }
-        ) {
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.action_copy_link)) },
-                leadingIcon = { Icon(Icons.Outlined.ContentCopy, null) },
-                onClick = {
-                    showImageContextMenu = false
-                    onClickCopyLink(bookmark.url)
-                }
-            )
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.action_share_link)) },
-                leadingIcon = { Icon(Icons.Outlined.Share, null) },
-                onClick = {
-                    showImageContextMenu = false
-                    onClickShareLink(bookmark.url)
-                }
-            )
-            HorizontalDivider()
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.action_copy_image)) },
-                leadingIcon = { Icon(Icons.Outlined.ContentCopy, null) },
-                onClick = {
-                    showImageContextMenu = false
-                    onClickCopyImageUrl(bookmark.imageSrc)
-                }
-            )
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.action_download_image)) },
-                leadingIcon = { Icon(Icons.Outlined.Download, null) },
-                onClick = {
-                    showImageContextMenu = false
-                    onClickDownloadImage(bookmark.imageSrc)
-                }
-            )
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.action_share_image)) },
-                leadingIcon = { Icon(Icons.Outlined.Share, null) },
-                onClick = {
-                    showImageContextMenu = false
-                    onClickShareImage(bookmark.imageSrc)
-                }
-            )
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.action_open_in_browser)) },
-                leadingIcon = { Icon(Icons.AutoMirrored.Filled.OpenInNew, null) },
-                onClick = {
-                    showImageContextMenu = false
-                    onClickOpenInBrowserFromMenu(bookmark.url)
-                }
-            )
+        if (bookmark.imageSrc.isNotBlank()) {
+            DropdownMenu(
+                expanded = showImageContextMenu,
+                onDismissRequest = { showImageContextMenu = false }
+            ) {
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.action_copy_link)) },
+                    leadingIcon = { Icon(Icons.Outlined.ContentCopy, null) },
+                    onClick = {
+                        showImageContextMenu = false
+                        onClickCopyLink(bookmark.url)
+                    }
+                )
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.action_share_link)) },
+                    leadingIcon = { Icon(Icons.Outlined.Share, null) },
+                    onClick = {
+                        showImageContextMenu = false
+                        onClickShareLink(bookmark.url)
+                    }
+                )
+                HorizontalDivider()
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.action_copy_image)) },
+                    leadingIcon = { Icon(Icons.Outlined.ContentCopy, null) },
+                    onClick = {
+                        showImageContextMenu = false
+                        onClickCopyImageUrl(bookmark.imageSrc)
+                    }
+                )
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.action_download_image)) },
+                    leadingIcon = { Icon(Icons.Outlined.Download, null) },
+                    onClick = {
+                        showImageContextMenu = false
+                        onClickDownloadImage(bookmark.imageSrc)
+                    }
+                )
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.action_share_image)) },
+                    leadingIcon = { Icon(Icons.Outlined.Share, null) },
+                    onClick = {
+                        showImageContextMenu = false
+                        onClickShareImage(bookmark.imageSrc)
+                    }
+                )
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.action_open_in_browser)) },
+                    leadingIcon = { Icon(Icons.AutoMirrored.Filled.OpenInNew, null) },
+                    onClick = {
+                        showImageContextMenu = false
+                        onClickOpenInBrowserFromMenu(bookmark.url)
+                    }
+                )
+            }
         }
     }
 }
@@ -436,7 +437,6 @@ fun BookmarkGridCard(
     onClickCard: (String) -> Unit,
     onClickDelete: (String) -> Unit,
     onClickFavorite: (String, Boolean) -> Unit,
-    onClickShareBookmark: (String) -> Unit,
     onClickArchive: (String, Boolean) -> Unit,
     onClickLabel: (String) -> Unit = {},
     onClickOpenUrl: (String) -> Unit = {},
@@ -1559,7 +1559,6 @@ fun BookmarkCompactCard(
     onClickCard: (String) -> Unit,
     onClickDelete: (String) -> Unit,
     onClickFavorite: (String, Boolean) -> Unit,
-    onClickShareBookmark: (String) -> Unit,
     onClickArchive: (String, Boolean) -> Unit,
     onClickLabel: (String) -> Unit = {},
     onClickOpenUrl: (String) -> Unit = {},
@@ -2256,7 +2255,6 @@ fun BookmarkCardPreview() {
             onClickDelete = {},
             onClickFavorite = { _, _ -> },
             onClickArchive = { _, _ -> },
-            onClickShareBookmark = {_ -> }
         )
     }
 }
