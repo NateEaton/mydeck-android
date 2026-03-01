@@ -758,7 +758,7 @@ private suspend fun readerContextMenuCopyImage(context: Context, imageUrl: Strin
     try {
         val imageUri = withContext(Dispatchers.IO) {
             val request = coil3.request.ImageRequest.Builder(context)
-                .data(imageUrl).allowHardware(false).build()
+                .data(imageUrl).bitmapConfig(android.graphics.Bitmap.Config.ARGB_8888).build()
             val bitmap = (context.imageLoader.execute(request) as? coil3.request.SuccessResult)
                 ?.image as? coil3.BitmapImage ?: throw Exception("no bitmap")
             val cacheDir = java.io.File(context.cacheDir, "images").also { it.mkdirs() }
@@ -804,7 +804,7 @@ private suspend fun readerContextMenuShareImage(context: Context, imageUrl: Stri
     try {
         val file = withContext(Dispatchers.IO) {
             val request = coil3.request.ImageRequest.Builder(context)
-                .data(imageUrl).allowHardware(false).build()
+                .data(imageUrl).bitmapConfig(android.graphics.Bitmap.Config.ARGB_8888).build()
             val bitmap = (context.imageLoader.execute(request) as? coil3.request.SuccessResult)
                 ?.image as? coil3.BitmapImage ?: throw Exception("no bitmap")
             val cacheDir = java.io.File(context.cacheDir, "images").also { it.mkdirs() }

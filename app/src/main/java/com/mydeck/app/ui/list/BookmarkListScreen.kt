@@ -219,7 +219,7 @@ fun BookmarkListScreen(
                 try {
                     val imageUri = withContext(Dispatchers.IO) {
                         val request = coil3.request.ImageRequest.Builder(context)
-                            .data(imageUrl).allowHardware(false).build()
+                            .data(imageUrl).bitmapConfig(android.graphics.Bitmap.Config.ARGB_8888).build()
                         val result = context.imageLoader.execute(request) as? coil3.request.SuccessResult
                         val bitmap = (result?.image as? coil3.BitmapImage)?.bitmap
                             ?: throw Exception("no bitmap")
@@ -277,7 +277,7 @@ fun BookmarkListScreen(
                 try {
                     val imageFile = withContext(Dispatchers.IO) {
                         val request = coil3.request.ImageRequest.Builder(context)
-                            .data(imageUrl).allowHardware(false).build()
+                            .data(imageUrl).bitmapConfig(android.graphics.Bitmap.Config.ARGB_8888).build()
                         val result = context.imageLoader.execute(request) as? coil3.request.SuccessResult
                         val bitmap = (result?.image as? coil3.BitmapImage)?.bitmap
                             ?: throw Exception("no bitmap")
