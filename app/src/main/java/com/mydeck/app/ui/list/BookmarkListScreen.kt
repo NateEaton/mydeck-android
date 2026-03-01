@@ -219,10 +219,12 @@ fun BookmarkListScreen(
                 try {
                     val imageUri = withContext(Dispatchers.IO) {
                         val request = coil3.request.ImageRequest.Builder(context)
-                            .data(imageUrl).bitmapConfig(android.graphics.Bitmap.Config.ARGB_8888).build()
+                            .data(imageUrl).build()
                         val result = context.imageLoader.execute(request) as? coil3.request.SuccessResult
-                        val bitmap = (result?.image as? coil3.BitmapImage)?.bitmap
+                        val rawBitmap = (result?.image as? coil3.BitmapImage)?.bitmap
                             ?: throw Exception("no bitmap")
+                        val bitmap = if (rawBitmap.config == android.graphics.Bitmap.Config.HARDWARE)
+                            rawBitmap.copy(android.graphics.Bitmap.Config.ARGB_8888, false) else rawBitmap
                         val cacheDir = java.io.File(context.cacheDir, "images").also { it.mkdirs() }
                         val file = java.io.File(cacheDir, "copy_${System.currentTimeMillis()}.jpg")
                         file.outputStream().use {
@@ -277,10 +279,12 @@ fun BookmarkListScreen(
                 try {
                     val imageFile = withContext(Dispatchers.IO) {
                         val request = coil3.request.ImageRequest.Builder(context)
-                            .data(imageUrl).bitmapConfig(android.graphics.Bitmap.Config.ARGB_8888).build()
+                            .data(imageUrl).build()
                         val result = context.imageLoader.execute(request) as? coil3.request.SuccessResult
-                        val bitmap = (result?.image as? coil3.BitmapImage)?.bitmap
+                        val rawBitmap = (result?.image as? coil3.BitmapImage)?.bitmap
                             ?: throw Exception("no bitmap")
+                        val bitmap = if (rawBitmap.config == android.graphics.Bitmap.Config.HARDWARE)
+                            rawBitmap.copy(android.graphics.Bitmap.Config.ARGB_8888, false) else rawBitmap
                         val cacheDir = java.io.File(context.cacheDir, "images").also { it.mkdirs() }
                         val file = java.io.File(cacheDir, "share_${System.currentTimeMillis()}.jpg")
                         file.outputStream().use {

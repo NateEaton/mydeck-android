@@ -758,13 +758,17 @@ private suspend fun readerContextMenuCopyImage(context: Context, imageUrl: Strin
     try {
         val imageUri = withContext(Dispatchers.IO) {
             val request = coil3.request.ImageRequest.Builder(context)
-                .data(imageUrl).bitmapConfig(android.graphics.Bitmap.Config.ARGB_8888).build()
-            val bitmap = (context.imageLoader.execute(request) as? coil3.request.SuccessResult)
+                .data(imageUrl).build()
+            val rawBitmap = (context.imageLoader.execute(request) as? coil3.request.SuccessResult)
                 ?.image as? coil3.BitmapImage ?: throw Exception("no bitmap")
+            val bitmap = rawBitmap.bitmap.let {
+                if (it.config == android.graphics.Bitmap.Config.HARDWARE)
+                    it.copy(android.graphics.Bitmap.Config.ARGB_8888, false) else it
+            }
             val cacheDir = java.io.File(context.cacheDir, "images").also { it.mkdirs() }
             val file = java.io.File(cacheDir, "copy_${System.currentTimeMillis()}.jpg")
             file.outputStream().use {
-                bitmap.bitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG, 90, it)
+                bitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG, 90, it)
             }
             androidx.core.content.FileProvider.getUriForFile(
                 context, "${context.packageName}.provider", file
@@ -804,13 +808,17 @@ private suspend fun readerContextMenuShareImage(context: Context, imageUrl: Stri
     try {
         val file = withContext(Dispatchers.IO) {
             val request = coil3.request.ImageRequest.Builder(context)
-                .data(imageUrl).bitmapConfig(android.graphics.Bitmap.Config.ARGB_8888).build()
-            val bitmap = (context.imageLoader.execute(request) as? coil3.request.SuccessResult)
+                .data(imageUrl).build()
+            val rawBitmap = (context.imageLoader.execute(request) as? coil3.request.SuccessResult)
                 ?.image as? coil3.BitmapImage ?: throw Exception("no bitmap")
+            val bitmap = rawBitmap.bitmap.let {
+                if (it.config == android.graphics.Bitmap.Config.HARDWARE)
+                    it.copy(android.graphics.Bitmap.Config.ARGB_8888, false) else it
+            }
             val cacheDir = java.io.File(context.cacheDir, "images").also { it.mkdirs() }
             val f = java.io.File(cacheDir, "share_${System.currentTimeMillis()}.jpg")
             f.outputStream().use {
-                bitmap.bitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG, 90, it)
+                bitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG, 90, it)
             }
             f
         }
