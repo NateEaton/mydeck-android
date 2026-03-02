@@ -179,8 +179,6 @@ class BookmarkListViewModel @Inject constructor(
                         orderBy = sort.sqlOrderBy
                     )
                 }
-            }.combine(_pendingDeletionBookmarkId) { bookmarks, pendingDeletionId ->
-                if (pendingDeletionId == null) bookmarks else bookmarks.filterNot { it.id == pendingDeletionId }
             }.collectLatest { visibleBookmarks ->
                 _uiState.update { currentState ->
                     if (currentState is UiState.Success) {
