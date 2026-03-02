@@ -106,7 +106,7 @@ Tap any image in an article or picture bookmark to open it in a fullscreen light
 
 When the content contains multiple images, a thumbnail strip appears at the bottom of the lightbox. Tap any thumbnail to jump directly to that image.
 
-If the current image was originally a hyperlink (linking to another page or a larger version of the image), an **external link icon** (↗) appears in the top-right corner of the lightbox. Tap it to open the linked URL in the browser.
+If the current image was originally a hyperlink (linking to another page or site), an **external link icon** (↗) appears in the top-right corner of the lightbox. Tap it to open the linked URL in the browser.
 
 ## Bookmark Details
 
