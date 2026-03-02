@@ -16,6 +16,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -25,12 +26,13 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import com.mydeck.app.R
+import com.mydeck.app.ui.navigation.UserGuideRoute
 import com.mydeck.app.ui.navigation.UserGuideSectionRoute
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun UserGuideSectionScreen(
-    navHostController: NavHostController
+    navHostController: NavHostController,
 ) {
     val viewModel: UserGuideSectionViewModel = hiltViewModel()
     val uiState = viewModel.uiState
@@ -58,6 +60,21 @@ fun UserGuideSectionScreen(
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = stringResource(R.string.back)
+                        )
+                    }
+                },
+                actions = {
+                    TextButton(
+                        onClick = {
+                            navHostController.popBackStack(
+                                route = UserGuideRoute,
+                                inclusive = false
+                            )
+                        }
+                    ) {
+                        Text(
+                            text = stringResource(R.string.user_guide_contents),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }

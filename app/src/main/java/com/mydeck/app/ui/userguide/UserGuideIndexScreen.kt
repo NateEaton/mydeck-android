@@ -38,7 +38,7 @@ fun getSectionIcon(fileName: String) = when (fileName) {
     "getting-started.md" -> Icons.Default.Info
     "your-bookmarks.md"  -> Icons.Default.CollectionsBookmark
     "reading.md"         -> Icons.Default.Bookmark
-    "organising.md"      -> Icons.AutoMirrored.Filled.Label
+    "organizing.md"      -> Icons.AutoMirrored.Filled.Label
     "settings.md"        -> Icons.Outlined.Settings
     else                 -> Icons.Default.Info
 }
@@ -46,7 +46,8 @@ fun getSectionIcon(fileName: String) = when (fileName) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun UserGuideIndexScreen(
-    navHostController: NavHostController
+    navHostController: NavHostController,
+    showBackButton: Boolean = true,
 ) {
     val viewModel: UserGuideIndexViewModel = hiltViewModel()
     val uiState = viewModel.uiState
@@ -57,11 +58,13 @@ fun UserGuideIndexScreen(
             TopAppBar(
                 title = { Text(stringResource(R.string.user_guide)) },
                 navigationIcon = {
-                    IconButton(onClick = { navHostController.popBackStack() }) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(R.string.back)
-                        )
+                    if (showBackButton) {
+                        IconButton(onClick = { navHostController.popBackStack() }) {
+                            Icon(
+                                Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = stringResource(R.string.back)
+                            )
+                        }
                     }
                 }
             )

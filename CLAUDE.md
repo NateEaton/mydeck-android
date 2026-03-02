@@ -41,6 +41,36 @@ The English text serves as a placeholder until professional translators provide 
 
 ---
 
+## Documentation Requirements
+
+**Important:** All user-visible features must be documented in the user guide.
+
+### When Adding or Modifying User-Facing Features
+
+1. Update the relevant user guide file(s) in `app/src/main/assets/guide/en/`:
+   - `getting-started.md` — initial setup and authentication
+   - `your-bookmarks.md` — bookmark list, cards, layouts, actions, filtering, sorting
+   - `reading.md` — article/video/picture view, typography, search, lightbox
+   - `organising.md` — favorites, archive, labels, deletion
+   - `settings.md` — app settings and preferences
+
+2. Keep documentation:
+   - **Clear and concise** — describe what the feature does and how to use it
+   - **Action-oriented** — focus on what users can do, not implementation details
+   - **Consistent** — match the tone and style of existing documentation
+   - **Up-to-date** — update docs in the same commit/PR as the feature change
+
+3. For multi-language support, update only the English (`en`) files. Translations are handled separately.
+
+### Examples of User-Visible Changes Requiring Documentation
+
+- New UI elements (buttons, menus, dialogs)
+- Changed interaction patterns (tap vs long-press, swipe gestures)
+- New or modified features (filters, sorting, reading modes)
+- Behavior changes that affect user workflow (deletion UX, navigation flow)
+
+---
+
 ## Other Guidelines
 
 - Follow existing code style and patterns

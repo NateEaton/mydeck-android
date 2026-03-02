@@ -72,6 +72,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalClipboardManager
@@ -138,6 +139,7 @@ fun BookmarkListScreen(
     val sortOption = viewModel.sortOption.collectAsState()
     val labelsWithCounts = viewModel.labelsWithCounts.collectAsState()
     val isLabelsSheetOpen = viewModel.isLabelsSheetOpen.collectAsState()
+    val pendingDeletionBookmarkId = viewModel.pendingDeletionBookmarkId.collectAsState()
 
     var showLayoutMenu by remember { mutableStateOf(false) }
     var showSortMenu by remember { mutableStateOf(false) }
@@ -611,6 +613,7 @@ fun BookmarkListScreen(
                                 scrollToTopTrigger = scrollToTopTrigger,
                                 layoutMode = layoutMode.value,
                                 bookmarks = uiState.bookmarks,
+                                pendingDeletionBookmarkId = pendingDeletionBookmarkId.value,
                                 onClickBookmark = onClickBookmark,
                                 onClickDelete = onClickDelete,
                                 onClickArchive = onClickArchive,
@@ -869,6 +872,7 @@ fun BookmarkListView(
     scrollToTopTrigger: Int = 0,
     layoutMode: LayoutMode = LayoutMode.GRID,
     bookmarks: List<BookmarkListItem>,
+    pendingDeletionBookmarkId: String? = null,
     isMultiColumn: Boolean = LocalIsWideLayout.current,
     onClickBookmark: (String) -> Unit,
     onClickDelete: (String) -> Unit,
@@ -920,62 +924,69 @@ fun BookmarkListView(
                 contentPadding = PaddingValues(horizontal = spacing),
             ) {
                 items(bookmarks) { bookmark ->
+                    val isPendingDeletion = bookmark.id == pendingDeletionBookmarkId
+                    val confirmDelete: (String) -> Unit = { _ -> onUserInteraction() }
+                    val noop: (String) -> Unit = {}
+                    val noop2: (String, Boolean) -> Unit = { _, _ -> }
+                    val noop2s: (String, String) -> Unit = { _, _ -> }
+                    Box(modifier = Modifier.alpha(if (isPendingDeletion) 0.38f else 1f)) {
                     when (layoutMode) {
                         LayoutMode.GRID -> BookmarkGridCard(
                             bookmark = bookmark,
-                            onClickCard = onClickBookmark,
-                            onClickDelete = onClickDelete,
-                            onClickArchive = onClickArchive,
-                            onClickFavorite = onClickFavorite,
-                            onClickLabel = onClickLabel,
-                            onClickOpenUrl = onClickOpenUrl,
-                            onClickOpenInBrowser = onClickOpenInBrowser,
-                            onClickCopyLink = onClickCopyLink,
-                            onClickCopyLinkText = onClickCopyLinkText,
-                            onClickShareLink = onClickShareLink,
-                            onClickOpenInBrowserFromMenu = onClickOpenInBrowserFromMenu,
-                            onClickCopyImage = onClickCopyImage,
-                            onClickDownloadLink = onClickDownloadLink,
-                            onClickDownloadImage = onClickDownloadImage,
-                            onClickShareImage = onClickShareImage,
+                            onClickCard = if (isPendingDeletion) confirmDelete else onClickBookmark,
+                            onClickDelete = if (isPendingDeletion) noop else onClickDelete,
+                            onClickArchive = if (isPendingDeletion) noop2 else onClickArchive,
+                            onClickFavorite = if (isPendingDeletion) noop2 else onClickFavorite,
+                            onClickLabel = if (isPendingDeletion) noop else onClickLabel,
+                            onClickOpenUrl = if (isPendingDeletion) noop else onClickOpenUrl,
+                            onClickOpenInBrowser = if (isPendingDeletion) noop else onClickOpenInBrowser,
+                            onClickCopyLink = if (isPendingDeletion) noop else onClickCopyLink,
+                            onClickCopyLinkText = if (isPendingDeletion) noop else onClickCopyLinkText,
+                            onClickShareLink = if (isPendingDeletion) noop else onClickShareLink,
+                            onClickOpenInBrowserFromMenu = if (isPendingDeletion) noop else onClickOpenInBrowserFromMenu,
+                            onClickCopyImage = if (isPendingDeletion) noop else onClickCopyImage,
+                            onClickDownloadLink = if (isPendingDeletion) noop2s else onClickDownloadLink,
+                            onClickDownloadImage = if (isPendingDeletion) noop else onClickDownloadImage,
+                            onClickShareImage = if (isPendingDeletion) noop else onClickShareImage,
                             isInGrid = true,
                         )
                         LayoutMode.COMPACT -> BookmarkCompactCard(
                             bookmark = bookmark,
-                            onClickCard = onClickBookmark,
-                            onClickDelete = onClickDelete,
-                            onClickArchive = onClickArchive,
-                            onClickFavorite = onClickFavorite,
-                            onClickLabel = onClickLabel,
-                            onClickOpenUrl = onClickOpenUrl,
-                            onClickOpenInBrowser = onClickOpenInBrowser,
-                            onClickCopyLink = onClickCopyLink,
-                            onClickCopyLinkText = onClickCopyLinkText,
-                            onClickShareLink = onClickShareLink,
-                            onClickOpenInBrowserFromMenu = onClickOpenInBrowserFromMenu,
-                            onClickCopyImage = onClickCopyImage,
-                            onClickDownloadLink = onClickDownloadLink,
-                            onClickDownloadImage = onClickDownloadImage,
-                            onClickShareImage = onClickShareImage,
+                            onClickCard = if (isPendingDeletion) confirmDelete else onClickBookmark,
+                            onClickDelete = if (isPendingDeletion) noop else onClickDelete,
+                            onClickArchive = if (isPendingDeletion) noop2 else onClickArchive,
+                            onClickFavorite = if (isPendingDeletion) noop2 else onClickFavorite,
+                            onClickLabel = if (isPendingDeletion) noop else onClickLabel,
+                            onClickOpenUrl = if (isPendingDeletion) noop else onClickOpenUrl,
+                            onClickOpenInBrowser = if (isPendingDeletion) noop else onClickOpenInBrowser,
+                            onClickCopyLink = if (isPendingDeletion) noop else onClickCopyLink,
+                            onClickCopyLinkText = if (isPendingDeletion) noop else onClickCopyLinkText,
+                            onClickShareLink = if (isPendingDeletion) noop else onClickShareLink,
+                            onClickOpenInBrowserFromMenu = if (isPendingDeletion) noop else onClickOpenInBrowserFromMenu,
+                            onClickCopyImage = if (isPendingDeletion) noop else onClickCopyImage,
+                            onClickDownloadLink = if (isPendingDeletion) noop2s else onClickDownloadLink,
+                            onClickDownloadImage = if (isPendingDeletion) noop else onClickDownloadImage,
+                            onClickShareImage = if (isPendingDeletion) noop else onClickShareImage,
                         )
                         LayoutMode.MOSAIC -> BookmarkMosaicCard(
                             bookmark = bookmark,
-                            onClickCard = onClickBookmark,
-                            onClickDelete = onClickDelete,
-                            onClickArchive = onClickArchive,
-                            onClickFavorite = onClickFavorite,
-                            onClickLabel = onClickLabel,
-                            onClickOpenUrl = onClickOpenUrl,
-                            onClickOpenInBrowser = onClickOpenInBrowser,
-                            onClickCopyLink = onClickCopyLink,
-                            onClickCopyLinkText = onClickCopyLinkText,
-                            onClickShareLink = onClickShareLink,
-                            onClickOpenInBrowserFromMenu = onClickOpenInBrowserFromMenu,
-                            onClickCopyImage = onClickCopyImage,
-                            onClickDownloadLink = onClickDownloadLink,
-                            onClickDownloadImage = onClickDownloadImage,
-                            onClickShareImage = onClickShareImage
+                            onClickCard = if (isPendingDeletion) confirmDelete else onClickBookmark,
+                            onClickDelete = if (isPendingDeletion) noop else onClickDelete,
+                            onClickArchive = if (isPendingDeletion) noop2 else onClickArchive,
+                            onClickFavorite = if (isPendingDeletion) noop2 else onClickFavorite,
+                            onClickLabel = if (isPendingDeletion) noop else onClickLabel,
+                            onClickOpenUrl = if (isPendingDeletion) noop else onClickOpenUrl,
+                            onClickOpenInBrowser = if (isPendingDeletion) noop else onClickOpenInBrowser,
+                            onClickCopyLink = if (isPendingDeletion) noop else onClickCopyLink,
+                            onClickCopyLinkText = if (isPendingDeletion) noop else onClickCopyLinkText,
+                            onClickShareLink = if (isPendingDeletion) noop else onClickShareLink,
+                            onClickOpenInBrowserFromMenu = if (isPendingDeletion) noop else onClickOpenInBrowserFromMenu,
+                            onClickCopyImage = if (isPendingDeletion) noop else onClickCopyImage,
+                            onClickDownloadLink = if (isPendingDeletion) noop2s else onClickDownloadLink,
+                            onClickDownloadImage = if (isPendingDeletion) noop else onClickDownloadImage,
+                            onClickShareImage = if (isPendingDeletion) noop else onClickShareImage
                         )
+                    }
                     }
                 }
             }
@@ -999,62 +1010,69 @@ fun BookmarkListView(
         Box(modifier = modifier) {
             LazyColumn(state = lazyListState, modifier = Modifier.fillMaxSize()) {
                 items(bookmarks) { bookmark ->
+                    val isPendingDeletion = bookmark.id == pendingDeletionBookmarkId
+                    val confirmDelete: (String) -> Unit = { _ -> onUserInteraction() }
+                    val noop: (String) -> Unit = {}
+                    val noop2: (String, Boolean) -> Unit = { _, _ -> }
+                    val noop2s: (String, String) -> Unit = { _, _ -> }
+                    Box(modifier = Modifier.alpha(if (isPendingDeletion) 0.38f else 1f)) {
                     when (layoutMode) {
                         LayoutMode.GRID -> BookmarkGridCard(
                             bookmark = bookmark,
-                            onClickCard = onClickBookmark,
-                            onClickDelete = onClickDelete,
-                            onClickArchive = onClickArchive,
-                            onClickFavorite = onClickFavorite,
-                            onClickLabel = onClickLabel,
-                            onClickOpenUrl = onClickOpenUrl,
-                            onClickOpenInBrowser = onClickOpenInBrowser,
-                            onClickCopyLink = onClickCopyLink,
-                            onClickCopyLinkText = onClickCopyLinkText,
-                            onClickShareLink = onClickShareLink,
-                            onClickOpenInBrowserFromMenu = onClickOpenInBrowserFromMenu,
-                            onClickCopyImage = onClickCopyImage,
-                            onClickDownloadLink = onClickDownloadLink,
-                            onClickDownloadImage = onClickDownloadImage,
-                            onClickShareImage = onClickShareImage,
+                            onClickCard = if (isPendingDeletion) confirmDelete else onClickBookmark,
+                            onClickDelete = if (isPendingDeletion) noop else onClickDelete,
+                            onClickArchive = if (isPendingDeletion) noop2 else onClickArchive,
+                            onClickFavorite = if (isPendingDeletion) noop2 else onClickFavorite,
+                            onClickLabel = if (isPendingDeletion) noop else onClickLabel,
+                            onClickOpenUrl = if (isPendingDeletion) noop else onClickOpenUrl,
+                            onClickOpenInBrowser = if (isPendingDeletion) noop else onClickOpenInBrowser,
+                            onClickCopyLink = if (isPendingDeletion) noop else onClickCopyLink,
+                            onClickCopyLinkText = if (isPendingDeletion) noop else onClickCopyLinkText,
+                            onClickShareLink = if (isPendingDeletion) noop else onClickShareLink,
+                            onClickOpenInBrowserFromMenu = if (isPendingDeletion) noop else onClickOpenInBrowserFromMenu,
+                            onClickCopyImage = if (isPendingDeletion) noop else onClickCopyImage,
+                            onClickDownloadLink = if (isPendingDeletion) noop2s else onClickDownloadLink,
+                            onClickDownloadImage = if (isPendingDeletion) noop else onClickDownloadImage,
+                            onClickShareImage = if (isPendingDeletion) noop else onClickShareImage,
                             useMobilePortraitLayout = useMobilePortraitGridLayout,
                         )
                         LayoutMode.COMPACT -> BookmarkCompactCard(
                             bookmark = bookmark,
-                            onClickCard = onClickBookmark,
-                            onClickDelete = onClickDelete,
-                            onClickArchive = onClickArchive,
-                            onClickFavorite = onClickFavorite,
-                            onClickLabel = onClickLabel,
-                            onClickOpenUrl = onClickOpenUrl,
-                            onClickOpenInBrowser = onClickOpenInBrowser,
-                            onClickCopyLink = onClickCopyLink,
-                            onClickCopyLinkText = onClickCopyLinkText,
-                            onClickShareLink = onClickShareLink,
-                            onClickOpenInBrowserFromMenu = onClickOpenInBrowserFromMenu,
-                            onClickCopyImage = onClickCopyImage,
-                            onClickDownloadLink = onClickDownloadLink,
-                            onClickDownloadImage = onClickDownloadImage,
-                            onClickShareImage = onClickShareImage
+                            onClickCard = if (isPendingDeletion) confirmDelete else onClickBookmark,
+                            onClickDelete = if (isPendingDeletion) noop else onClickDelete,
+                            onClickArchive = if (isPendingDeletion) noop2 else onClickArchive,
+                            onClickFavorite = if (isPendingDeletion) noop2 else onClickFavorite,
+                            onClickLabel = if (isPendingDeletion) noop else onClickLabel,
+                            onClickOpenUrl = if (isPendingDeletion) noop else onClickOpenUrl,
+                            onClickOpenInBrowser = if (isPendingDeletion) noop else onClickOpenInBrowser,
+                            onClickCopyLink = if (isPendingDeletion) noop else onClickCopyLink,
+                            onClickCopyLinkText = if (isPendingDeletion) noop else onClickCopyLinkText,
+                            onClickShareLink = if (isPendingDeletion) noop else onClickShareLink,
+                            onClickOpenInBrowserFromMenu = if (isPendingDeletion) noop else onClickOpenInBrowserFromMenu,
+                            onClickCopyImage = if (isPendingDeletion) noop else onClickCopyImage,
+                            onClickDownloadLink = if (isPendingDeletion) noop2s else onClickDownloadLink,
+                            onClickDownloadImage = if (isPendingDeletion) noop else onClickDownloadImage,
+                            onClickShareImage = if (isPendingDeletion) noop else onClickShareImage
                         )
                         LayoutMode.MOSAIC -> BookmarkMosaicCard(
                             bookmark = bookmark,
-                            onClickCard = onClickBookmark,
-                            onClickDelete = onClickDelete,
-                            onClickArchive = onClickArchive,
-                            onClickFavorite = onClickFavorite,
-                            onClickLabel = onClickLabel,
-                            onClickOpenUrl = onClickOpenUrl,
-                            onClickOpenInBrowser = onClickOpenInBrowser,
-                            onClickCopyLink = onClickCopyLink,
-                            onClickCopyLinkText = onClickCopyLinkText,
-                            onClickShareLink = onClickShareLink,
-                            onClickOpenInBrowserFromMenu = onClickOpenInBrowserFromMenu,
-                            onClickCopyImage = onClickCopyImage,
-                            onClickDownloadLink = onClickDownloadLink,
-                            onClickDownloadImage = onClickDownloadImage,
-                            onClickShareImage = onClickShareImage
+                            onClickCard = if (isPendingDeletion) confirmDelete else onClickBookmark,
+                            onClickDelete = if (isPendingDeletion) noop else onClickDelete,
+                            onClickArchive = if (isPendingDeletion) noop2 else onClickArchive,
+                            onClickFavorite = if (isPendingDeletion) noop2 else onClickFavorite,
+                            onClickLabel = if (isPendingDeletion) noop else onClickLabel,
+                            onClickOpenUrl = if (isPendingDeletion) noop else onClickOpenUrl,
+                            onClickOpenInBrowser = if (isPendingDeletion) noop else onClickOpenInBrowser,
+                            onClickCopyLink = if (isPendingDeletion) noop else onClickCopyLink,
+                            onClickCopyLinkText = if (isPendingDeletion) noop else onClickCopyLinkText,
+                            onClickShareLink = if (isPendingDeletion) noop else onClickShareLink,
+                            onClickOpenInBrowserFromMenu = if (isPendingDeletion) noop else onClickOpenInBrowserFromMenu,
+                            onClickCopyImage = if (isPendingDeletion) noop else onClickCopyImage,
+                            onClickDownloadLink = if (isPendingDeletion) noop2s else onClickDownloadLink,
+                            onClickDownloadImage = if (isPendingDeletion) noop else onClickDownloadImage,
+                            onClickShareImage = if (isPendingDeletion) noop else onClickShareImage
                         )
+                    }
                     }
                 }
             }
