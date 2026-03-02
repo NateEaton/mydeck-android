@@ -75,7 +75,10 @@ fun UserGuideSectionScreen(
                             )
                         }
                     ) {
-                        Text(stringResource(R.string.user_guide_contents))
+                        Text(
+                            text = stringResource(R.string.user_guide_contents),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
                 }
             )
