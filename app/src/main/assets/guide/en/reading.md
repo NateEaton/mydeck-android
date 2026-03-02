@@ -6,7 +6,7 @@ Tap any bookmark card to open it. MyDeck displays the bookmark in a view suited 
 
 For articles, MyDeck shows the extracted text in a clean, distraction-free reading layout. The bookmark title appears at the top — tap the **✏️** icon beside it to edit the title inline and confirm with the **✓** checkmark.
 
-Tap any image in an article to open it in the [Image Lightbox](#image-lightbox). Long-press links or images to access [context menu](#long-press-context-menus) actions.
+Tap any image in an article to open it in the **Image Lightbox** (see below). Long-press links or images to access **Long-press Context Menus** (see below).
 
 ### Top Bar
 
@@ -45,11 +45,11 @@ For video bookmarks (YouTube, Vimeo, etc.), MyDeck shows the title, a descriptio
 
 The top bar in video view shows **← Back**, **❤️**, **Archive**, and **⋮** only — Typography and Find in Article are not available for video bookmarks.
 
-If the video bookmark includes text content (such as a description or transcript), you can tap images or long-press links and images to access the [Image Lightbox](#image-lightbox) and [context menus](#long-press-context-menus).
+If the video bookmark includes text content (such as a description or transcript), you can tap images or long-press links and images to access the **Image Lightbox** and **Long-press Context Menus** described below.
 
 ## Picture View
 
-For picture bookmarks, MyDeck shows the title, a description, and the stored image at full content width. Tap the image to open it in the [Image Lightbox](#image-lightbox) where you can zoom and pan.
+For picture bookmarks, MyDeck shows the title, a description, and the stored image at full content width. Tap the image to open it in the **Image Lightbox** (see below) where you can zoom and pan.
 
 The top bar in picture view shows **← Back**, **❤️**, **Archive**, and **⋮** only.
 

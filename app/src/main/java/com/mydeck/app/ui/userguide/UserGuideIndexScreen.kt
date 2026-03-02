@@ -46,7 +46,8 @@ fun getSectionIcon(fileName: String) = when (fileName) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun UserGuideIndexScreen(
-    navHostController: NavHostController
+    navHostController: NavHostController,
+    showBackButton: Boolean = true,
 ) {
     val viewModel: UserGuideIndexViewModel = hiltViewModel()
     val uiState = viewModel.uiState
@@ -57,11 +58,13 @@ fun UserGuideIndexScreen(
             TopAppBar(
                 title = { Text(stringResource(R.string.user_guide)) },
                 navigationIcon = {
-                    IconButton(onClick = { navHostController.popBackStack() }) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(R.string.back)
-                        )
+                    if (showBackButton) {
+                        IconButton(onClick = { navHostController.popBackStack() }) {
+                            Icon(
+                                Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = stringResource(R.string.back)
+                            )
+                        }
                     }
                 }
             )
