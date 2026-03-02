@@ -6,6 +6,15 @@ Tap any bookmark card to open it. MyDeck displays the bookmark in a view suited 
 
 For articles, MyDeck shows the extracted text in a clean, distraction-free reading layout. The bookmark title appears at the top — tap the **✏️** icon beside it to edit the title inline and confirm with the **✓** checkmark.
 
+### Image Lightbox
+
+Tap any image in an article to open it in a fullscreen lightbox viewer. In the lightbox, you can:
+
+- **Pinch to zoom** — zoom in and out on the image
+- **Pan** — drag to move around a zoomed image
+- **Tap outside** — close the lightbox and return to reading
+- **Long-press** — open a context menu with options to copy, download, or share the image
+
 ### Top Bar
 
 The top bar provides quick access to the most-used actions:
