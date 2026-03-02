@@ -100,8 +100,11 @@ import com.mydeck.app.ui.components.FilterBottomSheet
 import com.mydeck.app.ui.components.ShareBookmarkChooser
 import com.mydeck.app.ui.components.VerticalScrollbar
 import com.mydeck.app.util.openUrlInCustomTab
+import coil3.imageLoader
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.withContext
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -193,7 +196,6 @@ fun BookmarkListScreen(
         hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
         viewModel.onToggleArchiveBookmark(bookmarkId, isArchived)
     }
-    val onClickShareBookmark: (String) -> Unit = { url -> viewModel.onClickShareBookmark(url) }
     val onClickOpenUrl: (String) -> Unit = { bookmarkId ->
         dismissPendingDeleteSnackbar()
         viewModel.onClickBookmarkOpenOriginal(bookmarkId)
@@ -207,23 +209,40 @@ fun BookmarkListScreen(
 
     val onClickCopyLink: (String) -> Unit = { url ->
         clipboardManager.setText(androidx.compose.ui.text.AnnotatedString(url))
-        scope.launch {
-            snackbarHostState.showSnackbar(
-                message = context.getString(R.string.link_copied),
-                duration = SnackbarDuration.Short
-            )
-        }
     }
     val onClickShareLink: (String) -> Unit = { url ->
         viewModel.onClickShareBookmark(url)
     }
-    val onClickCopyImageUrl: (String) -> Unit = { imageUrl ->
-        clipboardManager.setText(androidx.compose.ui.text.AnnotatedString(imageUrl))
-        scope.launch {
-            snackbarHostState.showSnackbar(
-                message = context.getString(R.string.image_url_copied),
-                duration = SnackbarDuration.Short
-            )
+    val onClickCopyImage: (String) -> Unit = { imageUrl ->
+        if (imageUrl.isNotBlank()) {
+            scope.launch {
+                try {
+                    val imageUri = withContext(Dispatchers.IO) {
+                        val request = coil3.request.ImageRequest.Builder(context)
+                            .data(imageUrl).build()
+                        val result = context.imageLoader.execute(request) as? coil3.request.SuccessResult
+                        val rawBitmap = (result?.image as? coil3.BitmapImage)?.bitmap
+                            ?: throw Exception("no bitmap")
+                        val bitmap = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O
+                                && rawBitmap.config == android.graphics.Bitmap.Config.HARDWARE)
+                            rawBitmap.copy(android.graphics.Bitmap.Config.ARGB_8888, false) else rawBitmap
+                        val cacheDir = java.io.File(context.cacheDir, "images").also { it.mkdirs() }
+                        val file = java.io.File(cacheDir, "copy_${System.currentTimeMillis()}.jpg")
+                        file.outputStream().use {
+                            bitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG, 90, it)
+                        }
+                        androidx.core.content.FileProvider.getUriForFile(
+                            context, "${context.packageName}.provider", file
+                        )
+                    }
+                    val androidClipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                    androidClipboard.setPrimaryClip(
+                        android.content.ClipData.newUri(context.contentResolver, "image", imageUri)
+                    )
+                } catch (e: Exception) {
+                    // silent fail
+                }
+            }
         }
     }
     val onClickDownloadImage: (String) -> Unit = { imageUrl ->
@@ -234,92 +253,65 @@ fun BookmarkListScreen(
                 setNotificationVisibility(android.app.DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
                 setDestinationInExternalPublicDir(
                     android.os.Environment.DIRECTORY_DOWNLOADS,
-                    imageUrl.substringAfterLast('/').ifBlank { "image" }
+                    "thumbnail.jpg"
                 )
             }
             val dm = context.getSystemService(android.content.Context.DOWNLOAD_SERVICE) as android.app.DownloadManager
             dm.enqueue(request)
-            scope.launch {
-                snackbarHostState.showSnackbar(
-                    message = context.getString(R.string.download_started),
-                    duration = SnackbarDuration.Short
-                )
+        }
+    }
+    val onClickDownloadLink: (String, String) -> Unit = { url, title ->
+        if (url.isNotBlank() && url.startsWith("http")) {
+            val fileName = title.ifBlank { url.substringAfterLast('/').ifBlank { "download" } }
+                .take(100).replace(Regex("[/\\\\:*?\"<>|]"), "_") + ".html"
+            val request = android.app.DownloadManager.Request(
+                android.net.Uri.parse(url)
+            ).apply {
+                setNotificationVisibility(android.app.DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
+                setDestinationInExternalPublicDir(android.os.Environment.DIRECTORY_DOWNLOADS, fileName)
             }
-        } else {
-            scope.launch {
-                snackbarHostState.showSnackbar(
-                    message = context.getString(R.string.error_no_article_content),
-                    duration = SnackbarDuration.Short
-                )
-            }
+            val dm = context.getSystemService(android.content.Context.DOWNLOAD_SERVICE) as android.app.DownloadManager
+            dm.enqueue(request)
         }
     }
     val onClickShareImage: (String) -> Unit = { imageUrl ->
-        if (imageUrl.isNotBlank() && imageUrl.startsWith("http")) {
+        if (imageUrl.isNotBlank()) {
             scope.launch {
                 try {
-                    // Download image to cache
-                    val url = java.net.URL(imageUrl)
-                    val connection = url.openConnection()
-                    connection.connect()
-                    val inputStream = connection.getInputStream()
-                    
-                    // Create unique file in cache
-                    val fileName = imageUrl.substringAfterLast('/').ifBlank { "shared_image" }
-                    val cacheDir = java.io.File(context.cacheDir, "images")
-                    cacheDir.mkdirs()
-                    val imageFile = java.io.File(cacheDir, "${fileName}_${System.currentTimeMillis()}")
-                    
-                    // Save image to file
-                    inputStream.use { input ->
-                        imageFile.outputStream().use { output ->
-                            input.copyTo(output)
+                    val imageFile = withContext(Dispatchers.IO) {
+                        val request = coil3.request.ImageRequest.Builder(context)
+                            .data(imageUrl).build()
+                        val result = context.imageLoader.execute(request) as? coil3.request.SuccessResult
+                        val rawBitmap = (result?.image as? coil3.BitmapImage)?.bitmap
+                            ?: throw Exception("no bitmap")
+                        val bitmap = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O
+                                && rawBitmap.config == android.graphics.Bitmap.Config.HARDWARE)
+                            rawBitmap.copy(android.graphics.Bitmap.Config.ARGB_8888, false) else rawBitmap
+                        val cacheDir = java.io.File(context.cacheDir, "images").also { it.mkdirs() }
+                        val file = java.io.File(cacheDir, "share_${System.currentTimeMillis()}.jpg")
+                        file.outputStream().use {
+                            bitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG, 90, it)
                         }
+                        file
                     }
-                    
-                    // Share via FileProvider
                     val imageUri = androidx.core.content.FileProvider.getUriForFile(
-                        context,
-                        "${context.packageName}.provider",
-                        imageFile
+                        context, "${context.packageName}.provider", imageFile
                     )
-                    
                     val shareIntent = android.content.Intent().apply {
                         action = android.content.Intent.ACTION_SEND
                         putExtra(android.content.Intent.EXTRA_STREAM, imageUri)
-                        type = "image/*"
+                        type = "image/jpeg"
                         addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
                     }
-                    
                     context.startActivity(android.content.Intent.createChooser(shareIntent, null))
                 } catch (e: Exception) {
-                    // Fallback to URL sharing on error
-                    val fallbackIntent = android.content.Intent().apply {
-                        action = android.content.Intent.ACTION_SEND
-                        putExtra(android.content.Intent.EXTRA_TEXT, imageUrl)
-                        type = "text/plain"
-                    }
-                    context.startActivity(android.content.Intent.createChooser(fallbackIntent, null))
+                    // silent fail
                 }
-            }
-        } else {
-            // Fallback for invalid URLs
-            scope.launch {
-                snackbarHostState.showSnackbar(
-                    message = context.getString(R.string.error_no_article_content),
-                    duration = SnackbarDuration.Short
-                )
             }
         }
     }
     val onClickCopyLinkText: (String) -> Unit = { text ->
         clipboardManager.setText(androidx.compose.ui.text.AnnotatedString(text))
-        scope.launch {
-            snackbarHostState.showSnackbar(
-                message = context.getString(R.string.link_text_copied),
-                duration = SnackbarDuration.Short
-            )
-        }
     }
     val onClickOpenInBrowserFromMenu: (String) -> Unit = { url ->
         viewModel.onClickOpenInBrowser(url)
@@ -623,7 +615,6 @@ fun BookmarkListScreen(
                                 onClickDelete = onClickDelete,
                                 onClickArchive = onClickArchive,
                                 onClickFavorite = onClickFavorite,
-                                onClickShareBookmark = onClickShareBookmark,
                                 onClickLabel = { label ->
                                     dismissPendingDeleteSnackbar()
                                     viewModel.onClickLabel(label)
@@ -634,7 +625,8 @@ fun BookmarkListScreen(
                                 onClickCopyLinkText = onClickCopyLinkText,
                                 onClickShareLink = onClickShareLink,
                         onClickOpenInBrowserFromMenu = onClickOpenInBrowserFromMenu,
-                        onClickCopyImageUrl = onClickCopyImageUrl,
+                        onClickCopyImage = onClickCopyImage,
+                        onClickDownloadLink = onClickDownloadLink,
                         onClickDownloadImage = onClickDownloadImage,
                         onClickShareImage = onClickShareImage,
                         onUserInteraction = dismissPendingDeleteSnackbar,
@@ -882,7 +874,6 @@ fun BookmarkListView(
     onClickDelete: (String) -> Unit,
     onClickFavorite: (String, Boolean) -> Unit,
     onClickArchive: (String, Boolean) -> Unit,
-    onClickShareBookmark: (String) -> Unit,
     onClickLabel: (String) -> Unit = {},
     onClickOpenUrl: (String) -> Unit = {},
     onClickOpenInBrowser: (String) -> Unit = {},
@@ -890,7 +881,8 @@ fun BookmarkListView(
     onClickCopyLinkText: (String) -> Unit = {},
     onClickShareLink: (String) -> Unit = {},
     onClickOpenInBrowserFromMenu: (String) -> Unit = {},
-    onClickCopyImageUrl: (String) -> Unit = {},
+    onClickCopyImage: (String) -> Unit = {},
+    onClickDownloadLink: (String, String) -> Unit = { _, _ -> },
     onClickDownloadImage: (String) -> Unit = {},
     onClickShareImage: (String) -> Unit = {},
     onUserInteraction: () -> Unit = {},
@@ -935,7 +927,6 @@ fun BookmarkListView(
                             onClickDelete = onClickDelete,
                             onClickArchive = onClickArchive,
                             onClickFavorite = onClickFavorite,
-                            onClickShareBookmark = onClickShareBookmark,
                             onClickLabel = onClickLabel,
                             onClickOpenUrl = onClickOpenUrl,
                             onClickOpenInBrowser = onClickOpenInBrowser,
@@ -943,7 +934,8 @@ fun BookmarkListView(
                             onClickCopyLinkText = onClickCopyLinkText,
                             onClickShareLink = onClickShareLink,
                             onClickOpenInBrowserFromMenu = onClickOpenInBrowserFromMenu,
-                            onClickCopyImageUrl = onClickCopyImageUrl,
+                            onClickCopyImage = onClickCopyImage,
+                            onClickDownloadLink = onClickDownloadLink,
                             onClickDownloadImage = onClickDownloadImage,
                             onClickShareImage = onClickShareImage,
                             isInGrid = true,
@@ -954,7 +946,6 @@ fun BookmarkListView(
                             onClickDelete = onClickDelete,
                             onClickArchive = onClickArchive,
                             onClickFavorite = onClickFavorite,
-                            onClickShareBookmark = onClickShareBookmark,
                             onClickLabel = onClickLabel,
                             onClickOpenUrl = onClickOpenUrl,
                             onClickOpenInBrowser = onClickOpenInBrowser,
@@ -962,7 +953,8 @@ fun BookmarkListView(
                             onClickCopyLinkText = onClickCopyLinkText,
                             onClickShareLink = onClickShareLink,
                             onClickOpenInBrowserFromMenu = onClickOpenInBrowserFromMenu,
-                            onClickCopyImageUrl = onClickCopyImageUrl,
+                            onClickCopyImage = onClickCopyImage,
+                            onClickDownloadLink = onClickDownloadLink,
                             onClickDownloadImage = onClickDownloadImage,
                             onClickShareImage = onClickShareImage,
                         )
@@ -972,7 +964,6 @@ fun BookmarkListView(
                             onClickDelete = onClickDelete,
                             onClickArchive = onClickArchive,
                             onClickFavorite = onClickFavorite,
-                            onClickShareBookmark = onClickShareBookmark,
                             onClickLabel = onClickLabel,
                             onClickOpenUrl = onClickOpenUrl,
                             onClickOpenInBrowser = onClickOpenInBrowser,
@@ -980,7 +971,8 @@ fun BookmarkListView(
                             onClickCopyLinkText = onClickCopyLinkText,
                             onClickShareLink = onClickShareLink,
                             onClickOpenInBrowserFromMenu = onClickOpenInBrowserFromMenu,
-                            onClickCopyImageUrl = onClickCopyImageUrl,
+                            onClickCopyImage = onClickCopyImage,
+                            onClickDownloadLink = onClickDownloadLink,
                             onClickDownloadImage = onClickDownloadImage,
                             onClickShareImage = onClickShareImage
                         )
@@ -1014,7 +1006,6 @@ fun BookmarkListView(
                             onClickDelete = onClickDelete,
                             onClickArchive = onClickArchive,
                             onClickFavorite = onClickFavorite,
-                            onClickShareBookmark = onClickShareBookmark,
                             onClickLabel = onClickLabel,
                             onClickOpenUrl = onClickOpenUrl,
                             onClickOpenInBrowser = onClickOpenInBrowser,
@@ -1022,7 +1013,8 @@ fun BookmarkListView(
                             onClickCopyLinkText = onClickCopyLinkText,
                             onClickShareLink = onClickShareLink,
                             onClickOpenInBrowserFromMenu = onClickOpenInBrowserFromMenu,
-                            onClickCopyImageUrl = onClickCopyImageUrl,
+                            onClickCopyImage = onClickCopyImage,
+                            onClickDownloadLink = onClickDownloadLink,
                             onClickDownloadImage = onClickDownloadImage,
                             onClickShareImage = onClickShareImage,
                             useMobilePortraitLayout = useMobilePortraitGridLayout,
@@ -1033,7 +1025,6 @@ fun BookmarkListView(
                             onClickDelete = onClickDelete,
                             onClickArchive = onClickArchive,
                             onClickFavorite = onClickFavorite,
-                            onClickShareBookmark = onClickShareBookmark,
                             onClickLabel = onClickLabel,
                             onClickOpenUrl = onClickOpenUrl,
                             onClickOpenInBrowser = onClickOpenInBrowser,
@@ -1041,7 +1032,8 @@ fun BookmarkListView(
                             onClickCopyLinkText = onClickCopyLinkText,
                             onClickShareLink = onClickShareLink,
                             onClickOpenInBrowserFromMenu = onClickOpenInBrowserFromMenu,
-                            onClickCopyImageUrl = onClickCopyImageUrl,
+                            onClickCopyImage = onClickCopyImage,
+                            onClickDownloadLink = onClickDownloadLink,
                             onClickDownloadImage = onClickDownloadImage,
                             onClickShareImage = onClickShareImage
                         )
@@ -1051,7 +1043,6 @@ fun BookmarkListView(
                             onClickDelete = onClickDelete,
                             onClickArchive = onClickArchive,
                             onClickFavorite = onClickFavorite,
-                            onClickShareBookmark = onClickShareBookmark,
                             onClickLabel = onClickLabel,
                             onClickOpenUrl = onClickOpenUrl,
                             onClickOpenInBrowser = onClickOpenInBrowser,
@@ -1059,7 +1050,8 @@ fun BookmarkListView(
                             onClickCopyLinkText = onClickCopyLinkText,
                             onClickShareLink = onClickShareLink,
                             onClickOpenInBrowserFromMenu = onClickOpenInBrowserFromMenu,
-                            onClickCopyImageUrl = onClickCopyImageUrl,
+                            onClickCopyImage = onClickCopyImage,
+                            onClickDownloadLink = onClickDownloadLink,
                             onClickDownloadImage = onClickDownloadImage,
                             onClickShareImage = onClickShareImage
                         )
@@ -1087,6 +1079,7 @@ fun EmptyScreenPreview() {
 fun BookmarkListViewPreview() {
     val sampleBookmark = BookmarkListItem(
         id = "1",
+        href = "https://example.com",
         url = "https://example.com",
         title = "Sample Bookmark",
         siteName = "Example",
@@ -1122,7 +1115,6 @@ fun BookmarkListViewPreview() {
         onClickDelete = {},
         onClickArchive = { _, _ -> },
         onClickFavorite = { _, _ -> },
-        onClickShareBookmark = {_ -> },
         onClickLabel = {}
     )
 }

@@ -681,20 +681,22 @@ class BookmarkDetailViewModel @Inject constructor(
     }
 
     // Reader context menu functions
-    fun onShowImageContextMenu(imageUrl: String, linkUrl: String?, linkType: String) {
+    fun onShowImageContextMenu(imageUrl: String, imageAlt: String?, linkUrl: String?, linkType: String) {
         _readerContextMenu.value = ReaderContextMenuState(
             visible = true,
             imageUrl = imageUrl,
+            imageAlt = imageAlt?.ifBlank { null },
             linkUrl = linkUrl,
             linkType = linkType,
         )
     }
 
-    fun onShowLinkContextMenu(linkUrl: String) {
+    fun onShowLinkContextMenu(linkUrl: String, linkText: String = "") {
         _readerContextMenu.value = ReaderContextMenuState(
             visible = true,
             imageUrl = null,
             linkUrl = linkUrl,
+            linkText = linkText.ifBlank { null },
             linkType = "page",
         )
     }
@@ -767,7 +769,9 @@ class BookmarkDetailViewModel @Inject constructor(
     data class ReaderContextMenuState(
         val visible: Boolean = false,
         val imageUrl: String? = null,
+        val imageAlt: String? = null,
         val linkUrl: String? = null,
+        val linkText: String? = null,
         val linkType: String = "none",  // "none" | "image" | "page"
     )
 }

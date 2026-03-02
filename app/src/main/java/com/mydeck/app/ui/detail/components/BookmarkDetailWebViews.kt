@@ -64,8 +64,8 @@ fun BookmarkDetailArticle(
     articleSearchState: BookmarkDetailViewModel.ArticleSearchState = BookmarkDetailViewModel.ArticleSearchState(),
     onArticleSearchUpdateResults: (Int) -> Unit = {},
     onImageTapped: (ImageGalleryData) -> Unit = {},
-    onImageLongPress: (imageUrl: String, linkUrl: String?, linkType: String) -> Unit = { _, _, _ -> },
-    onLinkLongPress: (linkUrl: String) -> Unit = {},
+    onImageLongPress: (imageUrl: String, linkUrl: String?, linkType: String, imageAlt: String) -> Unit = { _, _, _, _ -> },
+    onLinkLongPress: (linkUrl: String, linkText: String) -> Unit = { _, _ -> },
 ) {
     val isSystemInDarkMode = isSystemInDarkTheme()
     val content = remember(uiState.bookmark.bookmarkId, isSystemInDarkMode, uiState.template) {
@@ -206,11 +206,21 @@ fun BookmarkDetailArticle(
                             )
                             when (result.type) {
                                 WebView.HitTestResult.IMAGE_TYPE -> {
-                                    onImageLongPress(result.extra ?: "", null, "none")
+                                    val imageUrl = result.extra ?: ""
+                                    webView.evaluateJavascript(
+                                        WebViewImageBridge.getImageAltForUrl(imageUrl)
+                                    ) { alt ->
+                                        onImageLongPress(imageUrl, null, "none", WebViewImageBridge.decodeJsString(alt))
+                                    }
                                     true
                                 }
                                 WebView.HitTestResult.SRC_ANCHOR_TYPE -> {
-                                    onLinkLongPress(result.extra ?: "")
+                                    val linkUrl = result.extra ?: ""
+                                    webView.evaluateJavascript(
+                                        WebViewImageBridge.getLinkTextForUrl(linkUrl)
+                                    ) { text ->
+                                        onLinkLongPress(linkUrl, WebViewImageBridge.decodeJsString(text))
+                                    }
                                     true
                                 }
                                 WebView.HitTestResult.SRC_IMAGE_ANCHOR_TYPE -> {
@@ -218,9 +228,13 @@ fun BookmarkDetailArticle(
                                     webView.evaluateJavascript(
                                         WebViewImageBridge.getImageUrlAtLink(linkUrl)
                                     ) { imageUrl ->
-                                        val cleanUrl = imageUrl?.trim('"') ?: ""
-                                        val linkType = if (imageExtRe.containsMatchIn(linkUrl)) "image" else "page"
-                                        onImageLongPress(cleanUrl, linkUrl, linkType)
+                                        val cleanUrl = WebViewImageBridge.decodeJsString(imageUrl)
+                                        webView.evaluateJavascript(
+                                            WebViewImageBridge.getImageAltForUrl(cleanUrl)
+                                        ) { alt ->
+                                            val linkType = if (imageExtRe.containsMatchIn(linkUrl)) "image" else "page"
+                                            onImageLongPress(cleanUrl, linkUrl, linkType, WebViewImageBridge.decodeJsString(alt))
+                                        }
                                     }
                                     true
                                 }

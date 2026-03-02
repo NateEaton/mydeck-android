@@ -259,6 +259,7 @@ interface BookmarkDao {
         val sqlQuery = buildString {
             append("""SELECT
             id,
+            href,
             url,
             title,
             siteName,
@@ -395,7 +396,7 @@ interface BookmarkDao {
     ): Flow<List<BookmarkListItemEntity>> {
         val args = mutableListOf<Any>()
         val sqlQuery = buildString {
-            append("""SELECT id, url, title, siteName, isMarked, isArchived,
+            append("""SELECT id, href, url, title, siteName, isMarked, isArchived,
             readProgress, icon_src AS iconSrc, image_src AS imageSrc,
             labels, thumbnail_src AS thumbnailSrc, type,
             readingTime, created, wordCount, published
@@ -465,7 +466,7 @@ interface BookmarkDao {
     ): Flow<List<BookmarkListItemEntity>> {
         val args = mutableListOf<Any>()
         val sqlQuery = buildString {
-            append("""SELECT id, url, title, siteName, isMarked, isArchived,
+            append("""SELECT id, href, url, title, siteName, isMarked, isArchived,
             readProgress, icon_src AS iconSrc, image_src AS imageSrc,
             labels, thumbnail_src AS thumbnailSrc, type,
             readingTime, created, wordCount, published

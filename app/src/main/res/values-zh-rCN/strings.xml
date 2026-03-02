@@ -279,8 +279,10 @@
     <string name="action_copy_image">Copy Image</string>
     <string name="action_copy_image_url">Copy Image URL</string>
     <string name="action_download_image">Download Image</string>
+    <string name="action_download_link">Download Link</string>
     <string name="action_share_image">Share Image</string>
     <string name="image_url_copied">Image URL copied</string>
+    <string name="image_copied">Image copied</string>
     <string name="download_started">Download started</string>
     <string name="user_guide">用户指南</string>
 

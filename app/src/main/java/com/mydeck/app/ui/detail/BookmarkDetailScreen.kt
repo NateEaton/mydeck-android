@@ -12,7 +12,8 @@ import android.webkit.WebView
 import androidx.compose.foundation.clickable
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.Download
-import androidx.compose.material3.HorizontalDivider
+import com.mydeck.app.ui.components.LongPressContextMenuDialog
+import com.mydeck.app.ui.components.LongPressContextMenuItem
 import androidx.compose.ui.draw.alpha
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
@@ -50,8 +51,6 @@ import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.LocalContentColor
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -110,6 +109,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import coil3.imageLoader
 import com.mydeck.app.ui.detail.components.*
 
 private const val PendingDeleteFromDetailKey = "pending_delete_bookmark_id"
@@ -204,10 +204,10 @@ fun BookmarkDetailHost(
 
     // Gallery and context menu callbacks
     val onImageTapped = { data: ImageGalleryData -> viewModel.onImageTapped(data) }
-    val onImageLongPress = { imageUrl: String, linkUrl: String?, linkType: String ->
-        viewModel.onShowImageContextMenu(imageUrl, linkUrl, linkType)
+    val onImageLongPress = { imageUrl: String, linkUrl: String?, linkType: String, imageAlt: String ->
+        viewModel.onShowImageContextMenu(imageUrl, imageAlt, linkUrl, linkType)
     }
-    val onLinkLongPress = { linkUrl: String -> viewModel.onShowLinkContextMenu(linkUrl) }
+    val onLinkLongPress = { linkUrl: String, linkText: String -> viewModel.onShowLinkContextMenu(linkUrl, linkText) }
 
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
@@ -335,7 +335,8 @@ fun BookmarkDetailHost(
                 ReaderContextMenu(
                     state = readerContextMenu,
                     onDismiss = { viewModel.onDismissReaderContextMenu() },
-                    snackbarHostState = snackbarHostState,
+                    bookmarkTitle = uiState.bookmark.title,
+                    bookmarkIconUrl = uiState.bookmark.iconSrc,
                 )
             }
 
@@ -441,8 +442,8 @@ fun BookmarkDetailScreen(
     onShowTypographyPanel: () -> Unit = {},
     onTitleChanged: ((String) -> Unit)? = null,
     onImageTapped: (ImageGalleryData) -> Unit = {},
-    onImageLongPress: (imageUrl: String, linkUrl: String?, linkType: String) -> Unit = { _, _, _ -> },
-    onLinkLongPress: (linkUrl: String) -> Unit = {},
+    onImageLongPress: (imageUrl: String, linkUrl: String?, linkType: String, imageAlt: String) -> Unit = { _, _, _, _ -> },
+    onLinkLongPress: (linkUrl: String, linkText: String) -> Unit = { _, _ -> },
 ) {
     val topBarScrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior()
     var scrollPercent by remember { mutableIntStateOf(0) }
@@ -534,8 +535,8 @@ fun BookmarkDetailContent(
     onTitleChanged: ((String) -> Unit)? = null,
     onScrollPercentChanged: (Int) -> Unit = {},
     onImageTapped: (ImageGalleryData) -> Unit = {},
-    onImageLongPress: (imageUrl: String, linkUrl: String?, linkType: String) -> Unit = { _, _, _ -> },
-    onLinkLongPress: (linkUrl: String) -> Unit = {},
+    onImageLongPress: (imageUrl: String, linkUrl: String?, linkType: String, imageAlt: String) -> Unit = { _, _, _, _ -> },
+    onLinkLongPress: (linkUrl: String, linkText: String) -> Unit = { _, _ -> },
 ) {
     val scrollState = rememberScrollState()
     val hasArticleContent = uiState.bookmark.articleContent != null
@@ -645,98 +646,102 @@ fun BookmarkDetailContent(
 private fun ReaderContextMenu(
     state: BookmarkDetailViewModel.ReaderContextMenuState,
     onDismiss: () -> Unit,
-    snackbarHostState: SnackbarHostState,
+    bookmarkTitle: String,
+    bookmarkIconUrl: String,
 ) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
 
-    Box(modifier = Modifier.size(0.dp)) {
-        DropdownMenu(
-            expanded = state.visible,
-            onDismissRequest = onDismiss,
+    if (state.imageUrl != null) {
+        val fileName = state.imageUrl.substringAfterLast('/').substringBefore('?').ifBlank { "image" }
+        LongPressContextMenuDialog(
+            headerImageUrl = state.imageUrl,
+            title = state.imageAlt ?: fileName,
+            subtitle = "",
+            onDismiss = onDismiss,
         ) {
-            if (state.imageUrl != null) {
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.action_copy_image_url)) },
-                    leadingIcon = { Icon(Icons.Outlined.ContentCopy, contentDescription = null) },
-                    onClick = {
-                        readerContextMenuCopyToClipboard(context, state.imageUrl)
-                        coroutineScope.launch {
-                            snackbarHostState.showSnackbar(
-                                context.getString(R.string.image_url_copied),
-                                duration = SnackbarDuration.Short
-                            )
-                        }
+            LongPressContextMenuItem(
+                icon = Icons.Outlined.ContentCopy,
+                text = stringResource(R.string.action_copy_image),
+                onClick = {
+                    coroutineScope.launch {
+                        readerContextMenuCopyImage(context, state.imageUrl)
                         onDismiss()
                     }
-                )
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.action_download_image)) },
-                    leadingIcon = { Icon(Icons.Outlined.Download, contentDescription = null) },
-                    onClick = {
-                        readerContextMenuDownloadImage(context, state.imageUrl)
-                        coroutineScope.launch {
-                            snackbarHostState.showSnackbar(
-                                context.getString(R.string.download_started),
-                                duration = SnackbarDuration.Short
-                            )
-                        }
-                        onDismiss()
-                    }
-                )
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.action_share_image)) },
-                    leadingIcon = { Icon(Icons.Outlined.Share, contentDescription = null) },
-                    onClick = {
-                        coroutineScope.launch {
-                            readerContextMenuShareImage(context, state.imageUrl)
-                        }
-                        onDismiss()
-                    }
-                )
-                if (state.linkUrl != null) {
-                    HorizontalDivider()
                 }
-            }
-
-            if (state.linkUrl != null) {
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.action_copy_link)) },
-                    leadingIcon = { Icon(Icons.Outlined.ContentCopy, contentDescription = null) },
-                    onClick = {
-                        readerContextMenuCopyToClipboard(context, state.linkUrl)
-                        coroutineScope.launch {
-                            snackbarHostState.showSnackbar(
-                                context.getString(R.string.link_copied),
-                                duration = SnackbarDuration.Short
-                            )
-                        }
-                        onDismiss()
-                    }
-                )
-                if (state.imageUrl == null) {
-                    DropdownMenuItem(
-                        text = { Text(stringResource(R.string.action_share_link)) },
-                        leadingIcon = { Icon(Icons.Outlined.Share, contentDescription = null) },
-                        onClick = {
-                            val intent = Intent(Intent.ACTION_SEND).apply {
-                                type = "text/plain"
-                                putExtra(Intent.EXTRA_TEXT, state.linkUrl)
-                            }
-                            context.startActivity(Intent.createChooser(intent, null))
-                            onDismiss()
-                        }
-                    )
+            )
+            LongPressContextMenuItem(
+                icon = Icons.Outlined.Download,
+                text = stringResource(R.string.action_download_image),
+                onClick = {
+                    readerContextMenuDownloadImage(context, state.imageUrl)
+                    onDismiss()
                 }
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.action_open_in_browser)) },
-                    leadingIcon = { Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = null) },
-                    onClick = {
-                        openUrlInCustomTab(context, state.linkUrl)
+            )
+            LongPressContextMenuItem(
+                icon = Icons.Outlined.Share,
+                text = stringResource(R.string.action_share_image),
+                onClick = {
+                    coroutineScope.launch {
+                        readerContextMenuShareImage(context, state.imageUrl)
                         onDismiss()
                     }
-                )
-            }
+                }
+            )
+        }
+    } else if (state.linkUrl != null) {
+        LongPressContextMenuDialog(
+            headerImageUrl = bookmarkIconUrl,
+            title = state.linkText ?: state.linkUrl,
+            subtitle = state.linkUrl,
+            onDismiss = onDismiss,
+        ) {
+            LongPressContextMenuItem(
+                icon = Icons.Outlined.ContentCopy,
+                text = stringResource(R.string.action_copy_link),
+                onClick = {
+                    readerContextMenuCopyToClipboard(context, state.linkUrl)
+                    onDismiss()
+                }
+            )
+            LongPressContextMenuItem(
+                icon = Icons.Outlined.ContentCopy,
+                text = stringResource(R.string.action_copy_link_text),
+                onClick = {
+                    readerContextMenuCopyToClipboard(context, state.linkText.orEmpty())
+                    onDismiss()
+                }
+            )
+            LongPressContextMenuItem(
+                icon = Icons.Outlined.Download,
+                text = stringResource(R.string.action_download_link),
+                onClick = {
+                    val fileName = state.linkText?.ifBlank { null }
+                        ?: state.linkUrl.substringAfterLast('/').ifBlank { "download" }
+                    readerContextMenuDownloadUrl(context, state.linkUrl, fileName)
+                    onDismiss()
+                }
+            )
+            LongPressContextMenuItem(
+                icon = Icons.Outlined.Share,
+                text = stringResource(R.string.action_share_link),
+                onClick = {
+                    val intent = Intent(Intent.ACTION_SEND).apply {
+                        type = "text/plain"
+                        putExtra(Intent.EXTRA_TEXT, state.linkUrl)
+                    }
+                    context.startActivity(Intent.createChooser(intent, null))
+                    onDismiss()
+                }
+            )
+            LongPressContextMenuItem(
+                icon = Icons.AutoMirrored.Filled.OpenInNew,
+                text = stringResource(R.string.action_open_in_browser),
+                onClick = {
+                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(state.linkUrl)))
+                    onDismiss()
+                }
+            )
         }
     }
 }
@@ -744,6 +749,43 @@ private fun ReaderContextMenu(
 private fun readerContextMenuCopyToClipboard(context: Context, text: String) {
     val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
     clipboard.setPrimaryClip(ClipData.newPlainText("", text))
+}
+
+private suspend fun readerContextMenuCopyImage(context: Context, imageUrl: String) {
+    try {
+        val imageUri = withContext(Dispatchers.IO) {
+            val request = coil3.request.ImageRequest.Builder(context)
+                .data(imageUrl).build()
+            val rawBitmap = (context.imageLoader.execute(request) as? coil3.request.SuccessResult)
+                ?.image as? coil3.BitmapImage ?: throw Exception("no bitmap")
+            val bitmap = rawBitmap.bitmap.let {
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O
+                        && it.config == android.graphics.Bitmap.Config.HARDWARE)
+                    it.copy(android.graphics.Bitmap.Config.ARGB_8888, false) else it
+            }
+            val cacheDir = java.io.File(context.cacheDir, "images").also { it.mkdirs() }
+            val file = java.io.File(cacheDir, "copy_${System.currentTimeMillis()}.jpg")
+            file.outputStream().use {
+                bitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG, 90, it)
+            }
+            androidx.core.content.FileProvider.getUriForFile(
+                context, "${context.packageName}.provider", file
+            )
+        }
+        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        clipboard.setPrimaryClip(ClipData.newUri(context.contentResolver, "image", imageUri))
+    } catch (e: Exception) {
+        timber.log.Timber.w(e, "Copy image failed")
+    }
+}
+
+private fun readerContextMenuDownloadUrl(context: Context, url: String, fileName: String) {
+    val sanitized = fileName.take(100).replace(Regex("[/\\\\:*?\"<>|]"), "_") + ".html"
+    val request = DownloadManager.Request(Uri.parse(url))
+        .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
+        .setDestinationInExternalPublicDir(android.os.Environment.DIRECTORY_DOWNLOADS, sanitized)
+    val dm = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
+    dm.enqueue(request)
 }
 
 private fun readerContextMenuDownloadImage(context: Context, imageUrl: String) {
@@ -761,32 +803,34 @@ private fun readerContextMenuDownloadImage(context: Context, imageUrl: String) {
 }
 
 private suspend fun readerContextMenuShareImage(context: Context, imageUrl: String) {
-    withContext(Dispatchers.IO) {
-        try {
+    try {
+        val file = withContext(Dispatchers.IO) {
+            val request = coil3.request.ImageRequest.Builder(context)
+                .data(imageUrl).build()
+            val rawBitmap = (context.imageLoader.execute(request) as? coil3.request.SuccessResult)
+                ?.image as? coil3.BitmapImage ?: throw Exception("no bitmap")
+            val bitmap = rawBitmap.bitmap.let {
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O
+                        && it.config == android.graphics.Bitmap.Config.HARDWARE)
+                    it.copy(android.graphics.Bitmap.Config.ARGB_8888, false) else it
+            }
             val cacheDir = java.io.File(context.cacheDir, "images").also { it.mkdirs() }
-            val fileName = imageUrl.substringAfterLast('/').substringBefore('?').ifEmpty { "image.jpg" }
-            val file = java.io.File(cacheDir, fileName)
-            val connection = java.net.URL(imageUrl).openConnection()
-            connection.connect()
-            file.outputStream().use { out ->
-                connection.getInputStream().use { it.copyTo(out) }
+            val f = java.io.File(cacheDir, "share_${System.currentTimeMillis()}.jpg")
+            f.outputStream().use {
+                bitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG, 90, it)
             }
-            val uri = androidx.core.content.FileProvider.getUriForFile(
-                context,
-                "${context.packageName}.provider",
-                file
-            )
-            val intent = Intent(Intent.ACTION_SEND).apply {
-                type = "image/*"
-                putExtra(Intent.EXTRA_STREAM, uri)
-                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            }
-            withContext(Dispatchers.Main) {
-                context.startActivity(Intent.createChooser(intent, null))
-            }
-        } catch (e: Exception) {
-            timber.log.Timber.w(e, "Failed to share image")
+            f
         }
+        val uri = androidx.core.content.FileProvider.getUriForFile(
+            context, "${context.packageName}.provider", file
+        )
+        context.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).apply {
+            type = "image/jpeg"
+            putExtra(Intent.EXTRA_STREAM, uri)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }, null))
+    } catch (e: Exception) {
+        timber.log.Timber.w(e, "Share image failed")
     }
 }
 

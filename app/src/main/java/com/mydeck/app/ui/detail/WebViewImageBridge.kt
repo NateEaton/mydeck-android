@@ -136,6 +136,25 @@ class WebViewImageBridge(
             """.trimIndent()
         }
 
+        /**
+         * Returns JS that finds the anchor element matching [linkUrl] and returns its text.
+         * More reliable than coordinate-based lookup since we know the exact href.
+         */
+        fun getLinkTextForUrl(linkUrl: String): String {
+            val escaped = linkUrl.replace("\\", "\\\\").replace("\"", "\\\"")
+            return """
+                (function() {
+                    var links = document.querySelectorAll('a[href]');
+                    for (var i = 0; i < links.length; i++) {
+                        if (links[i].href === "$escaped" || links[i].getAttribute('href') === "$escaped") {
+                            return (links[i].innerText || links[i].textContent || '').trim();
+                        }
+                    }
+                    return '';
+                })();
+            """.trimIndent()
+        }
+
         /** Returns JS to find the image URL inside a link with the given href. */
         fun getImageUrlAtLink(linkHref: String): String {
             val escaped = linkHref
@@ -152,6 +171,38 @@ class WebViewImageBridge(
                     return '';
                 })();
             """.trimIndent()
+        }
+
+        /** Returns JS to find the alt text of an image with the given URL. */
+        fun getImageAltForUrl(imageUrl: String): String {
+            val escaped = imageUrl
+                .replace("\\", "\\\\")
+                .replace("'", "\\'")
+                .replace("\"", "\\\"")
+            return """
+                (function() {
+                    var imgs = document.querySelectorAll('img[src="${escaped}"]');
+                    for (var i = 0; i < imgs.length; i++) {
+                        return (imgs[i].alt || '').trim();
+                    }
+                    return '';
+                })();
+            """.trimIndent()
+        }
+        /**
+         * Safely decodes a JSON-encoded string returned by WebView's evaluateJavascript.
+         * Handles escapes for quotes, backslashes, and other special characters.
+         */
+        fun decodeJsString(json: String?): String {
+            if (json == null || json == "null" || json.isBlank()) return ""
+            return try {
+                org.json.JSONTokener(json).nextValue().toString()
+            } catch (e: Exception) {
+                // Fallback for unexpected formats
+                json.trim('"')
+                    .replace("\\\"", "\"")
+                    .replace("\\\\", "\\")
+            }
         }
     }
 }
