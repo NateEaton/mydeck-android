@@ -29,6 +29,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalDrawerSheet
 import androidx.compose.material3.PermanentDrawerSheet
 import androidx.compose.material3.NavigationDrawerItem
+import androidx.compose.material3.NavigationDrawerItemDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -127,6 +128,15 @@ private fun DrawerColumnContent(
     onClickUserGuide: () -> Unit,
     onClickAbout: () -> Unit,
 ) {
+    val prominentItemColors = NavigationDrawerItemDefaults.colors(
+        unselectedTextColor = MaterialTheme.colorScheme.onSurface,
+        unselectedIconColor = MaterialTheme.colorScheme.onSurface,
+    )
+    val selectedViewItemColors = NavigationDrawerItemDefaults.colors(
+        selectedTextColor = MaterialTheme.colorScheme.onSurface,
+        selectedIconColor = MaterialTheme.colorScheme.onSurface,
+    )
+
     Column(
         modifier = Modifier
             .padding(horizontal = 16.dp)
@@ -173,6 +183,7 @@ private fun DrawerColumnContent(
                 }
             },
             selected = isMyListSelected,
+            colors = if (isMyListSelected) selectedViewItemColors else NavigationDrawerItemDefaults.colors(),
             onClick = onClickMyList
         )
         val isArchiveSelected = !isLabelMode && drawerPreset == DrawerPreset.ARCHIVE
@@ -195,6 +206,7 @@ private fun DrawerColumnContent(
                 }
             },
             selected = isArchiveSelected,
+            colors = if (isArchiveSelected) selectedViewItemColors else NavigationDrawerItemDefaults.colors(),
             onClick = onClickArchive
         )
         val isFavoritesSelected = !isLabelMode && drawerPreset == DrawerPreset.FAVORITES
@@ -217,6 +229,7 @@ private fun DrawerColumnContent(
                 }
             },
             selected = isFavoritesSelected,
+            colors = if (isFavoritesSelected) selectedViewItemColors else NavigationDrawerItemDefaults.colors(),
             onClick = onClickFavorite
         )
         HorizontalDivider(
@@ -243,6 +256,7 @@ private fun DrawerColumnContent(
                 }
             },
             selected = isArticlesSelected,
+            colors = if (isArticlesSelected) selectedViewItemColors else NavigationDrawerItemDefaults.colors(),
             onClick = onClickArticles
         )
         val isVideosSelected = !isLabelMode && drawerPreset == DrawerPreset.VIDEOS
@@ -265,6 +279,7 @@ private fun DrawerColumnContent(
                 }
             },
             selected = isVideosSelected,
+            colors = if (isVideosSelected) selectedViewItemColors else NavigationDrawerItemDefaults.colors(),
             onClick = onClickVideos
         )
         val isPicturesSelected = !isLabelMode && drawerPreset == DrawerPreset.PICTURES
@@ -287,6 +302,7 @@ private fun DrawerColumnContent(
                 }
             },
             selected = isPicturesSelected,
+            colors = if (isPicturesSelected) selectedViewItemColors else NavigationDrawerItemDefaults.colors(),
             onClick = onClickPictures
         )
         HorizontalDivider(
@@ -310,6 +326,7 @@ private fun DrawerColumnContent(
                 }
             },
             selected = isLabelMode,
+            colors = prominentItemColors,
             onClick = onClickLabels
         )
         HorizontalDivider(
@@ -323,6 +340,7 @@ private fun DrawerColumnContent(
             ) },
             icon = { Icon(imageVector = Icons.Outlined.Settings, contentDescription = null) },
             selected = false,
+            colors = prominentItemColors,
             onClick = onClickSettings
         )
         NavigationDrawerItem(
@@ -332,6 +350,7 @@ private fun DrawerColumnContent(
             ) },
             icon = { Icon(imageVector = Icons.Outlined.HelpOutline, contentDescription = null) },
             selected = false,
+            colors = prominentItemColors,
             onClick = onClickUserGuide
         )
         NavigationDrawerItem(
@@ -341,6 +360,7 @@ private fun DrawerColumnContent(
             ) },
             icon = { Icon(imageVector = Icons.Outlined.Info, contentDescription = null) },
             selected = false,
+            colors = prominentItemColors,
             onClick = onClickAbout
         )
     }
