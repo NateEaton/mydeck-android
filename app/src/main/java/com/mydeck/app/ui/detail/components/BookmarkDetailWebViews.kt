@@ -98,6 +98,9 @@ fun BookmarkDetailArticle(
             if (articleSearchState.isActive && articleSearchState.query.isNotEmpty()) {
                 WebViewSearchBridge.searchAndHighlight(webView, articleSearchState.query) { matchCount ->
                     onArticleSearchUpdateResults(matchCount)
+                    if (matchCount > 0) {
+                        WebViewSearchBridge.highlightCurrentMatch(webView, 0)
+                    }
                 }
             } else if (articleSearchState.query.isEmpty()) {
                 WebViewSearchBridge.clearHighlights(webView)
@@ -137,6 +140,9 @@ fun BookmarkDetailArticle(
             webViewRef.value?.let { webView ->
                 WebViewSearchBridge.searchAndHighlight(webView, articleSearchState.query) { matchCount ->
                     onArticleSearchUpdateResults(matchCount)
+                    if (matchCount > 0) {
+                        WebViewSearchBridge.highlightCurrentMatch(webView, 0)
+                    }
                 }
             }
         }
