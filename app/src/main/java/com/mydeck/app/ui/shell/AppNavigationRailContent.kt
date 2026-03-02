@@ -10,7 +10,7 @@ import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Inventory2
 import androidx.compose.material.icons.outlined.Settings
-import androidx.compose.material.icons.outlined.TaskAlt
+import androidx.compose.material.icons.outlined.CollectionsBookmark
 import androidx.compose.material.icons.outlined.VideoLibrary
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationRail
@@ -40,7 +40,7 @@ fun AppNavigationRailContent(
         NavigationRailItem(
             selected = !isLabelMode && drawerPreset == DrawerPreset.MY_LIST,
             onClick = onClickMyList,
-            icon = { Icon(imageVector = Icons.Outlined.TaskAlt, contentDescription = null) }
+            icon = { Icon(imageVector = Icons.Outlined.CollectionsBookmark, contentDescription = null) }
         )
         NavigationRailItem(
             selected = !isLabelMode && drawerPreset == DrawerPreset.ARCHIVE,

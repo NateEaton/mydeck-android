@@ -44,6 +44,7 @@ other{}
     <string name="pictures">Bilder</string>
     <string name="settings">Einstellungen</string>
     <string name="user_guide">Benutzerhandbuch</string>
+    <string name="user_guide_contents">Contents</string>
     <string name="an_error_occurred">Ein Fehler ist aufgetreten.</string>
     <string name="no_bookmarks_found">Keine Lesezeichen gefunden.</string>
     <string name="add_bookmark">Lesezeichen hinzufügen</string>

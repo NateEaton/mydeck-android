@@ -729,7 +729,11 @@ class BookmarkDetailViewModel @Inject constructor(
 
     fun onArticleSearchUpdateResults(totalMatches: Int) {
         _articleSearchState.update { state ->
-            val newCurrent = if (totalMatches > 0 && state.currentMatch == 0) 1 else 0
+            val newCurrent = if (totalMatches > 0) {
+                if (state.currentMatch == 0) 1 else state.currentMatch.coerceAtMost(totalMatches)
+            } else {
+                0
+            }
             state.copy(
                 totalMatches = totalMatches,
                 currentMatch = newCurrent

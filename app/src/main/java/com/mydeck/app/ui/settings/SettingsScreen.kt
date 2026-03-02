@@ -174,7 +174,7 @@ fun SettingItem(
         headlineContent = {
             Text(
                 text = title,
-                style = MaterialTheme.typography.bodyLarge,
+                style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.testTag("${SettingsScreenTestTags.SETTINGS_ITEM_TITLE}.$testTag")
             )
         },

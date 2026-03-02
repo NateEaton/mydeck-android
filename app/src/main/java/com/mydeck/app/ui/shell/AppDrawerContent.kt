@@ -20,7 +20,7 @@ import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Inventory2
 import androidx.compose.material.icons.automirrored.outlined.Label
 import androidx.compose.material.icons.outlined.Settings
-import androidx.compose.material.icons.outlined.TaskAlt
+import androidx.compose.material.icons.outlined.CollectionsBookmark
 import androidx.compose.material.icons.outlined.VideoLibrary
 import androidx.compose.material3.Badge
 import androidx.compose.material3.HorizontalDivider
@@ -29,10 +29,12 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalDrawerSheet
 import androidx.compose.material3.PermanentDrawerSheet
 import androidx.compose.material3.NavigationDrawerItem
+import androidx.compose.material3.NavigationDrawerItemDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.mydeck.app.R
@@ -82,7 +84,9 @@ fun AppDrawerContent(
             )
         }
     } else {
-        ModalDrawerSheet {
+        ModalDrawerSheet(
+            modifier = Modifier.fillMaxWidth(0.75f)
+        ) {
             DrawerColumnContent(
                 isLabelMode = isLabelMode,
                 bookmarkCounts = bookmarkCounts,
@@ -124,6 +128,15 @@ private fun DrawerColumnContent(
     onClickUserGuide: () -> Unit,
     onClickAbout: () -> Unit,
 ) {
+    val prominentItemColors = NavigationDrawerItemDefaults.colors(
+        unselectedTextColor = MaterialTheme.colorScheme.onSurface,
+        unselectedIconColor = MaterialTheme.colorScheme.onSurface,
+    )
+    val selectedViewItemColors = NavigationDrawerItemDefaults.colors(
+        selectedTextColor = MaterialTheme.colorScheme.onSurface,
+        selectedIconColor = MaterialTheme.colorScheme.onSurface,
+    )
+
     Column(
         modifier = Modifier
             .padding(horizontal = 16.dp)
@@ -151,12 +164,13 @@ private fun DrawerColumnContent(
             modifier = Modifier.padding(vertical = 4.dp).fillMaxWidth(),
             color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
         )
+        val isMyListSelected = !isLabelMode && drawerPreset == DrawerPreset.MY_LIST
         NavigationDrawerItem(
             label = { Text(
-                style = MaterialTheme.typography.bodyLarge,
+                style = if (isMyListSelected) MaterialTheme.typography.titleMedium else MaterialTheme.typography.bodyLarge,
                 text = stringResource(id = R.string.my_list)
             ) },
-            icon = { Icon(imageVector = Icons.Outlined.TaskAlt, contentDescription = null)},
+            icon = { Icon(imageVector = Icons.Outlined.CollectionsBookmark, contentDescription = null) },
             badge = {
                 val myListCount = bookmarkCounts.total - bookmarkCounts.archived
                 if (myListCount > 0) {
@@ -168,12 +182,14 @@ private fun DrawerColumnContent(
                     }
                 }
             },
-            selected = !isLabelMode && drawerPreset == DrawerPreset.MY_LIST,
+            selected = isMyListSelected,
+            colors = if (isMyListSelected) selectedViewItemColors else NavigationDrawerItemDefaults.colors(),
             onClick = onClickMyList
         )
+        val isArchiveSelected = !isLabelMode && drawerPreset == DrawerPreset.ARCHIVE
         NavigationDrawerItem(
             label = { Text(
-                style = MaterialTheme.typography.bodyLarge,
+                style = if (isArchiveSelected) MaterialTheme.typography.titleMedium else MaterialTheme.typography.bodyLarge,
                 text = stringResource(id = R.string.archive)
             ) },
             icon = { Icon(imageVector = Icons.Outlined.Inventory2, contentDescription = null) },
@@ -189,12 +205,14 @@ private fun DrawerColumnContent(
                     }
                 }
             },
-            selected = !isLabelMode && drawerPreset == DrawerPreset.ARCHIVE,
+            selected = isArchiveSelected,
+            colors = if (isArchiveSelected) selectedViewItemColors else NavigationDrawerItemDefaults.colors(),
             onClick = onClickArchive
         )
+        val isFavoritesSelected = !isLabelMode && drawerPreset == DrawerPreset.FAVORITES
         NavigationDrawerItem(
             label = { Text(
-                style = MaterialTheme.typography.bodyLarge,
+                style = if (isFavoritesSelected) MaterialTheme.typography.titleMedium else MaterialTheme.typography.bodyLarge,
                 text = stringResource(id = R.string.favorites)
             ) },
             icon = { Icon(imageVector = Icons.Outlined.FavoriteBorder, contentDescription = null) },
@@ -210,16 +228,18 @@ private fun DrawerColumnContent(
                     }
                 }
             },
-            selected = !isLabelMode && drawerPreset == DrawerPreset.FAVORITES,
+            selected = isFavoritesSelected,
+            colors = if (isFavoritesSelected) selectedViewItemColors else NavigationDrawerItemDefaults.colors(),
             onClick = onClickFavorite
         )
         HorizontalDivider(
             modifier = Modifier.padding(vertical = 4.dp).fillMaxWidth(),
             color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
         )
+        val isArticlesSelected = !isLabelMode && drawerPreset == DrawerPreset.ARTICLES
         NavigationDrawerItem(
             label = { Text(
-                style = MaterialTheme.typography.bodyLarge,
+                style = if (isArticlesSelected) MaterialTheme.typography.titleMedium else MaterialTheme.typography.bodyLarge,
                 text = stringResource(id = R.string.articles)
             ) },
             icon = { Icon(imageVector = Icons.AutoMirrored.Outlined.Article, contentDescription = null) },
@@ -235,12 +255,14 @@ private fun DrawerColumnContent(
                     }
                 }
             },
-            selected = !isLabelMode && drawerPreset == DrawerPreset.ARTICLES,
+            selected = isArticlesSelected,
+            colors = if (isArticlesSelected) selectedViewItemColors else NavigationDrawerItemDefaults.colors(),
             onClick = onClickArticles
         )
+        val isVideosSelected = !isLabelMode && drawerPreset == DrawerPreset.VIDEOS
         NavigationDrawerItem(
             label = { Text(
-                style = MaterialTheme.typography.bodyLarge,
+                style = if (isVideosSelected) MaterialTheme.typography.titleMedium else MaterialTheme.typography.bodyLarge,
                 text = stringResource(id = R.string.videos)
             ) },
             icon = { Icon(imageVector = Icons.Outlined.VideoLibrary, contentDescription = null) },
@@ -256,12 +278,14 @@ private fun DrawerColumnContent(
                     }
                 }
             },
-            selected = !isLabelMode && drawerPreset == DrawerPreset.VIDEOS,
+            selected = isVideosSelected,
+            colors = if (isVideosSelected) selectedViewItemColors else NavigationDrawerItemDefaults.colors(),
             onClick = onClickVideos
         )
+        val isPicturesSelected = !isLabelMode && drawerPreset == DrawerPreset.PICTURES
         NavigationDrawerItem(
             label = { Text(
-                style = MaterialTheme.typography.bodyLarge,
+                style = if (isPicturesSelected) MaterialTheme.typography.titleMedium else MaterialTheme.typography.bodyLarge,
                 text = stringResource(id = R.string.pictures)
             ) },
             icon = { Icon(imageVector = Icons.Outlined.Image, contentDescription = null) },
@@ -277,7 +301,8 @@ private fun DrawerColumnContent(
                     }
                 }
             },
-            selected = !isLabelMode && drawerPreset == DrawerPreset.PICTURES,
+            selected = isPicturesSelected,
+            colors = if (isPicturesSelected) selectedViewItemColors else NavigationDrawerItemDefaults.colors(),
             onClick = onClickPictures
         )
         HorizontalDivider(
@@ -286,7 +311,7 @@ private fun DrawerColumnContent(
         )
         NavigationDrawerItem(
             label = { Text(
-                style = MaterialTheme.typography.bodyLarge,
+                style = MaterialTheme.typography.titleMedium,
                 text = stringResource(id = R.string.labels)
             ) },
             icon = { Icon(Icons.AutoMirrored.Outlined.Label, contentDescription = null) },
@@ -301,6 +326,7 @@ private fun DrawerColumnContent(
                 }
             },
             selected = isLabelMode,
+            colors = prominentItemColors,
             onClick = onClickLabels
         )
         HorizontalDivider(
@@ -309,29 +335,32 @@ private fun DrawerColumnContent(
         )
         NavigationDrawerItem(
             label = { Text(
-                style = MaterialTheme.typography.bodyLarge,
+                style = MaterialTheme.typography.titleMedium,
                 text = stringResource(id = R.string.settings)
             ) },
             icon = { Icon(imageVector = Icons.Outlined.Settings, contentDescription = null) },
             selected = false,
+            colors = prominentItemColors,
             onClick = onClickSettings
         )
         NavigationDrawerItem(
             label = { Text(
-                style = MaterialTheme.typography.bodyLarge,
+                style = MaterialTheme.typography.titleMedium,
                 text = stringResource(id = R.string.user_guide)
             ) },
             icon = { Icon(imageVector = Icons.Outlined.HelpOutline, contentDescription = null) },
             selected = false,
+            colors = prominentItemColors,
             onClick = onClickUserGuide
         )
         NavigationDrawerItem(
             label = { Text(
-                style = MaterialTheme.typography.bodyLarge,
+                style = MaterialTheme.typography.titleMedium,
                 text = stringResource(id = R.string.about_title)
             ) },
             icon = { Icon(imageVector = Icons.Outlined.Info, contentDescription = null) },
             selected = false,
+            colors = prominentItemColors,
             onClick = onClickAbout
         )
     }

@@ -57,21 +57,22 @@ Each card has four action buttons:
 - **❤️ Favorite** — toggle the favorite status; filled when set
 - **Archive** — move the bookmark to the archive (or back to My List if already archived); the card is removed from the current view when toggled
 - **🌐 View Original** — open the original web page in an in-app viewer
-- **🗑️ Delete** — delete the bookmark; a **"Bookmark deleted"** bar appears at the bottom with an **Undo** option
+- **🗑️ Delete** — delete the bookmark; the card is greyed out and a **"Bookmark deleted"** bar appears at the bottom with an **Undo** option. Tap **Undo** to restore the bookmark, or tap anywhere else (including the greyed-out card itself) to confirm deletion
 
-See [Organising](./organising.md) for more on how favorites, archive, labels, and deletion work across your whole collection.
+See [Organizing](./organizing.md) for more on how favorites, archive, labels, and deletion work across your whole collection.
 
 ## Long-press Context Menu
 
-Long-pressing anywhere on a card opens a context menu for actions related to the bookmark's link. Long-pressing on the thumbnail opens an extended menu that also includes actions for the image:
+Long-pressing on a bookmark card opens a context menu dialog. The dialog header shows the bookmark URL or image source — tap the header to expand truncated text, tap again to collapse.
 
-**Link long-press:**
+**Body long-press** (anywhere except the thumbnail) opens a link menu:
 - Copy Link Address
 - Copy Link Text
+- Download Link
 - Share Link
 - Open in Browser
 
-**Image/thumbnail long-press adds:**
+**Thumbnail long-press** opens an image menu:
 - Copy Image
 - Download Image
 - Share Image
