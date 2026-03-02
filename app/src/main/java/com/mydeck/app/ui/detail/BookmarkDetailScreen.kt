@@ -204,8 +204,8 @@ fun BookmarkDetailHost(
 
     // Gallery and context menu callbacks
     val onImageTapped = { data: ImageGalleryData -> viewModel.onImageTapped(data) }
-    val onImageLongPress = { imageUrl: String, linkUrl: String?, linkType: String ->
-        viewModel.onShowImageContextMenu(imageUrl, linkUrl, linkType)
+    val onImageLongPress = { imageUrl: String, linkUrl: String?, linkType: String, imageAlt: String ->
+        viewModel.onShowImageContextMenu(imageUrl, imageAlt, linkUrl, linkType)
     }
     val onLinkLongPress = { linkUrl: String, linkText: String -> viewModel.onShowLinkContextMenu(linkUrl, linkText) }
 
@@ -442,7 +442,7 @@ fun BookmarkDetailScreen(
     onShowTypographyPanel: () -> Unit = {},
     onTitleChanged: ((String) -> Unit)? = null,
     onImageTapped: (ImageGalleryData) -> Unit = {},
-    onImageLongPress: (imageUrl: String, linkUrl: String?, linkType: String) -> Unit = { _, _, _ -> },
+    onImageLongPress: (imageUrl: String, linkUrl: String?, linkType: String, imageAlt: String) -> Unit = { _, _, _, _ -> },
     onLinkLongPress: (linkUrl: String, linkText: String) -> Unit = { _, _ -> },
 ) {
     val topBarScrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior()
@@ -535,7 +535,7 @@ fun BookmarkDetailContent(
     onTitleChanged: ((String) -> Unit)? = null,
     onScrollPercentChanged: (Int) -> Unit = {},
     onImageTapped: (ImageGalleryData) -> Unit = {},
-    onImageLongPress: (imageUrl: String, linkUrl: String?, linkType: String) -> Unit = { _, _, _ -> },
+    onImageLongPress: (imageUrl: String, linkUrl: String?, linkType: String, imageAlt: String) -> Unit = { _, _, _, _ -> },
     onLinkLongPress: (linkUrl: String, linkText: String) -> Unit = { _, _ -> },
 ) {
     val scrollState = rememberScrollState()
@@ -653,18 +653,21 @@ private fun ReaderContextMenu(
     val coroutineScope = rememberCoroutineScope()
 
     if (state.imageUrl != null) {
+        val fileName = state.imageUrl.substringAfterLast('/').substringBefore('?').ifBlank { "image" }
         LongPressContextMenuDialog(
             headerImageUrl = state.imageUrl,
-            title = bookmarkTitle,
-            subtitle = state.imageUrl,
+            title = state.imageAlt ?: fileName,
+            subtitle = "",
             onDismiss = onDismiss,
         ) {
             LongPressContextMenuItem(
                 icon = Icons.Outlined.ContentCopy,
                 text = stringResource(R.string.action_copy_image),
                 onClick = {
-                    coroutineScope.launch { readerContextMenuCopyImage(context, state.imageUrl) }
-                    onDismiss()
+                    coroutineScope.launch {
+                        readerContextMenuCopyImage(context, state.imageUrl)
+                        onDismiss()
+                    }
                 }
             )
             LongPressContextMenuItem(
@@ -679,23 +682,17 @@ private fun ReaderContextMenu(
                 icon = Icons.Outlined.Share,
                 text = stringResource(R.string.action_share_image),
                 onClick = {
-                    coroutineScope.launch { readerContextMenuShareImage(context, state.imageUrl) }
-                    onDismiss()
-                }
-            )
-            LongPressContextMenuItem(
-                icon = Icons.AutoMirrored.Filled.OpenInNew,
-                text = stringResource(R.string.action_open_in_browser),
-                onClick = {
-                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(state.imageUrl)))
-                    onDismiss()
+                    coroutineScope.launch {
+                        readerContextMenuShareImage(context, state.imageUrl)
+                        onDismiss()
+                    }
                 }
             )
         }
     } else if (state.linkUrl != null) {
         LongPressContextMenuDialog(
             headerImageUrl = bookmarkIconUrl,
-            title = bookmarkTitle,
+            title = state.linkText ?: state.linkUrl,
             subtitle = state.linkUrl,
             onDismiss = onDismiss,
         ) {

@@ -172,5 +172,37 @@ class WebViewImageBridge(
                 })();
             """.trimIndent()
         }
+
+        /** Returns JS to find the alt text of an image with the given URL. */
+        fun getImageAltForUrl(imageUrl: String): String {
+            val escaped = imageUrl
+                .replace("\\", "\\\\")
+                .replace("'", "\\'")
+                .replace("\"", "\\\"")
+            return """
+                (function() {
+                    var imgs = document.querySelectorAll('img[src="${escaped}"]');
+                    for (var i = 0; i < imgs.length; i++) {
+                        return (imgs[i].alt || '').trim();
+                    }
+                    return '';
+                })();
+            """.trimIndent()
+        }
+        /**
+         * Safely decodes a JSON-encoded string returned by WebView's evaluateJavascript.
+         * Handles escapes for quotes, backslashes, and other special characters.
+         */
+        fun decodeJsString(json: String?): String {
+            if (json == null || json == "null" || json.isBlank()) return ""
+            return try {
+                org.json.JSONTokener(json).nextValue().toString()
+            } catch (e: Exception) {
+                // Fallback for unexpected formats
+                json.trim('"')
+                    .replace("\\\"", "\"")
+                    .replace("\\\\", "\\")
+            }
+        }
     }
 }

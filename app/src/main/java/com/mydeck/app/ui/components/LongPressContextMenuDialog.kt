@@ -14,6 +14,10 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -45,14 +49,17 @@ fun LongPressContextMenuDialog(
     content: @Composable ColumnScope.() -> Unit,
 ) {
     Dialog(onDismissRequest = onDismiss) {
+        var isExpanded by remember { mutableStateOf(false) }
         Card(
-            modifier = Modifier.fillMaxWidth(0.75f),
+            modifier = Modifier.fillMaxWidth(0.85f), // Increased width slightly for better readability
             shape = RoundedCornerShape(28.dp),
         ) {
             Column {
                 // Header: image + title + subtitle
                 Row(
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                    modifier = Modifier
+                        .clickable { isExpanded = !isExpanded }
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     AsyncImage(
@@ -71,16 +78,18 @@ fun LongPressContextMenuDialog(
                         Text(
                             text = title,
                             style = MaterialTheme.typography.titleSmall,
-                            maxLines = 1,
+                            maxLines = if (isExpanded) 10 else 2,
                             overflow = TextOverflow.Ellipsis,
                         )
-                        Text(
-                            text = subtitle,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
+                        if (subtitle.isNotBlank()) {
+                            Text(
+                                text = subtitle,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = if (isExpanded) 10 else 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
                     }
                 }
                 HorizontalDivider()
