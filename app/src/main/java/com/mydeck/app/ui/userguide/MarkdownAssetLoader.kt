@@ -25,7 +25,7 @@ class MarkdownAssetLoader @Inject constructor(
             GuideSection("Getting Started", "getting-started.md", 0),
             GuideSection("Your Bookmarks",  "your-bookmarks.md",  1),
             GuideSection("Reading",         "reading.md",         2),
-            GuideSection("Organising",      "organising.md",      3),
+            GuideSection("Organizing",      "organizing.md",      3),
             GuideSection("Settings",        "settings.md",        4)
         )
     }

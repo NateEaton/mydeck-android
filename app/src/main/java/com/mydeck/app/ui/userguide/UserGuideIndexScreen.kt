@@ -38,7 +38,7 @@ fun getSectionIcon(fileName: String) = when (fileName) {
     "getting-started.md" -> Icons.Default.Info
     "your-bookmarks.md"  -> Icons.Default.CollectionsBookmark
     "reading.md"         -> Icons.Default.Bookmark
-    "organising.md"      -> Icons.AutoMirrored.Filled.Label
+    "organizing.md"      -> Icons.AutoMirrored.Filled.Label
     "settings.md"        -> Icons.Outlined.Settings
     else                 -> Icons.Default.Info
 }

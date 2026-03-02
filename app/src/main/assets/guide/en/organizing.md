@@ -1,10 +1,10 @@
-# Organising
+# Organizing
 
 Labels, favorites, and archive are the tools MyDeck gives you to keep your bookmarks tidy and easy to find.
 
 ## Labels
 
-Labels let you categorise your bookmarks with any words, phrases, or emojis you like. A bookmark can have any number of labels, and labels can be as broad or specific as you want.
+Labels let you categorize your bookmarks with any words, phrases, or emojis you like. A bookmark can have any number of labels, and labels can be as broad or specific as you want.
 
 ### Adding Labels to a Bookmark
 
@@ -59,4 +59,4 @@ To see all your archived bookmarks, open the navigation drawer and tap **Archive
 
 To delete a bookmark, tap the **🗑️** button on its card in a list view, or tap **⋮** → **Delete** in the reading view.
 
-The bookmark is immediately removed from the list and a **"Bookmark deleted"** bar appears at the bottom of the screen. Tap **Undo** to restore it. The deletion is not finalised until you tap anywhere other than Undo or navigate away from the screen.
+When deleting from a list view, the card is greyed out and a **"Bookmark deleted"** bar appears at the bottom of the screen. Tap **Undo** to restore it, or tap anywhere else (including the greyed-out card) to confirm deletion. When deleting from the reading view, you are returned to the list and the same undo bar appears.

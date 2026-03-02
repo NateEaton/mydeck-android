@@ -285,6 +285,7 @@
     <string name="image_copied">Image copied</string>
     <string name="download_started">Download started</string>
     <string name="user_guide">用户指南</string>
+    <string name="user_guide_contents">Contents</string>
 
     <!-- Image Gallery -->
     <string name="gallery_close">Close</string>

@@ -6,18 +6,7 @@ Tap any bookmark card to open it. MyDeck displays the bookmark in a view suited 
 
 For articles, MyDeck shows the extracted text in a clean, distraction-free reading layout. The bookmark title appears at the top — tap the **✏️** icon beside it to edit the title inline and confirm with the **✓** checkmark.
 
-### Image Lightbox
-
-Tap any image in an article to open it in a fullscreen lightbox viewer. In the lightbox, you can:
-
-- **Pinch to zoom** — zoom in and out on the image
-- **Double-tap** — toggle between 1× and 2× zoom
-- **Pan** — drag to move around a zoomed image
-- **Tap** — show or hide the top bar and thumbnail strip
-- **Swipe left/right** — navigate between images (when the article contains multiple images)
-- **Close (×)** or **Back** — close the lightbox and return to reading
-
-When an article contains multiple images, a thumbnail strip appears at the bottom of the lightbox. Tap any thumbnail to jump directly to that image.
+Tap any image in an article to open it in the [Image Lightbox](#image-lightbox). Long-press links or images to access [context menu](#long-press-context-menus) actions.
 
 ### Top Bar
 
@@ -56,9 +45,11 @@ For video bookmarks (YouTube, Vimeo, etc.), MyDeck shows the title, a descriptio
 
 The top bar in video view shows **← Back**, **❤️**, **Archive**, and **⋮** only — Typography and Find in Article are not available for video bookmarks.
 
+If the video bookmark includes text content (such as a description or transcript), you can tap images or long-press links and images to access the [Image Lightbox](#image-lightbox) and [context menus](#long-press-context-menus).
+
 ## Picture View
 
-For picture bookmarks, MyDeck shows the title, a description, and the stored image at full content width. Tap the image to open it in the lightbox viewer (see [Image Lightbox](#image-lightbox) above) where you can zoom and pan.
+For picture bookmarks, MyDeck shows the title, a description, and the stored image at full content width. Tap the image to open it in the [Image Lightbox](#image-lightbox) where you can zoom and pan.
 
 The top bar in picture view shows **← Back**, **❤️**, **Archive**, and **⋮** only.
 
@@ -80,11 +71,42 @@ Tap **⋮** in the top bar for additional actions:
 - **Share Link** — open the Android share sheet to share the bookmark's URL
 - **Unread / Read** — toggle whether the bookmark has been read; this is reflected back in the bookmark list
 - **Bookmark Details** — open the Bookmark Details screen (see below)
-- **Delete** — delete the bookmark; a **"Bookmark deleted"** bar appears with an **Undo** option
+- **Delete** — delete the bookmark; you are returned to the list and a **"Bookmark deleted"** bar appears with an **Undo** option
 
-## Links in Articles
+## Links in Content
 
-Tapping a link within article text opens the associated web page in a browser overlay. Links in articles open in the browser rather than MyDeck's in-app web viewer, which is reserved for a bookmark's own original URL via View Original.
+Tapping a link within bookmark content (articles, pictures with descriptions, or videos with text) opens the associated web page in a browser overlay. Links open in the browser rather than MyDeck's in-app web viewer, which is reserved for a bookmark's own original URL via View Original.
+
+## Long-press Context Menus
+
+Long-pressing on links or images within bookmark content opens a context menu dialog with quick actions. The dialog header shows the URL or image source — tap the header to expand truncated text, tap again to collapse.
+
+**Link long-press:**
+- Copy Link Address
+- Copy Link Text
+- Download Link
+- Share Link
+- Open in Browser
+
+**Image long-press:**
+- Copy Image
+- Download Image
+- Share Image
+
+## Image Lightbox
+
+Tap any image in an article or picture bookmark to open it in a fullscreen lightbox viewer. In the lightbox, you can:
+
+- **Pinch to zoom** — zoom in and out on the image
+- **Double-tap** — toggle between 1× and 2× zoom
+- **Pan** — drag to move around a zoomed image
+- **Tap** — show or hide the top bar and thumbnail strip
+- **Swipe left/right** — navigate between images (when the content contains multiple images)
+- **Close (×)** or **Back** — close the lightbox and return to reading
+
+When the content contains multiple images, a thumbnail strip appears at the bottom of the lightbox. Tap any thumbnail to jump directly to that image.
+
+If the current image was originally a hyperlink (linking to another page or a larger version of the image), an **external link icon** (↗) appears in the top-right corner of the lightbox. Tap it to open the linked URL in the browser.
 
 ## Bookmark Details
 
@@ -93,4 +115,4 @@ Tapping a link within article text opens the associated web page in a browser ov
 - Thumbnail
 - Author, date added, date published, reading time, word count
 - Description
-- **Labels** — add or remove labels for this bookmark; see [Organising](./organising.md) for the full guide to working with labels
+- **Labels** — add or remove labels for this bookmark; see [Organizing](./organizing.md) for the full guide to working with labels
