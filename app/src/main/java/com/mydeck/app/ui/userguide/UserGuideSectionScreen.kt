@@ -33,7 +33,6 @@ import com.mydeck.app.ui.navigation.UserGuideSectionRoute
 @Composable
 fun UserGuideSectionScreen(
     navHostController: NavHostController,
-    showBackButton: Boolean = true,
 ) {
     val viewModel: UserGuideSectionViewModel = hiltViewModel()
     val uiState = viewModel.uiState
@@ -57,13 +56,11 @@ fun UserGuideSectionScreen(
             TopAppBar(
                 title = { Text(uiState.title) },
                 navigationIcon = {
-                    if (showBackButton) {
-                        IconButton(onClick = { navHostController.popBackStack() }) {
-                            Icon(
-                                Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = stringResource(R.string.back)
-                            )
-                        }
+                    IconButton(onClick = { navHostController.popBackStack() }) {
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = stringResource(R.string.back)
+                        )
                     }
                 },
                 actions = {

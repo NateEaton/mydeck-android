@@ -467,7 +467,7 @@ private fun MediumAppShell(
                     UserGuideIndexScreen(navHostController = navController, showBackButton = false)
                 }
                 composable<UserGuideSectionRoute> {
-                    UserGuideSectionScreen(navHostController = navController, showBackButton = false)
+                    UserGuideSectionScreen(navHostController = navController)
                 }
                 composable<AboutRoute> {
                     AboutScreen(navHostController = navController, showBackButton = false)
@@ -626,7 +626,7 @@ private fun ExpandedAppShell(
                     UserGuideIndexScreen(navHostController = navController, showBackButton = false)
                 }
                 composable<UserGuideSectionRoute> {
-                    UserGuideSectionScreen(navHostController = navController, showBackButton = false)
+                    UserGuideSectionScreen(navHostController = navController)
                 }
                 composable<AboutRoute> {
                     AboutScreen(navHostController = navController, showBackButton = false)
