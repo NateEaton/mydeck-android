@@ -11,9 +11,13 @@ For articles, MyDeck shows the extracted text in a clean, distraction-free readi
 Tap any image in an article to open it in a fullscreen lightbox viewer. In the lightbox, you can:
 
 - **Pinch to zoom** — zoom in and out on the image
+- **Double-tap** — toggle between 1× and 2× zoom
 - **Pan** — drag to move around a zoomed image
-- **Tap outside** — close the lightbox and return to reading
-- **Long-press** — open a context menu with options to copy, download, or share the image
+- **Tap** — show or hide the top bar and thumbnail strip
+- **Swipe left/right** — navigate between images (when the article contains multiple images)
+- **Close (×)** or **Back** — close the lightbox and return to reading
+
+When an article contains multiple images, a thumbnail strip appears at the bottom of the lightbox. Tap any thumbnail to jump directly to that image.
 
 ### Top Bar
 
@@ -54,7 +58,7 @@ The top bar in video view shows **← Back**, **❤️**, **Archive**, and **⋮
 
 ## Picture View
 
-For picture bookmarks, MyDeck shows the title, a description, and the stored image at full content width.
+For picture bookmarks, MyDeck shows the title, a description, and the stored image at full content width. Tap the image to open it in the lightbox viewer (see [Image Lightbox](#image-lightbox) above) where you can zoom and pan.
 
 The top bar in picture view shows **← Back**, **❤️**, **Archive**, and **⋮** only.
 
