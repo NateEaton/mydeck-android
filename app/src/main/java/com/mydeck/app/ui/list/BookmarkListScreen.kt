@@ -223,7 +223,8 @@ fun BookmarkListScreen(
                         val result = context.imageLoader.execute(request) as? coil3.request.SuccessResult
                         val rawBitmap = (result?.image as? coil3.BitmapImage)?.bitmap
                             ?: throw Exception("no bitmap")
-                        val bitmap = if (rawBitmap.config == android.graphics.Bitmap.Config.HARDWARE)
+                        val bitmap = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O
+                                && rawBitmap.config == android.graphics.Bitmap.Config.HARDWARE)
                             rawBitmap.copy(android.graphics.Bitmap.Config.ARGB_8888, false) else rawBitmap
                         val cacheDir = java.io.File(context.cacheDir, "images").also { it.mkdirs() }
                         val file = java.io.File(cacheDir, "copy_${System.currentTimeMillis()}.jpg")
@@ -283,7 +284,8 @@ fun BookmarkListScreen(
                         val result = context.imageLoader.execute(request) as? coil3.request.SuccessResult
                         val rawBitmap = (result?.image as? coil3.BitmapImage)?.bitmap
                             ?: throw Exception("no bitmap")
-                        val bitmap = if (rawBitmap.config == android.graphics.Bitmap.Config.HARDWARE)
+                        val bitmap = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O
+                                && rawBitmap.config == android.graphics.Bitmap.Config.HARDWARE)
                             rawBitmap.copy(android.graphics.Bitmap.Config.ARGB_8888, false) else rawBitmap
                         val cacheDir = java.io.File(context.cacheDir, "images").also { it.mkdirs() }
                         val file = java.io.File(cacheDir, "share_${System.currentTimeMillis()}.jpg")

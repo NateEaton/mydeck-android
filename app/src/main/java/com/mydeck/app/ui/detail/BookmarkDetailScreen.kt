@@ -762,7 +762,8 @@ private suspend fun readerContextMenuCopyImage(context: Context, imageUrl: Strin
             val rawBitmap = (context.imageLoader.execute(request) as? coil3.request.SuccessResult)
                 ?.image as? coil3.BitmapImage ?: throw Exception("no bitmap")
             val bitmap = rawBitmap.bitmap.let {
-                if (it.config == android.graphics.Bitmap.Config.HARDWARE)
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O
+                        && it.config == android.graphics.Bitmap.Config.HARDWARE)
                     it.copy(android.graphics.Bitmap.Config.ARGB_8888, false) else it
             }
             val cacheDir = java.io.File(context.cacheDir, "images").also { it.mkdirs() }
@@ -812,7 +813,8 @@ private suspend fun readerContextMenuShareImage(context: Context, imageUrl: Stri
             val rawBitmap = (context.imageLoader.execute(request) as? coil3.request.SuccessResult)
                 ?.image as? coil3.BitmapImage ?: throw Exception("no bitmap")
             val bitmap = rawBitmap.bitmap.let {
-                if (it.config == android.graphics.Bitmap.Config.HARDWARE)
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O
+                        && it.config == android.graphics.Bitmap.Config.HARDWARE)
                     it.copy(android.graphics.Bitmap.Config.ARGB_8888, false) else it
             }
             val cacheDir = java.io.File(context.cacheDir, "images").also { it.mkdirs() }
