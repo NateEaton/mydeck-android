@@ -39,6 +39,7 @@ import coil3.request.ImageRequest
 import coil3.request.crossfade
 import com.mydeck.app.R
 import com.mydeck.app.ui.detail.BookmarkDetailViewModel
+import com.mydeck.app.ui.detail.TypographyUtils
 
 @Composable
 fun BookmarkDetailHeader(
@@ -68,6 +69,7 @@ fun BookmarkDetailHeader(
             modifier = Modifier.fillMaxWidth()
         ) {
             Column(modifier = Modifier.weight(1f)) {
+                val fontFamily = TypographyUtils.getFontFamily(uiState.typographySettings.fontFamily)
                 if (isEditingTitle) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
@@ -79,7 +81,8 @@ fun BookmarkDetailHeader(
                             modifier = Modifier
                                 .weight(1f)
                                 .focusRequester(focusRequester),
-                            label = { Text(stringResource(R.string.edit_title)) }
+                            label = { Text(stringResource(R.string.edit_title)) },
+                            textStyle = MaterialTheme.typography.headlineSmall.copy(fontFamily = fontFamily)
                         )
                         IconButton(onClick = {
                             onTitleChanged?.invoke(editedTitle)
@@ -95,7 +98,7 @@ fun BookmarkDetailHeader(
                     ) {
                         Text(
                             text = uiState.bookmark.title,
-                            style = MaterialTheme.typography.headlineSmall,
+                            style = MaterialTheme.typography.headlineSmall.copy(fontFamily = fontFamily),
                             maxLines = 3,
                             overflow = TextOverflow.Ellipsis,
                             modifier = Modifier.weight(1f)

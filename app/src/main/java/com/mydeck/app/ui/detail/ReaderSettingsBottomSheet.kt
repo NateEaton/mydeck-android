@@ -97,7 +97,7 @@ fun ReaderSettingsBottomSheet(
                             label = {
                                 Text(
                                     text = getFontDisplayName(font),
-                                    fontFamily = getFontFamilyForPreview(font)
+                                    fontFamily = TypographyUtils.getFontFamily(font)
                                 )
                             }
                         )
@@ -285,13 +285,3 @@ private fun getFontDisplayName(font: ReaderFontFamily): String {
     }
 }
 
-@Composable
-private fun getFontFamilyForPreview(font: ReaderFontFamily): FontFamily {
-    return when (font) {
-        ReaderFontFamily.JETBRAINS_MONO -> FontFamily.Monospace
-        ReaderFontFamily.NOTO_SERIF,
-        ReaderFontFamily.LITERATA,
-        ReaderFontFamily.SOURCE_SERIF -> FontFamily.Serif
-        else -> FontFamily.SansSerif
-    }
-}

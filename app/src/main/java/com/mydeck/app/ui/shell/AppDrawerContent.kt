@@ -20,7 +20,7 @@ import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Inventory2
 import androidx.compose.material.icons.automirrored.outlined.Label
 import androidx.compose.material.icons.outlined.Settings
-import androidx.compose.material.icons.outlined.TaskAlt
+import androidx.compose.material.icons.outlined.CollectionsBookmark
 import androidx.compose.material.icons.outlined.VideoLibrary
 import androidx.compose.material3.Badge
 import androidx.compose.material3.HorizontalDivider
@@ -33,6 +33,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.mydeck.app.R
@@ -82,7 +83,9 @@ fun AppDrawerContent(
             )
         }
     } else {
-        ModalDrawerSheet {
+        ModalDrawerSheet(
+            modifier = Modifier.fillMaxWidth(0.75f)
+        ) {
             DrawerColumnContent(
                 isLabelMode = isLabelMode,
                 bookmarkCounts = bookmarkCounts,
@@ -156,7 +159,7 @@ private fun DrawerColumnContent(
                 style = MaterialTheme.typography.bodyLarge,
                 text = stringResource(id = R.string.my_list)
             ) },
-            icon = { Icon(imageVector = Icons.Outlined.TaskAlt, contentDescription = null)},
+            icon = { Icon(imageVector = Icons.Outlined.CollectionsBookmark, contentDescription = null) },
             badge = {
                 val myListCount = bookmarkCounts.total - bookmarkCounts.archived
                 if (myListCount > 0) {
