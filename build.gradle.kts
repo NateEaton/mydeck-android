@@ -9,3 +9,10 @@ plugins {
     alias(libs.plugins.androidx.room) apply false
     alias(libs.plugins.ksp) apply false
 }
+
+tasks.register("resolveAllDependencies") {
+    description = "Resolves all dependencies for offline use in Codex Cloud"
+    doLast {
+        configurations.all { if (it.isCanBeResolved) it.resolve() }
+    }
+}
