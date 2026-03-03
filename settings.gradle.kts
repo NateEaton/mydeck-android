@@ -1,6 +1,7 @@
 pluginManagement {
     repositories {
-        // 1. Put google() first and REMOVE the content filter block
+        // Put google() first. 
+        // We removed the 'content { ... }' filter so it can find all needed artifacts.
         google()
         mavenCentral()
         gradlePluginPortal()
@@ -12,9 +13,12 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
-        maven { url "https://jitpack.io" }
+        maven {
+            // Kotlin DSL requires 'url = uri(...)'
+            url = uri("https://jitpack.io")
+        }
     }
 }
 
 rootProject.name = "MyDeck"
-include ":app"
+include(":app")
