@@ -13,7 +13,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
@@ -58,71 +60,97 @@ class UiSettingsViewModelTest {
     }
 
     @Test
-    fun `init loads keepScreenOnWhileReading default true from data store`() = runTest {
+    fun `init loads keepScreenOnWhileReading default true from data store`() = runTest(UnconfinedTestDispatcher()) {
+        val states = mutableListOf<UiSettingsUiState>()
+        val job = launch {
+            viewModel.uiState.collect { states.add(it) }
+        }
         advanceUntilIdle()
-        val state = viewModel.uiState.first()
-        assertTrue(state.keepScreenOnWhileReading)
+        job.cancel()
+        assertTrue(states.last().keepScreenOnWhileReading)
     }
 
     @Test
-    fun `init loads keepScreenOnWhileReading false from data store`() = runTest {
+    fun `init loads keepScreenOnWhileReading false from data store`() = runTest(UnconfinedTestDispatcher()) {
         coEvery { settingsDataStore.isKeepScreenOnWhileReading() } returns false
-        every { settingsDataStore.keepScreenOnWhileReadingFlow } returns MutableStateFlow(false)
+        every { settingsDataStore.keepScreenOnWhileReadingFlow } returns MutableStateFlow(true)
         viewModel = UiSettingsViewModel(settingsDataStore, context)
+        val states = mutableListOf<UiSettingsUiState>()
+        val job = launch {
+            viewModel.uiState.collect { states.add(it) }
+        }
         advanceUntilIdle()
-        val state = viewModel.uiState.first()
-        assertFalse(state.keepScreenOnWhileReading)
+        job.cancel()
+        assertFalse(states.last().keepScreenOnWhileReading)
     }
 
     @Test
-    fun `onKeepScreenOnWhileReadingToggled false saves and updates state`() = runTest {
-        coEvery { settingsDataStore.isKeepScreenOnWhileReading() } returns false
+    fun `onKeepScreenOnWhileReadingToggled false saves and updates state`() = runTest(UnconfinedTestDispatcher()) {
+        coEvery { settingsDataStore.isKeepScreenOnWhileReading() } returnsMany listOf(true, false)
+        val states = mutableListOf<UiSettingsUiState>()
+        val job = launch {
+            viewModel.uiState.collect { states.add(it) }
+        }
         advanceUntilIdle()
 
         viewModel.onKeepScreenOnWhileReadingToggled(false)
         advanceUntilIdle()
+        job.cancel()
 
         coVerify { settingsDataStore.saveKeepScreenOnWhileReading(false) }
-        val state = viewModel.uiState.first()
-        assertFalse(state.keepScreenOnWhileReading)
+        assertFalse(states.last().keepScreenOnWhileReading)
     }
 
     @Test
-    fun `onKeepScreenOnWhileReadingToggled true saves and updates state`() = runTest {
-        coEvery { settingsDataStore.isKeepScreenOnWhileReading() } returns true
+    fun `onKeepScreenOnWhileReadingToggled true saves and updates state`() = runTest(UnconfinedTestDispatcher()) {
+        coEvery { settingsDataStore.isKeepScreenOnWhileReading() } returnsMany listOf(false, true)
+        every { settingsDataStore.keepScreenOnWhileReadingFlow } returns MutableStateFlow(false)
+        viewModel = UiSettingsViewModel(settingsDataStore, context)
+        val states = mutableListOf<UiSettingsUiState>()
+        val job = launch {
+            viewModel.uiState.collect { states.add(it) }
+        }
         advanceUntilIdle()
 
         viewModel.onKeepScreenOnWhileReadingToggled(true)
         advanceUntilIdle()
+        job.cancel()
 
         coVerify { settingsDataStore.saveKeepScreenOnWhileReading(true) }
-        val state = viewModel.uiState.first()
-        assertTrue(state.keepScreenOnWhileReading)
+        assertTrue(states.last().keepScreenOnWhileReading)
     }
 
     @Test
-    fun `onSepiaToggled saves and reflects in state`() = runTest {
-        coEvery { settingsDataStore.isSepiaEnabled() } returns true
+    fun `onSepiaToggled saves and reflects in state`() = runTest(UnconfinedTestDispatcher()) {
+        coEvery { settingsDataStore.isSepiaEnabled() } returnsMany listOf(false, true)
+        val states = mutableListOf<UiSettingsUiState>()
+        val job = launch {
+            viewModel.uiState.collect { states.add(it) }
+        }
         advanceUntilIdle()
 
         viewModel.onSepiaToggled(true)
         advanceUntilIdle()
+        job.cancel()
 
         coVerify { settingsDataStore.saveSepiaEnabled(true) }
-        val state = viewModel.uiState.first()
-        assertTrue(state.useSepiaInLight)
+        assertTrue(states.last().useSepiaInLight)
     }
 
     @Test
-    fun `onThemeModeSelected saves and reflects in state`() = runTest {
-        coEvery { settingsDataStore.getTheme() } returns Theme.DARK
+    fun `onThemeModeSelected saves and reflects in state`() = runTest(UnconfinedTestDispatcher()) {
+        coEvery { settingsDataStore.getTheme() } returnsMany listOf(Theme.SYSTEM, Theme.DARK)
+        val states = mutableListOf<UiSettingsUiState>()
+        val job = launch {
+            viewModel.uiState.collect { states.add(it) }
+        }
         advanceUntilIdle()
 
         viewModel.onThemeModeSelected(Theme.DARK)
         advanceUntilIdle()
+        job.cancel()
 
         coVerify { settingsDataStore.saveTheme(Theme.DARK) }
-        val state = viewModel.uiState.first()
-        assertEquals(Theme.DARK, state.themeMode)
+        assertEquals(Theme.DARK, states.last().themeMode)
     }
 }

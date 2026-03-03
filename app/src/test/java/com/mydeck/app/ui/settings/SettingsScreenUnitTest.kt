@@ -22,7 +22,7 @@ import org.robolectric.annotation.Config
 
 @RunWith(RobolectricTestRunner::class)
 @HiltAndroidTest
-@Config(application = HiltTestApplication::class)
+@Config(application = HiltTestApplication::class, sdk = [34])
 @UninstallModules(NetworkModule::class)
 class SettingsScreenUnitTest {
 
