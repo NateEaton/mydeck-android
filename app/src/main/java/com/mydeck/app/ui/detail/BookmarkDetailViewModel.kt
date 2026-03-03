@@ -101,6 +101,7 @@ class BookmarkDetailViewModel @Inject constructor(
     }
     private val zoomFactor: Flow<Int> = settingsDataStore.zoomFactorFlow
     private val typographySettings = settingsDataStore.typographySettingsFlow
+    val keepScreenOnWhileReading: StateFlow<Boolean> = settingsDataStore.keepScreenOnWhileReadingFlow
     private val updateState = MutableStateFlow<UpdateBookmarkState?>(null)
 
     val labelsWithCounts: StateFlow<Map<String, Int>> = bookmarkRepository

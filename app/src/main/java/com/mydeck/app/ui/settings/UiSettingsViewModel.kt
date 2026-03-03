@@ -33,22 +33,25 @@ class UiSettingsViewModel @Inject constructor(
     private val theme = MutableStateFlow(Theme.SYSTEM)
     private val sepiaEnabled = MutableStateFlow(false)
     private val showDialog = MutableStateFlow(false)
+    private val keepScreenOnWhileReading = MutableStateFlow(true)
 
     init {
         viewModelScope.launch {
             theme.value = settingsDataStore.getTheme()
             sepiaEnabled.value = settingsDataStore.isSepiaEnabled()
+            keepScreenOnWhileReading.value = settingsDataStore.isKeepScreenOnWhileReading()
         }
     }
 
 
-    val uiState = combine(theme, sepiaEnabled, showDialog) { theme, sepiaEnabled, showDialog ->
+    val uiState = combine(theme, sepiaEnabled, showDialog, keepScreenOnWhileReading) { theme, sepiaEnabled, showDialog, keepScreenOn ->
         UiSettingsUiState(
             themeMode = theme,
             useSepiaInLight = sepiaEnabled,
             themeOptions = getThemeOptionList(theme),
             showDialog = showDialog,
             themeLabel = theme.toLabelResource(),
+            keepScreenOnWhileReading = keepScreenOn,
         )
     }
         .stateIn(
@@ -61,6 +64,7 @@ class UiSettingsViewModel @Inject constructor(
                     themeOptions = getThemeOptionList(Theme.SYSTEM),
                     showDialog = false,
                     themeLabel = Theme.SYSTEM.toLabelResource(),
+                    keepScreenOnWhileReading = true,
                 )
         )
 
@@ -91,6 +95,14 @@ class UiSettingsViewModel @Inject constructor(
         viewModelScope.launch {
             settingsDataStore.saveSepiaEnabled(enabled)
             sepiaEnabled.value = settingsDataStore.isSepiaEnabled()
+        }
+    }
+
+    fun onKeepScreenOnWhileReadingToggled(enabled: Boolean) {
+        Timber.d("onKeepScreenOnWhileReadingToggled [enabled=$enabled]")
+        viewModelScope.launch {
+            settingsDataStore.saveKeepScreenOnWhileReading(enabled)
+            keepScreenOnWhileReading.value = settingsDataStore.isKeepScreenOnWhileReading()
         }
     }
 
@@ -128,6 +140,7 @@ data class UiSettingsUiState(
     val showDialog: Boolean,
     @StringRes
     val themeLabel: Int,
+    val keepScreenOnWhileReading: Boolean,
 )
 
 data class ThemeOption(

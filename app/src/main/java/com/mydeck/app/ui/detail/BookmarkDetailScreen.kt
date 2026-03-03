@@ -82,6 +82,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.size
@@ -242,6 +243,13 @@ fun BookmarkDetailHost(
         viewModel.openUrlEvent.collectLatest { url ->
             openUrlInCustomTab(context, url)
         }
+    }
+
+    val keepScreenOn by viewModel.keepScreenOnWhileReading.collectAsState()
+    val view = LocalView.current
+    DisposableEffect(keepScreenOn) {
+        view.keepScreenOn = keepScreenOn
+        onDispose { view.keepScreenOn = false }
     }
 
     when (uiState) {

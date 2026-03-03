@@ -48,6 +48,7 @@ fun UiSettingsScreen(
     val onClickBack: () -> Unit = { viewModel.onClickBack() }
     val onThemeModeSelected: (Theme) -> Unit = { viewModel.onThemeModeSelected(it) }
     val onSepiaToggled: (Boolean) -> Unit = { viewModel.onSepiaToggled(it) }
+    val onKeepScreenOnWhileReadingToggled: (Boolean) -> Unit = { viewModel.onKeepScreenOnWhileReadingToggled(it) }
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(key1 = navigationEvent.value) {
@@ -67,6 +68,7 @@ fun UiSettingsScreen(
         onClickBack = onClickBack,
         onThemeModeSelected = onThemeModeSelected,
         onSepiaToggled = onSepiaToggled,
+        onKeepScreenOnWhileReadingToggled = onKeepScreenOnWhileReadingToggled,
         settingsUiState = settingsUiState
     )
 }
@@ -79,6 +81,7 @@ fun UiSettingsView(
     settingsUiState: UiSettingsUiState,
     onThemeModeSelected: (Theme) -> Unit,
     onSepiaToggled: (Boolean) -> Unit,
+    onKeepScreenOnWhileReadingToggled: (Boolean) -> Unit,
     onClickBack: () -> Unit,
 ) {
     Scaffold(
@@ -156,6 +159,28 @@ fun UiSettingsView(
                     )
                 }
             )
+
+            // Keep screen on while reading toggle
+            ListItem(
+                headlineContent = {
+                    Text(
+                        text = stringResource(R.string.ui_settings_keep_screen_on_title),
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+                },
+                supportingContent = {
+                    Text(
+                        text = stringResource(R.string.ui_settings_keep_screen_on_description),
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                },
+                trailingContent = {
+                    Switch(
+                        checked = settingsUiState.keepScreenOnWhileReading,
+                        onCheckedChange = onKeepScreenOnWhileReadingToggled
+                    )
+                }
+            )
         }
     }
 }
@@ -169,6 +194,7 @@ fun UiSettingsScreenViewPreview() {
         themeOptions = listOf(),
         showDialog = false,
         themeLabel = Theme.SYSTEM.toLabelResource(),
+        keepScreenOnWhileReading = true,
     )
     UiSettingsView(
         modifier = Modifier,
@@ -176,6 +202,7 @@ fun UiSettingsScreenViewPreview() {
         onClickBack = {},
         onThemeModeSelected = {},
         onSepiaToggled = {},
+        onKeepScreenOnWhileReadingToggled = {},
         settingsUiState = settingsUiState
     )
 }

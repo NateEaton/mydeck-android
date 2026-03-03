@@ -170,6 +170,8 @@
     <string name="layout">Layout</string>
     <string name="ui_settings_sepia_title">Motyw czytania sepii</string>
     <string name="ui_settings_sepia_description">Użyj ciepłych kolorów do czytania w trybie jasnym</string>
+    <string name="ui_settings_keep_screen_on_title">Keep screen on while reading</string>
+    <string name="ui_settings_keep_screen_on_description">Prevents the screen from turning off while you read</string>
     <string name="select_bookmark">Select a bookmark to read</string>
     <string name="long_press_for_options">Long press for options</string>
     <string name="label_suggestion_hint">Suggestions</string>
