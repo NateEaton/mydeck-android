@@ -56,6 +56,7 @@ class SettingsDataStoreImpl @Inject constructor(@ApplicationContext private val 
     private val KEY_DATE_RANGE_FROM = stringPreferencesKey("date_range_from")
     private val KEY_DATE_RANGE_TO = stringPreferencesKey("date_range_to")
     private val KEY_SEPIA_ENABLED = booleanPreferencesKey("sepia_enabled")
+    private val KEY_KEEP_SCREEN_ON_READING = booleanPreferencesKey("keep_screen_on_reading")
 
     // Typography settings keys
     private val KEY_TYPO_FONT_SIZE = intPreferencesKey("typography_font_size_percent")
@@ -208,6 +209,16 @@ class SettingsDataStoreImpl @Inject constructor(@ApplicationContext private val 
         return encryptedSharedPreferences.getBoolean(KEY_SEPIA_ENABLED.name, false)
     }
 
+    override suspend fun saveKeepScreenOnWhileReading(enabled: Boolean) {
+        encryptedSharedPreferences.edit {
+            putBoolean(KEY_KEEP_SCREEN_ON_READING.name, enabled)
+        }
+    }
+
+    override suspend fun isKeepScreenOnWhileReading(): Boolean {
+        return encryptedSharedPreferences.getBoolean(KEY_KEEP_SCREEN_ON_READING.name, true)
+    }
+
     override suspend fun getZoomFactor(): Int {
         return encryptedSharedPreferences.getInt(KEY_ZOOM_FACTOR.name, 100)
     }
@@ -245,6 +256,7 @@ class SettingsDataStoreImpl @Inject constructor(@ApplicationContext private val 
     override val themeFlow = getStringFlow(KEY_THEME.name, Theme.SYSTEM.name)
     override val zoomFactorFlow = getIntFlow(KEY_ZOOM_FACTOR.name, 100)
     override val sepiaEnabledFlow = getBooleanFlow(KEY_SEPIA_ENABLED.name, false)
+    override val keepScreenOnWhileReadingFlow = getBooleanFlow(KEY_KEEP_SCREEN_ON_READING.name, true)
     override suspend fun clearCredentials() {
         Timber.d("clearCredentials")
         encryptedSharedPreferences.edit(commit = true) {

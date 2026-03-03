@@ -51,6 +51,7 @@ The **User Interface Settings** screen controls the app's appearance.
 
 - **Theme** — choose **Light**, **Dark**, or **System** (follows your device's system setting)
 - **Sepia reading theme** — when enabled, uses warm tinted colors throughout the app. This only applies when the app is in light mode (either Light is selected, or System is selected and your device is in light mode).
+- **Keep screen on while reading** — when enabled, the screen stays on while you have a bookmark open in reading view. Enabled by default.
 
 ## Logs
 

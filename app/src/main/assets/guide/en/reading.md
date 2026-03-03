@@ -21,6 +21,8 @@ The top bar provides quick access to the most-used actions:
 
 As you scroll down to read, the top bar hides to give you more screen space. It reappears when you scroll back toward the top or when you reach the end of the article.
 
+The screen stays on while you read, so you won't lose your place to the device's screen timeout. This behaviour can be turned off in **Settings → User Interface**.
+
 ### Finding Text
 
 Tap **🔍** to open the in-article search bar. Type to search; matching text in the article is highlighted. If there are multiple matches, the current one is highlighted in amber and others in yellow. Use the **↑** and **↓** arrows to move between matches. The counter shows your current position (e.g., "2/5").

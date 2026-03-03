@@ -86,6 +86,8 @@
     <string name="ui_settings_theme_dialog_support_text">使用哪种主题？</string>
     <string name="ui_settings_sepia_title">Sepia reading theme</string>
     <string name="ui_settings_sepia_description">Use warm tinted colors for reading in light mode</string>
+    <string name="ui_settings_keep_screen_on_title">Keep screen on while reading</string>
+    <string name="ui_settings_keep_screen_on_description">Prevents the screen from turning off while you read</string>
     <string name="action_favorite">收藏</string>
     <string name="action_archive">存档</string>
     <string name="action_mark_read">已读</string>

@@ -69,4 +69,9 @@ interface SettingsDataStore {
     val sepiaEnabledFlow: StateFlow<Boolean>
     suspend fun saveSepiaEnabled(enabled: Boolean)
     suspend fun isSepiaEnabled(): Boolean
+
+    // Keep screen on while reading preference
+    val keepScreenOnWhileReadingFlow: StateFlow<Boolean>
+    suspend fun saveKeepScreenOnWhileReading(enabled: Boolean)
+    suspend fun isKeepScreenOnWhileReading(): Boolean
 }
