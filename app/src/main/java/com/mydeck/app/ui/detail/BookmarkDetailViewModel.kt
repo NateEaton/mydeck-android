@@ -174,6 +174,13 @@ class BookmarkDetailViewModel @Inject constructor(
                         // Refresh from API to get embed and other fields
                         // that may not have been present during initial sync
                         bookmarkRepository.refreshBookmarkFromApi(id)
+                        // Fetch article content on demand if not yet downloaded
+                        // (videos and photos can have article content per the API spec)
+                        when (bookmark.contentState) {
+                            ContentState.DOWNLOADED -> { /* Content already available */ }
+                            ContentState.PERMANENT_NO_CONTENT -> { /* No content available */ }
+                            else -> fetchContentOnDemand(id)
+                        }
                     }
                     is com.mydeck.app.domain.model.Bookmark.Type.Article -> {
                         currentScrollProgress = bookmark.readProgress
@@ -573,7 +580,7 @@ class BookmarkDetailViewModel @Inject constructor(
                 Type.PHOTO -> {
                     val textPart = articleContent ?: description.takeIf { it.isNotBlank() }?.let { "<p>$it</p>" } ?: ""
                     val imagePart = """<img src="$imgSrc"/>"""
-                    htmlTemplate.replace("%s", textPart + imagePart)
+                    htmlTemplate.replace("%s", imagePart + textPart)
                 }
 
                 Type.VIDEO -> {
@@ -585,7 +592,7 @@ class BookmarkDetailViewModel @Inject constructor(
                             raw
                         }
                     } ?: ""
-                    val content = textPart + embedPart
+                    val content = embedPart + textPart
                     if (content.isNotEmpty()) htmlTemplate.replace("%s", content) else null
                 }
 

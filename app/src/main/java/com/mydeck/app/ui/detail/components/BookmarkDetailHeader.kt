@@ -9,14 +9,11 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Image
-import androidx.compose.material.icons.outlined.Edit
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -71,49 +68,31 @@ fun BookmarkDetailHeader(
             Column(modifier = Modifier.weight(1f)) {
                 val fontFamily = TypographyUtils.getFontFamily(uiState.typographySettings.fontFamily)
                 if (isEditingTitle) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        OutlinedTextField(
-                            value = editedTitle,
-                            onValueChange = { newValue: String -> editedTitle = newValue },
-                            modifier = Modifier
-                                .weight(1f)
-                                .focusRequester(focusRequester),
-                            label = { Text(stringResource(R.string.edit_title)) },
-                            textStyle = MaterialTheme.typography.headlineSmall.copy(fontFamily = fontFamily)
-                        )
-                        IconButton(onClick = {
+                    OutlinedTextField(
+                        value = editedTitle,
+                        onValueChange = { newValue: String -> editedTitle = newValue },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .focusRequester(focusRequester),
+                        label = { Text(stringResource(R.string.edit_title)) },
+                        textStyle = MaterialTheme.typography.headlineSmall.copy(fontFamily = fontFamily),
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                        keyboardActions = KeyboardActions(onDone = {
                             onTitleChanged?.invoke(editedTitle)
                             isEditingTitle = false
-                        }) {
-                            Icon(Icons.Default.Check, contentDescription = stringResource(R.string.save))
-                        }
-                    }
+                        })
+                    )
                 } else {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.clickable { isEditingTitle = true }
-                    ) {
-                        Text(
-                            text = uiState.bookmark.title,
-                            style = MaterialTheme.typography.headlineSmall.copy(fontFamily = fontFamily),
-                            maxLines = 3,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.weight(1f)
-                        )
-                        IconButton(
-                            onClick = { isEditingTitle = true }
-                        ) {
-                            Icon(
-                                imageVector = Icons.Outlined.Edit,
-                                contentDescription = stringResource(R.string.edit_title),
-                                modifier = Modifier.size(24.dp),
-                                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)
-                            )
-                        }
-                    }
+                    Text(
+                        text = uiState.bookmark.title,
+                        style = MaterialTheme.typography.headlineSmall.copy(fontFamily = fontFamily),
+                        maxLines = 3,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { isEditingTitle = true }
+                    )
                 }
             }
         }
