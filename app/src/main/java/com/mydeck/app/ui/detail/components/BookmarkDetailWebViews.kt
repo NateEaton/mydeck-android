@@ -68,14 +68,26 @@ fun BookmarkDetailArticle(
     onLinkLongPress: (linkUrl: String, linkText: String) -> Unit = { _, _ -> },
 ) {
     val isSystemInDarkMode = isSystemInDarkTheme()
-    val content = remember(uiState.bookmark.bookmarkId, isSystemInDarkMode, uiState.template) {
-        mutableStateOf<String?>(null)
+    val content = remember(
+        uiState.bookmark.bookmarkId,
+        isSystemInDarkMode,
+        uiState.template,
+        uiState.bookmark.articleContent,
+        uiState.bookmark.embed
+    ) {
+        mutableStateOf(uiState.bookmark.getContent(uiState.template, isSystemInDarkMode))
     }
     val webViewRef = remember { mutableStateOf<WebView?>(null) }
     val json = remember { Json { ignoreUnknownKeys = true } }
 
-    LaunchedEffect(uiState.bookmark.bookmarkId, isSystemInDarkMode, uiState.template) {
-        content.value = getTemplate(uiState, isSystemInDarkMode)
+    LaunchedEffect(
+        uiState.bookmark.bookmarkId,
+        isSystemInDarkMode,
+        uiState.template,
+        uiState.bookmark.articleContent,
+        uiState.bookmark.embed
+    ) {
+        content.value = uiState.bookmark.getContent(uiState.template, isSystemInDarkMode)
         webViewRef.value?.settings?.textZoom = uiState.typographySettings.fontSizePercent
     }
 

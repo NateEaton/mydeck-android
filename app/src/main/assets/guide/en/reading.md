@@ -16,7 +16,7 @@ The top bar provides quick access to the most-used actions:
 - **❤️ Favorite** — toggle the favorite status
 - **Archive** — move the bookmark to the archive (or back to My List)
 - **TT Typography** — open the reading settings sheet
-- **🔍 Find in Article** — search for text within the article
+- **🔍 Find in Page** — search for text within the article
 - **⋮ More** — overflow menu with additional actions
 
 As you scroll down to read, the top bar hides to give you more screen space. It reappears when you scroll back toward the top or when you reach the end of the article.
@@ -39,21 +39,21 @@ Tap **TT** in the top bar to open the reading settings sheet.
 - **Hyphenate words** — toggle on or off
 - **Reset to defaults** — restore all reading settings at once
 
-These settings are saved automatically and apply to every article you read.
+These settings are saved automatically and apply to every article, video, and picture bookmark you read.
 
 ## Video View
 
-For video bookmarks (YouTube, Vimeo, etc.), MyDeck shows the title, a description, and an embedded video player. Videos stream from their original servers and require an internet connection.
+For video bookmarks (YouTube, Vimeo, etc.), MyDeck shows an embedded video player at the top, followed by any text content (description or transcript). Videos stream from their original servers and require an internet connection.
 
-The top bar in video view shows **← Back**, **❤️**, **Archive**, and **⋮** only — Typography and Find in Article are not available for video bookmarks.
+The top bar in video view includes all the same actions as article view: **← Back**, **❤️**, **Archive**, **TT Typography**, **🔍 Find in Page**, and **⋮**.
 
 If the video bookmark includes text content (such as a description or transcript), you can tap images or long-press links and images to access the **Image Lightbox** and **Long-press Context Menus** described below.
 
 ## Picture View
 
-For picture bookmarks, MyDeck shows the title, a description, and the stored image at full content width. Tap the image to open it in the **Image Lightbox** (see below) where you can zoom and pan.
+For picture bookmarks, MyDeck shows the stored image at the top at full content width, followed by any text content. Tap the image to open it in the **Image Lightbox** (see below) where you can zoom and pan.
 
-The top bar in picture view shows **← Back**, **❤️**, **Archive**, and **⋮** only.
+The top bar in picture view includes all the same actions as article view: **← Back**, **❤️**, **Archive**, **TT Typography**, **🔍 Find in Page**, and **⋮**. Use **⋮ → View Original** to see the source web page, or **⋮ → View Photograph** to return to the reading view.
 
 ## View Original
 

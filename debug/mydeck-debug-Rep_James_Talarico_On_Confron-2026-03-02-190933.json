@@ -1,0 +1,132 @@
+{
+    "exportInfo": {
+        "exportTimestamp": "2026-03-02T19:09:33.279-0600",
+        "appVersion": "0.10.0",
+        "appVersionCode": 10000,
+        "buildType": "debug",
+        "apiDataAvailable": true,
+        "articleHtmlAvailable": true
+    },
+    "apiResponse": {
+        "id": "G4pwpYjeEiNKc9eFwn67tp",
+        "href": "http://192.168.0.11:8889/api/bookmarks/G4pwpYjeEiNKc9eFwn67tp",
+        "created": "2026-03-02T19:45:56.663489003Z",
+        "updated": "2026-03-03T01:00:22.908347603Z",
+        "state": 0,
+        "loaded": true,
+        "url": "https://www.youtube.com/watch?v=oiTJ7Pz_59A&si=lQc55vZnTx_jAArD",
+        "title": "Rep. James Talarico On Confronting Christian Nationalism, And Strange Days In The Texas Legislature",
+        "site_name": "YouTube",
+        "site": "www.youtube.com",
+        "authors": [
+            "The Late Show with Stephen Colbert"
+        ],
+        "lang": "en",
+        "text_direction": "",
+        "document_type": "video",
+        "type": "video",
+        "has_article": true,
+        "description": "Stephen Colbert hosts Texas State Rep. James Talarico for an online-exclusive interview that touches on the issues raised in Talarico's campaign for the Democratic nomination for Senate including the separation of church and state, the dangers of consolidated corporate-owned media, and the fabricated culture wars pushed by Republicans in states like Texas. If you're curious why this interview with James Talarico was an online-exclusive, click here to watch Stephen Colbert explain: https://youtu.be/oh7DPSP65JA.",
+        "is_deleted": false,
+        "is_marked": false,
+        "is_archived": false,
+        "labels": [],
+        "read_progress": 100,
+        "resources": {
+            "article": {
+                "src": "http://192.168.0.11:8889/api/bookmarks/G4pwpYjeEiNKc9eFwn67tp/article"
+            },
+            "icon": {
+                "src": "http://192.168.0.11:8889/bm/G4/G4pwpYjeEiNKc9eFwn67tp/img/icon.ico",
+                "width": 16,
+                "height": 16
+            },
+            "image": {
+                "src": "http://192.168.0.11:8889/bm/G4/G4pwpYjeEiNKc9eFwn67tp/img/image.jpeg",
+                "width": 480,
+                "height": 360
+            },
+            "log": {
+                "src": "http://192.168.0.11:8889/api/bookmarks/G4pwpYjeEiNKc9eFwn67tp/x/log"
+            },
+            "props": {
+                "src": "http://192.168.0.11:8889/api/bookmarks/G4pwpYjeEiNKc9eFwn67tp/x/props.json"
+            },
+            "thumbnail": {
+                "src": "http://192.168.0.11:8889/bm/G4/G4pwpYjeEiNKc9eFwn67tp/img/thumbnail.jpeg",
+                "width": 380,
+                "height": 285
+            }
+        },
+        "word_count": 231,
+        "reading_time": 14,
+        "published": "2026-02-17T05:00:51Z",
+        "embed": "<iframe width=\"200\" height=\"113\" src=\"https://www.youtube-nocookie.com/embed/oiTJ7Pz_59A?feature=oembed\" frameborder=\"0\" allow=\"accelerometer &#39;none&#39;; ambient-light-sensor &#39;none&#39;; autoplay &#39;none&#39;; battery &#39;none&#39;; browsing-topics &#39;none&#39;; camera &#39;none&#39;; display-capture &#39;none&#39;; domain-agent &#39;none&#39;; document-domain &#39;none&#39;; encrypted-media &#39;none&#39;; execution-while-not-rendered &#39;none&#39;; execution-while-out-of-viewport &#39;&#39;; gamepad &#39;none&#39;; geolocation &#39;none&#39;; gyroscope &#39;none&#39;; hid &#39;none&#39;; identity-credentials-get &#39;none&#39;; idle-detection &#39;none&#39;; local-fonts &#39;none&#39;; magnetometer &#39;none&#39;; microphone &#39;none&#39;; midi &#39;none&#39;; otp-credentials &#39;none&#39;; payment &#39;none&#39;; publickey-credentials-create &#39;none&#39;; publickey-credentials-get &#39;none&#39;; screen-wake-lock &#39;none&#39;; serial &#39;none&#39;; speaker-selection &#39;none&#39;; usb &#39;none&#39;; window-management &#39;none&#39;; xr-spatial-tracking &#39;none&#39;\" referrerpolicy=\"strict-origin-when-cross-origin\" allowfullscreen=\"true\" title=\"Rep. James Talarico On Confronting Christian Nationalism, And Strange Days In The Texas Legislature\" credentialless=\"true\" sandbox=\"allow-scripts allow-same-origin\" csp=\"sandbox allow-scripts allow-same-origin\"></iframe>"
+    },
+    "localState": {
+        "bookmarkId": "G4pwpYjeEiNKc9eFwn67tp",
+        "contentState": "NOT_ATTEMPTED",
+        "contentFailureReason": "none",
+        "hasLocalArticleContent": false,
+        "localArticleContentLength": 0,
+        "readProgress": 100,
+        "isMarked": false,
+        "isArchived": false,
+        "isDeleted": false
+    },
+    "bookmarkMetadata": {
+        "id": "G4pwpYjeEiNKc9eFwn67tp",
+        "title": "Rep. James Talarico On Confronting Christian Nationalism, And Strange Days In The Texas Legislature",
+        "url": "https://www.youtube.com/watch?v=oiTJ7Pz_59A&si=lQc55vZnTx_jAArD",
+        "href": "http://192.168.0.11:8889/api/bookmarks/G4pwpYjeEiNKc9eFwn67tp",
+        "site": "www.youtube.com",
+        "siteName": "YouTube",
+        "state": "LOADED",
+        "loaded": true,
+        "type": "video",
+        "documentType": "video",
+        "hasArticle": true,
+        "lang": "en",
+        "textDirection": "",
+        "wordCount": 231,
+        "readingTime": 14,
+        "readProgress": 100,
+        "created": "2026-03-02T13:45:56.663",
+        "updated": "2026-03-02T19:00:22.908",
+        "published": "2026-02-16T23:00:51",
+        "description": "Stephen Colbert hosts Texas State Rep. James Talarico for an online-exclusive interview that touches on the issues raised in Talarico's campaign for the Democratic nomination for Senate including the separation of church and state, the dangers of consolidated corporate-owned media, and the fabricated culture wars pushed by Republicans in states like Texas. If you're curious why this interview with James Talarico was an online-exclusive, click here to watch Stephen Colbert explain: https://youtu.be/oh7DPSP65JA.",
+        "embed": "<iframe width=\"200\" height=\"113\" src=\"https://www.youtube-nocookie.com/embed/oiTJ7Pz_59A?feature=oembed\" frameborder=\"0\" allow=\"accelerometer &#39;none&#39;; ambient-light-sensor &#39;none&#39;; autoplay &#39;none&#39;; battery &#39;none&#39;; browsing-topics &#39;none&#39;; camera &#39;none&#39;; display-capture &#39;none&#39;; domain-agent &#39;none&#39;; document-domain &#39;none&#39;; encrypted-media &#39;none&#39;; execution-while-not-rendered &#39;none&#39;; execution-while-out-of-viewport &#39;&#39;; gamepad &#39;none&#39;; geolocation &#39;none&#39;; gyroscope &#39;none&#39;; hid &#39;none&#39;; identity-credentials-get &#39;none&#39;; idle-detection &#39;none&#39;; local-fonts &#39;none&#39;; magnetometer &#39;none&#39;; microphone &#39;none&#39;; midi &#39;none&#39;; otp-credentials &#39;none&#39;; payment &#39;none&#39;; publickey-credentials-create &#39;none&#39;; publickey-credentials-get &#39;none&#39;; screen-wake-lock &#39;none&#39;; serial &#39;none&#39;; speaker-selection &#39;none&#39;; usb &#39;none&#39;; window-management &#39;none&#39;; xr-spatial-tracking &#39;none&#39;\" referrerpolicy=\"strict-origin-when-cross-origin\" allowfullscreen=\"true\" title=\"Rep. James Talarico On Confronting Christian Nationalism, And Strange Days In The Texas Legislature\" credentialless=\"true\" sandbox=\"allow-scripts allow-same-origin\" csp=\"sandbox allow-scripts allow-same-origin\"></iframe>",
+        "embedHostname": "null",
+        "authors": [
+            "The Late Show with Stephen Colbert"
+        ],
+        "labels": [],
+        "resources": {
+            "article": {
+                "src": "http://192.168.0.11:8889/api/bookmarks/G4pwpYjeEiNKc9eFwn67tp/article"
+            },
+            "icon": {
+                "src": "http://192.168.0.11:8889/bm/G4/G4pwpYjeEiNKc9eFwn67tp/img/icon.ico",
+                "width": 16,
+                "height": 16
+            },
+            "image": {
+                "src": "http://192.168.0.11:8889/bm/G4/G4pwpYjeEiNKc9eFwn67tp/img/image.jpeg",
+                "width": 480,
+                "height": 360
+            },
+            "thumbnail": {
+                "src": "http://192.168.0.11:8889/bm/G4/G4pwpYjeEiNKc9eFwn67tp/img/thumbnail.jpeg",
+                "width": 380,
+                "height": 285
+            },
+            "log": {
+                "src": "http://192.168.0.11:8889/api/bookmarks/G4pwpYjeEiNKc9eFwn67tp/x/log"
+            },
+            "props": {
+                "src": "http://192.168.0.11:8889/api/bookmarks/G4pwpYjeEiNKc9eFwn67tp/x/props.json"
+            }
+        }
+    },
+    "articleHtml": "<section><section id=\"td.UxvM.main\"><p>Stephen Colbert hosts Texas State Rep. James Talarico for an online-exclusive interview that touches on the issues raised in Talarico&#39;s campaign for the Democratic nomination for Senate including the separation of church and state, the dangers of consolidated corporate-owned media, and the fabricated culture wars pushed by Republicans in states like Texas. If you&#39;re curious why this interview with James Talarico was an online-exclusive, click here to watch Stephen Colbert explain: <a href=\"https://youtu.be/oh7DPSP65JA\" rel=\"nofollow noopener noreferrer\">https://youtu.be/oh7DPSP65JA</a>.</p>\n<p>#Colbert #Comedy #JamesTalarico #Texas #Politics #StephenColbert #TheLateShow</p><p>Subscribe To &#34;The Late Show&#34; Channel: <a href=\"http://bit.ly/ColbertYouTube\" rel=\"nofollow noopener noreferrer\">http://bit.ly/ColbertYouTube</a></p><p>Watch full episodes of &#34;The Late Show&#34;: <a href=\"http://bit.ly/1Puei40\" rel=\"nofollow noopener noreferrer\">http://bit.ly/1Puei40</a><br/>\nListen to &#34;The Late Show Pod Show&#34; podcast: <a href=\"https://link.chtbl.com/Awagtx95?sid=yt\" rel=\"nofollow noopener noreferrer\">https://link.chtbl.com/Awagtx95?sid=yt</a><br/>\nLike &#34;The Late Show&#34; on Facebook: <a href=\"http://on.fb.me/1df139Y\" rel=\"nofollow noopener noreferrer\">http://on.fb.me/1df139Y</a><br/>\nFollow &#34;The Late Show&#34; on X: <a href=\"http://bit.ly/1dMzZzG\" rel=\"nofollow noopener noreferrer\">http://bit.ly/1dMzZzG</a><br/>\nFollow &#34;The Late Show&#34; on Instagram: <a href=\"http://bit.ly/29wfREj\" rel=\"nofollow noopener noreferrer\">http://bit.ly/29wfREj</a></p><p>Watch The Late Show with Stephen Colbert weeknights at 11:35 PM ET/10:35 PM CT. Only on CBS.</p><p>---<br/>\nStephen Colbert brings his signature satire and comedy to THE LATE SHOW with STEPHEN COLBERT, the #1 show in late night, where he talks with an eclectic mix of guests about what is new and relevant in the worlds of politics, entertainment, business, music, technology and more. Featuring bandleader Louis Cato and “THE LATE SHOW band,” the Peabody Award-winning and Emmy Award-nominated show is broadcast from the historic Ed Sullivan Theater. Stephen Colbert took over as host, executive producer and writer of THE LATE SHOW on Sept. 8, 2015.</p></section></section>\n"
+}

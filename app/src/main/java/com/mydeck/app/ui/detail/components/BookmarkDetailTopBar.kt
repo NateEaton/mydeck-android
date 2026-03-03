@@ -81,7 +81,9 @@ fun BookmarkDetailTopBar(
                         contentDescription = stringResource(R.string.action_archive)
                     )
                 }
-                if (uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.ARTICLE &&
+                if ((uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.ARTICLE ||
+                     uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.VIDEO ||
+                     uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.PHOTO) &&
                     contentMode == ContentMode.READER) {
                     IconButton(onClick = { onShowTypographyPanel() }) {
                         Icon(
@@ -92,7 +94,7 @@ fun BookmarkDetailTopBar(
                     IconButton(onClick = { onArticleSearchActivate() }) {
                         Icon(
                             imageVector = Icons.Outlined.FindInPage,
-                            contentDescription = stringResource(R.string.action_search_in_article)
+                            contentDescription = stringResource(R.string.action_find_in_page)
                         )
                     }
                 }

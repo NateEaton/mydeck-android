@@ -7,6 +7,7 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.Description
@@ -84,6 +85,25 @@ fun BookmarkDetailMenu(
                     leadingIcon = {
                         Icon(
                             if (contentMode == ContentMode.READER) Icons.Default.Language else Icons.Default.Movie,
+                            contentDescription = null
+                        )
+                    }
+                )
+            } else if (uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.PHOTO) {
+                DropdownMenuItem(
+                    text = {
+                        Text(
+                            if (contentMode == ContentMode.READER) stringResource(R.string.action_view_original)
+                            else stringResource(R.string.action_view_photograph)
+                        )
+                    },
+                    onClick = {
+                        onContentModeChange(if (contentMode == ContentMode.READER) ContentMode.ORIGINAL else ContentMode.READER)
+                        expanded = false
+                    },
+                    leadingIcon = {
+                        Icon(
+                            if (contentMode == ContentMode.READER) Icons.Default.Language else Icons.Default.Image,
                             contentDescription = null
                         )
                     }
