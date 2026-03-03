@@ -140,6 +140,7 @@ fun UiSettingsView(
 
             // Sepia theme toggle (applies when effective theme is Light)
             ListItem(
+                modifier = Modifier.clickable { onSepiaToggled(!settingsUiState.useSepiaInLight) },
                 headlineContent = {
                     Text(
                         text = stringResource(R.string.ui_settings_sepia_title),
@@ -162,6 +163,7 @@ fun UiSettingsView(
 
             // Keep screen on while reading toggle
             ListItem(
+                modifier = Modifier.clickable { onKeepScreenOnWhileReadingToggled(!settingsUiState.keepScreenOnWhileReading) },
                 headlineContent = {
                     Text(
                         text = stringResource(R.string.ui_settings_keep_screen_on_title),
