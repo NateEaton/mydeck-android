@@ -71,6 +71,39 @@ The English text serves as a placeholder until professional translators provide 
 
 ---
 
+## Cloud Build Validation
+
+This project supports Android builds in cloud AI coding environments (Claude Code for Web, ChatGPT Codex).
+
+### Prerequisites
+
+- **Claude Code for Web:** Set Network Access to **"Full"** in project settings. The Android SDK is installed automatically via the SessionStart hook in `.claude/settings.json`.
+- **Codex:** Run `scripts/setup-codex.sh` as the environment setup command.
+
+### Gradle Tasks for Validation
+
+After making code changes, run these tasks to validate:
+
+```bash
+# Compile the app (catches syntax errors, missing imports, type mismatches)
+./gradlew assembleGithubSnapshotDebug
+
+# Run Android lint (catches resource issues, API compatibility, best practices)
+./gradlew lintGithubSnapshotDebug
+
+# Run unit tests
+./gradlew testGithubSnapshotDebugUnitTest
+```
+
+### Troubleshooting
+
+If Gradle fails with 403 errors downloading dependencies:
+- Verify network access is set to "Full" (not "Limited")
+- The `gradle.properties` file includes proxy bypass fixes for cloud environments
+- The setup script fixes `JAVA_TOOL_OPTIONS` to route Google Maven through the proxy
+
+---
+
 ## Other Guidelines
 
 - Follow existing code style and patterns
