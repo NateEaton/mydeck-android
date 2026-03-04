@@ -42,12 +42,15 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.FormatSize
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Inventory2
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Share
+import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.LocalContentColor
@@ -86,6 +89,10 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Row
+import androidx.compose.ui.draw.clip
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -391,7 +398,9 @@ fun BookmarkDetailHost(
                         onUpdateLabels(uiState.bookmark.bookmarkId, newLabels)
                     },
                     existingLabels = labelsWithCounts.keys.toList(),
-                    onExportDebugJson = { viewModel.onExportDebugJson() }
+                    onExportDebugJson = { viewModel.onExportDebugJson() },
+                    onClickOpenUrl = onClickOpenUrl,
+                    onClickOpenInBrowser = onClickOpenInBrowser
                 )
             }
             if (showTypographyPanel) {
@@ -454,33 +463,10 @@ fun BookmarkDetailScreen(
     onLinkLongPress: (linkUrl: String, linkText: String) -> Unit = { _, _ -> },
 ) {
     val topBarScrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior()
-    var scrollPercent by remember { mutableIntStateOf(0) }
-
-    // Wrap the nested scroll connection so it becomes a no-op near the bottom of
-    // the article (≥95%).  This prevents the enter-always behavior from re-hiding
-    // the top bar when overscroll / bounce sends a few pixels of downward delta.
-    // When the threshold is crossed the bar is snapped visible once.
-    val guardedScrollConnection = remember(topBarScrollBehavior) {
-        object : NestedScrollConnection {
-            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
-                if (scrollPercent >= 95) {
-                    // Ensure bar is fully visible and swallow the delta
-                    topBarScrollBehavior.state.heightOffset = 0f
-                    return Offset.Zero
-                }
-                return topBarScrollBehavior.nestedScrollConnection.onPreScroll(available, source)
-            }
-
-            override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset {
-                if (scrollPercent >= 95) return Offset.Zero
-                return topBarScrollBehavior.nestedScrollConnection.onPostScroll(consumed, available, source)
-            }
-        }
-    }
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
-        modifier = modifier.nestedScroll(guardedScrollConnection),
+        modifier = modifier.nestedScroll(topBarScrollBehavior.nestedScrollConnection),
         topBar = {
             BookmarkDetailTopBar(
                 articleSearchState = articleSearchState,
@@ -505,27 +491,24 @@ fun BookmarkDetailScreen(
             )
         }
     ) { padding ->
-        Box(
+        // Main content with buttons at the end
+        BookmarkDetailContent(
             modifier = Modifier.fillMaxSize().padding(padding),
-            contentAlignment = Alignment.TopCenter
-        ) {
-            BookmarkDetailContent(
-                modifier = Modifier,
-                uiState = uiState,
-                onClickOpenUrl = onClickOpenUrl,
-                onScrollProgressChanged = onScrollProgressChanged,
-                initialReadProgress = initialReadProgress,
-                contentMode = contentMode,
-                contentLoadState = contentLoadState,
-                articleSearchState = articleSearchState,
-                onArticleSearchUpdateResults = onArticleSearchUpdateResults,
-                onTitleChanged = onTitleChanged,
-                onScrollPercentChanged = { scrollPercent = it },
-                onImageTapped = onImageTapped,
-                onImageLongPress = onImageLongPress,
-                onLinkLongPress = onLinkLongPress,
-            )
-        }
+            uiState = uiState,
+            onClickOpenUrl = onClickOpenUrl,
+            onScrollProgressChanged = onScrollProgressChanged,
+            initialReadProgress = initialReadProgress,
+            contentMode = contentMode,
+            contentLoadState = contentLoadState,
+            articleSearchState = articleSearchState,
+            onArticleSearchUpdateResults = onArticleSearchUpdateResults,
+            onTitleChanged = onTitleChanged,
+            onImageTapped = onImageTapped,
+            onImageLongPress = onImageLongPress,
+            onLinkLongPress = onLinkLongPress,
+            onClickToggleFavorite = onClickToggleFavorite,
+            onClickToggleArchive = onClickToggleArchive
+        )
     }
 }
 
@@ -541,10 +524,11 @@ fun BookmarkDetailContent(
     articleSearchState: BookmarkDetailViewModel.ArticleSearchState = BookmarkDetailViewModel.ArticleSearchState(),
     onArticleSearchUpdateResults: (Int) -> Unit = {},
     onTitleChanged: ((String) -> Unit)? = null,
-    onScrollPercentChanged: (Int) -> Unit = {},
     onImageTapped: (ImageGalleryData) -> Unit = {},
     onImageLongPress: (imageUrl: String, linkUrl: String?, linkType: String, imageAlt: String) -> Unit = { _, _, _, _ -> },
     onLinkLongPress: (linkUrl: String, linkText: String) -> Unit = { _, _ -> },
+    onClickToggleFavorite: (String, Boolean) -> Unit = { _, _ -> },
+    onClickToggleArchive: (String, Boolean) -> Unit = { _, _ -> }
 ) {
     val scrollState = rememberScrollState()
     val hasArticleContent = uiState.bookmark.articleContent != null
@@ -579,7 +563,6 @@ fun BookmarkDetailContent(
         if (progress != lastReportedProgress) {
             lastReportedProgress = progress
             onScrollProgressChanged(progress)
-            onScrollPercentChanged(progress)
         }
     }
 
@@ -625,6 +608,104 @@ fun BookmarkDetailContent(
                 } else {
                     // Brief fallback while auto-switch to Original hasn't happened yet
                     EmptyBookmarkDetailArticle(modifier = Modifier)
+                }
+
+                // Action buttons at the end of content (only show in reader mode for articles, videos, and photos)
+                if ((uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.ARTICLE ||
+                     uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.VIDEO ||
+                     uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.PHOTO) &&
+                    contentMode == ContentMode.READER) {
+                    Spacer(modifier = Modifier.height(24.dp))
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth(contentWidthFraction)
+                            .padding(horizontal = 16.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        // Favorite button
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(MaterialTheme.shapes.extraLarge)
+                                .clickable {
+                                    onClickToggleFavorite(uiState.bookmark.bookmarkId, !uiState.bookmark.isFavorite)
+                                }
+                                .background(
+                                    if (uiState.bookmark.isFavorite) 
+                                        MaterialTheme.colorScheme.primaryContainer
+                                    else 
+                                        MaterialTheme.colorScheme.surfaceVariant
+                                )
+                                .padding(horizontal = 16.dp, vertical = 12.dp),
+                            horizontalArrangement = Arrangement.Center,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = if (uiState.bookmark.isFavorite) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp),
+                                tint = if (uiState.bookmark.isFavorite) 
+                                    MaterialTheme.colorScheme.onPrimaryContainer
+                                else 
+                                    MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                text = if (uiState.bookmark.isFavorite)
+                                    stringResource(R.string.action_remove_from_favorites)
+                                else
+                                    stringResource(R.string.action_add_to_favorites),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = if (uiState.bookmark.isFavorite) 
+                                    MaterialTheme.colorScheme.onPrimaryContainer
+                                else 
+                                    MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+
+                        // Archive button
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(MaterialTheme.shapes.extraLarge)
+                                .clickable {
+                                    onClickToggleArchive(uiState.bookmark.bookmarkId, !uiState.bookmark.isArchived)
+                                }
+                                .background(
+                                    if (uiState.bookmark.isArchived) 
+                                        MaterialTheme.colorScheme.primaryContainer
+                                    else 
+                                        MaterialTheme.colorScheme.surfaceVariant
+                                )
+                                .padding(horizontal = 16.dp, vertical = 12.dp),
+                            horizontalArrangement = Arrangement.Center,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = if (uiState.bookmark.isArchived) Icons.Filled.Inventory2 else Icons.Outlined.Inventory2,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp),
+                                tint = if (uiState.bookmark.isArchived) 
+                                    MaterialTheme.colorScheme.onPrimaryContainer
+                                else 
+                                    MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                text = if (uiState.bookmark.isArchived)
+                                    stringResource(R.string.action_remove_from_archive)
+                                else
+                                    stringResource(R.string.action_add_to_archive),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = if (uiState.bookmark.isArchived) 
+                                    MaterialTheme.colorScheme.onPrimaryContainer
+                                else 
+                                    MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(16.dp))
                 }
             }
 
@@ -906,7 +987,9 @@ private fun BookmarkDetailContentPreview() {
                 zoomFactor = 100,
                 typographySettings = com.mydeck.app.domain.model.TypographySettings()
             ),
-            onClickOpenUrl = {}
+            onClickOpenUrl = {},
+            onClickToggleFavorite = { _, _ -> },
+            onClickToggleArchive = { _, _ -> }
         )
     }
 }

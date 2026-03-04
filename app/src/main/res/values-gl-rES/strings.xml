@@ -68,7 +68,12 @@ other{}
     <!-- Bookmark Card Actions -->
     <string name="action_favorite">Favorecer</string>
     <string name="action_archive">Arquivar</string>
-    <string name="action_mark_read">Lido</string>
+    <string name="action_add_to_favorites">Engadir a favoritos</string>
+    <string name="action_remove_from_favorites">Eliminar favorito</string>
+    <string name="action_add_to_archive">Arquivar</string>
+    <string name="action_remove_from_archive">Desarquivar</string>
+    <string name="action_mark_read">Marcar como lido</string>
+    <string name="action_mark_unread">Marcar como non lido</string>
     <string name="action_delete">Eliminar</string>
     <string name="error_no_article_content">Erro, o contido do artigo non está dispoñible</string>
     <string name="update_successful">Actualización correcta</string>
@@ -151,7 +156,11 @@ other{}
     <!-- Bookmark Details Dialog -->
     <string name="detail_saved_date">Saved</string>
     <string name="detail_published_date">Published</string>
+    <string name="detail_published_prefix">Publicado %1$s</string>
     <string name="detail_author">Author</string>
+    <string name="detail_by_author">Por %1$s</string>
+    <string name="detail_reading_time">Reading Time</string>
+    <string name="detail_about_minutes_read">Uns %1$d minutos de lectura</string>
     <string name="detail_site">Site</string>
     <string name="detail_about">About %1$s</string>
     <string name="detail_words">%1$d words</string>
@@ -247,6 +256,7 @@ other{}
     <string name="action_copy_link">Copy Link Address</string>
     <string name="action_copy_link_text">Copy Link Text</string>
     <string name="action_share_link">Share Link</string>
+    <string name="action_share">Compartir ligazón</string>
     <string name="link_copied">Link copied</string>
     <string name="link_text_copied">Link text copied</string>
     <string name="action_copy_image">Copy Image</string>

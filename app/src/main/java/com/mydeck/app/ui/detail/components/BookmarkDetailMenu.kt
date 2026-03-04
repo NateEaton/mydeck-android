@@ -1,12 +1,18 @@
 package com.mydeck.app.ui.detail.components
 
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.Inventory2
+import androidx.compose.material.icons.outlined.FavoriteBorder
+import androidx.compose.material.icons.outlined.Inventory2
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.outlined.CheckCircle
@@ -23,7 +29,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
+import androidx.compose.material3.MaterialTheme
 import com.mydeck.app.R
 import com.mydeck.app.ui.detail.BookmarkDetailViewModel
 import com.mydeck.app.ui.detail.ContentMode
@@ -31,6 +40,8 @@ import com.mydeck.app.ui.detail.ContentMode
 @Composable
 fun BookmarkDetailMenu(
     uiState: BookmarkDetailViewModel.UiState.Success,
+    onClickToggleFavorite: (String, Boolean) -> Unit,
+    onClickToggleArchive: (String, Boolean) -> Unit,
     onClickToggleRead: (String, Boolean) -> Unit,
     onClickShareBookmark: (String) -> Unit,
     onClickDeleteBookmark: (String) -> Unit,
@@ -50,7 +61,73 @@ fun BookmarkDetailMenu(
             expanded = expanded,
             onDismissRequest = { expanded = false }
         ) {
-            // 1. View Article / View Original (article and video types)
+            // 1. Add to Favorites / Remove from Favorites
+            DropdownMenuItem(
+                text = {
+                    Text(
+                        if (uiState.bookmark.isFavorite) stringResource(R.string.action_remove_from_favorites)
+                        else stringResource(R.string.action_add_to_favorites)
+                    )
+                },
+                onClick = {
+                    onClickToggleFavorite(uiState.bookmark.bookmarkId, !uiState.bookmark.isFavorite)
+                    expanded = false
+                },
+                leadingIcon = {
+                    Icon(
+                        if (uiState.bookmark.isFavorite) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
+                        contentDescription = null
+                    )
+                }
+            )
+
+            // 2. Add to Archive / Remove from Archive
+            DropdownMenuItem(
+                text = {
+                    Text(
+                        if (uiState.bookmark.isArchived) stringResource(R.string.action_remove_from_archive)
+                        else stringResource(R.string.action_add_to_archive)
+                    )
+                },
+                onClick = {
+                    onClickToggleArchive(uiState.bookmark.bookmarkId, !uiState.bookmark.isArchived)
+                    expanded = false
+                },
+                leadingIcon = {
+                    Icon(
+                        if (uiState.bookmark.isArchived) Icons.Filled.Inventory2 else Icons.Outlined.Inventory2,
+                        contentDescription = null
+                    )
+                }
+            )
+
+            // 3. Is Read (moved under archive)
+            DropdownMenuItem(
+                text = {
+                    Text(
+                        if (uiState.bookmark.isRead) stringResource(R.string.action_mark_unread)
+                        else stringResource(R.string.action_mark_read)
+                    )
+                },
+                onClick = {
+                    onClickToggleRead(uiState.bookmark.bookmarkId, !uiState.bookmark.isRead)
+                    expanded = false
+                },
+                leadingIcon = {
+                    Icon(
+                        if (uiState.bookmark.isRead) Icons.Filled.CheckCircle else Icons.Outlined.CheckCircle,
+                        contentDescription = null
+                    )
+                }
+            )
+
+            // Thin light divider between read and View original
+            HorizontalDivider(
+                modifier = Modifier.padding(horizontal = 12.dp),
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+            )
+
+            // 4. View Article / View Original (article and video types)
             if (uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.ARTICLE) {
                 DropdownMenuItem(
                     text = {
@@ -110,19 +187,7 @@ fun BookmarkDetailMenu(
                 )
             }
 
-            // 2. Open in Browser
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.action_open_in_browser)) },
-                onClick = {
-                    onClickOpenInBrowser(uiState.bookmark.url)
-                    expanded = false
-                },
-                leadingIcon = {
-                    Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = null)
-                }
-            )
-
-            // 3. Share Link
+            // Share Link
             DropdownMenuItem(
                 text = { Text(stringResource(R.string.action_share)) },
                 onClick = {
@@ -134,27 +199,7 @@ fun BookmarkDetailMenu(
                 }
             )
 
-            // 4. Is Read
-            DropdownMenuItem(
-                text = {
-                    Text(
-                        if (uiState.bookmark.isRead) stringResource(R.string.action_mark_read)
-                        else stringResource(R.string.action_mark_unread)
-                    )
-                },
-                onClick = {
-                    onClickToggleRead(uiState.bookmark.bookmarkId, !uiState.bookmark.isRead)
-                    expanded = false
-                },
-                leadingIcon = {
-                    Icon(
-                        if (uiState.bookmark.isRead) Icons.Filled.CheckCircle else Icons.Outlined.CheckCircle,
-                        contentDescription = null
-                    )
-                }
-            )
-
-            // 5. Bookmark Details
+            // 5. Details (changed from Bookmark Details)
             DropdownMenuItem(
                 text = { Text(stringResource(R.string.detail_dialog_title)) },
                 onClick = {
@@ -164,6 +209,12 @@ fun BookmarkDetailMenu(
                 leadingIcon = {
                     Icon(Icons.Outlined.Info, contentDescription = null)
                 }
+            )
+
+            // Thin light divider between Details and Delete
+            HorizontalDivider(
+                modifier = Modifier.padding(horizontal = 12.dp),
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
             )
 
             // 6. Delete

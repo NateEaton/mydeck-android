@@ -4,17 +4,15 @@ Tap any bookmark card to open it. MyDeck displays the bookmark in a view suited 
 
 ## Article View
 
-For articles, MyDeck shows the extracted text in a clean, distraction-free reading layout. The bookmark title appears at the top — tap the **✏️** icon beside it to edit the title inline and confirm with the **✓** checkmark.
+For articles, MyDeck shows the extracted text in a clean, distraction-free reading layout. The bookmark title appears at the top — tap directly on the title text to edit it inline, then confirm with the **✓** checkmark or cancel with the **✗** icon. The text edit field will save the change when confirmed.
 
 Tap any image in an article to open it in the **Image Lightbox** (see below). Long-press links or images to access **Long-press Context Menus** (see below).
 
 ### Top Bar
 
-The top bar provides quick access to the most-used actions:
+The top bar provides quick access to essential navigation and reading actions:
 
 - **← Back** — return to the bookmark list
-- **❤️ Favorite** — toggle the favorite status
-- **Archive** — move the bookmark to the archive (or back to My List)
 - **TT Typography** — open the reading settings sheet
 - **🔍 Find in Page** — search for text within the article
 - **⋮ More** — overflow menu with additional actions
@@ -22,6 +20,15 @@ The top bar provides quick access to the most-used actions:
 As you scroll down to read, the top bar hides to give you more screen space. It reappears when you scroll back toward the top or when you reach the end of the article.
 
 The screen stays on while you read, so you won't lose your place to the device's screen timeout. This behaviour can be turned off in **Settings → User Interface**.
+
+### Action Buttons
+
+At the end of the article content (not anchored to the screen), you'll find two styled action buttons:
+
+- **❤️ Add to favorite / Remove favorite** — toggle the favorite status
+- **📦 Archive / Unarchive** — move the bookmark to the archive (or back to My List)
+
+These buttons appear as pills that match the app's design theme and provide quick access to the most common organizing actions without needing to open the overflow menu.
 
 ### Finding Text
 
@@ -45,7 +52,7 @@ These settings are saved automatically and apply to every article, video, and pi
 
 For video bookmarks (YouTube, Vimeo, etc.), MyDeck shows an embedded video player at the top, followed by any text content (description or transcript). Videos stream from their original servers and require an internet connection.
 
-The top bar in video view includes all the same actions as article view: **← Back**, **❤️**, **Archive**, **TT Typography**, **🔍 Find in Page**, and **⋮**.
+The top bar in video view includes the same actions as article view: **← Back**, **TT Typography**, **🔍 Find in Page**, and **⋮**. The favorite and archive actions are available in the overflow menu or as inline buttons at the end of the content. Tap directly on the title to edit it inline.
 
 If the video bookmark includes text content (such as a description or transcript), you can tap images or long-press links and images to access the **Image Lightbox** and **Long-press Context Menus** described below.
 
@@ -53,31 +60,34 @@ If the video bookmark includes text content (such as a description or transcript
 
 For picture bookmarks, MyDeck shows the stored image at the top at full content width, followed by any text content. Tap the image to open it in the **Image Lightbox** (see below) where you can zoom and pan.
 
-The top bar in picture view includes all the same actions as article view: **← Back**, **❤️**, **Archive**, **TT Typography**, **🔍 Find in Page**, and **⋮**. Use **⋮ → View Original** to see the source web page, or **⋮ → View Photograph** to return to the reading view.
+The top bar in picture view includes the same actions as article view: **← Back**, **TT Typography**, **🔍 Find in Page**, and **⋮**. The favorite and archive actions are available in the overflow menu or as inline buttons at the end of the content. Tap directly on the title to edit it inline. Use **⋮ → Original View** to see the source web page, or **⋮ → View Photograph** to return to the reading view.
 
-## View Original
+## Original View
 
 Any bookmark can be opened in its original format in an in-app web viewer.
 
-- **From article view:** tap **⋮** → **View Original**
-- **From View Original:** tap **⋮** → **View Article** to return to the reading view
+- **From article view:** tap **⋮** → **Original View**
+- **From Original View:** tap **⋮** → **View Article** to return to the reading view
 
-> **No article content:** If Readeck was unable to extract article content when the bookmark was saved, MyDeck automatically opens the bookmark in View Original instead of showing an empty reading view. In that case, the overflow menu will show **View Article** (to attempt the reading view) rather than **View Original**.
+> **No article content:** If Readeck was unable to extract article content when the bookmark was saved, MyDeck automatically opens the bookmark in Original View instead of showing an empty reading view. In that case, the overflow menu will show **View Article** (to attempt the reading view) rather than **Original View**.
 
 ## Overflow Menu
 
 Tap **⋮** in the top bar for additional actions:
 
-- **View Original / View Article** — switch between the reading view and the original web page in an in-app viewer (see above)
-- **Open in Browser** — open the original URL in your default browser
+- **Add to favorites / Remove favorite** — toggle the favorite status
+- **Archive / Unarchive** — move the bookmark to the archive (or back to My List)
+- **Mark as read / Mark as unread** — toggle whether the bookmark has been read; this is reflected back in the bookmark list
+- **Original View / View Article** — switch between the reading view and the original web page in an in-app viewer (see above)
 - **Share Link** — open the Android share sheet to share the bookmark's URL
-- **Unread / Read** — toggle whether the bookmark has been read; this is reflected back in the bookmark list
-- **Bookmark Details** — open the Bookmark Details screen (see below)
+- **Details** — open the Bookmark Details screen (see below)
 - **Delete** — delete the bookmark; you are returned to the list and a **"Bookmark deleted"** bar appears with an **Undo** option
+
+The menu includes visual dividers to separate related actions and destructive actions.
 
 ## Links in Content
 
-Tapping a link within bookmark content (articles, pictures with descriptions, or videos with text) opens the associated web page in a browser overlay. Links open in the browser rather than MyDeck's in-app web viewer, which is reserved for a bookmark's own original URL via View Original.
+Tapping a link within bookmark content (articles, pictures with descriptions, or videos with text) opens the associated web page in your device's default browser. Links open in the browser rather than MyDeck's in-app web viewer, which is reserved for a bookmark's own original URL via Original View.
 
 ## Long-press Context Menus
 
@@ -112,9 +122,10 @@ If the current image was originally a hyperlink (linking to another page or site
 
 ## Bookmark Details
 
-**Bookmark Details** (opened from the overflow menu) shows the bookmark's full metadata:
+**Details** (opened from the overflow menu) shows the bookmark's full metadata:
 
 - Thumbnail
-- Author, date added, date published, reading time, word count
+- Type, date added, date published, author, reading time, word count
+- External link — tap to open the original URL in your default browser
 - Description
 - **Labels** — add or remove labels for this bookmark; see [Organizing](./organizing.md) for the full guide to working with labels

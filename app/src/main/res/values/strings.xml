@@ -107,8 +107,12 @@ other{}
     <!-- Bookmark Card Actions -->
     <string name="action_favorite">Favorite</string>
     <string name="action_archive">Archive</string>
-    <string name="action_mark_read">Read</string>
-    <string name="action_mark_unread">Unread</string>
+    <string name="action_add_to_favorites">Add to favorites</string>
+    <string name="action_remove_from_favorites">Remove favorite</string>
+    <string name="action_add_to_archive">Archive</string>
+    <string name="action_remove_from_archive">Unarchive</string>
+    <string name="action_mark_read">Mark as read</string>
+    <string name="action_mark_unread">Mark as unread</string>
     <string name="action_is_read">Is Read</string>
     <string name="action_share">Share Link</string>
     <string name="action_delete">Delete</string>
@@ -188,15 +192,18 @@ other{}
     <string name="about_license_readeck">Readeck server is licensed under the AGPL-3.0 license.</string>
 
     <!-- Bookmark Details Dialog -->
-    <string name="detail_dialog_title">Bookmark Details</string>
+    <string name="detail_dialog_title">Details</string>
     <string name="detail_type">Type</string>
     <string name="detail_language">Language</string>
     <string name="detail_word_count">Word Count</string>
     <string name="detail_reading_time">Reading Time</string>
+    <string name="detail_about_minutes_read">About %1$d minutes read</string>
     <string name="detail_minutes_short">min</string>
     <string name="detail_saved_date">Saved</string>
     <string name="detail_published_date">Published</string>
+    <string name="detail_published_prefix">Published %1$s</string>
     <string name="detail_author">Author</string>
+    <string name="detail_by_author">By %1$s</string>
     <string name="detail_site">Site</string>
     <string name="detail_about">About %1$s</string>
     <string name="detail_words">%1$d words</string>

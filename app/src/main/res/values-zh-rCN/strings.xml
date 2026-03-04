@@ -90,7 +90,12 @@
     <string name="ui_settings_keep_screen_on_description">Prevents the screen from turning off while you read</string>
     <string name="action_favorite">收藏</string>
     <string name="action_archive">存档</string>
-    <string name="action_mark_read">已读</string>
+    <string name="action_add_to_favorites">添加到收藏</string>
+    <string name="action_remove_from_favorites">移除收藏</string>
+    <string name="action_add_to_archive">存档</string>
+    <string name="action_remove_from_archive">取消存档</string>
+    <string name="action_mark_read">标记为已读</string>
+    <string name="action_mark_unread">标记为未读</string>
     <string name="action_share">分享链接</string>
     <string name="action_delete">删除</string>
     <string name="action_open_in_browser">在浏览器中打开</string>
@@ -185,7 +190,11 @@
     <!-- Bookmark Details Dialog -->
     <string name="detail_saved_date">Saved</string>
     <string name="detail_published_date">Published</string>
+    <string name="detail_published_prefix">发布于 %1$s</string>
     <string name="detail_author">Author</string>
+    <string name="detail_by_author">作者 %1$s</string>
+    <string name="detail_reading_time">Reading Time</string>
+    <string name="detail_about_minutes_read">大约 %1$d 分钟阅读时间</string>
     <string name="detail_site">Site</string>
     <string name="detail_about">About %1$s</string>
     <string name="detail_words">%1$d words</string>

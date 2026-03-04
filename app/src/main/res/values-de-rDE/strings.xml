@@ -82,12 +82,16 @@ other{}
 
     <!-- Bookmark Card Actions -->
     <string name="action_favorite">Favorit</string>
-    <string name="action_archive">Archivieren</string>
-    <string name="action_mark_read">Gelesen</string>
-    <string name="action_share">Link teilen</string>
+    <string name="action_archive">Archiv</string>
+    <string name="action_add_to_favorites">Zu Favoriten hinzufügen</string>
+    <string name="action_remove_from_favorites">Favorit entfernen</string>
+    <string name="action_add_to_archive">Archivieren</string>
+    <string name="action_remove_from_archive">Aus Archiv entfernen</string>
+    <string name="action_mark_read">Als gelesen markieren</string>
+    <string name="action_mark_unread">Als ungelesen markieren</string>
+    <string name="more_options">Mehr Optionen</string>
     <string name="action_delete">Löschen</string>
     <string name="action_open_in_browser">In Browser öffnen</string>
-    <string name="more_options">Weitere Optionen</string>
     <string name="error_no_article_content">Fehler, kein Artikelinhalt verfügbar</string>
     <string name="update_successful">Aktualisierung erfolgreich</string>
     <string name="notification_channel_sync_name">Synchronisierungsfehler</string>
@@ -185,7 +189,11 @@ other{}
     <!-- Bookmark Details Dialog -->
     <string name="detail_saved_date">Saved</string>
     <string name="detail_published_date">Published</string>
+    <string name="detail_published_prefix">Veröffentlicht %1$s</string>
     <string name="detail_author">Author</string>
+    <string name="detail_by_author">Von %1$s</string>
+    <string name="detail_reading_time">Reading Time</string>
+    <string name="detail_about_minutes_read">Ungefähr %1$d Minuten Lesezeit</string>
     <string name="detail_site">Site</string>
     <string name="detail_about">About %1$s</string>
     <string name="detail_words">%1$d words</string>
@@ -280,6 +288,7 @@ other{}
     <string name="action_copy_link">Copy Link Address</string>
     <string name="action_copy_link_text">Copy Link Text</string>
     <string name="action_share_link">Share Link</string>
+    <string name="action_share">Link teilen</string>
     <string name="link_copied">Link copied</string>
     <string name="link_text_copied">Link text copied</string>
     <string name="action_copy_image">Copy Image</string>

@@ -80,7 +80,11 @@
     <!-- Bookmark Details Dialog -->
     <string name="detail_saved_date">Saved</string>
     <string name="detail_published_date">Published</string>
+    <string name="detail_published_prefix">Опубліковано %1$s</string>
     <string name="detail_author">Author</string>
+    <string name="detail_by_author">Автор %1$s</string>
+    <string name="detail_reading_time">Reading Time</string>
+    <string name="detail_about_minutes_read">Близько %1$d хвилин читання</string>
     <string name="detail_site">Site</string>
     <string name="detail_about">About %1$s</string>
     <string name="detail_words">%1$d words</string>
@@ -104,6 +108,14 @@
     <string name="logout_confirm_message">Are you sure you want to sign out?</string>
 
     <!-- Bookmark Card Actions -->
+    <string name="action_favorite">Обране</string>
+    <string name="action_archive">Архів</string>
+    <string name="action_add_to_favorites">Додати до обраних</string>
+    <string name="action_remove_from_favorites">Видалити з обраних</string>
+    <string name="action_add_to_archive">Архівувати</string>
+    <string name="action_remove_from_archive">Розархівувати</string>
+    <string name="action_mark_read">Позначити як прочитане</string>
+    <string name="action_mark_unread">Позначити як непрочитане</string>
     <string name="more_options">Більше опцій</string>
 
     <!-- Welcome Screen -->
@@ -178,6 +190,7 @@
     <string name="action_copy_link">Copy Link Address</string>
     <string name="action_copy_link_text">Copy Link Text</string>
     <string name="action_share_link">Share Link</string>
+    <string name="action_share">Поділитися посиланням</string>
     <string name="link_copied">Link copied</string>
     <string name="link_text_copied">Link text copied</string>
     <string name="action_copy_image">Copy Image</string>
