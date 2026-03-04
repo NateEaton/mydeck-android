@@ -121,7 +121,7 @@ class BookmarkDetailViewModelTest {
         )
         val htmlTemplate = "<html><body>%s</body></html>"
         val expectedHtmlContent = htmlTemplate.replace("%s", bookmark.articleContent!!)
-        val expectedCreatedDate = DateFormat.getDateInstance(DateFormat.MEDIUM).format(
+        val expectedCreatedDate = DateFormat.getDateInstance(DateFormat.LONG).format(
             Date(bookmark.created.toInstant(kotlinx.datetime.TimeZone.UTC).toEpochMilliseconds())
         )
 
