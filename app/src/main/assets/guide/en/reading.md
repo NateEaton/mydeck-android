@@ -23,12 +23,12 @@ For picture bookmarks, MyDeck shows the stored image at the top at full content 
 
 ### View Formats
 
-MyDeck supports two view formats for bookmarks: **extracted content view** (Article, Video, and Picture) and **Original View**. The extracted content view displays content extracted by Readeck in a clean, distraction-free reading layout, while **Original View** displays the bookmark in its original format in an in-app web viewer. The extracted content view is available offline (once the content is downloaded — see **Settings → Synchronization → Content Sync**), while **Original View** requires an internet connection.
+MyDeck supports two view formats for bookmarks: **extracted content view** (Article, Video, and Picture) and **web view**. The extracted content view displays content extracted by Readeck in a clean, distraction-free reading layout, while **web view** displays the bookmark in its original format in an in-app web viewer. The extracted content view is available offline (once the content is downloaded — see **Settings → Synchronization → Content Sync**), while **web view** requires an internet connection.
 
-- **From Article, Video, or Picture view:** tap **⋮** → **View Original**
-- **From Original View:** tap **⋮** → **View [bookmark type]** to return to the extracted content view
+- **From Article, Video, or Picture view:** tap **⋮** → **View web page**
+- **From web view:** tap **⋮** → **View [bookmark type]** to return to the extracted content view
 
-> **No article content:** If Readeck was unable to extract article content when the bookmark was saved, MyDeck automatically opens the bookmark in **Original View** instead of showing an empty reading view. In that case, the overflow menu will show **View [bookmark type]** (to attempt the reading view) rather than **View Original**.
+> **No article content:** If Readeck was unable to extract article content when the bookmark was saved, MyDeck automatically opens the bookmark in **web view** instead of showing an empty reading view. In that case, the overflow menu will show **View [bookmark type]** (to attempt the reading view) rather than **View web page**.
 
 ### Top Bar
 
@@ -36,7 +36,7 @@ The top bar provides quick access to essential navigation and reading actions:
 
 - **← Back** — return to the bookmark list
 - **TT Typography** — open the reading settings sheet
-- **🔍 Find in Page** — search for text within the content
+- **🔍 Find in page** — search for text within the content
 - **⋮ More** — overflow menu with additional actions
 
 As you scroll down to read, the top bar hides to give you more screen space. It reappears when you scroll back toward the top.
@@ -68,8 +68,8 @@ Tap **⋮** in the top bar for additional actions:
 - **Add to favorites / Remove favorite** — toggle the favorite status
 - **Archive / Unarchive** — move the bookmark to the archive (or back to My List)
 - **Mark as read / Mark as unread** — toggle whether the bookmark has been read; this is reflected back in the bookmark list
-- **View Original / View [bookmark type]** — switch between the reading view and the original web page in an in-app viewer (see above)
-- **Share Link** — open the Android share sheet to share the bookmark's URL
+- **View web page / View [bookmark type]** — switch between the reading view and the web page in an in-app viewer (see above)
+- **Share link** — open the Android share sheet to share the bookmark's URL
 - **Details** — open the Bookmark Details screen (see below)
 - **Delete** — delete the bookmark; you are returned to the list and a **"Bookmark deleted"** bar appears with an **Undo** option
 
@@ -84,16 +84,16 @@ Tapping a link within bookmark content (articles, pictures with descriptions, or
 Long-pressing on links or images within bookmark content opens a context menu dialog with quick actions. The dialog header shows the URL or image source — tap the header to expand truncated text, tap again to collapse.
 
 **Link long-press:**
-- Copy Link Address
-- Copy Link Text
-- Download Link
-- Share Link
-- Open in Browser
+- Copy link address
+- Copy link text
+- Download link
+- Share link
+- Open in browser
 
 **Image long-press:**
-- Copy Image
-- Download Image
-- Share Image
+- Copy image
+- Download image
+- Share image
 
 ## Image Lightbox
 
