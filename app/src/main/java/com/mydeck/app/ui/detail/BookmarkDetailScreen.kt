@@ -544,15 +544,19 @@ fun BookmarkDetailContent(
         uiState.bookmark.embed,
         contentMode
     ) {
-        mutableStateOf(!hasReaderContent)
+        mutableStateOf(false)
     }
     var lastReportedProgress by remember { mutableStateOf(-1) }
 
     LaunchedEffect(hasReaderContent) {
         if (!hasReaderContent) {
-            isReaderContentReady = true
+            isReaderContentReady = false
         }
     }
+
+    val showReaderLoadingOverlay =
+        contentMode == ContentMode.READER &&
+            (!uiState.bookmark.hasContent || !isReaderContentReady)
 
     // Restore scroll position when content is loaded (using initial progress, not reactive)
     LaunchedEffect(scrollState.maxValue) {
@@ -595,7 +599,7 @@ fun BookmarkDetailContent(
                 modifier = Modifier
                     .fillMaxSize()
                     .verticalScroll(scrollState)
-                    .alpha(if (hasRestoredPosition) 1f else 0f),
+                    .alpha(if (hasRestoredPosition && !showReaderLoadingOverlay) 1f else 0f),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 val contentWidthFraction = when (uiState.typographySettings.textWidth) {
@@ -620,15 +624,13 @@ fun BookmarkDetailContent(
                         onImageLongPress = onImageLongPress,
                         onLinkLongPress = onLinkLongPress,
                     )
-                } else {
-                    // Brief fallback while auto-switch to Original hasn't happened yet
-                    EmptyBookmarkDetailArticle(modifier = Modifier)
                 }
 
                 // Action buttons at the end of content (only show in reader mode for articles, videos, and photos)
                 if ((uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.ARTICLE ||
                      uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.VIDEO ||
                      uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.PHOTO) &&
+                    uiState.bookmark.hasContent &&
                     contentMode == ContentMode.READER &&
                     isReaderContentReady) {
                     Spacer(modifier = Modifier.height(24.dp))
@@ -725,17 +727,7 @@ fun BookmarkDetailContent(
                 }
             }
 
-            // Full-screen loading overlay while article content is being fetched
-            if (!uiState.bookmark.hasContent && contentLoadState is ContentLoadState.Loading) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator()
-                }
-            }
-
-            if (uiState.bookmark.hasContent && !isReaderContentReady) {
+            if (showReaderLoadingOverlay) {
                 Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
