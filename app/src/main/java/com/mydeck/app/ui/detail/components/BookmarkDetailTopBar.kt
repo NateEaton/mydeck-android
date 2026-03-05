@@ -65,22 +65,6 @@ fun BookmarkDetailTopBar(
                 }
             },
             actions = {
-                IconButton(onClick = {
-                    onClickToggleFavorite(uiState.bookmark.bookmarkId, !uiState.bookmark.isFavorite)
-                }) {
-                    Icon(
-                        imageVector = if (uiState.bookmark.isFavorite) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
-                        contentDescription = stringResource(R.string.action_favorite)
-                    )
-                }
-                IconButton(onClick = {
-                    onClickToggleArchive(uiState.bookmark.bookmarkId, !uiState.bookmark.isArchived)
-                }) {
-                    Icon(
-                        imageVector = if (uiState.bookmark.isArchived) Icons.Filled.Inventory2 else Icons.Outlined.Inventory2,
-                        contentDescription = stringResource(R.string.action_archive)
-                    )
-                }
                 if ((uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.ARTICLE ||
                      uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.VIDEO ||
                      uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.PHOTO) &&
@@ -100,6 +84,8 @@ fun BookmarkDetailTopBar(
                 }
                 BookmarkDetailMenu(
                     uiState = uiState,
+                    onClickToggleFavorite = onClickToggleFavorite,
+                    onClickToggleArchive = onClickToggleArchive,
                     onClickToggleRead = onClickToggleRead,
                     onClickShareBookmark = onClickShareBookmark,
                     onClickDeleteBookmark = onClickDeleteBookmark,

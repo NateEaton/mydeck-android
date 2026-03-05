@@ -476,7 +476,7 @@ class BookmarkDetailViewModel @Inject constructor(
 
     private fun formatLocalDateTimeWithDateFormat(localDateTime: LocalDateTime): String {
         val dateFormat = DateFormat.getDateInstance(
-            DateFormat.MEDIUM
+            DateFormat.LONG
         )
         val timeZone = TimeZone.currentSystemDefault()
         val epochMillis = localDateTime.toInstant(timeZone).toEpochMilliseconds()

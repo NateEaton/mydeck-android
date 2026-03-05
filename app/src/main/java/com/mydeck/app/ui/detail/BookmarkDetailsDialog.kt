@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -26,10 +27,12 @@ import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Publish
 import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.Event
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Subject
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Public
+import androidx.compose.material.icons.outlined.Launch
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import coil3.request.crossfade
@@ -75,7 +78,9 @@ fun BookmarkDetailsDialog(
     onDismissRequest: () -> Unit,
     onLabelsUpdate: (List<String>) -> Unit = {},
     existingLabels: List<String> = emptyList(),
-    onExportDebugJson: () -> Unit = {}
+    onExportDebugJson: () -> Unit = {},
+    onClickOpenUrl: (String) -> Unit = {},
+    onClickOpenInBrowser: (String) -> Unit = {}
 ) {
     var labels by remember { mutableStateOf(bookmark.labels.toMutableList()) }
     var newLabelInput by remember { mutableStateOf("") }
@@ -140,7 +145,7 @@ fun BookmarkDetailsDialog(
                 }
                 Text(
                     text = bookmark.siteName,
-                    style = MaterialTheme.typography.bodyMedium,
+                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold),
                     color = MaterialTheme.colorScheme.onSurface
                 )
             }
@@ -155,21 +160,10 @@ fun BookmarkDetailsDialog(
             // Published date
             bookmark.publishedDate?.let { publishedDate ->
                 MetadataFieldWithIcon(
-                    icon = Icons.Filled.Publish,
-                    value = publishedDate,
+                    icon = Icons.Filled.Event,
+                    value = stringResource(R.string.detail_published_prefix, publishedDate),
                     contentDescription = stringResource(R.string.detail_published_date)
                 )
-            }
-
-            // Reading time
-            bookmark.readingTime?.let { time ->
-                if (time > 0) {
-                    MetadataFieldWithIcon(
-                        icon = Icons.Filled.Schedule,
-                        value = stringResource(R.string.detail_about, "$time ${stringResource(R.string.detail_minutes_short)}"),
-                        contentDescription = stringResource(R.string.detail_reading_time)
-                    )
-                }
             }
 
             // Authors
@@ -179,9 +173,44 @@ fun BookmarkDetailsDialog(
             if (filteredAuthors.isNotEmpty()) {
                 MetadataFieldWithIcon(
                     icon = Icons.Filled.Person,
-                    value = filteredAuthors.joinToString(", "),
+                    value = stringResource(R.string.detail_by_author, filteredAuthors.joinToString(", ")),
                     contentDescription = stringResource(R.string.detail_author)
                 )
+            }
+
+            // External link
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp)
+                    .clickable { onClickOpenInBrowser(bookmark.url) },
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.Launch,
+                    contentDescription = null,
+                    modifier = Modifier.size(20.dp),
+                    tint = MaterialTheme.colorScheme.primary
+                )
+                Text(
+                    text = bookmark.siteName,
+                    style = MaterialTheme.typography.bodyMedium.copy(
+                        color = MaterialTheme.colorScheme.primary,
+                        textDecoration = androidx.compose.ui.text.style.TextDecoration.Underline
+                    )
+                )
+            }
+
+            // Reading time
+            bookmark.readingTime?.let { time ->
+                if (time > 0) {
+                    MetadataFieldWithIcon(
+                        icon = Icons.Filled.Schedule,
+                        value = stringResource(R.string.detail_about_minutes_read, time),
+                        contentDescription = stringResource(R.string.detail_reading_time)
+                    )
+                }
             }
 
             // Word count

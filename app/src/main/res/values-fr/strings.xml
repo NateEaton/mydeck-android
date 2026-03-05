@@ -60,7 +60,7 @@
     <!-- New strings for Search in Article feature -->
     <string name="action_is_read">Is Read</string>
     <string name="action_search_in_article">Find in Article</string>
-    <string name="action_view_original">View Original</string>
+    <string name="action_view_original">View Web Page</string>
     <string name="action_view_article">View Article</string>
     <string name="action_view_photo">View Photo</string>
     <string name="action_view_video">View Video</string>
@@ -80,7 +80,11 @@
     <!-- Bookmark Details Dialog -->
     <string name="detail_saved_date">Saved</string>
     <string name="detail_published_date">Published</string>
+    <string name="detail_published_prefix">Publié %1$s</string>
     <string name="detail_author">Author</string>
+    <string name="detail_by_author">Par %1$s</string>
+    <string name="detail_reading_time">Reading Time</string>
+    <string name="detail_about_minutes_read">Environ %1$d minutes de lecture</string>
     <string name="detail_site">Site</string>
     <string name="detail_about">About %1$s</string>
     <string name="detail_words">%1$d words</string>
@@ -104,6 +108,14 @@
     <string name="logout_confirm_message">Êtes-vous sûr de vouloir vous déconnecter ?</string>
 
     <!-- Bookmark Card Actions -->
+    <string name="action_favorite">Favori</string>
+    <string name="action_archive">Archive</string>
+    <string name="action_add_to_favorites">Ajouter aux favoris</string>
+    <string name="action_remove_from_favorites">Retirer le favori</string>
+    <string name="action_add_to_archive">Archiver</string>
+    <string name="action_remove_from_archive">Désarchiver</string>
+    <string name="action_mark_read">Marquer comme lu</string>
+    <string name="action_mark_unread">Marquer comme non lu</string>
     <string name="more_options">Plus d\'options</string>
 
     <!-- Welcome Screen -->
@@ -149,8 +161,8 @@
     <string name="progress_unviewed">Unviewed</string>
     <string name="progress_in_progress">In progress</string>
     <string name="progress_completed">Completed</string>
-    <string name="filter_is_favorite">Is Favorite</string>
-    <string name="filter_is_archived">Is Archived</string>
+    <string name="filter_is_favorite">Is favorite</string>
+    <string name="filter_is_archived">Is archived</string>
     <string name="filter_reset">Reset</string>
     <string name="filter_no_results">No bookmarks match your filters</string>
     <string name="tri_state_any">N/A</string>
@@ -159,11 +171,11 @@
     <string name="filter_author">Author</string>
     <string name="filter_site">Site</string>
     <string name="filter_label">Label</string>
-    <string name="filter_from_date">From Date</string>
-    <string name="filter_to_date">To Date</string>
-    <string name="filter_is_loaded">Is Loaded</string>
-    <string name="filter_with_labels">With Labels</string>
-    <string name="filter_with_errors">With Errors</string>
+    <string name="filter_from_date">From date</string>
+    <string name="filter_to_date">To date</string>
+    <string name="filter_is_loaded">Is loaded</string>
+    <string name="filter_with_labels">With labels</string>
+    <string name="filter_with_errors">With errors</string>
     <string name="filter_select_label">Tap to select a label</string>
     <string name="tri_state_no">No</string>
     <string name="sort">Sort</string>
@@ -175,16 +187,17 @@
     <string name="select_bookmark">Select a bookmark to read</string>
     <string name="long_press_for_options">Long press for options</string>
     <string name="label_suggestion_hint">Suggestions</string>
-    <string name="action_copy_link">Copy Link Address</string>
-    <string name="action_copy_link_text">Copy Link Text</string>
-    <string name="action_share_link">Share Link</string>
+    <string name="action_copy_link">Copy link address</string>
+    <string name="action_copy_link_text">Copy link text</string>
+    <string name="action_share_link">Share link</string>
+    <string name="action_share">Partager le lien</string>
     <string name="link_copied">Link copied</string>
     <string name="link_text_copied">Link text copied</string>
-    <string name="action_copy_image">Copy Image</string>
-    <string name="action_copy_image_url">Copy Image URL</string>
-    <string name="action_download_image">Download Image</string>
-    <string name="action_download_link">Download Link</string>
-    <string name="action_share_image">Share Image</string>
+    <string name="action_copy_image">Copy image</string>
+    <string name="action_copy_image_url">Copy image URL</string>
+    <string name="action_download_image">Download image</string>
+    <string name="action_download_link">Download link</string>
+    <string name="action_share_image">Share image</string>
     <string name="image_url_copied">Image URL copied</string>
     <string name="image_copied">Image copied</string>
     <string name="download_started">Download started</string>

@@ -12,7 +12,7 @@ You can add labels in two places:
 
 - **When saving a bookmark** — the Add Link sheet (opened from the **+** button or the Android share sheet) includes an **Add label** field. Type to search your existing labels; matching ones appear as suggestions below the field. Select a suggestion or finish typing to create a new one.
 
-- **From Bookmark Details** — open any bookmark and tap **⋮** → **Bookmark Details**. The Labels section shows existing labels with **×** buttons to remove them, and an **Add label** field to add more. The same autocomplete suggestions appear as you type.
+- **From Bookmark Details** — open any bookmark and tap **⋮** → **Details**. The Labels section shows existing labels with **×** buttons to remove them, and an **Add label** field to add more. The same autocomplete suggestions appear as you type.
 
 ### Browsing by Label
 
@@ -37,7 +37,11 @@ There are two ways to access these actions:
 
 ## Favorites
 
-Tap the **❤️** button on any bookmark card, or tap **❤️** in the top bar of the reading view, to mark a bookmark as a favorite. Tap again to remove it. The heart fills when a bookmark is a favorite.
+Tap the **❤️** button on any bookmark card in a list view to mark a bookmark as a favorite. Tap again to remove it. The heart fills when a bookmark is a favorite.
+
+In the reading view, you can toggle favorites using:
+- The **❤️ Favorite / Remove favorite** button at the end of the content
+- The **⋮** overflow menu → **Add to favorites / Remove favorite**
 
 Favorites are independent of My List and Archive — a favorite can be in either. To see all your favorites in one place, open the navigation drawer and tap **Favorites**.
 
@@ -48,7 +52,7 @@ Archiving moves a bookmark out of **My List** into the **Archive**. Archived boo
 You can archive a bookmark from several places:
 
 - **Card action** — tap the Archive button on a bookmark card in any list view
-- **Reading view** — tap Archive in the top bar
+- **Reading view** — use the **📦 Archive / Unarchive** button at the end of the content or **⋮** → **Archive / Unarchive**
 - **Add Link sheet** — tap **Archive** to save a new bookmark directly to the Archive
 
 The card is removed from the current list immediately when you archive or unarchive it.

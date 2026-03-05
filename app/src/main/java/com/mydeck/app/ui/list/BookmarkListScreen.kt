@@ -425,7 +425,7 @@ fun BookmarkListScreen(
                                 Triple("Added", SortOption.ADDED_NEWEST, SortOption.ADDED_OLDEST),
                                 Triple("Published", SortOption.PUBLISHED_NEWEST, SortOption.PUBLISHED_OLDEST),
                                 Triple("Title", SortOption.TITLE_A_TO_Z, SortOption.TITLE_Z_TO_A),
-                                Triple("Site Name", SortOption.SITE_A_TO_Z, SortOption.SITE_Z_TO_A),
+                                Triple("Site name", SortOption.SITE_A_TO_Z, SortOption.SITE_Z_TO_A),
                                 Triple("Duration", SortOption.DURATION_LONGEST, SortOption.DURATION_SHORTEST)
                             )
                             sortGroups.forEach { (label, firstOption, secondOption) ->
