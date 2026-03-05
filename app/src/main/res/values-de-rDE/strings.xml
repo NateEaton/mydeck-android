@@ -287,6 +287,7 @@ other{}
     <string name="label_suggestion_hint">Suggestions</string>
     <string name="action_copy_link">Link-Adresse kopieren</string>
     <string name="action_copy_link_text">Link-Text kopieren</string>
+    <string name="action_share_link">Link teilen</string>
     <string name="action_share">Link teilen</string>
     <string name="link_copied">Link kopiert</string>
     <string name="link_text_copied">Link-Text kopiert</string>
