@@ -103,6 +103,18 @@ fun BookmarkDetailArticle(
         }
     }
 
+    // Some embed-heavy pages can delay WebView finished callbacks for a long time.
+    // If that happens, unblock the reader once we have waited long enough.
+    LaunchedEffect(content.value, uiState.bookmark.bookmarkId) {
+        if (content.value != null) {
+            delay(3000)
+            if (!hasReportedReady) {
+                hasReportedReady = true
+                onContentReady(true)
+            }
+        }
+    }
+
     // Apply typography settings when they change (non-textZoom properties via JS)
     LaunchedEffect(uiState.typographySettings) {
         webViewRef.value?.let { webView ->
@@ -203,6 +215,39 @@ fun BookmarkDetailArticle(
                         // Intercept link clicks and open in Chrome Custom Tabs
                         // Apply typography after page finishes loading
                         webViewClient = object : android.webkit.WebViewClient() {
+                            private fun applyReaderEnhancements(webView: WebView) {
+                                val typographyJs =
+                                    WebViewTypographyBridge.applyTypography(uiState.typographySettings)
+                                webView.evaluateJavascript(typographyJs, null)
+                                val imageJs = WebViewImageBridge.injectImageInterceptor()
+                                webView.evaluateJavascript(imageJs, null)
+                            }
+
+                            private fun reportReadyIfNeeded(webView: WebView?) {
+                                if (hasReportedReady) return
+                                if (webView == null) {
+                                    hasReportedReady = true
+                                    onContentReady(true)
+                                    return
+                                }
+                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                                    webView.postVisualStateCallback(
+                                        System.currentTimeMillis(),
+                                        object : WebView.VisualStateCallback() {
+                                            override fun onComplete(requestId: Long) {
+                                                if (!hasReportedReady) {
+                                                    hasReportedReady = true
+                                                    onContentReady(true)
+                                                }
+                                            }
+                                        }
+                                    )
+                                } else {
+                                    hasReportedReady = true
+                                    onContentReady(true)
+                                }
+                            }
+
                             override fun shouldOverrideUrlLoading(
                                 view: WebView?,
                                 request: android.webkit.WebResourceRequest?
@@ -215,32 +260,19 @@ fun BookmarkDetailArticle(
                                 return false
                             }
 
+                            override fun onPageCommitVisible(view: WebView?, url: String?) {
+                                super.onPageCommitVisible(view, url)
+                                view?.let { applyReaderEnhancements(it) }
+                                if (!hasReportedReady) {
+                                    hasReportedReady = true
+                                    onContentReady(true)
+                                }
+                            }
+
                             override fun onPageFinished(view: WebView?, url: String?) {
                                 super.onPageFinished(view, url)
-                                view?.let {
-                                    val typographyJs = WebViewTypographyBridge.applyTypography(uiState.typographySettings)
-                                    it.evaluateJavascript(typographyJs, null)
-                                    val imageJs = WebViewImageBridge.injectImageInterceptor()
-                                    it.evaluateJavascript(imageJs, null)
-                                    if (!hasReportedReady) {
-                                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                                            it.postVisualStateCallback(
-                                                0L,
-                                                object : WebView.VisualStateCallback() {
-                                                    override fun onComplete(requestId: Long) {
-                                                        if (!hasReportedReady) {
-                                                            hasReportedReady = true
-                                                            onContentReady(true)
-                                                        }
-                                                    }
-                                                }
-                                            )
-                                        } else {
-                                            hasReportedReady = true
-                                            onContentReady(true)
-                                        }
-                                    }
-                                }
+                                view?.let { applyReaderEnhancements(it) }
+                                reportReadyIfNeeded(view)
                             }
                         }
 
