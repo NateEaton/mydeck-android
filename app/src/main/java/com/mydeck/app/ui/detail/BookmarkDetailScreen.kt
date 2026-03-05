@@ -534,10 +534,25 @@ fun BookmarkDetailContent(
     val hasArticleContent = uiState.bookmark.articleContent != null
     val isArticle = uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.ARTICLE
     val needsRestore = isArticle && hasArticleContent && initialReadProgress > 0 && initialReadProgress <= 100
+    val hasReaderContent = uiState.bookmark.hasContent && contentMode == ContentMode.READER
     // Key on hasArticleContent so when content arrives after on-demand fetch,
     // the state resets and scroll position restore is triggered
     var hasRestoredPosition by remember(hasArticleContent) { mutableStateOf(!needsRestore) }
+    var isReaderContentReady by remember(
+        uiState.bookmark.bookmarkId,
+        uiState.bookmark.articleContent,
+        uiState.bookmark.embed,
+        contentMode
+    ) {
+        mutableStateOf(!hasReaderContent)
+    }
     var lastReportedProgress by remember { mutableStateOf(-1) }
+
+    LaunchedEffect(hasReaderContent) {
+        if (!hasReaderContent) {
+            isReaderContentReady = true
+        }
+    }
 
     // Restore scroll position when content is loaded (using initial progress, not reactive)
     LaunchedEffect(scrollState.maxValue) {
@@ -594,13 +609,13 @@ fun BookmarkDetailContent(
                     onTitleChanged = onTitleChanged
                 )
 
-                val hasContent = uiState.bookmark.hasContent
-                if (hasContent) {
+                if (uiState.bookmark.hasContent) {
                     BookmarkDetailArticle(
                         modifier = Modifier.fillMaxWidth(contentWidthFraction),
                         uiState = uiState,
                         articleSearchState = articleSearchState,
                         onArticleSearchUpdateResults = onArticleSearchUpdateResults,
+                        onContentReady = { ready -> isReaderContentReady = ready },
                         onImageTapped = onImageTapped,
                         onImageLongPress = onImageLongPress,
                         onLinkLongPress = onLinkLongPress,
@@ -614,7 +629,8 @@ fun BookmarkDetailContent(
                 if ((uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.ARTICLE ||
                      uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.VIDEO ||
                      uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.PHOTO) &&
-                    contentMode == ContentMode.READER) {
+                    contentMode == ContentMode.READER &&
+                    isReaderContentReady) {
                     Spacer(modifier = Modifier.height(24.dp))
                     Column(
                         modifier = Modifier
@@ -711,6 +727,15 @@ fun BookmarkDetailContent(
 
             // Full-screen loading overlay while article content is being fetched
             if (!uiState.bookmark.hasContent && contentLoadState is ContentLoadState.Loading) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator()
+                }
+            }
+
+            if (uiState.bookmark.hasContent && !isReaderContentReady) {
                 Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center

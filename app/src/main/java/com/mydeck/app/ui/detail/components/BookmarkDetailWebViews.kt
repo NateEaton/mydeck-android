@@ -1,6 +1,7 @@
 package com.mydeck.app.ui.detail.components
 
 import android.net.Uri
+import android.os.Build
 import android.view.View
 import android.webkit.WebView
 import com.mydeck.app.domain.model.ImageGalleryData
@@ -63,6 +64,7 @@ fun BookmarkDetailArticle(
     uiState: BookmarkDetailViewModel.UiState.Success,
     articleSearchState: BookmarkDetailViewModel.ArticleSearchState = BookmarkDetailViewModel.ArticleSearchState(),
     onArticleSearchUpdateResults: (Int) -> Unit = {},
+    onContentReady: (Boolean) -> Unit = {},
     onImageTapped: (ImageGalleryData) -> Unit = {},
     onImageLongPress: (imageUrl: String, linkUrl: String?, linkType: String, imageAlt: String) -> Unit = { _, _, _, _ -> },
     onLinkLongPress: (linkUrl: String, linkText: String) -> Unit = { _, _ -> },
@@ -79,6 +81,7 @@ fun BookmarkDetailArticle(
     }
     val webViewRef = remember { mutableStateOf<WebView?>(null) }
     val json = remember { Json { ignoreUnknownKeys = true } }
+    var hasReportedReady by remember(uiState.bookmark.bookmarkId, content.value) { mutableStateOf(false) }
 
     LaunchedEffect(
         uiState.bookmark.bookmarkId,
@@ -89,6 +92,15 @@ fun BookmarkDetailArticle(
     ) {
         content.value = uiState.bookmark.getContent(uiState.template, isSystemInDarkMode)
         webViewRef.value?.settings?.textZoom = uiState.typographySettings.fontSizePercent
+    }
+
+    LaunchedEffect(content.value) {
+        if (content.value != null) {
+            hasReportedReady = false
+            onContentReady(false)
+        } else {
+            onContentReady(true)
+        }
     }
 
     // Apply typography settings when they change (non-textZoom properties via JS)
@@ -210,6 +222,24 @@ fun BookmarkDetailArticle(
                                     it.evaluateJavascript(typographyJs, null)
                                     val imageJs = WebViewImageBridge.injectImageInterceptor()
                                     it.evaluateJavascript(imageJs, null)
+                                    if (!hasReportedReady) {
+                                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                                            it.postVisualStateCallback(
+                                                0L,
+                                                object : WebView.VisualStateCallback() {
+                                                    override fun onComplete(requestId: Long) {
+                                                        if (!hasReportedReady) {
+                                                            hasReportedReady = true
+                                                            onContentReady(true)
+                                                        }
+                                                    }
+                                                }
+                                            )
+                                        } else {
+                                            hasReportedReady = true
+                                            onContentReady(true)
+                                        }
+                                    }
                                 }
                             }
                         }
