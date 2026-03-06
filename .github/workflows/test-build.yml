@@ -1,6 +1,8 @@
 name: Build Test Release
 
 on:
+  push:
+    branches: [codex/*]
   workflow_dispatch:
 
 jobs:

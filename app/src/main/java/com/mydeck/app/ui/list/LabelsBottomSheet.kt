@@ -26,6 +26,7 @@ import androidx.compose.material3.Badge
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
@@ -86,19 +87,19 @@ fun LabelPickerBottomSheet(
     var tempSelection by remember(mode) {
         mutableStateOf(
             when (mode) {
-                is LabelPickerMode.MultiSelect -> mode.initialSelection
-                is LabelPickerMode.SingleSelect -> emptySet()
+                is LabelPickerMode.MultiSelect -> mode.initialSelection.toList()
+                is LabelPickerMode.SingleSelect -> emptyList()
             }
         )
     }
 
     val filteredLabels = remember(availableLabels, searchQuery) {
         if (searchQuery.isBlank()) {
-            availableLabels.entries.sortedBy { it.key }
+            availableLabels.entries.toList()
         } else {
             availableLabels.entries
                 .filter { it.key.contains(searchQuery, ignoreCase = true) }
-                .sortedBy { it.key }
+                .toList()
         }
     }
 
@@ -110,6 +111,29 @@ fun LabelPickerBottomSheet(
         mode is LabelPickerMode.MultiSelect &&
             trimmedSearchQuery.isNotEmpty() &&
             !hasExactLabelMatch
+    val filteredLabelKeys = remember(filteredLabels) {
+        filteredLabels.mapTo(LinkedHashSet()) { it.key }
+    }
+    val selectedFilteredLabels = remember(filteredLabelKeys, tempSelection, availableLabels, mode) {
+        if (mode is LabelPickerMode.MultiSelect) {
+            tempSelection
+                .asSequence()
+                .filter { filteredLabelKeys.contains(it) }
+                .map { it to (availableLabels[it] ?: 0) }
+                .toList()
+        } else {
+            emptyList()
+        }
+    }
+    val unselectedFilteredLabels = remember(filteredLabels, tempSelection, mode) {
+        if (mode is LabelPickerMode.MultiSelect) {
+            filteredLabels
+                .filterNot { tempSelection.contains(it.key) }
+                .map { it.key to it.value }
+        } else {
+            filteredLabels.map { it.key to it.value }
+        }
+    }
 
     val title = when (mode) {
         is LabelPickerMode.SingleSelect -> stringResource(R.string.select_label)
@@ -128,7 +152,9 @@ fun LabelPickerBottomSheet(
 
         when (mode) {
             is LabelPickerMode.MultiSelect -> {
-                tempSelection = tempSelection + resolvedLabel
+                if (!tempSelection.contains(resolvedLabel)) {
+                    tempSelection = tempSelection + resolvedLabel
+                }
                 searchQuery = ""
             }
 
@@ -165,7 +191,7 @@ fun LabelPickerBottomSheet(
                     if (mode is LabelPickerMode.MultiSelect) {
                         TextButton(
                             onClick = {
-                                mode.onDone(tempSelection)
+                                mode.onDone(tempSelection.toSet())
                                 onDismiss()
                             }
                         ) {
@@ -259,7 +285,9 @@ fun LabelPickerBottomSheet(
                                                 if (!availableLabels.containsKey(trimmedSearchQuery)) {
                                                     availableLabels = availableLabels + (trimmedSearchQuery to 0)
                                                 }
-                                                tempSelection = tempSelection + trimmedSearchQuery
+                                                if (!tempSelection.contains(trimmedSearchQuery)) {
+                                                    tempSelection = tempSelection + trimmedSearchQuery
+                                                }
                                                 searchQuery = ""
                                             }
                                         )
@@ -267,114 +295,133 @@ fun LabelPickerBottomSheet(
                                 }
                             }
 
-                            items(
-                                items = filteredLabels,
-                                key = { it.key }
-                            ) { (label, count) ->
-                                val isSelected = when (mode) {
-                                    is LabelPickerMode.SingleSelect -> mode.selectedLabel == label
-                                    is LabelPickerMode.MultiSelect -> tempSelection.contains(label)
-                                }
+                            fun androidx.compose.foundation.lazy.LazyListScope.renderLabelItems(
+                                entries: List<Pair<String, Int>>
+                            ) {
+                                items(
+                                    items = entries,
+                                    key = { it.first }
+                                ) { (label, count) ->
+                                    val isSelected = when (mode) {
+                                        is LabelPickerMode.SingleSelect -> mode.selectedLabel == label
+                                        is LabelPickerMode.MultiSelect -> tempSelection.contains(label)
+                                    }
 
-                                val supportsManagement =
-                                    mode is LabelPickerMode.SingleSelect &&
-                                        mode.onRenameLabel != null &&
-                                        mode.onDeleteLabel != null
+                                    val supportsManagement =
+                                        mode is LabelPickerMode.SingleSelect &&
+                                            mode.onRenameLabel != null &&
+                                            mode.onDeleteLabel != null
 
-                                Box {
-                                    ListItem(
-                                        colors = ListItemDefaults.colors(
-                                            containerColor = if (
-                                                mode is LabelPickerMode.SingleSelect && isSelected
-                                            ) {
-                                                MaterialTheme.colorScheme.secondaryContainer
-                                            } else {
-                                                MaterialTheme.colorScheme.surface
-                                            }
-                                        ),
-                                        headlineContent = { Text(label) },
-                                        leadingContent = {
-                                            Icon(
-                                                imageVector = Icons.AutoMirrored.Outlined.Label,
-                                                contentDescription = null
-                                            )
-                                        },
-                                        trailingContent = {
-                                            when {
-                                                mode is LabelPickerMode.MultiSelect && isSelected -> {
-                                                    Icon(
-                                                        imageVector = Icons.Filled.Check,
-                                                        contentDescription = null
-                                                    )
+                                    Box {
+                                        ListItem(
+                                            colors = ListItemDefaults.colors(
+                                                containerColor = if (
+                                                    mode is LabelPickerMode.SingleSelect && isSelected
+                                                ) {
+                                                    MaterialTheme.colorScheme.secondaryContainer
+                                                } else {
+                                                    MaterialTheme.colorScheme.surface
                                                 }
-
-                                                count > 0 -> {
-                                                    Badge(
-                                                        containerColor = MaterialTheme.colorScheme.secondaryContainer
-                                                    ) {
-                                                        Text(
-                                                            text = count.toString(),
-                                                            style = MaterialTheme.typography.labelMedium,
-                                                            color = MaterialTheme.colorScheme.onSecondaryContainer
+                                            ),
+                                            headlineContent = { Text(label) },
+                                            leadingContent = {
+                                                Icon(
+                                                    imageVector = Icons.AutoMirrored.Outlined.Label,
+                                                    contentDescription = null
+                                                )
+                                            },
+                                            trailingContent = {
+                                                when {
+                                                    mode is LabelPickerMode.MultiSelect && isSelected -> {
+                                                        Icon(
+                                                            imageVector = Icons.Filled.Check,
+                                                            contentDescription = null
                                                         )
                                                     }
-                                                }
 
-                                                else -> Unit
-                                            }
-                                        },
-                                        modifier = Modifier
-                                            .semantics { selected = isSelected }
-                                            .combinedClickable(
-                                                role = Role.Button,
-                                                onClick = {
-                                                    when (mode) {
-                                                        is LabelPickerMode.SingleSelect -> {
-                                                            mode.onLabelSelected(label)
-                                                            onDismiss()
-                                                        }
-
-                                                        is LabelPickerMode.MultiSelect -> {
-                                                            tempSelection =
-                                                                if (tempSelection.contains(label)) {
-                                                                    tempSelection - label
-                                                                } else {
-                                                                    tempSelection + label
-                                                                }
+                                                    count > 0 -> {
+                                                        Badge(
+                                                            containerColor = MaterialTheme.colorScheme.secondaryContainer
+                                                        ) {
+                                                            Text(
+                                                                text = count.toString(),
+                                                                style = MaterialTheme.typography.labelMedium,
+                                                                color = MaterialTheme.colorScheme.onSecondaryContainer
+                                                            )
                                                         }
                                                     }
-                                                },
-                                                onLongClick = if (supportsManagement) {
-                                                    { contextMenuLabel = label }
-                                                } else {
-                                                    null
+
+                                                    else -> Unit
                                                 }
-                                            )
-                                    )
-                                    if (supportsManagement) {
-                                        DropdownMenu(
-                                            expanded = contextMenuLabel == label,
-                                            onDismissRequest = { contextMenuLabel = null }
-                                        ) {
-                                            DropdownMenuItem(
-                                                text = { Text(stringResource(R.string.edit_label)) },
-                                                onClick = {
-                                                    renameText = label
-                                                    showRenameDialog = true
-                                                    contextMenuLabel = null
-                                                }
-                                            )
-                                            DropdownMenuItem(
-                                                text = { Text(stringResource(R.string.delete_label)) },
-                                                onClick = {
-                                                    renameText = label
-                                                    showDeleteDialog = true
-                                                    contextMenuLabel = null
-                                                }
-                                            )
+                                            },
+                                            modifier = Modifier
+                                                .semantics { selected = isSelected }
+                                                .combinedClickable(
+                                                    role = Role.Button,
+                                                    onClick = {
+                                                        when (mode) {
+                                                            is LabelPickerMode.SingleSelect -> {
+                                                                mode.onLabelSelected(label)
+                                                                onDismiss()
+                                                            }
+
+                                                            is LabelPickerMode.MultiSelect -> {
+                                                                tempSelection =
+                                                                    if (tempSelection.contains(label)) {
+                                                                        tempSelection - label
+                                                                    } else {
+                                                                        tempSelection + label
+                                                                    }
+                                                            }
+                                                        }
+                                                    },
+                                                    onLongClick = if (supportsManagement) {
+                                                        { contextMenuLabel = label }
+                                                    } else {
+                                                        null
+                                                    }
+                                                )
+                                        )
+                                        if (supportsManagement) {
+                                            DropdownMenu(
+                                                expanded = contextMenuLabel == label,
+                                                onDismissRequest = { contextMenuLabel = null }
+                                            ) {
+                                                DropdownMenuItem(
+                                                    text = { Text(stringResource(R.string.edit_label)) },
+                                                    onClick = {
+                                                        renameText = label
+                                                        showRenameDialog = true
+                                                        contextMenuLabel = null
+                                                    }
+                                                )
+                                                DropdownMenuItem(
+                                                    text = { Text(stringResource(R.string.delete_label)) },
+                                                    onClick = {
+                                                        renameText = label
+                                                        showDeleteDialog = true
+                                                        contextMenuLabel = null
+                                                    }
+                                                )
+                                            }
                                         }
                                     }
                                 }
+                            }
+
+                            if (mode is LabelPickerMode.MultiSelect) {
+                                renderLabelItems(selectedFilteredLabels)
+                                if (selectedFilteredLabels.isNotEmpty() && unselectedFilteredLabels.isNotEmpty()) {
+                                    item(key = "selected_unselected_separator") {
+                                        HorizontalDivider(
+                                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+                                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                                        )
+                                    }
+                                }
+                                renderLabelItems(unselectedFilteredLabels)
+                            } else {
+                                renderLabelItems(unselectedFilteredLabels)
                             }
                             item { Spacer(Modifier.height(16.dp)) }
                         }
