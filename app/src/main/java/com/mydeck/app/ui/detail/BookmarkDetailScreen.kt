@@ -29,6 +29,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.material.icons.Icons
@@ -464,6 +465,8 @@ fun BookmarkDetailScreen(
     onLinkLongPress: (linkUrl: String, linkText: String) -> Unit = { _, _ -> },
 ) {
     val topBarScrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior()
+    val scrollState = rememberScrollState()
+    val coroutineScope = rememberCoroutineScope()
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -489,6 +492,12 @@ fun BookmarkDetailScreen(
                 onClickOpenInBrowser = onClickOpenInBrowser,
                 onContentModeChange = onContentModeChange,
                 scrollBehavior = topBarScrollBehavior,
+                scrollState = scrollState,
+                onScrollToTop = {
+                    coroutineScope.launch {
+                        scrollState.animateScrollTo(0)
+                    }
+                },
             )
         }
     ) { padding ->
@@ -508,7 +517,8 @@ fun BookmarkDetailScreen(
             onImageLongPress = onImageLongPress,
             onLinkLongPress = onLinkLongPress,
             onClickToggleFavorite = onClickToggleFavorite,
-            onClickToggleArchive = onClickToggleArchive
+            onClickToggleArchive = onClickToggleArchive,
+            scrollState = scrollState
         )
     }
 }
@@ -529,9 +539,9 @@ fun BookmarkDetailContent(
     onImageLongPress: (imageUrl: String, linkUrl: String?, linkType: String, imageAlt: String) -> Unit = { _, _, _, _ -> },
     onLinkLongPress: (linkUrl: String, linkText: String) -> Unit = { _, _ -> },
     onClickToggleFavorite: (String, Boolean) -> Unit = { _, _ -> },
-    onClickToggleArchive: (String, Boolean) -> Unit = { _, _ -> }
+    onClickToggleArchive: (String, Boolean) -> Unit = { _, _ -> },
+    scrollState: ScrollState = rememberScrollState()
 ) {
-    val scrollState = rememberScrollState()
     val hasArticleContent = uiState.bookmark.articleContent != null
     val isArticle = uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.ARTICLE
     val needsRestore = isArticle && hasArticleContent && initialReadProgress > 0 && initialReadProgress <= 100
