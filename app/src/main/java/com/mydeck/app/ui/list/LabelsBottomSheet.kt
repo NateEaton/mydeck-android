@@ -95,10 +95,13 @@ fun LabelPickerBottomSheet(
 
     val filteredLabels = remember(availableLabels, searchQuery) {
         if (searchQuery.isBlank()) {
-            availableLabels.entries.toList()
+            availableLabels.entries
+                .sortedBy { it.key }
+                .toList()
         } else {
             availableLabels.entries
                 .filter { it.key.contains(searchQuery, ignoreCase = true) }
+                .sortedBy { it.key }
                 .toList()
         }
     }
