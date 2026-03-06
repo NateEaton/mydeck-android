@@ -16,8 +16,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -59,16 +57,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.AnnotatedString
 import kotlinx.coroutines.launch
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.mydeck.app.BuildConfig
 import com.mydeck.app.R
-import com.mydeck.app.ui.components.LabelAutocompleteTextField
+import com.mydeck.app.ui.list.LabelPickerBottomSheet
+import com.mydeck.app.ui.list.LabelPickerMode
 import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
@@ -83,8 +80,6 @@ fun BookmarkDetailsDialog(
     onClickOpenInBrowser: (String) -> Unit = {}
 ) {
     var labels by remember { mutableStateOf(bookmark.labels.toMutableList()) }
-    var newLabelInput by remember { mutableStateOf("") }
-    val keyboardController = LocalSoftwareKeyboardController.current
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -257,22 +252,13 @@ fun BookmarkDetailsDialog(
             // Labels Section
             LabelsSection(
                 labels = labels,
-                newLabelInput = newLabelInput,
                 existingLabels = existingLabels,
-                onNewLabelChange = { newLabelInput = it },
-                onAddLabel = {
-                    if (newLabelInput.isNotBlank()) {
-                        val trimmedLabel = newLabelInput.trim()
-                        if (trimmedLabel.isNotEmpty() && !labels.contains(trimmedLabel)) {
-                            labels.add(trimmedLabel)
-                            newLabelInput = ""
-                            keyboardController?.hide()
-                            onLabelsUpdate(labels)
-                        }
-                    }
+                onSetLabels = { updated ->
+                    labels = updated.toMutableList()
+                    onLabelsUpdate(labels)
                 },
                 onRemoveLabel = { label ->
-                    labels.remove(label)
+                    labels = labels.filter { it != label }.toMutableList()
                     onLabelsUpdate(labels)
                 }
             )
@@ -339,12 +325,15 @@ private fun MetadataFieldWithIcon(
 @Composable
 private fun LabelsSection(
     labels: List<String>,
-    newLabelInput: String,
     existingLabels: List<String> = emptyList(),
-    onNewLabelChange: (String) -> Unit,
-    onAddLabel: () -> Unit,
+    onSetLabels: (List<String>) -> Unit,
     onRemoveLabel: (String) -> Unit
 ) {
+    var showLabelPicker by remember { mutableStateOf(false) }
+    val labelOptions = remember(existingLabels, labels) {
+        (existingLabels + labels).distinct().associateWith { 0 }
+    }
+
     Column(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -371,18 +360,51 @@ private fun LabelsSection(
             }
         }
 
-        // Input field for new label
-        LabelAutocompleteTextField(
-            value = newLabelInput,
-            onValueChange = onNewLabelChange,
-            onLabelSelected = { selected ->
-                onNewLabelChange(selected.trim())
-                onAddLabel()
-            },
-            existingLabels = existingLabels,
-            currentLabels = labels,
-            modifier = Modifier.fillMaxWidth()
-        )
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { showLabelPicker = true },
+            shape = MaterialTheme.shapes.medium
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 12.dp)
+            ) {
+                Text(
+                    text = if (labels.isEmpty()) {
+                        stringResource(R.string.add_labels)
+                    } else {
+                        stringResource(R.string.edit_labels)
+                    },
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                if (labels.isNotEmpty()) {
+                    Text(
+                        text = stringResource(R.string.labels_selected_count, labels.size),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
+
+        if (showLabelPicker) {
+            LabelPickerBottomSheet(
+                labels = labelOptions,
+                mode = LabelPickerMode.MultiSelect(
+                    initialSelection = labels.toSet(),
+                    onDone = { selectedLabels ->
+                        val updatedLabels =
+                            labels.filter { selectedLabels.contains(it) } +
+                                selectedLabels.filterNot { labels.contains(it) }.sorted()
+                        onSetLabels(updatedLabels)
+                    }
+                ),
+                onDismiss = { showLabelPicker = false }
+            )
+        }
     }
 }
 
@@ -412,7 +434,7 @@ private fun LabelChip(
             ) {
                 Icon(
                     imageVector = Icons.Filled.Close,
-                    contentDescription = "Remove label",
+                    contentDescription = stringResource(R.string.remove_label),
                     modifier = Modifier.size(16.dp)
                 )
             }
