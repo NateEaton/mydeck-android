@@ -317,4 +317,20 @@ other{}
     <string name="gallery_image_counter">%1$d of %2$d</string>
     <string name="action_view_photograph">View Photograph</string>
     <string name="action_find_in_page">Find in Page</string>
+
+    <!-- Server Info Caching -->
+    <string name="about_system_info_app_subtitle">App</string>
+    <string name="about_system_info_server_subtitle">Server</string>
+    <string name="about_system_info_details_show">Show details</string>
+    <string name="about_system_info_details_hide">Hide details</string>
+    <string name="about_system_info_copy">Copy to clipboard</string>
+    <string name="about_system_info_copied">Copied!</string>
+    <string name="about_system_info_server_version">Version: %s</string>
+    <string name="about_system_info_server_release">Release: %s</string>
+    <string name="about_system_info_server_build">Build: %s</string>
+    <string name="about_system_info_server_build_stable">(stable release)</string>
+    <string name="about_system_info_server_features">Features: %s</string>
+    <string name="about_system_info_server_loading">Loading…</string>
+    <string name="about_system_info_server_error">Could not load server information</string>
+    <string name="about_system_info_server_unavailable">No server information available</string>
 </resources>

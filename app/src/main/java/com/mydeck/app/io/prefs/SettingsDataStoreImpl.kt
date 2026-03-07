@@ -9,6 +9,7 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import dagger.hilt.android.qualifiers.ApplicationContext
 import com.mydeck.app.BuildConfig
 import com.mydeck.app.domain.model.AutoSyncTimeframe
+import com.mydeck.app.domain.model.CachedServerInfo
 import com.mydeck.app.domain.model.LineSpacing
 import com.mydeck.app.domain.model.ReaderFontFamily
 import com.mydeck.app.domain.model.TextWidth
@@ -65,6 +66,12 @@ class SettingsDataStoreImpl @Inject constructor(@ApplicationContext private val 
     private val KEY_TYPO_TEXT_WIDTH = stringPreferencesKey("typography_text_width")
     private val KEY_TYPO_JUSTIFIED = booleanPreferencesKey("typography_justified")
     private val KEY_TYPO_HYPHENATION = booleanPreferencesKey("typography_hyphenation")
+
+    // Server info caching keys
+    private val KEY_SERVER_INFO_CANONICAL = stringPreferencesKey("server_info_canonical")
+    private val KEY_SERVER_INFO_RELEASE = stringPreferencesKey("server_info_release")
+    private val KEY_SERVER_INFO_BUILD = stringPreferencesKey("server_info_build")
+    private val KEY_SERVER_INFO_FEATURES = stringPreferencesKey("server_info_features")
 
     init {
         // Migration: Theme.SEPIA was previously stored as a Theme enum value.
@@ -265,6 +272,7 @@ class SettingsDataStoreImpl @Inject constructor(@ApplicationContext private val 
             remove(KEY_TOKEN.name)
             remove(KEY_URL.name)
         }
+        clearServerInfo()
     }
 
     override suspend fun saveCredentials(
@@ -428,5 +436,40 @@ class SettingsDataStoreImpl @Inject constructor(@ApplicationContext private val 
         // Directly update the flow — the preferenceFlow listener approach doesn't work
         // because individual keys are written, not the composite "typography_settings" key
         _typographySettingsFlow.value = settings
+    }
+
+    override suspend fun saveServerInfo(info: CachedServerInfo) {
+        encryptedSharedPreferences.edit {
+            putString(KEY_SERVER_INFO_CANONICAL.name, info.canonical)
+            putString(KEY_SERVER_INFO_RELEASE.name, info.release)
+            putString(KEY_SERVER_INFO_BUILD.name, info.build)
+            putString(KEY_SERVER_INFO_FEATURES.name, info.features.joinToString(","))
+        }
+    }
+
+    override suspend fun getServerInfo(): CachedServerInfo? {
+        val canonical = encryptedSharedPreferences.getString(KEY_SERVER_INFO_CANONICAL.name, null)
+        if (canonical == null) return null
+
+        val release = encryptedSharedPreferences.getString(KEY_SERVER_INFO_RELEASE.name, "")!!
+        val build = encryptedSharedPreferences.getString(KEY_SERVER_INFO_BUILD.name, "")!!
+        val featuresStr = encryptedSharedPreferences.getString(KEY_SERVER_INFO_FEATURES.name, "") ?: ""
+        val features = if (featuresStr.isEmpty()) emptyList() else featuresStr.split(",")
+
+        return CachedServerInfo(
+            canonical = canonical,
+            release = release,
+            build = build,
+            features = features
+        )
+    }
+
+    override suspend fun clearServerInfo() {
+        encryptedSharedPreferences.edit(commit = true) {
+            remove(KEY_SERVER_INFO_CANONICAL.name)
+            remove(KEY_SERVER_INFO_RELEASE.name)
+            remove(KEY_SERVER_INFO_BUILD.name)
+            remove(KEY_SERVER_INFO_FEATURES.name)
+        }
     }
 }

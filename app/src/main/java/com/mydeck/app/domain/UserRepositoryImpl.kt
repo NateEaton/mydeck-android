@@ -1,6 +1,7 @@
 package com.mydeck.app.domain
 
 import com.mydeck.app.domain.model.AuthenticationDetails
+import com.mydeck.app.domain.model.CachedServerInfo
 import com.mydeck.app.domain.model.User
 import com.mydeck.app.domain.usecase.OAuthDeviceAuthorizationUseCase
 import com.mydeck.app.io.prefs.SettingsDataStore
@@ -70,6 +71,16 @@ class UserRepositoryImpl @Inject constructor(
                         code = infoResponse.code()
                     )
                 }
+
+                // Cache server info on successful login
+                settingsDataStore.saveServerInfo(
+                    CachedServerInfo(
+                        canonical = info.version.canonical,
+                        release = info.version.release,
+                        build = info.version.build,
+                        features = info.features
+                    )
+                )
 
                 when (val result = oauthDeviceAuthUseCase.initiateDeviceAuthorization()) {
                     is OAuthDeviceAuthorizationUseCase.DeviceAuthResult.AuthorizationRequired -> {

@@ -1,6 +1,8 @@
 package com.mydeck.app.ui.about
 
 import android.os.Build
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -9,32 +11,44 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.List
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import com.mydeck.app.BuildConfig
 import com.mydeck.app.R
+import com.mydeck.app.domain.model.CachedServerInfo
 import com.mydeck.app.ui.components.MyDeckBrandHeader
 import com.mydeck.app.ui.navigation.OpenSourceLibrariesRoute
 import com.mydeck.app.util.openUrlInCustomTab
@@ -46,6 +60,7 @@ import java.util.Locale
 fun AboutScreen(navHostController: NavHostController, showBackButton: Boolean = true) {
     val viewModel: AboutViewModel = hiltViewModel()
     val navigationEvent = viewModel.navigationEvent.collectAsState()
+    val uiState = viewModel.uiState.collectAsState()
 
     LaunchedEffect(key1 = navigationEvent.value) {
         navigationEvent.value?.let { event ->
@@ -63,6 +78,7 @@ fun AboutScreen(navHostController: NavHostController, showBackButton: Boolean = 
 
     val context = LocalContext.current
     AboutScreenContent(
+        uiState = uiState.value,
         onBackClick = { viewModel.onClickBack() },
         onOpenSourceLibrariesClick = { viewModel.onClickOpenSourceLibraries() },
         onUrlClick = { url -> openUrlInCustomTab(context, url) },
@@ -73,11 +89,14 @@ fun AboutScreen(navHostController: NavHostController, showBackButton: Boolean = 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AboutScreenContent(
+    uiState: AboutViewModel.UiState,
     onBackClick: () -> Unit,
     onOpenSourceLibrariesClick: () -> Unit,
     onUrlClick: (String) -> Unit,
     showBackButton: Boolean = true,
 ) {
+    val snackbarHostState = remember { SnackbarHostState() }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -93,7 +112,8 @@ fun AboutScreenContent(
                     }
                 }
             )
-        }
+        },
+        snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { padding ->
         Column(
             modifier = Modifier
@@ -173,52 +193,73 @@ fun AboutScreenContent(
                 modifier = Modifier.fillMaxWidth()
             )
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
-            Text(
-                text = stringResource(
-                    R.string.about_system_info_version,
-                    BuildConfig.VERSION_NAME,
-                    BuildConfig.VERSION_CODE
-                ),
-                style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.fillMaxWidth()
+            // App Info Card
+            val appInfoSummary = stringResource(
+                R.string.about_system_info_version,
+                BuildConfig.VERSION_NAME,
+                BuildConfig.VERSION_CODE
+            )
+            val appBuildTime = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+                .format(Date(BuildConfig.BUILD_TIME.toLong()))
+            val appAndroid = stringResource(
+                R.string.about_system_info_android,
+                Build.VERSION.RELEASE,
+                Build.VERSION.SDK_INT
+            )
+            val appDevice = stringResource(
+                R.string.about_system_info_device,
+                Build.MANUFACTURER,
+                Build.MODEL
+            )
+            val appDetailLines = listOf(
+                appInfoSummary,
+                stringResource(R.string.about_system_info_build_time, appBuildTime),
+                appAndroid,
+                appDevice
             )
 
-            Spacer(modifier = Modifier.height(4.dp))
-
-            Text(
-                text = stringResource(
-                    R.string.about_system_info_build_time,
-                    SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
-                        .format(Date(BuildConfig.BUILD_TIME.toLong()))
-                ),
-                style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.fillMaxWidth()
+            CollapsibleInfoCard(
+                subheading = stringResource(R.string.about_system_info_app_subtitle),
+                summary = appInfoSummary,
+                detailLines = appDetailLines,
+                snackbarHostState = snackbarHostState
             )
 
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
-            Text(
-                text = stringResource(
-                    R.string.about_system_info_android,
-                    Build.VERSION.RELEASE,
-                    Build.VERSION.SDK_INT
-                ),
-                style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.fillMaxWidth()
-            )
+            // Server Info Card
+            val serverSummary = when {
+                uiState.serverInfoLoading && uiState.serverInfo == null -> stringResource(R.string.about_system_info_server_loading)
+                uiState.serverInfoError && uiState.serverInfo == null -> stringResource(R.string.about_system_info_server_error)
+                uiState.serverInfo == null -> stringResource(R.string.about_system_info_server_unavailable)
+                else -> uiState.serverInfo!!.canonical
+            }
 
-            Spacer(modifier = Modifier.height(4.dp))
+            val serverDetailLines = if (uiState.serverInfo != null) {
+                val build = if (uiState.serverInfo!!.build.isEmpty()) {
+                    stringResource(R.string.about_system_info_server_build_stable)
+                } else {
+                    uiState.serverInfo!!.build
+                }
+                listOf(
+                    stringResource(R.string.about_system_info_server_version, uiState.serverInfo!!.canonical),
+                    stringResource(R.string.about_system_info_server_release, uiState.serverInfo!!.release),
+                    stringResource(R.string.about_system_info_server_build, build),
+                    stringResource(R.string.about_system_info_server_features, uiState.serverInfo!!.features.joinToString(", "))
+                )
+            } else {
+                emptyList()
+            }
 
-            Text(
-                text = stringResource(
-                    R.string.about_system_info_device,
-                    Build.MANUFACTURER,
-                    Build.MODEL
-                ),
-                style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.fillMaxWidth()
+            CollapsibleInfoCard(
+                subheading = stringResource(R.string.about_system_info_server_subtitle),
+                summary = serverSummary,
+                detailLines = serverDetailLines,
+                isLoading = uiState.serverInfoLoading && uiState.serverInfo == null,
+                isError = uiState.serverInfoError && uiState.serverInfo == null,
+                snackbarHostState = snackbarHostState
             )
 
             Spacer(modifier = Modifier.height(24.dp))
@@ -354,6 +395,124 @@ fun AboutScreenContent(
             }
 
             Spacer(modifier = Modifier.height(16.dp))
+        }
+    }
+}
+
+@Composable
+private fun CollapsibleInfoCard(
+    subheading: String,
+    summary: String,
+    detailLines: List<String>,
+    isLoading: Boolean = false,
+    isError: Boolean = false,
+    snackbarHostState: SnackbarHostState,
+) {
+    val (expanded, setExpanded) = remember { mutableStateOf(false) }
+    val clipboardManager = LocalClipboardManager.current
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { setExpanded(!expanded) }
+            .padding(8.dp)
+    ) {
+        // Header Row
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(8.dp),
+            horizontalArrangement = androidx.compose.foundation.layout.Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = subheading,
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                if (isLoading) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        CircularProgressIndicator(
+                            modifier = Modifier
+                                .height(16.dp)
+                                .padding(end = 8.dp),
+                            strokeWidth = 2.dp
+                        )
+                        Text(
+                            text = stringResource(R.string.about_system_info_server_loading),
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
+                } else {
+                    Text(
+                        text = summary,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+            }
+            Icon(
+                imageVector = if (expanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
+                contentDescription = null,
+                modifier = Modifier.padding(start = 16.dp)
+            )
+        }
+
+        // Expanded Details
+        AnimatedVisibility(visible = expanded) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(
+                        color = MaterialTheme.colorScheme.surfaceVariant,
+                        shape = RoundedCornerShape(8.dp)
+                    )
+                    .padding(12.dp)
+            ) {
+                // Detail lines
+                detailLines.forEach { line ->
+                    Text(
+                        text = line,
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp)
+                    )
+                }
+
+                // Copy button
+                if (detailLines.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                val text = detailLines.joinToString("\n")
+                                clipboardManager.setText(AnnotatedString(text))
+                            }
+                            .padding(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            Icons.Filled.ContentCopy,
+                            contentDescription = null,
+                            modifier = Modifier
+                                .height(16.dp)
+                                .padding(end = 8.dp),
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                        Text(
+                            text = stringResource(R.string.about_system_info_copy),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+            }
         }
     }
 }
