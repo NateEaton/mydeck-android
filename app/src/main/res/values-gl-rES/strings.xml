@@ -280,4 +280,19 @@ other{}
     <string name="gallery_image_counter">%1$d of %2$d</string>
     <string name="action_view_photograph">View Photograph</string>
     <string name="action_find_in_page">Find in Page</string>
+
+    <!-- Annotations / Highlights -->
+    <string name="annotations_panel_title">Highlights</string>
+    <string name="annotations_empty">No highlights yet</string>
+    <string name="annotation_create_title">Add Highlight</string>
+    <string name="annotation_color_label">Color</string>
+    <string name="annotation_create_button">Add Highlight</string>
+    <string name="annotation_delete_button">Delete highlight</string>
+    <string name="annotation_delete_confirm">Delete this highlight?</string>
+    <string name="annotation_change_color">Change color</string>
+    <string name="annotation_load_error">Failed to load highlights</string>
+    <string name="annotation_save_error">Failed to save highlight</string>
+    <string name="annotation_delete_error">Failed to delete highlight</string>
+    <string name="annotation_start_selection_button">Select Text to Highlight</string>
+    <string name="annotation_toggle_button">Highlights</string>
 </resources>

@@ -9,7 +9,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import com.mydeck.app.domain.AnnotationRepository
 import com.mydeck.app.domain.BookmarkRepository
+import com.mydeck.app.domain.model.Annotation
 import com.mydeck.app.domain.model.Bookmark.ContentState
 import com.mydeck.app.domain.model.Template
 import com.mydeck.app.domain.model.Theme
@@ -53,6 +55,7 @@ import javax.inject.Inject
 class BookmarkDetailViewModel @Inject constructor(
     private val updateBookmarkUseCase: UpdateBookmarkUseCase,
     private val bookmarkRepository: BookmarkRepository,
+    private val annotationRepository: AnnotationRepository,
     private val assetLoader: AssetLoader,
     private val settingsDataStore: SettingsDataStore,
     private val loadArticleUseCase: LoadArticleUseCase,
@@ -130,6 +133,28 @@ class BookmarkDetailViewModel @Inject constructor(
     private val _readerContextMenu = MutableStateFlow(ReaderContextMenuState())
     val readerContextMenu: StateFlow<ReaderContextMenuState> = _readerContextMenu.asStateFlow()
 
+    // Annotation state
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    val annotations: StateFlow<List<Annotation>> = _bookmarkId
+        .filterNotNull()
+        .flatMapLatest { id -> annotationRepository.observeAnnotations(id) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    private val _isAnnotationPanelOpen = MutableStateFlow(false)
+    val isAnnotationPanelOpen: StateFlow<Boolean> = _isAnnotationPanelOpen.asStateFlow()
+
+    private val _isAnnotationSelectionActive = MutableStateFlow(false)
+    val isAnnotationSelectionActive: StateFlow<Boolean> = _isAnnotationSelectionActive.asStateFlow()
+
+    private val _pendingSelection = MutableStateFlow<PendingAnnotationSelection?>(null)
+    val pendingSelection: StateFlow<PendingAnnotationSelection?> = _pendingSelection.asStateFlow()
+
+    private val _tappedAnnotationId = MutableStateFlow<String?>(null)
+    val tappedAnnotationId: StateFlow<String?> = _tappedAnnotationId.asStateFlow()
+
+    private val _scrollToAnnotationId = MutableStateFlow<String?>(null)
+    val scrollToAnnotationId: StateFlow<String?> = _scrollToAnnotationId.asStateFlow()
+
     private var searchDebounceJob: Job? = null
 
     init {
@@ -149,6 +174,11 @@ class BookmarkDetailViewModel @Inject constructor(
         isReadLocked = false
         _contentLoadState.value = ContentLoadState.Idle
         _articleSearchState.value = ArticleSearchState()
+        _isAnnotationPanelOpen.value = false
+        _isAnnotationSelectionActive.value = false
+        _pendingSelection.value = null
+        _tappedAnnotationId.value = null
+        _scrollToAnnotationId.value = null
 
         _bookmarkId.value = bookmarkId
         initializeBookmark(bookmarkId)
@@ -203,6 +233,9 @@ class BookmarkDetailViewModel @Inject constructor(
                                 fetchContentOnDemand(id)
                             }
                         }
+
+                        // Refresh annotations from server
+                        loadAnnotations(id)
                     }
                 }
             } catch (e: Exception) {
@@ -675,6 +708,133 @@ class BookmarkDetailViewModel @Inject constructor(
         }
     }
 
+    // Annotation functions
+
+    fun loadAnnotations(bookmarkId: String) {
+        viewModelScope.launch {
+            annotationRepository.refreshAnnotations(bookmarkId)
+                .onFailure {
+                    updateState.value = UpdateBookmarkState.Error(
+                        it.message ?: "Failed to load highlights"
+                    )
+                }
+        }
+    }
+
+    fun onCreateAnnotation(
+        startSelector: String,
+        startOffset: Int,
+        endSelector: String,
+        endOffset: Int,
+        color: String,
+    ) {
+        val bId = _bookmarkId.value ?: return
+        viewModelScope.launch {
+            annotationRepository.createAnnotation(bId, startSelector, startOffset, endSelector, endOffset, color)
+                .onFailure {
+                    updateState.value = UpdateBookmarkState.Error(
+                        it.message ?: "Failed to save highlight"
+                    )
+                }
+        }
+        _isAnnotationSelectionActive.value = false
+        _pendingSelection.value = null
+    }
+
+    fun onUpdateAnnotationColor(annotationId: String, color: String) {
+        val bId = _bookmarkId.value ?: return
+        viewModelScope.launch {
+            annotationRepository.updateAnnotationColor(bId, annotationId, color)
+                .onFailure {
+                    updateState.value = UpdateBookmarkState.Error(
+                        it.message ?: "Failed to update highlight color"
+                    )
+                }
+        }
+        _tappedAnnotationId.value = null
+    }
+
+    fun onDeleteAnnotation(annotationId: String) {
+        val bId = _bookmarkId.value ?: return
+        viewModelScope.launch {
+            annotationRepository.deleteAnnotation(bId, annotationId)
+                .onFailure {
+                    updateState.value = UpdateBookmarkState.Error(
+                        it.message ?: "Failed to delete highlight"
+                    )
+                }
+        }
+        _tappedAnnotationId.value = null
+    }
+
+    fun onToggleAnnotationPanel() {
+        _isAnnotationPanelOpen.value = !_isAnnotationPanelOpen.value
+    }
+
+    fun onAnnotationToolbarClick() {
+        if (_isAnnotationSelectionActive.value) {
+            onCancelAnnotationSelection()
+        } else {
+            onToggleAnnotationPanel()
+        }
+    }
+
+    fun onStartAnnotationSelection() {
+        _pendingSelection.value = null
+        _tappedAnnotationId.value = null
+        _isAnnotationPanelOpen.value = false
+        _isAnnotationSelectionActive.value = true
+    }
+
+    /** Called from AnnotationJsBridge (already on main thread) when text is selected. */
+    fun onTextSelected(
+        startSelector: String,
+        startOffset: Int,
+        endSelector: String,
+        endOffset: Int,
+        text: String,
+    ) {
+        if (!_isAnnotationSelectionActive.value || text.isBlank() || _pendingSelection.value != null) {
+            return
+        }
+        _isAnnotationSelectionActive.value = false
+        _pendingSelection.value = PendingAnnotationSelection(
+            startSelector = startSelector,
+            startOffset = startOffset,
+            endSelector = endSelector,
+            endOffset = endOffset,
+            text = text,
+        )
+    }
+
+    /** Called from AnnotationJsBridge (already on main thread) when a highlight is tapped. */
+    fun onAnnotationClicked(annotationId: String) {
+        _isAnnotationSelectionActive.value = false
+        _tappedAnnotationId.value = annotationId
+    }
+
+    fun onDismissCreationSheet() {
+        _isAnnotationSelectionActive.value = false
+        _pendingSelection.value = null
+    }
+
+    fun onDismissActionSheet() {
+        _tappedAnnotationId.value = null
+    }
+
+    fun onCancelAnnotationSelection() {
+        _isAnnotationSelectionActive.value = false
+    }
+
+    fun onScrollToAnnotation(annotationId: String) {
+        _scrollToAnnotationId.value = annotationId
+        _isAnnotationPanelOpen.value = false
+    }
+
+    fun onScrollToAnnotationConsumed() {
+        _scrollToAnnotationId.value = null
+    }
+
     // Gallery functions
     fun onImageTapped(data: ImageGalleryData) {
         _galleryData.value = data
@@ -785,5 +945,13 @@ class BookmarkDetailViewModel @Inject constructor(
         val linkUrl: String? = null,
         val linkText: String? = null,
         val linkType: String = "none",  // "none" | "image" | "page"
+    )
+
+    data class PendingAnnotationSelection(
+        val startSelector: String,
+        val startOffset: Int,
+        val endSelector: String,
+        val endOffset: Int,
+        val text: String,
     )
 }

@@ -19,6 +19,10 @@ import com.mydeck.app.io.rest.model.OAuthTokenRequestDto
 import com.mydeck.app.io.rest.model.OAuthTokenResponseDto
 import com.mydeck.app.io.rest.model.OAuthRevokeRequestDto
 import com.mydeck.app.io.rest.model.ServerInfoDto
+import com.mydeck.app.io.rest.model.AnnotationDto
+import com.mydeck.app.io.rest.model.CreateAnnotationDto
+import com.mydeck.app.io.rest.model.UpdateAnnotationDto
+import com.mydeck.app.io.rest.model.UpdateAnnotationResponseDto
 import kotlinx.datetime.Instant
 import retrofit2.Response
 import retrofit2.http.GET
@@ -104,6 +108,29 @@ interface ReadeckApi {
     @Headers("Accept: application/json")
     @DELETE("bookmarks/{id}")
     suspend fun deleteBookmark(@Path("id") id: String): Response<Unit>
+
+    @GET("bookmarks/{id}/annotations")
+    suspend fun getAnnotations(@Path("id") bookmarkId: String): Response<List<AnnotationDto>>
+
+    @POST("bookmarks/{id}/annotations")
+    suspend fun createAnnotation(
+        @Path("id") bookmarkId: String,
+        @Body body: CreateAnnotationDto
+    ): Response<AnnotationDto>
+
+    @Headers("Accept: application/json")
+    @PATCH("bookmarks/{id}/annotations/{annotation_id}")
+    suspend fun updateAnnotation(
+        @Path("id") bookmarkId: String,
+        @Path("annotation_id") annotationId: String,
+        @Body body: UpdateAnnotationDto
+    ): Response<UpdateAnnotationResponseDto>
+
+    @DELETE("bookmarks/{id}/annotations/{annotation_id}")
+    suspend fun deleteAnnotation(
+        @Path("id") bookmarkId: String,
+        @Path("annotation_id") annotationId: String
+    ): Response<Unit>
 
     data class SortOrder(val sort: Sort, val order: Order = Order.Ascending) {
         override fun toString(): String {

@@ -35,6 +35,7 @@ MyDeck supports two view formats for bookmarks: **extracted content view** (Arti
 The top bar provides quick access to essential navigation and reading actions:
 
 - **← Back** — return to the bookmark list
+- **Highlights** — open the Highlights panel (articles only; see **Highlights** below)
 - **TT Typography** — open the reading settings sheet
 - **🔍 Find in page** — search for text within the content
 - **⋮ More** — overflow menu with additional actions
@@ -109,6 +110,31 @@ Tap any image in an article or picture bookmark to open it in a fullscreen light
 When the content contains multiple images, a thumbnail strip appears at the bottom of the lightbox. Tap any thumbnail to jump directly to that image.
 
 If the current image was originally a hyperlink (linking to another page or site), an **external link icon** (↗) appears in the top-right corner of the lightbox. Tap it to open the linked URL in the browser.
+
+## Highlights
+
+Article bookmarks support text highlights. Highlights are saved to your Readeck account and appear across all your devices.
+
+### Adding a Highlight
+
+1. Tap **Highlights** in the top bar to open the Highlights panel.
+2. Tap **Select Text to Highlight**.
+3. Long-press and drag to select the passage you want to highlight.
+4. A sheet appears showing the selected text and four colour options (yellow, green, blue, pink). Tap a colour to select it.
+5. Tap **Add Highlight** to save, or **Cancel** to discard.
+
+The highlighted text appears coloured in the article immediately after saving.
+
+### Viewing and Managing Highlights
+
+Tap **Highlights** in the top bar to open the Highlights panel, which lists all highlights for the current article. Each item shows the highlighted text, the highlight colour, and the date it was created.
+
+- **Jump to a highlight** — tap the item in the panel; the article scrolls to the highlighted passage.
+- **Delete a highlight** — tap the trash icon on any item in the panel.
+
+### Changing a Highlight's Colour
+
+Tap a highlighted passage in the article to open the highlight action sheet. Tap a different colour swatch to change the colour, or tap **Delete** to remove the highlight. A confirmation dialog is shown before deletion.
 
 ## Bookmark Details
 

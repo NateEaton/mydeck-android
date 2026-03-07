@@ -7,15 +7,14 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.outlined.FindInPage
 import androidx.compose.material.icons.outlined.FormatSize
-import androidx.compose.material.icons.outlined.FavoriteBorder
-import androidx.compose.material.icons.outlined.Inventory2
+import androidx.compose.material.icons.outlined.Highlight
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalContentColor
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.runtime.Composable
@@ -47,6 +46,8 @@ fun BookmarkDetailTopBar(
     onArticleSearchActivate: () -> Unit,
     onClickOpenInBrowser: (String) -> Unit,
     onContentModeChange: (ContentMode) -> Unit,
+    isAnnotationSelectionActive: Boolean = false,
+    onAnnotationToolbarClick: () -> Unit = {},
     scrollBehavior: TopAppBarScrollBehavior,
     scrollState: ScrollState? = null,
     onScrollToTop: () -> Unit = {},
@@ -87,6 +88,20 @@ fun BookmarkDetailTopBar(
                 }
             },
             actions = {
+                if (uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.ARTICLE &&
+                    contentMode == ContentMode.READER) {
+                    IconButton(onClick = { onAnnotationToolbarClick() }) {
+                        Icon(
+                            imageVector = Icons.Outlined.Highlight,
+                            contentDescription = stringResource(R.string.annotation_toggle_button),
+                            tint = if (isAnnotationSelectionActive) {
+                                MaterialTheme.colorScheme.primary
+                            } else {
+                                LocalContentColor.current
+                            }
+                        )
+                    }
+                }
                 if ((uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.ARTICLE ||
                      uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.VIDEO ||
                      uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.PHOTO) &&

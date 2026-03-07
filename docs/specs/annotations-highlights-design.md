@@ -35,11 +35,35 @@ The `annotationInfo` response schema from the API returns: `id`, `start_selector
 
 The original spec suggests adding `List<Highlight>` to `Bookmark`. This couples the heavyweight detail model to annotation data that is only needed in the reader and the annotation list pane. Instead, annotations are a separate concern: fetched on demand when the article reader opens, stored in their own Room table, and observed via a separate Flow in `BookmarkDetailViewModel`.
 
-### 4. Annotations Are Scoped to the Detail Screen
+### 4. Global Highlights Are Summary-Only in the Stable API
 
-The original spec mentions "a sidebar menu option" for a global highlights list. A global highlight browser across all bookmarks is a significant scope expansion with limited API support (there is no `GET /annotations` endpoint — only per-bookmark). The implementation will provide an **annotations panel within the detail screen only** (toggled from the top app bar). A cross-bookmark view is deferred.
+The stable API exposes `GET /bookmarks/annotations`, but it returns `annotationSummary` objects only: `id`, `href`, `text`, `created`, and bookmark metadata. It does **not** return `color`, `start_selector`, or `end_selector`. That means the app cannot reliably:
 
-### 5. Pending Colors on PATCH Response
+- render a global list with correct per-highlight colors for highlights it has never seen before,
+- scroll a bookmark to a highlight from the global list without first hydrating that bookmark's full annotation list, or
+- reconstruct missing local color state from the server alone.
+
+The implementation will therefore keep the feature **bookmark-scoped for all color-aware and reader-integrated behavior**. The global endpoint can be considered later for a separate summary-only screen, but it is not sufficient for the reader UX in this spec.
+
+### 5. Highlight Creation Uses an Explicit Reader Action
+
+In practice, auto-opening `AnnotationCreationSheet` from every non-empty WebView selection conflicts with Android's native text-selection toolbar. That makes normal copy/paste selection unstable and clears the selection before the user can finish dragging.
+
+The corrected design uses an explicit "add highlight" step:
+
+- **Browse highlights:** tap the top app bar Highlights button to open the bottom sheet list.
+- **Create highlight:** from the Highlights panel, tap **Select Text to Highlight**, then long-press/drag-select text in the article. When the WebView reports that selection, the app opens `AnnotationCreationSheet`.
+- **Edit/delete highlight:** tap an existing rendered highlight to open `AnnotationActionSheet`.
+
+Normal text selection outside this explicit highlight flow remains available for the native WebView copy/paste actions.
+
+### 6. Annotation Refresh Is Independent of Bookmark Sync
+
+Highlights are not part of the existing bookmark sync stream. The app should call `GET /bookmarks/{id}/annotations` when opening an article bookmark detail screen, independent of the full bookmark sync endpoints. This gives the reader the latest known server state for that bookmark even when the bookmark body/content itself came from local cache.
+
+Create/update/delete actions are sent to the server immediately via the annotation CRUD endpoints. Local Room state remains the cache and offline fallback, but server writes are not deferred behind the bookmark sync model.
+
+### 7. Pending Colors on PATCH Response
 
 When the server PATCH response returns `annotations` without color, the implementation will merge the server-returned list with the locally stored color values. Any annotation id present in the server response but missing locally will default to yellow (`#FFFF00`).
 
@@ -343,15 +367,12 @@ Generates JavaScript that:
 3. Creates a `Range`, wraps the selected text in a `<mark>` element with `data-annotation-id`, `data-color`, and inline `background-color` style.
 4. Attaches a `click` listener to each `<mark>` that calls `AnnotationInterface.onAnnotationClicked(id)`.
 
-**`activateSelectionMode(): String`**
+**`injectSelectionObserver(): String`**
 
 Generates JavaScript that:
-1. Enables text selection in the WebView (`user-select: text` CSS).
-2. Registers a `selectionchange` listener that calls `AnnotationInterface.onTextSelected(startXPath, startOffset, endXPath, endOffset, selectedText)` when a non-empty selection exists.
-
-**`deactivateSelectionMode(): String`**
-
-Reverts selection mode changes.
+1. Ensures article text remains selectable in the WebView (`user-select: text` CSS).
+2. Registers a debounced `selectionchange` listener that calls `AnnotationInterface.onTextSelected(startXPath, startOffset, endXPath, endOffset, selectedText)` when a non-empty selection exists.
+3. Avoids duplicate callbacks for the same selection and clears the native selection after reporting it.
 
 **`scrollToAnnotation(annotationId: String): String`**
 
@@ -412,7 +433,7 @@ This must be injected into every article page load, before annotation rendering.
 ### `BookmarkDetailScreen.kt` — Annotation Controls
 
 1. **Top bar action:** Add a "Highlights" `IconButton` (e.g. `Icons.Outlined.Highlight`) that toggles `isAnnotationPanelOpen` and calls `onToggleAnnotationPanel()` in the ViewModel.
-2. **Selection mode button:** A floating `ExtendedFab` or `IconButton` in the reader area labeled "Highlight" that calls `activateSelectionMode()` on the WebView.
+2. **Text selection:** Long-pressing or drag-selecting text in the reader should trigger the native text-selection affordance and then open `AnnotationCreationSheet` without requiring a dedicated mode button.
 
 ### `AnnotationCreationSheet.kt` (new composable)
 
@@ -420,7 +441,7 @@ A `ModalBottomSheet` that appears after the user selects text in the WebView:
 - Shows the selected text (truncated to ~100 chars) for confirmation.
 - Shows a row of 4 color swatches using `AnnotationColors.all`.
 - **Create** button calls `viewModel.onCreateAnnotation(...)`.
-- **Cancel** button deactivates selection mode.
+- **Cancel** button dismisses the sheet without creating a highlight.
 
 ### `AnnotationActionSheet.kt` (new composable)
 
@@ -469,7 +490,6 @@ Add to `values/strings.xml` and all 10 locale files:
 <string name="annotation_save_error">Failed to save highlight</string>
 <string name="annotation_delete_error">Failed to delete highlight</string>
 <string name="annotation_toggle_button">Highlights</string>
-<string name="annotation_activate_selection">Add Highlight</string>
 ```
 
 ---
@@ -499,7 +519,7 @@ Add to `values/strings.xml` and all 10 locale files:
 8. **`WebViewAnnotationBridge`** — Implement JS injection functions and `@JavascriptInterface` class.
 9. **`BookmarkDetailViewModel`** — Inject `AnnotationRepository`; add state and functions; call `loadAnnotations` in `loadBookmark()`.
 10. **`BookmarkDetailScreen`** — Wire WebView `onPageFinished` to inject bridge; add Highlights button in top bar; connect annotation flow to JS rendering.
-11. **`AnnotationCreationSheet`** — Build color-picker bottom sheet triggered by `onTextSelected`.
+11. **`AnnotationCreationSheet`** — Build color-picker bottom sheet triggered by standard text selection (`onTextSelected`).
 12. **`AnnotationActionSheet`** — Build action sheet triggered by `onAnnotationClicked`.
 13. **`AnnotationsPanel`** — Build highlights list panel with scroll-to and delete actions.
 14. **String resources** — Add all new strings to all 10 locale files.

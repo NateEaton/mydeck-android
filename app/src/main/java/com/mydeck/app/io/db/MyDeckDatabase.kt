@@ -12,16 +12,19 @@ import com.mydeck.app.io.db.model.BookmarkEntity
 import com.mydeck.app.io.db.model.RemoteBookmarkIdEntity
 import com.mydeck.app.io.db.model.PendingActionEntity
 import com.mydeck.app.io.db.dao.PendingActionDao
+import com.mydeck.app.io.db.model.AnnotationEntity
+import com.mydeck.app.io.db.dao.AnnotationDao
 
 @Database(
-    entities = [BookmarkEntity::class, ArticleContentEntity::class, RemoteBookmarkIdEntity::class, PendingActionEntity::class],
-    version = 7,
+    entities = [BookmarkEntity::class, ArticleContentEntity::class, RemoteBookmarkIdEntity::class, PendingActionEntity::class, AnnotationEntity::class],
+    version = 8,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
 abstract class MyDeckDatabase : RoomDatabase() {
     abstract fun getBookmarkDao(): BookmarkDao
     abstract fun getPendingActionDao(): PendingActionDao
+    abstract fun getAnnotationDao(): AnnotationDao
 
     open suspend fun <R> performTransaction(block: suspend () -> R): R = withTransaction(block)
 
@@ -106,22 +109,47 @@ abstract class MyDeckDatabase : RoomDatabase() {
                 database.execSQL(
                     """
                     CREATE TABLE IF NOT EXISTS `pending_actions` (
-                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, 
-                        `bookmarkId` TEXT NOT NULL, 
-                        `actionType` TEXT NOT NULL, 
-                        `payload` TEXT, 
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        `bookmarkId` TEXT NOT NULL,
+                        `actionType` TEXT NOT NULL,
+                        `payload` TEXT,
                         `createdAt` INTEGER NOT NULL
                     )
                     """
                 )
-                
+
                 // 2. Create index for pending_actions
                 database.execSQL(
                     "CREATE INDEX IF NOT EXISTS `index_pending_actions_bookmarkId_actionType` ON `pending_actions` (`bookmarkId`, `actionType`)"
                 )
-                
+
                 // 3. Add isLocalDeleted column to bookmarks
                 database.execSQL("ALTER TABLE bookmarks ADD COLUMN isLocalDeleted INTEGER NOT NULL DEFAULT 0")
+            }
+        }
+
+        val MIGRATION_7_8 = object : Migration(7, 8) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `annotations` (
+                        `id` TEXT NOT NULL,
+                        `bookmarkId` TEXT NOT NULL,
+                        `startSelector` TEXT NOT NULL,
+                        `startOffset` INTEGER NOT NULL,
+                        `endSelector` TEXT NOT NULL,
+                        `endOffset` INTEGER NOT NULL,
+                        `color` TEXT NOT NULL,
+                        `text` TEXT NOT NULL,
+                        `created` INTEGER NOT NULL,
+                        PRIMARY KEY(`id`),
+                        FOREIGN KEY(`bookmarkId`) REFERENCES `bookmarks`(`id`) ON DELETE CASCADE
+                    )
+                    """
+                )
+                database.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_annotations_bookmarkId` ON `annotations` (`bookmarkId`)"
+                )
             }
         }
     }

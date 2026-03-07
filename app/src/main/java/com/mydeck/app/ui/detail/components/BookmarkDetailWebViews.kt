@@ -5,7 +5,10 @@ import android.os.Build
 import android.view.View
 import android.webkit.WebView
 import com.mydeck.app.domain.model.ImageGalleryData
+import com.mydeck.app.ui.detail.AnnotationJsBridge
+import com.mydeck.app.ui.detail.WebViewAnnotationBridge
 import com.mydeck.app.ui.detail.WebViewImageBridge
+import com.mydeck.app.domain.model.Annotation
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -29,6 +32,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -63,11 +67,17 @@ fun BookmarkDetailArticle(
     modifier: Modifier,
     uiState: BookmarkDetailViewModel.UiState.Success,
     articleSearchState: BookmarkDetailViewModel.ArticleSearchState = BookmarkDetailViewModel.ArticleSearchState(),
+    annotations: List<Annotation> = emptyList(),
+    scrollToAnnotationId: String? = null,
+    isAnnotationSelectionActive: Boolean = false,
     onArticleSearchUpdateResults: (Int) -> Unit = {},
     onContentReady: (Boolean) -> Unit = {},
     onImageTapped: (ImageGalleryData) -> Unit = {},
     onImageLongPress: (imageUrl: String, linkUrl: String?, linkType: String, imageAlt: String) -> Unit = { _, _, _, _ -> },
     onLinkLongPress: (linkUrl: String, linkText: String) -> Unit = { _, _ -> },
+    onTextSelected: (startSelector: String, startOffset: Int, endSelector: String, endOffset: Int, text: String) -> Unit = { _, _, _, _, _ -> },
+    onAnnotationClicked: (annotationId: String) -> Unit = {},
+    onScrollToAnnotationConsumed: () -> Unit = {},
 ) {
     val isSystemInDarkMode = isSystemInDarkTheme()
     val content = remember(
@@ -81,7 +91,11 @@ fun BookmarkDetailArticle(
     }
     val webViewRef = remember { mutableStateOf<WebView?>(null) }
     val json = remember { Json { ignoreUnknownKeys = true } }
+    val latestAnnotationsState = rememberUpdatedState(annotations)
     var hasReportedReady by remember(uiState.bookmark.bookmarkId, content.value) { mutableStateOf(false) }
+    var isAnnotationBridgeReady by remember(uiState.bookmark.bookmarkId, content.value) {
+        mutableStateOf(false)
+    }
 
     LaunchedEffect(
         uiState.bookmark.bookmarkId,
@@ -183,10 +197,57 @@ fun BookmarkDetailArticle(
             }
         }
     }
+
+    // Re-render annotations whenever they change after the page bridge is ready
+    LaunchedEffect(annotations, isAnnotationBridgeReady) {
+        if (isAnnotationBridgeReady) {
+            withContext(Dispatchers.Main) {
+                webViewRef.value?.evaluateJavascript(
+                    WebViewAnnotationBridge.renderAnnotations(annotations), null
+                )
+            }
+        }
+    }
+
+    LaunchedEffect(isAnnotationSelectionActive, isAnnotationBridgeReady) {
+        if (isAnnotationBridgeReady) {
+            withContext(Dispatchers.Main) {
+                webViewRef.value?.evaluateJavascript(
+                    WebViewAnnotationBridge.setSelectionMode(isAnnotationSelectionActive),
+                    null
+                )
+            }
+        }
+    }
+
+    // Scroll to a specific annotation on demand
+    LaunchedEffect(scrollToAnnotationId, isAnnotationBridgeReady, annotations) {
+        if (!isAnnotationBridgeReady) return@LaunchedEffect
+        scrollToAnnotationId?.let { id ->
+            webViewRef.value?.evaluateJavascript(
+                WebViewAnnotationBridge.scrollToAnnotation(id)
+            ) { result ->
+                if (result == "true") {
+                    onScrollToAnnotationConsumed()
+                } else {
+                    webViewRef.value?.evaluateJavascript(
+                        WebViewAnnotationBridge.renderAnnotations(annotations)
+                    ) {
+                        webViewRef.value?.evaluateJavascript(
+                            WebViewAnnotationBridge.scrollToAnnotation(id),
+                            null
+                        )
+                        onScrollToAnnotationConsumed()
+                    }
+                }
+            }
+        }
+    }
+
     if (content.value != null) {
         if (!LocalInspectionMode.current) {
             AndroidView(
-                modifier = Modifier.padding(0.dp),
+                modifier = modifier,
                 factory = { context ->
                     WebView(context).apply {
                         val isVideo = uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.VIDEO
@@ -212,6 +273,15 @@ fun BookmarkDetailArticle(
                             WebViewImageBridge.BRIDGE_NAME
                         )
 
+                        // Register the annotation bridge
+                        addJavascriptInterface(
+                            AnnotationJsBridge(
+                                onTextSelected = onTextSelected,
+                                onAnnotationClicked = onAnnotationClicked,
+                            ),
+                            "AnnotationInterface"
+                        )
+
                         // Intercept link clicks and open in Chrome Custom Tabs
                         // Apply typography after page finishes loading
                         webViewClient = object : android.webkit.WebViewClient() {
@@ -221,6 +291,22 @@ fun BookmarkDetailArticle(
                                 webView.evaluateJavascript(typographyJs, null)
                                 val imageJs = WebViewImageBridge.injectImageInterceptor()
                                 webView.evaluateJavascript(imageJs, null)
+                                webView.evaluateJavascript(
+                                    WebViewAnnotationBridge.injectUtilities(), null
+                                )
+                                webView.evaluateJavascript(
+                                    WebViewAnnotationBridge.injectSelectionObserver(), null
+                                )
+                                webView.evaluateJavascript(
+                                    WebViewAnnotationBridge.setSelectionMode(
+                                        isAnnotationSelectionActive
+                                    ),
+                                    null
+                                )
+                                webView.evaluateJavascript(
+                                    WebViewAnnotationBridge.renderAnnotations(latestAnnotationsState.value), null
+                                )
+                                isAnnotationBridgeReady = true
                             }
 
                             private fun reportReadyIfNeeded(webView: WebView?) {

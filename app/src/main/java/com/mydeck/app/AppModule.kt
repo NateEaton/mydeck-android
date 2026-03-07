@@ -10,6 +10,8 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import com.mydeck.app.coroutine.ApplicationScope
 import com.mydeck.app.coroutine.IoDispatcher
+import com.mydeck.app.domain.AnnotationRepository
+import com.mydeck.app.domain.AnnotationRepositoryImpl
 import com.mydeck.app.domain.BookmarkRepository
 import com.mydeck.app.domain.BookmarkRepositoryImpl
 import com.mydeck.app.domain.UserRepository
@@ -27,6 +29,9 @@ import javax.inject.Singleton
 @Module(includes = [NetworkModule::class])
 @InstallIn(SingletonComponent::class)
 abstract class AppModule {
+
+    @Binds
+    abstract fun bindAnnotationRepository(impl: AnnotationRepositoryImpl): AnnotationRepository
 
     @Binds
     abstract fun bindBookmarkRepository(bookmarkRepositoryImpl: BookmarkRepositoryImpl): BookmarkRepository

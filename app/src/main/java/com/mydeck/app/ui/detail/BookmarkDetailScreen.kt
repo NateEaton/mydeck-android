@@ -109,6 +109,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.navigation.NavController
 import com.mydeck.app.R
+import com.mydeck.app.domain.model.Annotation
 import com.mydeck.app.domain.model.ImageGalleryData
 import com.mydeck.app.domain.model.Template
 import com.mydeck.app.domain.model.TextWidth
@@ -186,6 +187,12 @@ fun BookmarkDetailHost(
     val labelsWithCounts = viewModel.labelsWithCounts.collectAsState().value
     val galleryData = viewModel.galleryData.collectAsState().value
     val readerContextMenu = viewModel.readerContextMenu.collectAsState().value
+    val annotations = viewModel.annotations.collectAsState().value
+    val isAnnotationPanelOpen = viewModel.isAnnotationPanelOpen.collectAsState().value
+    val isAnnotationSelectionActive = viewModel.isAnnotationSelectionActive.collectAsState().value
+    val pendingSelection = viewModel.pendingSelection.collectAsState().value
+    val tappedAnnotationId = viewModel.tappedAnnotationId.collectAsState().value
+    val scrollToAnnotationId = viewModel.scrollToAnnotationId.collectAsState().value
     var showDetailsDialog by remember { mutableStateOf(false) }
     var showTypographyPanel by remember { mutableStateOf(false) }
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -334,6 +341,13 @@ fun BookmarkDetailHost(
                     onImageTapped = onImageTapped,
                     onImageLongPress = onImageLongPress,
                     onLinkLongPress = onLinkLongPress,
+                    isAnnotationSelectionActive = isAnnotationSelectionActive,
+                    onAnnotationToolbarClick = { viewModel.onAnnotationToolbarClick() },
+                    annotations = annotations,
+                    scrollToAnnotationId = scrollToAnnotationId,
+                    onTextSelected = viewModel::onTextSelected,
+                    onAnnotationClicked = viewModel::onAnnotationClicked,
+                    onScrollToAnnotationConsumed = viewModel::onScrollToAnnotationConsumed,
                 )
 
                 // Gallery draws on top of the reader screen. fillMaxSize() fills the
@@ -416,6 +430,35 @@ fun BookmarkDetailHost(
                     onDismiss = { showTypographyPanel = false }
                 )
             }
+            if (isAnnotationPanelOpen) {
+                AnnotationsPanel(
+                    annotations = annotations,
+                    onStartSelection = { viewModel.onStartAnnotationSelection() },
+                    onScrollToAnnotation = { id -> viewModel.onScrollToAnnotation(id) },
+                    onDeleteAnnotation = { id -> viewModel.onDeleteAnnotation(id) },
+                    onDismiss = { viewModel.onToggleAnnotationPanel() },
+                )
+            }
+            if (pendingSelection != null) {
+                AnnotationCreationSheet(
+                    pendingSelection = pendingSelection,
+                    onCreateAnnotation = { startSelector, startOffset, endSelector, endOffset, color ->
+                        viewModel.onCreateAnnotation(startSelector, startOffset, endSelector, endOffset, color)
+                    },
+                    onDismiss = { viewModel.onDismissCreationSheet() },
+                )
+            }
+            if (tappedAnnotationId != null) {
+                val tappedAnnotation = annotations.find { it.id == tappedAnnotationId }
+                if (tappedAnnotation != null) {
+                    AnnotationActionSheet(
+                        annotation = tappedAnnotation,
+                        onUpdateColor = { color -> viewModel.onUpdateAnnotationColor(tappedAnnotationId, color) },
+                        onDelete = { viewModel.onDeleteAnnotation(tappedAnnotationId) },
+                        onDismiss = { viewModel.onDismissActionSheet() },
+                    )
+                }
+            }
         }
 
         is BookmarkDetailViewModel.UiState.Loading -> {
@@ -465,6 +508,13 @@ fun BookmarkDetailScreen(
     onImageTapped: (ImageGalleryData) -> Unit = {},
     onImageLongPress: (imageUrl: String, linkUrl: String?, linkType: String, imageAlt: String) -> Unit = { _, _, _, _ -> },
     onLinkLongPress: (linkUrl: String, linkText: String) -> Unit = { _, _ -> },
+    isAnnotationSelectionActive: Boolean = false,
+    onAnnotationToolbarClick: () -> Unit = {},
+    annotations: List<Annotation> = emptyList(),
+    scrollToAnnotationId: String? = null,
+    onTextSelected: (startSelector: String, startOffset: Int, endSelector: String, endOffset: Int, text: String) -> Unit = { _, _, _, _, _ -> },
+    onAnnotationClicked: (annotationId: String) -> Unit = {},
+    onScrollToAnnotationConsumed: () -> Unit = {},
 ) {
     val topBarScrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior()
     val scrollState = rememberScrollState()
@@ -493,6 +543,8 @@ fun BookmarkDetailScreen(
                 onArticleSearchActivate = onArticleSearchActivate,
                 onClickOpenInBrowser = onClickOpenInBrowser,
                 onContentModeChange = onContentModeChange,
+                isAnnotationSelectionActive = isAnnotationSelectionActive,
+                onAnnotationToolbarClick = onAnnotationToolbarClick,
                 scrollBehavior = topBarScrollBehavior,
                 scrollState = scrollState,
                 onScrollToTop = {
@@ -520,7 +572,13 @@ fun BookmarkDetailScreen(
             onLinkLongPress = onLinkLongPress,
             onClickToggleFavorite = onClickToggleFavorite,
             onClickToggleArchive = onClickToggleArchive,
-            scrollState = scrollState
+            scrollState = scrollState,
+            annotations = annotations,
+            scrollToAnnotationId = scrollToAnnotationId,
+            isAnnotationSelectionActive = isAnnotationSelectionActive,
+            onTextSelected = onTextSelected,
+            onAnnotationClicked = onAnnotationClicked,
+            onScrollToAnnotationConsumed = onScrollToAnnotationConsumed,
         )
     }
 }
@@ -542,7 +600,13 @@ fun BookmarkDetailContent(
     onLinkLongPress: (linkUrl: String, linkText: String) -> Unit = { _, _ -> },
     onClickToggleFavorite: (String, Boolean) -> Unit = { _, _ -> },
     onClickToggleArchive: (String, Boolean) -> Unit = { _, _ -> },
-    scrollState: ScrollState = rememberScrollState()
+    scrollState: ScrollState = rememberScrollState(),
+    annotations: List<Annotation> = emptyList(),
+    scrollToAnnotationId: String? = null,
+    isAnnotationSelectionActive: Boolean = false,
+    onTextSelected: (startSelector: String, startOffset: Int, endSelector: String, endOffset: Int, text: String) -> Unit = { _, _, _, _, _ -> },
+    onAnnotationClicked: (annotationId: String) -> Unit = {},
+    onScrollToAnnotationConsumed: () -> Unit = {},
 ) {
     val hasArticleContent = uiState.bookmark.articleContent != null
     val isArticle = uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.ARTICLE
@@ -635,11 +699,17 @@ fun BookmarkDetailContent(
                         modifier = Modifier.fillMaxWidth(contentWidthFraction),
                         uiState = uiState,
                         articleSearchState = articleSearchState,
+                        annotations = annotations,
+                        scrollToAnnotationId = scrollToAnnotationId,
+                        isAnnotationSelectionActive = isAnnotationSelectionActive,
                         onArticleSearchUpdateResults = onArticleSearchUpdateResults,
                         onContentReady = { ready -> isReaderContentReady = ready },
                         onImageTapped = onImageTapped,
                         onImageLongPress = onImageLongPress,
                         onLinkLongPress = onLinkLongPress,
+                        onTextSelected = onTextSelected,
+                        onAnnotationClicked = onAnnotationClicked,
+                        onScrollToAnnotationConsumed = onScrollToAnnotationConsumed,
                     )
                 }
 
