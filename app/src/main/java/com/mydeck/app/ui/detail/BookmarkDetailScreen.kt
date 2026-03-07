@@ -9,6 +9,8 @@ import android.icu.text.MessageFormat
 import android.net.Uri
 import android.view.View
 import android.webkit.WebView
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.clickable
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.Download
@@ -27,6 +29,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.material.icons.Icons
@@ -52,7 +55,6 @@ import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -271,7 +273,9 @@ fun BookmarkDetailHost(
             // Auto-switch to Original mode when content fetch fails (any reason)
             // This handles both permanent failures (no server content) and
             // transient failures (server error fetching article)
-            LaunchedEffect(contentLoadState) {
+            // Include contentMode in the key so manual "View article" toggles after a failed
+            // fetch still snap back to Original mode when extracted content is unavailable.
+            LaunchedEffect(contentLoadState, contentMode, uiState.bookmark.hasContent) {
                 if (contentLoadState is ContentLoadState.Failed &&
                     contentMode == ContentMode.READER &&
                     !uiState.bookmark.hasContent) {
@@ -463,6 +467,8 @@ fun BookmarkDetailScreen(
     onLinkLongPress: (linkUrl: String, linkText: String) -> Unit = { _, _ -> },
 ) {
     val topBarScrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior()
+    val scrollState = rememberScrollState()
+    val coroutineScope = rememberCoroutineScope()
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -488,6 +494,12 @@ fun BookmarkDetailScreen(
                 onClickOpenInBrowser = onClickOpenInBrowser,
                 onContentModeChange = onContentModeChange,
                 scrollBehavior = topBarScrollBehavior,
+                scrollState = scrollState,
+                onScrollToTop = {
+                    coroutineScope.launch {
+                        scrollState.animateScrollTo(0)
+                    }
+                },
             )
         }
     ) { padding ->
@@ -507,7 +519,8 @@ fun BookmarkDetailScreen(
             onImageLongPress = onImageLongPress,
             onLinkLongPress = onLinkLongPress,
             onClickToggleFavorite = onClickToggleFavorite,
-            onClickToggleArchive = onClickToggleArchive
+            onClickToggleArchive = onClickToggleArchive,
+            scrollState = scrollState
         )
     }
 }
@@ -528,16 +541,39 @@ fun BookmarkDetailContent(
     onImageLongPress: (imageUrl: String, linkUrl: String?, linkType: String, imageAlt: String) -> Unit = { _, _, _, _ -> },
     onLinkLongPress: (linkUrl: String, linkText: String) -> Unit = { _, _ -> },
     onClickToggleFavorite: (String, Boolean) -> Unit = { _, _ -> },
-    onClickToggleArchive: (String, Boolean) -> Unit = { _, _ -> }
+    onClickToggleArchive: (String, Boolean) -> Unit = { _, _ -> },
+    scrollState: ScrollState = rememberScrollState()
 ) {
-    val scrollState = rememberScrollState()
     val hasArticleContent = uiState.bookmark.articleContent != null
     val isArticle = uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.ARTICLE
     val needsRestore = isArticle && hasArticleContent && initialReadProgress > 0 && initialReadProgress <= 100
+    val hasReaderContent = uiState.bookmark.hasContent && contentMode == ContentMode.READER
     // Key on hasArticleContent so when content arrives after on-demand fetch,
     // the state resets and scroll position restore is triggered
     var hasRestoredPosition by remember(hasArticleContent) { mutableStateOf(!needsRestore) }
+    var isReaderContentReady by remember(
+        uiState.bookmark.bookmarkId,
+        uiState.bookmark.articleContent,
+        uiState.bookmark.embed,
+        contentMode
+    ) {
+        mutableStateOf(false)
+    }
     var lastReportedProgress by remember { mutableStateOf(-1) }
+
+    LaunchedEffect(hasReaderContent) {
+        if (!hasReaderContent) {
+            isReaderContentReady = false
+        }
+    }
+
+    // Keep the spinner while reader content is loading/rendering, but not after a failed fetch.
+    val showReaderLoadingOverlay =
+        contentMode == ContentMode.READER &&
+            (
+                (uiState.bookmark.hasContent && !isReaderContentReady) ||
+                    (!uiState.bookmark.hasContent && contentLoadState !is ContentLoadState.Failed)
+                )
 
     // Restore scroll position when content is loaded (using initial progress, not reactive)
     LaunchedEffect(scrollState.maxValue) {
@@ -580,7 +616,7 @@ fun BookmarkDetailContent(
                 modifier = Modifier
                     .fillMaxSize()
                     .verticalScroll(scrollState)
-                    .alpha(if (hasRestoredPosition) 1f else 0f),
+                    .alpha(if (hasRestoredPosition && !showReaderLoadingOverlay) 1f else 0f),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 val contentWidthFraction = when (uiState.typographySettings.textWidth) {
@@ -594,20 +630,117 @@ fun BookmarkDetailContent(
                     onTitleChanged = onTitleChanged
                 )
 
-                val hasContent = uiState.bookmark.hasContent
-                if (hasContent) {
+                if (uiState.bookmark.hasContent) {
                     BookmarkDetailArticle(
                         modifier = Modifier.fillMaxWidth(contentWidthFraction),
                         uiState = uiState,
                         articleSearchState = articleSearchState,
                         onArticleSearchUpdateResults = onArticleSearchUpdateResults,
+                        onContentReady = { ready -> isReaderContentReady = ready },
                         onImageTapped = onImageTapped,
                         onImageLongPress = onImageLongPress,
                         onLinkLongPress = onLinkLongPress,
                     )
-                } else {
-                    // Brief fallback while auto-switch to Original hasn't happened yet
-                    EmptyBookmarkDetailArticle(modifier = Modifier)
+                }
+
+                // Action buttons at the end of content (only show in reader mode for articles, videos, and photos)
+                if ((uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.ARTICLE ||
+                     uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.VIDEO ||
+                     uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.PHOTO) &&
+                    uiState.bookmark.hasContent &&
+                    contentMode == ContentMode.READER &&
+                    isReaderContentReady) {
+                    Spacer(modifier = Modifier.height(24.dp))
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth(contentWidthFraction)
+                            .padding(horizontal = 16.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        // Favorite button
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(MaterialTheme.shapes.extraLarge)
+                                .clickable {
+                                    onClickToggleFavorite(uiState.bookmark.bookmarkId, !uiState.bookmark.isFavorite)
+                                }
+                                .background(
+                                    if (uiState.bookmark.isFavorite) 
+                                        MaterialTheme.colorScheme.primaryContainer
+                                    else 
+                                        MaterialTheme.colorScheme.surfaceVariant
+                                )
+                                .padding(horizontal = 16.dp, vertical = 12.dp),
+                            horizontalArrangement = Arrangement.Center,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = if (uiState.bookmark.isFavorite) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp),
+                                tint = if (uiState.bookmark.isFavorite) 
+                                    MaterialTheme.colorScheme.onPrimaryContainer
+                                else 
+                                    MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                text = if (uiState.bookmark.isFavorite)
+                                    stringResource(R.string.action_remove_from_favorites)
+                                else
+                                    stringResource(R.string.action_add_to_favorites),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = if (uiState.bookmark.isFavorite) 
+                                    MaterialTheme.colorScheme.onPrimaryContainer
+                                else 
+                                    MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+
+                        // Archive button
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(MaterialTheme.shapes.extraLarge)
+                                .clickable {
+                                    onClickToggleArchive(uiState.bookmark.bookmarkId, !uiState.bookmark.isArchived)
+                                }
+                                .background(
+                                    if (uiState.bookmark.isArchived) 
+                                        MaterialTheme.colorScheme.primaryContainer
+                                    else 
+                                        MaterialTheme.colorScheme.surfaceVariant
+                                )
+                                .padding(horizontal = 16.dp, vertical = 12.dp),
+                            horizontalArrangement = Arrangement.Center,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = if (uiState.bookmark.isArchived) Icons.Filled.Inventory2 else Icons.Outlined.Inventory2,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp),
+                                tint = if (uiState.bookmark.isArchived) 
+                                    MaterialTheme.colorScheme.onPrimaryContainer
+                                else 
+                                    MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                text = if (uiState.bookmark.isArchived)
+                                    stringResource(R.string.action_remove_from_archive)
+                                else
+                                    stringResource(R.string.action_add_to_archive),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = if (uiState.bookmark.isArchived) 
+                                    MaterialTheme.colorScheme.onPrimaryContainer
+                                else 
+                                    MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(16.dp))
                 }
 
                 // Action buttons at the end of content (only show in reader mode for articles, videos, and photos)
@@ -709,13 +842,13 @@ fun BookmarkDetailContent(
                 }
             }
 
-            // Full-screen loading overlay while article content is being fetched
-            if (!uiState.bookmark.hasContent && contentLoadState is ContentLoadState.Loading) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator()
+            Crossfade(
+                targetState = showReaderLoadingOverlay,
+                animationSpec = tween(durationMillis = 220),
+                label = "reader_loading_crossfade"
+            ) { isLoading ->
+                if (isLoading) {
+                    ReaderLoadingOverlay(modifier = Modifier.fillMaxSize())
                 }
             }
 
@@ -831,6 +964,31 @@ private fun ReaderContextMenu(
                     onDismiss()
                 }
             )
+        }
+    }
+}
+
+@Composable
+private fun ReaderLoadingOverlay(modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier,
+        contentAlignment = Alignment.Center
+    ) {
+        Surface(
+            shape = MaterialTheme.shapes.extraLarge,
+            tonalElevation = 4.dp,
+            shadowElevation = 1.dp
+        ) {
+            Column(
+                modifier = Modifier.padding(horizontal = 24.dp, vertical = 20.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(32.dp),
+                    strokeWidth = 3.dp
+                )
+            }
         }
     }
 }

@@ -6,6 +6,8 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
@@ -285,7 +287,32 @@ private fun CompactAppShell(
                 composable<SettingsRoute> { SettingsScreen(navController) }
                 composable<WelcomeRoute> { WelcomeScreen(navController) }
                 composable<AccountSettingsRoute> { AccountSettingsScreen(navController) }
-                composable<BookmarkDetailRoute> { backStackEntry ->
+                composable<BookmarkDetailRoute>(
+                    enterTransition = {
+                        scaleIn(
+                            initialScale = 0.92f,
+                            animationSpec = tween(300)
+                        ) + fadeIn(animationSpec = tween(300))
+                    },
+                    exitTransition = {
+                        scaleOut(
+                            targetScale = 0.92f,
+                            animationSpec = tween(300)
+                        ) + fadeOut(animationSpec = tween(300))
+                    },
+                    popEnterTransition = {
+                        scaleIn(
+                            initialScale = 0.92f,
+                            animationSpec = tween(300)
+                        ) + fadeIn(animationSpec = tween(300))
+                    },
+                    popExitTransition = {
+                        scaleOut(
+                            targetScale = 0.92f,
+                            animationSpec = tween(300)
+                        ) + fadeOut(animationSpec = tween(300))
+                    },
+                ) { backStackEntry ->
                     val route = backStackEntry.toRoute<BookmarkDetailRoute>()
                     BookmarkDetailScreen(
                         navController,
@@ -443,7 +470,32 @@ private fun MediumAppShell(
                 composable<SettingsRoute> { SettingsScreen(navController, showBackButton = false) }
                 composable<WelcomeRoute> { WelcomeScreen(navController) }
                 composable<AccountSettingsRoute> { AccountSettingsScreen(navController) }
-                composable<BookmarkDetailRoute> { backStackEntry ->
+                composable<BookmarkDetailRoute>(
+                    enterTransition = {
+                        scaleIn(
+                            initialScale = 0.92f,
+                            animationSpec = tween(300)
+                        ) + fadeIn(animationSpec = tween(300))
+                    },
+                    exitTransition = {
+                        scaleOut(
+                            targetScale = 0.92f,
+                            animationSpec = tween(300)
+                        ) + fadeOut(animationSpec = tween(300))
+                    },
+                    popEnterTransition = {
+                        scaleIn(
+                            initialScale = 0.92f,
+                            animationSpec = tween(300)
+                        ) + fadeIn(animationSpec = tween(300))
+                    },
+                    popExitTransition = {
+                        scaleOut(
+                            targetScale = 0.92f,
+                            animationSpec = tween(300)
+                        ) + fadeOut(animationSpec = tween(300))
+                    },
+                ) { backStackEntry ->
                     val route = backStackEntry.toRoute<BookmarkDetailRoute>()
                     BookmarkDetailScreen(
                         navController,
@@ -602,7 +654,32 @@ private fun ExpandedAppShell(
                 composable<SettingsRoute> { SettingsScreen(navController, showBackButton = false) }
                 composable<WelcomeRoute> { WelcomeScreen(navController) }
                 composable<AccountSettingsRoute> { AccountSettingsScreen(navController) }
-                composable<BookmarkDetailRoute> { backStackEntry ->
+                composable<BookmarkDetailRoute>(
+                    enterTransition = {
+                        scaleIn(
+                            initialScale = 0.92f,
+                            animationSpec = tween(300)
+                        ) + fadeIn(animationSpec = tween(300))
+                    },
+                    exitTransition = {
+                        scaleOut(
+                            targetScale = 0.92f,
+                            animationSpec = tween(300)
+                        ) + fadeOut(animationSpec = tween(300))
+                    },
+                    popEnterTransition = {
+                        scaleIn(
+                            initialScale = 0.92f,
+                            animationSpec = tween(300)
+                        ) + fadeIn(animationSpec = tween(300))
+                    },
+                    popExitTransition = {
+                        scaleOut(
+                            targetScale = 0.92f,
+                            animationSpec = tween(300)
+                        ) + fadeOut(animationSpec = tween(300))
+                    },
+                ) { backStackEntry ->
                     val route = backStackEntry.toRoute<BookmarkDetailRoute>()
                     BookmarkDetailScreen(
                         navController,

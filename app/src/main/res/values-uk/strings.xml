@@ -145,6 +145,12 @@
     <string name="labels_search_placeholder">Search labels</string>
     <string name="labels_empty">No labels</string>
     <string name="labels_search_empty">No labels found</string>
+    <string name="select_labels">Select labels</string>
+    <string name="label_picker_done">Done</string>
+    <string name="add_labels">Add labels</string>
+    <string name="edit_labels">Edit labels</string>
+    <string name="labels_selected_count">%1$d selected</string>
+    <string name="create_label_action">Create label "%1$s"</string>
     <string name="rename_label">Rename label</string>
     <string name="rename">Rename</string>
     <string name="delete">Delete</string>

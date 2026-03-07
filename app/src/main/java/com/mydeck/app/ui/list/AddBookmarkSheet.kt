@@ -3,6 +3,7 @@ package com.mydeck.app.ui.list
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -17,8 +18,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Favorite
@@ -41,17 +40,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.input.pointer.pointerInput
 import com.mydeck.app.R
-import com.mydeck.app.ui.components.LabelAutocompleteTextField
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -76,8 +72,6 @@ fun AddBookmarkSheet(
     onAction: ((SaveAction) -> Unit)? = null,
     onInteraction: (() -> Unit)? = null
 ) {
-    var newLabelInput by remember { mutableStateOf("") }
-    val keyboardController = LocalSoftwareKeyboardController.current
     val scrollState = rememberScrollState()
 
     val autoSaveProgress = remember { Animatable(1f) }
@@ -210,23 +204,11 @@ fun AddBookmarkSheet(
 
         CreateBookmarkLabelsSection(
             labels = labels,
-            newLabelInput = newLabelInput,
             isFavorite = isFavorite,
             existingLabels = existingLabels,
-            onNewLabelChange = {
-                newLabelInput = it
-                cancelAutoSave()
-            },
-            onFocusLabel = cancelAutoSave,
-            onAddLabel = {
-                if (newLabelInput.isNotBlank()) {
-                    val trimmedLabel = newLabelInput.trim()
-                    if (trimmedLabel.isNotEmpty() && !labels.contains(trimmedLabel)) {
-                        onLabelsChange(labels + trimmedLabel)
-                    }
-                    newLabelInput = ""
-                    keyboardController?.hide()
-                }
+            onOpenLabelPicker = cancelAutoSave,
+            onSetLabels = { updatedLabels ->
+                onLabelsChange(updatedLabels)
                 cancelAutoSave()
             },
             onRemoveLabel = { label ->
@@ -246,8 +228,6 @@ fun AddBookmarkSheet(
         ) {
             OutlinedButton(
                 onClick = {
-                    commitPendingLabels(newLabelInput, labels, onLabelsChange)
-                    newLabelInput = ""
                     if (onAction != null) onAction.invoke(SaveAction.ARCHIVE) else onCreateBookmark()
                 },
                 enabled = isCreateEnabled
@@ -257,8 +237,6 @@ fun AddBookmarkSheet(
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedButton(
                     onClick = {
-                        commitPendingLabels(newLabelInput, labels, onLabelsChange)
-                        newLabelInput = ""
                         if (onAction != null) onAction.invoke(SaveAction.VIEW) else onCreateBookmark()
                     },
                     enabled = isCreateEnabled
@@ -267,8 +245,6 @@ fun AddBookmarkSheet(
                 }
                 Button(
                     onClick = {
-                        commitPendingLabels(newLabelInput, labels, onLabelsChange)
-                        newLabelInput = ""
                         if (onAction != null) onAction.invoke(SaveAction.ADD) else onCreateBookmark()
                     },
                     enabled = isCreateEnabled
@@ -280,31 +256,22 @@ fun AddBookmarkSheet(
     }
 }
 
-private fun commitPendingLabels(
-    newLabelInput: String,
-    labels: List<String>,
-    onLabelsChange: (List<String>) -> Unit
-) {
-    if (newLabelInput.isBlank()) return
-    val trimmedLabel = newLabelInput.trim()
-    if (trimmedLabel.isNotEmpty() && !labels.contains(trimmedLabel)) {
-        onLabelsChange(labels + trimmedLabel)
-    }
-}
-
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun CreateBookmarkLabelsSection(
     labels: List<String>,
-    newLabelInput: String,
     isFavorite: Boolean = false,
     existingLabels: List<String> = emptyList(),
-    onNewLabelChange: (String) -> Unit,
-    onFocusLabel: () -> Unit = {},
-    onAddLabel: () -> Unit,
+    onOpenLabelPicker: () -> Unit = {},
+    onSetLabels: (List<String>) -> Unit,
     onRemoveLabel: (String) -> Unit,
     onFavoriteToggle: (Boolean) -> Unit = {}
 ) {
+    var showLabelPicker by remember { mutableStateOf(false) }
+    val labelOptions = remember(existingLabels, labels) {
+        (existingLabels + labels).distinct().associateWith { 0 }
+    }
+
     Column(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -332,23 +299,41 @@ private fun CreateBookmarkLabelsSection(
 
         Row(
             modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.Top,
+            verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(4.dp)
         ) {
-            LabelAutocompleteTextField(
-                value = newLabelInput,
-                onValueChange = {
-                    onNewLabelChange(it)
-                    onFocusLabel()
-                },
-                onLabelSelected = { selected ->
-                    onNewLabelChange(selected.trim())
-                    onAddLabel()
-                },
-                existingLabels = existingLabels,
-                currentLabels = labels,
-                modifier = Modifier.weight(1f)
-            )
+            Card(
+                modifier = Modifier
+                    .weight(1f)
+                    .clickable {
+                        onOpenLabelPicker()
+                        showLabelPicker = true
+                    },
+                shape = MaterialTheme.shapes.medium
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 12.dp)
+                ) {
+                    Text(
+                        text = if (labels.isEmpty()) {
+                            stringResource(R.string.add_labels)
+                        } else {
+                            stringResource(R.string.edit_labels)
+                        },
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    if (labels.isNotEmpty()) {
+                        Text(
+                            text = stringResource(R.string.labels_selected_count, labels.size),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
             IconButton(onClick = { onFavoriteToggle(!isFavorite) }) {
                 Icon(
                     imageVector = if (isFavorite) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
@@ -356,6 +341,22 @@ private fun CreateBookmarkLabelsSection(
                     tint = if (isFavorite) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
+        }
+
+        if (showLabelPicker) {
+            LabelPickerBottomSheet(
+                labels = labelOptions,
+                mode = LabelPickerMode.MultiSelect(
+                    initialSelection = labels.toSet(),
+                    onDone = { selectedLabels ->
+                        val updatedLabels =
+                            labels.filter { selectedLabels.contains(it) } +
+                                selectedLabels.filterNot { labels.contains(it) }.sorted()
+                        onSetLabels(updatedLabels)
+                    }
+                ),
+                onDismiss = { showLabelPicker = false }
+            )
         }
     }
 }

@@ -1,6 +1,7 @@
 package com.mydeck.app.ui.detail.components
 
 import android.net.Uri
+import android.os.Build
 import android.view.View
 import android.webkit.WebView
 import com.mydeck.app.domain.model.ImageGalleryData
@@ -63,6 +64,7 @@ fun BookmarkDetailArticle(
     uiState: BookmarkDetailViewModel.UiState.Success,
     articleSearchState: BookmarkDetailViewModel.ArticleSearchState = BookmarkDetailViewModel.ArticleSearchState(),
     onArticleSearchUpdateResults: (Int) -> Unit = {},
+    onContentReady: (Boolean) -> Unit = {},
     onImageTapped: (ImageGalleryData) -> Unit = {},
     onImageLongPress: (imageUrl: String, linkUrl: String?, linkType: String, imageAlt: String) -> Unit = { _, _, _, _ -> },
     onLinkLongPress: (linkUrl: String, linkText: String) -> Unit = { _, _ -> },
@@ -79,6 +81,7 @@ fun BookmarkDetailArticle(
     }
     val webViewRef = remember { mutableStateOf<WebView?>(null) }
     val json = remember { Json { ignoreUnknownKeys = true } }
+    var hasReportedReady by remember(uiState.bookmark.bookmarkId, content.value) { mutableStateOf(false) }
 
     LaunchedEffect(
         uiState.bookmark.bookmarkId,
@@ -89,6 +92,27 @@ fun BookmarkDetailArticle(
     ) {
         content.value = uiState.bookmark.getContent(uiState.template, isSystemInDarkMode)
         webViewRef.value?.settings?.textZoom = uiState.typographySettings.fontSizePercent
+    }
+
+    LaunchedEffect(content.value) {
+        if (content.value != null) {
+            hasReportedReady = false
+            onContentReady(false)
+        } else {
+            onContentReady(true)
+        }
+    }
+
+    // Some embed-heavy pages can delay WebView finished callbacks for a long time.
+    // If that happens, unblock the reader once we have waited long enough.
+    LaunchedEffect(content.value, uiState.bookmark.bookmarkId) {
+        if (content.value != null) {
+            delay(3000)
+            if (!hasReportedReady) {
+                hasReportedReady = true
+                onContentReady(true)
+            }
+        }
     }
 
     // Apply typography settings when they change (non-textZoom properties via JS)
@@ -191,6 +215,39 @@ fun BookmarkDetailArticle(
                         // Intercept link clicks and open in Chrome Custom Tabs
                         // Apply typography after page finishes loading
                         webViewClient = object : android.webkit.WebViewClient() {
+                            private fun applyReaderEnhancements(webView: WebView) {
+                                val typographyJs =
+                                    WebViewTypographyBridge.applyTypography(uiState.typographySettings)
+                                webView.evaluateJavascript(typographyJs, null)
+                                val imageJs = WebViewImageBridge.injectImageInterceptor()
+                                webView.evaluateJavascript(imageJs, null)
+                            }
+
+                            private fun reportReadyIfNeeded(webView: WebView?) {
+                                if (hasReportedReady) return
+                                if (webView == null) {
+                                    hasReportedReady = true
+                                    onContentReady(true)
+                                    return
+                                }
+                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                                    webView.postVisualStateCallback(
+                                        System.currentTimeMillis(),
+                                        object : WebView.VisualStateCallback() {
+                                            override fun onComplete(requestId: Long) {
+                                                if (!hasReportedReady) {
+                                                    hasReportedReady = true
+                                                    onContentReady(true)
+                                                }
+                                            }
+                                        }
+                                    )
+                                } else {
+                                    hasReportedReady = true
+                                    onContentReady(true)
+                                }
+                            }
+
                             override fun shouldOverrideUrlLoading(
                                 view: WebView?,
                                 request: android.webkit.WebResourceRequest?
@@ -203,14 +260,19 @@ fun BookmarkDetailArticle(
                                 return false
                             }
 
+                            override fun onPageCommitVisible(view: WebView?, url: String?) {
+                                super.onPageCommitVisible(view, url)
+                                view?.let { applyReaderEnhancements(it) }
+                                if (!hasReportedReady) {
+                                    hasReportedReady = true
+                                    onContentReady(true)
+                                }
+                            }
+
                             override fun onPageFinished(view: WebView?, url: String?) {
                                 super.onPageFinished(view, url)
-                                view?.let {
-                                    val typographyJs = WebViewTypographyBridge.applyTypography(uiState.typographySettings)
-                                    it.evaluateJavascript(typographyJs, null)
-                                    val imageJs = WebViewImageBridge.injectImageInterceptor()
-                                    it.evaluateJavascript(imageJs, null)
-                                }
+                                view?.let { applyReaderEnhancements(it) }
+                                reportReadyIfNeeded(view)
                             }
                         }
 

@@ -10,9 +10,9 @@ Labels let you categorize your bookmarks with any words, phrases, or emojis you 
 
 You can add labels in two places:
 
-- **When saving a bookmark** — the Add Link sheet (opened from the **+** button or the Android share sheet) includes an **Add label** field. Type to search your existing labels; matching ones appear as suggestions below the field. Select a suggestion or finish typing to create a new one.
+- **When saving a bookmark** — the Add Link sheet (opened from the **+** button or the Android share sheet) shows a **Labels** section with chips for current labels and an **Add labels** / **Edit labels** row. Tap that row to open a label picker, select one or more labels, then tap **Done** to save label changes.
 
-- **From Bookmark Details** — open any bookmark and tap **⋮** → **Details**. The Labels section shows existing labels with **×** buttons to remove them, and an **Add label** field to add more. The same autocomplete suggestions appear as you type.
+- **From Bookmark Details** — open any bookmark and tap **⋮** → **Details**. The Labels section shows existing labels with **×** buttons to remove them, plus an **Add labels** / **Edit labels** row that opens the same multi-select label picker.
 
 ### Browsing by Label
 

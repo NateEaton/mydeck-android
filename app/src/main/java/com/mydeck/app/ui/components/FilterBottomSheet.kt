@@ -51,7 +51,8 @@ import com.mydeck.app.R
 import com.mydeck.app.domain.model.Bookmark
 import com.mydeck.app.domain.model.FilterFormState
 import com.mydeck.app.domain.model.ProgressFilter
-import com.mydeck.app.ui.list.LabelsBottomSheet
+import com.mydeck.app.ui.list.LabelPickerBottomSheet
+import com.mydeck.app.ui.list.LabelPickerMode
 import kotlinx.datetime.Instant
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -351,15 +352,15 @@ fun FilterBottomSheet(
 
     // Label picker (selection-only — no rename/delete)
     if (showLabelPicker) {
-        LabelsBottomSheet(
+        LabelPickerBottomSheet(
             labels = labels,
-            selectedLabel = label,
-            onLabelSelected = { selected ->
-                label = selected
-                showLabelPicker = false
-            },
-            onRenameLabel = { _, _ -> },
-            onDeleteLabel = { _ -> },
+            mode = LabelPickerMode.SingleSelect(
+                selectedLabel = label,
+                onLabelSelected = { selected ->
+                    label = selected
+                    showLabelPicker = false
+                }
+            ),
             onDismiss = { showLabelPicker = false }
         )
     }

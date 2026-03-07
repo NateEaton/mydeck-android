@@ -83,13 +83,15 @@ Long-pressing on a bookmark card opens a context menu dialog. The dialog header 
 
 Tap the **+** button at the bottom-right of the list to open the **Add Link** sheet. Enter the URL of the page you want to save, and optionally a title, labels, and mark it as a favorite (❤️), then tap **Add**.
 
+For labels, use the **Add labels** / **Edit labels** row in the Labels section. This opens a picker where you can select multiple labels (and create a new label from search text). Tap **Done** to apply picker changes, or tap **Back** to cancel picker changes.
+
 - **Add** — saves the bookmark and closes the sheet
 - **View** — saves the bookmark and immediately opens it to read
 - **Archive** — saves the bookmark directly to the archive
 
 ### From another app
 
-You can save any link to MyDeck using Android's share sheet. In a browser or another app, tap **Share** and choose **Save to MyDeck**. A sheet appears with the URL (and title, if the app shared one) pre-filled. You can add or edit the title, add labels, mark it as a favorite (❤️), and choose **Add**, **View**, or **Archive**.
+You can save any link to MyDeck using Android's share sheet. In a browser or another app, tap **Share** and choose **Save to MyDeck**. A sheet appears with the URL (and title, if the app shared one) pre-filled. You can add or edit the title, pick labels, mark it as a favorite (❤️), and choose **Add**, **View**, or **Archive**.
 
 When opened via the share sheet, a 5-second countdown starts and the bookmark is added automatically when it reaches zero. Tap anywhere on the sheet to stop the countdown and take your time.
 
@@ -106,7 +108,7 @@ When no bookmarks match the current filters, the list shows a "No bookmarks matc
 - **Title** — search the title only
 - **Author** — search the author field only
 - **Site** — search the site name and domain
-- **Label** — filter to bookmarks with a specific label
+- **Label** — opens a label picker to filter to bookmarks with a specific label
 
 **Date range:**
 - **From Date / To Date** — filter by when the bookmark was added

@@ -719,12 +719,14 @@ fun BookmarkListScreen(
     }
 
     if (isLabelsSheetOpen.value) {
-        LabelsBottomSheet(
+        LabelPickerBottomSheet(
             labels = labelsWithCounts.value,
-            selectedLabel = activeLabel.value,
-            onLabelSelected = { label -> viewModel.onClickLabel(label) },
-            onRenameLabel = { oldLabel, newLabel -> viewModel.onRenameLabel(oldLabel, newLabel) },
-            onDeleteLabel = { label -> viewModel.onDeleteLabel(label) },
+            mode = LabelPickerMode.SingleSelect(
+                selectedLabel = activeLabel.value,
+                onLabelSelected = { label -> viewModel.onClickLabel(label) },
+                onRenameLabel = { oldLabel, newLabel -> viewModel.onRenameLabel(oldLabel, newLabel) },
+                onDeleteLabel = { label -> viewModel.onDeleteLabel(label) }
+            ),
             onDismiss = { viewModel.onCloseLabelsSheet() }
         )
     }
