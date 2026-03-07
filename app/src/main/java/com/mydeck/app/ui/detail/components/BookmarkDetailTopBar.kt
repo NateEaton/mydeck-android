@@ -1,5 +1,10 @@
 package com.mydeck.app.ui.detail.components
 
+import androidx.compose.foundation.ScrollState
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Favorite
@@ -14,6 +19,8 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import com.mydeck.app.R
 import com.mydeck.app.ui.detail.BookmarkDetailViewModel
@@ -41,6 +48,8 @@ fun BookmarkDetailTopBar(
     onClickOpenInBrowser: (String) -> Unit,
     onContentModeChange: (ContentMode) -> Unit,
     scrollBehavior: TopAppBarScrollBehavior,
+    scrollState: ScrollState? = null,
+    onScrollToTop: () -> Unit = {},
 ) {
     if (articleSearchState.isActive) {
         ArticleSearchBar(
@@ -55,7 +64,20 @@ fun BookmarkDetailTopBar(
     } else {
         TopAppBar(
             scrollBehavior = scrollBehavior,
-            title = { },
+            title = {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null
+                        ) {
+                            if (scrollState != null && scrollState.value > 0) {
+                                onScrollToTop()
+                            }
+                        }
+                ) { }
+            },
             navigationIcon = {
                 IconButton(onClick = onClickBack) {
                     Icon(
