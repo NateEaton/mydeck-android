@@ -121,70 +121,72 @@ fun BookmarkDetailMenu(
                 }
             )
 
-            // Thin light divider between read and View original
-            HorizontalDivider(
-                modifier = Modifier.padding(horizontal = 12.dp),
-                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
-            )
+            if (uiState.bookmark.hasContent) {
+                // Thin light divider between read and View original
+                HorizontalDivider(
+                    modifier = Modifier.padding(horizontal = 12.dp),
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+                )
 
-            // 4. View Article / View Original (article and video types)
-            if (uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.ARTICLE) {
-                DropdownMenuItem(
-                    text = {
-                        Text(
-                            if (contentMode == ContentMode.READER) stringResource(R.string.action_view_original)
-                            else stringResource(R.string.action_view_article)
-                        )
-                    },
-                    onClick = {
-                        onContentModeChange(if (contentMode == ContentMode.READER) ContentMode.ORIGINAL else ContentMode.READER)
-                        expanded = false
-                    },
-                    leadingIcon = {
-                        Icon(
-                            if (contentMode == ContentMode.READER) Icons.Default.Language else Icons.Outlined.Description,
-                            contentDescription = null
-                        )
-                    }
-                )
-            } else if (uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.VIDEO) {
-                DropdownMenuItem(
-                    text = {
-                        Text(
-                            if (contentMode == ContentMode.READER) stringResource(R.string.action_view_original)
-                            else stringResource(R.string.action_view_video)
-                        )
-                    },
-                    onClick = {
-                        onContentModeChange(if (contentMode == ContentMode.READER) ContentMode.ORIGINAL else ContentMode.READER)
-                        expanded = false
-                    },
-                    leadingIcon = {
-                        Icon(
-                            if (contentMode == ContentMode.READER) Icons.Default.Language else Icons.Default.Movie,
-                            contentDescription = null
-                        )
-                    }
-                )
-            } else if (uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.PHOTO) {
-                DropdownMenuItem(
-                    text = {
-                        Text(
-                            if (contentMode == ContentMode.READER) stringResource(R.string.action_view_original)
-                            else stringResource(R.string.action_view_photograph)
-                        )
-                    },
-                    onClick = {
-                        onContentModeChange(if (contentMode == ContentMode.READER) ContentMode.ORIGINAL else ContentMode.READER)
-                        expanded = false
-                    },
-                    leadingIcon = {
-                        Icon(
-                            if (contentMode == ContentMode.READER) Icons.Default.Language else Icons.Default.Image,
-                            contentDescription = null
-                        )
-                    }
-                )
+                // 4. View Article / View Original (article and video types)
+                if (uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.ARTICLE) {
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                if (contentMode == ContentMode.READER) stringResource(R.string.action_view_original)
+                                else stringResource(R.string.action_view_article)
+                            )
+                        },
+                        onClick = {
+                            onContentModeChange(if (contentMode == ContentMode.READER) ContentMode.ORIGINAL else ContentMode.READER)
+                            expanded = false
+                        },
+                        leadingIcon = {
+                            Icon(
+                                if (contentMode == ContentMode.READER) Icons.Default.Language else Icons.Outlined.Description,
+                                contentDescription = null
+                            )
+                        }
+                    )
+                } else if (uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.VIDEO) {
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                if (contentMode == ContentMode.READER) stringResource(R.string.action_view_original)
+                                else stringResource(R.string.action_view_video)
+                            )
+                        },
+                        onClick = {
+                            onContentModeChange(if (contentMode == ContentMode.READER) ContentMode.ORIGINAL else ContentMode.READER)
+                            expanded = false
+                        },
+                        leadingIcon = {
+                            Icon(
+                                if (contentMode == ContentMode.READER) Icons.Default.Language else Icons.Default.Movie,
+                                contentDescription = null
+                            )
+                        }
+                    )
+                } else if (uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.PHOTO) {
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                if (contentMode == ContentMode.READER) stringResource(R.string.action_view_original)
+                                else stringResource(R.string.action_view_photograph)
+                            )
+                        },
+                        onClick = {
+                            onContentModeChange(if (contentMode == ContentMode.READER) ContentMode.ORIGINAL else ContentMode.READER)
+                            expanded = false
+                        },
+                        leadingIcon = {
+                            Icon(
+                                if (contentMode == ContentMode.READER) Icons.Default.Language else Icons.Default.Image,
+                                contentDescription = null
+                            )
+                        }
+                    )
+                }
             }
 
             // Share Link

@@ -158,13 +158,13 @@ fun LabelPickerBottomSheet(
         if (query.isEmpty()) return
 
         val exactLabel = availableLabels.keys.firstOrNull { it == query }
-        val resolvedLabel = exactLabel ?: query
-        if (exactLabel == null && !availableLabels.containsKey(resolvedLabel)) {
-            availableLabels = availableLabels + (resolvedLabel to 0)
-        }
 
         when (mode) {
             is LabelPickerMode.MultiSelect -> {
+                val resolvedLabel = exactLabel ?: query
+                if (exactLabel == null && !availableLabels.containsKey(resolvedLabel)) {
+                    availableLabels = availableLabels + (resolvedLabel to 0)
+                }
                 if (!tempSelection.contains(resolvedLabel)) {
                     tempSelection = tempSelection + resolvedLabel
                 }
@@ -172,9 +172,12 @@ fun LabelPickerBottomSheet(
             }
 
             is LabelPickerMode.SingleSelect -> {
-                searchQuery = ""
-                mode.onLabelSelected(resolvedLabel)
-                onDismiss()
+                // Single-select mode is selection-only: only existing labels can be applied.
+                if (exactLabel != null) {
+                    searchQuery = ""
+                    mode.onLabelSelected(exactLabel)
+                    onDismiss()
+                }
             }
         }
     }

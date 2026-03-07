@@ -28,7 +28,7 @@ MyDeck supports two view formats for bookmarks: **extracted content view** (Arti
 - **From Article, Video, or Picture view:** tap **⋮** → **View web page**
 - **From web view:** tap **⋮** → **View [bookmark type]** to return to the extracted content view
 
-> **No article content:** If Readeck was unable to extract article content when the bookmark was saved, MyDeck automatically opens the bookmark in **web view** instead of showing an empty reading view. In that case, the overflow menu will show **View [bookmark type]** (to attempt the reading view) rather than **View web page**.
+> **No article content:** If Readeck was unable to extract article content when the bookmark was saved, MyDeck automatically opens the bookmark in **web view** instead of showing an empty reading view. In that case, the overflow menu hides the **View [bookmark type]** action because extracted content is unavailable.
 
 ### Top Bar
 

@@ -273,7 +273,9 @@ fun BookmarkDetailHost(
             // Auto-switch to Original mode when content fetch fails (any reason)
             // This handles both permanent failures (no server content) and
             // transient failures (server error fetching article)
-            LaunchedEffect(contentLoadState) {
+            // Include contentMode in the key so manual "View article" toggles after a failed
+            // fetch still snap back to Original mode when extracted content is unavailable.
+            LaunchedEffect(contentLoadState, contentMode, uiState.bookmark.hasContent) {
                 if (contentLoadState is ContentLoadState.Failed &&
                     contentMode == ContentMode.READER &&
                     !uiState.bookmark.hasContent) {
@@ -565,9 +567,13 @@ fun BookmarkDetailContent(
         }
     }
 
+    // Keep the spinner while reader content is loading/rendering, but not after a failed fetch.
     val showReaderLoadingOverlay =
         contentMode == ContentMode.READER &&
-            (!uiState.bookmark.hasContent || !isReaderContentReady)
+            (
+                (uiState.bookmark.hasContent && !isReaderContentReady) ||
+                    (!uiState.bookmark.hasContent && contentLoadState !is ContentLoadState.Failed)
+                )
 
     // Restore scroll position when content is loaded (using initial progress, not reactive)
     LaunchedEffect(scrollState.maxValue) {
