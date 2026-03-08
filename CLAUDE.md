@@ -2,6 +2,10 @@
 
 This document provides guidelines for AI-assisted development on the MyDeck Android project.
 
+## Usage Efficiency
+
+**Do not run tasks in parallel.** Always execute steps sequentially, one at a time. Usage efficiency is more important than speed — do not use background agents, parallel tool calls, or concurrent subagents to accelerate work.
+
 ## Localization Requirements
 
 **Important:** This project maintains translations for multiple languages. Any code changes that add new string resources must be accompanied by English placeholder strings in all language files.
