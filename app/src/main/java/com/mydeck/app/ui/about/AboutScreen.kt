@@ -227,6 +227,7 @@ fun AboutScreenContent(
                 subheading = stringResource(R.string.about_system_info_app_subtitle),
                 summary = appInfoSummary,
                 detailLines = appDetailLines,
+                clipboardHeader = stringResource(R.string.app_name),
                 snackbarHostState = snackbarHostState
             )
 
@@ -263,6 +264,7 @@ fun AboutScreenContent(
                 subheading = stringResource(R.string.about_system_info_server_subtitle),
                 summary = serverSummary,
                 detailLines = serverDetailLines,
+                clipboardHeader = "Readeck",
                 isLoading = uiState.serverInfoLoading && uiState.serverInfo == null,
                 isError = uiState.serverInfoError && uiState.serverInfo == null,
                 snackbarHostState = snackbarHostState
@@ -410,6 +412,7 @@ private fun CollapsibleInfoCard(
     subheading: String,
     summary: String,
     detailLines: List<String>,
+    clipboardHeader: String? = null,
     isLoading: Boolean = false,
     isError: Boolean = false,
     snackbarHostState: SnackbarHostState,
@@ -497,7 +500,7 @@ private fun CollapsibleInfoCard(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clickable {
-                                val text = detailLines.joinToString("\n")
+                                val text = if (clipboardHeader != null) "$clipboardHeader\n${detailLines.joinToString("\n")}" else detailLines.joinToString("\n")
                                 clipboardManager.setText(AnnotatedString(text))
                             }
                             .padding(8.dp),
