@@ -273,6 +273,35 @@
             opacity: 0.6;
         }
 
+        /* Readeck annotation/highlight rendering */
+        rd-annotation {
+            border-radius: 2px;
+            padding: 1px 0;
+            cursor: pointer;
+        }
+        rd-annotation[data-annotation-note] {
+            display: none;
+        }
+        rd-annotation[data-annotation-color="yellow"],
+        rd-annotation:not([data-annotation-color]) {
+            background-color: rgba(255, 235, 59, 0.4);
+        }
+        rd-annotation[data-annotation-color="red"] {
+            background-color: rgba(239, 83, 80, 0.35);
+        }
+        rd-annotation[data-annotation-color="blue"] {
+            background-color: rgba(66, 165, 245, 0.35);
+        }
+        rd-annotation[data-annotation-color="green"] {
+            background-color: rgba(102, 187, 106, 0.35);
+        }
+        rd-annotation[data-annotation-color="none"] {
+            background-color: transparent;
+            text-decoration: underline;
+            text-decoration-color: rgba(150, 150, 150, 0.6);
+            text-underline-offset: 2px;
+        }
+
     </style>
 </head>
 <body>

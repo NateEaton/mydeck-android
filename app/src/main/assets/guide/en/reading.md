@@ -13,7 +13,7 @@ Tap any image in the content to open it in the **Image Lightbox** (see below). L
 MyDeck supports three types of bookmarks, each with unique features:
 
 ### Articles
-Articles display extracted text content in a clean, distraction-free reading layout. They support full typography controls and text search, and may include images that can be opened in the **Image Lightbox** and links that can be long-pressed to access **Long-press Context Menus**.
+Articles display extracted text content in a clean, distraction-free reading layout. If the bookmark already has highlights from Readeck, those highlights appear inline in their saved colors while you read. Articles support full typography controls and text search, and may include images that can be opened in the **Image Lightbox** and links that can be long-pressed to access **Long-press Context Menus**.
 
 ### Videos  
 For video bookmarks (YouTube, Vimeo, etc.), MyDeck shows an embedded video player at the top, followed by any text content (description or transcript). Videos stream from their original servers and require an internet connection. If the video includes text content, you can long-press links to access **Long-press Context Menus**.
