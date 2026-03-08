@@ -1,6 +1,7 @@
 package com.mydeck.app.io.prefs
 
 import com.mydeck.app.domain.model.AutoSyncTimeframe
+import com.mydeck.app.domain.model.CachedServerInfo
 import com.mydeck.app.domain.model.Theme
 import com.mydeck.app.domain.model.TypographySettings
 import com.mydeck.app.domain.sync.ContentSyncConstraints
@@ -74,4 +75,9 @@ interface SettingsDataStore {
     val keepScreenOnWhileReadingFlow: StateFlow<Boolean>
     suspend fun saveKeepScreenOnWhileReading(enabled: Boolean)
     suspend fun isKeepScreenOnWhileReading(): Boolean
+
+    // Server info caching
+    suspend fun saveServerInfo(info: CachedServerInfo)
+    suspend fun getServerInfo(): CachedServerInfo?
+    suspend fun clearServerInfo()
 }
