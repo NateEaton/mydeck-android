@@ -8,8 +8,10 @@ import com.mydeck.app.domain.sync.ConnectivityMonitor
 import com.mydeck.app.io.prefs.SettingsDataStore
 import com.mydeck.app.io.rest.ReadeckApi
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import timber.log.Timber
 import javax.inject.Inject
@@ -32,6 +34,9 @@ class AboutViewModel @Inject constructor(
 
     private val _uiState = MutableStateFlow(UiState())
     val uiState: StateFlow<UiState> = _uiState.asStateFlow()
+
+    val serverUrl: StateFlow<String?> = settingsDataStore.urlFlow
+        .stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
     init {
         loadAndRefreshServerInfo()

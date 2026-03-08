@@ -76,9 +76,11 @@ fun AboutScreen(navHostController: NavHostController, showBackButton: Boolean = 
         }
     }
 
+    val serverUrl = viewModel.serverUrl.collectAsState()
     val context = LocalContext.current
     AboutScreenContent(
         uiState = uiState.value,
+        serverUrl = serverUrl.value,
         onBackClick = { viewModel.onClickBack() },
         onOpenSourceLibrariesClick = { viewModel.onClickOpenSourceLibraries() },
         onUrlClick = { url -> openUrlInCustomTab(context, url) },
@@ -90,6 +92,7 @@ fun AboutScreen(navHostController: NavHostController, showBackButton: Boolean = 
 @Composable
 fun AboutScreenContent(
     uiState: AboutViewModel.UiState,
+    serverUrl: String? = null,
     onBackClick: () -> Unit,
     onOpenSourceLibrariesClick: () -> Unit,
     onUrlClick: (String) -> Unit,
@@ -243,12 +246,15 @@ fun AboutScreenContent(
                 } else {
                     uiState.serverInfo!!.build
                 }
-                listOf(
-                    stringResource(R.string.about_system_info_server_version, uiState.serverInfo!!.canonical),
-                    stringResource(R.string.about_system_info_server_release, uiState.serverInfo!!.release),
-                    stringResource(R.string.about_system_info_server_build, build),
-                    stringResource(R.string.about_system_info_server_features, uiState.serverInfo!!.features.joinToString(", "))
-                )
+                buildList {
+                    if (serverUrl != null) {
+                        add(stringResource(R.string.about_system_info_server_url, serverUrl))
+                    }
+                    add(stringResource(R.string.about_system_info_server_version, uiState.serverInfo!!.canonical))
+                    add(stringResource(R.string.about_system_info_server_release, uiState.serverInfo!!.release))
+                    add(stringResource(R.string.about_system_info_server_build, build))
+                    add(stringResource(R.string.about_system_info_server_features, uiState.serverInfo!!.features.joinToString(", ")))
+                }
             } else {
                 emptyList()
             }

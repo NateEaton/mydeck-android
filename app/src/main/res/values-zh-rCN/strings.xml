@@ -318,6 +318,7 @@
     <string name="about_system_info_details_hide">Hide details</string>
     <string name="about_system_info_copy">Copy to clipboard</string>
     <string name="about_system_info_copied">Copied!</string>
+    <string name="about_system_info_server_url">URL: %s</string>
     <string name="about_system_info_server_version">Version: %s</string>
     <string name="about_system_info_server_release">Release: %s</string>
     <string name="about_system_info_server_build">Build: %s</string>
