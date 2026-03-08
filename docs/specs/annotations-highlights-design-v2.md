@@ -18,7 +18,23 @@ The previous design (`docs/specs/annotations-highlights-design.md` and `feature/
 
 This plan corrects all these issues with a simplified, phased approach.
 
-**Color names**: Readeck uses simple color names in `data-annotation-color` (e.g., "red", "blue", "green"). The exact set of supported colors is being confirmed by the user — the CSS will be updated accordingly once confirmed.
+**Color names**: Readeck uses 5 color values in `data-annotation-color`: `yellow`, `red`, `blue`, `green`, and `none`. The `none` color represents a colorless/transparent highlight (used for annotations where only the note matters, not a visible color).
+
+**Notes in HTML**: Readeck embeds annotation notes as a **second** `<rd-annotation>` element immediately following the highlighted text element. Both share the same `data-annotation-id-value`. The note element has:
+- `data-annotation-note=""` attribute (presence indicates it's a note element)
+- `title="<note text>"` attribute containing the actual note content
+- Empty text content (no visible text)
+- No `id` attribute (unlike the first element which has `id="annotation-{id}"`)
+
+Example from real data:
+```html
+<rd-annotation id="annotation-EWGePt1qtLuzQbEggdaAfT"
+    data-annotation-id-value="EWGePt1qtLuzQbEggdaAfT"
+    data-annotation-color="yellow">Install</rd-annotation><rd-annotation
+    data-annotation-id-value="EWGePt1qtLuzQbEggdaAfT"
+    data-annotation-note="" title="test"
+    data-annotation-color="yellow"></rd-annotation>
+```
 
 ## Feasibility Assessment
 
@@ -59,7 +75,23 @@ The Readeck server embeds highlights as:
 <rd-annotation data-annotation-color="red">highlighted text</rd-annotation>
 ```
 
-Colors used by Readeck: `red`, `blue`, `green`, `yellow`, `orange`, `purple`
+Colors used by Readeck: `yellow`, `red`, `blue`, `green`, `none`
+
+### HTML Structure
+
+Readeck uses two kinds of `<rd-annotation>` elements:
+
+1. **Highlight element** — contains the highlighted text:
+   ```html
+   <rd-annotation id="annotation-{id}" data-annotation-id-value="{id}" data-annotation-color="yellow">highlighted text</rd-annotation>
+   ```
+
+2. **Note element** (optional, immediately follows highlight) — empty element carrying the note:
+   ```html
+   <rd-annotation data-annotation-id-value="{id}" data-annotation-note="" title="note text" data-annotation-color="yellow"></rd-annotation>
+   ```
+
+The note element should be hidden (it has no visible text content) but could display a note indicator icon via CSS `::after` pseudo-element in a future phase.
 
 ### Files to modify
 
@@ -76,15 +108,43 @@ rd-annotation {
     padding: 1px 0;
     cursor: pointer;
 }
-rd-annotation[data-annotation-color="yellow"] { background-color: rgba(255, 255, 0, 0.4); }
-rd-annotation[data-annotation-color="red"] { background-color: rgba(255, 99, 71, 0.4); }
-rd-annotation[data-annotation-color="blue"] { background-color: rgba(100, 149, 237, 0.4); }
-rd-annotation[data-annotation-color="green"] { background-color: rgba(144, 238, 144, 0.4); }
-rd-annotation[data-annotation-color="orange"] { background-color: rgba(255, 165, 0, 0.4); }
-rd-annotation[data-annotation-color="purple"] { background-color: rgba(186, 85, 211, 0.4); }
+/* Note elements (second rd-annotation with data-annotation-note) should not display */
+rd-annotation[data-annotation-note] {
+    display: none;
+}
+rd-annotation[data-annotation-color="yellow"],
+rd-annotation:not([data-annotation-color]) {
+    background-color: rgba(255, 235, 59, 0.4);
+}
+rd-annotation[data-annotation-color="red"] { background-color: rgba(239, 83, 80, 0.35); }
+rd-annotation[data-annotation-color="blue"] { background-color: rgba(66, 165, 245, 0.35); }
+rd-annotation[data-annotation-color="green"] { background-color: rgba(102, 187, 106, 0.35); }
+rd-annotation[data-annotation-color="none"] {
+    background-color: transparent;
+    text-decoration: underline;
+    text-decoration-color: rgba(150, 150, 150, 0.6);
+    text-underline-offset: 2px;
+}
 ```
 
-Note: Use `rgba` with alpha for readability. For the dark theme, adjust alpha values or use lighter variants so highlights are visible against dark backgrounds. For sepia, ensure they harmonize with the warm background.
+For **dark theme**, adjust alpha values for visibility against dark backgrounds:
+```css
+rd-annotation[data-annotation-color="yellow"],
+rd-annotation:not([data-annotation-color]) {
+    background-color: rgba(255, 235, 59, 0.3);
+}
+rd-annotation[data-annotation-color="red"] { background-color: rgba(239, 83, 80, 0.3); }
+rd-annotation[data-annotation-color="blue"] { background-color: rgba(66, 165, 245, 0.3); }
+rd-annotation[data-annotation-color="green"] { background-color: rgba(102, 187, 106, 0.3); }
+rd-annotation[data-annotation-color="none"] {
+    background-color: transparent;
+    text-decoration: underline;
+    text-decoration-color: rgba(200, 200, 200, 0.5);
+    text-underline-offset: 2px;
+}
+```
+
+For **sepia theme**, use warmer-toned variants that harmonize with the background.
 
 ### Verification
 - Open an article that has highlights created in the Readeck web UI
@@ -157,7 +217,8 @@ Note: Use `rgba` with alpha for readability. For the dark theme, adjust alpha va
       val id: String,
       val bookmarkId: String,
       val text: String,
-      val color: String,  // from HTML data-annotation-color
+      val color: String,  // from HTML data-annotation-color: yellow, red, blue, green, none
+      val note: String?,  // from HTML title attribute on the note rd-annotation element
       val created: String
   )
   ```
@@ -170,7 +231,7 @@ Note: Use `rgba` with alpha for readability. For the dark theme, adjust alpha va
 
 Follow the pattern of `WebViewSearchBridge.kt`. Key JS functions:
 - `scrollToAnnotation(annotationId)` — finds `rd-annotation#annotation-{id}`, calls `scrollIntoView({block: 'center', behavior: 'smooth'})`
-- `getAnnotationColors()` — iterates all `rd-annotation` elements, returns JSON map of `{annotationId: color}` via callback
+- `getAnnotationColors()` — iterates all `rd-annotation[id]` elements (excludes note elements which have `data-annotation-note`), returns JSON map of `{annotationId: color}` via callback
 - `highlightActiveAnnotation(annotationId)` — adds a CSS class to visually distinguish the selected annotation (e.g., thicker border/outline)
 
 ### 2D: ViewModel State + Fetch Annotations
@@ -193,8 +254,9 @@ Follow the pattern of `WebViewSearchBridge.kt`. Key JS functions:
 Follow the pattern of `ReaderSettingsBottomSheet.kt`. Content:
 - Title: "Highlights"
 - List of highlights, each showing:
-  - Color indicator (small circle/chip matching highlight color)
+  - Color indicator (small circle/chip matching highlight color; for `none`, use a gray outline circle)
   - Snippet of highlighted text (truncated to ~2 lines)
+  - Note indicator (small icon) if the annotation has a note (extracted from `title` attribute)
   - Tap → dismiss sheet + scroll to highlight in WebView
 - Empty state message when no highlights exist
 
@@ -274,7 +336,7 @@ Add to `app/src/main/res/values/strings.xml` and all 9 language variant files:
 - `app/src/main/java/com/mydeck/app/ui/detail/AnnotationEditSheet.kt`
 
 Mirrors Readeck's new dialog UI. Contains:
-- Color picker: row of colored circles (yellow, red, blue, green, orange, purple)
+- Color picker: row of colored circles (yellow, red, blue, green, none/transparent)
 - Selected color has a checkmark overlay
 - "Save" button → calls POST API to create annotation
 - For editing existing: pre-selects current color, adds "Delete" button
@@ -311,8 +373,7 @@ Add to `app/src/main/res/values/strings.xml` and all 9 language variant files:
 <string name="highlight_color_red">Red</string>
 <string name="highlight_color_blue">Blue</string>
 <string name="highlight_color_green">Green</string>
-<string name="highlight_color_orange">Orange</string>
-<string name="highlight_color_purple">Purple</string>
+<string name="highlight_color_none">None</string>
 <string name="highlight_action">Highlight</string>
 <string name="highlight_delete_confirm">Delete this highlight?</string>
 ```
@@ -367,5 +428,5 @@ Add to `app/src/main/res/values/strings.xml` and all 9 language variant files:
 ## What This Plan Does NOT Include
 
 - **Room database for annotations**: Not needed. The server HTML contains all highlight data. Colors come from `data-annotation-color`. No offline annotation creation.
-- **Notes/comments on highlights**: Readeck's new UI supports notes, but the API spec (`annotationUpdate`) only allows color changes. Notes support can be added later if the API adds it.
+- **Notes/comments on highlights**: Readeck embeds notes in the HTML as a second `<rd-annotation>` element with `data-annotation-note` and `title` attributes (see Context section above). Phase 1 hides these with `display: none`. Viewing/editing notes can be added in a future phase — the API spec (`annotationUpdate`) currently only allows color changes, but the HTML already carries note data for display purposes.
 - **Global highlights browser**: No cross-bookmark annotation view. Per-bookmark only.
