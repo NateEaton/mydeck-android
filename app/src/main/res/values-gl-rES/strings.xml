@@ -283,9 +283,12 @@ other{}
     <string name="highlights_title">Highlights</string>
     <string name="highlights_empty">No highlights yet</string>
     <string name="highlights_menu_item">Highlights</string>
+    <string name="action_refresh_content">Refresh content</string>
     <string name="highlight_create">Create Highlight</string>
     <string name="highlight_edit">Edit Highlight</string>
     <string name="highlight_delete">Delete Highlight</string>
+    <string name="highlight_note_label">Note</string>
+    <string name="highlight_note_not_supported">Adding and editing notes is not supported yet</string>
     <string name="highlight_color_yellow">Yellow</string>
     <string name="highlight_color_red">Red</string>
     <string name="highlight_color_blue">Blue</string>
@@ -296,6 +299,8 @@ other{}
     <string name="highlight_create_failed">Failed to create highlight</string>
     <string name="highlight_update_failed">Failed to update highlight</string>
     <string name="highlight_delete_failed">Failed to delete highlight</string>
+    <string name="content_refresh_completed">Content refreshed</string>
+    <string name="content_refresh_failed">Failed to refresh content</string>
 
     <!-- Server Info Caching -->
     <string name="about_system_info_app_subtitle">App</string>

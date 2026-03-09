@@ -20,6 +20,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -40,6 +41,7 @@ fun AnnotationEditSheet(
     onColorSelected: (String) -> Unit,
     onSave: () -> Unit,
     onDelete: () -> Unit,
+    onNoteClicked: () -> Unit,
     onDismiss: () -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -74,6 +76,26 @@ fun AnnotationEditSheet(
                     maxLines = 3,
                     overflow = TextOverflow.Ellipsis
                 )
+            }
+
+            state.noteText?.let { noteText ->
+                Spacer(modifier = Modifier.height(16.dp))
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(onClick = onNoteClicked)
+                ) {
+                    OutlinedTextField(
+                        value = noteText,
+                        onValueChange = {},
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text(text = stringResource(R.string.highlight_note_label)) },
+                        readOnly = true,
+                        enabled = false,
+                        minLines = 2,
+                        maxLines = 5
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(20.dp))

@@ -300,7 +300,7 @@ class BookmarkDetailViewModelTest {
         val successState = uiStates[1]
         assert(loadingState is BookmarkDetailViewModel.UiState.Loading)
         assert(successState is BookmarkDetailViewModel.UiState.Success)
-        assertEquals(BookmarkDetailViewModel.UpdateBookmarkState.Success, (successState as BookmarkDetailViewModel.UiState.Success).updateBookmarkState)
+        assertEquals(BookmarkDetailViewModel.UpdateBookmarkState.Success(), (successState as BookmarkDetailViewModel.UiState.Success).updateBookmarkState)
         coVerify { updateBookmarkUseCase.updateIsFavorite(bookmarkId, isFavorite) }
     }
 
@@ -373,7 +373,7 @@ class BookmarkDetailViewModelTest {
         val successState = uiStates[1]
         assert(loadingState is BookmarkDetailViewModel.UiState.Loading)
         assert(successState is BookmarkDetailViewModel.UiState.Success)
-        assertEquals(BookmarkDetailViewModel.UpdateBookmarkState.Success, (successState as BookmarkDetailViewModel.UiState.Success).updateBookmarkState)
+        assertEquals(BookmarkDetailViewModel.UpdateBookmarkState.Success(), (successState as BookmarkDetailViewModel.UiState.Success).updateBookmarkState)
         coVerify { updateBookmarkUseCase.updateIsArchived(bookmarkId, isArchived) }
     }
 
@@ -445,7 +445,7 @@ class BookmarkDetailViewModelTest {
         val successState = uiStates[1]
         assert(loadingState is BookmarkDetailViewModel.UiState.Loading)
         assert(successState is BookmarkDetailViewModel.UiState.Success)
-        assertEquals(BookmarkDetailViewModel.UpdateBookmarkState.Success, (successState as BookmarkDetailViewModel.UiState.Success).updateBookmarkState)
+        assertEquals(BookmarkDetailViewModel.UpdateBookmarkState.Success(), (successState as BookmarkDetailViewModel.UiState.Success).updateBookmarkState)
         coVerify { updateBookmarkUseCase.updateIsRead(bookmarkId, isRead) }
     }
 
@@ -696,7 +696,7 @@ class BookmarkDetailViewModelTest {
                 bookmarkId = "123",
                 text = "Existing highlight 1",
                 color = "green",
-                note = null,
+                note = "First note",
                 created = "2026-03-09T10:00:00Z"
             ),
             Annotation(
@@ -704,7 +704,7 @@ class BookmarkDetailViewModelTest {
                 bookmarkId = "123",
                 text = "Existing highlight 2",
                 color = "green",
-                note = null,
+                note = "Second note",
                 created = "2026-03-09T10:05:00Z"
             )
         )
@@ -716,6 +716,7 @@ class BookmarkDetailViewModelTest {
         assertEquals("green", state?.color)
         assertNull(state?.selectionData)
         assertEquals("Selected text", state?.text)
+        assertEquals("First note\n\nSecond note", state?.noteText)
     }
 
     @Test
@@ -725,7 +726,7 @@ class BookmarkDetailViewModelTest {
             bookmarkId = "123",
             text = "Existing highlight",
             color = "green",
-            note = null,
+            note = "Saved note",
             created = "2026-03-09T10:00:00Z"
         )
 
@@ -736,6 +737,7 @@ class BookmarkDetailViewModelTest {
         assertEquals("green", state?.color)
         assertNull(state?.selectionData)
         assertEquals("Existing highlight", state?.text)
+        assertEquals("Saved note", state?.noteText)
     }
 
     @Test
@@ -853,6 +855,25 @@ class BookmarkDetailViewModelTest {
         coVerify { readeckApi.deleteAnnotation("123", "annotation-1") }
         coVerify { readeckApi.deleteAnnotation("123", "annotation-2") }
         coVerify { readeckApi.getArticle("123") }
+    }
+
+    @Test
+    fun `forceRefreshContent refreshes downloaded article content`() = runTest {
+        coEvery { readeckApi.getArticle("123") } returns Response.success("<p>Fresh article</p>")
+        coEvery { bookmarkRepository.getBookmarkById("123") } returns sampleBookmark
+        coEvery { bookmarkRepository.insertBookmarks(any()) } just Runs
+
+        viewModel.forceRefreshContent()
+        advanceUntilIdle()
+
+        coVerify { readeckApi.getArticle("123") }
+        coVerify {
+            bookmarkRepository.insertBookmarks(
+                match { bookmarks ->
+                    bookmarks.single().articleContent == "<p>Fresh article</p>"
+                }
+            )
+        }
     }
 
     val sampleBookmark = Bookmark(

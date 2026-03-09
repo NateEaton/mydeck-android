@@ -7,6 +7,7 @@ import android.content.Context
 import android.content.Intent
 import android.icu.text.MessageFormat
 import android.net.Uri
+import android.widget.Toast
 import android.view.View
 import android.webkit.WebView
 import androidx.compose.animation.Crossfade
@@ -366,7 +367,14 @@ fun BookmarkDetailHost(
             LaunchedEffect(key1 = uiState) {
                 uiState.updateBookmarkState?.let {
                     when (it) {
-                        is BookmarkDetailViewModel.UpdateBookmarkState.Success -> { }
+                        is BookmarkDetailViewModel.UpdateBookmarkState.Success -> {
+                            it.message?.let { message ->
+                                snackbarHostState.showSnackbar(
+                                    message = message,
+                                    duration = SnackbarDuration.Short
+                                )
+                            }
+                        }
                         is BookmarkDetailViewModel.UpdateBookmarkState.Error -> {
                             snackbarHostState.showSnackbar(
                                 message = it.message,
@@ -399,6 +407,10 @@ fun BookmarkDetailHost(
                         dismissPendingDeleteSnackbar()
                         viewModel.showAnnotationsSheet()
                         requestAnnotations(uiState.bookmark.bookmarkId)
+                    },
+                    onRefreshContent = {
+                        dismissPendingDeleteSnackbar()
+                        viewModel.forceRefreshContent()
                     },
                     onScrollProgressChanged = { progress ->
                         viewModel.onScrollProgressChanged(progress)
@@ -532,6 +544,13 @@ fun BookmarkDetailHost(
                     onColorSelected = { color -> viewModel.onAnnotationEditColorSelected(color) },
                     onSave = { viewModel.saveAnnotationEdit() },
                     onDelete = { viewModel.deleteCurrentAnnotation() },
+                    onNoteClicked = {
+                        Toast.makeText(
+                            context,
+                            context.getString(R.string.highlight_note_not_supported),
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    },
                     onDismiss = { viewModel.dismissAnnotationEditSheet() }
                 )
             }
@@ -569,6 +588,7 @@ fun BookmarkDetailScreen(
     onArticleSearchActivate: () -> Unit = {},
     onShowDetails: () -> Unit = {},
     onShowHighlights: () -> Unit = {},
+    onRefreshContent: () -> Unit = {},
     onScrollProgressChanged: (Int) -> Unit = {},
     initialReadProgress: Int = 0,
     contentMode: ContentMode = ContentMode.READER,
@@ -648,6 +668,7 @@ fun BookmarkDetailScreen(
                 onShowTypographyPanel = onShowTypographyPanel,
                 onShowDetails = onShowDetails,
                 onShowHighlights = onShowHighlights,
+                onRefreshContent = onRefreshContent,
                 contentMode = contentMode,
                 onClickToggleRead = onClickToggleRead,
                 onClickShareBookmark = onClickShareBookmark,

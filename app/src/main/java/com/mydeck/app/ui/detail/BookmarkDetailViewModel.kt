@@ -152,6 +152,7 @@ class BookmarkDetailViewModel @Inject constructor(
 
     private var searchDebounceJob: Job? = null
     private var annotationSyncJob: Job? = null
+    private var contentRefreshJob: Job? = null
 
     init {
         _bookmarkId.value?.let { initializeBookmark(it) }
@@ -431,7 +432,7 @@ class BookmarkDetailViewModel @Inject constructor(
         viewModelScope.launch {
             val result = update()
             updateState.value = when (result) {
-                is UpdateBookmarkUseCase.Result.Success -> UpdateBookmarkState.Success
+                is UpdateBookmarkUseCase.Result.Success -> UpdateBookmarkState.Success()
                 is UpdateBookmarkUseCase.Result.GenericError -> UpdateBookmarkState.Error(result.message)
                 is UpdateBookmarkUseCase.Result.NetworkError -> UpdateBookmarkState.Error(result.message)
             }
@@ -552,6 +553,34 @@ class BookmarkDetailViewModel @Inject constructor(
         _bookmarkId.value?.let { fetchContentOnDemand(it) }
     }
 
+    fun forceRefreshContent() {
+        val bookmarkId = _bookmarkId.value ?: return
+        if (contentRefreshJob?.isActive == true) {
+            return
+        }
+
+        val job = viewModelScope.launch {
+            try {
+                refreshArticleContent(bookmarkId)
+                updateState.value = UpdateBookmarkState.Success(
+                    context.getString(R.string.content_refresh_completed)
+                )
+            } catch (e: Exception) {
+                Timber.w(e, "Failed to refresh article content for $bookmarkId")
+                updateState.value = UpdateBookmarkState.Error(
+                    context.getString(R.string.content_refresh_failed)
+                )
+            }
+        }
+
+        contentRefreshJob = job
+        job.invokeOnCompletion {
+            if (contentRefreshJob === job) {
+                contentRefreshJob = null
+            }
+        }
+    }
+
     fun showAnnotationsSheet() {
         _showAnnotationsSheet.value = true
         _annotationsState.update { it.copy(isLoading = true) }
@@ -655,7 +684,8 @@ class BookmarkDetailViewModel @Inject constructor(
             annotationIds = annotationIds,
             color = resolveInitialAnnotationColor(existingAnnotations),
             selectionData = selectionData.takeIf { annotationIds.isEmpty() },
-            text = selectionData.text
+            text = selectionData.text,
+            noteText = resolveExistingNotes(existingAnnotations)
         )
     }
 
@@ -664,7 +694,8 @@ class BookmarkDetailViewModel @Inject constructor(
             annotationIds = listOf(annotation.id),
             color = annotation.color,
             selectionData = null,
-            text = annotation.text
+            text = annotation.text,
+            noteText = annotation.note?.trim()?.takeIf { it.isNotEmpty() }
         )
     }
 
@@ -817,6 +848,19 @@ class BookmarkDetailViewModel @Inject constructor(
         }
     }
 
+    private fun resolveExistingNotes(existingAnnotations: List<Annotation>): String? {
+        val notes = existingAnnotations
+            .mapNotNull { annotation ->
+                annotation.note?.trim()?.takeIf { it.isNotEmpty() }
+            }
+            .distinct()
+
+        return when {
+            notes.isEmpty() -> null
+            else -> notes.joinToString(separator = "\n\n")
+        }
+    }
+
     fun scrollToAnnotation(annotationId: String) {
         _showAnnotationsSheet.value = false
         _pendingAnnotationScrollId.value = annotationId
@@ -926,7 +970,7 @@ class BookmarkDetailViewModel @Inject constructor(
     }
 
     sealed class UpdateBookmarkState {
-        data object Success : UpdateBookmarkState()
+        data class Success(val message: String? = null) : UpdateBookmarkState()
         data class Error(val message: String) : UpdateBookmarkState()
     }
 
@@ -1108,6 +1152,7 @@ class BookmarkDetailViewModel @Inject constructor(
         val color: String,
         val selectionData: SelectionData?,
         val text: String,
+        val noteText: String? = null,
         val isSaving: Boolean = false
     ) {
         val annotationId: String?
