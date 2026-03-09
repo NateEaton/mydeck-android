@@ -63,6 +63,20 @@ fun BookmarkDetailMenu(
             expanded = expanded,
             onDismissRequest = { expanded = false }
         ) {
+            if (uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.ARTICLE &&
+                contentMode == ContentMode.READER) {
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.highlights_menu_item)) },
+                    onClick = {
+                        onShowHighlights()
+                        expanded = false
+                    },
+                    leadingIcon = {
+                        Icon(Icons.Outlined.FormatColorFill, contentDescription = null)
+                    }
+                )
+            }
+
             // 1. Add to Favorites / Remove from Favorites
             DropdownMenuItem(
                 text = {
@@ -214,20 +228,6 @@ fun BookmarkDetailMenu(
                     Icon(Icons.Outlined.Info, contentDescription = null)
                 }
             )
-
-            if (uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.ARTICLE &&
-                contentMode == ContentMode.READER) {
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.highlights_menu_item)) },
-                    onClick = {
-                        onShowHighlights()
-                        expanded = false
-                    },
-                    leadingIcon = {
-                        Icon(Icons.Outlined.FormatColorFill, contentDescription = null)
-                    }
-                )
-            }
 
             // Thin light divider between Details and Delete
             HorizontalDivider(

@@ -189,6 +189,7 @@ fun BookmarkDetailHost(
     val annotationsState = viewModel.annotationsState.collectAsState().value
     val showAnnotationsSheet = viewModel.showAnnotationsSheet.collectAsState().value
     val pendingAnnotationScrollId = viewModel.pendingAnnotationScrollId.collectAsState().value
+    val annotationEditState = viewModel.annotationEditState.collectAsState().value
     val labelsWithCounts = viewModel.labelsWithCounts.collectAsState().value
     val galleryData = viewModel.galleryData.collectAsState().value
     val readerContextMenu = viewModel.readerContextMenu.collectAsState().value
@@ -211,6 +212,17 @@ fun BookmarkDetailHost(
         }
     }
 
+    fun WebViewAnnotationBridge.RenderedAnnotation.toDomainAnnotation(bookmarkId: String): com.mydeck.app.domain.model.Annotation {
+        return com.mydeck.app.domain.model.Annotation(
+            id = id,
+            bookmarkId = bookmarkId,
+            text = text,
+            color = color,
+            note = note?.takeIf { it.isNotBlank() },
+            created = ""
+        )
+    }
+
     fun requestAnnotations(bookmarkId: String) {
         val webView = readerWebView.value
         if (webView != null) {
@@ -219,16 +231,7 @@ fun BookmarkDetailHost(
                     viewModel.setAnnotations(
                         renderedAnnotations
                             .sortedBy { it.position }
-                            .map { annotation ->
-                                com.mydeck.app.domain.model.Annotation(
-                                    id = annotation.id,
-                                    bookmarkId = bookmarkId,
-                                    text = annotation.text,
-                                    color = annotation.color,
-                                    note = annotation.note?.takeIf { it.isNotBlank() },
-                                    created = ""
-                                )
-                            }
+                            .map { it.toDomainAnnotation(bookmarkId) }
                     )
                 } else {
                     viewModel.fetchAnnotations(bookmarkId)
@@ -236,6 +239,51 @@ fun BookmarkDetailHost(
             }
         } else {
             viewModel.fetchAnnotations(bookmarkId)
+        }
+    }
+
+    fun showSelectionAnnotationEditor(
+        bookmarkId: String,
+        selectionData: com.mydeck.app.domain.model.SelectionData
+    ) {
+        if (selectionData.selectedAnnotationIds.isEmpty()) {
+            viewModel.showCreateAnnotationSheet(selectionData)
+            return
+        }
+
+        val fallbackAnnotations = annotationsState.annotations
+            .filter { it.id in selectionData.selectedAnnotationIds }
+
+        val webView = readerWebView.value
+        if (webView != null) {
+            WebViewAnnotationBridge.getRenderedAnnotations(webView) { renderedAnnotations ->
+                val renderedById = renderedAnnotations.associateBy { it.id }
+                val existingAnnotations = selectionData.selectedAnnotationIds.mapNotNull { annotationId ->
+                    renderedById[annotationId]?.toDomainAnnotation(bookmarkId)
+                        ?: fallbackAnnotations.firstOrNull { it.id == annotationId }
+                }
+                viewModel.showCreateAnnotationSheet(selectionData, existingAnnotations)
+            }
+        } else {
+            viewModel.showCreateAnnotationSheet(selectionData, fallbackAnnotations)
+        }
+    }
+
+    fun showAnnotationEditor(bookmarkId: String, annotationId: String) {
+        annotationsState.annotations
+            .firstOrNull { it.id == annotationId }
+            ?.let { annotation ->
+                viewModel.showEditAnnotationSheet(annotation)
+                return
+            }
+
+        val webView = readerWebView.value
+        if (webView != null) {
+            WebViewAnnotationBridge.getRenderedAnnotation(webView, annotationId) { annotation ->
+                annotation?.let {
+                    viewModel.showEditAnnotationSheet(it.toDomainAnnotation(bookmarkId))
+                }
+            }
         }
     }
 
@@ -375,6 +423,12 @@ fun BookmarkDetailHost(
                     onImageTapped = onImageTapped,
                     onImageLongPress = onImageLongPress,
                     onLinkLongPress = onLinkLongPress,
+                    onTextSelectionCaptured = { selectionData ->
+                        showSelectionAnnotationEditor(uiState.bookmark.bookmarkId, selectionData)
+                    },
+                    onAnnotationClicked = { annotationId ->
+                        showAnnotationEditor(uiState.bookmark.bookmarkId, annotationId)
+                    },
                     pendingAnnotationScrollId = pendingAnnotationScrollId,
                     readerWebView = readerWebView.value,
                     onAnnotationScrollHandled = { viewModel.onAnnotationScrollHandled() },
@@ -473,6 +527,17 @@ fun BookmarkDetailHost(
                     }
                 )
             }
+            if (annotationEditState != null &&
+                uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.ARTICLE &&
+                contentMode == ContentMode.READER) {
+                AnnotationEditSheet(
+                    state = annotationEditState,
+                    onColorSelected = { color -> viewModel.onAnnotationEditColorSelected(color) },
+                    onSave = { viewModel.saveAnnotationEdit() },
+                    onDelete = { viewModel.deleteCurrentAnnotation() },
+                    onDismiss = { viewModel.dismissAnnotationEditSheet() }
+                )
+            }
         }
 
         is BookmarkDetailViewModel.UiState.Loading -> {
@@ -523,6 +588,8 @@ fun BookmarkDetailScreen(
     onImageTapped: (ImageGalleryData) -> Unit = {},
     onImageLongPress: (imageUrl: String, linkUrl: String?, linkType: String, imageAlt: String) -> Unit = { _, _, _, _ -> },
     onLinkLongPress: (linkUrl: String, linkText: String) -> Unit = { _, _ -> },
+    onTextSelectionCaptured: (com.mydeck.app.domain.model.SelectionData) -> Unit = {},
+    onAnnotationClicked: (String) -> Unit = {},
     pendingAnnotationScrollId: String? = null,
     readerWebView: WebView? = null,
     onAnnotationScrollHandled: () -> Unit = {},
@@ -622,6 +689,8 @@ fun BookmarkDetailScreen(
                 onImageTapped = onImageTapped,
                 onImageLongPress = onImageLongPress,
                 onLinkLongPress = onLinkLongPress,
+                onTextSelectionCaptured = onTextSelectionCaptured,
+                onAnnotationClicked = onAnnotationClicked,
                 onArticlePositionChanged = { articleTopOffset = it },
                 onReaderWebViewChanged = onReaderWebViewChanged,
                 onClickToggleFavorite = onClickToggleFavorite,
@@ -647,6 +716,8 @@ fun BookmarkDetailContent(
     onImageTapped: (ImageGalleryData) -> Unit = {},
     onImageLongPress: (imageUrl: String, linkUrl: String?, linkType: String, imageAlt: String) -> Unit = { _, _, _, _ -> },
     onLinkLongPress: (linkUrl: String, linkText: String) -> Unit = { _, _ -> },
+    onTextSelectionCaptured: (com.mydeck.app.domain.model.SelectionData) -> Unit = {},
+    onAnnotationClicked: (String) -> Unit = {},
     onArticlePositionChanged: (Float) -> Unit = {},
     onReaderWebViewChanged: (WebView?) -> Unit = {},
     onClickToggleFavorite: (String, Boolean) -> Unit = { _, _ -> },
@@ -668,11 +739,21 @@ fun BookmarkDetailContent(
     ) {
         mutableStateOf(false)
     }
+    var hasDisplayedReaderContent by remember(uiState.bookmark.bookmarkId, contentMode) {
+        mutableStateOf(false)
+    }
     var lastReportedProgress by remember { mutableStateOf(-1) }
 
     LaunchedEffect(hasReaderContent) {
         if (!hasReaderContent) {
             isReaderContentReady = false
+            hasDisplayedReaderContent = false
+        }
+    }
+
+    LaunchedEffect(isReaderContentReady, hasReaderContent) {
+        if (hasReaderContent && isReaderContentReady) {
+            hasDisplayedReaderContent = true
         }
     }
 
@@ -683,6 +764,7 @@ fun BookmarkDetailContent(
                 (uiState.bookmark.hasContent && !isReaderContentReady) ||
                     (!uiState.bookmark.hasContent && contentLoadState !is ContentLoadState.Failed)
                 )
+    val shouldHideReaderContent = !hasRestoredPosition || (!hasDisplayedReaderContent && showReaderLoadingOverlay)
 
     // Restore scroll position when content is loaded (using initial progress, not reactive)
     LaunchedEffect(scrollState.maxValue) {
@@ -725,7 +807,7 @@ fun BookmarkDetailContent(
                 modifier = Modifier
                     .fillMaxSize()
                     .verticalScroll(scrollState)
-                    .alpha(if (hasRestoredPosition && !showReaderLoadingOverlay) 1f else 0f),
+                    .alpha(if (shouldHideReaderContent) 0f else 1f),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 val contentWidthFraction = when (uiState.typographySettings.textWidth) {
@@ -757,6 +839,8 @@ fun BookmarkDetailContent(
                             onImageTapped = onImageTapped,
                             onImageLongPress = onImageLongPress,
                             onLinkLongPress = onLinkLongPress,
+                            onTextSelectionCaptured = onTextSelectionCaptured,
+                            onAnnotationClicked = onAnnotationClicked,
                         )
                     }
                 }

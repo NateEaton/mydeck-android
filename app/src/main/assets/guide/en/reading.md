@@ -61,17 +61,21 @@ These settings are saved automatically and apply to every Article, Video, and Pi
 
 Tap **🔍** to open the in-content search bar. Type to search; matching text in the content is highlighted. If there are multiple matches, the current one is highlighted in amber and others in yellow. Use the **↑** and **↓** arrows to move between matches. The counter shows your current position (e.g., "2/5").
 
+### Highlights
+
+Article bookmarks support Readeck highlights directly in the reading view. To create a highlight, select text in the article and tap **Highlight** in the Android text selection menu, then choose a color. If your selection overlaps one or more existing highlights, **Save** changes the color of those highlights and **Delete** removes them. To edit or delete an existing highlight directly, tap the highlighted text in the article. You can also open **⋮ → Highlights** to browse saved highlights and jump to any one in the article.
+
 ## Overflow Menu
 
 Tap **⋮** in the top bar for additional actions:
 
+- **Highlights** — for article bookmarks in reading view, open a list of saved highlights and tap one to jump to it in the article
 - **Add to favorites / Remove favorite** — toggle the favorite status
 - **Archive / Unarchive** — move the bookmark to the archive (or back to My List)
 - **Mark as read / Mark as unread** — toggle whether the bookmark has been read; this is reflected back in the bookmark list
 - **View web page / View [bookmark type]** — switch between the reading view and the web page in an in-app viewer (see above)
 - **Share link** — open the Android share sheet to share the bookmark's URL
 - **Details** — open the Bookmark Details screen (see below)
-- **Highlights** — for article bookmarks in reading view, open a list of saved highlights and tap one to jump to it in the article
 - **Delete** — delete the bookmark; you are returned to the list and a **"Bookmark deleted"** bar appears with an **Undo** option
 
 The menu includes visual dividers to separate related actions and destructive actions.

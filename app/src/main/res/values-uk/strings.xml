@@ -219,6 +219,19 @@
     <string name="highlights_title">Highlights</string>
     <string name="highlights_empty">No highlights yet</string>
     <string name="highlights_menu_item">Highlights</string>
+    <string name="highlight_create">Create Highlight</string>
+    <string name="highlight_edit">Edit Highlight</string>
+    <string name="highlight_delete">Delete Highlight</string>
+    <string name="highlight_color_yellow">Yellow</string>
+    <string name="highlight_color_red">Red</string>
+    <string name="highlight_color_blue">Blue</string>
+    <string name="highlight_color_green">Green</string>
+    <string name="highlight_color_none">None</string>
+    <string name="highlight_action">Highlight</string>
+    <string name="highlight_delete_confirm">Delete this highlight?</string>
+    <string name="highlight_create_failed">Failed to create highlight</string>
+    <string name="highlight_update_failed">Failed to update highlight</string>
+    <string name="highlight_delete_failed">Failed to delete highlight</string>
 
     <!-- Server Info Caching -->
     <string name="about_system_info_app_subtitle">App</string>

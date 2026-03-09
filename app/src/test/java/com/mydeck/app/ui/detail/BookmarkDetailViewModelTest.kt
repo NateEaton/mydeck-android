@@ -2,13 +2,16 @@ package com.mydeck.app.ui.detail
 
 import androidx.lifecycle.SavedStateHandle
 import com.mydeck.app.domain.BookmarkRepository
+import com.mydeck.app.domain.model.Annotation
 import com.mydeck.app.domain.model.Bookmark
+import com.mydeck.app.domain.model.SelectionData
 import com.mydeck.app.domain.model.Theme
 import com.mydeck.app.domain.usecase.LoadArticleUseCase
 import com.mydeck.app.domain.usecase.UpdateBookmarkUseCase
 import com.mydeck.app.io.AssetLoader
 import com.mydeck.app.io.prefs.SettingsDataStore
 import com.mydeck.app.io.rest.ReadeckApi
+import com.mydeck.app.io.rest.model.AnnotationDto
 import io.mockk.Runs
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -33,6 +36,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Before
 import org.junit.Test
+import retrofit2.Response
 import java.text.DateFormat
 import java.util.Date
 import android.content.Context
@@ -580,6 +584,200 @@ class BookmarkDetailViewModelTest {
         val failedState = state as BookmarkDetailViewModel.ContentLoadState.Failed
         assertEquals("Article extraction not supported for this site", failedState.reason)
         assertEquals(false, failedState.canRetry)
+    }
+
+    @Test
+    fun `showCreateAnnotationSheet stores selection data`() = runTest {
+        val selectionData = SelectionData(
+            text = "Selected text",
+            startSelector = "/section[1]/p[1]",
+            startOffset = 5,
+            endSelector = "/section[1]/p[1]",
+            endOffset = 18
+        )
+
+        viewModel.showCreateAnnotationSheet(selectionData)
+
+        val state = viewModel.annotationEditState.value
+        assertEquals(null, state?.annotationId)
+        assertEquals("yellow", state?.color)
+        assertEquals(selectionData, state?.selectionData)
+        assertEquals("Selected text", state?.text)
+    }
+
+    @Test
+    fun `showCreateAnnotationSheet treats overlapping highlights as edit state`() = runTest {
+        val selectionData = SelectionData(
+            text = "Selected text",
+            startSelector = "/section[1]/p[1]",
+            startOffset = 5,
+            endSelector = "/section[1]/p[1]",
+            endOffset = 18,
+            selectedAnnotationIds = listOf("annotation-1", "annotation-2")
+        )
+        val existingAnnotations = listOf(
+            Annotation(
+                id = "annotation-1",
+                bookmarkId = "123",
+                text = "Existing highlight 1",
+                color = "green",
+                note = null,
+                created = "2026-03-09T10:00:00Z"
+            ),
+            Annotation(
+                id = "annotation-2",
+                bookmarkId = "123",
+                text = "Existing highlight 2",
+                color = "green",
+                note = null,
+                created = "2026-03-09T10:05:00Z"
+            )
+        )
+
+        viewModel.showCreateAnnotationSheet(selectionData, existingAnnotations)
+
+        val state = viewModel.annotationEditState.value
+        assertEquals(listOf("annotation-1", "annotation-2"), state?.annotationIds)
+        assertEquals("green", state?.color)
+        assertNull(state?.selectionData)
+        assertEquals("Selected text", state?.text)
+    }
+
+    @Test
+    fun `showEditAnnotationSheet seeds current annotation`() = runTest {
+        val annotation = Annotation(
+            id = "annotation-1",
+            bookmarkId = "123",
+            text = "Existing highlight",
+            color = "green",
+            note = null,
+            created = "2026-03-09T10:00:00Z"
+        )
+
+        viewModel.showEditAnnotationSheet(annotation)
+
+        val state = viewModel.annotationEditState.value
+        assertEquals("annotation-1", state?.annotationId)
+        assertEquals("green", state?.color)
+        assertNull(state?.selectionData)
+        assertEquals("Existing highlight", state?.text)
+    }
+
+    @Test
+    fun `saveAnnotationEdit creates annotation and refreshes article content`() = runTest {
+        val selectionData = SelectionData(
+            text = "Selected text",
+            startSelector = "/section[1]/p[1]",
+            startOffset = 5,
+            endSelector = "/section[1]/p[1]",
+            endOffset = 18
+        )
+        val createdAnnotation = AnnotationDto(
+            id = "annotation-1",
+            start_selector = selectionData.startSelector,
+            start_offset = selectionData.startOffset,
+            end_selector = selectionData.endSelector,
+            end_offset = selectionData.endOffset,
+            created = "2026-03-09T10:00:00Z",
+            text = selectionData.text
+        )
+
+        coEvery {
+            readeckApi.createAnnotation("123", any())
+        } returns Response.success(createdAnnotation)
+        coEvery { readeckApi.getArticle("123") } returns Response.success("<p>Updated article</p>")
+        coEvery { bookmarkRepository.getBookmarkById("123") } returns sampleBookmark
+        coEvery { bookmarkRepository.insertBookmarks(any()) } just Runs
+
+        viewModel.showCreateAnnotationSheet(selectionData)
+        viewModel.onAnnotationEditColorSelected("red")
+        viewModel.saveAnnotationEdit()
+        advanceUntilIdle()
+
+        assertNull(viewModel.annotationEditState.value)
+        coVerify { readeckApi.createAnnotation("123", any()) }
+        coVerify { readeckApi.getArticle("123") }
+        coVerify {
+            bookmarkRepository.insertBookmarks(
+                match { bookmarks ->
+                    bookmarks.single().articleContent == "<p>Updated article</p>"
+                }
+            )
+        }
+    }
+
+    @Test
+    fun `saveAnnotationEdit updates overlapping annotations and refreshes article content`() = runTest {
+        val selectionData = SelectionData(
+            text = "Selected text",
+            startSelector = "/section[1]/p[1]",
+            startOffset = 5,
+            endSelector = "/section[1]/p[1]",
+            endOffset = 18,
+            selectedAnnotationIds = listOf("annotation-1", "annotation-2")
+        )
+        val existingAnnotations = listOf(
+            Annotation(
+                id = "annotation-1",
+                bookmarkId = "123",
+                text = "Existing highlight 1",
+                color = "yellow",
+                note = null,
+                created = "2026-03-09T10:00:00Z"
+            ),
+            Annotation(
+                id = "annotation-2",
+                bookmarkId = "123",
+                text = "Existing highlight 2",
+                color = "yellow",
+                note = null,
+                created = "2026-03-09T10:05:00Z"
+            )
+        )
+
+        coEvery { readeckApi.updateAnnotation("123", "annotation-1", any()) } returns Response.success(Unit)
+        coEvery { readeckApi.updateAnnotation("123", "annotation-2", any()) } returns Response.success(Unit)
+        coEvery { readeckApi.getArticle("123") } returns Response.success("<p>Updated article</p>")
+        coEvery { bookmarkRepository.getBookmarkById("123") } returns sampleBookmark
+        coEvery { bookmarkRepository.insertBookmarks(any()) } just Runs
+
+        viewModel.showCreateAnnotationSheet(selectionData, existingAnnotations)
+        viewModel.onAnnotationEditColorSelected("red")
+        viewModel.saveAnnotationEdit()
+        advanceUntilIdle()
+
+        assertNull(viewModel.annotationEditState.value)
+        coVerify { readeckApi.updateAnnotation("123", "annotation-1", any()) }
+        coVerify { readeckApi.updateAnnotation("123", "annotation-2", any()) }
+        coVerify(exactly = 0) { readeckApi.createAnnotation(any(), any()) }
+        coVerify { readeckApi.getArticle("123") }
+    }
+
+    @Test
+    fun `deleteCurrentAnnotation deletes overlapping annotations and refreshes article content`() = runTest {
+        val selectionData = SelectionData(
+            text = "Selected text",
+            startSelector = "/section[1]/p[1]",
+            startOffset = 5,
+            endSelector = "/section[1]/p[1]",
+            endOffset = 18,
+            selectedAnnotationIds = listOf("annotation-1", "annotation-2")
+        )
+
+        coEvery { readeckApi.deleteAnnotation("123", "annotation-1") } returns Response.success(Unit)
+        coEvery { readeckApi.deleteAnnotation("123", "annotation-2") } returns Response.success(Unit)
+        coEvery { readeckApi.getArticle("123") } returns Response.success("<p>Updated article</p>")
+        coEvery { bookmarkRepository.getBookmarkById("123") } returns sampleBookmark
+        coEvery { bookmarkRepository.insertBookmarks(any()) } just Runs
+
+        viewModel.showCreateAnnotationSheet(selectionData)
+        viewModel.deleteCurrentAnnotation()
+        advanceUntilIdle()
+
+        assertNull(viewModel.annotationEditState.value)
+        coVerify { readeckApi.deleteAnnotation("123", "annotation-1") }
+        coVerify { readeckApi.deleteAnnotation("123", "annotation-2") }
+        coVerify { readeckApi.getArticle("123") }
     }
 
     val sampleBookmark = Bookmark(

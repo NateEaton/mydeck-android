@@ -1,10 +1,17 @@
 package com.mydeck.app.ui.detail.components
 
+import android.content.Context
 import android.net.Uri
 import android.os.Build
+import android.view.ActionMode
+import android.view.Menu
+import android.view.MenuItem
 import android.view.View
 import android.webkit.WebView
 import com.mydeck.app.domain.model.ImageGalleryData
+import com.mydeck.app.domain.model.SelectionData
+import com.mydeck.app.ui.detail.WebViewAnnotationBridge
+import com.mydeck.app.ui.detail.WebViewAnnotationCallbackBridge
 import com.mydeck.app.ui.detail.WebViewImageBridge
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
@@ -29,6 +36,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -69,6 +77,8 @@ fun BookmarkDetailArticle(
     onImageTapped: (ImageGalleryData) -> Unit = {},
     onImageLongPress: (imageUrl: String, linkUrl: String?, linkType: String, imageAlt: String) -> Unit = { _, _, _, _ -> },
     onLinkLongPress: (linkUrl: String, linkText: String) -> Unit = { _, _ -> },
+    onTextSelectionCaptured: (SelectionData) -> Unit = {},
+    onAnnotationClicked: (String) -> Unit = {},
 ) {
     val isSystemInDarkMode = isSystemInDarkTheme()
     val content = remember(
@@ -82,6 +92,8 @@ fun BookmarkDetailArticle(
     }
     val webViewRef = remember { mutableStateOf<WebView?>(null) }
     val json = remember { Json { ignoreUnknownKeys = true } }
+    val latestSelectionHandler = rememberUpdatedState(onTextSelectionCaptured)
+    val latestAnnotationClickHandler = rememberUpdatedState(onAnnotationClicked)
     var hasReportedReady by remember(uiState.bookmark.bookmarkId, content.value) { mutableStateOf(false) }
 
     LaunchedEffect(
@@ -196,7 +208,16 @@ fun BookmarkDetailArticle(
             AndroidView(
                 modifier = Modifier.padding(0.dp),
                 factory = { context ->
-                    WebView(context).apply {
+                    HighlightActionWebView(
+                        context = context,
+                        highlightActionLabel = context.getString(R.string.highlight_action),
+                        onHighlightActionRequested = { webView, finishActionMode ->
+                            WebViewAnnotationBridge.captureSelection(webView) { selection ->
+                                selection?.let { latestSelectionHandler.value(it) }
+                                finishActionMode()
+                            }
+                        }
+                    ).apply {
                         val isVideo = uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.VIDEO
                         val isArticle = uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.ARTICLE
                         val isPhoto = uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.PHOTO
@@ -219,6 +240,14 @@ fun BookmarkDetailArticle(
                             ),
                             WebViewImageBridge.BRIDGE_NAME
                         )
+                        addJavascriptInterface(
+                            WebViewAnnotationCallbackBridge(
+                                onAnnotationClicked = { annotationId ->
+                                    latestAnnotationClickHandler.value(annotationId)
+                                }
+                            ),
+                            WebViewAnnotationBridge.BRIDGE_NAME
+                        )
 
                         // Intercept link clicks and open in Chrome Custom Tabs
                         // Apply typography after page finishes loading
@@ -229,6 +258,8 @@ fun BookmarkDetailArticle(
                                 webView.evaluateJavascript(typographyJs, null)
                                 val imageJs = WebViewImageBridge.injectImageInterceptor()
                                 webView.evaluateJavascript(imageJs, null)
+                                val annotationJs = WebViewAnnotationBridge.injectAnnotationInteractions()
+                                webView.evaluateJavascript(annotationJs, null)
                             }
 
                             private fun reportReadyIfNeeded(webView: WebView?) {
@@ -360,6 +391,75 @@ fun BookmarkDetailArticle(
 
     } else {
         CircularProgressIndicator()
+    }
+}
+
+private class HighlightActionWebView(
+    context: Context,
+    private val highlightActionLabel: String,
+    private val onHighlightActionRequested: (WebView, finishActionMode: () -> Unit) -> Unit
+) : WebView(context) {
+    override fun startActionMode(callback: ActionMode.Callback?, type: Int): ActionMode? {
+        return super.startActionMode(wrapActionModeCallback(callback), type)
+    }
+
+    override fun startActionMode(callback: ActionMode.Callback?): ActionMode? {
+        return super.startActionMode(wrapActionModeCallback(callback))
+    }
+
+    private fun wrapActionModeCallback(callback: ActionMode.Callback?): ActionMode.Callback? {
+        if (callback == null) return null
+        if (callback is HighlightActionModeCallback) return callback
+        return HighlightActionModeCallback(callback)
+    }
+
+    private inner class HighlightActionModeCallback(
+        private val delegate: ActionMode.Callback
+    ) : ActionMode.Callback2() {
+        override fun onCreateActionMode(mode: ActionMode, menu: Menu): Boolean {
+            val created = delegate.onCreateActionMode(mode, menu)
+            addHighlightAction(menu)
+            return created
+        }
+
+        override fun onPrepareActionMode(mode: ActionMode, menu: Menu): Boolean {
+            val prepared = delegate.onPrepareActionMode(mode, menu)
+            addHighlightAction(menu)
+            return prepared
+        }
+
+        override fun onActionItemClicked(mode: ActionMode, item: MenuItem): Boolean {
+            if (item.itemId == HIGHLIGHT_ACTION_ID) {
+                onHighlightActionRequested(this@HighlightActionWebView) {
+                    mode.finish()
+                }
+                return true
+            }
+            return delegate.onActionItemClicked(mode, item)
+        }
+
+        override fun onDestroyActionMode(mode: ActionMode) {
+            delegate.onDestroyActionMode(mode)
+        }
+
+        override fun onGetContentRect(mode: ActionMode, view: View, outRect: android.graphics.Rect) {
+            if (delegate is ActionMode.Callback2) {
+                delegate.onGetContentRect(mode, view, outRect)
+            } else {
+                super.onGetContentRect(mode, view, outRect)
+            }
+        }
+
+        private fun addHighlightAction(menu: Menu) {
+            if (menu.findItem(HIGHLIGHT_ACTION_ID) != null) return
+            menu.add(Menu.NONE, HIGHLIGHT_ACTION_ID, HIGHLIGHT_ACTION_ORDER, highlightActionLabel)
+                .setShowAsAction(MenuItem.SHOW_AS_ACTION_IF_ROOM or MenuItem.SHOW_AS_ACTION_WITH_TEXT)
+        }
+    }
+
+    private companion object {
+        const val HIGHLIGHT_ACTION_ID = 0x4D59444B
+        const val HIGHLIGHT_ACTION_ORDER = 1
     }
 }
 

@@ -7,9 +7,11 @@ import androidx.core.content.FileProvider
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.mydeck.app.R
 import com.mydeck.app.domain.BookmarkRepository
 import com.mydeck.app.domain.model.Annotation
 import com.mydeck.app.domain.model.Bookmark.ContentState
+import com.mydeck.app.domain.model.SelectionData
 import com.mydeck.app.domain.model.Template
 import com.mydeck.app.domain.model.Theme
 import com.mydeck.app.domain.usecase.LoadArticleUseCase
@@ -17,6 +19,8 @@ import com.mydeck.app.domain.usecase.UpdateBookmarkUseCase
 import com.mydeck.app.io.AssetLoader
 import com.mydeck.app.io.prefs.SettingsDataStore
 import com.mydeck.app.io.rest.ReadeckApi
+import com.mydeck.app.io.rest.model.CreateAnnotationDto
+import com.mydeck.app.io.rest.model.UpdateAnnotationDto
 import com.mydeck.app.util.BookmarkDebugExporter
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -134,6 +138,9 @@ class BookmarkDetailViewModel @Inject constructor(
     private val _pendingAnnotationScrollId = MutableStateFlow<String?>(null)
     val pendingAnnotationScrollId: StateFlow<String?> = _pendingAnnotationScrollId.asStateFlow()
 
+    private val _annotationEditState = MutableStateFlow<AnnotationEditState?>(null)
+    val annotationEditState: StateFlow<AnnotationEditState?> = _annotationEditState.asStateFlow()
+
     // Gallery state
     private val _galleryData = MutableStateFlow<ImageGalleryData?>(null)
     val galleryData: StateFlow<ImageGalleryData?> = _galleryData.asStateFlow()
@@ -164,6 +171,7 @@ class BookmarkDetailViewModel @Inject constructor(
         _annotationsState.value = AnnotationsState()
         _showAnnotationsSheet.value = false
         _pendingAnnotationScrollId.value = null
+        _annotationEditState.value = null
 
         _bookmarkId.value = bookmarkId
         initializeBookmark(bookmarkId)
@@ -426,6 +434,24 @@ class BookmarkDetailViewModel @Inject constructor(
         }
     }
 
+    private suspend fun refreshArticleContent(bookmarkId: String) {
+        val response = readeckApi.getArticle(bookmarkId)
+        if (!response.isSuccessful || response.body() == null) {
+            throw IllegalStateException("Failed to refresh article content: HTTP ${response.code()}")
+        }
+
+        val bookmark = bookmarkRepository.getBookmarkById(bookmarkId)
+        bookmarkRepository.insertBookmarks(
+            listOf(
+                bookmark.copy(
+                    articleContent = response.body(),
+                    contentState = ContentState.DOWNLOADED,
+                    contentFailureReason = null
+                )
+            )
+        )
+    }
+
     fun onClickShareBookmark(url: String) {
         viewModelScope.launch {
             val intent = Intent().apply {
@@ -571,6 +597,177 @@ class BookmarkDetailViewModel @Inject constructor(
             annotations = annotations,
             isLoading = false
         )
+    }
+
+    fun showCreateAnnotationSheet(
+        selectionData: SelectionData,
+        existingAnnotations: List<Annotation> = emptyList()
+    ) {
+        val annotationIds = selectionData.selectedAnnotationIds.distinct()
+        _annotationEditState.value = AnnotationEditState(
+            annotationIds = annotationIds,
+            color = resolveInitialAnnotationColor(existingAnnotations),
+            selectionData = selectionData.takeIf { annotationIds.isEmpty() },
+            text = selectionData.text
+        )
+    }
+
+    fun showEditAnnotationSheet(annotation: Annotation) {
+        _annotationEditState.value = AnnotationEditState(
+            annotationIds = listOf(annotation.id),
+            color = annotation.color,
+            selectionData = null,
+            text = annotation.text
+        )
+    }
+
+    fun dismissAnnotationEditSheet() {
+        _annotationEditState.value = null
+    }
+
+    fun onAnnotationEditColorSelected(color: String) {
+        _annotationEditState.update { state ->
+            state?.copy(color = color)
+        }
+    }
+
+    fun saveAnnotationEdit() {
+        val state = _annotationEditState.value ?: return
+        val selectionData = state.selectionData
+        if (state.isSaving) return
+
+        if (state.annotationIds.isNotEmpty()) {
+            updateAnnotationColors(
+                annotationIds = state.annotationIds,
+                color = state.color
+            )
+        } else if (selectionData != null) {
+            createAnnotation(
+                startSelector = selectionData.startSelector,
+                startOffset = selectionData.startOffset,
+                endSelector = selectionData.endSelector,
+                endOffset = selectionData.endOffset,
+                color = state.color
+            )
+        }
+    }
+
+    fun deleteCurrentAnnotation() {
+        val annotationIds = _annotationEditState.value?.annotationIds.orEmpty()
+        if (annotationIds.isEmpty()) return
+        deleteAnnotations(annotationIds)
+    }
+
+    fun createAnnotation(
+        startSelector: String,
+        startOffset: Int,
+        endSelector: String,
+        endOffset: Int,
+        color: String
+    ) {
+        val bookmarkId = _bookmarkId.value ?: return
+        _annotationEditState.update { it?.copy(isSaving = true) }
+
+        viewModelScope.launch {
+            try {
+                val response = readeckApi.createAnnotation(
+                    bookmarkId = bookmarkId,
+                    body = CreateAnnotationDto(
+                        start_selector = startSelector,
+                        start_offset = startOffset,
+                        end_selector = endSelector,
+                        end_offset = endOffset,
+                        color = color
+                    )
+                )
+
+                if (!response.isSuccessful) {
+                    throw IllegalStateException("HTTP ${response.code()}")
+                }
+
+                refreshArticleContent(bookmarkId)
+                _annotationEditState.value = null
+            } catch (e: Exception) {
+                Timber.w(e, "Failed to create annotation for $bookmarkId")
+                _annotationEditState.update { it?.copy(isSaving = false) }
+                updateState.value = UpdateBookmarkState.Error(context.getString(R.string.highlight_create_failed))
+            }
+        }
+    }
+
+    fun updateAnnotationColor(annotationId: String, color: String) {
+        updateAnnotationColors(listOf(annotationId), color)
+    }
+
+    fun updateAnnotationColors(annotationIds: List<String>, color: String) {
+        val bookmarkId = _bookmarkId.value ?: return
+        _annotationEditState.update { it?.copy(isSaving = true) }
+
+        viewModelScope.launch {
+            try {
+                annotationIds.distinct().forEach { annotationId ->
+                    val response = readeckApi.updateAnnotation(
+                        bookmarkId = bookmarkId,
+                        annotationId = annotationId,
+                        body = UpdateAnnotationDto(color = color)
+                    )
+
+                    if (!response.isSuccessful) {
+                        throw IllegalStateException("HTTP ${response.code()}")
+                    }
+                }
+
+                refreshArticleContent(bookmarkId)
+                _annotationEditState.value = null
+            } catch (e: Exception) {
+                Timber.w(e, "Failed to update annotations ${annotationIds.joinToString()} for $bookmarkId")
+                _annotationEditState.update { it?.copy(isSaving = false) }
+                updateState.value = UpdateBookmarkState.Error(context.getString(R.string.highlight_update_failed))
+            }
+        }
+    }
+
+    fun deleteAnnotation(annotationId: String) {
+        deleteAnnotations(listOf(annotationId))
+    }
+
+    fun deleteAnnotations(annotationIds: List<String>) {
+        val bookmarkId = _bookmarkId.value ?: return
+        _annotationEditState.update { it?.copy(isSaving = true) }
+
+        viewModelScope.launch {
+            try {
+                annotationIds.distinct().forEach { annotationId ->
+                    val response = readeckApi.deleteAnnotation(
+                        bookmarkId = bookmarkId,
+                        annotationId = annotationId
+                    )
+
+                    if (!response.isSuccessful) {
+                        throw IllegalStateException("HTTP ${response.code()}")
+                    }
+                }
+
+                refreshArticleContent(bookmarkId)
+                _annotationEditState.value = null
+            } catch (e: Exception) {
+                Timber.w(e, "Failed to delete annotations ${annotationIds.joinToString()} for $bookmarkId")
+                _annotationEditState.update { it?.copy(isSaving = false) }
+                updateState.value = UpdateBookmarkState.Error(context.getString(R.string.highlight_delete_failed))
+            }
+        }
+    }
+
+    private fun resolveInitialAnnotationColor(existingAnnotations: List<Annotation>): String {
+        if (existingAnnotations.isEmpty()) {
+            return "yellow"
+        }
+
+        val distinctColors = existingAnnotations.map { it.color }.distinct()
+        return when {
+            distinctColors.size == 1 -> distinctColors.single()
+            else -> existingAnnotations.first().color
+        }
     }
 
     fun scrollToAnnotation(annotationId: String) {
@@ -858,6 +1055,20 @@ class BookmarkDetailViewModel @Inject constructor(
         val annotations: List<Annotation> = emptyList(),
         val isLoading: Boolean = false
     )
+
+    data class AnnotationEditState(
+        val annotationIds: List<String> = emptyList(),
+        val color: String,
+        val selectionData: SelectionData?,
+        val text: String,
+        val isSaving: Boolean = false
+    ) {
+        val annotationId: String?
+            get() = annotationIds.singleOrNull()
+
+        val hasExistingAnnotations: Boolean
+            get() = annotationIds.isNotEmpty()
+    }
 
     data class ReaderContextMenuState(
         val visible: Boolean = false,
