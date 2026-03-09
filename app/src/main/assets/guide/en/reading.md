@@ -63,7 +63,7 @@ Tap **🔍** to open the in-content search bar. Type to search; matching text in
 
 ### Highlights
 
-Article bookmarks support Readeck highlights directly in the reading view. To create a highlight, select text in the article and tap **Highlight** in the Android text selection menu, then choose a color. If your selection overlaps one or more existing highlights, **Save** changes the color of those highlights and **Delete** removes them. To edit or delete an existing highlight directly, tap the highlighted text in the article. You can also open **⋮ → Highlights** to browse saved highlights and jump to any one in the article.
+Article bookmarks support Readeck highlights directly in the reading view. To create a highlight, select text in the article and tap **Highlight** in the Android text selection menu, then choose a color. If your selection overlaps one or more existing highlights, **Save** changes the color of those highlights and **Delete** removes them immediately. To edit or delete an existing highlight directly, tap the highlighted text in the article. You can also open **⋮ → Highlights** to browse saved highlights and jump to any one in the article. When you reopen a downloaded article while online, MyDeck checks whether the saved highlight set changed on the server and refreshes the article if needed.
 
 ## Overflow Menu
 

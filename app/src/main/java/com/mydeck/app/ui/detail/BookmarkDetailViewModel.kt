@@ -21,6 +21,7 @@ import com.mydeck.app.io.prefs.SettingsDataStore
 import com.mydeck.app.io.rest.ReadeckApi
 import com.mydeck.app.io.rest.model.CreateAnnotationDto
 import com.mydeck.app.io.rest.model.UpdateAnnotationDto
+import com.mydeck.app.io.rest.model.toAnnotationCachePayload
 import com.mydeck.app.util.BookmarkDebugExporter
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -150,6 +151,7 @@ class BookmarkDetailViewModel @Inject constructor(
     val readerContextMenu: StateFlow<ReaderContextMenuState> = _readerContextMenu.asStateFlow()
 
     private var searchDebounceJob: Job? = null
+    private var annotationSyncJob: Job? = null
 
     init {
         _bookmarkId.value?.let { initializeBookmark(it) }
@@ -213,7 +215,9 @@ class BookmarkDetailViewModel @Inject constructor(
 
                         // Handle content availability
                         when (bookmark.contentState) {
-                            ContentState.DOWNLOADED -> { /* Content available, nothing to do */ }
+                            ContentState.DOWNLOADED -> {
+                                syncAnnotationsIfNeeded(id)
+                            }
                             ContentState.PERMANENT_NO_CONTENT -> {
                                 // Signal to UI that content is permanently unavailable
                                 _contentLoadState.value = ContentLoadState.Failed(
@@ -450,6 +454,7 @@ class BookmarkDetailViewModel @Inject constructor(
                 )
             )
         )
+        cacheAnnotationSnapshot(bookmarkId)
     }
 
     fun onClickShareBookmark(url: String) {
@@ -557,7 +562,8 @@ class BookmarkDetailViewModel @Inject constructor(
     }
 
     fun fetchAnnotations(
-        bookmarkId: String
+        bookmarkId: String,
+        renderedAnnotations: List<Annotation> = emptyList()
     ) {
         viewModelScope.launch {
             _annotationsState.update { it.copy(isLoading = true) }
@@ -565,14 +571,17 @@ class BookmarkDetailViewModel @Inject constructor(
             try {
                 val response = readeckApi.getAnnotations(bookmarkId)
                 if (response.isSuccessful) {
-                    val annotations = response.body().orEmpty()
+                    val annotationDtos = response.body().orEmpty()
+                    val renderedById = renderedAnnotations.associateBy { it.id }
+                    val annotations = annotationDtos
                         .map { dto ->
+                            val renderedAnnotation = renderedById[dto.id]
                             Annotation(
                                 id = dto.id,
                                 bookmarkId = bookmarkId,
                                 text = dto.text,
-                                color = "yellow",
-                                note = null,
+                                color = renderedAnnotation?.color ?: "yellow",
+                                note = renderedAnnotation?.note,
                                 created = dto.created
                             )
                         }
@@ -583,12 +592,50 @@ class BookmarkDetailViewModel @Inject constructor(
                     )
                 } else {
                     Timber.w("Failed to load annotations for $bookmarkId: HTTP ${response.code()}")
-                    _annotationsState.value = AnnotationsState(isLoading = false)
+                    _annotationsState.value = AnnotationsState(
+                        annotations = renderedAnnotations,
+                        isLoading = false
+                    )
                 }
             } catch (e: Exception) {
                 Timber.w(e, "Failed to load annotations for $bookmarkId")
-                _annotationsState.value = AnnotationsState(isLoading = false)
+                _annotationsState.value = AnnotationsState(
+                    annotations = renderedAnnotations,
+                    isLoading = false
+                )
             }
+        }
+    }
+
+    fun syncAnnotationsIfNeeded(bookmarkId: String) {
+        if (annotationSyncJob?.isActive == true) {
+            return
+        }
+
+        val job = viewModelScope.launch {
+            loadArticleUseCase.refreshCachedArticleIfAnnotationsChanged(bookmarkId)
+        }
+        annotationSyncJob = job
+        job.invokeOnCompletion {
+            if (annotationSyncJob === job) {
+                annotationSyncJob = null
+            }
+        }
+    }
+
+    private suspend fun cacheAnnotationSnapshot(bookmarkId: String) {
+        try {
+            val response = readeckApi.getAnnotations(bookmarkId)
+            if (response.isSuccessful) {
+                settingsDataStore.saveCachedAnnotationSnapshot(
+                    bookmarkId,
+                    response.body().orEmpty().toAnnotationCachePayload(json)
+                )
+            } else {
+                Timber.w("Failed to cache annotations for $bookmarkId: HTTP ${response.code()}")
+            }
+        } catch (e: Exception) {
+            Timber.w(e, "Failed to cache annotations for $bookmarkId")
         }
     }
 

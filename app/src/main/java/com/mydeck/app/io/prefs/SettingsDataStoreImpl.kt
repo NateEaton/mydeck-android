@@ -161,6 +161,22 @@ class SettingsDataStoreImpl @Inject constructor(@ApplicationContext private val 
         }
     }
 
+    override suspend fun saveCachedAnnotationSnapshot(bookmarkId: String, snapshot: String) {
+        encryptedSharedPreferences.edit {
+            putString(annotationSnapshotKey(bookmarkId), snapshot)
+        }
+    }
+
+    override suspend fun getCachedAnnotationSnapshot(bookmarkId: String): String? {
+        return encryptedSharedPreferences.getString(annotationSnapshotKey(bookmarkId), null)
+    }
+
+    override suspend fun clearCachedAnnotationSnapshot(bookmarkId: String) {
+        encryptedSharedPreferences.edit {
+            remove(annotationSnapshotKey(bookmarkId))
+        }
+    }
+
     override suspend fun setInitialSyncPerformed(performed: Boolean) {
         encryptedSharedPreferences.edit {
             putBoolean(KEY_INITIAL_SYNC_PERFORMED, performed)
@@ -471,5 +487,9 @@ class SettingsDataStoreImpl @Inject constructor(@ApplicationContext private val 
             remove(KEY_SERVER_INFO_BUILD.name)
             remove(KEY_SERVER_INFO_FEATURES.name)
         }
+    }
+
+    private fun annotationSnapshotKey(bookmarkId: String): String {
+        return "cached_annotation_snapshot_$bookmarkId"
     }
 }

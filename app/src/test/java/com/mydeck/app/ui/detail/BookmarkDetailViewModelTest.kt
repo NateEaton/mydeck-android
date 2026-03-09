@@ -13,6 +13,7 @@ import com.mydeck.app.io.prefs.SettingsDataStore
 import com.mydeck.app.io.rest.ReadeckApi
 import com.mydeck.app.io.rest.model.AnnotationDto
 import io.mockk.Runs
+import io.mockk.clearMocks
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -79,6 +80,10 @@ class BookmarkDetailViewModelTest {
         every { settingsDataStore.typographySettingsFlow } returns MutableStateFlow(com.mydeck.app.domain.model.TypographySettings())
         every { settingsDataStore.keepScreenOnWhileReadingFlow } returns MutableStateFlow(true)
         every { bookmarkRepository.observeAllLabelsWithCounts() } returns MutableStateFlow(emptyMap())
+        coEvery { settingsDataStore.saveCachedAnnotationSnapshot(any(), any()) } just Runs
+        coEvery { settingsDataStore.getCachedAnnotationSnapshot(any()) } returns null
+        coEvery { settingsDataStore.clearCachedAnnotationSnapshot(any()) } just Runs
+        coEvery { readeckApi.getAnnotations(any()) } returns Response.success(emptyList())
         viewModel = createViewModel()
     }
 
@@ -526,6 +531,9 @@ class BookmarkDetailViewModelTest {
         every { bookmarkRepository.observeBookmark("123") } returns MutableStateFlow(bookmarkWithDownloaded)
         coEvery { bookmarkRepository.getBookmarkById("123") } returns bookmarkWithDownloaded
         coEvery { bookmarkRepository.refreshBookmarkFromApi(any()) } returns Unit
+        coEvery { loadArticleUseCase.refreshCachedArticleIfAnnotationsChanged("123") } just Runs
+        advanceUntilIdle()
+        clearMocks(loadArticleUseCase, answers = false, recordedCalls = true)
 
         // Act
         viewModel = createViewModel()
@@ -533,6 +541,73 @@ class BookmarkDetailViewModelTest {
 
         // Assert
         coVerify(exactly = 0) { loadArticleUseCase.execute(any()) }
+        coVerify(exactly = 1) { loadArticleUseCase.refreshCachedArticleIfAnnotationsChanged("123") }
+    }
+
+    @Test
+    fun `fetchAnnotations uses API data for membership but keeps rendered metadata and does not update freshness cache`() = runTest {
+        advanceUntilIdle()
+        clearMocks(settingsDataStore, readeckApi, answers = false, recordedCalls = true)
+        val renderedAnnotations = listOf(
+            Annotation(
+                id = "existing",
+                bookmarkId = "123",
+                text = "Rendered text",
+                color = "red",
+                note = "Rendered note",
+                created = ""
+            )
+        )
+        coEvery {
+            readeckApi.getAnnotations("123")
+        } returns Response.success(
+            listOf(
+                AnnotationDto(
+                    id = "existing",
+                    start_selector = "/p[1]",
+                    start_offset = 0,
+                    end_selector = "/p[1]",
+                    end_offset = 5,
+                    created = "2024-01-20T12:00:00Z",
+                    text = "API text"
+                ),
+                AnnotationDto(
+                    id = "remote-only",
+                    start_selector = "/p[2]",
+                    start_offset = 0,
+                    end_selector = "/p[2]",
+                    end_offset = 4,
+                    created = "2024-01-20T12:01:00Z",
+                    text = "Remote"
+                )
+            )
+        )
+
+        viewModel.fetchAnnotations("123", renderedAnnotations)
+        advanceUntilIdle()
+
+        assertEquals(
+            listOf(
+                Annotation(
+                    id = "existing",
+                    bookmarkId = "123",
+                    text = "API text",
+                    color = "red",
+                    note = "Rendered note",
+                    created = "2024-01-20T12:00:00Z"
+                ),
+                Annotation(
+                    id = "remote-only",
+                    bookmarkId = "123",
+                    text = "Remote",
+                    color = "yellow",
+                    note = null,
+                    created = "2024-01-20T12:01:00Z"
+                )
+            ),
+            viewModel.annotationsState.value.annotations
+        )
+        coVerify(exactly = 0) { settingsDataStore.saveCachedAnnotationSnapshot(any(), any()) }
     }
 
     @Test

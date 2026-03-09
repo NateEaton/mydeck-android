@@ -227,15 +227,12 @@ fun BookmarkDetailHost(
         val webView = readerWebView.value
         if (webView != null) {
             WebViewAnnotationBridge.getRenderedAnnotations(webView) { renderedAnnotations ->
-                if (renderedAnnotations.isNotEmpty()) {
-                    viewModel.setAnnotations(
-                        renderedAnnotations
-                            .sortedBy { it.position }
-                            .map { it.toDomainAnnotation(bookmarkId) }
-                    )
-                } else {
-                    viewModel.fetchAnnotations(bookmarkId)
-                }
+                viewModel.fetchAnnotations(
+                    bookmarkId = bookmarkId,
+                    renderedAnnotations = renderedAnnotations
+                        .sortedBy { it.position }
+                        .map { it.toDomainAnnotation(bookmarkId) }
+                )
             }
         } else {
             viewModel.fetchAnnotations(bookmarkId)
@@ -757,9 +754,11 @@ fun BookmarkDetailContent(
         }
     }
 
-    // Keep the spinner while reader content is loading/rendering, but not after a failed fetch.
+    // Keep the spinner for the initial reader load/render path, but do not re-show it
+    // after content is already visible and the cached article HTML is refreshed in place.
     val showReaderLoadingOverlay =
         contentMode == ContentMode.READER &&
+            !hasDisplayedReaderContent &&
             (
                 (uiState.bookmark.hasContent && !isReaderContentReady) ||
                     (!uiState.bookmark.hasContent && contentLoadState !is ContentLoadState.Failed)
