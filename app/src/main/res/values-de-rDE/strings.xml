@@ -172,6 +172,9 @@ other{}
     <string name="action_is_read">Is read</string>
     <string name="action_search_in_article">Find in article</string>
     <string name="action_find_in_page">Find in page</string>
+    <string name="highlights_title">Highlights</string>
+    <string name="highlights_empty">No highlights yet</string>
+    <string name="highlights_menu_item">Highlights</string>
     <string name="action_view_original">View web page</string>
     <string name="action_view_article">View article</string>
     <string name="action_view_photo">View photo</string>

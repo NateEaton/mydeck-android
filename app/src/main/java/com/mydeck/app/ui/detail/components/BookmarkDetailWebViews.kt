@@ -65,6 +65,7 @@ fun BookmarkDetailArticle(
     articleSearchState: BookmarkDetailViewModel.ArticleSearchState = BookmarkDetailViewModel.ArticleSearchState(),
     onArticleSearchUpdateResults: (Int) -> Unit = {},
     onContentReady: (Boolean) -> Unit = {},
+    onWebViewChanged: (WebView?) -> Unit = {},
     onImageTapped: (ImageGalleryData) -> Unit = {},
     onImageLongPress: (imageUrl: String, linkUrl: String?, linkType: String, imageAlt: String) -> Unit = { _, _, _, _ -> },
     onLinkLongPress: (linkUrl: String, linkText: String) -> Unit = { _, _ -> },
@@ -99,7 +100,14 @@ fun BookmarkDetailArticle(
             hasReportedReady = false
             onContentReady(false)
         } else {
+            onWebViewChanged(null)
             onContentReady(true)
+        }
+    }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            onWebViewChanged(null)
         }
     }
 
@@ -323,6 +331,7 @@ fun BookmarkDetailArticle(
                         }
 
                         webViewRef.value = this
+                        onWebViewChanged(this)
                     }
                 },
                 update = {
@@ -343,6 +352,7 @@ fun BookmarkDetailArticle(
                     }
                     // Update reference and zoom
                     webViewRef.value = it
+                    onWebViewChanged(it)
                     it.settings.textZoom = uiState.typographySettings.fontSizePercent
                 }
             )

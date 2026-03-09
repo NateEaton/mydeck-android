@@ -40,6 +40,7 @@ fun BookmarkDetailTopBar(
     onClickToggleArchive: (String, Boolean) -> Unit,
     onShowTypographyPanel: () -> Unit,
     onShowDetails: () -> Unit,
+    onShowHighlights: () -> Unit,
     contentMode: ContentMode,
     onClickToggleRead: (String, Boolean) -> Unit,
     onClickShareBookmark: (String) -> Unit,
@@ -112,6 +113,7 @@ fun BookmarkDetailTopBar(
                     onClickShareBookmark = onClickShareBookmark,
                     onClickDeleteBookmark = onClickDeleteBookmark,
                     onShowDetails = onShowDetails,
+                    onShowHighlights = onShowHighlights,
                     onClickOpenInBrowser = onClickOpenInBrowser,
                     contentMode = contentMode,
                     onContentModeChange = onContentModeChange

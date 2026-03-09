@@ -78,6 +78,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
@@ -115,8 +118,8 @@ import com.mydeck.app.domain.model.TextWidth
 import com.mydeck.app.util.openUrlInCustomTab
 import com.mydeck.app.ui.components.ShareBookmarkChooser
 import com.mydeck.app.ui.detail.BookmarkDetailViewModel.ContentLoadState
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import coil3.imageLoader
@@ -183,9 +186,13 @@ fun BookmarkDetailHost(
     val uiState = viewModel.uiState.collectAsState().value
     val contentLoadState = viewModel.contentLoadState.collectAsState().value
     val articleSearchState = viewModel.articleSearchState.collectAsState().value
+    val annotationsState = viewModel.annotationsState.collectAsState().value
+    val showAnnotationsSheet = viewModel.showAnnotationsSheet.collectAsState().value
+    val pendingAnnotationScrollId = viewModel.pendingAnnotationScrollId.collectAsState().value
     val labelsWithCounts = viewModel.labelsWithCounts.collectAsState().value
     val galleryData = viewModel.galleryData.collectAsState().value
     val readerContextMenu = viewModel.readerContextMenu.collectAsState().value
+    val readerWebView = remember { mutableStateOf<WebView?>(null) }
     var showDetailsDialog by remember { mutableStateOf(false) }
     var showTypographyPanel by remember { mutableStateOf(false) }
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -201,6 +208,34 @@ fun BookmarkDetailHost(
             context.startActivity(intent)
         } catch (e: Exception) {
             // Handle error silently or show snackbar
+        }
+    }
+
+    fun requestAnnotations(bookmarkId: String) {
+        val webView = readerWebView.value
+        if (webView != null) {
+            WebViewAnnotationBridge.getRenderedAnnotations(webView) { renderedAnnotations ->
+                if (renderedAnnotations.isNotEmpty()) {
+                    viewModel.setAnnotations(
+                        renderedAnnotations
+                            .sortedBy { it.position }
+                            .map { annotation ->
+                                com.mydeck.app.domain.model.Annotation(
+                                    id = annotation.id,
+                                    bookmarkId = bookmarkId,
+                                    text = annotation.text,
+                                    color = annotation.color,
+                                    note = annotation.note?.takeIf { it.isNotBlank() },
+                                    created = ""
+                                )
+                            }
+                    )
+                } else {
+                    viewModel.fetchAnnotations(bookmarkId)
+                }
+            }
+        } else {
+            viewModel.fetchAnnotations(bookmarkId)
         }
     }
 
@@ -297,6 +332,7 @@ fun BookmarkDetailHost(
                     viewModel.onUpdateBookmarkStateConsumed()
                 }
             }
+
             // Box ensures the gallery overlay stacks directly on top of the
             // reader screen regardless of how the NavHost lays out its children.
             Box(modifier = Modifier.fillMaxSize()) {
@@ -314,6 +350,11 @@ fun BookmarkDetailHost(
                     uiState = uiState,
                     onClickOpenUrl = onClickOpenUrl,
                     onShowDetails = { showDetailsDialog = true },
+                    onShowHighlights = {
+                        dismissPendingDeleteSnackbar()
+                        viewModel.showAnnotationsSheet()
+                        requestAnnotations(uiState.bookmark.bookmarkId)
+                    },
                     onScrollProgressChanged = { progress ->
                         viewModel.onScrollProgressChanged(progress)
                     },
@@ -334,6 +375,10 @@ fun BookmarkDetailHost(
                     onImageTapped = onImageTapped,
                     onImageLongPress = onImageLongPress,
                     onLinkLongPress = onLinkLongPress,
+                    pendingAnnotationScrollId = pendingAnnotationScrollId,
+                    readerWebView = readerWebView.value,
+                    onAnnotationScrollHandled = { viewModel.onAnnotationScrollHandled() },
+                    onReaderWebViewChanged = { readerWebView.value = it },
                 )
 
                 // Gallery draws on top of the reader screen. fillMaxSize() fills the
@@ -416,6 +461,18 @@ fun BookmarkDetailHost(
                     onDismiss = { showTypographyPanel = false }
                 )
             }
+            if (showAnnotationsSheet &&
+                uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.ARTICLE &&
+                contentMode == ContentMode.READER) {
+                AnnotationsBottomSheet(
+                    annotations = annotationsState.annotations,
+                    isLoading = annotationsState.isLoading,
+                    onDismiss = { viewModel.hideAnnotationsSheet() },
+                    onAnnotationClick = { annotationId ->
+                        viewModel.scrollToAnnotation(annotationId)
+                    }
+                )
+            }
         }
 
         is BookmarkDetailViewModel.UiState.Loading -> {
@@ -449,6 +506,7 @@ fun BookmarkDetailScreen(
     onClickOpenInBrowser: (String) -> Unit = {},
     onArticleSearchActivate: () -> Unit = {},
     onShowDetails: () -> Unit = {},
+    onShowHighlights: () -> Unit = {},
     onScrollProgressChanged: (Int) -> Unit = {},
     initialReadProgress: Int = 0,
     contentMode: ContentMode = ContentMode.READER,
@@ -465,10 +523,49 @@ fun BookmarkDetailScreen(
     onImageTapped: (ImageGalleryData) -> Unit = {},
     onImageLongPress: (imageUrl: String, linkUrl: String?, linkType: String, imageAlt: String) -> Unit = { _, _, _, _ -> },
     onLinkLongPress: (linkUrl: String, linkText: String) -> Unit = { _, _ -> },
+    pendingAnnotationScrollId: String? = null,
+    readerWebView: WebView? = null,
+    onAnnotationScrollHandled: () -> Unit = {},
+    onReaderWebViewChanged: (WebView?) -> Unit = {},
 ) {
     val topBarScrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior()
     val scrollState = rememberScrollState()
     val coroutineScope = rememberCoroutineScope()
+    var articleTopOffset by remember { mutableStateOf(0f) }
+    var viewportHeight by remember { mutableIntStateOf(0) }
+
+    LaunchedEffect(
+        pendingAnnotationScrollId,
+        readerWebView,
+        articleTopOffset,
+        viewportHeight,
+        contentMode
+    ) {
+        val annotationId = pendingAnnotationScrollId
+        val webView = readerWebView
+        if (annotationId == null ||
+            webView == null ||
+            contentMode != ContentMode.READER ||
+            viewportHeight == 0) {
+            return@LaunchedEffect
+        }
+
+        val viewportInfo = WebViewAnnotationBridge.getAnnotationViewportInfo(webView, annotationId)
+        if (viewportInfo == null) {
+            onAnnotationScrollHandled()
+            return@LaunchedEffect
+        }
+
+        val targetInsideArticle = webView.height.toFloat() * viewportInfo.centerRatio
+        val targetScroll = (
+            articleTopOffset +
+                targetInsideArticle -
+                (viewportHeight / 2f)
+            ).toInt().coerceIn(0, scrollState.maxValue)
+
+        scrollState.animateScrollTo(targetScroll)
+        onAnnotationScrollHandled()
+    }
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -486,6 +583,7 @@ fun BookmarkDetailScreen(
                 onClickToggleArchive = onClickToggleArchive,
                 onShowTypographyPanel = onShowTypographyPanel,
                 onShowDetails = onShowDetails,
+                onShowHighlights = onShowHighlights,
                 contentMode = contentMode,
                 onClickToggleRead = onClickToggleRead,
                 onClickShareBookmark = onClickShareBookmark,
@@ -503,25 +601,34 @@ fun BookmarkDetailScreen(
             )
         }
     ) { padding ->
-        // Main content with buttons at the end
-        BookmarkDetailContent(
-            modifier = Modifier.fillMaxSize().padding(padding),
-            uiState = uiState,
-            onClickOpenUrl = onClickOpenUrl,
-            onScrollProgressChanged = onScrollProgressChanged,
-            initialReadProgress = initialReadProgress,
-            contentMode = contentMode,
-            contentLoadState = contentLoadState,
-            articleSearchState = articleSearchState,
-            onArticleSearchUpdateResults = onArticleSearchUpdateResults,
-            onTitleChanged = onTitleChanged,
-            onImageTapped = onImageTapped,
-            onImageLongPress = onImageLongPress,
-            onLinkLongPress = onLinkLongPress,
-            onClickToggleFavorite = onClickToggleFavorite,
-            onClickToggleArchive = onClickToggleArchive,
-            scrollState = scrollState
-        )
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .onSizeChanged { viewportHeight = it.height }
+        ) {
+            // Main content with buttons at the end
+            BookmarkDetailContent(
+                modifier = Modifier.fillMaxSize(),
+                uiState = uiState,
+                onClickOpenUrl = onClickOpenUrl,
+                onScrollProgressChanged = onScrollProgressChanged,
+                initialReadProgress = initialReadProgress,
+                contentMode = contentMode,
+                contentLoadState = contentLoadState,
+                articleSearchState = articleSearchState,
+                onArticleSearchUpdateResults = onArticleSearchUpdateResults,
+                onTitleChanged = onTitleChanged,
+                onImageTapped = onImageTapped,
+                onImageLongPress = onImageLongPress,
+                onLinkLongPress = onLinkLongPress,
+                onArticlePositionChanged = { articleTopOffset = it },
+                onReaderWebViewChanged = onReaderWebViewChanged,
+                onClickToggleFavorite = onClickToggleFavorite,
+                onClickToggleArchive = onClickToggleArchive,
+                scrollState = scrollState
+            )
+        }
     }
 }
 
@@ -540,6 +647,8 @@ fun BookmarkDetailContent(
     onImageTapped: (ImageGalleryData) -> Unit = {},
     onImageLongPress: (imageUrl: String, linkUrl: String?, linkType: String, imageAlt: String) -> Unit = { _, _, _, _ -> },
     onLinkLongPress: (linkUrl: String, linkText: String) -> Unit = { _, _ -> },
+    onArticlePositionChanged: (Float) -> Unit = {},
+    onReaderWebViewChanged: (WebView?) -> Unit = {},
     onClickToggleFavorite: (String, Boolean) -> Unit = { _, _ -> },
     onClickToggleArchive: (String, Boolean) -> Unit = { _, _ -> },
     scrollState: ScrollState = rememberScrollState()
@@ -631,16 +740,25 @@ fun BookmarkDetailContent(
                 )
 
                 if (uiState.bookmark.hasContent) {
-                    BookmarkDetailArticle(
-                        modifier = Modifier.fillMaxWidth(contentWidthFraction),
-                        uiState = uiState,
-                        articleSearchState = articleSearchState,
-                        onArticleSearchUpdateResults = onArticleSearchUpdateResults,
-                        onContentReady = { ready -> isReaderContentReady = ready },
-                        onImageTapped = onImageTapped,
-                        onImageLongPress = onImageLongPress,
-                        onLinkLongPress = onLinkLongPress,
-                    )
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth(contentWidthFraction)
+                            .onGloballyPositioned { coordinates ->
+                                onArticlePositionChanged(coordinates.positionInParent().y)
+                            }
+                    ) {
+                        BookmarkDetailArticle(
+                            modifier = Modifier.fillMaxWidth(),
+                            uiState = uiState,
+                            articleSearchState = articleSearchState,
+                            onArticleSearchUpdateResults = onArticleSearchUpdateResults,
+                            onContentReady = { ready -> isReaderContentReady = ready },
+                            onWebViewChanged = onReaderWebViewChanged,
+                            onImageTapped = onImageTapped,
+                            onImageLongPress = onImageLongPress,
+                            onLinkLongPress = onLinkLongPress,
+                        )
+                    }
                 }
 
                 // Action buttons at the end of content (only show in reader mode for articles, videos, and photos)

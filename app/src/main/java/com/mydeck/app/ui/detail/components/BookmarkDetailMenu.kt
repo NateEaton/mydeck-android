@@ -17,6 +17,7 @@ import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.Description
+import androidx.compose.material.icons.outlined.FormatColorFill
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material3.DropdownMenu
@@ -46,6 +47,7 @@ fun BookmarkDetailMenu(
     onClickShareBookmark: (String) -> Unit,
     onClickDeleteBookmark: (String) -> Unit,
     onShowDetails: () -> Unit = {},
+    onShowHighlights: () -> Unit = {},
     onClickOpenInBrowser: (String) -> Unit = {},
     contentMode: ContentMode = ContentMode.READER,
     onContentModeChange: (ContentMode) -> Unit = {}
@@ -212,6 +214,20 @@ fun BookmarkDetailMenu(
                     Icon(Icons.Outlined.Info, contentDescription = null)
                 }
             )
+
+            if (uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.ARTICLE &&
+                contentMode == ContentMode.READER) {
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.highlights_menu_item)) },
+                    onClick = {
+                        onShowHighlights()
+                        expanded = false
+                    },
+                    leadingIcon = {
+                        Icon(Icons.Outlined.FormatColorFill, contentDescription = null)
+                    }
+                )
+            }
 
             // Thin light divider between Details and Delete
             HorizontalDivider(

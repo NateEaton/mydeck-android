@@ -278,9 +278,14 @@
             border-radius: 2px;
             padding: 1px 0;
             cursor: pointer;
+            transition: box-shadow 180ms ease, outline-color 180ms ease;
         }
         rd-annotation[data-annotation-note] {
             display: none;
+        }
+        rd-annotation.mydeck-annotation-active {
+            outline: 2px solid rgba(167, 109, 61, 0.75);
+            box-shadow: 0 0 0 2px rgba(167, 109, 61, 0.16);
         }
         rd-annotation[data-annotation-color="yellow"],
         rd-annotation:not([data-annotation-color]) {

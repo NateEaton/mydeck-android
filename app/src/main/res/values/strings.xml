@@ -128,6 +128,9 @@ other{}
     <string name="action_decrease_text_size">Decrease text size</string>
     <string name="action_search_in_article">Find in article</string>
     <string name="action_find_in_page">Find in page</string>
+    <string name="highlights_title">Highlights</string>
+    <string name="highlights_empty">No highlights yet</string>
+    <string name="highlights_menu_item">Highlights</string>
     <string name="error_no_article_content">Error, article content not available</string>
     <string name="update_successful">Update successful</string>
     <string name="notification_channel_sync_name">Synchronization Errors</string>

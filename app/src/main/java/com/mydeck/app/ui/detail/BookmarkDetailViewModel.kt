@@ -7,9 +7,8 @@ import androidx.core.content.FileProvider
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import dagger.hilt.android.lifecycle.HiltViewModel
-import dagger.hilt.android.qualifiers.ApplicationContext
 import com.mydeck.app.domain.BookmarkRepository
+import com.mydeck.app.domain.model.Annotation
 import com.mydeck.app.domain.model.Bookmark.ContentState
 import com.mydeck.app.domain.model.Template
 import com.mydeck.app.domain.model.Theme
@@ -17,7 +16,10 @@ import com.mydeck.app.domain.usecase.LoadArticleUseCase
 import com.mydeck.app.domain.usecase.UpdateBookmarkUseCase
 import com.mydeck.app.io.AssetLoader
 import com.mydeck.app.io.prefs.SettingsDataStore
+import com.mydeck.app.io.rest.ReadeckApi
 import com.mydeck.app.util.BookmarkDebugExporter
+import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -56,6 +58,7 @@ class BookmarkDetailViewModel @Inject constructor(
     private val assetLoader: AssetLoader,
     private val settingsDataStore: SettingsDataStore,
     private val loadArticleUseCase: LoadArticleUseCase,
+    private val readeckApi: ReadeckApi,
     @ApplicationContext private val context: Context,
     private val json: Json,
     savedStateHandle: SavedStateHandle
@@ -122,6 +125,15 @@ class BookmarkDetailViewModel @Inject constructor(
     private val _articleSearchState = MutableStateFlow(ArticleSearchState())
     val articleSearchState: StateFlow<ArticleSearchState> = _articleSearchState.asStateFlow()
 
+    private val _annotationsState = MutableStateFlow(AnnotationsState())
+    val annotationsState: StateFlow<AnnotationsState> = _annotationsState.asStateFlow()
+
+    private val _showAnnotationsSheet = MutableStateFlow(false)
+    val showAnnotationsSheet: StateFlow<Boolean> = _showAnnotationsSheet.asStateFlow()
+
+    private val _pendingAnnotationScrollId = MutableStateFlow<String?>(null)
+    val pendingAnnotationScrollId: StateFlow<String?> = _pendingAnnotationScrollId.asStateFlow()
+
     // Gallery state
     private val _galleryData = MutableStateFlow<ImageGalleryData?>(null)
     val galleryData: StateFlow<ImageGalleryData?> = _galleryData.asStateFlow()
@@ -149,6 +161,9 @@ class BookmarkDetailViewModel @Inject constructor(
         isReadLocked = false
         _contentLoadState.value = ContentLoadState.Idle
         _articleSearchState.value = ArticleSearchState()
+        _annotationsState.value = AnnotationsState()
+        _showAnnotationsSheet.value = false
+        _pendingAnnotationScrollId.value = null
 
         _bookmarkId.value = bookmarkId
         initializeBookmark(bookmarkId)
@@ -506,6 +521,67 @@ class BookmarkDetailViewModel @Inject constructor(
         _bookmarkId.value?.let { fetchContentOnDemand(it) }
     }
 
+    fun showAnnotationsSheet() {
+        _showAnnotationsSheet.value = true
+        _annotationsState.update { it.copy(isLoading = true) }
+    }
+
+    fun hideAnnotationsSheet() {
+        _showAnnotationsSheet.value = false
+    }
+
+    fun fetchAnnotations(
+        bookmarkId: String
+    ) {
+        viewModelScope.launch {
+            _annotationsState.update { it.copy(isLoading = true) }
+
+            try {
+                val response = readeckApi.getAnnotations(bookmarkId)
+                if (response.isSuccessful) {
+                    val annotations = response.body().orEmpty()
+                        .map { dto ->
+                            Annotation(
+                                id = dto.id,
+                                bookmarkId = bookmarkId,
+                                text = dto.text,
+                                color = "yellow",
+                                note = null,
+                                created = dto.created
+                            )
+                        }
+
+                    _annotationsState.value = AnnotationsState(
+                        annotations = annotations,
+                        isLoading = false
+                    )
+                } else {
+                    Timber.w("Failed to load annotations for $bookmarkId: HTTP ${response.code()}")
+                    _annotationsState.value = AnnotationsState(isLoading = false)
+                }
+            } catch (e: Exception) {
+                Timber.w(e, "Failed to load annotations for $bookmarkId")
+                _annotationsState.value = AnnotationsState(isLoading = false)
+            }
+        }
+    }
+
+    fun setAnnotations(annotations: List<Annotation>) {
+        _annotationsState.value = AnnotationsState(
+            annotations = annotations,
+            isLoading = false
+        )
+    }
+
+    fun scrollToAnnotation(annotationId: String) {
+        _showAnnotationsSheet.value = false
+        _pendingAnnotationScrollId.value = annotationId
+    }
+
+    fun onAnnotationScrollHandled() {
+        _pendingAnnotationScrollId.value = null
+    }
+
     sealed class ContentLoadState {
         data object Idle : ContentLoadState()
         data object Loading : ContentLoadState()
@@ -778,6 +854,11 @@ class BookmarkDetailViewModel @Inject constructor(
         val currentMatch: Int = 0  // 1-based, 0 when no matches
     )
 
+    data class AnnotationsState(
+        val annotations: List<Annotation> = emptyList(),
+        val isLoading: Boolean = false
+    )
+
     data class ReaderContextMenuState(
         val visible: Boolean = false,
         val imageUrl: String? = null,
@@ -786,4 +867,5 @@ class BookmarkDetailViewModel @Inject constructor(
         val linkText: String? = null,
         val linkType: String = "none",  // "none" | "image" | "page"
     )
+
 }

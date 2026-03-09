@@ -2,33 +2,36 @@ package com.mydeck.app.io.rest
 
 import com.mydeck.app.io.rest.model.AuthenticationRequestDto
 import com.mydeck.app.io.rest.model.AuthenticationResponseDto
+import com.mydeck.app.io.rest.model.AnnotationDto
 import com.mydeck.app.io.rest.model.BookmarkDto
-import com.mydeck.app.io.rest.model.UserProfileDto
+import com.mydeck.app.io.rest.model.CreateAnnotationDto
 import com.mydeck.app.io.rest.model.CreateBookmarkDto
-import com.mydeck.app.io.rest.model.StatusMessageDto
 import com.mydeck.app.io.rest.model.EditBookmarkDto
 import com.mydeck.app.io.rest.model.EditBookmarkErrorDto
 import com.mydeck.app.io.rest.model.EditBookmarkResponseDto
-import com.mydeck.app.io.rest.model.SyncContentRequestDto
-import com.mydeck.app.io.rest.model.SyncStatusDto
 import com.mydeck.app.io.rest.model.OAuthClientRegistrationRequestDto
 import com.mydeck.app.io.rest.model.OAuthClientRegistrationResponseDto
 import com.mydeck.app.io.rest.model.OAuthDeviceAuthorizationRequestDto
 import com.mydeck.app.io.rest.model.OAuthDeviceAuthorizationResponseDto
+import com.mydeck.app.io.rest.model.OAuthRevokeRequestDto
 import com.mydeck.app.io.rest.model.OAuthTokenRequestDto
 import com.mydeck.app.io.rest.model.OAuthTokenResponseDto
-import com.mydeck.app.io.rest.model.OAuthRevokeRequestDto
 import com.mydeck.app.io.rest.model.ServerInfoDto
+import com.mydeck.app.io.rest.model.StatusMessageDto
+import com.mydeck.app.io.rest.model.SyncContentRequestDto
+import com.mydeck.app.io.rest.model.SyncStatusDto
+import com.mydeck.app.io.rest.model.UpdateAnnotationDto
+import com.mydeck.app.io.rest.model.UserProfileDto
 import kotlinx.datetime.Instant
 import retrofit2.Response
-import retrofit2.http.GET
-import retrofit2.http.POST
-import retrofit2.http.PATCH
-import retrofit2.http.Query
-import retrofit2.http.DELETE
 import retrofit2.http.Body
+import retrofit2.http.DELETE
+import retrofit2.http.GET
 import retrofit2.http.Headers
+import retrofit2.http.PATCH
 import retrofit2.http.Path
+import retrofit2.http.POST
+import retrofit2.http.Query
 
 interface ReadeckApi {
     @GET("bookmarks")
@@ -85,6 +88,28 @@ interface ReadeckApi {
     @Headers("Content-Type: text/html")
     @GET("bookmarks/{id}/article")
     suspend fun getArticle(@Path("id") id: String): Response<String>
+
+    @GET("bookmarks/{id}/annotations")
+    suspend fun getAnnotations(@Path("id") bookmarkId: String): Response<List<AnnotationDto>>
+
+    @POST("bookmarks/{id}/annotations")
+    suspend fun createAnnotation(
+        @Path("id") bookmarkId: String,
+        @Body body: CreateAnnotationDto
+    ): Response<AnnotationDto>
+
+    @PATCH("bookmarks/{id}/annotations/{annotationId}")
+    suspend fun updateAnnotation(
+        @Path("id") bookmarkId: String,
+        @Path("annotationId") annotationId: String,
+        @Body body: UpdateAnnotationDto
+    ): Response<Unit>
+
+    @DELETE("bookmarks/{id}/annotations/{annotationId}")
+    suspend fun deleteAnnotation(
+        @Path("id") bookmarkId: String,
+        @Path("annotationId") annotationId: String
+    ): Response<Unit>
 
     @GET("bookmarks/{id}")
     suspend fun getBookmarkById(@Path("id") id: String): Response<BookmarkDto>

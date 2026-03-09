@@ -310,6 +310,9 @@
     <string name="gallery_image_counter">%1$d of %2$d</string>
     <string name="action_view_photograph">View Photograph</string>
     <string name="action_find_in_page">Find in Page</string>
+    <string name="highlights_title">Highlights</string>
+    <string name="highlights_empty">No highlights yet</string>
+    <string name="highlights_menu_item">Highlights</string>
 
     <!-- Server Info Caching -->
     <string name="about_system_info_app_subtitle">App</string>
@@ -328,4 +331,3 @@
     <string name="about_system_info_server_error">Could not load server information</string>
     <string name="about_system_info_server_unavailable">No server information available</string>
 </resources>
-
