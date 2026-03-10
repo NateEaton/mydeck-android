@@ -30,6 +30,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.material3.MaterialTheme
@@ -46,6 +47,7 @@ fun BookmarkDetailMenu(
     onClickShareBookmark: (String) -> Unit,
     onClickDeleteBookmark: (String) -> Unit,
     onShowDetails: () -> Unit = {},
+    onShowHighlights: () -> Unit = {},
     onClickOpenInBrowser: (String) -> Unit = {},
     contentMode: ContentMode = ContentMode.READER,
     onContentModeChange: (ContentMode) -> Unit = {}
@@ -61,6 +63,23 @@ fun BookmarkDetailMenu(
             expanded = expanded,
             onDismissRequest = { expanded = false }
         ) {
+            if (uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.ARTICLE &&
+                contentMode == ContentMode.READER) {
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.highlights_menu_item)) },
+                    onClick = {
+                        onShowHighlights()
+                        expanded = false
+                    },
+                    leadingIcon = {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_format_ink_highlighter),
+                            contentDescription = null
+                        )
+                    }
+                )
+            }
+
             // 1. Add to Favorites / Remove from Favorites
             DropdownMenuItem(
                 text = {

@@ -4,7 +4,7 @@ Tap any bookmark card to open it. MyDeck displays the bookmark in a view suited 
 
 ## Reading View
 
-For bookmarks with text content, MyDeck shows the extracted text in a clean, distraction-free reading layout. The bookmark title appears at the top — tap directly on the title text to edit it inline, then press Enter or click outside the text field to save.
+For bookmarks with text content, MyDeck shows the extracted text in a clean, distraction-free reading layout. The bookmark title appears at the top, and if the bookmark has a description it is shown directly underneath in italic text. Title changes are managed from **⋮ → Details** rather than inline in the reader header.
 
 Tap any image in the content to open it in the **Image Lightbox** (see below). Long-press links or images to access **Long-press Context Menus** (see below).
 
@@ -13,7 +13,7 @@ Tap any image in the content to open it in the **Image Lightbox** (see below). L
 MyDeck supports three types of bookmarks, each with unique features:
 
 ### Articles
-Articles display extracted text content in a clean, distraction-free reading layout. They support full typography controls and text search, and may include images that can be opened in the **Image Lightbox** and links that can be long-pressed to access **Long-press Context Menus**.
+Articles display extracted text content in a clean, distraction-free reading layout. If the bookmark already has highlights from Readeck, those highlights appear inline in their saved colors while you read. Articles support full typography controls and text search, and may include images that can be opened in the **Image Lightbox** and links that can be long-pressed to access **Long-press Context Menus**.
 
 ### Videos  
 For video bookmarks (YouTube, Vimeo, etc.), MyDeck shows an embedded video player at the top, followed by any text content (description or transcript). Videos stream from their original servers and require an internet connection. If the video includes text content, you can long-press links to access **Long-press Context Menus**.
@@ -61,10 +61,15 @@ These settings are saved automatically and apply to every Article, Video, and Pi
 
 Tap **🔍** to open the in-content search bar. Type to search; matching text in the content is highlighted. If there are multiple matches, the current one is highlighted in amber and others in yellow. Use the **↑** and **↓** arrows to move between matches. The counter shows your current position (e.g., "2/5").
 
+### Highlights
+
+Article bookmarks support Readeck highlights directly in the reading view. To create a highlight, select text in the article and tap **Highlight** in the Android text selection menu, then choose a color. If your selection overlaps one or more existing highlights, **Save** changes the color of those highlights and **Delete** removes them immediately. To edit or delete an existing highlight directly, tap the highlighted text in the article. If an existing highlight has a note, the highlight sheet shows that note in a read-only field, and tapping it explains that note editing is not supported yet. You can also open **⋮ → Highlights** to browse saved highlights and jump to any one in the article. When you reopen a downloaded article while online, MyDeck checks whether the saved highlight set changed on the server and refreshes the article if needed.
+
 ## Overflow Menu
 
 Tap **⋮** in the top bar for additional actions:
 
+- **Highlights** — for article bookmarks in reading view, open a list of saved highlights and tap one to jump to it in the article
 - **Add to favorites / Remove favorite** — toggle the favorite status
 - **Archive / Unarchive** — move the bookmark to the archive (or back to My List)
 - **Mark as read / Mark as unread** — toggle whether the bookmark has been read; this is reflected back in the bookmark list
@@ -112,10 +117,13 @@ If the current image was originally a hyperlink (linking to another page or site
 
 ## Bookmark Details
 
-**Details** (opened from the overflow menu) shows the bookmark's full metadata:
+**Details** (opened from the overflow menu) shows the bookmark's saved metadata:
 
 - Thumbnail
-- Type, date added, date published, author, reading time, word count
-- External link — tap to open the original URL in your default browser
-- Description
+- Title row with a pencil icon — tap the title or pencil to open the full-screen metadata editor
+- Site name, date added, date published, author, site root URL, reading time, and word count
 - **Labels** — add or remove labels for this bookmark; see [Organizing](./organizing.md) for the full guide to working with labels
+- **Refresh content** — re-download the extracted reader content for this bookmark
+- Debug info in debug builds
+
+The metadata editor includes title, description, site name, authors, published date, language, and text direction. It opens full screen with an **X** at the top and **Save** at the bottom right. Closing the editor returns you to Details, the published date field uses the Android date picker, and the keyboard **Next** action moves between the standard fields while **Authors** keeps normal multi-line entry.

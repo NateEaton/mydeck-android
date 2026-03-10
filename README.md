@@ -21,8 +21,10 @@ It began as a fork of [ReadeckApp](https://github.com/jensomato/ReadeckApp) and 
 - Dual reading modes: Readeck-extracted Article view and embedded Original webview
 - Article, photo, and video bookmark support with embedded media
 - Reading progress tracking with per-card visual indicators
+- Readeck highlight and annotation support — view, create, edit, and delete highlights in the reader
 - Reading typography customization (font family, size, line spacing, content width)
 - In-article text search with highlighted match navigation
+- Bookmark metadata editor for title, description, site name, authors, and more
 - Share from any app — lightweight bottom sheet with auto-submit timer
 - Adaptive layouts for tablet and landscape orientation
 - OAuth Device Code Grant authentication

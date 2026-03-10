@@ -179,6 +179,7 @@
     <string name="action_view_photo">View Photo</string>
     <string name="action_view_video">View Video</string>
     <string name="edit_title">Edit title</string>
+    <string name="action_edit_metadata">Edit metadata</string>
     <string name="action_increase_text_size">Increase Text Size</string>
     <string name="action_decrease_text_size">Decrease Text Size</string>
     <string name="search_in_article_hint">Find in article</string>
@@ -188,6 +189,10 @@
     <string name="close_article_search">Close find</string>
 
     <!-- Bookmark Details Dialog -->
+    <string name="detail_description">Description</string>
+    <string name="detail_site_name">Site name</string>
+    <string name="detail_authors">Authors</string>
+    <string name="detail_text_direction">Text direction</string>
     <string name="detail_saved_date">Saved</string>
     <string name="detail_published_date">Published</string>
     <string name="detail_published_prefix">发布于 %1$s</string>
@@ -198,6 +203,10 @@
     <string name="detail_site">Site</string>
     <string name="detail_about">About %1$s</string>
     <string name="detail_words">%1$d words</string>
+    <string name="metadata_one_value_per_line">One value per line</string>
+    <string name="metadata_text_direction_auto">Automatic</string>
+    <string name="metadata_text_direction_ltr">Left to right</string>
+    <string name="metadata_text_direction_rtl">Right to left</string>
     <string name="syncing_tooltip">Pending Actions to Sync</string>
     
     <!-- OAuth Device Code Authentication -->
@@ -310,6 +319,27 @@
     <string name="gallery_image_counter">%1$d of %2$d</string>
     <string name="action_view_photograph">View Photograph</string>
     <string name="action_find_in_page">Find in Page</string>
+    <string name="highlights_title">Highlights</string>
+    <string name="highlights_empty">No highlights yet</string>
+    <string name="highlights_menu_item">Highlights</string>
+    <string name="action_refresh_content">Refresh content</string>
+    <string name="highlight_create">Create Highlight</string>
+    <string name="highlight_edit">Edit Highlight</string>
+    <string name="highlight_delete">Delete Highlight</string>
+    <string name="highlight_note_label">Note</string>
+    <string name="highlight_note_not_supported">Adding and editing notes is not supported yet</string>
+    <string name="highlight_color_yellow">Yellow</string>
+    <string name="highlight_color_red">Red</string>
+    <string name="highlight_color_blue">Blue</string>
+    <string name="highlight_color_green">Green</string>
+    <string name="highlight_color_none">None</string>
+    <string name="highlight_action">Highlight</string>
+    <string name="highlight_delete_confirm">Delete this highlight?</string>
+    <string name="highlight_create_failed">Failed to create highlight</string>
+    <string name="highlight_update_failed">Failed to update highlight</string>
+    <string name="highlight_delete_failed">Failed to delete highlight</string>
+    <string name="content_refresh_completed">Content refreshed</string>
+    <string name="content_refresh_failed">Failed to refresh content</string>
 
     <!-- Server Info Caching -->
     <string name="about_system_info_app_subtitle">App</string>
@@ -328,4 +358,3 @@
     <string name="about_system_info_server_error">Could not load server information</string>
     <string name="about_system_info_server_unavailable">No server information available</string>
 </resources>
-

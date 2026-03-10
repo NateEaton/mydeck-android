@@ -2,13 +2,18 @@ package com.mydeck.app.ui.detail
 
 import androidx.lifecycle.SavedStateHandle
 import com.mydeck.app.domain.BookmarkRepository
+import com.mydeck.app.domain.model.Annotation
 import com.mydeck.app.domain.model.Bookmark
+import com.mydeck.app.domain.model.SelectionData
 import com.mydeck.app.domain.model.Theme
 import com.mydeck.app.domain.usecase.LoadArticleUseCase
 import com.mydeck.app.domain.usecase.UpdateBookmarkUseCase
 import com.mydeck.app.io.AssetLoader
 import com.mydeck.app.io.prefs.SettingsDataStore
+import com.mydeck.app.io.rest.ReadeckApi
+import com.mydeck.app.io.rest.model.AnnotationDto
 import io.mockk.Runs
+import io.mockk.clearMocks
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -32,6 +37,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Before
 import org.junit.Test
+import retrofit2.Response
 import java.text.DateFormat
 import java.util.Date
 import android.content.Context
@@ -47,6 +53,7 @@ class BookmarkDetailViewModelTest {
     private lateinit var updateBookmarkUseCase: UpdateBookmarkUseCase
     private lateinit var settingsDataStore: SettingsDataStore
     private lateinit var loadArticleUseCase: LoadArticleUseCase
+    private lateinit var readeckApi: ReadeckApi
     private lateinit var context: Context
     private val json = Json { ignoreUnknownKeys = true }
 
@@ -59,6 +66,7 @@ class BookmarkDetailViewModelTest {
         updateBookmarkUseCase = mockk()
         settingsDataStore = mockk()
         loadArticleUseCase = mockk(relaxed = true)
+        readeckApi = mockk(relaxed = true)
         context = mockk(relaxed = true)
         every { context.packageName } returns "com.mydeck.app"
         every { bookmarkRepository.observeBookmark(any()) } returns MutableStateFlow(sampleBookmark)
@@ -72,7 +80,25 @@ class BookmarkDetailViewModelTest {
         every { settingsDataStore.typographySettingsFlow } returns MutableStateFlow(com.mydeck.app.domain.model.TypographySettings())
         every { settingsDataStore.keepScreenOnWhileReadingFlow } returns MutableStateFlow(true)
         every { bookmarkRepository.observeAllLabelsWithCounts() } returns MutableStateFlow(emptyMap())
-        viewModel = BookmarkDetailViewModel(updateBookmarkUseCase, bookmarkRepository, assetLoader, settingsDataStore, loadArticleUseCase, context, json, savedStateHandle)
+        coEvery { settingsDataStore.saveCachedAnnotationSnapshot(any(), any()) } just Runs
+        coEvery { settingsDataStore.getCachedAnnotationSnapshot(any()) } returns null
+        coEvery { settingsDataStore.clearCachedAnnotationSnapshot(any()) } just Runs
+        coEvery { readeckApi.getAnnotations(any()) } returns Response.success(emptyList())
+        viewModel = createViewModel()
+    }
+
+    private fun createViewModel(): BookmarkDetailViewModel {
+        return BookmarkDetailViewModel(
+            updateBookmarkUseCase = updateBookmarkUseCase,
+            bookmarkRepository = bookmarkRepository,
+            assetLoader = assetLoader,
+            settingsDataStore = settingsDataStore,
+            loadArticleUseCase = loadArticleUseCase,
+            readeckApi = readeckApi,
+            context = context,
+            json = json,
+            savedStateHandle = savedStateHandle
+        )
     }
 
     @After
@@ -129,7 +155,7 @@ class BookmarkDetailViewModelTest {
         coEvery { assetLoader.loadAsset("html_template_light.html") } returns htmlTemplate
 
         // Act
-        viewModel = BookmarkDetailViewModel(updateBookmarkUseCase, bookmarkRepository, assetLoader, settingsDataStore, loadArticleUseCase, context, json, savedStateHandle)
+        viewModel = createViewModel()
         val uiStates = viewModel.uiState.take(2).toList()
         val loading = uiStates[0]
         val success = uiStates[1]
@@ -188,7 +214,7 @@ class BookmarkDetailViewModelTest {
         coEvery { assetLoader.loadAsset("html_template_light.html") } returns null
 
         // Act
-        viewModel = BookmarkDetailViewModel(updateBookmarkUseCase, bookmarkRepository, assetLoader, settingsDataStore, loadArticleUseCase, context, json, savedStateHandle)
+        viewModel = createViewModel()
         val uiStates = viewModel.uiState.take(2).toList()
         val loading = uiStates[0]
         val error = uiStates[1]
@@ -241,7 +267,7 @@ class BookmarkDetailViewModelTest {
         coEvery { assetLoader.loadAsset("html_template_light.html") } returns "template"
 
         // Act
-        viewModel = BookmarkDetailViewModel(updateBookmarkUseCase, bookmarkRepository, assetLoader, settingsDataStore, loadArticleUseCase, context, json, savedStateHandle)
+        viewModel = createViewModel()
 
         // Assert
         assertEquals(BookmarkDetailViewModel.UiState.Loading, viewModel.uiState.value)
@@ -249,7 +275,7 @@ class BookmarkDetailViewModelTest {
 
     @Test
     fun `onClickBack should set NavigateBack navigation event`() = runTest {
-        viewModel = BookmarkDetailViewModel(updateBookmarkUseCase, bookmarkRepository, assetLoader, settingsDataStore, loadArticleUseCase, context, json, savedStateHandle)
+        viewModel = createViewModel()
         viewModel.onClickBack()
         advanceUntilIdle()
         assertEquals(BookmarkDetailViewModel.NavigationEvent.NavigateBack, viewModel.navigationEvent.first())
@@ -265,7 +291,7 @@ class BookmarkDetailViewModelTest {
         coEvery { assetLoader.loadAsset("html_template_light.html") } returns htmlTemplate
 
         // Act
-        viewModel = BookmarkDetailViewModel(updateBookmarkUseCase, bookmarkRepository, assetLoader, settingsDataStore, loadArticleUseCase, context, json, savedStateHandle)
+        viewModel = createViewModel()
         viewModel.onToggleFavorite(bookmarkId, isFavorite)
         advanceUntilIdle()
 
@@ -274,7 +300,7 @@ class BookmarkDetailViewModelTest {
         val successState = uiStates[1]
         assert(loadingState is BookmarkDetailViewModel.UiState.Loading)
         assert(successState is BookmarkDetailViewModel.UiState.Success)
-        assertEquals(BookmarkDetailViewModel.UpdateBookmarkState.Success, (successState as BookmarkDetailViewModel.UiState.Success).updateBookmarkState)
+        assertEquals(BookmarkDetailViewModel.UpdateBookmarkState.Success(), (successState as BookmarkDetailViewModel.UiState.Success).updateBookmarkState)
         coVerify { updateBookmarkUseCase.updateIsFavorite(bookmarkId, isFavorite) }
     }
 
@@ -289,7 +315,7 @@ class BookmarkDetailViewModelTest {
         coEvery { assetLoader.loadAsset("html_template_light.html") } returns htmlTemplate
 
         // Act
-        viewModel = BookmarkDetailViewModel(updateBookmarkUseCase, bookmarkRepository, assetLoader, settingsDataStore, loadArticleUseCase, context, json, savedStateHandle)
+        viewModel = createViewModel()
         viewModel.onToggleFavorite(bookmarkId, isFavorite)
         advanceUntilIdle()
 
@@ -314,7 +340,7 @@ class BookmarkDetailViewModelTest {
         coEvery { assetLoader.loadAsset("html_template_light.html") } returns htmlTemplate
 
         // Act
-        viewModel = BookmarkDetailViewModel(updateBookmarkUseCase, bookmarkRepository, assetLoader, settingsDataStore, loadArticleUseCase, context, json, savedStateHandle)
+        viewModel = createViewModel()
         viewModel.onToggleFavorite(bookmarkId, isFavorite)
         advanceUntilIdle()
 
@@ -338,7 +364,7 @@ class BookmarkDetailViewModelTest {
         coEvery { assetLoader.loadAsset("html_template_light.html") } returns htmlTemplate
 
         // Act
-        viewModel = BookmarkDetailViewModel(updateBookmarkUseCase, bookmarkRepository, assetLoader, settingsDataStore, loadArticleUseCase, context, json, savedStateHandle)
+        viewModel = createViewModel()
         viewModel.onToggleArchive(bookmarkId, isArchived)
         advanceUntilIdle()
 
@@ -347,7 +373,7 @@ class BookmarkDetailViewModelTest {
         val successState = uiStates[1]
         assert(loadingState is BookmarkDetailViewModel.UiState.Loading)
         assert(successState is BookmarkDetailViewModel.UiState.Success)
-        assertEquals(BookmarkDetailViewModel.UpdateBookmarkState.Success, (successState as BookmarkDetailViewModel.UiState.Success).updateBookmarkState)
+        assertEquals(BookmarkDetailViewModel.UpdateBookmarkState.Success(), (successState as BookmarkDetailViewModel.UiState.Success).updateBookmarkState)
         coVerify { updateBookmarkUseCase.updateIsArchived(bookmarkId, isArchived) }
     }
 
@@ -362,7 +388,7 @@ class BookmarkDetailViewModelTest {
         coEvery { assetLoader.loadAsset("html_template_light.html") } returns htmlTemplate
 
         // Act
-        viewModel = BookmarkDetailViewModel(updateBookmarkUseCase, bookmarkRepository, assetLoader, settingsDataStore, loadArticleUseCase, context, json, savedStateHandle)
+        viewModel = createViewModel()
         viewModel.onToggleArchive(bookmarkId, isArchived)
         advanceUntilIdle()
 
@@ -387,7 +413,7 @@ class BookmarkDetailViewModelTest {
         coEvery { assetLoader.loadAsset("html_template_light.html") } returns htmlTemplate
 
         // Act
-        viewModel = BookmarkDetailViewModel(updateBookmarkUseCase, bookmarkRepository, assetLoader, settingsDataStore, loadArticleUseCase, context, json, savedStateHandle)
+        viewModel = createViewModel()
         viewModel.onToggleArchive(bookmarkId, isArchived)
         advanceUntilIdle()
 
@@ -410,7 +436,7 @@ class BookmarkDetailViewModelTest {
         coEvery { assetLoader.loadAsset("html_template_light.html") } returns htmlTemplate
 
         // Act
-        viewModel = BookmarkDetailViewModel(updateBookmarkUseCase, bookmarkRepository, assetLoader, settingsDataStore, loadArticleUseCase, context, json, savedStateHandle)
+        viewModel = createViewModel()
         viewModel.onToggleMarkRead(bookmarkId, isRead)
         advanceUntilIdle()
 
@@ -419,7 +445,7 @@ class BookmarkDetailViewModelTest {
         val successState = uiStates[1]
         assert(loadingState is BookmarkDetailViewModel.UiState.Loading)
         assert(successState is BookmarkDetailViewModel.UiState.Success)
-        assertEquals(BookmarkDetailViewModel.UpdateBookmarkState.Success, (successState as BookmarkDetailViewModel.UiState.Success).updateBookmarkState)
+        assertEquals(BookmarkDetailViewModel.UpdateBookmarkState.Success(), (successState as BookmarkDetailViewModel.UiState.Success).updateBookmarkState)
         coVerify { updateBookmarkUseCase.updateIsRead(bookmarkId, isRead) }
     }
 
@@ -434,7 +460,7 @@ class BookmarkDetailViewModelTest {
         coEvery { assetLoader.loadAsset("html_template_light.html") } returns htmlTemplate
 
         // Act
-        viewModel = BookmarkDetailViewModel(updateBookmarkUseCase, bookmarkRepository, assetLoader, settingsDataStore, loadArticleUseCase, context, json, savedStateHandle)
+        viewModel = createViewModel()
         viewModel.onToggleMarkRead(bookmarkId, isRead)
         advanceUntilIdle()
 
@@ -459,7 +485,7 @@ class BookmarkDetailViewModelTest {
         coEvery { assetLoader.loadAsset("html_template_light.html") } returns htmlTemplate
 
         // Act
-        viewModel = BookmarkDetailViewModel(updateBookmarkUseCase, bookmarkRepository, assetLoader, settingsDataStore, loadArticleUseCase, context, json, savedStateHandle)
+        viewModel = createViewModel()
         viewModel.onToggleMarkRead(bookmarkId, isRead)
         advanceUntilIdle()
 
@@ -487,7 +513,7 @@ class BookmarkDetailViewModelTest {
         coEvery { loadArticleUseCase.execute("123") } returns LoadArticleUseCase.Result.Success
 
         // Act
-        viewModel = BookmarkDetailViewModel(updateBookmarkUseCase, bookmarkRepository, assetLoader, settingsDataStore, loadArticleUseCase, context, json, savedStateHandle)
+        viewModel = createViewModel()
         advanceUntilIdle()
 
         // Assert
@@ -505,13 +531,83 @@ class BookmarkDetailViewModelTest {
         every { bookmarkRepository.observeBookmark("123") } returns MutableStateFlow(bookmarkWithDownloaded)
         coEvery { bookmarkRepository.getBookmarkById("123") } returns bookmarkWithDownloaded
         coEvery { bookmarkRepository.refreshBookmarkFromApi(any()) } returns Unit
+        coEvery { loadArticleUseCase.refreshCachedArticleIfAnnotationsChanged("123") } just Runs
+        advanceUntilIdle()
+        clearMocks(loadArticleUseCase, answers = false, recordedCalls = true)
 
         // Act
-        viewModel = BookmarkDetailViewModel(updateBookmarkUseCase, bookmarkRepository, assetLoader, settingsDataStore, loadArticleUseCase, context, json, savedStateHandle)
+        viewModel = createViewModel()
         advanceUntilIdle()
 
         // Assert
         coVerify(exactly = 0) { loadArticleUseCase.execute(any()) }
+        coVerify(exactly = 1) { loadArticleUseCase.refreshCachedArticleIfAnnotationsChanged("123") }
+    }
+
+    @Test
+    fun `fetchAnnotations uses API data for membership but keeps rendered metadata and does not update freshness cache`() = runTest {
+        advanceUntilIdle()
+        clearMocks(settingsDataStore, readeckApi, answers = false, recordedCalls = true)
+        val renderedAnnotations = listOf(
+            Annotation(
+                id = "existing",
+                bookmarkId = "123",
+                text = "Rendered text",
+                color = "red",
+                note = "Rendered note",
+                created = ""
+            )
+        )
+        coEvery {
+            readeckApi.getAnnotations("123")
+        } returns Response.success(
+            listOf(
+                AnnotationDto(
+                    id = "existing",
+                    start_selector = "/p[1]",
+                    start_offset = 0,
+                    end_selector = "/p[1]",
+                    end_offset = 5,
+                    created = "2024-01-20T12:00:00Z",
+                    text = "API text"
+                ),
+                AnnotationDto(
+                    id = "remote-only",
+                    start_selector = "/p[2]",
+                    start_offset = 0,
+                    end_selector = "/p[2]",
+                    end_offset = 4,
+                    created = "2024-01-20T12:01:00Z",
+                    text = "Remote"
+                )
+            )
+        )
+
+        viewModel.fetchAnnotations("123", renderedAnnotations)
+        advanceUntilIdle()
+
+        assertEquals(
+            listOf(
+                Annotation(
+                    id = "existing",
+                    bookmarkId = "123",
+                    text = "API text",
+                    color = "red",
+                    note = "Rendered note",
+                    created = "2024-01-20T12:00:00Z"
+                ),
+                Annotation(
+                    id = "remote-only",
+                    bookmarkId = "123",
+                    text = "Remote",
+                    color = "yellow",
+                    note = null,
+                    created = "2024-01-20T12:01:00Z"
+                )
+            ),
+            viewModel.annotationsState.value.annotations
+        )
+        coVerify(exactly = 0) { settingsDataStore.saveCachedAnnotationSnapshot(any(), any()) }
     }
 
     @Test
@@ -528,7 +624,7 @@ class BookmarkDetailViewModelTest {
         coEvery { bookmarkRepository.refreshBookmarkFromApi(any()) } returns Unit
 
         // Act
-        viewModel = BookmarkDetailViewModel(updateBookmarkUseCase, bookmarkRepository, assetLoader, settingsDataStore, loadArticleUseCase, context, json, savedStateHandle)
+        viewModel = createViewModel()
         advanceUntilIdle()
 
         // Assert
@@ -554,7 +650,7 @@ class BookmarkDetailViewModelTest {
         coEvery { loadArticleUseCase.execute("123") } returns LoadArticleUseCase.Result.PermanentFailure("Article extraction not supported for this site")
 
         // Act
-        viewModel = BookmarkDetailViewModel(updateBookmarkUseCase, bookmarkRepository, assetLoader, settingsDataStore, loadArticleUseCase, context, json, savedStateHandle)
+        viewModel = createViewModel()
         advanceUntilIdle()
 
         // Assert
@@ -563,6 +659,221 @@ class BookmarkDetailViewModelTest {
         val failedState = state as BookmarkDetailViewModel.ContentLoadState.Failed
         assertEquals("Article extraction not supported for this site", failedState.reason)
         assertEquals(false, failedState.canRetry)
+    }
+
+    @Test
+    fun `showCreateAnnotationSheet stores selection data`() = runTest {
+        val selectionData = SelectionData(
+            text = "Selected text",
+            startSelector = "/section[1]/p[1]",
+            startOffset = 5,
+            endSelector = "/section[1]/p[1]",
+            endOffset = 18
+        )
+
+        viewModel.showCreateAnnotationSheet(selectionData)
+
+        val state = viewModel.annotationEditState.value
+        assertEquals(null, state?.annotationId)
+        assertEquals("yellow", state?.color)
+        assertEquals(selectionData, state?.selectionData)
+        assertEquals("Selected text", state?.text)
+    }
+
+    @Test
+    fun `showCreateAnnotationSheet treats overlapping highlights as edit state`() = runTest {
+        val selectionData = SelectionData(
+            text = "Selected text",
+            startSelector = "/section[1]/p[1]",
+            startOffset = 5,
+            endSelector = "/section[1]/p[1]",
+            endOffset = 18,
+            selectedAnnotationIds = listOf("annotation-1", "annotation-2")
+        )
+        val existingAnnotations = listOf(
+            Annotation(
+                id = "annotation-1",
+                bookmarkId = "123",
+                text = "Existing highlight 1",
+                color = "green",
+                note = "First note",
+                created = "2026-03-09T10:00:00Z"
+            ),
+            Annotation(
+                id = "annotation-2",
+                bookmarkId = "123",
+                text = "Existing highlight 2",
+                color = "green",
+                note = "Second note",
+                created = "2026-03-09T10:05:00Z"
+            )
+        )
+
+        viewModel.showCreateAnnotationSheet(selectionData, existingAnnotations)
+
+        val state = viewModel.annotationEditState.value
+        assertEquals(listOf("annotation-1", "annotation-2"), state?.annotationIds)
+        assertEquals("green", state?.color)
+        assertNull(state?.selectionData)
+        assertEquals("Selected text", state?.text)
+        assertEquals("First note\n\nSecond note", state?.noteText)
+    }
+
+    @Test
+    fun `showEditAnnotationSheet seeds current annotation`() = runTest {
+        val annotation = Annotation(
+            id = "annotation-1",
+            bookmarkId = "123",
+            text = "Existing highlight",
+            color = "green",
+            note = "Saved note",
+            created = "2026-03-09T10:00:00Z"
+        )
+
+        viewModel.showEditAnnotationSheet(annotation)
+
+        val state = viewModel.annotationEditState.value
+        assertEquals("annotation-1", state?.annotationId)
+        assertEquals("green", state?.color)
+        assertNull(state?.selectionData)
+        assertEquals("Existing highlight", state?.text)
+        assertEquals("Saved note", state?.noteText)
+    }
+
+    @Test
+    fun `saveAnnotationEdit creates annotation and refreshes article content`() = runTest {
+        val selectionData = SelectionData(
+            text = "Selected text",
+            startSelector = "/section[1]/p[1]",
+            startOffset = 5,
+            endSelector = "/section[1]/p[1]",
+            endOffset = 18
+        )
+        val createdAnnotation = AnnotationDto(
+            id = "annotation-1",
+            start_selector = selectionData.startSelector,
+            start_offset = selectionData.startOffset,
+            end_selector = selectionData.endSelector,
+            end_offset = selectionData.endOffset,
+            created = "2026-03-09T10:00:00Z",
+            text = selectionData.text
+        )
+
+        coEvery {
+            readeckApi.createAnnotation("123", any())
+        } returns Response.success(createdAnnotation)
+        coEvery { readeckApi.getArticle("123") } returns Response.success("<p>Updated article</p>")
+        coEvery { bookmarkRepository.getBookmarkById("123") } returns sampleBookmark
+        coEvery { bookmarkRepository.insertBookmarks(any()) } just Runs
+
+        viewModel.showCreateAnnotationSheet(selectionData)
+        viewModel.onAnnotationEditColorSelected("red")
+        viewModel.saveAnnotationEdit()
+        advanceUntilIdle()
+
+        assertNull(viewModel.annotationEditState.value)
+        coVerify { readeckApi.createAnnotation("123", any()) }
+        coVerify { readeckApi.getArticle("123") }
+        coVerify {
+            bookmarkRepository.insertBookmarks(
+                match { bookmarks ->
+                    bookmarks.single().articleContent == "<p>Updated article</p>"
+                }
+            )
+        }
+    }
+
+    @Test
+    fun `saveAnnotationEdit updates overlapping annotations and refreshes article content`() = runTest {
+        val selectionData = SelectionData(
+            text = "Selected text",
+            startSelector = "/section[1]/p[1]",
+            startOffset = 5,
+            endSelector = "/section[1]/p[1]",
+            endOffset = 18,
+            selectedAnnotationIds = listOf("annotation-1", "annotation-2")
+        )
+        val existingAnnotations = listOf(
+            Annotation(
+                id = "annotation-1",
+                bookmarkId = "123",
+                text = "Existing highlight 1",
+                color = "yellow",
+                note = null,
+                created = "2026-03-09T10:00:00Z"
+            ),
+            Annotation(
+                id = "annotation-2",
+                bookmarkId = "123",
+                text = "Existing highlight 2",
+                color = "yellow",
+                note = null,
+                created = "2026-03-09T10:05:00Z"
+            )
+        )
+
+        coEvery { readeckApi.updateAnnotation("123", "annotation-1", any()) } returns Response.success(Unit)
+        coEvery { readeckApi.updateAnnotation("123", "annotation-2", any()) } returns Response.success(Unit)
+        coEvery { readeckApi.getArticle("123") } returns Response.success("<p>Updated article</p>")
+        coEvery { bookmarkRepository.getBookmarkById("123") } returns sampleBookmark
+        coEvery { bookmarkRepository.insertBookmarks(any()) } just Runs
+
+        viewModel.showCreateAnnotationSheet(selectionData, existingAnnotations)
+        viewModel.onAnnotationEditColorSelected("red")
+        viewModel.saveAnnotationEdit()
+        advanceUntilIdle()
+
+        assertNull(viewModel.annotationEditState.value)
+        coVerify { readeckApi.updateAnnotation("123", "annotation-1", any()) }
+        coVerify { readeckApi.updateAnnotation("123", "annotation-2", any()) }
+        coVerify(exactly = 0) { readeckApi.createAnnotation(any(), any()) }
+        coVerify { readeckApi.getArticle("123") }
+    }
+
+    @Test
+    fun `deleteCurrentAnnotation deletes overlapping annotations and refreshes article content`() = runTest {
+        val selectionData = SelectionData(
+            text = "Selected text",
+            startSelector = "/section[1]/p[1]",
+            startOffset = 5,
+            endSelector = "/section[1]/p[1]",
+            endOffset = 18,
+            selectedAnnotationIds = listOf("annotation-1", "annotation-2")
+        )
+
+        coEvery { readeckApi.deleteAnnotation("123", "annotation-1") } returns Response.success(Unit)
+        coEvery { readeckApi.deleteAnnotation("123", "annotation-2") } returns Response.success(Unit)
+        coEvery { readeckApi.getArticle("123") } returns Response.success("<p>Updated article</p>")
+        coEvery { bookmarkRepository.getBookmarkById("123") } returns sampleBookmark
+        coEvery { bookmarkRepository.insertBookmarks(any()) } just Runs
+
+        viewModel.showCreateAnnotationSheet(selectionData)
+        viewModel.deleteCurrentAnnotation()
+        advanceUntilIdle()
+
+        assertNull(viewModel.annotationEditState.value)
+        coVerify { readeckApi.deleteAnnotation("123", "annotation-1") }
+        coVerify { readeckApi.deleteAnnotation("123", "annotation-2") }
+        coVerify { readeckApi.getArticle("123") }
+    }
+
+    @Test
+    fun `forceRefreshContent refreshes downloaded article content`() = runTest {
+        coEvery { readeckApi.getArticle("123") } returns Response.success("<p>Fresh article</p>")
+        coEvery { bookmarkRepository.getBookmarkById("123") } returns sampleBookmark
+        coEvery { bookmarkRepository.insertBookmarks(any()) } just Runs
+
+        viewModel.forceRefreshContent()
+        advanceUntilIdle()
+
+        coVerify { readeckApi.getArticle("123") }
+        coVerify {
+            bookmarkRepository.insertBookmarks(
+                match { bookmarks ->
+                    bookmarks.single().articleContent == "<p>Fresh article</p>"
+                }
+            )
+        }
     }
 
     val sampleBookmark = Bookmark(

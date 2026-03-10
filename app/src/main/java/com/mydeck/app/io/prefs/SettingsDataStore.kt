@@ -29,6 +29,9 @@ interface SettingsDataStore {
     suspend fun getLastContentSyncTimestamp(): Instant?
     suspend fun saveLastFullSyncTimestamp(timestamp: Instant)
     suspend fun getLastFullSyncTimestamp(): Instant?
+    suspend fun saveCachedAnnotationSnapshot(bookmarkId: String, snapshot: String)
+    suspend fun getCachedAnnotationSnapshot(bookmarkId: String): String?
+    suspend fun clearCachedAnnotationSnapshot(bookmarkId: String)
     suspend fun setInitialSyncPerformed(performed: Boolean)
     suspend fun isInitialSyncPerformed(): Boolean
     suspend fun clearCredentials()

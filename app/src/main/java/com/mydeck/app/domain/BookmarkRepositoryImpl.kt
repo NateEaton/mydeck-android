@@ -7,11 +7,13 @@ import com.mydeck.app.domain.mapper.toEntity
 import com.mydeck.app.domain.model.Bookmark
 import com.mydeck.app.domain.model.BookmarkCounts
 import com.mydeck.app.domain.model.BookmarkListItem
+import com.mydeck.app.domain.model.BookmarkMetadataUpdate
 import com.mydeck.app.domain.usecase.LoadBookmarksUseCase
 import com.mydeck.app.io.db.dao.BookmarkDao
 import com.mydeck.app.io.db.dao.PendingActionDao
 import com.mydeck.app.io.db.model.ActionType
 import com.mydeck.app.io.db.model.BookmarkEntity
+import com.mydeck.app.io.db.model.MetadataPayload
 import com.mydeck.app.io.db.model.PendingActionEntity
 import com.mydeck.app.io.db.model.ProgressPayload
 import com.mydeck.app.io.db.model.LabelsPayload
@@ -314,6 +316,17 @@ class BookmarkRepositoryImpl @Inject constructor(
                         ActionType.UPDATE_PROGRESS -> local?.let { mergedBookmark.copy(readProgress = it.readProgress) } ?: mergedBookmark
                         ActionType.UPDATE_LABELS -> local?.let { mergedBookmark.copy(labels = it.labels) } ?: mergedBookmark
                         ActionType.UPDATE_TITLE -> local?.let { mergedBookmark.copy(title = it.title) } ?: mergedBookmark
+                        ActionType.UPDATE_METADATA -> local?.let {
+                            mergedBookmark.copy(
+                                title = it.title,
+                                description = it.description,
+                                siteName = it.siteName,
+                                authors = it.authors,
+                                published = it.published,
+                                lang = it.lang,
+                                textDirection = it.textDirection
+                            )
+                        } ?: mergedBookmark
                         ActionType.DELETE -> mergedBookmark.copy(isLocalDeleted = true)
                     }
                 }
@@ -495,6 +508,7 @@ class BookmarkRepositoryImpl @Inject constructor(
             is ProgressPayload -> json.encodeToString(ProgressPayload.serializer(), payload)
             is LabelsPayload -> json.encodeToString(LabelsPayload.serializer(), payload)
             is TitlePayload -> json.encodeToString(TitlePayload.serializer(), payload)
+            is MetadataPayload -> json.encodeToString(MetadataPayload.serializer(), payload)
             else -> null
         }
 
@@ -521,6 +535,41 @@ class BookmarkRepositoryImpl @Inject constructor(
             database.performTransaction {
                 bookmarkDao.updateTitle(bookmarkId, title)
                 upsertPendingAction(bookmarkId, ActionType.UPDATE_TITLE, TitlePayload(title))
+            }
+            syncScheduler.scheduleActionSync()
+        }
+        return BookmarkRepository.UpdateResult.Success
+    }
+
+    override suspend fun updateMetadata(
+        bookmarkId: String,
+        metadata: BookmarkMetadataUpdate
+    ): BookmarkRepository.UpdateResult {
+        withContext(dispatcher) {
+            database.performTransaction {
+                bookmarkDao.updateMetadata(
+                    id = bookmarkId,
+                    title = metadata.title,
+                    description = metadata.description,
+                    siteName = metadata.siteName,
+                    authors = metadata.authors,
+                    published = metadata.published,
+                    lang = metadata.lang,
+                    textDirection = metadata.textDirection.orEmpty()
+                )
+                upsertPendingAction(
+                    bookmarkId,
+                    ActionType.UPDATE_METADATA,
+                    MetadataPayload(
+                        title = metadata.title,
+                        description = metadata.description,
+                        siteName = metadata.siteName,
+                        authors = metadata.authors,
+                        published = metadata.published,
+                        lang = metadata.lang,
+                        textDirection = metadata.textDirection
+                    )
+                )
             }
             syncScheduler.scheduleActionSync()
         }
@@ -713,6 +762,22 @@ class BookmarkRepositoryImpl @Inject constructor(
             ActionType.UPDATE_TITLE -> {
                 val payload = json.decodeFromString<TitlePayload>(action.payload!!)
                 val response = readeckApi.editBookmark(action.bookmarkId, EditBookmarkDto(title = payload.title))
+                handleSyncApiResponse(action.bookmarkId, response)
+            }
+            ActionType.UPDATE_METADATA -> {
+                val payload = json.decodeFromString<MetadataPayload>(action.payload!!)
+                val response = readeckApi.editBookmark(
+                    action.bookmarkId,
+                    EditBookmarkDto(
+                        title = payload.title,
+                        description = payload.description,
+                        siteName = payload.siteName,
+                        authors = payload.authors,
+                        published = payload.published,
+                        lang = payload.lang,
+                        textDirection = payload.textDirection?.takeIf { it.isNotBlank() }
+                    )
+                )
                 handleSyncApiResponse(action.bookmarkId, response)
             }
             ActionType.DELETE -> {

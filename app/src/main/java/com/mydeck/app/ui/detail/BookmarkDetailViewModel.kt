@@ -7,17 +7,25 @@ import androidx.core.content.FileProvider
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import dagger.hilt.android.lifecycle.HiltViewModel
-import dagger.hilt.android.qualifiers.ApplicationContext
+import com.mydeck.app.R
 import com.mydeck.app.domain.BookmarkRepository
+import com.mydeck.app.domain.model.Annotation
 import com.mydeck.app.domain.model.Bookmark.ContentState
+import com.mydeck.app.domain.model.BookmarkMetadataUpdate
+import com.mydeck.app.domain.model.SelectionData
 import com.mydeck.app.domain.model.Template
 import com.mydeck.app.domain.model.Theme
 import com.mydeck.app.domain.usecase.LoadArticleUseCase
 import com.mydeck.app.domain.usecase.UpdateBookmarkUseCase
 import com.mydeck.app.io.AssetLoader
 import com.mydeck.app.io.prefs.SettingsDataStore
+import com.mydeck.app.io.rest.ReadeckApi
+import com.mydeck.app.io.rest.model.CreateAnnotationDto
+import com.mydeck.app.io.rest.model.UpdateAnnotationDto
+import com.mydeck.app.io.rest.model.toAnnotationCachePayload
 import com.mydeck.app.util.BookmarkDebugExporter
+import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -45,7 +53,9 @@ import kotlinx.datetime.toInstant
 import kotlinx.serialization.json.Json
 import timber.log.Timber
 import java.text.DateFormat
+import java.text.SimpleDateFormat
 import java.util.Date
+import java.util.Locale
 import javax.inject.Inject
 
 
@@ -56,6 +66,7 @@ class BookmarkDetailViewModel @Inject constructor(
     private val assetLoader: AssetLoader,
     private val settingsDataStore: SettingsDataStore,
     private val loadArticleUseCase: LoadArticleUseCase,
+    private val readeckApi: ReadeckApi,
     @ApplicationContext private val context: Context,
     private val json: Json,
     savedStateHandle: SavedStateHandle
@@ -122,6 +133,18 @@ class BookmarkDetailViewModel @Inject constructor(
     private val _articleSearchState = MutableStateFlow(ArticleSearchState())
     val articleSearchState: StateFlow<ArticleSearchState> = _articleSearchState.asStateFlow()
 
+    private val _annotationsState = MutableStateFlow(AnnotationsState())
+    val annotationsState: StateFlow<AnnotationsState> = _annotationsState.asStateFlow()
+
+    private val _showAnnotationsSheet = MutableStateFlow(false)
+    val showAnnotationsSheet: StateFlow<Boolean> = _showAnnotationsSheet.asStateFlow()
+
+    private val _pendingAnnotationScrollId = MutableStateFlow<String?>(null)
+    val pendingAnnotationScrollId: StateFlow<String?> = _pendingAnnotationScrollId.asStateFlow()
+
+    private val _annotationEditState = MutableStateFlow<AnnotationEditState?>(null)
+    val annotationEditState: StateFlow<AnnotationEditState?> = _annotationEditState.asStateFlow()
+
     // Gallery state
     private val _galleryData = MutableStateFlow<ImageGalleryData?>(null)
     val galleryData: StateFlow<ImageGalleryData?> = _galleryData.asStateFlow()
@@ -131,6 +154,8 @@ class BookmarkDetailViewModel @Inject constructor(
     val readerContextMenu: StateFlow<ReaderContextMenuState> = _readerContextMenu.asStateFlow()
 
     private var searchDebounceJob: Job? = null
+    private var annotationSyncJob: Job? = null
+    private var contentRefreshJob: Job? = null
 
     init {
         _bookmarkId.value?.let { initializeBookmark(it) }
@@ -149,6 +174,10 @@ class BookmarkDetailViewModel @Inject constructor(
         isReadLocked = false
         _contentLoadState.value = ContentLoadState.Idle
         _articleSearchState.value = ArticleSearchState()
+        _annotationsState.value = AnnotationsState()
+        _showAnnotationsSheet.value = false
+        _pendingAnnotationScrollId.value = null
+        _annotationEditState.value = null
 
         _bookmarkId.value = bookmarkId
         initializeBookmark(bookmarkId)
@@ -190,7 +219,9 @@ class BookmarkDetailViewModel @Inject constructor(
 
                         // Handle content availability
                         when (bookmark.contentState) {
-                            ContentState.DOWNLOADED -> { /* Content available, nothing to do */ }
+                            ContentState.DOWNLOADED -> {
+                                syncAnnotationsIfNeeded(id)
+                            }
                             ContentState.PERMANENT_NO_CONTENT -> {
                                 // Signal to UI that content is permanently unavailable
                                 _contentLoadState.value = ContentLoadState.Failed(
@@ -275,6 +306,7 @@ class BookmarkDetailViewModel @Inject constructor(
                             authors = bookmark.authors,
                             createdDate = formatLocalDateTimeWithDateFormat(bookmark.created),
                             publishedDate = bookmark.published?.let { formatLocalDateTimeWithDateFormat(it) },
+                            publishedDateInput = bookmark.published?.let { formatLocalDateTimeForEditor(it) },
                             bookmarkId = id,
                             siteName = bookmark.siteName,
                             imgSrc = bookmark.image.src,
@@ -291,6 +323,7 @@ class BookmarkDetailViewModel @Inject constructor(
                             articleContent = bookmark.articleContent,
                             embed = bookmark.embed,
                             lang = bookmark.lang,
+                            textDirection = bookmark.textDirection,
                             wordCount = bookmark.wordCount,
                             readingTime = bookmark.readingTime,
                             description = bookmark.description,
@@ -359,6 +392,17 @@ class BookmarkDetailViewModel @Inject constructor(
         }
     }
 
+    fun onUpdateMetadata(bookmarkId: String, metadata: BookmarkMetadataUpdate) {
+        updateBookmark {
+            val result = bookmarkRepository.updateMetadata(bookmarkId, metadata)
+            when (result) {
+                is BookmarkRepository.UpdateResult.Success -> UpdateBookmarkUseCase.Result.Success
+                is BookmarkRepository.UpdateResult.Error -> UpdateBookmarkUseCase.Result.GenericError(result.errorMessage)
+                is BookmarkRepository.UpdateResult.NetworkError -> UpdateBookmarkUseCase.Result.NetworkError(result.errorMessage)
+            }
+        }
+    }
+
     fun onUpdateLabels(bookmarkId: String, labels: List<String>) {
         updateBookmark {
             // For now, we'll handle labels through the repository directly
@@ -404,11 +448,30 @@ class BookmarkDetailViewModel @Inject constructor(
         viewModelScope.launch {
             val result = update()
             updateState.value = when (result) {
-                is UpdateBookmarkUseCase.Result.Success -> UpdateBookmarkState.Success
+                is UpdateBookmarkUseCase.Result.Success -> UpdateBookmarkState.Success()
                 is UpdateBookmarkUseCase.Result.GenericError -> UpdateBookmarkState.Error(result.message)
                 is UpdateBookmarkUseCase.Result.NetworkError -> UpdateBookmarkState.Error(result.message)
             }
         }
+    }
+
+    private suspend fun refreshArticleContent(bookmarkId: String) {
+        val response = readeckApi.getArticle(bookmarkId)
+        if (!response.isSuccessful || response.body() == null) {
+            throw IllegalStateException("Failed to refresh article content: HTTP ${response.code()}")
+        }
+
+        val bookmark = bookmarkRepository.getBookmarkById(bookmarkId)
+        bookmarkRepository.insertBookmarks(
+            listOf(
+                bookmark.copy(
+                    articleContent = response.body(),
+                    contentState = ContentState.DOWNLOADED,
+                    contentFailureReason = null
+                )
+            )
+        )
+        cacheAnnotationSnapshot(bookmarkId)
     }
 
     fun onClickShareBookmark(url: String) {
@@ -483,6 +546,13 @@ class BookmarkDetailViewModel @Inject constructor(
         return dateFormat.format(Date(epochMillis))
     }
 
+    private fun formatLocalDateTimeForEditor(localDateTime: LocalDateTime): String {
+        val dateFormat = SimpleDateFormat("MM/dd/yyyy", Locale.US)
+        val timeZone = TimeZone.currentSystemDefault()
+        val epochMillis = localDateTime.toInstant(timeZone).toEpochMilliseconds()
+        return dateFormat.format(Date(epochMillis))
+    }
+
     private fun fetchContentOnDemand(bookmarkId: String) {
         viewModelScope.launch {
             _contentLoadState.value = ContentLoadState.Loading
@@ -504,6 +574,423 @@ class BookmarkDetailViewModel @Inject constructor(
 
     fun retryContentFetch() {
         _bookmarkId.value?.let { fetchContentOnDemand(it) }
+    }
+
+    fun forceRefreshContent() {
+        val bookmarkId = _bookmarkId.value ?: return
+        if (contentRefreshJob?.isActive == true) {
+            return
+        }
+
+        val job = viewModelScope.launch {
+            try {
+                refreshArticleContent(bookmarkId)
+                updateState.value = UpdateBookmarkState.Success(
+                    context.getString(R.string.content_refresh_completed)
+                )
+            } catch (e: Exception) {
+                Timber.w(e, "Failed to refresh article content for $bookmarkId")
+                updateState.value = UpdateBookmarkState.Error(
+                    context.getString(R.string.content_refresh_failed)
+                )
+            }
+        }
+
+        contentRefreshJob = job
+        job.invokeOnCompletion {
+            if (contentRefreshJob === job) {
+                contentRefreshJob = null
+            }
+        }
+    }
+
+    fun showAnnotationsSheet() {
+        _showAnnotationsSheet.value = true
+        _annotationsState.update { it.copy(isLoading = true) }
+    }
+
+    fun hideAnnotationsSheet() {
+        _showAnnotationsSheet.value = false
+    }
+
+    fun fetchAnnotations(
+        bookmarkId: String,
+        renderedAnnotations: List<Annotation> = emptyList()
+    ) {
+        viewModelScope.launch {
+            _annotationsState.update { it.copy(isLoading = true) }
+
+            try {
+                val response = readeckApi.getAnnotations(bookmarkId)
+                if (response.isSuccessful) {
+                    val annotationDtos = response.body().orEmpty()
+                    val renderedById = renderedAnnotations.associateBy { it.id }
+                    val annotations = annotationDtos
+                        .map { dto ->
+                            val renderedAnnotation = renderedById[dto.id]
+                            Annotation(
+                                id = dto.id,
+                                bookmarkId = bookmarkId,
+                                text = dto.text,
+                                color = renderedAnnotation?.color ?: "yellow",
+                                note = renderedAnnotation?.note,
+                                created = dto.created
+                            )
+                        }
+
+                    _annotationsState.value = AnnotationsState(
+                        annotations = annotations,
+                        isLoading = false
+                    )
+                } else {
+                    Timber.w("Failed to load annotations for $bookmarkId: HTTP ${response.code()}")
+                    _annotationsState.value = AnnotationsState(
+                        annotations = renderedAnnotations,
+                        isLoading = false
+                    )
+                }
+            } catch (e: Exception) {
+                Timber.w(e, "Failed to load annotations for $bookmarkId")
+                _annotationsState.value = AnnotationsState(
+                    annotations = renderedAnnotations,
+                    isLoading = false
+                )
+            }
+        }
+    }
+
+    fun syncAnnotationsIfNeeded(bookmarkId: String) {
+        if (annotationSyncJob?.isActive == true) {
+            return
+        }
+
+        val job = viewModelScope.launch {
+            loadArticleUseCase.refreshCachedArticleIfAnnotationsChanged(bookmarkId)
+        }
+        annotationSyncJob = job
+        job.invokeOnCompletion {
+            if (annotationSyncJob === job) {
+                annotationSyncJob = null
+            }
+        }
+    }
+
+    private suspend fun cacheAnnotationSnapshot(bookmarkId: String) {
+        try {
+            val response = readeckApi.getAnnotations(bookmarkId)
+            if (response.isSuccessful) {
+                settingsDataStore.saveCachedAnnotationSnapshot(
+                    bookmarkId,
+                    response.body().orEmpty().toAnnotationCachePayload(json)
+                )
+            } else {
+                Timber.w("Failed to cache annotations for $bookmarkId: HTTP ${response.code()}")
+            }
+        } catch (e: Exception) {
+            Timber.w(e, "Failed to cache annotations for $bookmarkId")
+        }
+    }
+
+    fun setAnnotations(annotations: List<Annotation>) {
+        _annotationsState.value = AnnotationsState(
+            annotations = annotations,
+            isLoading = false
+        )
+    }
+
+    fun showCreateAnnotationSheet(
+        selectionData: SelectionData,
+        existingAnnotations: List<Annotation> = emptyList()
+    ) {
+        val annotationIds = selectionData.selectedAnnotationIds.distinct()
+        _annotationEditState.value = AnnotationEditState(
+            annotationIds = annotationIds,
+            color = resolveInitialAnnotationColor(existingAnnotations),
+            selectionData = selectionData.takeIf { annotationIds.isEmpty() },
+            text = selectionData.text,
+            previewLines = buildAnnotationPreviewLines(selectionData.text, existingAnnotations),
+            noteText = resolveExistingNotes(existingAnnotations)
+        )
+    }
+
+    fun showEditAnnotationSheet(annotation: Annotation) {
+        Timber.d(
+            "[AnnotationTap] Showing edit sheet for annotation=%s color=%s note=%s",
+            annotation.id,
+            annotation.color,
+            !annotation.note.isNullOrBlank()
+        )
+        _annotationEditState.value = AnnotationEditState(
+            annotationIds = listOf(annotation.id),
+            color = annotation.color,
+            selectionData = null,
+            text = annotation.text,
+            previewLines = buildAnnotationPreviewLines(annotation.text, listOf(annotation)),
+            noteText = annotation.note?.trim()?.takeIf { it.isNotEmpty() }
+        )
+    }
+
+    private fun buildAnnotationPreviewLines(
+        selectionText: String,
+        existingAnnotations: List<Annotation>
+    ): List<AnnotationPreviewLine> {
+        val annotations = existingAnnotations
+            .map { it.copy(text = it.text.trim()) }
+            .filter { it.text.isNotBlank() }
+        if (annotations.isEmpty()) return emptyList()
+
+        val normalizedSelection = selectionText.trim()
+        if (normalizedSelection.isBlank()) {
+            return annotations.map { annotation ->
+                AnnotationPreviewLine(
+                    text = annotation.text,
+                    color = annotation.color
+                )
+            }
+        }
+
+        if (annotations.size == 1) {
+            val annotation = annotations.single()
+            return listOf(
+                AnnotationPreviewLine(
+                    text = annotation.text,
+                    color = annotation.color,
+                    selectedRange = findContainedRange(annotation.text, normalizedSelection)
+                        ?.takeUnless { it.first == 0 && it.last == annotation.text.lastIndex }
+                )
+            )
+        }
+
+        val lastIndex = annotations.lastIndex
+        return annotations.mapIndexed { index, annotation ->
+            val selectedRange = when (index) {
+                0 -> findSuffixRange(annotation.text, normalizedSelection)
+                lastIndex -> findPrefixRange(annotation.text, normalizedSelection)
+                else -> null
+            }?.takeUnless { it.first == 0 && it.last == annotation.text.lastIndex }
+
+            AnnotationPreviewLine(
+                text = annotation.text,
+                color = annotation.color,
+                selectedRange = selectedRange
+            )
+        }
+    }
+
+    private fun findContainedRange(text: String, selectionText: String): IntRange? {
+        val directMatch = text.indexOf(selectionText)
+        if (directMatch >= 0) {
+            return directMatch..<(directMatch + selectionText.length)
+        }
+
+        val lowercaseText = text.lowercase()
+        val lowercaseSelection = selectionText.lowercase()
+        val caseInsensitiveMatch = lowercaseText.indexOf(lowercaseSelection)
+        if (caseInsensitiveMatch >= 0) {
+            return caseInsensitiveMatch..<(caseInsensitiveMatch + selectionText.length)
+        }
+
+        return null
+    }
+
+    private fun findSuffixRange(text: String, selectionText: String): IntRange? {
+        val lowercaseText = text.lowercase()
+        val lowercaseSelection = selectionText.lowercase()
+        val maxLength = minOf(text.length, selectionText.length)
+
+        for (length in maxLength downTo 1) {
+            if (lowercaseText.endsWith(lowercaseSelection.take(length))) {
+                val start = text.length - length
+                return start..<(start + length)
+            }
+        }
+
+        return findContainedRange(text, selectionText)
+    }
+
+    private fun findPrefixRange(text: String, selectionText: String): IntRange? {
+        val lowercaseText = text.lowercase()
+        val lowercaseSelection = selectionText.lowercase()
+        val maxLength = minOf(text.length, selectionText.length)
+
+        for (length in maxLength downTo 1) {
+            if (lowercaseText.startsWith(lowercaseSelection.takeLast(length))) {
+                return 0..<length
+            }
+        }
+
+        return findContainedRange(text, selectionText)
+    }
+
+    fun dismissAnnotationEditSheet() {
+        _annotationEditState.value = null
+    }
+
+    fun onAnnotationEditColorSelected(color: String) {
+        _annotationEditState.update { state ->
+            state?.copy(color = color)
+        }
+    }
+
+    fun saveAnnotationEdit() {
+        val state = _annotationEditState.value ?: return
+        val selectionData = state.selectionData
+        if (state.isSaving) return
+
+        if (state.annotationIds.isNotEmpty()) {
+            updateAnnotationColors(
+                annotationIds = state.annotationIds,
+                color = state.color
+            )
+        } else if (selectionData != null) {
+            createAnnotation(
+                startSelector = selectionData.startSelector,
+                startOffset = selectionData.startOffset,
+                endSelector = selectionData.endSelector,
+                endOffset = selectionData.endOffset,
+                color = state.color
+            )
+        }
+    }
+
+    fun deleteCurrentAnnotation() {
+        val annotationIds = _annotationEditState.value?.annotationIds.orEmpty()
+        if (annotationIds.isEmpty()) return
+        deleteAnnotations(annotationIds)
+    }
+
+    fun createAnnotation(
+        startSelector: String,
+        startOffset: Int,
+        endSelector: String,
+        endOffset: Int,
+        color: String
+    ) {
+        val bookmarkId = _bookmarkId.value ?: return
+        _annotationEditState.update { it?.copy(isSaving = true) }
+
+        viewModelScope.launch {
+            try {
+                val response = readeckApi.createAnnotation(
+                    bookmarkId = bookmarkId,
+                    body = CreateAnnotationDto(
+                        start_selector = startSelector,
+                        start_offset = startOffset,
+                        end_selector = endSelector,
+                        end_offset = endOffset,
+                        color = color
+                    )
+                )
+
+                if (!response.isSuccessful) {
+                    throw IllegalStateException("HTTP ${response.code()}")
+                }
+
+                refreshArticleContent(bookmarkId)
+                _annotationEditState.value = null
+            } catch (e: Exception) {
+                Timber.w(e, "Failed to create annotation for $bookmarkId")
+                _annotationEditState.update { it?.copy(isSaving = false) }
+                updateState.value = UpdateBookmarkState.Error(context.getString(R.string.highlight_create_failed))
+            }
+        }
+    }
+
+    fun updateAnnotationColor(annotationId: String, color: String) {
+        updateAnnotationColors(listOf(annotationId), color)
+    }
+
+    fun updateAnnotationColors(annotationIds: List<String>, color: String) {
+        val bookmarkId = _bookmarkId.value ?: return
+        _annotationEditState.update { it?.copy(isSaving = true) }
+
+        viewModelScope.launch {
+            try {
+                annotationIds.distinct().forEach { annotationId ->
+                    val response = readeckApi.updateAnnotation(
+                        bookmarkId = bookmarkId,
+                        annotationId = annotationId,
+                        body = UpdateAnnotationDto(color = color)
+                    )
+
+                    if (!response.isSuccessful) {
+                        throw IllegalStateException("HTTP ${response.code()}")
+                    }
+                }
+
+                refreshArticleContent(bookmarkId)
+                _annotationEditState.value = null
+            } catch (e: Exception) {
+                Timber.w(e, "Failed to update annotations ${annotationIds.joinToString()} for $bookmarkId")
+                _annotationEditState.update { it?.copy(isSaving = false) }
+                updateState.value = UpdateBookmarkState.Error(context.getString(R.string.highlight_update_failed))
+            }
+        }
+    }
+
+    fun deleteAnnotation(annotationId: String) {
+        deleteAnnotations(listOf(annotationId))
+    }
+
+    fun deleteAnnotations(annotationIds: List<String>) {
+        val bookmarkId = _bookmarkId.value ?: return
+        _annotationEditState.update { it?.copy(isSaving = true) }
+
+        viewModelScope.launch {
+            try {
+                annotationIds.distinct().forEach { annotationId ->
+                    val response = readeckApi.deleteAnnotation(
+                        bookmarkId = bookmarkId,
+                        annotationId = annotationId
+                    )
+
+                    if (!response.isSuccessful) {
+                        throw IllegalStateException("HTTP ${response.code()}")
+                    }
+                }
+
+                refreshArticleContent(bookmarkId)
+                _annotationEditState.value = null
+            } catch (e: Exception) {
+                Timber.w(e, "Failed to delete annotations ${annotationIds.joinToString()} for $bookmarkId")
+                _annotationEditState.update { it?.copy(isSaving = false) }
+                updateState.value = UpdateBookmarkState.Error(context.getString(R.string.highlight_delete_failed))
+            }
+        }
+    }
+
+    private fun resolveInitialAnnotationColor(existingAnnotations: List<Annotation>): String {
+        if (existingAnnotations.isEmpty()) {
+            return "yellow"
+        }
+
+        val distinctColors = existingAnnotations.map { it.color }.distinct()
+        return when {
+            distinctColors.size == 1 -> distinctColors.single()
+            else -> existingAnnotations.first().color
+        }
+    }
+
+    private fun resolveExistingNotes(existingAnnotations: List<Annotation>): String? {
+        val notes = existingAnnotations
+            .mapNotNull { annotation ->
+                annotation.note?.trim()?.takeIf { it.isNotEmpty() }
+            }
+            .distinct()
+
+        return when {
+            notes.isEmpty() -> null
+            else -> notes.joinToString(separator = "\n\n")
+        }
+    }
+
+    fun scrollToAnnotation(annotationId: String) {
+        _showAnnotationsSheet.value = false
+        _pendingAnnotationScrollId.value = annotationId
+    }
+
+    fun onAnnotationScrollHandled() {
+        _pendingAnnotationScrollId.value = null
     }
 
     sealed class ContentLoadState {
@@ -542,6 +1029,7 @@ class BookmarkDetailViewModel @Inject constructor(
         val authors: List<String>,
         val createdDate: String,
         val publishedDate: String?,
+        val publishedDateInput: String?,
         val bookmarkId: String,
         val siteName: String,
         val imgSrc: String,
@@ -554,6 +1042,7 @@ class BookmarkDetailViewModel @Inject constructor(
         val articleContent: String?,
         val embed: String?,
         val lang: String,
+        val textDirection: String,
         val wordCount: Int?,
         val readingTime: Int?,
         val description: String,
@@ -606,7 +1095,7 @@ class BookmarkDetailViewModel @Inject constructor(
     }
 
     sealed class UpdateBookmarkState {
-        data object Success : UpdateBookmarkState()
+        data class Success(val message: String? = null) : UpdateBookmarkState()
         data class Error(val message: String) : UpdateBookmarkState()
     }
 
@@ -778,6 +1267,33 @@ class BookmarkDetailViewModel @Inject constructor(
         val currentMatch: Int = 0  // 1-based, 0 when no matches
     )
 
+    data class AnnotationsState(
+        val annotations: List<Annotation> = emptyList(),
+        val isLoading: Boolean = false
+    )
+
+    data class AnnotationEditState(
+        val annotationIds: List<String> = emptyList(),
+        val color: String,
+        val selectionData: SelectionData?,
+        val text: String,
+        val previewLines: List<AnnotationPreviewLine> = emptyList(),
+        val noteText: String? = null,
+        val isSaving: Boolean = false
+    ) {
+        val annotationId: String?
+            get() = annotationIds.singleOrNull()
+
+        val hasExistingAnnotations: Boolean
+            get() = annotationIds.isNotEmpty()
+    }
+
+    data class AnnotationPreviewLine(
+        val text: String,
+        val color: String,
+        val selectedRange: IntRange? = null
+    )
+
     data class ReaderContextMenuState(
         val visible: Boolean = false,
         val imageUrl: String? = null,
@@ -786,4 +1302,5 @@ class BookmarkDetailViewModel @Inject constructor(
         val linkText: String? = null,
         val linkType: String = "none",  // "none" | "image" | "page"
     )
+
 }

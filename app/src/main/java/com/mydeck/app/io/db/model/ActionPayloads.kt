@@ -14,3 +14,14 @@ data class LabelsPayload(val labels: List<String>)
 
 @Serializable
 data class TitlePayload(val title: String)
+
+@Serializable
+data class MetadataPayload(
+    val title: String,
+    val description: String,
+    val siteName: String,
+    val authors: List<String>,
+    val published: Instant?,
+    val lang: String,
+    val textDirection: String?
+)

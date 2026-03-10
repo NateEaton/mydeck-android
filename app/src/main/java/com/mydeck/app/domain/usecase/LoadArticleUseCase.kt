@@ -1,11 +1,16 @@
 package com.mydeck.app.domain.usecase
 
 import com.mydeck.app.domain.BookmarkRepository
+import com.mydeck.app.domain.model.Bookmark
 import com.mydeck.app.domain.model.Bookmark.ContentState
 import com.mydeck.app.domain.sync.ConnectivityMonitor
 import com.mydeck.app.io.db.dao.BookmarkDao
 import com.mydeck.app.io.db.model.BookmarkEntity
+import com.mydeck.app.io.prefs.SettingsDataStore
 import com.mydeck.app.io.rest.ReadeckApi
+import com.mydeck.app.io.rest.model.AnnotationDto
+import com.mydeck.app.io.rest.model.toAnnotationCachePayload
+import kotlinx.serialization.json.Json
 import timber.log.Timber
 import java.io.IOException
 import javax.inject.Inject
@@ -14,7 +19,9 @@ class LoadArticleUseCase @Inject constructor(
     private val bookmarkRepository: BookmarkRepository,
     private val readeckApi: ReadeckApi,
     private val bookmarkDao: BookmarkDao,
-    private val connectivityMonitor: ConnectivityMonitor
+    private val connectivityMonitor: ConnectivityMonitor,
+    private val settingsDataStore: SettingsDataStore,
+    private val json: Json
 ) {
     sealed class Result {
         data object Success : Result()
@@ -55,12 +62,10 @@ class LoadArticleUseCase @Inject constructor(
             val response = readeckApi.getArticle(bookmarkId)
             if (response.isSuccessful && response.body() != null) {
                 val content = response.body()!!
-                val bookmarkToSave = bookmark.copy(
-                    articleContent = content,
-                    contentState = ContentState.DOWNLOADED,
-                    contentFailureReason = null
+                storeDownloadedArticle(
+                    bookmark = bookmark,
+                    articleContent = content
                 )
-                bookmarkRepository.insertBookmarks(listOf(bookmarkToSave))
                 Result.Success
             } else {
                 val reason = "HTTP ${response.code()}"
@@ -79,5 +84,119 @@ class LoadArticleUseCase @Inject constructor(
             Timber.e(e, "Content fetch unexpected error for $bookmarkId")
             Result.TransientFailure(reason)
         }
+    }
+
+    suspend fun refreshCachedArticleIfAnnotationsChanged(bookmarkId: String) {
+        val bookmark = bookmarkRepository.getBookmarkById(bookmarkId)
+        val cachedArticleContent = bookmarkDao.getArticleContent(bookmarkId)
+
+        if (bookmark.contentState != ContentState.DOWNLOADED ||
+            cachedArticleContent.isNullOrBlank() ||
+            !bookmark.hasArticle
+        ) {
+            return
+        }
+
+        if (!connectivityMonitor.isNetworkAvailable()) {
+            return
+        }
+
+        try {
+            when (val annotationSnapshot = fetchAnnotationSnapshot(bookmarkId)) {
+                is AnnotationSnapshotResult.Failure -> {
+                    Timber.w("Skipping annotation sync for $bookmarkId: ${annotationSnapshot.reason}")
+                }
+
+                is AnnotationSnapshotResult.Success -> {
+                    val cachedSnapshot = settingsDataStore.getCachedAnnotationSnapshot(bookmarkId)
+                    val articleHtmlAlreadyContainsAnnotations =
+                        cachedArticleContent.contains("rd-annotation", ignoreCase = true)
+                    val shouldRefreshArticle = when {
+                        cachedSnapshot == null ->
+                            annotationSnapshot.annotations.isNotEmpty() || articleHtmlAlreadyContainsAnnotations
+                        cachedSnapshot != annotationSnapshot.snapshot -> true
+                        else -> false
+                    }
+
+                    if (shouldRefreshArticle) {
+                        val articleResponse = readeckApi.getArticle(bookmarkId)
+                        if (articleResponse.isSuccessful && articleResponse.body() != null) {
+                            storeDownloadedArticle(
+                                bookmark = bookmark,
+                                articleContent = articleResponse.body()!!,
+                                annotationSnapshot = annotationSnapshot.snapshot
+                            )
+                            Timber.d("Refreshed article HTML after annotation change for $bookmarkId")
+                        } else {
+                            Timber.w(
+                                "Failed to refresh article HTML after annotation change for $bookmarkId: HTTP ${articleResponse.code()}"
+                            )
+                        }
+                    } else if (cachedSnapshot == null) {
+                        settingsDataStore.saveCachedAnnotationSnapshot(bookmarkId, annotationSnapshot.snapshot)
+                    }
+                }
+            }
+        } catch (e: IOException) {
+            Timber.w(e, "Network error while checking annotation sync for $bookmarkId")
+        } catch (e: Exception) {
+            Timber.w(e, "Unexpected error while checking annotation sync for $bookmarkId")
+        }
+    }
+
+    private suspend fun storeDownloadedArticle(
+        bookmark: Bookmark,
+        articleContent: String,
+        annotationSnapshot: String? = null
+    ) {
+        val bookmarkToSave = bookmark.copy(
+            articleContent = articleContent,
+            contentState = ContentState.DOWNLOADED,
+            contentFailureReason = null
+        )
+        bookmarkRepository.insertBookmarks(listOf(bookmarkToSave))
+
+        if (annotationSnapshot != null) {
+            settingsDataStore.saveCachedAnnotationSnapshot(bookmark.id, annotationSnapshot)
+            return
+        }
+
+        try {
+            when (val fetchedSnapshot = fetchAnnotationSnapshot(bookmark.id)) {
+                is AnnotationSnapshotResult.Success -> {
+                    settingsDataStore.saveCachedAnnotationSnapshot(bookmark.id, fetchedSnapshot.snapshot)
+                }
+
+                is AnnotationSnapshotResult.Failure -> {
+                    Timber.w("Failed to cache annotation snapshot for ${bookmark.id}: ${fetchedSnapshot.reason}")
+                }
+            }
+        } catch (e: IOException) {
+            Timber.w(e, "Network error while caching annotation snapshot for ${bookmark.id}")
+        } catch (e: Exception) {
+            Timber.w(e, "Unexpected error while caching annotation snapshot for ${bookmark.id}")
+        }
+    }
+
+    private suspend fun fetchAnnotationSnapshot(bookmarkId: String): AnnotationSnapshotResult {
+        val response = readeckApi.getAnnotations(bookmarkId)
+        if (!response.isSuccessful) {
+            return AnnotationSnapshotResult.Failure("HTTP ${response.code()}")
+        }
+
+        val annotations = response.body().orEmpty()
+        return AnnotationSnapshotResult.Success(
+            annotations = annotations,
+            snapshot = annotations.toAnnotationCachePayload(json)
+        )
+    }
+
+    private sealed class AnnotationSnapshotResult {
+        data class Success(
+            val annotations: List<AnnotationDto>,
+            val snapshot: String
+        ) : AnnotationSnapshotResult()
+
+        data class Failure(val reason: String) : AnnotationSnapshotResult()
     }
 }

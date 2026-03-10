@@ -25,5 +25,6 @@ enum class ActionType {
     TOGGLE_READ,
     UPDATE_LABELS,
     UPDATE_TITLE,
+    UPDATE_METADATA,
     DELETE
 }

@@ -1,11 +1,22 @@
 package com.mydeck.app.ui.detail.components
 
+import android.content.Context
 import android.net.Uri
 import android.os.Build
+import android.os.SystemClock
+import android.view.ActionMode
+import android.view.Menu
+import android.view.MenuItem
+import android.view.MotionEvent
 import android.view.View
+import android.view.ViewConfiguration
+import android.webkit.ConsoleMessage
 import android.webkit.WebView
 import com.mydeck.app.domain.model.ImageGalleryData
+import com.mydeck.app.domain.model.SelectionData
+import com.mydeck.app.ui.detail.WebViewAnnotationBridge
 import com.mydeck.app.ui.detail.WebViewImageBridge
+import com.mydeck.app.ui.detail.WebViewAnnotationTapBridge
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -29,6 +40,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -47,6 +59,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
+import timber.log.Timber
 
 @Composable
 fun EmptyBookmarkDetailArticle(
@@ -65,9 +78,12 @@ fun BookmarkDetailArticle(
     articleSearchState: BookmarkDetailViewModel.ArticleSearchState = BookmarkDetailViewModel.ArticleSearchState(),
     onArticleSearchUpdateResults: (Int) -> Unit = {},
     onContentReady: (Boolean) -> Unit = {},
+    onWebViewChanged: (WebView?) -> Unit = {},
     onImageTapped: (ImageGalleryData) -> Unit = {},
     onImageLongPress: (imageUrl: String, linkUrl: String?, linkType: String, imageAlt: String) -> Unit = { _, _, _, _ -> },
     onLinkLongPress: (linkUrl: String, linkText: String) -> Unit = { _, _ -> },
+    onTextSelectionCaptured: (SelectionData) -> Unit = {},
+    onAnnotationClicked: (String) -> Unit = {},
 ) {
     val isSystemInDarkMode = isSystemInDarkTheme()
     val content = remember(
@@ -81,7 +97,27 @@ fun BookmarkDetailArticle(
     }
     val webViewRef = remember { mutableStateOf<WebView?>(null) }
     val json = remember { Json { ignoreUnknownKeys = true } }
+    val latestSelectionHandler = rememberUpdatedState(onTextSelectionCaptured)
+    val latestAnnotationClickHandler = rememberUpdatedState(onAnnotationClicked)
+    val lastDeliveredAnnotationTap = remember { mutableStateOf<Pair<String, Long>?>(null) }
     var hasReportedReady by remember(uiState.bookmark.bookmarkId, content.value) { mutableStateOf(false) }
+
+    fun deliverAnnotationTap(annotationId: String, source: String) {
+        val now = SystemClock.elapsedRealtime()
+        val previous = lastDeliveredAnnotationTap.value
+        if (previous != null && previous.first == annotationId && (now - previous.second) < 500L) {
+            Timber.d("[AnnotationTap] Ignoring duplicate annotation=%s from %s", annotationId, source)
+            return
+        }
+        lastDeliveredAnnotationTap.value = annotationId to now
+        Timber.d(
+            "[AnnotationTap] Delivering annotation=%s for bookmark=%s from %s",
+            annotationId,
+            uiState.bookmark.bookmarkId,
+            source
+        )
+        latestAnnotationClickHandler.value(annotationId)
+    }
 
     LaunchedEffect(
         uiState.bookmark.bookmarkId,
@@ -99,7 +135,14 @@ fun BookmarkDetailArticle(
             hasReportedReady = false
             onContentReady(false)
         } else {
+            onWebViewChanged(null)
             onContentReady(true)
+        }
+    }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            onWebViewChanged(null)
         }
     }
 
@@ -188,7 +231,28 @@ fun BookmarkDetailArticle(
             AndroidView(
                 modifier = Modifier.padding(0.dp),
                 factory = { context ->
-                    WebView(context).apply {
+                    HighlightActionWebView(
+                        context = context,
+                        highlightActionLabel = context.getString(R.string.highlight_action),
+                        onAnnotationTapRequested = { webView ->
+                            WebViewAnnotationBridge.consumePendingTappedAnnotation(webView) { annotationId ->
+                                if (annotationId == null) {
+                                    Timber.d(
+                                        "[AnnotationTap] No pending tapped annotation for bookmark=%s",
+                                        uiState.bookmark.bookmarkId
+                                    )
+                                } else {
+                                    deliverAnnotationTap(annotationId, "pending-js")
+                                }
+                            }
+                        },
+                        onHighlightActionRequested = { webView, finishActionMode ->
+                            WebViewAnnotationBridge.captureSelection(webView) { selection ->
+                                selection?.let { latestSelectionHandler.value(it) }
+                                finishActionMode()
+                            }
+                        }
+                    ).apply {
                         val isVideo = uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.VIDEO
                         val isArticle = uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.ARTICLE
                         val isPhoto = uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.PHOTO
@@ -211,7 +275,28 @@ fun BookmarkDetailArticle(
                             ),
                             WebViewImageBridge.BRIDGE_NAME
                         )
-
+                        addJavascriptInterface(
+                            WebViewAnnotationTapBridge(
+                                onAnnotationTapped = { annotationId ->
+                                    deliverAnnotationTap(annotationId, "js-bridge")
+                                }
+                            ),
+                            WebViewAnnotationTapBridge.BRIDGE_NAME
+                        )
+                        webChromeClient = object : android.webkit.WebChromeClient() {
+                            override fun onConsoleMessage(consoleMessage: ConsoleMessage): Boolean {
+                                val message = consoleMessage.message()
+                                if (message.contains("[AnnotationTap]")) {
+                                    Timber.d(
+                                        "%s line=%d source=%s",
+                                        message,
+                                        consoleMessage.lineNumber(),
+                                        consoleMessage.sourceId()
+                                    )
+                                }
+                                return super.onConsoleMessage(consoleMessage)
+                            }
+                        }
                         // Intercept link clicks and open in Chrome Custom Tabs
                         // Apply typography after page finishes loading
                         webViewClient = object : android.webkit.WebViewClient() {
@@ -221,6 +306,8 @@ fun BookmarkDetailArticle(
                                 webView.evaluateJavascript(typographyJs, null)
                                 val imageJs = WebViewImageBridge.injectImageInterceptor()
                                 webView.evaluateJavascript(imageJs, null)
+                                val annotationJs = WebViewAnnotationBridge.injectAnnotationInteractions()
+                                webView.evaluateJavascript(annotationJs, null)
                             }
 
                             private fun reportReadyIfNeeded(webView: WebView?) {
@@ -323,6 +410,7 @@ fun BookmarkDetailArticle(
                         }
 
                         webViewRef.value = this
+                        onWebViewChanged(this)
                     }
                 },
                 update = {
@@ -343,6 +431,7 @@ fun BookmarkDetailArticle(
                     }
                     // Update reference and zoom
                     webViewRef.value = it
+                    onWebViewChanged(it)
                     it.settings.textZoom = uiState.typographySettings.fontSizePercent
                 }
             )
@@ -350,6 +439,119 @@ fun BookmarkDetailArticle(
 
     } else {
         CircularProgressIndicator()
+    }
+}
+
+private class HighlightActionWebView(
+    context: Context,
+    private val highlightActionLabel: String,
+    private val onAnnotationTapRequested: (WebView) -> Unit,
+    private val onHighlightActionRequested: (WebView, finishActionMode: () -> Unit) -> Unit
+) : WebView(context) {
+    private val touchSlop = ViewConfiguration.get(context).scaledTouchSlop
+    private var downX = 0f
+    private var downY = 0f
+    private var downTime = 0L
+
+    override fun startActionMode(callback: ActionMode.Callback?, type: Int): ActionMode? {
+        return super.startActionMode(wrapActionModeCallback(callback), type)
+    }
+
+    override fun startActionMode(callback: ActionMode.Callback?): ActionMode? {
+        return super.startActionMode(wrapActionModeCallback(callback))
+    }
+
+    override fun onTouchEvent(event: MotionEvent): Boolean {
+        val handled = super.onTouchEvent(event)
+        when (event.actionMasked) {
+            MotionEvent.ACTION_DOWN -> {
+                downX = event.x
+                downY = event.y
+                downTime = event.eventTime
+            }
+
+            MotionEvent.ACTION_UP -> {
+                val moved = kotlin.math.abs(event.x - downX) > touchSlop ||
+                    kotlin.math.abs(event.y - downY) > touchSlop
+                val longPress = (event.eventTime - downTime) >= ViewConfiguration.getLongPressTimeout()
+                if (!moved && !longPress) {
+                    Timber.d("[AnnotationTap] ACTION_UP fallback tap check scheduled")
+                    postDelayed({
+                        onAnnotationTapRequested(this)
+                    }, 150L)
+                }
+            }
+        }
+
+        return handled
+    }
+
+    private fun wrapActionModeCallback(callback: ActionMode.Callback?): ActionMode.Callback? {
+        if (callback == null) return null
+        if (callback is HighlightActionModeCallback) return callback
+        return HighlightActionModeCallback(callback)
+    }
+
+    private inner class HighlightActionModeCallback(
+        private val delegate: ActionMode.Callback
+    ) : ActionMode.Callback2() {
+        override fun onCreateActionMode(mode: ActionMode, menu: Menu): Boolean {
+            val created = delegate.onCreateActionMode(mode, menu)
+            addHighlightAction(menu)
+            return created
+        }
+
+        override fun onPrepareActionMode(mode: ActionMode, menu: Menu): Boolean {
+            val prepared = delegate.onPrepareActionMode(mode, menu)
+            addHighlightAction(menu)
+            return prepared
+        }
+
+        override fun onActionItemClicked(mode: ActionMode, item: MenuItem): Boolean {
+            if (item.itemId == HIGHLIGHT_ACTION_ID) {
+                onHighlightActionRequested(this@HighlightActionWebView) {
+                    mode.finish()
+                }
+                return true
+            }
+            return delegate.onActionItemClicked(mode, item)
+        }
+
+        override fun onDestroyActionMode(mode: ActionMode) {
+            delegate.onDestroyActionMode(mode)
+        }
+
+        override fun onGetContentRect(mode: ActionMode, view: View, outRect: android.graphics.Rect) {
+            if (delegate is ActionMode.Callback2) {
+                delegate.onGetContentRect(mode, view, outRect)
+            } else {
+                super.onGetContentRect(mode, view, outRect)
+            }
+        }
+
+        private fun addHighlightAction(menu: Menu) {
+            menu.removeItem(HIGHLIGHT_ACTION_ID)
+
+            val copyOrder = menu.findItem(android.R.id.copy)?.order
+            val shareItem = menu.findItem(android.R.id.shareText)
+            val shareOrder = shareItem?.order
+            val highlightOrder = when {
+                copyOrder != null && shareOrder != null -> maxOf(copyOrder, shareOrder - 1)
+                copyOrder != null -> copyOrder + 1
+                shareOrder != null -> shareOrder
+                else -> HIGHLIGHT_ACTION_ORDER
+            }
+
+            menu.add(Menu.NONE, HIGHLIGHT_ACTION_ID, highlightOrder, highlightActionLabel)
+                .setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS or MenuItem.SHOW_AS_ACTION_WITH_TEXT)
+
+            shareItem?.setShowAsAction(MenuItem.SHOW_AS_ACTION_IF_ROOM or MenuItem.SHOW_AS_ACTION_WITH_TEXT)
+        }
+    }
+
+    private companion object {
+        const val HIGHLIGHT_ACTION_ID = 0x4D59444B
+        const val HIGHLIGHT_ACTION_ORDER = 1
     }
 }
 
