@@ -603,7 +603,8 @@ private fun String.toRootUrl(): String {
     return try {
         val uri = URI(this)
         if (uri.scheme != null && uri.host != null) {
-            "${uri.scheme}://${uri.host}"
+            val portSuffix = if (uri.port != -1) ":${uri.port}" else ""
+            "${uri.scheme}://${uri.host}$portSuffix"
         } else {
             this
         }

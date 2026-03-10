@@ -126,6 +126,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import coil3.imageLoader
 import com.mydeck.app.ui.detail.components.*
+import timber.log.Timber
 
 private const val PendingDeleteFromDetailKey = "pending_delete_bookmark_id"
 
@@ -284,9 +285,16 @@ fun BookmarkDetailHost(
     }
 
     fun showAnnotationEditor(bookmarkId: String, annotationId: String) {
+        Timber.d(
+            "[AnnotationTap] Attempting to open editor for annotation=%s bookmark=%s cachedAnnotations=%d",
+            annotationId,
+            bookmarkId,
+            annotationsState.annotations.size
+        )
         annotationsState.annotations
             .firstOrNull { it.id == annotationId }
             ?.let { annotation ->
+                Timber.d("[AnnotationTap] Found annotation=%s in cached sheet data", annotationId)
                 viewModel.showEditAnnotationSheet(annotation)
                 return
             }
@@ -295,9 +303,12 @@ fun BookmarkDetailHost(
         if (webView != null) {
             WebViewAnnotationBridge.getRenderedAnnotation(webView, annotationId) { annotation ->
                 annotation?.let {
+                    Timber.d("[AnnotationTap] Found annotation=%s via rendered DOM lookup", annotationId)
                     viewModel.showEditAnnotationSheet(it.toDomainAnnotation(bookmarkId))
-                }
+                } ?: Timber.d("[AnnotationTap] Failed rendered DOM lookup for annotation=%s", annotationId)
             }
+        } else {
+            Timber.d("[AnnotationTap] Cannot open annotation=%s because reader WebView is null", annotationId)
         }
     }
 

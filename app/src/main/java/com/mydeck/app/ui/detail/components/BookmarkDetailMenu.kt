@@ -17,7 +17,6 @@ import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.Description
-import androidx.compose.material.icons.outlined.FormatColorFill
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material3.DropdownMenu
@@ -31,6 +30,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.material3.MaterialTheme
@@ -72,7 +72,10 @@ fun BookmarkDetailMenu(
                         expanded = false
                     },
                     leadingIcon = {
-                        Icon(Icons.Outlined.FormatColorFill, contentDescription = null)
+                        Icon(
+                            painter = painterResource(R.drawable.ic_format_ink_highlighter),
+                            contentDescription = null
+                        )
                     }
                 )
             }

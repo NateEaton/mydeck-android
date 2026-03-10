@@ -3,16 +3,20 @@ package com.mydeck.app.ui.detail.components
 import android.content.Context
 import android.net.Uri
 import android.os.Build
+import android.os.SystemClock
 import android.view.ActionMode
 import android.view.Menu
 import android.view.MenuItem
+import android.view.MotionEvent
 import android.view.View
+import android.view.ViewConfiguration
+import android.webkit.ConsoleMessage
 import android.webkit.WebView
 import com.mydeck.app.domain.model.ImageGalleryData
 import com.mydeck.app.domain.model.SelectionData
 import com.mydeck.app.ui.detail.WebViewAnnotationBridge
-import com.mydeck.app.ui.detail.WebViewAnnotationCallbackBridge
 import com.mydeck.app.ui.detail.WebViewImageBridge
+import com.mydeck.app.ui.detail.WebViewAnnotationTapBridge
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -55,6 +59,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
+import timber.log.Timber
 
 @Composable
 fun EmptyBookmarkDetailArticle(
@@ -94,7 +99,25 @@ fun BookmarkDetailArticle(
     val json = remember { Json { ignoreUnknownKeys = true } }
     val latestSelectionHandler = rememberUpdatedState(onTextSelectionCaptured)
     val latestAnnotationClickHandler = rememberUpdatedState(onAnnotationClicked)
+    val lastDeliveredAnnotationTap = remember { mutableStateOf<Pair<String, Long>?>(null) }
     var hasReportedReady by remember(uiState.bookmark.bookmarkId, content.value) { mutableStateOf(false) }
+
+    fun deliverAnnotationTap(annotationId: String, source: String) {
+        val now = SystemClock.elapsedRealtime()
+        val previous = lastDeliveredAnnotationTap.value
+        if (previous != null && previous.first == annotationId && (now - previous.second) < 500L) {
+            Timber.d("[AnnotationTap] Ignoring duplicate annotation=%s from %s", annotationId, source)
+            return
+        }
+        lastDeliveredAnnotationTap.value = annotationId to now
+        Timber.d(
+            "[AnnotationTap] Delivering annotation=%s for bookmark=%s from %s",
+            annotationId,
+            uiState.bookmark.bookmarkId,
+            source
+        )
+        latestAnnotationClickHandler.value(annotationId)
+    }
 
     LaunchedEffect(
         uiState.bookmark.bookmarkId,
@@ -211,6 +234,18 @@ fun BookmarkDetailArticle(
                     HighlightActionWebView(
                         context = context,
                         highlightActionLabel = context.getString(R.string.highlight_action),
+                        onAnnotationTapRequested = { webView ->
+                            WebViewAnnotationBridge.consumePendingTappedAnnotation(webView) { annotationId ->
+                                if (annotationId == null) {
+                                    Timber.d(
+                                        "[AnnotationTap] No pending tapped annotation for bookmark=%s",
+                                        uiState.bookmark.bookmarkId
+                                    )
+                                } else {
+                                    deliverAnnotationTap(annotationId, "pending-js")
+                                }
+                            }
+                        },
                         onHighlightActionRequested = { webView, finishActionMode ->
                             WebViewAnnotationBridge.captureSelection(webView) { selection ->
                                 selection?.let { latestSelectionHandler.value(it) }
@@ -241,14 +276,27 @@ fun BookmarkDetailArticle(
                             WebViewImageBridge.BRIDGE_NAME
                         )
                         addJavascriptInterface(
-                            WebViewAnnotationCallbackBridge(
-                                onAnnotationClicked = { annotationId ->
-                                    latestAnnotationClickHandler.value(annotationId)
+                            WebViewAnnotationTapBridge(
+                                onAnnotationTapped = { annotationId ->
+                                    deliverAnnotationTap(annotationId, "js-bridge")
                                 }
                             ),
-                            WebViewAnnotationBridge.BRIDGE_NAME
+                            WebViewAnnotationTapBridge.BRIDGE_NAME
                         )
-
+                        webChromeClient = object : android.webkit.WebChromeClient() {
+                            override fun onConsoleMessage(consoleMessage: ConsoleMessage): Boolean {
+                                val message = consoleMessage.message()
+                                if (message.contains("[AnnotationTap]")) {
+                                    Timber.d(
+                                        "%s line=%d source=%s",
+                                        message,
+                                        consoleMessage.lineNumber(),
+                                        consoleMessage.sourceId()
+                                    )
+                                }
+                                return super.onConsoleMessage(consoleMessage)
+                            }
+                        }
                         // Intercept link clicks and open in Chrome Custom Tabs
                         // Apply typography after page finishes loading
                         webViewClient = object : android.webkit.WebViewClient() {
@@ -397,14 +445,45 @@ fun BookmarkDetailArticle(
 private class HighlightActionWebView(
     context: Context,
     private val highlightActionLabel: String,
+    private val onAnnotationTapRequested: (WebView) -> Unit,
     private val onHighlightActionRequested: (WebView, finishActionMode: () -> Unit) -> Unit
 ) : WebView(context) {
+    private val touchSlop = ViewConfiguration.get(context).scaledTouchSlop
+    private var downX = 0f
+    private var downY = 0f
+    private var downTime = 0L
+
     override fun startActionMode(callback: ActionMode.Callback?, type: Int): ActionMode? {
         return super.startActionMode(wrapActionModeCallback(callback), type)
     }
 
     override fun startActionMode(callback: ActionMode.Callback?): ActionMode? {
         return super.startActionMode(wrapActionModeCallback(callback))
+    }
+
+    override fun onTouchEvent(event: MotionEvent): Boolean {
+        val handled = super.onTouchEvent(event)
+        when (event.actionMasked) {
+            MotionEvent.ACTION_DOWN -> {
+                downX = event.x
+                downY = event.y
+                downTime = event.eventTime
+            }
+
+            MotionEvent.ACTION_UP -> {
+                val moved = kotlin.math.abs(event.x - downX) > touchSlop ||
+                    kotlin.math.abs(event.y - downY) > touchSlop
+                val longPress = (event.eventTime - downTime) >= ViewConfiguration.getLongPressTimeout()
+                if (!moved && !longPress) {
+                    Timber.d("[AnnotationTap] ACTION_UP fallback tap check scheduled")
+                    postDelayed({
+                        onAnnotationTapRequested(this)
+                    }, 150L)
+                }
+            }
+        }
+
+        return handled
     }
 
     private fun wrapActionModeCallback(callback: ActionMode.Callback?): ActionMode.Callback? {
@@ -451,9 +530,22 @@ private class HighlightActionWebView(
         }
 
         private fun addHighlightAction(menu: Menu) {
-            if (menu.findItem(HIGHLIGHT_ACTION_ID) != null) return
-            menu.add(Menu.NONE, HIGHLIGHT_ACTION_ID, HIGHLIGHT_ACTION_ORDER, highlightActionLabel)
-                .setShowAsAction(MenuItem.SHOW_AS_ACTION_IF_ROOM or MenuItem.SHOW_AS_ACTION_WITH_TEXT)
+            menu.removeItem(HIGHLIGHT_ACTION_ID)
+
+            val copyOrder = menu.findItem(android.R.id.copy)?.order
+            val shareItem = menu.findItem(android.R.id.shareText)
+            val shareOrder = shareItem?.order
+            val highlightOrder = when {
+                copyOrder != null && shareOrder != null -> maxOf(copyOrder, shareOrder - 1)
+                copyOrder != null -> copyOrder + 1
+                shareOrder != null -> shareOrder
+                else -> HIGHLIGHT_ACTION_ORDER
+            }
+
+            menu.add(Menu.NONE, HIGHLIGHT_ACTION_ID, highlightOrder, highlightActionLabel)
+                .setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS or MenuItem.SHOW_AS_ACTION_WITH_TEXT)
+
+            shareItem?.setShowAsAction(MenuItem.SHOW_AS_ACTION_IF_ROOM or MenuItem.SHOW_AS_ACTION_WITH_TEXT)
         }
     }
 

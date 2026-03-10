@@ -708,18 +708,118 @@ class BookmarkDetailViewModel @Inject constructor(
             color = resolveInitialAnnotationColor(existingAnnotations),
             selectionData = selectionData.takeIf { annotationIds.isEmpty() },
             text = selectionData.text,
+            previewLines = buildAnnotationPreviewLines(selectionData.text, existingAnnotations),
             noteText = resolveExistingNotes(existingAnnotations)
         )
     }
 
     fun showEditAnnotationSheet(annotation: Annotation) {
+        Timber.d(
+            "[AnnotationTap] Showing edit sheet for annotation=%s color=%s note=%s",
+            annotation.id,
+            annotation.color,
+            !annotation.note.isNullOrBlank()
+        )
         _annotationEditState.value = AnnotationEditState(
             annotationIds = listOf(annotation.id),
             color = annotation.color,
             selectionData = null,
             text = annotation.text,
+            previewLines = buildAnnotationPreviewLines(annotation.text, listOf(annotation)),
             noteText = annotation.note?.trim()?.takeIf { it.isNotEmpty() }
         )
+    }
+
+    private fun buildAnnotationPreviewLines(
+        selectionText: String,
+        existingAnnotations: List<Annotation>
+    ): List<AnnotationPreviewLine> {
+        val annotations = existingAnnotations
+            .map { it.copy(text = it.text.trim()) }
+            .filter { it.text.isNotBlank() }
+        if (annotations.isEmpty()) return emptyList()
+
+        val normalizedSelection = selectionText.trim()
+        if (normalizedSelection.isBlank()) {
+            return annotations.map { annotation ->
+                AnnotationPreviewLine(
+                    text = annotation.text,
+                    color = annotation.color
+                )
+            }
+        }
+
+        if (annotations.size == 1) {
+            val annotation = annotations.single()
+            return listOf(
+                AnnotationPreviewLine(
+                    text = annotation.text,
+                    color = annotation.color,
+                    selectedRange = findContainedRange(annotation.text, normalizedSelection)
+                        ?.takeUnless { it.first == 0 && it.last == annotation.text.lastIndex }
+                )
+            )
+        }
+
+        val lastIndex = annotations.lastIndex
+        return annotations.mapIndexed { index, annotation ->
+            val selectedRange = when (index) {
+                0 -> findSuffixRange(annotation.text, normalizedSelection)
+                lastIndex -> findPrefixRange(annotation.text, normalizedSelection)
+                else -> null
+            }?.takeUnless { it.first == 0 && it.last == annotation.text.lastIndex }
+
+            AnnotationPreviewLine(
+                text = annotation.text,
+                color = annotation.color,
+                selectedRange = selectedRange
+            )
+        }
+    }
+
+    private fun findContainedRange(text: String, selectionText: String): IntRange? {
+        val directMatch = text.indexOf(selectionText)
+        if (directMatch >= 0) {
+            return directMatch..<(directMatch + selectionText.length)
+        }
+
+        val lowercaseText = text.lowercase()
+        val lowercaseSelection = selectionText.lowercase()
+        val caseInsensitiveMatch = lowercaseText.indexOf(lowercaseSelection)
+        if (caseInsensitiveMatch >= 0) {
+            return caseInsensitiveMatch..<(caseInsensitiveMatch + selectionText.length)
+        }
+
+        return null
+    }
+
+    private fun findSuffixRange(text: String, selectionText: String): IntRange? {
+        val lowercaseText = text.lowercase()
+        val lowercaseSelection = selectionText.lowercase()
+        val maxLength = minOf(text.length, selectionText.length)
+
+        for (length in maxLength downTo 1) {
+            if (lowercaseText.endsWith(lowercaseSelection.take(length))) {
+                val start = text.length - length
+                return start..<(start + length)
+            }
+        }
+
+        return findContainedRange(text, selectionText)
+    }
+
+    private fun findPrefixRange(text: String, selectionText: String): IntRange? {
+        val lowercaseText = text.lowercase()
+        val lowercaseSelection = selectionText.lowercase()
+        val maxLength = minOf(text.length, selectionText.length)
+
+        for (length in maxLength downTo 1) {
+            if (lowercaseText.startsWith(lowercaseSelection.takeLast(length))) {
+                return 0..<length
+            }
+        }
+
+        return findContainedRange(text, selectionText)
     }
 
     fun dismissAnnotationEditSheet() {
@@ -1177,6 +1277,7 @@ class BookmarkDetailViewModel @Inject constructor(
         val color: String,
         val selectionData: SelectionData?,
         val text: String,
+        val previewLines: List<AnnotationPreviewLine> = emptyList(),
         val noteText: String? = null,
         val isSaving: Boolean = false
     ) {
@@ -1186,6 +1287,12 @@ class BookmarkDetailViewModel @Inject constructor(
         val hasExistingAnnotations: Boolean
             get() = annotationIds.isNotEmpty()
     }
+
+    data class AnnotationPreviewLine(
+        val text: String,
+        val color: String,
+        val selectedRange: IntRange? = null
+    )
 
     data class ReaderContextMenuState(
         val visible: Boolean = false,

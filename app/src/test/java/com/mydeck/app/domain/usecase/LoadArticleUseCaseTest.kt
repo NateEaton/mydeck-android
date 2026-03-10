@@ -13,11 +13,14 @@ import io.mockk.every
 import io.mockk.just
 import io.mockk.mockk
 import io.mockk.Runs
+import kotlinx.coroutines.runBlocking
 import kotlinx.datetime.LocalDateTime
 import kotlinx.serialization.json.Json
 import org.junit.Before
 import org.junit.Test
+import org.junit.Assert.assertTrue
 import retrofit2.Response
+import java.io.IOException
 
 class LoadArticleUseCaseTest {
 
@@ -93,6 +96,38 @@ class LoadArticleUseCaseTest {
             )
         }
         coVerify(exactly = 1) { settingsDataStore.saveCachedAnnotationSnapshot("123", any()) }
+    }
+
+    @Test
+    fun `execute succeeds when annotation snapshot caching fails after article download`() {
+        val bookmark = sampleBookmark.copy(
+            articleContent = null,
+            contentState = Bookmark.ContentState.DIRTY
+        )
+        val articleContent = "<section><p>Fresh article</p></section>"
+
+        coEvery { bookmarkRepository.getBookmarkById("123") } returns bookmark
+        every { connectivityMonitor.isNetworkAvailable() } returns true
+        coEvery { readeckApi.getArticle("123") } returns Response.success(articleContent)
+        coEvery { readeckApi.getAnnotations("123") } throws IOException("boom")
+        coEvery { bookmarkRepository.insertBookmarks(any()) } just Runs
+        coEvery { bookmarkDao.updateContentState(any(), any(), any()) } just Runs
+
+        val result = runBlocking {
+            loadArticleUseCase.execute("123")
+        }
+
+        assertTrue(result is LoadArticleUseCase.Result.Success)
+        coVerify {
+            bookmarkRepository.insertBookmarks(
+                match { bookmarks ->
+                    bookmarks.singleOrNull()?.articleContent == articleContent &&
+                        bookmarks.singleOrNull()?.contentState == Bookmark.ContentState.DOWNLOADED
+                }
+            )
+        }
+        coVerify(exactly = 0) { bookmarkDao.updateContentState(any(), any(), any()) }
+        coVerify(exactly = 0) { settingsDataStore.saveCachedAnnotationSnapshot("123", any()) }
     }
 
     private val sampleBookmark = Bookmark(

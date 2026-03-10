@@ -30,6 +30,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.mydeck.app.R
@@ -67,7 +70,10 @@ fun AnnotationEditSheet(
                 style = MaterialTheme.typography.titleLarge
             )
 
-            if (state.text.isNotBlank()) {
+            if (state.previewLines.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(12.dp))
+                AnnotationPreview(state = state)
+            } else if (state.text.isNotBlank()) {
                 Spacer(modifier = Modifier.height(12.dp))
                 Text(
                     text = state.text.trim(),
@@ -139,6 +145,73 @@ fun AnnotationEditSheet(
 }
 
 @Composable
+private fun AnnotationPreview(
+    state: BookmarkDetailViewModel.AnnotationEditState
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        state.previewLines.forEach { line ->
+            Text(
+                text = buildPreviewAnnotatedString(line),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 3,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+    }
+}
+
+private fun buildPreviewAnnotatedString(
+    line: BookmarkDetailViewModel.AnnotationPreviewLine
+) = buildAnnotatedString {
+    val selectedRange = line.selectedRange
+    if (selectedRange == null) {
+        appendHighlightedText(
+            text = line.text,
+            colorName = line.color,
+            selected = false
+        )
+        return@buildAnnotatedString
+    }
+
+    val start = selectedRange.first.coerceAtLeast(0)
+    val endExclusive = (selectedRange.last + 1).coerceAtMost(line.text.length)
+    val prefix = line.text.substring(0, start)
+    val selectedText = line.text.substring(start, endExclusive)
+    val suffix = line.text.substring(endExclusive)
+
+    appendHighlightedText(prefix, line.color, selected = false)
+    appendHighlightedText(selectedText, line.color, selected = true)
+    appendHighlightedText(suffix, line.color, selected = false)
+}
+
+private fun androidx.compose.ui.text.AnnotatedString.Builder.appendHighlightedText(
+    text: String,
+    colorName: String,
+    selected: Boolean
+) {
+    if (text.isEmpty()) return
+    pushStyle(previewHighlightStyle(colorName, selected))
+    append(text)
+    pop()
+}
+
+private fun previewHighlightStyle(
+    colorName: String,
+    selected: Boolean
+): SpanStyle {
+    val highlightColor = annotationColorForName(colorName)
+    val hasFill = colorName != "none"
+    return SpanStyle(
+        background = if (hasFill) highlightColor.copy(alpha = if (selected) 0.72f else 0.48f) else Color.Transparent,
+        textDecoration = if (colorName == "none") TextDecoration.Underline else null
+    )
+}
+
+@Composable
 private fun AnnotationColorOption(
     colorName: String,
     label: String,
@@ -189,16 +262,6 @@ private fun AnnotationColorOption(
                 MaterialTheme.colorScheme.onSurfaceVariant
             }
         )
-    }
-}
-
-private fun annotationColorForName(colorName: String): Color {
-    return when (colorName) {
-        "red" -> Color(0xFFEF5350)
-        "blue" -> Color(0xFF42A5F5)
-        "green" -> Color(0xFF66BB6A)
-        "none" -> Color.Transparent
-        else -> Color(0xFFFFEB3B)
     }
 }
 

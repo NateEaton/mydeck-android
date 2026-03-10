@@ -161,14 +161,20 @@ class LoadArticleUseCase @Inject constructor(
             return
         }
 
-        when (val fetchedSnapshot = fetchAnnotationSnapshot(bookmark.id)) {
-            is AnnotationSnapshotResult.Success -> {
-                settingsDataStore.saveCachedAnnotationSnapshot(bookmark.id, fetchedSnapshot.snapshot)
-            }
+        try {
+            when (val fetchedSnapshot = fetchAnnotationSnapshot(bookmark.id)) {
+                is AnnotationSnapshotResult.Success -> {
+                    settingsDataStore.saveCachedAnnotationSnapshot(bookmark.id, fetchedSnapshot.snapshot)
+                }
 
-            is AnnotationSnapshotResult.Failure -> {
-                Timber.w("Failed to cache annotation snapshot for ${bookmark.id}: ${fetchedSnapshot.reason}")
+                is AnnotationSnapshotResult.Failure -> {
+                    Timber.w("Failed to cache annotation snapshot for ${bookmark.id}: ${fetchedSnapshot.reason}")
+                }
             }
+        } catch (e: IOException) {
+            Timber.w(e, "Network error while caching annotation snapshot for ${bookmark.id}")
+        } catch (e: Exception) {
+            Timber.w(e, "Unexpected error while caching annotation snapshot for ${bookmark.id}")
         }
     }
 

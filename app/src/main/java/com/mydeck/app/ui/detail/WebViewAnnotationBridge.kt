@@ -1,8 +1,5 @@
 package com.mydeck.app.ui.detail
 
-import android.os.Handler
-import android.os.Looper
-import android.webkit.JavascriptInterface
 import android.webkit.WebView
 import com.mydeck.app.domain.model.SelectionData
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -12,25 +9,7 @@ import kotlin.coroutines.resume
 
 object WebViewAnnotationBridge {
     private val json = Json { ignoreUnknownKeys = true }
-
-    const val BRIDGE_NAME = "MyDeckAnnotationBridge"
-
-    fun scrollToAnnotation(webView: WebView, annotationId: String) {
-        webView.evaluateJavascript(
-            """
-                (function() {
-                    var target = document.getElementById('annotation-${annotationId.escapeForJavascript()}');
-                    if (!target) return false;
-                    target.scrollIntoView({
-                        block: 'center',
-                        behavior: 'smooth'
-                    });
-                    return true;
-                })();
-            """.trimIndent(),
-            null
-        )
-    }
+    private const val TAP_LOG_PREFIX = "[AnnotationTap]"
 
     fun getRenderedAnnotations(
         webView: WebView,
@@ -163,6 +142,159 @@ object WebViewAnnotationBridge {
         }
     }
 
+    fun getAnnotationIdAtPoint(
+        webView: WebView,
+        x: Float,
+        y: Float,
+        callback: (String?) -> Unit
+    ) {
+        val density = webView.resources.displayMetrics.density.toDouble()
+        val webViewScale = webView.scale.toDouble().takeIf { it > 0.0 } ?: 1.0
+        webView.evaluateJavascript(
+            """
+                (function() {
+                    function extractAnnotationId(target) {
+                        var current = target;
+                        while (current) {
+                            if (
+                                current.tagName &&
+                                current.tagName.toLowerCase() === 'rd-annotation' &&
+                                current.hasAttribute('data-annotation-id-value')
+                            ) {
+                                return current.getAttribute('data-annotation-id-value');
+                            }
+                            current = current.parentElement;
+                        }
+                        return null;
+                    }
+
+                    function summarizeTarget(target) {
+                        if (!target) {
+                            return {
+                                tagName: null,
+                                elementId: null,
+                                annotationId: null,
+                                text: null
+                            };
+                        }
+
+                        return {
+                            tagName: target.tagName ? target.tagName.toLowerCase() : null,
+                            elementId: target.id || null,
+                            annotationId: extractAnnotationId(target),
+                            text: ((target.textContent || '').trim().slice(0, 80)) || null
+                        };
+                    }
+
+                    var pointX = ${x.toDouble()};
+                    var pointY = ${y.toDouble()};
+                    var density = ${density};
+                    var webViewScale = ${webViewScale};
+                    var strategies = [
+                        { label: 'raw', x: pointX, y: pointY },
+                        { label: 'webviewScale', x: pointX / webViewScale, y: pointY / webViewScale },
+                        { label: 'density', x: pointX / density, y: pointY / density },
+                        { label: 'densityAndScale', x: pointX / (density * webViewScale), y: pointY / (density * webViewScale) }
+                    ];
+
+                    var candidates = strategies.map(function(strategy) {
+                        var target = document.elementFromPoint(strategy.x, strategy.y);
+                        var summary = summarizeTarget(target);
+                        return {
+                            label: strategy.label,
+                            x: strategy.x,
+                            y: strategy.y,
+                            tagName: summary.tagName,
+                            elementId: summary.elementId,
+                            annotationId: summary.annotationId,
+                            text: summary.text
+                        };
+                    });
+
+                    var match = candidates.find(function(candidate) {
+                        return !!candidate.annotationId;
+                    }) || null;
+
+                    return JSON.stringify({
+                        annotationId: match ? match.annotationId : null,
+                        matchedStrategy: match ? match.label : null,
+                        rawX: pointX,
+                        rawY: pointY,
+                        density: density,
+                        webViewScale: webViewScale,
+                        scrollX: window.scrollX || 0,
+                        scrollY: window.scrollY || 0,
+                        candidates: candidates
+                    });
+                })();
+            """.trimIndent()
+        ) { result ->
+            val hitResult = try {
+                val decoded = WebViewImageBridge.decodeJsString(result)
+                if (decoded.isBlank() || decoded == "null") {
+                    null
+                } else {
+                    json.decodeFromString<AnnotationHitTestResult>(decoded)
+                }
+            } catch (e: Exception) {
+                Timber.w(e, "%s Failed to decode annotation id at touch point. Raw=%s", TAP_LOG_PREFIX, result)
+                null
+            }
+
+            if (hitResult == null) {
+                Timber.d(
+                    "%s No hit-test result for point x=%.1f y=%.1f",
+                    TAP_LOG_PREFIX,
+                    x,
+                    y
+                )
+                callback(null)
+                return@evaluateJavascript
+            }
+
+            Timber.d(
+                "%s point=(%.1f, %.1f) density=%.2f webViewScale=%.2f matched=%s via=%s candidates=%s",
+                TAP_LOG_PREFIX,
+                hitResult.rawX,
+                hitResult.rawY,
+                hitResult.density,
+                hitResult.webViewScale,
+                hitResult.annotationId ?: "none",
+                hitResult.matchedStrategy ?: "none",
+                hitResult.candidates.joinToString(" | ") { candidate ->
+                    "${candidate.label}:${candidate.annotationId ?: "-"}:${candidate.tagName ?: "-"}:${candidate.elementId ?: "-"}"
+                }
+            )
+            callback(hitResult.annotationId)
+        }
+    }
+
+    fun consumePendingTappedAnnotation(
+        webView: WebView,
+        callback: (String?) -> Unit
+    ) {
+        webView.evaluateJavascript(
+            """
+                (function() {
+                    if (typeof window.mydeckConsumeTappedAnnotation !== 'function') {
+                        return null;
+                    }
+                    return window.mydeckConsumeTappedAnnotation();
+                })();
+            """.trimIndent()
+        ) { result ->
+            val annotationId = try {
+                val decoded = WebViewImageBridge.decodeJsString(result)
+                decoded.takeUnless { it.isBlank() || it == "null" }
+            } catch (e: Exception) {
+                Timber.w(e, "%s Failed to decode pending tapped annotation. Raw=%s", TAP_LOG_PREFIX, result)
+                null
+            }
+            Timber.d("%s consumePendingTappedAnnotation=%s", TAP_LOG_PREFIX, annotationId ?: "none")
+            callback(annotationId)
+        }
+    }
+
     fun injectAnnotationInteractions(): String {
         return """
             (function() {
@@ -170,6 +302,7 @@ object WebViewAnnotationBridge {
 
                 var container = document.querySelector('.container');
                 if (!container) return;
+                var annotationBridge = window['${WebViewAnnotationTapBridge.BRIDGE_NAME}'];
 
                 function getNodeTextLength(node) {
                     if (!node) return 0;
@@ -320,25 +453,105 @@ object WebViewAnnotationBridge {
                     };
                 };
 
-                Array.from(
-                    container.querySelectorAll('rd-annotation[id][data-annotation-id-value]')
-                ).forEach(function(node) {
-                    if (node.dataset.mydeckAnnotationBound === '1') {
-                        return;
+                if (!window.mydeckAnnotationTapInstalled) {
+                    window.mydeckAnnotationTapInstalled = true;
+                    window.mydeckLastAnnotationTap = {
+                        id: null,
+                        time: 0
+                    };
+                    window.mydeckPendingTappedAnnotation = {
+                        id: null,
+                        time: 0
+                    };
+
+                    window.mydeckConsumeTappedAnnotation = function() {
+                        var pending = window.mydeckPendingTappedAnnotation;
+                        window.mydeckPendingTappedAnnotation = {
+                            id: null,
+                            time: 0
+                        };
+                        if (!pending || !pending.id) {
+                            return null;
+                        }
+                        if ((Date.now() - pending.time) > 1200) {
+                            return null;
+                        }
+                        return pending.id;
+                    };
+
+                    function findTappedAnnotation(node) {
+                        var target = node;
+                        while (target) {
+                            if (
+                                target.tagName &&
+                                target.tagName.toLowerCase() === 'rd-annotation' &&
+                                target.hasAttribute('data-annotation-id-value')
+                            ) {
+                                return target;
+                            }
+                            target = target.parentElement;
+                        }
+                        return null;
                     }
 
-                    node.dataset.mydeckAnnotationBound = '1';
-                    node.addEventListener('click', function(event) {
-                        var annotationId = node.getAttribute('data-annotation-id-value');
-                        if (!annotationId || typeof MyDeckAnnotationBridge === 'undefined') {
+                    function hasActiveSelection() {
+                        var selection = window.getSelection();
+                        return !!(
+                            selection &&
+                            !selection.isCollapsed &&
+                            (selection.toString() || '').trim()
+                        );
+                    }
+
+                    function dispatchAnnotationTap(kind, event) {
+                        if (hasActiveSelection()) {
+                            console.log('${TAP_LOG_PREFIX} js=' + kind + ' skipped=active-selection');
                             return;
                         }
 
-                        event.preventDefault();
-                        event.stopPropagation();
-                        MyDeckAnnotationBridge.onAnnotationClicked(annotationId);
+                        var annotationNode = findTappedAnnotation(event && event.target);
+                        if (!annotationNode) {
+                            return;
+                        }
+
+                        var annotationId = annotationNode.getAttribute('data-annotation-id-value');
+                        if (!annotationId) {
+                            return;
+                        }
+
+                        var now = Date.now();
+                        var lastTap = window.mydeckLastAnnotationTap || { id: null, time: 0 };
+                        if (lastTap.id === annotationId && (now - lastTap.time) < 400) {
+                            console.log('${TAP_LOG_PREFIX} js=' + kind + ' deduped id=' + annotationId);
+                            return;
+                        }
+                        window.mydeckLastAnnotationTap = { id: annotationId, time: now };
+                        window.mydeckPendingTappedAnnotation = { id: annotationId, time: now };
+
+                        console.log(
+                            '${TAP_LOG_PREFIX} js=' + kind +
+                            ' id=' + annotationId +
+                            ' text=' + ((annotationNode.textContent || '').trim().slice(0, 80))
+                        );
+
+                        if (annotationBridge && typeof annotationBridge.onAnnotationTapped === 'function') {
+                            annotationBridge.onAnnotationTapped(annotationId);
+                            event.preventDefault();
+                            event.stopPropagation();
+                        } else {
+                            console.log('${TAP_LOG_PREFIX} bridge-missing id=' + annotationId);
+                        }
+                    }
+
+                    container.addEventListener('click', function(event) {
+                        dispatchAnnotationTap('click', event);
                     }, true);
-                });
+
+                    container.addEventListener('touchend', function(event) {
+                        dispatchAnnotationTap('touchend', event);
+                    }, true);
+                }
+
             })();
         """.trimIndent()
     }
@@ -398,6 +611,30 @@ object WebViewAnnotationBridge {
     )
 
     @kotlinx.serialization.Serializable
+    private data class AnnotationHitTestResult(
+        val annotationId: String? = null,
+        val matchedStrategy: String? = null,
+        val rawX: Float = 0f,
+        val rawY: Float = 0f,
+        val density: Float = 1f,
+        val webViewScale: Float = 1f,
+        val scrollX: Float = 0f,
+        val scrollY: Float = 0f,
+        val candidates: List<AnnotationHitCandidate> = emptyList()
+    )
+
+    @kotlinx.serialization.Serializable
+    private data class AnnotationHitCandidate(
+        val label: String,
+        val x: Float,
+        val y: Float,
+        val tagName: String? = null,
+        val elementId: String? = null,
+        val annotationId: String? = null,
+        val text: String? = null
+    )
+
+    @kotlinx.serialization.Serializable
     data class RenderedAnnotation(
         val id: String,
         val text: String,
@@ -405,15 +642,4 @@ object WebViewAnnotationBridge {
         val note: String? = null,
         val position: Int = Int.MAX_VALUE
     )
-}
-
-class WebViewAnnotationCallbackBridge(
-    private val onAnnotationClicked: (String) -> Unit
-) {
-    @JavascriptInterface
-    fun onAnnotationClicked(annotationId: String) {
-        Handler(Looper.getMainLooper()).post {
-            onAnnotationClicked(annotationId)
-        }
-    }
 }

@@ -31,7 +31,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -152,7 +151,7 @@ private fun AnnotationListItem(
 
 @Composable
 private fun AnnotationColorIndicator(colorName: String) {
-    val fillColor = highlightColorForName(colorName)
+    val fillColor = annotationColorForName(colorName)
     val indicatorModifier = Modifier
         .size(14.dp)
         .clip(CircleShape)
@@ -169,14 +168,4 @@ private fun AnnotationColorIndicator(colorName: String) {
         )
 
     Box(modifier = indicatorModifier)
-}
-
-private fun highlightColorForName(colorName: String): Color {
-    return when (colorName) {
-        "red" -> Color(0xFFEF5350)
-        "blue" -> Color(0xFF42A5F5)
-        "green" -> Color(0xFF66BB6A)
-        "none" -> Color.Transparent
-        else -> Color(0xFFFFEB3B)
-    }
 }
