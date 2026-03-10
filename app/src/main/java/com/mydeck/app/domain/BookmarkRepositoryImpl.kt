@@ -27,7 +27,6 @@ import com.mydeck.app.io.rest.model.CreateBookmarkDto
 import com.mydeck.app.io.rest.model.EditBookmarkDto
 import com.mydeck.app.io.rest.model.EditBookmarkErrorDto
 import com.mydeck.app.io.rest.model.StatusMessageDto
-import com.mydeck.app.io.rest.model.SyncContentRequestDto
 import com.mydeck.app.io.rest.model.EditBookmarkResponseDto
 
 import com.mydeck.app.io.db.MyDeckDatabase
@@ -697,14 +696,45 @@ class BookmarkRepositoryImpl @Inject constructor(
     }
 
     override suspend fun performDeltaSync(since: kotlinx.datetime.Instant?): BookmarkRepository.SyncResult = withContext(dispatcher) {
-        // DEPRECATED: The /api/bookmarks/sync endpoint has a server-side bug with SQLite.
-        // This method is kept for future use if/when the server bug is fixed.
-        // For now, always return an error to trigger fallback to full sync.
-        Timber.w("Delta sync is disabled due to server-side SQLite compatibility issue")
-        return@withContext BookmarkRepository.SyncResult.Error(
-            errorMessage = "Delta sync disabled - server endpoint incompatible with SQLite",
-            code = 500
-        )
+        try {
+            val sinceParam = since?.let {
+                // Truncate to seconds to avoid timestamp parsing issues on server
+                kotlinx.datetime.Instant.fromEpochSeconds(it.epochSeconds).toString()
+            }
+            Timber.d("Starting delta sync with since=$sinceParam")
+
+            val response = readeckApi.getSyncStatus(sinceParam)
+
+            if (!response.isSuccessful) {
+                Timber.e("Sync status failed with code: ${response.code()}")
+                return@withContext BookmarkRepository.SyncResult.Error(
+                    errorMessage = "Sync status failed",
+                    code = response.code()
+                )
+            }
+
+            val syncStatuses = response.body() ?: emptyList()
+            Timber.d("Received ${syncStatuses.size} sync status entries")
+
+            val deletedIds = syncStatuses
+                .filter { it.type == "delete" }
+                .map { it.id }
+
+            // Delete locally removed bookmarks
+            deletedIds.forEach { id ->
+                bookmarkDao.deleteBookmark(id)
+            }
+
+            Timber.i("Delta sync complete: ${deletedIds.size} deleted, ${syncStatuses.size - deletedIds.size} updated")
+
+            BookmarkRepository.SyncResult.Success(countDeleted = deletedIds.size)
+        } catch (e: IOException) {
+            Timber.e(e, "Network error during delta sync: ${e.message}")
+            BookmarkRepository.SyncResult.NetworkError(errorMessage = "Network error during delta sync", ex = e)
+        } catch (e: Exception) {
+            Timber.e(e, "Delta sync failed: ${e.message}")
+            BookmarkRepository.SyncResult.Error(errorMessage = "Delta sync failed: ${e.message}", ex = e)
+        }
     }
 
     override suspend fun syncPendingActions(): BookmarkRepository.UpdateResult {

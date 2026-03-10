@@ -18,7 +18,6 @@ import com.mydeck.app.io.rest.model.ImageResource
 import com.mydeck.app.io.rest.model.Resource
 import com.mydeck.app.io.rest.model.Resources
 import com.mydeck.app.io.rest.model.StatusMessageDto
-import com.mydeck.app.io.rest.model.SyncContentRequestDto
 import com.mydeck.app.io.rest.model.SyncStatusDto
 import io.mockk.*
 import kotlinx.coroutines.Dispatchers
@@ -305,16 +304,40 @@ class BookmarkRepositoryImplTest {
 
 
     @Test
-    fun `performDeltaSync returns error because it is disabled`() = runTest {
+    fun `performDeltaSync deletes bookmarks marked as deleted`() = runTest {
         // Arrange
         val since = kotlinx.datetime.Instant.parse("2023-10-27T10:00:00Z")
+        val syncStatuses = listOf(
+            SyncStatusDto(id = "bookmark-1", type = "update", time = "2023-10-27T11:00:00Z"),
+            SyncStatusDto(id = "bookmark-2", type = "delete", time = "2023-10-27T11:00:00Z"),
+        )
+        coEvery { readeckApi.getSyncStatus(any()) } returns Response.success(syncStatuses)
+        coEvery { bookmarkDao.deleteBookmark(any()) } just Runs
+
+        // Act
+        val result = bookmarkRepositoryImpl.performDeltaSync(since)
+
+        // Assert
+        assertTrue(result is BookmarkRepository.SyncResult.Success)
+        assertEquals(1, (result as BookmarkRepository.SyncResult.Success).countDeleted)
+        coVerify(exactly = 1) { bookmarkDao.deleteBookmark("bookmark-2") }
+        coVerify(exactly = 0) { bookmarkDao.deleteBookmark("bookmark-1") }
+    }
+
+    @Test
+    fun `performDeltaSync returns error on API failure`() = runTest {
+        // Arrange
+        val since = kotlinx.datetime.Instant.parse("2023-10-27T10:00:00Z")
+        coEvery { readeckApi.getSyncStatus(any()) } returns Response.error(
+            500, "Server error".toResponseBody(null)
+        )
 
         // Act
         val result = bookmarkRepositoryImpl.performDeltaSync(since)
 
         // Assert
         assertTrue(result is BookmarkRepository.SyncResult.Error)
-        assertTrue((result as BookmarkRepository.SyncResult.Error).errorMessage.contains("Delta sync disabled"))
+        assertEquals(500, (result as BookmarkRepository.SyncResult.Error).code)
     }
 
     @Test

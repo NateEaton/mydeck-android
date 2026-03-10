@@ -105,6 +105,7 @@ other{}
     <string name="settings_sync_auto_full_button">Jetzt Synchronisieren</string>
     <string name="settings_sync_dialog_support_text">Wie oft soll die Synchronisierung im Hintergrund durchgeführt werden?</string>
     <string name="auto_sync_timeframe_manual">Manuell</string>
+    <string name="auto_sync_timeframe_15_minutes">Every 15 minutes</string>
     <string name="auto_sync_timeframe_01_hours">Jede Stunde</string>
     <string name="auto_sync_timeframe_06_hours">Alle 6 Stunden</string>
     <string name="auto_sync_timeframe_12_hours">Alle 12 Stunden</string>

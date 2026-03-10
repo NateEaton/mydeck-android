@@ -101,6 +101,7 @@ class BookmarkListViewModelTest {
         every { connectivityMonitor.isBatterySaverOn() } returns false
         coEvery { settingsDataStore.getLayoutMode() } returns null
         coEvery { settingsDataStore.getSortOption() } returns null
+        every { settingsDataStore.urlFlow } returns kotlinx.coroutines.flow.MutableStateFlow(null)
     }
 
     @After

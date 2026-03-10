@@ -18,6 +18,7 @@ import com.mydeck.app.domain.usecase.LoadBookmarksUseCase
 import com.mydeck.app.io.prefs.SettingsDataStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import timber.log.Timber
 
@@ -47,6 +48,26 @@ class LoadBookmarksWorker @AssistedInject constructor(
             } catch (e: Exception) {
                 Timber.e(e, "Error preparing for initial loading.")
                 return Result.failure()
+            }
+        }
+
+        // Run delta sync to catch deletions (lightweight, only fetches changed IDs)
+        if (!isInitialLoad) {
+            // Prefer lastSyncTimestamp (advances after every delta sync) over lastBookmarkTimestamp
+            // (only advances when bookmark metadata changes, not on deletions)
+            val syncSince = settingsDataStore.getLastSyncTimestamp()
+                ?: settingsDataStore.getLastBookmarkTimestamp()
+            if (syncSince != null && syncSince.epochSeconds > 0) {
+                val deltaResult = bookmarkRepository.performDeltaSync(syncSince)
+                when (deltaResult) {
+                    is BookmarkRepository.SyncResult.Success -> {
+                        settingsDataStore.saveLastSyncTimestamp(Clock.System.now())
+                        if (deltaResult.countDeleted > 0) {
+                            Timber.i("Delta sync removed ${deltaResult.countDeleted} deleted bookmarks")
+                        }
+                    }
+                    else -> Timber.w("Delta sync failed during pull-to-refresh, continuing with incremental load")
+                }
             }
         }
 
