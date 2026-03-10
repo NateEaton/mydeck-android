@@ -4,7 +4,7 @@ Tap any bookmark card to open it. MyDeck displays the bookmark in a view suited 
 
 ## Reading View
 
-For bookmarks with text content, MyDeck shows the extracted text in a clean, distraction-free reading layout. The bookmark title appears at the top — tap directly on the title text to edit it inline, then press Enter or click outside the text field to save.
+For bookmarks with text content, MyDeck shows the extracted text in a clean, distraction-free reading layout. The bookmark title appears at the top, and if the bookmark has a description it is shown directly underneath in italic text. Title changes are managed from **⋮ → Details** rather than inline in the reader header.
 
 Tap any image in the content to open it in the **Image Lightbox** (see below). Long-press links or images to access **Long-press Context Menus** (see below).
 
@@ -70,7 +70,6 @@ Article bookmarks support Readeck highlights directly in the reading view. To cr
 Tap **⋮** in the top bar for additional actions:
 
 - **Highlights** — for article bookmarks in reading view, open a list of saved highlights and tap one to jump to it in the article
-- **Refresh content** — re-download the extracted reader content for the current bookmark without leaving the reading view
 - **Add to favorites / Remove favorite** — toggle the favorite status
 - **Archive / Unarchive** — move the bookmark to the archive (or back to My List)
 - **Mark as read / Mark as unread** — toggle whether the bookmark has been read; this is reflected back in the bookmark list
@@ -118,10 +117,13 @@ If the current image was originally a hyperlink (linking to another page or site
 
 ## Bookmark Details
 
-**Details** (opened from the overflow menu) shows the bookmark's full metadata:
+**Details** (opened from the overflow menu) shows the bookmark's saved metadata:
 
 - Thumbnail
-- Type, date added, date published, author, reading time, word count
-- External link — tap to open the original URL in your default browser
-- Description
+- Title row with a pencil icon — tap the title or pencil to open the full-screen metadata editor
+- Site name, date added, date published, author, site root URL, reading time, and word count
 - **Labels** — add or remove labels for this bookmark; see [Organizing](./organizing.md) for the full guide to working with labels
+- **Refresh content** — re-download the extracted reader content for this bookmark
+- Debug info in debug builds
+
+The metadata editor includes title, description, site name, authors, published date, language, and text direction. It opens full screen with an **X** at the top and **Save** at the bottom right. Closing the editor returns you to Details, the published date field uses the Android date picker, and the keyboard **Next** action moves between the standard fields while **Authors** keeps normal multi-line entry.

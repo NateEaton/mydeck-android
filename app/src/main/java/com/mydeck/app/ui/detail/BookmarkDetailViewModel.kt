@@ -11,6 +11,7 @@ import com.mydeck.app.R
 import com.mydeck.app.domain.BookmarkRepository
 import com.mydeck.app.domain.model.Annotation
 import com.mydeck.app.domain.model.Bookmark.ContentState
+import com.mydeck.app.domain.model.BookmarkMetadataUpdate
 import com.mydeck.app.domain.model.SelectionData
 import com.mydeck.app.domain.model.Template
 import com.mydeck.app.domain.model.Theme
@@ -52,7 +53,9 @@ import kotlinx.datetime.toInstant
 import kotlinx.serialization.json.Json
 import timber.log.Timber
 import java.text.DateFormat
+import java.text.SimpleDateFormat
 import java.util.Date
+import java.util.Locale
 import javax.inject.Inject
 
 
@@ -303,6 +306,7 @@ class BookmarkDetailViewModel @Inject constructor(
                             authors = bookmark.authors,
                             createdDate = formatLocalDateTimeWithDateFormat(bookmark.created),
                             publishedDate = bookmark.published?.let { formatLocalDateTimeWithDateFormat(it) },
+                            publishedDateInput = bookmark.published?.let { formatLocalDateTimeForEditor(it) },
                             bookmarkId = id,
                             siteName = bookmark.siteName,
                             imgSrc = bookmark.image.src,
@@ -319,6 +323,7 @@ class BookmarkDetailViewModel @Inject constructor(
                             articleContent = bookmark.articleContent,
                             embed = bookmark.embed,
                             lang = bookmark.lang,
+                            textDirection = bookmark.textDirection,
                             wordCount = bookmark.wordCount,
                             readingTime = bookmark.readingTime,
                             description = bookmark.description,
@@ -379,6 +384,17 @@ class BookmarkDetailViewModel @Inject constructor(
     fun onUpdateTitle(bookmarkId: String, title: String) {
         updateBookmark {
             val result = bookmarkRepository.updateTitle(bookmarkId, title)
+            when (result) {
+                is BookmarkRepository.UpdateResult.Success -> UpdateBookmarkUseCase.Result.Success
+                is BookmarkRepository.UpdateResult.Error -> UpdateBookmarkUseCase.Result.GenericError(result.errorMessage)
+                is BookmarkRepository.UpdateResult.NetworkError -> UpdateBookmarkUseCase.Result.NetworkError(result.errorMessage)
+            }
+        }
+    }
+
+    fun onUpdateMetadata(bookmarkId: String, metadata: BookmarkMetadataUpdate) {
+        updateBookmark {
+            val result = bookmarkRepository.updateMetadata(bookmarkId, metadata)
             when (result) {
                 is BookmarkRepository.UpdateResult.Success -> UpdateBookmarkUseCase.Result.Success
                 is BookmarkRepository.UpdateResult.Error -> UpdateBookmarkUseCase.Result.GenericError(result.errorMessage)
@@ -525,6 +541,13 @@ class BookmarkDetailViewModel @Inject constructor(
         val dateFormat = DateFormat.getDateInstance(
             DateFormat.LONG
         )
+        val timeZone = TimeZone.currentSystemDefault()
+        val epochMillis = localDateTime.toInstant(timeZone).toEpochMilliseconds()
+        return dateFormat.format(Date(epochMillis))
+    }
+
+    private fun formatLocalDateTimeForEditor(localDateTime: LocalDateTime): String {
+        val dateFormat = SimpleDateFormat("MM/dd/yyyy", Locale.US)
         val timeZone = TimeZone.currentSystemDefault()
         val epochMillis = localDateTime.toInstant(timeZone).toEpochMilliseconds()
         return dateFormat.format(Date(epochMillis))
@@ -906,6 +929,7 @@ class BookmarkDetailViewModel @Inject constructor(
         val authors: List<String>,
         val createdDate: String,
         val publishedDate: String?,
+        val publishedDateInput: String?,
         val bookmarkId: String,
         val siteName: String,
         val imgSrc: String,
@@ -918,6 +942,7 @@ class BookmarkDetailViewModel @Inject constructor(
         val articleContent: String?,
         val embed: String?,
         val lang: String,
+        val textDirection: String,
         val wordCount: Int?,
         val readingTime: Int?,
         val description: String,

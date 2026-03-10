@@ -10,6 +10,7 @@ import android.net.Uri
 import android.widget.Toast
 import android.view.View
 import android.webkit.WebView
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.clickable
@@ -128,6 +129,12 @@ import com.mydeck.app.ui.detail.components.*
 
 private const val PendingDeleteFromDetailKey = "pending_delete_bookmark_id"
 
+private enum class DetailOverlay {
+    NONE,
+    DETAILS,
+    METADATA_EDITOR
+}
+
 @Composable
 fun BookmarkDetailScreen(navHostController: NavController, bookmarkId: String?, showOriginal: Boolean = false) {
     val viewModel: BookmarkDetailViewModel = hiltViewModel()
@@ -195,9 +202,18 @@ fun BookmarkDetailHost(
     val galleryData = viewModel.galleryData.collectAsState().value
     val readerContextMenu = viewModel.readerContextMenu.collectAsState().value
     val readerWebView = remember { mutableStateOf<WebView?>(null) }
-    var showDetailsDialog by remember { mutableStateOf(false) }
+    var detailOverlay by remember { mutableStateOf(DetailOverlay.NONE) }
     var showTypographyPanel by remember { mutableStateOf(false) }
     val lifecycleOwner = LocalLifecycleOwner.current
+
+    BackHandler(enabled = detailOverlay != DetailOverlay.NONE) {
+        detailOverlay = when (detailOverlay) {
+            DetailOverlay.METADATA_EDITOR -> DetailOverlay.DETAILS
+            DetailOverlay.DETAILS -> DetailOverlay.NONE
+            DetailOverlay.NONE -> DetailOverlay.NONE
+        }
+    }
+
     val onClickDeleteBookmark: (String) -> Unit = { id ->
         // Hand off deletion flow to list screen (Gmail-like): immediate back + staged delete there.
         onNavigateBack(id)
@@ -402,15 +418,11 @@ fun BookmarkDetailHost(
                     onArticleSearchActivate = onArticleSearchActivate,
                     uiState = uiState,
                     onClickOpenUrl = onClickOpenUrl,
-                    onShowDetails = { showDetailsDialog = true },
+                    onShowDetails = { detailOverlay = DetailOverlay.DETAILS },
                     onShowHighlights = {
                         dismissPendingDeleteSnackbar()
                         viewModel.showAnnotationsSheet()
                         requestAnnotations(uiState.bookmark.bookmarkId)
-                    },
-                    onRefreshContent = {
-                        dismissPendingDeleteSnackbar()
-                        viewModel.forceRefreshContent()
                     },
                     onScrollProgressChanged = { progress ->
                         viewModel.onScrollProgressChanged(progress)
@@ -426,9 +438,6 @@ fun BookmarkDetailHost(
                     onArticleSearchPrevious = onArticleSearchPrevious,
                     onArticleSearchUpdateResults = onArticleSearchUpdateResults,
                     onShowTypographyPanel = { showTypographyPanel = true },
-                    onTitleChanged = { newTitle ->
-                        viewModel.onUpdateTitle(uiState.bookmark.bookmarkId, newTitle)
-                    },
                     onImageTapped = onImageTapped,
                     onImageLongPress = onImageLongPress,
                     onLinkLongPress = onLinkLongPress,
@@ -502,17 +511,35 @@ fun BookmarkDetailHost(
                     }
                 }
             }
-            if (showDetailsDialog) {
+            if (detailOverlay == DetailOverlay.DETAILS) {
                 BookmarkDetailsDialog(
                     bookmark = uiState.bookmark,
-                    onDismissRequest = { showDetailsDialog = false },
+                    onDismissRequest = { detailOverlay = DetailOverlay.NONE },
                     onLabelsUpdate = { newLabels ->
                         onUpdateLabels(uiState.bookmark.bookmarkId, newLabels)
                     },
                     existingLabels = labelsWithCounts.keys.toList(),
                     onExportDebugJson = { viewModel.onExportDebugJson() },
-                    onClickOpenUrl = onClickOpenUrl,
-                    onClickOpenInBrowser = onClickOpenInBrowser
+                    onClickOpenInBrowser = onClickOpenInBrowser,
+                    onRefreshContent = {
+                        dismissPendingDeleteSnackbar()
+                        viewModel.forceRefreshContent()
+                    },
+                    canRefreshContent = uiState.bookmark.hasContent,
+                    onEditMetadata = {
+                        detailOverlay = DetailOverlay.METADATA_EDITOR
+                    }
+                )
+            }
+            if (detailOverlay == DetailOverlay.METADATA_EDITOR) {
+                BookmarkMetadataEditorDialog(
+                    bookmark = uiState.bookmark,
+                    onDismissRequest = {
+                        detailOverlay = DetailOverlay.DETAILS
+                    },
+                    onSave = { metadata ->
+                        viewModel.onUpdateMetadata(uiState.bookmark.bookmarkId, metadata)
+                    }
                 )
             }
             if (showTypographyPanel) {
@@ -588,7 +615,6 @@ fun BookmarkDetailScreen(
     onArticleSearchActivate: () -> Unit = {},
     onShowDetails: () -> Unit = {},
     onShowHighlights: () -> Unit = {},
-    onRefreshContent: () -> Unit = {},
     onScrollProgressChanged: (Int) -> Unit = {},
     initialReadProgress: Int = 0,
     contentMode: ContentMode = ContentMode.READER,
@@ -601,7 +627,6 @@ fun BookmarkDetailScreen(
     onArticleSearchPrevious: () -> Unit = {},
     onArticleSearchUpdateResults: (Int) -> Unit = {},
     onShowTypographyPanel: () -> Unit = {},
-    onTitleChanged: ((String) -> Unit)? = null,
     onImageTapped: (ImageGalleryData) -> Unit = {},
     onImageLongPress: (imageUrl: String, linkUrl: String?, linkType: String, imageAlt: String) -> Unit = { _, _, _, _ -> },
     onLinkLongPress: (linkUrl: String, linkText: String) -> Unit = { _, _ -> },
@@ -668,7 +693,6 @@ fun BookmarkDetailScreen(
                 onShowTypographyPanel = onShowTypographyPanel,
                 onShowDetails = onShowDetails,
                 onShowHighlights = onShowHighlights,
-                onRefreshContent = onRefreshContent,
                 contentMode = contentMode,
                 onClickToggleRead = onClickToggleRead,
                 onClickShareBookmark = onClickShareBookmark,
@@ -703,7 +727,6 @@ fun BookmarkDetailScreen(
                 contentLoadState = contentLoadState,
                 articleSearchState = articleSearchState,
                 onArticleSearchUpdateResults = onArticleSearchUpdateResults,
-                onTitleChanged = onTitleChanged,
                 onImageTapped = onImageTapped,
                 onImageLongPress = onImageLongPress,
                 onLinkLongPress = onLinkLongPress,
@@ -730,7 +753,6 @@ fun BookmarkDetailContent(
     contentLoadState: ContentLoadState = ContentLoadState.Idle,
     articleSearchState: BookmarkDetailViewModel.ArticleSearchState = BookmarkDetailViewModel.ArticleSearchState(),
     onArticleSearchUpdateResults: (Int) -> Unit = {},
-    onTitleChanged: ((String) -> Unit)? = null,
     onImageTapped: (ImageGalleryData) -> Unit = {},
     onImageLongPress: (imageUrl: String, linkUrl: String?, linkType: String, imageAlt: String) -> Unit = { _, _, _, _ -> },
     onLinkLongPress: (linkUrl: String, linkText: String) -> Unit = { _, _ -> },
@@ -836,9 +858,7 @@ fun BookmarkDetailContent(
                 }
                 BookmarkDetailHeader(
                     modifier = Modifier.fillMaxWidth(contentWidthFraction),
-                    uiState = uiState,
-                    onClickOpenUrl = onClickOpenUrl,
-                    onTitleChanged = onTitleChanged
+                    uiState = uiState
                 )
 
                 if (uiState.bookmark.hasContent) {
@@ -1290,6 +1310,7 @@ private val sampleBookmark = BookmarkDetailViewModel.Bookmark(
     bookmarkId = "1",
     createdDate = "2024-01-15T10:00:00",
     publishedDate = "2024-01-12T08:00:00",
+    publishedDateInput = "01/12/2024",
     url = "https://example.com",
     title = "This is a very long title of a small sample bookmark",
     siteName = "Example",
@@ -1304,6 +1325,7 @@ private val sampleBookmark = BookmarkDetailViewModel.Bookmark(
     articleContent = "articleContent",
     embed = null,
     lang = "en",
+    textDirection = "ltr",
     wordCount = 1500,
     readingTime = 7,
     description = "This is a sample description",

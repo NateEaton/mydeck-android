@@ -384,6 +384,30 @@ interface BookmarkDao {
     @Query("UPDATE bookmarks SET title = :title WHERE id = :id")
     suspend fun updateTitle(id: String, title: String)
 
+    @Query(
+        """
+        UPDATE bookmarks
+        SET title = :title,
+            description = :description,
+            siteName = :siteName,
+            authors = :authors,
+            published = :published,
+            lang = :lang,
+            textDirection = :textDirection
+        WHERE id = :id
+        """
+    )
+    suspend fun updateMetadata(
+        id: String,
+        title: String,
+        description: String,
+        siteName: String,
+        authors: List<String>,
+        published: Instant?,
+        lang: String,
+        textDirection: String
+    )
+
     fun searchBookmarkListItems(
         searchQuery: String,
         type: BookmarkEntity.Type? = null,

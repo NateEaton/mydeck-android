@@ -3,6 +3,7 @@ package com.mydeck.app.domain
 import com.mydeck.app.domain.model.Bookmark
 import com.mydeck.app.domain.model.BookmarkCounts
 import com.mydeck.app.domain.model.BookmarkListItem
+import com.mydeck.app.domain.model.BookmarkMetadataUpdate
 import com.mydeck.app.domain.model.ProgressFilter
 import kotlinx.coroutines.flow.Flow
 
@@ -75,6 +76,7 @@ interface BookmarkRepository {
     fun observeAllLabelsWithCounts(): Flow<Map<String, Int>>
     fun observePendingActionCount(): Flow<Int>
     suspend fun updateTitle(bookmarkId: String, title: String): UpdateResult
+    suspend fun updateMetadata(bookmarkId: String, metadata: BookmarkMetadataUpdate): UpdateResult
     suspend fun renameLabel(oldLabel: String, newLabel: String): UpdateResult
     suspend fun deleteLabel(label: String): UpdateResult
     suspend fun fetchRawBookmarkJson(bookmarkId: String): String?

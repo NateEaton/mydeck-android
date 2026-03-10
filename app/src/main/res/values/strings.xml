@@ -124,6 +124,7 @@ other{}
     <string name="action_view_video">View video</string>
     <string name="action_view_photograph">View photograph</string>
     <string name="edit_title">Edit title</string>
+    <string name="action_edit_metadata">Edit metadata</string>
     <string name="action_increase_text_size">Increase text size</string>
     <string name="action_decrease_text_size">Decrease text size</string>
     <string name="action_search_in_article">Find in article</string>
@@ -229,6 +230,10 @@ other{}
 
     <!-- Bookmark Details Dialog -->
     <string name="detail_dialog_title">Details</string>
+    <string name="detail_description">Description</string>
+    <string name="detail_site_name">Site name</string>
+    <string name="detail_authors">Authors</string>
+    <string name="detail_text_direction">Text direction</string>
     <string name="detail_type">Type</string>
     <string name="detail_language">Language</string>
     <string name="detail_word_count">Word Count</string>
@@ -246,6 +251,10 @@ other{}
     <string name="detail_labels">Labels</string>
     <string name="detail_label_placeholder">Add label</string>
     <string name="remove_label">Remove label</string>
+    <string name="metadata_one_value_per_line">One value per line</string>
+    <string name="metadata_text_direction_auto">Automatic</string>
+    <string name="metadata_text_direction_ltr">Left to right</string>
+    <string name="metadata_text_direction_rtl">Right to left</string>
 
     <!-- Labels View -->
     <string name="bookmark_labels">Bookmark labels</string>

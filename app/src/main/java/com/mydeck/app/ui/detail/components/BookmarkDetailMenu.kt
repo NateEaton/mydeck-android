@@ -19,7 +19,6 @@ import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.FormatColorFill
 import androidx.compose.material.icons.outlined.Info
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -49,7 +48,6 @@ fun BookmarkDetailMenu(
     onClickDeleteBookmark: (String) -> Unit,
     onShowDetails: () -> Unit = {},
     onShowHighlights: () -> Unit = {},
-    onRefreshContent: () -> Unit = {},
     onClickOpenInBrowser: (String) -> Unit = {},
     contentMode: ContentMode = ContentMode.READER,
     onContentModeChange: (ContentMode) -> Unit = {}
@@ -75,19 +73,6 @@ fun BookmarkDetailMenu(
                     },
                     leadingIcon = {
                         Icon(Icons.Outlined.FormatColorFill, contentDescription = null)
-                    }
-                )
-            }
-
-            if (uiState.bookmark.articleContent != null && contentMode == ContentMode.READER) {
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.action_refresh_content)) },
-                    onClick = {
-                        onRefreshContent()
-                        expanded = false
-                    },
-                    leadingIcon = {
-                        Icon(Icons.Filled.Refresh, contentDescription = null)
                     }
                 )
             }

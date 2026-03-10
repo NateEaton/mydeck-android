@@ -30,6 +30,7 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Subject
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Public
+import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Launch
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
@@ -40,7 +41,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -66,6 +66,7 @@ import com.mydeck.app.BuildConfig
 import com.mydeck.app.R
 import com.mydeck.app.ui.list.LabelPickerBottomSheet
 import com.mydeck.app.ui.list.LabelPickerMode
+import java.net.URI
 import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
@@ -76,8 +77,10 @@ fun BookmarkDetailsDialog(
     onLabelsUpdate: (List<String>) -> Unit = {},
     existingLabels: List<String> = emptyList(),
     onExportDebugJson: () -> Unit = {},
-    onClickOpenUrl: (String) -> Unit = {},
-    onClickOpenInBrowser: (String) -> Unit = {}
+    onClickOpenInBrowser: (String) -> Unit = {},
+    onRefreshContent: () -> Unit = {},
+    canRefreshContent: Boolean = false,
+    onEditMetadata: () -> Unit = {}
 ) {
     var labels by remember { mutableStateOf(bookmark.labels.toMutableList()) }
 
@@ -121,6 +124,11 @@ fun BookmarkDetailsDialog(
                 )
             }
 
+            EditableTitleRow(
+                title = bookmark.title,
+                onClick = onEditMetadata
+            )
+
             // Site and Publication Date
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -145,7 +153,6 @@ fun BookmarkDetailsDialog(
                 )
             }
 
-            // Saved date
             MetadataFieldWithIcon(
                 icon = Icons.Filled.Download,
                 value = bookmark.createdDate,
@@ -173,12 +180,12 @@ fun BookmarkDetailsDialog(
                 )
             }
 
-            // External link
+            val rootUrl = remember(bookmark.url) { bookmark.url.toRootUrl() }
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(vertical = 8.dp)
-                    .clickable { onClickOpenInBrowser(bookmark.url) },
+                    .clickable { onClickOpenInBrowser(rootUrl) },
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
@@ -189,7 +196,7 @@ fun BookmarkDetailsDialog(
                     tint = MaterialTheme.colorScheme.primary
                 )
                 Text(
-                    text = bookmark.siteName,
+                    text = rootUrl,
                     style = MaterialTheme.typography.bodyMedium.copy(
                         color = MaterialTheme.colorScheme.primary,
                         textDecoration = androidx.compose.ui.text.style.TextDecoration.Underline
@@ -197,7 +204,6 @@ fun BookmarkDetailsDialog(
                 )
             }
 
-            // Reading time
             bookmark.readingTime?.let { time ->
                 if (time > 0) {
                     MetadataFieldWithIcon(
@@ -219,34 +225,6 @@ fun BookmarkDetailsDialog(
                 }
             }
 
-            // Language (only show if different from system language)
-            val systemLanguage = Locale.getDefault().language
-            if (bookmark.lang.isNotBlank() &&
-                bookmark.lang != "Unknown" &&
-                bookmark.lang != systemLanguage) {
-                val languageDisplayName = try {
-                    Locale.forLanguageTag(bookmark.lang).displayLanguage
-                } catch (e: Exception) {
-                    bookmark.lang
-                }
-                MetadataFieldWithIcon(
-                    icon = Icons.Filled.Language,
-                    value = languageDisplayName,
-                    contentDescription = stringResource(R.string.detail_language)
-                )
-            }
-
-            // Description
-            if (bookmark.description.isNotBlank()) {
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = bookmark.description,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.fillMaxWidth()
-                )
-            }
-
             Spacer(modifier = Modifier.height(8.dp))
 
             // Labels Section
@@ -263,6 +241,22 @@ fun BookmarkDetailsDialog(
                 }
             )
 
+            if (canRefreshContent) {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(onClick = onRefreshContent),
+                    shape = MaterialTheme.shapes.medium
+                ) {
+                    Text(
+                        text = stringResource(R.string.action_refresh_content),
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
+                    )
+                }
+            }
+
             // Debug Info Section (only show in debug builds)
             if (BuildConfig.DEBUG && bookmark.debugInfo.isNotBlank()) {
                 DebugInfoSection(
@@ -271,6 +265,35 @@ fun BookmarkDetailsDialog(
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun EditableTitleRow(
+    title: String,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Icon(
+            imageVector = Icons.Outlined.Edit,
+            contentDescription = stringResource(R.string.action_edit_metadata),
+            modifier = Modifier.size(20.dp),
+            tint = MaterialTheme.colorScheme.primary
+        )
+        Text(
+            text = title,
+            style = MaterialTheme.typography.bodyMedium.copy(
+                fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
+            ),
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.weight(1f)
+        )
     }
 }
 
@@ -544,6 +567,7 @@ fun BookmarkDetailsDialogPreview() {
         bookmarkId = "1",
         createdDate = "2024-01-15",
         publishedDate = "2024-01-12",
+        publishedDateInput = "01/12/2024",
         url = "https://example.com",
         title = "Sample Bookmark",
         siteName = "Example",
@@ -558,6 +582,7 @@ fun BookmarkDetailsDialogPreview() {
         articleContent = null,
         embed = null,
         lang = "English",
+        textDirection = "ltr",
         wordCount = 1500,
         readingTime = 7,
         description = "This is a sample description for the bookmark",
@@ -569,6 +594,20 @@ fun BookmarkDetailsDialogPreview() {
     BookmarkDetailsDialog(
         bookmark = sampleBookmark,
         onDismissRequest = {},
-        onLabelsUpdate = {}
+        onLabelsUpdate = {},
+        onEditMetadata = {}
     )
+}
+
+private fun String.toRootUrl(): String {
+    return try {
+        val uri = URI(this)
+        if (uri.scheme != null && uri.host != null) {
+            "${uri.scheme}://${uri.host}"
+        } else {
+            this
+        }
+    } catch (_: Exception) {
+        this
+    }
 }
