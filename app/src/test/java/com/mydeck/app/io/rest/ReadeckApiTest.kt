@@ -64,32 +64,6 @@ class ReadeckApiTest {
     }
 
     @Test
-    fun testSuccessfulAuthentication() = runTest {
-        mockWebServer.enqueue(MockResponse()
-            .setResponseCode(HttpURLConnection.HTTP_OK)
-            .addHeader("Content-Type", "application/json")
-            .setBody(loadJsonFromClasspath("api/auth.json"))
-        )
-        val response = readeckApi.authenticate(AuthenticationRequestDto("test", "test", "test"))
-        assertEquals(true, response.isSuccessful)
-        assertEquals(200, response.code())
-        assertEquals("theId", response.body()?.id)
-        assertEquals("theToken", response.body()?.token)
-    }
-
-    @Test
-    fun testFailedAuthentication() = runTest {
-        mockWebServer.enqueue(MockResponse()
-            .setResponseCode(HttpURLConnection.HTTP_FORBIDDEN)
-            .addHeader("Content-Type", "application/json")
-            .setBody(loadJsonFromClasspath("api/auth-failure.json"))
-        )
-        val response = readeckApi.authenticate(AuthenticationRequestDto("test", "test", "test"))
-        assertEquals(false, response.isSuccessful)
-        assertEquals(403, response.code())
-    }
-
-    @Test
     fun testSuccessfulEditBookmark() = runTest {
         mockWebServer.enqueue(MockResponse()
             .setResponseCode(HttpURLConnection.HTTP_OK)

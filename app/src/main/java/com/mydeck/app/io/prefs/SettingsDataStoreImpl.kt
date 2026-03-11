@@ -6,7 +6,6 @@ import androidx.core.content.edit
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
-import dagger.hilt.android.qualifiers.ApplicationContext
 import com.mydeck.app.BuildConfig
 import com.mydeck.app.domain.model.AutoSyncTimeframe
 import com.mydeck.app.domain.model.CachedServerInfo
@@ -18,11 +17,12 @@ import com.mydeck.app.domain.model.TypographySettings
 import com.mydeck.app.domain.sync.ContentSyncConstraints
 import com.mydeck.app.domain.sync.ContentSyncMode
 import com.mydeck.app.domain.sync.DateRangeParams
-import kotlinx.datetime.LocalDate
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.datetime.Instant
+import kotlinx.datetime.LocalDate
 import timber.log.Timber
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -32,11 +32,11 @@ class SettingsDataStoreImpl @Inject constructor(@ApplicationContext private val 
     SettingsDataStore {
 
     private val encryptedSharedPreferences = EncryptionHelper.getEncryptedSharedPreferences(context)
+    private val userPreferences = context.getSharedPreferences(USER_PREFERENCES_FILE_NAME, Context.MODE_PRIVATE)
 
     private val KEY_USERNAME = stringPreferencesKey("username")
     private val KEY_TOKEN = stringPreferencesKey("token")
     private val KEY_URL = stringPreferencesKey("url")
-    private val KEY_PASSWORD = stringPreferencesKey("password")
     private val KEY_LAST_BOOKMARK_TIMESTAMP = stringPreferencesKey("lastBookmarkTimestamp")
     private val KEY_LAST_SYNC_TIMESTAMP = stringPreferencesKey("lastSyncTimestamp")
     private val KEY_LAST_CONTENT_SYNC_TIMESTAMP = stringPreferencesKey("lastContentSyncTimestamp")
@@ -59,7 +59,6 @@ class SettingsDataStoreImpl @Inject constructor(@ApplicationContext private val 
     private val KEY_SEPIA_ENABLED = booleanPreferencesKey("sepia_enabled")
     private val KEY_KEEP_SCREEN_ON_READING = booleanPreferencesKey("keep_screen_on_reading")
 
-    // Typography settings keys
     private val KEY_TYPO_FONT_SIZE = intPreferencesKey("typography_font_size_percent")
     private val KEY_TYPO_FONT_FAMILY = stringPreferencesKey("typography_font_family")
     private val KEY_TYPO_LINE_SPACING = stringPreferencesKey("typography_line_spacing")
@@ -67,36 +66,15 @@ class SettingsDataStoreImpl @Inject constructor(@ApplicationContext private val 
     private val KEY_TYPO_JUSTIFIED = booleanPreferencesKey("typography_justified")
     private val KEY_TYPO_HYPHENATION = booleanPreferencesKey("typography_hyphenation")
 
-    // Server info caching keys
     private val KEY_SERVER_INFO_CANONICAL = stringPreferencesKey("server_info_canonical")
     private val KEY_SERVER_INFO_RELEASE = stringPreferencesKey("server_info_release")
     private val KEY_SERVER_INFO_BUILD = stringPreferencesKey("server_info_build")
     private val KEY_SERVER_INFO_FEATURES = stringPreferencesKey("server_info_features")
 
     init {
-        // Migration: Theme.SEPIA was previously stored as a Theme enum value.
-        // Migrate to Theme.LIGHT + sepiaEnabled=true so the two preferences are independent.
-        val storedTheme = encryptedSharedPreferences.getString(KEY_THEME.name, null)
-        if (storedTheme == "SEPIA") {
-            encryptedSharedPreferences.edit(commit = true) {
-                putString(KEY_THEME.name, Theme.LIGHT.name)
-                putBoolean(KEY_SEPIA_ENABLED.name, true)
-            }
-        }
-    }
-
-    override fun saveUsername(username: String) {
-        Timber.d("saveUsername")
-        encryptedSharedPreferences.edit {
-            putString(KEY_USERNAME.name, username)
-        }
-    }
-
-    override fun savePassword(password: String) {
-        Timber.d("savePassword")
-        encryptedSharedPreferences.edit {
-            putString(KEY_PASSWORD.name, password)
-        }
+        migrateLegacySepiaSetting(encryptedSharedPreferences)
+        migrateNonSensitivePreferencesIfNeeded()
+        migrateLegacySepiaSetting(userPreferences)
     }
 
     override fun saveToken(token: String) {
@@ -188,103 +166,107 @@ class SettingsDataStoreImpl @Inject constructor(@ApplicationContext private val 
     }
 
     override suspend fun isAutoSyncEnabled(): Boolean {
-        return encryptedSharedPreferences.getBoolean(KEY_AUTOSYNC_ENABLED.name, false)
+        return userPreferences.getBoolean(KEY_AUTOSYNC_ENABLED.name, false)
     }
 
     override suspend fun setAutoSyncEnabled(isEnabled: Boolean) {
-        encryptedSharedPreferences.edit {
+        userPreferences.edit {
             putBoolean(KEY_AUTOSYNC_ENABLED.name, isEnabled)
         }
     }
 
     override suspend fun getAutoSyncTimeframe(): AutoSyncTimeframe {
-        return encryptedSharedPreferences.getString(KEY_AUTOSYNC_TIMEFRAME.name, AutoSyncTimeframe.MANUAL.name)?.let {
+        return userPreferences.getString(KEY_AUTOSYNC_TIMEFRAME.name, AutoSyncTimeframe.MANUAL.name)?.let {
             AutoSyncTimeframe.valueOf(it)
         } ?: AutoSyncTimeframe.MANUAL
     }
 
     override suspend fun saveAutoSyncTimeframe(autoSyncTimeframe: AutoSyncTimeframe) {
         Timber.d("saveAutoSyncTimeframe")
-        encryptedSharedPreferences.edit {
+        userPreferences.edit {
             putString(KEY_AUTOSYNC_TIMEFRAME.name, autoSyncTimeframe.name)
         }
     }
 
     override suspend fun getTheme(): Theme {
-        return encryptedSharedPreferences.getString(KEY_THEME.name, Theme.SYSTEM.name)?.let {
-            try { Theme.valueOf(it) } catch (_: IllegalArgumentException) { Theme.LIGHT }
+        return userPreferences.getString(KEY_THEME.name, Theme.SYSTEM.name)?.let {
+            try {
+                Theme.valueOf(it)
+            } catch (_: IllegalArgumentException) {
+                Theme.LIGHT
+            }
         } ?: Theme.SYSTEM
     }
 
     override suspend fun saveTheme(theme: Theme) {
-        encryptedSharedPreferences.edit {
+        userPreferences.edit {
             putString(KEY_THEME.name, theme.name)
         }
     }
 
     override suspend fun saveSepiaEnabled(enabled: Boolean) {
-        encryptedSharedPreferences.edit {
+        userPreferences.edit {
             putBoolean(KEY_SEPIA_ENABLED.name, enabled)
         }
     }
 
     override suspend fun isSepiaEnabled(): Boolean {
-        return encryptedSharedPreferences.getBoolean(KEY_SEPIA_ENABLED.name, false)
+        return userPreferences.getBoolean(KEY_SEPIA_ENABLED.name, false)
     }
 
     override suspend fun saveKeepScreenOnWhileReading(enabled: Boolean) {
-        encryptedSharedPreferences.edit {
+        userPreferences.edit {
             putBoolean(KEY_KEEP_SCREEN_ON_READING.name, enabled)
         }
     }
 
     override suspend fun isKeepScreenOnWhileReading(): Boolean {
-        return encryptedSharedPreferences.getBoolean(KEY_KEEP_SCREEN_ON_READING.name, true)
+        return userPreferences.getBoolean(KEY_KEEP_SCREEN_ON_READING.name, true)
     }
 
     override suspend fun getZoomFactor(): Int {
-        return encryptedSharedPreferences.getInt(KEY_ZOOM_FACTOR.name, 100)
+        return userPreferences.getInt(KEY_ZOOM_FACTOR.name, 100)
     }
 
     override suspend fun saveZoomFactor(zoomFactor: Int) {
-        encryptedSharedPreferences.edit {
+        userPreferences.edit {
             putInt(KEY_ZOOM_FACTOR.name, zoomFactor.coerceIn(25, 400))
         }
     }
 
     override suspend fun setSyncOnAppOpenEnabled(isEnabled: Boolean) {
-        encryptedSharedPreferences.edit {
+        userPreferences.edit {
             putBoolean(KEY_SYNC_ON_APP_OPEN.name, isEnabled)
         }
     }
 
     override suspend fun isSyncOnAppOpenEnabled(): Boolean {
-        return encryptedSharedPreferences.getBoolean(KEY_SYNC_ON_APP_OPEN.name, true)
+        return userPreferences.getBoolean(KEY_SYNC_ON_APP_OPEN.name, true)
     }
 
     override suspend fun setSyncNotificationsEnabled(isEnabled: Boolean) {
-        encryptedSharedPreferences.edit {
+        userPreferences.edit {
             putBoolean(KEY_SYNC_NOTIFICATIONS_ENABLED.name, isEnabled)
         }
     }
 
     override suspend fun isSyncNotificationsEnabled(): Boolean {
-        return encryptedSharedPreferences.getBoolean(KEY_SYNC_NOTIFICATIONS_ENABLED.name, true)
+        return userPreferences.getBoolean(KEY_SYNC_NOTIFICATIONS_ENABLED.name, true)
     }
 
-    override val tokenFlow = getStringFlow(KEY_TOKEN.name, null)
-    override val usernameFlow = getStringFlow(KEY_USERNAME.name, null)
-    override val urlFlow = getStringFlow(KEY_URL.name, null)
-    override val passwordFlow = getStringFlow(KEY_PASSWORD.name, null)
-    override val themeFlow = getStringFlow(KEY_THEME.name, Theme.SYSTEM.name)
-    override val zoomFactorFlow = getIntFlow(KEY_ZOOM_FACTOR.name, 100)
-    override val sepiaEnabledFlow = getBooleanFlow(KEY_SEPIA_ENABLED.name, false)
-    override val keepScreenOnWhileReadingFlow = getBooleanFlow(KEY_KEEP_SCREEN_ON_READING.name, true)
+    override val tokenFlow = getStringFlow(encryptedSharedPreferences, KEY_TOKEN.name, null)
+    override val usernameFlow = getStringFlow(encryptedSharedPreferences, KEY_USERNAME.name, null)
+    override val urlFlow = getStringFlow(encryptedSharedPreferences, KEY_URL.name, null)
+    override val themeFlow = getStringFlow(userPreferences, KEY_THEME.name, Theme.SYSTEM.name)
+    override val zoomFactorFlow = getIntFlow(userPreferences, KEY_ZOOM_FACTOR.name, 100)
+    override val sepiaEnabledFlow = getBooleanFlow(userPreferences, KEY_SEPIA_ENABLED.name, false)
+    override val keepScreenOnWhileReadingFlow =
+        getBooleanFlow(userPreferences, KEY_KEEP_SCREEN_ON_READING.name, true)
+
     override suspend fun clearCredentials() {
         Timber.d("clearCredentials")
         encryptedSharedPreferences.edit(commit = true) {
             remove(KEY_USERNAME.name)
-            remove(KEY_PASSWORD.name)
             remove(KEY_TOKEN.name)
             remove(KEY_URL.name)
         }
@@ -294,118 +276,142 @@ class SettingsDataStoreImpl @Inject constructor(@ApplicationContext private val 
     override suspend fun saveCredentials(
         url: String,
         username: String,
-        password: String,
         token: String
     ) {
         Timber.d("saveCredentials")
         encryptedSharedPreferences.edit {
             putString(KEY_URL.name, url)
             putString(KEY_USERNAME.name, username)
-            putString(KEY_PASSWORD.name, password)
             putString(KEY_TOKEN.name, token)
         }
     }
 
-    private fun getStringFlow(key: String, defaultValue: String? = null): StateFlow<String?> =
-        preferenceFlow(key) { encryptedSharedPreferences.getString(key, defaultValue) }
+    private fun getStringFlow(
+        preferences: SharedPreferences,
+        key: String,
+        defaultValue: String? = null
+    ): StateFlow<String?> = preferenceFlow(preferences, key) {
+        preferences.getString(key, defaultValue)
+    }
 
-    private fun getIntFlow(key: String, defaultValue: Int = 100): StateFlow<Int> =
-        preferenceFlow(key) { encryptedSharedPreferences.getInt(key, defaultValue) }
+    private fun getIntFlow(
+        preferences: SharedPreferences,
+        key: String,
+        defaultValue: Int
+    ): StateFlow<Int> = preferenceFlow(preferences, key) {
+        preferences.getInt(key, defaultValue)
+    }
 
-    private fun getBooleanFlow(key: String, defaultValue: Boolean = false): StateFlow<Boolean> =
-        preferenceFlow(key) { encryptedSharedPreferences.getBoolean(key, defaultValue) }
+    private fun getBooleanFlow(
+        preferences: SharedPreferences,
+        key: String,
+        defaultValue: Boolean
+    ): StateFlow<Boolean> = preferenceFlow(preferences, key) {
+        preferences.getBoolean(key, defaultValue)
+    }
 
-    private fun <T> preferenceFlow(key: String, getValue: () -> T): StateFlow<T> {
+    private fun <T> preferenceFlow(
+        preferences: SharedPreferences,
+        key: String,
+        getValue: () -> T
+    ): StateFlow<T> {
         val state = MutableStateFlow(getValue())
 
         val listener = SharedPreferences.OnSharedPreferenceChangeListener { _, changedKey ->
-            if (changedKey == key) {  // Only send updates for this specific key
+            if (changedKey == key) {
                 Timber.d("pref changed key=$key")
-                val value = getValue()
-                state.value = value
+                state.value = getValue()
             }
         }
 
-        encryptedSharedPreferences.registerOnSharedPreferenceChangeListener(listener) // Register the listener
+        preferences.registerOnSharedPreferenceChangeListener(listener)
         return state.asStateFlow()
     }
 
     override suspend fun saveLayoutMode(layoutMode: String) {
-        encryptedSharedPreferences.edit {
+        userPreferences.edit {
             putString(KEY_LAYOUT_MODE.name, layoutMode)
         }
     }
 
     override suspend fun getLayoutMode(): String? {
-        return encryptedSharedPreferences.getString(KEY_LAYOUT_MODE.name, null)
+        return userPreferences.getString(KEY_LAYOUT_MODE.name, null)
     }
 
     override suspend fun saveSortOption(sortOption: String) {
-        encryptedSharedPreferences.edit {
+        userPreferences.edit {
             putString(KEY_SORT_OPTION.name, sortOption)
         }
     }
 
     override suspend fun getSortOption(): String? {
-        return encryptedSharedPreferences.getString(KEY_SORT_OPTION.name, null)
+        return userPreferences.getString(KEY_SORT_OPTION.name, null)
     }
 
     override suspend fun saveLogRetentionDays(days: Int) {
-        encryptedSharedPreferences.edit {
+        userPreferences.edit {
             putInt(KEY_LOG_RETENTION_DAYS.name, days)
         }
     }
 
     override suspend fun getLogRetentionDays(): Int {
-        return encryptedSharedPreferences.getInt(KEY_LOG_RETENTION_DAYS.name, defaultLogRetentionDays())
+        return userPreferences.getInt(KEY_LOG_RETENTION_DAYS.name, defaultLogRetentionDays())
     }
 
     override fun getLogRetentionDaysFlow(): StateFlow<Int> =
-        getIntFlow(KEY_LOG_RETENTION_DAYS.name, defaultLogRetentionDays())
+        getIntFlow(userPreferences, KEY_LOG_RETENTION_DAYS.name, defaultLogRetentionDays())
 
     override suspend fun getContentSyncMode(): ContentSyncMode {
-        return encryptedSharedPreferences.getString(KEY_CONTENT_SYNC_MODE.name, ContentSyncMode.MANUAL.name)?.let {
-            try { ContentSyncMode.valueOf(it) } catch (_: Exception) { ContentSyncMode.MANUAL }
+        return userPreferences.getString(KEY_CONTENT_SYNC_MODE.name, ContentSyncMode.MANUAL.name)?.let {
+            try {
+                ContentSyncMode.valueOf(it)
+            } catch (_: Exception) {
+                ContentSyncMode.MANUAL
+            }
         } ?: ContentSyncMode.MANUAL
     }
 
     override suspend fun saveContentSyncMode(mode: ContentSyncMode) {
-        encryptedSharedPreferences.edit {
+        userPreferences.edit {
             putString(KEY_CONTENT_SYNC_MODE.name, mode.name)
         }
     }
 
     override suspend fun getContentSyncConstraints(): ContentSyncConstraints {
         return ContentSyncConstraints(
-            wifiOnly = encryptedSharedPreferences.getBoolean(KEY_WIFI_ONLY.name, true),
-            allowOnBatterySaver = encryptedSharedPreferences.getBoolean(KEY_ALLOW_BATTERY_SAVER.name, false)
+            wifiOnly = userPreferences.getBoolean(KEY_WIFI_ONLY.name, true),
+            allowOnBatterySaver = userPreferences.getBoolean(KEY_ALLOW_BATTERY_SAVER.name, false)
         )
     }
 
     override suspend fun saveWifiOnly(enabled: Boolean) {
-        encryptedSharedPreferences.edit {
+        userPreferences.edit {
             putBoolean(KEY_WIFI_ONLY.name, enabled)
         }
     }
 
     override suspend fun saveAllowBatterySaver(enabled: Boolean) {
-        encryptedSharedPreferences.edit {
+        userPreferences.edit {
             putBoolean(KEY_ALLOW_BATTERY_SAVER.name, enabled)
         }
     }
 
     override suspend fun getDateRangeParams(): DateRangeParams? {
-        val from = encryptedSharedPreferences.getString(KEY_DATE_RANGE_FROM.name, null)
-        val to = encryptedSharedPreferences.getString(KEY_DATE_RANGE_TO.name, null)
+        val from = userPreferences.getString(KEY_DATE_RANGE_FROM.name, null)
+        val to = userPreferences.getString(KEY_DATE_RANGE_TO.name, null)
         return if (from != null && to != null) {
             try {
                 DateRangeParams(from = LocalDate.parse(from), to = LocalDate.parse(to))
-            } catch (_: Exception) { null }
-        } else null
+            } catch (_: Exception) {
+                null
+            }
+        } else {
+            null
+        }
     }
 
     override suspend fun saveDateRangeParams(params: DateRangeParams) {
-        encryptedSharedPreferences.edit {
+        userPreferences.edit {
             putString(KEY_DATE_RANGE_FROM.name, params.from.toString())
             putString(KEY_DATE_RANGE_TO.name, params.to.toString())
         }
@@ -419,29 +425,49 @@ class SettingsDataStoreImpl @Inject constructor(@ApplicationContext private val 
         return BuildConfig.DEBUG || BuildConfig.BUILD_TYPE.contains("debug", ignoreCase = true)
     }
 
-    // Typography settings implementation
     private val _typographySettingsFlow = MutableStateFlow(readTypographySettings())
 
     override val typographySettingsFlow: StateFlow<TypographySettings> =
         _typographySettingsFlow.asStateFlow()
 
     private fun readTypographySettings(): TypographySettings {
-        val fontFamilyStr = encryptedSharedPreferences.getString(KEY_TYPO_FONT_FAMILY.name, ReaderFontFamily.SYSTEM_DEFAULT.name) ?: ReaderFontFamily.SYSTEM_DEFAULT.name
-        val lineSpacingStr = encryptedSharedPreferences.getString(KEY_TYPO_LINE_SPACING.name, LineSpacing.TIGHT.name) ?: LineSpacing.TIGHT.name
-        val textWidthStr = encryptedSharedPreferences.getString(KEY_TYPO_TEXT_WIDTH.name, TextWidth.WIDE.name) ?: TextWidth.WIDE.name
+        val fontFamilyStr = userPreferences.getString(
+            KEY_TYPO_FONT_FAMILY.name,
+            ReaderFontFamily.SYSTEM_DEFAULT.name
+        ) ?: ReaderFontFamily.SYSTEM_DEFAULT.name
+        val lineSpacingStr = userPreferences.getString(
+            KEY_TYPO_LINE_SPACING.name,
+            LineSpacing.TIGHT.name
+        ) ?: LineSpacing.TIGHT.name
+        val textWidthStr = userPreferences.getString(
+            KEY_TYPO_TEXT_WIDTH.name,
+            TextWidth.WIDE.name
+        ) ?: TextWidth.WIDE.name
 
         return TypographySettings(
-            fontSizePercent = encryptedSharedPreferences.getInt(KEY_TYPO_FONT_SIZE.name, 100),
-            fontFamily = try { ReaderFontFamily.valueOf(fontFamilyStr) } catch (e: IllegalArgumentException) { ReaderFontFamily.SYSTEM_DEFAULT },
-            lineSpacing = try { LineSpacing.valueOf(lineSpacingStr) } catch (e: IllegalArgumentException) { LineSpacing.TIGHT },
-            textWidth = try { TextWidth.valueOf(textWidthStr) } catch (e: IllegalArgumentException) { TextWidth.WIDE },
-            justified = encryptedSharedPreferences.getBoolean(KEY_TYPO_JUSTIFIED.name, false),
-            hyphenation = encryptedSharedPreferences.getBoolean(KEY_TYPO_HYPHENATION.name, false)
+            fontSizePercent = userPreferences.getInt(KEY_TYPO_FONT_SIZE.name, 100),
+            fontFamily = try {
+                ReaderFontFamily.valueOf(fontFamilyStr)
+            } catch (_: IllegalArgumentException) {
+                ReaderFontFamily.SYSTEM_DEFAULT
+            },
+            lineSpacing = try {
+                LineSpacing.valueOf(lineSpacingStr)
+            } catch (_: IllegalArgumentException) {
+                LineSpacing.TIGHT
+            },
+            textWidth = try {
+                TextWidth.valueOf(textWidthStr)
+            } catch (_: IllegalArgumentException) {
+                TextWidth.WIDE
+            },
+            justified = userPreferences.getBoolean(KEY_TYPO_JUSTIFIED.name, false),
+            hyphenation = userPreferences.getBoolean(KEY_TYPO_HYPHENATION.name, false)
         )
     }
 
     override suspend fun saveTypographySettings(settings: TypographySettings) {
-        encryptedSharedPreferences.edit {
+        userPreferences.edit {
             putInt(KEY_TYPO_FONT_SIZE.name, settings.fontSizePercent)
             putString(KEY_TYPO_FONT_FAMILY.name, settings.fontFamily.name)
             putString(KEY_TYPO_LINE_SPACING.name, settings.lineSpacing.name)
@@ -449,8 +475,6 @@ class SettingsDataStoreImpl @Inject constructor(@ApplicationContext private val 
             putBoolean(KEY_TYPO_JUSTIFIED.name, settings.justified)
             putBoolean(KEY_TYPO_HYPHENATION.name, settings.hyphenation)
         }
-        // Directly update the flow — the preferenceFlow listener approach doesn't work
-        // because individual keys are written, not the composite "typography_settings" key
         _typographySettingsFlow.value = settings
     }
 
@@ -465,7 +489,7 @@ class SettingsDataStoreImpl @Inject constructor(@ApplicationContext private val 
 
     override suspend fun getServerInfo(): CachedServerInfo? {
         val canonical = encryptedSharedPreferences.getString(KEY_SERVER_INFO_CANONICAL.name, null)
-        if (canonical == null) return null
+            ?: return null
 
         val release = encryptedSharedPreferences.getString(KEY_SERVER_INFO_RELEASE.name, "")!!
         val build = encryptedSharedPreferences.getString(KEY_SERVER_INFO_BUILD.name, "")!!
@@ -491,5 +515,70 @@ class SettingsDataStoreImpl @Inject constructor(@ApplicationContext private val 
 
     private fun annotationSnapshotKey(bookmarkId: String): String {
         return "cached_annotation_snapshot_$bookmarkId"
+    }
+
+    private fun migrateLegacySepiaSetting(preferences: SharedPreferences) {
+        val storedTheme = preferences.getString(KEY_THEME.name, null)
+        if (storedTheme == "SEPIA") {
+            preferences.edit(commit = true) {
+                putString(KEY_THEME.name, Theme.LIGHT.name)
+                putBoolean(KEY_SEPIA_ENABLED.name, true)
+            }
+        }
+    }
+
+    private fun migrateNonSensitivePreferencesIfNeeded() {
+        if (userPreferences.getBoolean(KEY_UI_PREFS_MIGRATED, false)) {
+            return
+        }
+
+        userPreferences.edit(commit = true) {
+            migrateBooleanPreference(this, KEY_AUTOSYNC_ENABLED.name)
+            migrateStringPreference(this, KEY_AUTOSYNC_TIMEFRAME.name)
+            migrateStringPreference(this, KEY_THEME.name)
+            migrateIntPreference(this, KEY_ZOOM_FACTOR.name)
+            migrateBooleanPreference(this, KEY_SYNC_ON_APP_OPEN.name)
+            migrateBooleanPreference(this, KEY_SYNC_NOTIFICATIONS_ENABLED.name)
+            migrateStringPreference(this, KEY_LAYOUT_MODE.name)
+            migrateStringPreference(this, KEY_SORT_OPTION.name)
+            migrateIntPreference(this, KEY_LOG_RETENTION_DAYS.name)
+            migrateStringPreference(this, KEY_CONTENT_SYNC_MODE.name)
+            migrateBooleanPreference(this, KEY_WIFI_ONLY.name)
+            migrateBooleanPreference(this, KEY_ALLOW_BATTERY_SAVER.name)
+            migrateStringPreference(this, KEY_DATE_RANGE_FROM.name)
+            migrateStringPreference(this, KEY_DATE_RANGE_TO.name)
+            migrateBooleanPreference(this, KEY_SEPIA_ENABLED.name)
+            migrateBooleanPreference(this, KEY_KEEP_SCREEN_ON_READING.name)
+            migrateIntPreference(this, KEY_TYPO_FONT_SIZE.name)
+            migrateStringPreference(this, KEY_TYPO_FONT_FAMILY.name)
+            migrateStringPreference(this, KEY_TYPO_LINE_SPACING.name)
+            migrateStringPreference(this, KEY_TYPO_TEXT_WIDTH.name)
+            migrateBooleanPreference(this, KEY_TYPO_JUSTIFIED.name)
+            migrateBooleanPreference(this, KEY_TYPO_HYPHENATION.name)
+            putBoolean(KEY_UI_PREFS_MIGRATED, true)
+        }
+    }
+
+    private fun migrateStringPreference(editor: SharedPreferences.Editor, key: String) {
+        if (!userPreferences.contains(key) && encryptedSharedPreferences.contains(key)) {
+            editor.putString(key, encryptedSharedPreferences.getString(key, null))
+        }
+    }
+
+    private fun migrateBooleanPreference(editor: SharedPreferences.Editor, key: String) {
+        if (!userPreferences.contains(key) && encryptedSharedPreferences.contains(key)) {
+            editor.putBoolean(key, encryptedSharedPreferences.getBoolean(key, false))
+        }
+    }
+
+    private fun migrateIntPreference(editor: SharedPreferences.Editor, key: String) {
+        if (!userPreferences.contains(key) && encryptedSharedPreferences.contains(key)) {
+            editor.putInt(key, encryptedSharedPreferences.getInt(key, 0))
+        }
+    }
+
+    companion object {
+        private const val USER_PREFERENCES_FILE_NAME = "user_preferences"
+        private const val KEY_UI_PREFS_MIGRATED = "ui_prefs_migrated"
     }
 }

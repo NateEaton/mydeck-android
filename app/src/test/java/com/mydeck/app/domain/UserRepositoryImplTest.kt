@@ -6,8 +6,6 @@ import com.mydeck.app.domain.model.User
 import com.mydeck.app.domain.usecase.OAuthDeviceAuthorizationUseCase
 import com.mydeck.app.io.prefs.SettingsDataStore
 import com.mydeck.app.io.rest.ReadeckApi
-import com.mydeck.app.io.rest.model.AuthenticationRequestDto
-import com.mydeck.app.io.rest.model.AuthenticationResponseDto
 import com.mydeck.app.io.rest.model.OAuthRevokeRequestDto
 import com.mydeck.app.io.rest.model.ProviderDto
 import com.mydeck.app.io.rest.model.ReaderSettingsDto
@@ -51,7 +49,6 @@ class UserRepositoryImplTest {
     // MutableStateFlows for testing
     private lateinit var urlFlow: MutableStateFlow<String?>
     private lateinit var usernameFlow: MutableStateFlow<String?>
-    private lateinit var passwordFlow: MutableStateFlow<String?>
     private lateinit var tokenFlow: MutableStateFlow<String?>
 
     @Before
@@ -65,13 +62,11 @@ class UserRepositoryImplTest {
         // Initialize MutableStateFlows
         urlFlow = MutableStateFlow(null)
         usernameFlow = MutableStateFlow(null)
-        passwordFlow = MutableStateFlow(null)
         tokenFlow = MutableStateFlow(null)
 
         // Mock SettingsDataStore to return the MutableStateFlows
         every { settingsDataStore.urlFlow } returns urlFlow
         every { settingsDataStore.usernameFlow } returns usernameFlow
-        every { settingsDataStore.passwordFlow } returns passwordFlow
         every { settingsDataStore.tokenFlow } returns tokenFlow
 
         userRepository = UserRepositoryImpl(settingsDataStore, readeckApi, json, oauthDeviceAuthUseCase)
@@ -89,7 +84,7 @@ class UserRepositoryImplTest {
         val username = "testuser"
         val token = "testtoken"
 
-        // Emit values to the MutableStateFlows (note: passwordFlow is ignored in OAuth)
+        // Emit values to the MutableStateFlows
         urlFlow.value = url
         usernameFlow.value = username
         tokenFlow.value = token
@@ -98,7 +93,7 @@ class UserRepositoryImplTest {
         val result = userRepository.observeAuthenticationDetails().first()
 
         // Assert
-        assertEquals(AuthenticationDetails(url, username, "", token), result) // Password is empty for OAuth
+        assertEquals(AuthenticationDetails(url, username, token), result)
     }
 
     @Test
@@ -106,7 +101,6 @@ class UserRepositoryImplTest {
         // Arrange
         urlFlow.value = "https://example.com"
         usernameFlow.value = "testuser"
-        // Note: passwordFlow is ignored in OAuth, so we test missing token instead
         tokenFlow.value = null // Missing token
 
         // Act
@@ -124,13 +118,11 @@ class UserRepositoryImplTest {
         // Arrange
         val url = "https://example.com"
         val username = "testuser"
-        val password = "testpassword"
         val token = "testtoken"
 
         // Emit values to the MutableStateFlows
         urlFlow.value = url
         usernameFlow.value = username
-        passwordFlow.value = password
         tokenFlow.value = token
 
         // Act
@@ -145,7 +137,6 @@ class UserRepositoryImplTest {
         // Arrange
         urlFlow.value = "https://example.com"
         usernameFlow.value = "testuser"
-        // Note: passwordFlow is ignored in OAuth, so we test missing token instead
         tokenFlow.value = null // Missing token
 
         // Act
@@ -160,7 +151,6 @@ class UserRepositoryImplTest {
         // Arrange
         urlFlow.value = "https://example.com"
         usernameFlow.value = "testuser"
-        // Note: passwordFlow is ignored in OAuth, so we test missing token instead
         tokenFlow.value = null // Missing token
 
         // Act
@@ -177,7 +167,7 @@ class UserRepositoryImplTest {
         val url = "https://example.com"
         val token = "testtoken"
 
-        // Emit values to the MutableStateFlows (note: passwordFlow is ignored in OAuth)
+        // Emit values to the MutableStateFlows
         urlFlow.value = url
         usernameFlow.value = username
         tokenFlow.value = token
@@ -288,7 +278,7 @@ class UserRepositoryImplTest {
 
         coEvery { settingsDataStore.saveToken(token) } returns Unit
         coEvery { readeckApi.userprofile() } returns Response.success(userProfile)
-        coEvery { settingsDataStore.saveCredentials(url, username, "", token) } returns Unit
+        coEvery { settingsDataStore.saveCredentials(url, username, token) } returns Unit
 
         // Act
         val result = userRepository.completeLogin(url, token)
@@ -297,7 +287,7 @@ class UserRepositoryImplTest {
         assertEquals(UserRepository.LoginResult.Success, result)
         coVerify { settingsDataStore.saveToken(token) }
         coVerify { readeckApi.userprofile() }
-        coVerify { settingsDataStore.saveCredentials(url, username, "", token) }
+        coVerify { settingsDataStore.saveCredentials(url, username, token) }
     }
 
     @Test
@@ -320,7 +310,7 @@ class UserRepositoryImplTest {
     }
 
     @Test
-    fun `observeAuthenticationDetails returns AuthenticationDetails with empty password for OAuth`() = runTest {
+    fun `observeAuthenticationDetails returns OAuth authentication details`() = runTest {
         // Arrange
         val url = "https://example.com"
         val username = "testuser"
@@ -335,6 +325,6 @@ class UserRepositoryImplTest {
         val result = userRepository.observeAuthenticationDetails().first()
 
         // Assert
-        assertEquals(AuthenticationDetails(url, username, "", token), result) // Password is empty for OAuth
+        assertEquals(AuthenticationDetails(url, username, token), result)
     }
 }

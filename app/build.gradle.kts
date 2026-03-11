@@ -9,6 +9,29 @@ plugins {
     alias(libs.plugins.aboutLibraries)
 }
 
+fun booleanBuildFlag(propertyName: String, envName: String): Boolean {
+    val configuredValue = providers.gradleProperty(propertyName).orNull ?: System.getenv(envName)
+    return configuredValue?.equals("true", ignoreCase = true) == true
+}
+
+fun networkSecurityConfigRef(allowHttp: Boolean, allowUserCa: Boolean): String = when {
+    allowHttp && allowUserCa -> "@xml/network_security_config_insecure"
+    allowHttp -> "@xml/network_security_config_http"
+    allowUserCa -> "@xml/network_security_config_user_ca"
+    else -> "@xml/network_security_config"
+}
+
+// Release builds stay secure by default. Self-hosted users can opt into weaker
+// network policy in custom builds via Gradle properties or matching env vars.
+val allowInsecureHttpRelease = booleanBuildFlag(
+    propertyName = "allowInsecureHttpRelease",
+    envName = "ALLOW_INSECURE_HTTP_RELEASE"
+)
+val allowUserCaRelease = booleanBuildFlag(
+    propertyName = "allowUserCaRelease",
+    envName = "ALLOW_USER_CA_RELEASE"
+)
+
 android {
     namespace = "com.mydeck.app"
     compileSdk = 35
@@ -52,6 +75,12 @@ android {
             isMinifyEnabled = true
             isShrinkResources = true
             isDebuggable = false
+            manifestPlaceholders["networkSecurityConfig"] = networkSecurityConfigRef(
+                allowHttp = allowInsecureHttpRelease,
+                allowUserCa = allowUserCaRelease
+            )
+            buildConfigField("boolean", "ALLOW_INSECURE_HTTP", allowInsecureHttpRelease.toString())
+            buildConfigField("boolean", "ALLOW_USER_CA_CERTIFICATES", allowUserCaRelease.toString())
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -61,6 +90,12 @@ android {
             isMinifyEnabled = false
             isShrinkResources = false
             isDebuggable = true
+            manifestPlaceholders["networkSecurityConfig"] = networkSecurityConfigRef(
+                allowHttp = true,
+                allowUserCa = true
+            )
+            buildConfigField("boolean", "ALLOW_INSECURE_HTTP", "true")
+            buildConfigField("boolean", "ALLOW_USER_CA_CERTIFICATES", "true")
         }
     }
 

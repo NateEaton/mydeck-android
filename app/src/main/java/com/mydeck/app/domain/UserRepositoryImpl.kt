@@ -27,8 +27,7 @@ class UserRepositoryImpl @Inject constructor(
 ) : UserRepository {
 
     /**
-     * Updated to no longer require password — with OAuth, password is stored as empty string.
-     * Checks url + username + token (ignores password).
+     * OAuth authentication only requires url + username + token.
      */
     override fun observeAuthenticationDetails(): Flow<AuthenticationDetails?> =
         combine(
@@ -37,7 +36,7 @@ class UserRepositoryImpl @Inject constructor(
             settingsDataStore.tokenFlow
         ) { url, username, token ->
             if (url != null && username != null && token != null) {
-                AuthenticationDetails(url, username, "", token)
+                AuthenticationDetails(url, username, token)
             } else {
                 null
             }
@@ -132,7 +131,6 @@ class UserRepositoryImpl @Inject constructor(
                 settingsDataStore.saveCredentials(
                     url = url,
                     username = username,
-                    password = "", // No password with OAuth
                     token = token
                 )
                 Timber.i("Login completed successfully for user: $username")
@@ -197,4 +195,3 @@ class UserRepositoryImpl @Inject constructor(
         if (it != null) User(it.username) else null
     }
 }
-

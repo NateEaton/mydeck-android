@@ -2,6 +2,7 @@ package com.mydeck.app.ui.settings
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.mydeck.app.BuildConfig
 import com.mydeck.app.domain.BookmarkRepository
 import com.mydeck.app.domain.UserRepository
 import com.mydeck.app.domain.model.OAuthDeviceAuthorizationState
@@ -293,6 +294,6 @@ class AccountSettingsViewModel @Inject constructor(
     }
 
     private fun isValidUrlForCurrentSettings(url: String?): Boolean {
-        return url.isValidUrl()
+        return url.isValidUrl(allowHttp = BuildConfig.ALLOW_INSECURE_HTTP)
     }
 }
