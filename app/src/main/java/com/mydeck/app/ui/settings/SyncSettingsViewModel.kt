@@ -600,6 +600,7 @@ data class AutoSyncTimeframeOption(
 fun AutoSyncTimeframe.toLabelResource(): Int {
     return when (this) {
         AutoSyncTimeframe.MANUAL -> R.string.auto_sync_timeframe_manual
+        AutoSyncTimeframe.MINUTES_15 -> R.string.auto_sync_timeframe_15_minutes
         AutoSyncTimeframe.HOURS_01 -> R.string.auto_sync_timeframe_01_hours
         AutoSyncTimeframe.HOURS_06 -> R.string.auto_sync_timeframe_06_hours
         AutoSyncTimeframe.HOURS_12 -> R.string.auto_sync_timeframe_12_hours

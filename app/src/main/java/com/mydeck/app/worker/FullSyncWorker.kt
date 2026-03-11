@@ -37,10 +37,11 @@ class FullSyncWorker @AssistedInject constructor(
             val lastSyncTimestamp = settingsDataStore.getLastSyncTimestamp()
             val lastFullSyncTimestamp = settingsDataStore.getLastFullSyncTimestamp()
 
-            // Step 1: Determine if we need a full sync for deletion detection
+            // Step 1: Handle deletions via delta sync or periodic full sync
             val forceFullSync = inputData.getBoolean(INPUT_FORCE_FULL_SYNC, false)
             val needsFullSync = forceFullSync || lastFullSyncTimestamp == null ||
-                Clock.System.now() - lastFullSyncTimestamp > FULL_SYNC_INTERVAL
+                lastSyncTimestamp == null ||
+                Clock.System.now() - (lastFullSyncTimestamp ?: kotlinx.datetime.Instant.DISTANT_PAST) > FULL_SYNC_INTERVAL
 
             var syncResult = if (needsFullSync) {
                 Timber.d("Performing full sync for deletion detection")
@@ -50,9 +51,21 @@ class FullSyncWorker @AssistedInject constructor(
                 }
                 result
             } else {
-                // Skip deletion detection - we did a full sync recently
-                Timber.d("Skipping deletion check (last full sync was recent)")
-                SyncResult.Success(countDeleted = 0)
+                // Prefer delta sync for efficiency
+                Timber.d("Performing delta sync since=$lastSyncTimestamp")
+                val deltaResult = bookmarkRepository.performDeltaSync(lastSyncTimestamp)
+
+                // If delta sync fails, fall back to full sync
+                if (deltaResult is SyncResult.Error) {
+                    Timber.w("Delta sync failed (code=${deltaResult.code}), falling back to full sync")
+                    val result = bookmarkRepository.performFullSync()
+                    if (result is SyncResult.Success) {
+                        settingsDataStore.saveLastFullSyncTimestamp(Clock.System.now())
+                    }
+                    result
+                } else {
+                    deltaResult
+                }
             }
 
             // Check if deletion sync failed
@@ -78,8 +91,9 @@ class FullSyncWorker @AssistedInject constructor(
                     Result.failure()
                 }
                 is LoadBookmarksUseCase.UseCaseResult.Success -> {
-                    // Save the current timestamp after successful sync
-                    settingsDataStore.saveLastSyncTimestamp(Clock.System.now())
+                    // Prefer server event time from delta sync to avoid clock skew issues
+                    val syncTime = (syncResult as? SyncResult.Success)?.maxServerTime ?: Clock.System.now()
+                    settingsDataStore.saveLastSyncTimestamp(syncTime)
                     Result.success(
                         Data.Builder().putInt(OUTPUT_DATA_COUNT, (syncResult as SyncResult.Success).countDeleted).build()
                     )
@@ -130,6 +144,6 @@ class FullSyncWorker @AssistedInject constructor(
         const val NOTIFICATION_ID = 0
         const val INPUT_IS_MANUAL_SYNC = "is_manual_sync"
         const val INPUT_FORCE_FULL_SYNC = "force_full_sync"
-        val FULL_SYNC_INTERVAL = 24.hours  // Run full sync once per day
+        val FULL_SYNC_INTERVAL = 168.hours  // Weekly safety fallback (delta sync handles deletions otherwise)
     }
 }

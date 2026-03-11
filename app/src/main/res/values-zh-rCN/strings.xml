@@ -112,6 +112,7 @@
     <string name="settings_sync_support_text">为了保持您的书签列表最新，应用会定期检查并删除您在 Readedeck 服务器上已删除的书签。由于此过程需要下载所有书签数据，它会在后台自动运行。这有助于确保您的应用准确反映当前的 Readedeck 书签，而无需您手动删除。</string>
     <string name="settings_sync_dialog_support_text">后台同步的频率应多久？</string>
     <string name="auto_sync_timeframe_manual">手动</string>
+    <string name="auto_sync_timeframe_15_minutes">Every 15 minutes</string>
     <string name="auto_sync_timeframe_01_hours">每小时</string>
     <string name="auto_sync_timeframe_06_hours">每 6 小时</string>
     <string name="auto_sync_timeframe_12_hours">每 12 小时</string>

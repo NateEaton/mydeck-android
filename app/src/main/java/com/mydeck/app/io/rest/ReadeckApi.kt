@@ -18,7 +18,6 @@ import com.mydeck.app.io.rest.model.OAuthTokenRequestDto
 import com.mydeck.app.io.rest.model.OAuthTokenResponseDto
 import com.mydeck.app.io.rest.model.ServerInfoDto
 import com.mydeck.app.io.rest.model.StatusMessageDto
-import com.mydeck.app.io.rest.model.SyncContentRequestDto
 import com.mydeck.app.io.rest.model.SyncStatusDto
 import com.mydeck.app.io.rest.model.UpdateAnnotationDto
 import com.mydeck.app.io.rest.model.UserProfileDto
@@ -48,10 +47,6 @@ interface ReadeckApi {
         @Query("since") since: String?  // ISO 8601 formatted timestamp
     ): Response<List<SyncStatusDto>>
 
-    @POST("bookmarks/sync")
-    suspend fun syncContent(
-        @Body body: SyncContentRequestDto
-    ): Response<List<BookmarkDto>>
 
     @GET("info")
     suspend fun getInfo(): Response<ServerInfoDto>

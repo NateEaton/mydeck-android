@@ -40,6 +40,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
@@ -109,6 +110,14 @@ class BookmarkListViewModel @Inject constructor(
          // Handle shared text if any
         savedStateHandle.get<String>("sharedText")?.let { sharedText ->
             openCreateBookmarkDialog(sharedText)
+        }
+
+        // Sync on app open (delta sync for deletions + incremental load for updates)
+        viewModelScope.launch {
+            val url = settingsDataStore.urlFlow.first()
+            if (!url.isNullOrBlank()) {
+                loadBookmarks(false)
+            }
         }
     }
 

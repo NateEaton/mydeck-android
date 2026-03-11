@@ -120,6 +120,7 @@ other{}
     <string name="settings_sync_support_text">Para mantener la lista de tus marcadores actualizada, la aplicación verifica ocasionalmente y borra marcadores que hayas borrado en el servidor de Readeck. Como este proceso requiere descargar toda la información de los marcadores, corre automáticamente en segundo plano. Esto ayuda a que la aplicación refleje los marcadores actuales de Readeck sin que tengas que borrarlos manualmente.</string>
     <string name="settings_sync_dialog_support_text">¿Cuan seguido debe realizarse la sincronización en segundo plano?</string>
     <string name="auto_sync_timeframe_manual">Manual</string>
+    <string name="auto_sync_timeframe_15_minutes">Every 15 minutes</string>
     <string name="auto_sync_timeframe_01_hours">Cada hora</string>
     <string name="auto_sync_timeframe_06_hours">Cada 6 horas</string>
     <string name="auto_sync_timeframe_12_hours">Cada 12 horas</string>
