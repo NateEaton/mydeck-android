@@ -725,9 +725,15 @@ class BookmarkRepositoryImpl @Inject constructor(
                 bookmarkDao.deleteBookmark(id)
             }
 
-            Timber.i("Delta sync complete: ${deletedIds.size} deleted, ${syncStatuses.size - deletedIds.size} updated")
+            // Extract the max server event time for accurate sync cursor
+            val maxServerTime = syncStatuses
+                .mapNotNull { it.time }
+                .mapNotNull { runCatching { kotlinx.datetime.Instant.parse(it) }.getOrNull() }
+                .maxOrNull()
 
-            BookmarkRepository.SyncResult.Success(countDeleted = deletedIds.size)
+            Timber.i("Delta sync complete: ${deletedIds.size} deleted, ${syncStatuses.size - deletedIds.size} updated, maxServerTime=$maxServerTime")
+
+            BookmarkRepository.SyncResult.Success(countDeleted = deletedIds.size, maxServerTime = maxServerTime)
         } catch (e: IOException) {
             Timber.e(e, "Network error during delta sync: ${e.message}")
             BookmarkRepository.SyncResult.NetworkError(errorMessage = "Network error during delta sync", ex = e)

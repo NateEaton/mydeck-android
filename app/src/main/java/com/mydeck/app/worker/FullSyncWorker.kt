@@ -91,8 +91,9 @@ class FullSyncWorker @AssistedInject constructor(
                     Result.failure()
                 }
                 is LoadBookmarksUseCase.UseCaseResult.Success -> {
-                    // Save the current timestamp after successful sync
-                    settingsDataStore.saveLastSyncTimestamp(Clock.System.now())
+                    // Prefer server event time from delta sync to avoid clock skew issues
+                    val syncTime = (syncResult as? SyncResult.Success)?.maxServerTime ?: Clock.System.now()
+                    settingsDataStore.saveLastSyncTimestamp(syncTime)
                     Result.success(
                         Data.Builder().putInt(OUTPUT_DATA_COUNT, (syncResult as SyncResult.Success).countDeleted).build()
                     )

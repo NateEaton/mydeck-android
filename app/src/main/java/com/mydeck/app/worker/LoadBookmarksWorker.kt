@@ -61,7 +61,7 @@ class LoadBookmarksWorker @AssistedInject constructor(
                 val deltaResult = bookmarkRepository.performDeltaSync(syncSince)
                 when (deltaResult) {
                     is BookmarkRepository.SyncResult.Success -> {
-                        settingsDataStore.saveLastSyncTimestamp(Clock.System.now())
+                        settingsDataStore.saveLastSyncTimestamp(deltaResult.maxServerTime ?: Clock.System.now())
                         if (deltaResult.countDeleted > 0) {
                             Timber.i("Delta sync removed ${deltaResult.countDeleted} deleted bookmarks")
                         }
