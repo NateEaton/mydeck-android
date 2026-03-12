@@ -14,6 +14,7 @@ interface SettingsDataStore {
     val tokenFlow: StateFlow<String?>
     val usernameFlow: StateFlow<String?>
     val urlFlow: StateFlow<String?>
+    val initialSyncPerformedFlow: StateFlow<Boolean>
     val themeFlow: StateFlow<String?>
     val zoomFactorFlow: StateFlow<Int>
     fun saveToken(token: String)

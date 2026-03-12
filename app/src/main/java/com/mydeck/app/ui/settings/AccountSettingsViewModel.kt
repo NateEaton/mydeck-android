@@ -2,8 +2,8 @@ package com.mydeck.app.ui.settings
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import android.content.Context
 import com.mydeck.app.BuildConfig
-import com.mydeck.app.domain.BookmarkRepository
 import com.mydeck.app.domain.UserRepository
 import com.mydeck.app.domain.model.OAuthDeviceAuthorizationState
 import com.mydeck.app.domain.usecase.OAuthDeviceAuthorizationUseCase
@@ -11,9 +11,10 @@ import com.mydeck.app.io.prefs.SettingsDataStore
 import com.mydeck.app.worker.LoadBookmarksWorker
 import com.mydeck.app.util.isValidUrl
 import com.mydeck.app.coroutine.ApplicationScope
+import androidx.work.WorkInfo
+import androidx.work.WorkManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
-import android.content.Context
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -25,16 +26,16 @@ import kotlinx.coroutines.launch
 import timber.log.Timber
 import javax.inject.Inject
 import kotlinx.datetime.Clock
-import kotlinx.datetime.Instant
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
+import java.util.UUID
 
 @HiltViewModel
 class AccountSettingsViewModel @Inject constructor(
     private val settingsDataStore: SettingsDataStore,
     private val userRepository: UserRepository,
     private val oauthDeviceAuthUseCase: OAuthDeviceAuthorizationUseCase,
-    private val bookmarkRepository: BookmarkRepository,
+    private val workManager: WorkManager,
     @ApplicationContext private val context: Context,
     @ApplicationScope private val applicationScope: CoroutineScope
 ) : ViewModel() {
@@ -208,22 +209,50 @@ class AccountSettingsViewModel @Inject constructor(
     }
 
     /**
-     * Post-login tasks: clear stale data, reset sync timestamp, and trigger initial bookmark load.
+     * Post-login tasks: reset initial-sync completion and trigger the first bookmark load.
      */
     private suspend fun onLoginSuccess() {
-        bookmarkRepository.deleteAllBookmarks()
-        settingsDataStore.saveLastBookmarkTimestamp(Instant.fromEpochMilliseconds(0))
-        LoadBookmarksWorker.enqueue(context, isInitialLoad = true)
-        settingsDataStore.setInitialSyncPerformed(true)
+        settingsDataStore.setInitialSyncPerformed(false)
+        val initialSyncWorkId = LoadBookmarksWorker.enqueue(context, isInitialLoad = true)
+
+        if (waitForInitialSync(initialSyncWorkId) == WorkInfo.State.SUCCEEDED) {
+            _uiState.update {
+                it.copy(
+                    authStatus = AuthStatus.Success,
+                    isLoggedIn = true,
+                    deviceAuthState = null
+                )
+            }
+            _navigationEvent.value = NavigationEvent.NavigateToBookmarkList
+            return
+        }
 
         _uiState.update {
             it.copy(
-                authStatus = AuthStatus.Success,
+                authStatus = AuthStatus.Error("Initial sync failed. Please check your connection and try again."),
                 isLoggedIn = true,
                 deviceAuthState = null
             )
         }
-        _navigationEvent.value = NavigationEvent.NavigateToBookmarkList
+    }
+
+    private suspend fun waitForInitialSync(workId: UUID): WorkInfo.State {
+        while (true) {
+            val workInfo = workManager.getWorkInfoById(workId).get()
+            if (workInfo == null) {
+                delay(250)
+                continue
+            }
+
+            when (workInfo.state) {
+                WorkInfo.State.SUCCEEDED,
+                WorkInfo.State.FAILED,
+                WorkInfo.State.CANCELLED -> return workInfo.state
+                WorkInfo.State.ENQUEUED,
+                WorkInfo.State.RUNNING,
+                WorkInfo.State.BLOCKED -> delay(250)
+            }
+        }
     }
 
     fun cancelAuthorization() {

@@ -1,12 +1,14 @@
 package com.mydeck.app.ui.settings
 
 import com.mydeck.app.R
-import com.mydeck.app.domain.BookmarkRepository
 import com.mydeck.app.domain.UserRepository
 import com.mydeck.app.domain.model.OAuthDeviceAuthorizationState
 import com.mydeck.app.domain.usecase.OAuthDeviceAuthorizationUseCase
 import com.mydeck.app.io.prefs.SettingsDataStore
 import android.content.Context
+import androidx.work.WorkInfo
+import androidx.work.WorkManager
+import com.google.common.util.concurrent.Futures
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -15,6 +17,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.flow.take
@@ -42,7 +45,7 @@ class AccountSettingsViewModelTest {
     private lateinit var settingsDataStore: SettingsDataStore
     private lateinit var userRepository: UserRepository
     private lateinit var oauthDeviceAuthUseCase: OAuthDeviceAuthorizationUseCase
-    private lateinit var bookmarkRepository: BookmarkRepository
+    private lateinit var workManager: WorkManager
     private lateinit var context: Context
     private lateinit var applicationScope: CoroutineScope
     private lateinit var viewModel: AccountSettingsViewModel
@@ -54,12 +57,14 @@ class AccountSettingsViewModelTest {
         settingsDataStore = mockk()
         userRepository = mockk(relaxed = true)
         oauthDeviceAuthUseCase = mockk()
-        bookmarkRepository = mockk()
+        workManager = mockk()
         context = mockk()
         applicationScope = TestScope(testDispatcher)
         
         every { settingsDataStore.urlFlow } returns MutableStateFlow("")
         every { settingsDataStore.tokenFlow } returns MutableStateFlow(null)
+        every { workManager.getWorkInfosForUniqueWorkFlow(any()) } returns flowOf(emptyList())
+        every { workManager.getWorkInfoById(any()) } returns Futures.immediateFuture(null)
         coEvery { settingsDataStore.clearCredentials() } returns Unit
         coEvery { userRepository.logout() } returns UserRepository.LogoutResult.Success
         
@@ -67,7 +72,7 @@ class AccountSettingsViewModelTest {
             settingsDataStore = settingsDataStore,
             userRepository = userRepository,
             oauthDeviceAuthUseCase = oauthDeviceAuthUseCase,
-            bookmarkRepository = bookmarkRepository,
+            workManager = workManager,
             context = context,
             applicationScope = applicationScope
         )
@@ -86,7 +91,7 @@ class AccountSettingsViewModelTest {
             settingsDataStore = settingsDataStore,
             userRepository = userRepository,
             oauthDeviceAuthUseCase = oauthDeviceAuthUseCase,
-            bookmarkRepository = bookmarkRepository,
+            workManager = workManager,
             context = context,
             applicationScope = applicationScope
         )
@@ -108,7 +113,7 @@ class AccountSettingsViewModelTest {
             settingsDataStore = settingsDataStore,
             userRepository = userRepository,
             oauthDeviceAuthUseCase = oauthDeviceAuthUseCase,
-            bookmarkRepository = bookmarkRepository,
+            workManager = workManager,
             context = context,
             applicationScope = applicationScope
         )

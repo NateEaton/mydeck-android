@@ -21,6 +21,8 @@ import kotlinx.coroutines.withContext
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import timber.log.Timber
+import java.io.IOException
+import java.util.UUID
 
 @HiltWorker
 class LoadBookmarksWorker @AssistedInject constructor(
@@ -73,11 +75,18 @@ class LoadBookmarksWorker @AssistedInject constructor(
 
         return when (val result = loadBookmarksUseCase.execute()) {
             is LoadBookmarksUseCase.UseCaseResult.Success -> {
+                if (!settingsDataStore.isInitialSyncPerformed()) {
+                    settingsDataStore.setInitialSyncPerformed(true)
+                }
                 Result.success()
             }
             is LoadBookmarksUseCase.UseCaseResult.Error -> {
                 Timber.e(result.exception, "Error loading bookmarks")
-                Result.failure() // Or Result.retry() depending on the error
+                if (result.exception is IOException) {
+                    Result.retry()
+                } else {
+                    Result.failure()
+                }
             }
         }
     }
@@ -99,8 +108,9 @@ class LoadBookmarksWorker @AssistedInject constructor(
         const val PARAM_IS_INITIAL_LOAD = "isInitialLoad"
         const val UNIQUE_WORK_NAME = "LoadBookmarksSync"
 
-        fun enqueue(context: Context, isInitialLoad: Boolean = false) {
+        fun enqueue(context: Context, isInitialLoad: Boolean = false): UUID {
             val data = Data.Builder().putBoolean(PARAM_IS_INITIAL_LOAD, isInitialLoad).build()
+            val policy = if (isInitialLoad) ExistingWorkPolicy.REPLACE else ExistingWorkPolicy.KEEP
 
             val request = OneTimeWorkRequestBuilder<LoadBookmarksWorker>()
                 .setInputData(data)
@@ -112,8 +122,9 @@ class LoadBookmarksWorker @AssistedInject constructor(
                 .build()
 
             WorkManager.getInstance(context)
-                .enqueueUniqueWork(UNIQUE_WORK_NAME, ExistingWorkPolicy.KEEP, request)
+                .enqueueUniqueWork(UNIQUE_WORK_NAME, policy, request)
 
+            return request.id
         }
     }
 }

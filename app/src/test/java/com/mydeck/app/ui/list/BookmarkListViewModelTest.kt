@@ -46,6 +46,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import java.util.UUID
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class BookmarkListViewModelTest {
@@ -62,6 +63,7 @@ class BookmarkListViewModelTest {
     private lateinit var connectivityMonitor: ConnectivityMonitor
 
     private lateinit var workInfoFlow: Flow<List<WorkInfo>>
+    private lateinit var initialSyncPerformedFlow: MutableStateFlow<Boolean>
 
     @Before
     fun setup() {
@@ -76,15 +78,21 @@ class BookmarkListViewModelTest {
         connectivityMonitor = mockk()
 
         workInfoFlow = flowOf(emptyList())
+        initialSyncPerformedFlow = MutableStateFlow(false)
         mockkObject(LoadBookmarksWorker.Companion)
-        every { LoadBookmarksWorker.enqueue(any(), any()) } just Runs
+        every { LoadBookmarksWorker.enqueue(any(), any()) } returns UUID.randomUUID()
         mockkObject(CreateBookmarkWorker.Companion)
         every { CreateBookmarkWorker.enqueue(any(), any(), any(), any(), any()) } just Runs
 
         every { bookmarkRepository.searchBookmarkListItems(any(), any(), any(), any(), any(), any(), any()) } returns flowOf(emptyList())
 
         // Default Mocking Behavior
-        coEvery { settingsDataStore.isInitialSyncPerformed() } returns true // Assume sync is done
+        every { settingsDataStore.initialSyncPerformedFlow } returns initialSyncPerformedFlow
+        coEvery { settingsDataStore.isInitialSyncPerformed() } answers { initialSyncPerformedFlow.value }
+        coEvery { settingsDataStore.setInitialSyncPerformed(any()) } answers {
+            initialSyncPerformedFlow.value = firstArg()
+            Unit
+        }
         coEvery { settingsDataStore.isSyncOnAppOpenEnabled() } returns false // Disable sync on app open by default
         every { fullSyncUseCase.performFullSync() } returns Unit
         // Use any() for all arguments to be safe, then specialize
@@ -127,6 +135,34 @@ class BookmarkListViewModelTest {
         // Since we emit empty list by default from mock, and filter/query are empty/default,
         // it should be Loading state.
         assertEquals(BookmarkListViewModel.UiState.Loading, viewModel.uiState.value)
+    }
+
+    @Test
+    fun `initial sync failure shows loading error instead of empty list`() = runTest {
+        val failedWorkInfo = mockk<WorkInfo> {
+            every { state } returns WorkInfo.State.FAILED
+        }
+        workInfoFlow = flowOf(listOf(failedWorkInfo))
+        every { workManager.getWorkInfosForUniqueWorkFlow(any()) } returns workInfoFlow
+        initialSyncPerformedFlow.value = false
+
+        viewModel = BookmarkListViewModel(
+            updateBookmarkUseCase,
+            fullSyncUseCase,
+            workManager,
+            bookmarkRepository,
+            context,
+            settingsDataStore,
+            savedStateHandle,
+            connectivityMonitor
+        )
+
+        advanceUntilIdle()
+
+        assertEquals(
+            BookmarkListViewModel.UiState.Empty(R.string.list_view_empty_error_loading_bookmarks),
+            viewModel.uiState.value
+        )
     }
 
     @Test

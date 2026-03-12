@@ -257,6 +257,8 @@ class SettingsDataStoreImpl @Inject constructor(@ApplicationContext private val 
     override val tokenFlow = getStringFlow(encryptedSharedPreferences, KEY_TOKEN.name, null)
     override val usernameFlow = getStringFlow(encryptedSharedPreferences, KEY_USERNAME.name, null)
     override val urlFlow = getStringFlow(encryptedSharedPreferences, KEY_URL.name, null)
+    override val initialSyncPerformedFlow =
+        getBooleanFlow(encryptedSharedPreferences, KEY_INITIAL_SYNC_PERFORMED, false)
     override val themeFlow = getStringFlow(userPreferences, KEY_THEME.name, Theme.SYSTEM.name)
     override val zoomFactorFlow = getIntFlow(userPreferences, KEY_ZOOM_FACTOR.name, 100)
     override val sepiaEnabledFlow = getBooleanFlow(userPreferences, KEY_SEPIA_ENABLED.name, false)
@@ -269,6 +271,7 @@ class SettingsDataStoreImpl @Inject constructor(@ApplicationContext private val 
             remove(KEY_USERNAME.name)
             remove(KEY_TOKEN.name)
             remove(KEY_URL.name)
+            remove(KEY_INITIAL_SYNC_PERFORMED)
         }
         clearServerInfo()
     }
