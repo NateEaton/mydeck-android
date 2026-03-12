@@ -33,6 +33,7 @@ class SettingsDataStoreImpl @Inject constructor(@ApplicationContext private val 
 
     private val encryptedSharedPreferences = EncryptionHelper.getEncryptedSharedPreferences(context)
     private val userPreferences = context.getSharedPreferences(USER_PREFERENCES_FILE_NAME, Context.MODE_PRIVATE)
+    private val preferenceChangeListeners = mutableListOf<SharedPreferences.OnSharedPreferenceChangeListener>()
 
     private val KEY_USERNAME = stringPreferencesKey("username")
     private val KEY_TOKEN = stringPreferencesKey("token")
@@ -328,6 +329,7 @@ class SettingsDataStoreImpl @Inject constructor(@ApplicationContext private val 
         }
 
         preferences.registerOnSharedPreferenceChangeListener(listener)
+        preferenceChangeListeners += listener
         return state.asStateFlow()
     }
 

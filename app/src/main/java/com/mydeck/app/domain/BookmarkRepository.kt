@@ -87,7 +87,11 @@ interface BookmarkRepository {
         data class NetworkError(val errorMessage: String, val ex: Exception?): UpdateResult()
     }
     sealed class SyncResult {
-        data class Success(val countDeleted: Int, val maxServerTime: kotlinx.datetime.Instant? = null): SyncResult()
+        data class Success(
+            val countDeleted: Int,
+            val countUpdated: Int = 0,
+            val maxServerTime: kotlinx.datetime.Instant? = null
+        ): SyncResult()
         data class Error(val errorMessage: String, val code: Int? = null, val ex: Exception? = null): SyncResult()
         data class NetworkError(val errorMessage: String, val ex: Exception?): SyncResult()
     }

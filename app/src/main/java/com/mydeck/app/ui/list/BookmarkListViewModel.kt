@@ -115,7 +115,8 @@ class BookmarkListViewModel @Inject constructor(
         // Sync on app open (delta sync for deletions + incremental load for updates)
         viewModelScope.launch {
             val url = settingsDataStore.urlFlow.first()
-            if (!url.isNullOrBlank()) {
+            val syncOnAppOpenEnabled = settingsDataStore.isSyncOnAppOpenEnabled()
+            if (!url.isNullOrBlank() && syncOnAppOpenEnabled) {
                 loadBookmarks(false)
             }
         }

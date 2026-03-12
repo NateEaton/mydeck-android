@@ -23,6 +23,7 @@ import io.mockk.just
 import io.mockk.mockk
 import io.mockk.mockkObject
 import io.mockk.unmockkObject
+import io.mockk.verify
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -182,6 +183,48 @@ class BookmarkListViewModelTest {
         )
         // Just verify that it doesn't throw an exception for now
         viewModel.onPullToRefresh()
+    }
+
+    @Test
+    fun `sync on app open enqueues worker when enabled and url is configured`() = runTest {
+        every { settingsDataStore.urlFlow } returns MutableStateFlow("https://example.com")
+        coEvery { settingsDataStore.isSyncOnAppOpenEnabled() } returns true
+
+        viewModel = BookmarkListViewModel(
+            updateBookmarkUseCase,
+            fullSyncUseCase,
+            workManager,
+            bookmarkRepository,
+            context,
+            settingsDataStore,
+            savedStateHandle,
+            connectivityMonitor
+        )
+
+        advanceUntilIdle()
+
+        verify(exactly = 1) { LoadBookmarksWorker.enqueue(context, false) }
+    }
+
+    @Test
+    fun `sync on app open does not enqueue worker when disabled`() = runTest {
+        every { settingsDataStore.urlFlow } returns MutableStateFlow("https://example.com")
+        coEvery { settingsDataStore.isSyncOnAppOpenEnabled() } returns false
+
+        viewModel = BookmarkListViewModel(
+            updateBookmarkUseCase,
+            fullSyncUseCase,
+            workManager,
+            bookmarkRepository,
+            context,
+            settingsDataStore,
+            savedStateHandle,
+            connectivityMonitor
+        )
+
+        advanceUntilIdle()
+
+        verify(exactly = 0) { LoadBookmarksWorker.enqueue(any(), any()) }
     }
 
     @Test

@@ -719,6 +719,7 @@ class BookmarkRepositoryImpl @Inject constructor(
             val deletedIds = syncStatuses
                 .filter { it.type == "delete" }
                 .map { it.id }
+            val updatedCount = syncStatuses.count { it.type == "update" }
 
             // Delete locally removed bookmarks
             deletedIds.forEach { id ->
@@ -731,9 +732,13 @@ class BookmarkRepositoryImpl @Inject constructor(
                 .mapNotNull { runCatching { kotlinx.datetime.Instant.parse(it) }.getOrNull() }
                 .maxOrNull()
 
-            Timber.i("Delta sync complete: ${deletedIds.size} deleted, ${syncStatuses.size - deletedIds.size} updated, maxServerTime=$maxServerTime")
+            Timber.i("Delta sync complete: ${deletedIds.size} deleted, $updatedCount updated, maxServerTime=$maxServerTime")
 
-            BookmarkRepository.SyncResult.Success(countDeleted = deletedIds.size, maxServerTime = maxServerTime)
+            BookmarkRepository.SyncResult.Success(
+                countDeleted = deletedIds.size,
+                countUpdated = updatedCount,
+                maxServerTime = maxServerTime
+            )
         } catch (e: IOException) {
             Timber.e(e, "Network error during delta sync: ${e.message}")
             BookmarkRepository.SyncResult.NetworkError(errorMessage = "Network error during delta sync", ex = e)
