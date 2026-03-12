@@ -1,7 +1,5 @@
 package com.mydeck.app.io.rest
 
-import com.mydeck.app.io.rest.model.AuthenticationRequestDto
-import com.mydeck.app.io.rest.model.AuthenticationResponseDto
 import com.mydeck.app.io.rest.model.AnnotationDto
 import com.mydeck.app.io.rest.model.BookmarkDto
 import com.mydeck.app.io.rest.model.CreateAnnotationDto
@@ -50,12 +48,6 @@ interface ReadeckApi {
 
     @GET("info")
     suspend fun getInfo(): Response<ServerInfoDto>
-
-    @Deprecated("Use OAuth Device Code Grant flow instead")
-    @POST("auth")
-    suspend fun authenticate(
-        @Body body: AuthenticationRequestDto
-    ): Response<AuthenticationResponseDto>
 
     @POST("oauth/client")
     suspend fun registerOAuthClient(

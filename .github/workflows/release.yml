@@ -5,22 +5,25 @@ on:
     tags:
       - 'v*'
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+
 jobs:
   build-and-sign:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up JDK 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           java-version: '17'
           distribution: 'temurin'
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v4
+        uses: gradle/actions/setup-gradle@v5
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
@@ -29,6 +32,31 @@ jobs:
         run: |
           echo "${{ secrets.SIGNING_KEY }}" | base64 --decode > ${{ github.workspace }}/keystore.jks
 
+      # Release APKs are intentionally secure by default:
+      # - HTTPS only
+      # - system CA trust only
+      #
+      # Self-hosters who need a custom less-secure release can opt in at build time
+      # by setting one or both environment variables below on the Gradle step.
+      #
+      # When you might need this:
+      # - ALLOW_INSECURE_HTTP_RELEASE=true
+      #   Example: your Readeck server is only reachable on a trusted local network
+      #   over plain HTTP, such as http://192.168.1.50:8000, and you do not have TLS
+      #   configured for that host.
+      #
+      # - ALLOW_USER_CA_RELEASE=true
+      #   Example: your Readeck server uses HTTPS, but its certificate chains to a
+      #   private or user-installed CA rather than a public system-trusted CA.
+      #
+      # To build such a custom release in GitHub Actions, add one or both of these
+      # env vars under the Gradle step:
+      #
+      #   ALLOW_INSECURE_HTTP_RELEASE: 'true'
+      #   ALLOW_USER_CA_RELEASE: 'true'
+      #
+      # Do not enable these for official/public releases unless you explicitly want
+      # the APK to trust weaker transport settings.
       - name: Build and Sign Release APK
         run: ./gradlew assembleGithubReleaseRelease
         env: 
@@ -42,7 +70,7 @@ jobs:
         run: echo "version=${GITHUB_REF/refs\/tags\/v/}" >> $GITHUB_OUTPUT
 
       - name: Upload APK to GitHub Release Artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: app-release-${{ steps.get_version.outputs.version }}
           path: app/build/outputs/apk/githubRelease/release/*.apk
@@ -55,14 +83,14 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Get Version from Tag
         id: get_version
         run: echo "version=${GITHUB_REF/refs\/tags\/v/}" >> $GITHUB_OUTPUT
 
       - name: Download Release Artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: app-release-${{ steps.get_version.outputs.version }}
           path: ./artifacts # Download to a dedicated directory

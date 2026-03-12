@@ -6,27 +6,32 @@ import com.mydeck.app.domain.UserRepository
 import com.mydeck.app.domain.model.OAuthDeviceAuthorizationState
 import com.mydeck.app.domain.usecase.OAuthDeviceAuthorizationUseCase
 import com.mydeck.app.io.prefs.SettingsDataStore
+import com.mydeck.app.worker.LoadBookmarksWorker
 import android.content.Context
+import androidx.work.WorkInfo
+import androidx.work.WorkManager
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
+import io.mockk.mockkObject
 import io.mockk.mockk
+import io.mockk.unmockkObject
+import io.mockk.verify
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.TestScope
-import kotlinx.coroutines.flow.take
-import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
-import org.junit.Assert
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -34,15 +39,17 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import java.util.UUID
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class AccountSettingsViewModelTest {
 
     private val testDispatcher = StandardTestDispatcher()
     private lateinit var settingsDataStore: SettingsDataStore
+    private lateinit var bookmarkRepository: BookmarkRepository
     private lateinit var userRepository: UserRepository
     private lateinit var oauthDeviceAuthUseCase: OAuthDeviceAuthorizationUseCase
-    private lateinit var bookmarkRepository: BookmarkRepository
+    private lateinit var workManager: WorkManager
     private lateinit var context: Context
     private lateinit var applicationScope: CoroutineScope
     private lateinit var viewModel: AccountSettingsViewModel
@@ -52,22 +59,32 @@ class AccountSettingsViewModelTest {
         val testDispatcher = StandardTestDispatcher()
         Dispatchers.setMain(testDispatcher)
         settingsDataStore = mockk()
+        bookmarkRepository = mockk(relaxed = true)
         userRepository = mockk(relaxed = true)
         oauthDeviceAuthUseCase = mockk()
-        bookmarkRepository = mockk()
+        workManager = mockk()
         context = mockk()
         applicationScope = TestScope(testDispatcher)
+        mockkObject(LoadBookmarksWorker.Companion)
         
         every { settingsDataStore.urlFlow } returns MutableStateFlow("")
         every { settingsDataStore.tokenFlow } returns MutableStateFlow(null)
+        every { workManager.getWorkInfosForUniqueWorkFlow(any()) } returns flowOf(emptyList())
+        every { LoadBookmarksWorker.enqueue(any(), any()) } returns UUID.randomUUID()
+        every { context.getString(R.string.account_settings_initial_sync_failed) } returns
+            "Initial sync failed. Please check your connection and try again."
         coEvery { settingsDataStore.clearCredentials() } returns Unit
+        coEvery { settingsDataStore.setInitialSyncPerformed(any()) } returns Unit
+        coEvery { settingsDataStore.saveLastBookmarkTimestamp(any()) } returns Unit
+        coEvery { settingsDataStore.saveLastSyncTimestamp(any()) } returns Unit
         coEvery { userRepository.logout() } returns UserRepository.LogoutResult.Success
         
         viewModel = AccountSettingsViewModel(
             settingsDataStore = settingsDataStore,
+            bookmarkRepository = bookmarkRepository,
             userRepository = userRepository,
             oauthDeviceAuthUseCase = oauthDeviceAuthUseCase,
-            bookmarkRepository = bookmarkRepository,
+            workManager = workManager,
             context = context,
             applicationScope = applicationScope
         )
@@ -75,6 +92,7 @@ class AccountSettingsViewModelTest {
 
     @After
     fun tearDown() {
+        unmockkObject(LoadBookmarksWorker.Companion)
         Dispatchers.resetMain()
     }
 
@@ -84,9 +102,10 @@ class AccountSettingsViewModelTest {
         every { settingsDataStore.tokenFlow } returns MutableStateFlow("valid-token") // Non-empty token to set isLoggedIn=true
         viewModel = AccountSettingsViewModel(
             settingsDataStore = settingsDataStore,
+            bookmarkRepository = bookmarkRepository,
             userRepository = userRepository,
             oauthDeviceAuthUseCase = oauthDeviceAuthUseCase,
-            bookmarkRepository = bookmarkRepository,
+            workManager = workManager,
             context = context,
             applicationScope = applicationScope
         )
@@ -106,9 +125,10 @@ class AccountSettingsViewModelTest {
         every { settingsDataStore.tokenFlow } returns MutableStateFlow("valid-token")
         viewModel = AccountSettingsViewModel(
             settingsDataStore = settingsDataStore,
+            bookmarkRepository = bookmarkRepository,
             userRepository = userRepository,
             oauthDeviceAuthUseCase = oauthDeviceAuthUseCase,
-            bookmarkRepository = bookmarkRepository,
+            workManager = workManager,
             context = context,
             applicationScope = applicationScope
         )
@@ -183,6 +203,147 @@ class AccountSettingsViewModelTest {
         // Stop the polling job so the test can complete deterministically.
         viewModel.cancelAuthorization()
         runCurrent()
+    }
+
+    @Test
+    fun `successful login waits for initial sync before navigation`() = runTest {
+        val workId = UUID.randomUUID()
+        val succeededWorkInfo = mockk<WorkInfo> {
+            every { id } returns workId
+            every { state } returns WorkInfo.State.SUCCEEDED
+        }
+
+        coEvery { userRepository.initiateLogin("https://example.com/api") } returns
+            UserRepository.LoginResult.DeviceAuthorizationRequired(
+                OAuthDeviceAuthorizationState(
+                    clientId = "test-client",
+                    deviceCode = "TEST-CODE",
+                    userCode = "TEST-USER-CODE",
+                    verificationUri = "https://example.com/auth",
+                    verificationUriComplete = "https://example.com/auth?code=TEST-USER-CODE",
+                    expiresAt = System.currentTimeMillis() + 1800_000,
+                    pollingInterval = 0
+                )
+            )
+        coEvery { userRepository.completeLogin("https://example.com/api", "token-123") } returns
+            UserRepository.LoginResult.Success
+        coEvery {
+            oauthDeviceAuthUseCase.pollForToken(
+                clientId = any(),
+                deviceCode = any(),
+                currentInterval = any()
+            )
+        } returns OAuthDeviceAuthorizationUseCase.TokenPollResult.Success("token-123")
+        every { LoadBookmarksWorker.enqueue(any(), true) } returns workId
+        every { workManager.getWorkInfosForUniqueWorkFlow(LoadBookmarksWorker.UNIQUE_WORK_NAME) } returns
+            flowOf(listOf(succeededWorkInfo))
+
+        viewModel.updateUrl("https://example.com")
+        viewModel.login()
+        advanceUntilIdle()
+
+        assertEquals(AccountSettingsViewModel.AuthStatus.Success, viewModel.uiState.value.authStatus)
+        assertEquals(
+            AccountSettingsViewModel.NavigationEvent.NavigateToBookmarkList,
+            viewModel.navigationEvent.value
+        )
+        coVerify { settingsDataStore.setInitialSyncPerformed(false) }
+        coVerify { bookmarkRepository.deleteAllBookmarks() }
+        verify { LoadBookmarksWorker.enqueue(any(), true) }
+    }
+
+    @Test
+    fun `failed initial sync still completes login and navigates`() = runTest {
+        val workId = UUID.randomUUID()
+        val failedWorkInfo = mockk<WorkInfo> {
+            every { id } returns workId
+            every { state } returns WorkInfo.State.FAILED
+        }
+
+        coEvery { userRepository.initiateLogin("https://example.com/api") } returns
+            UserRepository.LoginResult.DeviceAuthorizationRequired(
+                OAuthDeviceAuthorizationState(
+                    clientId = "test-client",
+                    deviceCode = "TEST-CODE",
+                    userCode = "TEST-USER-CODE",
+                    verificationUri = "https://example.com/auth",
+                    verificationUriComplete = "https://example.com/auth?code=TEST-USER-CODE",
+                    expiresAt = System.currentTimeMillis() + 1800_000,
+                    pollingInterval = 0
+                )
+            )
+        coEvery { userRepository.completeLogin("https://example.com/api", "token-123") } returns
+            UserRepository.LoginResult.Success
+        coEvery {
+            oauthDeviceAuthUseCase.pollForToken(
+                clientId = any(),
+                deviceCode = any(),
+                currentInterval = any()
+            )
+        } returns OAuthDeviceAuthorizationUseCase.TokenPollResult.Success("token-123")
+        every { LoadBookmarksWorker.enqueue(any(), true) } returns workId
+        every { workManager.getWorkInfosForUniqueWorkFlow(LoadBookmarksWorker.UNIQUE_WORK_NAME) } returns
+            flowOf(listOf(failedWorkInfo))
+
+        viewModel.updateUrl("https://example.com")
+        viewModel.login()
+        advanceUntilIdle()
+
+        assertEquals(AccountSettingsViewModel.AuthStatus.Success, viewModel.uiState.value.authStatus)
+        assertEquals(
+            AccountSettingsViewModel.NavigationEvent.NavigateToBookmarkList,
+            viewModel.navigationEvent.value
+        )
+        coVerify { settingsDataStore.setInitialSyncPerformed(false) }
+    }
+
+    @Test
+    fun `initial sync timeout cancels stalled work and still navigates`() = runTest {
+        val workId = UUID.randomUUID()
+        val enqueuedWorkInfo = mockk<WorkInfo> {
+            every { id } returns workId
+            every { state } returns WorkInfo.State.ENQUEUED
+        }
+        val workFlow = MutableStateFlow(listOf(enqueuedWorkInfo))
+
+        coEvery { userRepository.initiateLogin("https://example.com/api") } returns
+            UserRepository.LoginResult.DeviceAuthorizationRequired(
+                OAuthDeviceAuthorizationState(
+                    clientId = "test-client",
+                    deviceCode = "TEST-CODE",
+                    userCode = "TEST-USER-CODE",
+                    verificationUri = "https://example.com/auth",
+                    verificationUriComplete = "https://example.com/auth?code=TEST-USER-CODE",
+                    expiresAt = System.currentTimeMillis() + 1800_000,
+                    pollingInterval = 0
+                )
+            )
+        coEvery { userRepository.completeLogin("https://example.com/api", "token-123") } returns
+            UserRepository.LoginResult.Success
+        coEvery {
+            oauthDeviceAuthUseCase.pollForToken(
+                clientId = any(),
+                deviceCode = any(),
+                currentInterval = any()
+            )
+        } returns OAuthDeviceAuthorizationUseCase.TokenPollResult.Success("token-123")
+        every { LoadBookmarksWorker.enqueue(any(), true) } returns workId
+        every { workManager.getWorkInfosForUniqueWorkFlow(LoadBookmarksWorker.UNIQUE_WORK_NAME) } returns
+            workFlow
+        every { workManager.cancelWorkById(workId) } returns mockk(relaxed = true)
+
+        viewModel.updateUrl("https://example.com")
+        viewModel.login()
+        runCurrent()
+        advanceTimeBy(20_000)
+        advanceUntilIdle()
+
+        verify { workManager.cancelWorkById(workId) }
+        assertEquals(AccountSettingsViewModel.AuthStatus.Success, viewModel.uiState.value.authStatus)
+        assertEquals(
+            AccountSettingsViewModel.NavigationEvent.NavigateToBookmarkList,
+            viewModel.navigationEvent.value
+        )
     }
 
     @Test

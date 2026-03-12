@@ -3,6 +3,9 @@ name: Build Test Release
 on:
   workflow_dispatch:
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -10,16 +13,16 @@ jobs:
       contents: write
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup JDK 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: 17
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v4
+        uses: gradle/actions/setup-gradle@v5
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
@@ -51,7 +54,7 @@ jobs:
           echo "ARTIFACT_FILENAME=$FILENAME" >> "$GITHUB_OUTPUT"
 
       - name: Archive APK
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: test-release-${{ github.GITHUB_REV }}
           retention-days: 5

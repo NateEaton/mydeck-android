@@ -42,6 +42,8 @@ cd mydeck-android
 
 The debug APK will be at `app/build/outputs/apk/githubSnapshot/debug/`. Release builds require signing configuration — refer to the GitHub Actions workflow in `.github/workflows/release.yml`.
 
+If you need a custom insecure release for self-hosting, such as connecting to a local `http://` Readeck instance without TLS or to an HTTPS server signed by a private CA, see the comments in `.github/workflows/release.yml` for the `ALLOW_INSECURE_HTTP_RELEASE` and `ALLOW_USER_CA_RELEASE` build-time flags.
+
 ## Contributing
 
 Contributions are welcome. Please open an issue before starting significant work to align on approach. See [docs/WORKFLOW.md](docs/WORKFLOW.md) for the development and release workflow.

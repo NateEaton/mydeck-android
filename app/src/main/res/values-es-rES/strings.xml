@@ -2,6 +2,8 @@
 <resources>
     <string name="app_name">MyDeck</string>
     <string name="back">Volver</string>
+    <string name="account_settings_initial_sync_failed">Initial sync failed. Please check your connection and try again.</string>
+    <string name="list_view_empty_error_loading_bookmarks">An error has occurred while loading bookmarks.</string>
     <string name="settings_topbar_title">Ajustes</string>
     <string name="settings_account_title">Cuenta</string>
     <string name="settings_account_subtitle_default">Sesión no iniciada</string>

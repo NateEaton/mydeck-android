@@ -2,15 +2,23 @@ package com.mydeck.app.util
 
 import android.content.Context
 import android.content.Intent
-import java.net.URL
 import androidx.core.net.toUri
 import androidx.browser.customtabs.CustomTabsIntent
 import com.mydeck.app.domain.model.SharedText
+import java.net.URI
 
-fun String?.isValidUrl(): Boolean {
+fun String?.isValidUrl(allowHttp: Boolean = true): Boolean {
     return try {
-        URL(this).toURI()
-        true
+        val candidate = this?.trim().orEmpty()
+        if (candidate.isEmpty()) {
+            return false
+        }
+
+        val uri = URI(candidate)
+        val scheme = uri.scheme?.lowercase() ?: return false
+        val host = uri.host ?: return false
+
+        (scheme == "https" || (allowHttp && scheme == "http")) && host.isNotBlank()
     } catch (e: Exception) {
         false
     }

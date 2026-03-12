@@ -144,9 +144,30 @@ class BookmarkListViewModel @Inject constructor(
     val bookmarkCounts: StateFlow<BookmarkCounts> = bookmarkRepository.observeAllBookmarkCounts()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), BookmarkCounts(0, 0, 0, 0))
 
-    val loadBookmarksIsRunning: StateFlow<Boolean> = workManager.getWorkInfosForUniqueWorkFlow(LoadBookmarksWorker.UNIQUE_WORK_NAME)
+    private val loadBookmarksWorkInfos: StateFlow<List<WorkInfo>> =
+        workManager.getWorkInfosForUniqueWorkFlow(LoadBookmarksWorker.UNIQUE_WORK_NAME)
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val loadBookmarksIsRunning: StateFlow<Boolean> = loadBookmarksWorkInfos
         .map { workInfoList ->
-            workInfoList.any { it.state == WorkInfo.State.RUNNING || it.state == WorkInfo.State.ENQUEUED }
+            workInfoList.any {
+                it.state == WorkInfo.State.RUNNING ||
+                    it.state == WorkInfo.State.ENQUEUED ||
+                    it.state == WorkInfo.State.BLOCKED
+            }
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
+    private val loadBookmarksHasFailed: StateFlow<Boolean> = loadBookmarksWorkInfos
+        .map { workInfoList ->
+            val hasLoadInProgress = workInfoList.any {
+                it.state == WorkInfo.State.RUNNING ||
+                    it.state == WorkInfo.State.ENQUEUED ||
+                    it.state == WorkInfo.State.BLOCKED
+            }
+            !hasLoadInProgress && workInfoList.any {
+                it.state == WorkInfo.State.FAILED || it.state == WorkInfo.State.CANCELLED
+            }
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
@@ -188,16 +209,22 @@ class BookmarkListViewModel @Inject constructor(
                         orderBy = sort.sqlOrderBy
                     )
                 }
-            }.collectLatest { visibleBookmarks ->
+            }.combine(settingsDataStore.initialSyncPerformedFlow) { visibleBookmarks, initialSyncPerformed ->
+                visibleBookmarks to initialSyncPerformed
+            }.combine(loadBookmarksHasFailed) { (visibleBookmarks, initialSyncPerformed), hasLoadFailed ->
+                Triple(visibleBookmarks, initialSyncPerformed, hasLoadFailed)
+            }.collectLatest { (visibleBookmarks, initialSyncPerformed, hasLoadFailed) ->
                 _uiState.update { currentState ->
-                    if (currentState is UiState.Success) {
-                        currentState.copy(bookmarks = visibleBookmarks)
-                    } else {
-                        if (visibleBookmarks.isEmpty() && _activeLabel.value == null && _filterFormState.value == FilterFormState.fromPreset(DrawerPreset.MY_LIST)) {
-                             UiState.Empty(R.string.list_view_empty_nothing_to_see)
-                        } else {
-                            UiState.Success(visibleBookmarks, null)
-                        }
+                    val updateBookmarkState = (currentState as? UiState.Success)?.updateBookmarkState
+                    when {
+                        visibleBookmarks.isNotEmpty() -> UiState.Success(visibleBookmarks, updateBookmarkState)
+                        !initialSyncPerformed && hasLoadFailed ->
+                            UiState.Empty(R.string.list_view_empty_error_loading_bookmarks)
+                        !initialSyncPerformed -> UiState.Loading
+                        _activeLabel.value == null &&
+                            _filterFormState.value == FilterFormState.fromPreset(DrawerPreset.MY_LIST) ->
+                            UiState.Empty(R.string.list_view_empty_nothing_to_see)
+                        else -> UiState.Success(visibleBookmarks, updateBookmarkState)
                     }
                 }
             }
