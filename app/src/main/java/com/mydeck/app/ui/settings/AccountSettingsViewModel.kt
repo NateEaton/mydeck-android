@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import android.content.Context
 import com.mydeck.app.BuildConfig
 import com.mydeck.app.R
+import com.mydeck.app.domain.BookmarkRepository
 import com.mydeck.app.domain.UserRepository
 import com.mydeck.app.domain.model.OAuthDeviceAuthorizationState
 import com.mydeck.app.domain.usecase.OAuthDeviceAuthorizationUseCase
@@ -19,7 +20,6 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -27,6 +27,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.datetime.Instant
 import timber.log.Timber
 import javax.inject.Inject
 import kotlin.time.Duration.Companion.seconds
@@ -35,6 +37,7 @@ import java.util.UUID
 @HiltViewModel
 class AccountSettingsViewModel @Inject constructor(
     private val settingsDataStore: SettingsDataStore,
+    private val bookmarkRepository: BookmarkRepository,
     private val userRepository: UserRepository,
     private val oauthDeviceAuthUseCase: OAuthDeviceAuthorizationUseCase,
     private val workManager: WorkManager,
@@ -211,13 +214,20 @@ class AccountSettingsViewModel @Inject constructor(
     }
 
     /**
-     * Post-login tasks: reset initial-sync completion and trigger the first bookmark load.
+     * Post-login tasks: clear local bookmark state, trigger the first bookmark load,
+     * and wait briefly for WorkManager to start the job so login cannot hang forever
+     * on constrained ENQUEUED/BLOCKED states.
      */
     private suspend fun onLoginSuccess() {
-        settingsDataStore.setInitialSyncPerformed(false)
-        val initialSyncWorkId = LoadBookmarksWorker.enqueue(context, isInitialLoad = true)
+        try {
+            prepareForInitialSync()
+            val initialSyncWorkId = LoadBookmarksWorker.enqueue(context, isInitialLoad = true)
 
-        if (waitForInitialSync(initialSyncWorkId) == WorkInfo.State.SUCCEEDED) {
+            if (waitForInitialSyncToStart(initialSyncWorkId) == InitialSyncStartResult.TIMED_OUT) {
+                Timber.w("Initial sync did not start within timeout; cancelling work.")
+                workManager.cancelWorkById(initialSyncWorkId)
+            }
+
             _uiState.update {
                 it.copy(
                     authStatus = AuthStatus.Success,
@@ -226,27 +236,43 @@ class AccountSettingsViewModel @Inject constructor(
                 )
             }
             _navigationEvent.value = NavigationEvent.NavigateToBookmarkList
-            return
-        }
-
-        _uiState.update {
-            it.copy(
-                authStatus = AuthStatus.Error(context.getString(R.string.account_settings_initial_sync_failed)),
-                isLoggedIn = true,
-                deviceAuthState = null
-            )
+        } catch (e: Exception) {
+            Timber.e(e, "Failed to prepare initial sync after login")
+            _uiState.update {
+                it.copy(
+                    authStatus = AuthStatus.Error(context.getString(R.string.account_settings_initial_sync_failed)),
+                    deviceAuthState = null
+                )
+            }
         }
     }
 
-    private suspend fun waitForInitialSync(workId: UUID): WorkInfo.State {
-        return workManager.getWorkInfosForUniqueWorkFlow(LoadBookmarksWorker.UNIQUE_WORK_NAME)
-            .map { workInfos -> workInfos.firstOrNull { it.id == workId }?.state }
-            .filterNotNull()
-            .first { state ->
-                state == WorkInfo.State.SUCCEEDED ||
-                    state == WorkInfo.State.FAILED ||
-                    state == WorkInfo.State.CANCELLED
-            }
+    private suspend fun prepareForInitialSync() {
+        settingsDataStore.setInitialSyncPerformed(false)
+        bookmarkRepository.deleteAllBookmarks()
+        settingsDataStore.saveLastBookmarkTimestamp(Instant.fromEpochMilliseconds(0))
+        settingsDataStore.saveLastSyncTimestamp(Instant.fromEpochMilliseconds(0))
+    }
+
+    private suspend fun waitForInitialSyncToStart(workId: UUID): InitialSyncStartResult {
+        val startState = withTimeoutOrNull(INITIAL_SYNC_START_TIMEOUT) {
+            workManager.getWorkInfosForUniqueWorkFlow(LoadBookmarksWorker.UNIQUE_WORK_NAME)
+                .map { workInfos -> workInfos.firstOrNull { it.id == workId }?.state }
+                .first { state ->
+                    state == WorkInfo.State.RUNNING ||
+                        state == WorkInfo.State.SUCCEEDED ||
+                        state == WorkInfo.State.FAILED ||
+                        state == WorkInfo.State.CANCELLED
+                }
+        } ?: return InitialSyncStartResult.TIMED_OUT
+
+        return when (startState) {
+            WorkInfo.State.RUNNING -> InitialSyncStartResult.STARTED
+            WorkInfo.State.SUCCEEDED -> InitialSyncStartResult.SUCCEEDED
+            WorkInfo.State.FAILED -> InitialSyncStartResult.FAILED
+            WorkInfo.State.CANCELLED -> InitialSyncStartResult.CANCELLED
+            else -> InitialSyncStartResult.TIMED_OUT
+        }
     }
 
     fun cancelAuthorization() {
@@ -318,5 +344,17 @@ class AccountSettingsViewModel @Inject constructor(
 
     private fun isValidUrlForCurrentSettings(url: String?): Boolean {
         return url.isValidUrl(allowHttp = BuildConfig.ALLOW_INSECURE_HTTP)
+    }
+
+    private enum class InitialSyncStartResult {
+        STARTED,
+        SUCCEEDED,
+        FAILED,
+        CANCELLED,
+        TIMED_OUT
+    }
+
+    private companion object {
+        val INITIAL_SYNC_START_TIMEOUT = 20.seconds
     }
 }

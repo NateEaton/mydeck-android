@@ -32,6 +32,31 @@ jobs:
         run: |
           echo "${{ secrets.SIGNING_KEY }}" | base64 --decode > ${{ github.workspace }}/keystore.jks
 
+      # Release APKs are intentionally secure by default:
+      # - HTTPS only
+      # - system CA trust only
+      #
+      # Self-hosters who need a custom less-secure release can opt in at build time
+      # by setting one or both environment variables below on the Gradle step.
+      #
+      # When you might need this:
+      # - ALLOW_INSECURE_HTTP_RELEASE=true
+      #   Example: your Readeck server is only reachable on a trusted local network
+      #   over plain HTTP, such as http://192.168.1.50:8000, and you do not have TLS
+      #   configured for that host.
+      #
+      # - ALLOW_USER_CA_RELEASE=true
+      #   Example: your Readeck server uses HTTPS, but its certificate chains to a
+      #   private or user-installed CA rather than a public system-trusted CA.
+      #
+      # To build such a custom release in GitHub Actions, add one or both of these
+      # env vars under the Gradle step:
+      #
+      #   ALLOW_INSECURE_HTTP_RELEASE: 'true'
+      #   ALLOW_USER_CA_RELEASE: 'true'
+      #
+      # Do not enable these for official/public releases unless you explicitly want
+      # the APK to trust weaker transport settings.
       - name: Build and Sign Release APK
         run: ./gradlew assembleGithubReleaseRelease
         env: 

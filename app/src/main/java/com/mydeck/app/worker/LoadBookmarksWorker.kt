@@ -19,7 +19,6 @@ import com.mydeck.app.io.prefs.SettingsDataStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.datetime.Clock
-import kotlinx.datetime.Instant
 import timber.log.Timber
 import java.io.IOException
 import java.util.UUID
@@ -39,18 +38,6 @@ class LoadBookmarksWorker @AssistedInject constructor(
         if (isInitialLoad && isAnotherWorkerRunning()) {
             Timber.i("Another LoadBookmarksWorker is running, exiting early.")
             return Result.success() // Or Result.failure() if you want to signal an error
-        }
-
-        if (isInitialLoad) {
-            try {
-                Timber.i("Performing initial sync: Deleting all bookmarks.")
-                bookmarkRepository.deleteAllBookmarks()
-                Timber.i("Performing initial sync: Reset lastBookmarkTimestamp.")
-                settingsDataStore.saveLastBookmarkTimestamp(Instant.fromEpochMilliseconds(0))
-            } catch (e: Exception) {
-                Timber.e(e, "Error preparing for initial loading.")
-                return Result.failure()
-            }
         }
 
         // Run delta sync to catch deletions (lightweight, only fetches changed IDs)
