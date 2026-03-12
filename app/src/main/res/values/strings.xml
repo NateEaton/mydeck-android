@@ -14,6 +14,7 @@
     <string name="account_settings_password_placeholder">password</string>
     <string name="account_settings_login">Login</string>
     <string name="account_settings_url_error">Invalid URL</string>
+    <string name="account_settings_initial_sync_failed">Initial sync failed. Please check your connection and try again.</string>
     <string name="account_settings_username_error">Email address cannot be empty</string>
     <string name="account_settings_password_error">Password cannot be empty</string>
     <string name="account_settings_allow_unencrypted">Allow unencrypted connections</string>

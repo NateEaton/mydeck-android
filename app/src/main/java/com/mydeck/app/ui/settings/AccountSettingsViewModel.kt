@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import android.content.Context
 import com.mydeck.app.BuildConfig
+import com.mydeck.app.R
 import com.mydeck.app.domain.UserRepository
 import com.mydeck.app.domain.model.OAuthDeviceAuthorizationState
 import com.mydeck.app.domain.usecase.OAuthDeviceAuthorizationUseCase
@@ -18,6 +19,9 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -25,8 +29,6 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import timber.log.Timber
 import javax.inject.Inject
-import kotlinx.datetime.Clock
-import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 import java.util.UUID
 
@@ -229,7 +231,7 @@ class AccountSettingsViewModel @Inject constructor(
 
         _uiState.update {
             it.copy(
-                authStatus = AuthStatus.Error("Initial sync failed. Please check your connection and try again."),
+                authStatus = AuthStatus.Error(context.getString(R.string.account_settings_initial_sync_failed)),
                 isLoggedIn = true,
                 deviceAuthState = null
             )
@@ -237,22 +239,14 @@ class AccountSettingsViewModel @Inject constructor(
     }
 
     private suspend fun waitForInitialSync(workId: UUID): WorkInfo.State {
-        while (true) {
-            val workInfo = workManager.getWorkInfoById(workId).get()
-            if (workInfo == null) {
-                delay(250)
-                continue
+        return workManager.getWorkInfosForUniqueWorkFlow(LoadBookmarksWorker.UNIQUE_WORK_NAME)
+            .map { workInfos -> workInfos.firstOrNull { it.id == workId }?.state }
+            .filterNotNull()
+            .first { state ->
+                state == WorkInfo.State.SUCCEEDED ||
+                    state == WorkInfo.State.FAILED ||
+                    state == WorkInfo.State.CANCELLED
             }
-
-            when (workInfo.state) {
-                WorkInfo.State.SUCCEEDED,
-                WorkInfo.State.FAILED,
-                WorkInfo.State.CANCELLED -> return workInfo.state
-                WorkInfo.State.ENQUEUED,
-                WorkInfo.State.RUNNING,
-                WorkInfo.State.BLOCKED -> delay(250)
-            }
-        }
     }
 
     fun cancelAuthorization() {

@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="account_settings_initial_sync_failed">Initial sync failed. Please check your connection and try again.</string>
+    <string name="list_view_empty_error_loading_bookmarks">An error has occurred while loading bookmarks.</string>
     <string name="account_settings_password_label">密码</string>
     <string name="account_settings_password_placeholder">密码</string>
     <string name="account_settings_login">登录</string>
