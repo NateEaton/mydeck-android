@@ -667,6 +667,44 @@ fun BookmarkDetailScreen(
     var showFullscreenTopBar by remember(uiState.bookmark.bookmarkId, fullscreenReaderMode) {
         mutableStateOf(fullscreenReaderMode)
     }
+    val fullscreenTopBarRevealConnection = remember(
+        fullscreenReaderMode,
+        showFullscreenTopBar,
+        articleSearchState.isActive
+    ) {
+        object : NestedScrollConnection {
+            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                if (
+                    fullscreenReaderMode &&
+                    !showFullscreenTopBar &&
+                    !articleSearchState.isActive &&
+                    shouldRevealFullscreenTopBarOnScroll(available.y)
+                ) {
+                    showFullscreenTopBar = true
+                }
+                return Offset.Zero
+            }
+
+            override fun onPostScroll(
+                consumed: Offset,
+                available: Offset,
+                source: NestedScrollSource
+            ): Offset {
+                if (
+                    fullscreenReaderMode &&
+                    !showFullscreenTopBar &&
+                    !articleSearchState.isActive &&
+                    (
+                        shouldRevealFullscreenTopBarOnScroll(consumed.y) ||
+                            shouldRevealFullscreenTopBarOnScroll(available.y)
+                        )
+                ) {
+                    showFullscreenTopBar = true
+                }
+                return Offset.Zero
+            }
+        }
+    }
 
     LaunchedEffect(fullscreenReaderMode) {
         if (!fullscreenReaderMode) {
@@ -720,7 +758,9 @@ fun BookmarkDetailScreen(
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
-        modifier = modifier.nestedScroll(topBarScrollBehavior.nestedScrollConnection),
+        modifier = modifier
+            .nestedScroll(fullscreenTopBarRevealConnection)
+            .nestedScroll(topBarScrollBehavior.nestedScrollConnection),
         topBar = {
             if (!fullscreenReaderMode || showFullscreenTopBar || articleSearchState.isActive) {
                 BookmarkDetailTopBar(
@@ -795,6 +835,10 @@ fun BookmarkDetailScreen(
             }
         }
     }
+}
+
+internal fun shouldRevealFullscreenTopBarOnScroll(deltaY: Float): Boolean {
+    return deltaY > 0f
 }
 
 @Composable
