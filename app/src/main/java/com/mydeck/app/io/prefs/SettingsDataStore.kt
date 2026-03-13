@@ -2,6 +2,8 @@ package com.mydeck.app.io.prefs
 
 import com.mydeck.app.domain.model.AutoSyncTimeframe
 import com.mydeck.app.domain.model.CachedServerInfo
+import com.mydeck.app.domain.model.DarkAppearance
+import com.mydeck.app.domain.model.LightAppearance
 import com.mydeck.app.domain.model.Theme
 import com.mydeck.app.domain.model.TypographySettings
 import com.mydeck.app.domain.sync.ContentSyncConstraints
@@ -40,6 +42,10 @@ interface SettingsDataStore {
     suspend fun getAutoSyncTimeframe(): AutoSyncTimeframe
     suspend fun saveTheme(theme: Theme)
     suspend fun getTheme(): Theme
+    suspend fun saveLightAppearance(appearance: LightAppearance)
+    suspend fun getLightAppearance(): LightAppearance
+    suspend fun saveDarkAppearance(appearance: DarkAppearance)
+    suspend fun getDarkAppearance(): DarkAppearance
     suspend fun  getZoomFactor(): Int
     suspend fun  saveZoomFactor(zoomFactor: Int)
     suspend fun setSyncOnAppOpenEnabled(isEnabled: Boolean)
@@ -72,10 +78,19 @@ interface SettingsDataStore {
     suspend fun saveSepiaEnabled(enabled: Boolean)
     suspend fun isSepiaEnabled(): Boolean
 
+    // Reader appearance preferences
+    val lightAppearanceFlow: StateFlow<LightAppearance>
+    val darkAppearanceFlow: StateFlow<DarkAppearance>
+
     // Keep screen on while reading preference
     val keepScreenOnWhileReadingFlow: StateFlow<Boolean>
     suspend fun saveKeepScreenOnWhileReading(enabled: Boolean)
     suspend fun isKeepScreenOnWhileReading(): Boolean
+
+    // Fullscreen while reading preference
+    val fullscreenWhileReadingFlow: StateFlow<Boolean>
+    suspend fun saveFullscreenWhileReading(enabled: Boolean)
+    suspend fun isFullscreenWhileReading(): Boolean
 
     // Server info caching
     suspend fun saveServerInfo(info: CachedServerInfo)

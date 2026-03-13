@@ -9,6 +9,8 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import com.mydeck.app.BuildConfig
 import com.mydeck.app.domain.model.AutoSyncTimeframe
 import com.mydeck.app.domain.model.CachedServerInfo
+import com.mydeck.app.domain.model.DarkAppearance
+import com.mydeck.app.domain.model.LightAppearance
 import com.mydeck.app.domain.model.ReaderFontFamily
 import com.mydeck.app.domain.model.TextWidth
 import com.mydeck.app.domain.model.Theme
@@ -57,7 +59,10 @@ class SettingsDataStoreImpl @Inject constructor(@ApplicationContext private val 
     private val KEY_DATE_RANGE_FROM = stringPreferencesKey("date_range_from")
     private val KEY_DATE_RANGE_TO = stringPreferencesKey("date_range_to")
     private val KEY_SEPIA_ENABLED = booleanPreferencesKey("sepia_enabled")
+    private val KEY_LIGHT_APPEARANCE = stringPreferencesKey("light_appearance")
+    private val KEY_DARK_APPEARANCE = stringPreferencesKey("dark_appearance")
     private val KEY_KEEP_SCREEN_ON_READING = booleanPreferencesKey("keep_screen_on_reading")
+    private val KEY_FULLSCREEN_WHILE_READING = booleanPreferencesKey("fullscreen_while_reading")
 
     private val KEY_TYPO_FONT_SIZE = intPreferencesKey("typography_font_size_percent")
     private val KEY_TYPO_FONT_FAMILY = stringPreferencesKey("typography_font_family")
@@ -76,6 +81,7 @@ class SettingsDataStoreImpl @Inject constructor(@ApplicationContext private val 
         migrateLegacySepiaSetting(encryptedSharedPreferences)
         migrateNonSensitivePreferencesIfNeeded()
         migrateLegacySepiaSetting(userPreferences)
+        migrateAppearancePreferencesIfNeeded()
     }
 
     override fun saveToken(token: String) {
@@ -205,6 +211,44 @@ class SettingsDataStoreImpl @Inject constructor(@ApplicationContext private val 
         }
     }
 
+    override suspend fun saveLightAppearance(appearance: LightAppearance) {
+        userPreferences.edit {
+            putString(KEY_LIGHT_APPEARANCE.name, appearance.name)
+        }
+    }
+
+    override suspend fun getLightAppearance(): LightAppearance {
+        return userPreferences.getString(
+            KEY_LIGHT_APPEARANCE.name,
+            LightAppearance.PAPER.name
+        )?.let {
+            try {
+                LightAppearance.valueOf(it)
+            } catch (_: IllegalArgumentException) {
+                LightAppearance.PAPER
+            }
+        } ?: LightAppearance.PAPER
+    }
+
+    override suspend fun saveDarkAppearance(appearance: DarkAppearance) {
+        userPreferences.edit {
+            putString(KEY_DARK_APPEARANCE.name, appearance.name)
+        }
+    }
+
+    override suspend fun getDarkAppearance(): DarkAppearance {
+        return userPreferences.getString(
+            KEY_DARK_APPEARANCE.name,
+            DarkAppearance.DARK.name
+        )?.let {
+            try {
+                DarkAppearance.valueOf(it)
+            } catch (_: IllegalArgumentException) {
+                DarkAppearance.DARK
+            }
+        } ?: DarkAppearance.DARK
+    }
+
     override suspend fun saveSepiaEnabled(enabled: Boolean) {
         userPreferences.edit {
             putBoolean(KEY_SEPIA_ENABLED.name, enabled)
@@ -223,6 +267,16 @@ class SettingsDataStoreImpl @Inject constructor(@ApplicationContext private val 
 
     override suspend fun isKeepScreenOnWhileReading(): Boolean {
         return userPreferences.getBoolean(KEY_KEEP_SCREEN_ON_READING.name, true)
+    }
+
+    override suspend fun saveFullscreenWhileReading(enabled: Boolean) {
+        userPreferences.edit {
+            putBoolean(KEY_FULLSCREEN_WHILE_READING.name, enabled)
+        }
+    }
+
+    override suspend fun isFullscreenWhileReading(): Boolean {
+        return userPreferences.getBoolean(KEY_FULLSCREEN_WHILE_READING.name, false)
     }
 
     override suspend fun getZoomFactor(): Int {
@@ -263,8 +317,22 @@ class SettingsDataStoreImpl @Inject constructor(@ApplicationContext private val 
     override val themeFlow = getStringFlow(userPreferences, KEY_THEME.name, Theme.SYSTEM.name)
     override val zoomFactorFlow = getIntFlow(userPreferences, KEY_ZOOM_FACTOR.name, 100)
     override val sepiaEnabledFlow = getBooleanFlow(userPreferences, KEY_SEPIA_ENABLED.name, false)
+    override val lightAppearanceFlow = getEnumFlow(
+        preferences = userPreferences,
+        key = KEY_LIGHT_APPEARANCE.name,
+        defaultValue = LightAppearance.PAPER,
+        parse = { value -> LightAppearance.valueOf(value) }
+    )
+    override val darkAppearanceFlow = getEnumFlow(
+        preferences = userPreferences,
+        key = KEY_DARK_APPEARANCE.name,
+        defaultValue = DarkAppearance.DARK,
+        parse = { value -> DarkAppearance.valueOf(value) }
+    )
     override val keepScreenOnWhileReadingFlow =
         getBooleanFlow(userPreferences, KEY_KEEP_SCREEN_ON_READING.name, true)
+    override val fullscreenWhileReadingFlow =
+        getBooleanFlow(userPreferences, KEY_FULLSCREEN_WHILE_READING.name, false)
 
     override suspend fun clearCredentials() {
         Timber.d("clearCredentials")
@@ -312,6 +380,21 @@ class SettingsDataStoreImpl @Inject constructor(@ApplicationContext private val 
         defaultValue: Boolean
     ): StateFlow<Boolean> = preferenceFlow(preferences, key) {
         preferences.getBoolean(key, defaultValue)
+    }
+
+    private fun <T> getEnumFlow(
+        preferences: SharedPreferences,
+        key: String,
+        defaultValue: T,
+        parse: (String) -> T
+    ): StateFlow<T> = preferenceFlow(preferences, key) {
+        preferences.getString(key, null)?.let { value ->
+            try {
+                parse(value)
+            } catch (_: IllegalArgumentException) {
+                defaultValue
+            }
+        } ?: defaultValue
     }
 
     private fun <T> preferenceFlow(
@@ -551,6 +634,27 @@ class SettingsDataStoreImpl @Inject constructor(@ApplicationContext private val 
         }
     }
 
+    private fun migrateAppearancePreferencesIfNeeded() {
+        val hasLightAppearance = userPreferences.contains(KEY_LIGHT_APPEARANCE.name)
+        val hasDarkAppearance = userPreferences.contains(KEY_DARK_APPEARANCE.name)
+        if (hasLightAppearance && hasDarkAppearance) {
+            return
+        }
+
+        val legacySepiaEnabled = userPreferences.getBoolean(KEY_SEPIA_ENABLED.name, false)
+        userPreferences.edit(commit = true) {
+            if (!hasLightAppearance) {
+                putString(
+                    KEY_LIGHT_APPEARANCE.name,
+                    if (legacySepiaEnabled) LightAppearance.SEPIA.name else LightAppearance.PAPER.name
+                )
+            }
+            if (!hasDarkAppearance) {
+                putString(KEY_DARK_APPEARANCE.name, DarkAppearance.DARK.name)
+            }
+        }
+    }
+
     private fun migrateNonSensitivePreferencesIfNeeded() {
         if (userPreferences.getBoolean(KEY_UI_PREFS_MIGRATED, false)) {
             return
@@ -572,7 +676,10 @@ class SettingsDataStoreImpl @Inject constructor(@ApplicationContext private val 
             migrateStringPreference(this, KEY_DATE_RANGE_FROM.name)
             migrateStringPreference(this, KEY_DATE_RANGE_TO.name)
             migrateBooleanPreference(this, KEY_SEPIA_ENABLED.name)
+            migrateStringPreference(this, KEY_LIGHT_APPEARANCE.name)
+            migrateStringPreference(this, KEY_DARK_APPEARANCE.name)
             migrateBooleanPreference(this, KEY_KEEP_SCREEN_ON_READING.name)
+            migrateBooleanPreference(this, KEY_FULLSCREEN_WHILE_READING.name)
             migrateIntPreference(this, KEY_TYPO_FONT_SIZE.name)
             migrateStringPreference(this, KEY_TYPO_FONT_FAMILY.name)
             migrateStringPreference(this, KEY_TYPO_LINE_SPACING.name)

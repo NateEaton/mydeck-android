@@ -2,11 +2,13 @@ package com.mydeck.app.ui.settings
 
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.assertIsOff
-import androidx.compose.ui.test.assertIsOn
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
+import com.mydeck.app.domain.model.DarkAppearance
+import com.mydeck.app.domain.model.LightAppearance
 import com.mydeck.app.domain.model.Theme
 import com.mydeck.app.ui.theme.MyDeckTheme
 import dagger.hilt.android.testing.HiltAndroidRule
@@ -35,13 +37,18 @@ class UiSettingsScreenUnitTest {
     @get:Rule
     val hiltRule = HiltAndroidRule(this)
 
-    private fun buildState(keepScreenOn: Boolean = true) = UiSettingsUiState(
+    private fun buildState(
+        keepScreenOn: Boolean = true,
+        fullscreenWhileReading: Boolean = false
+    ) = UiSettingsUiState(
         themeMode = Theme.SYSTEM,
-        useSepiaInLight = false,
+        lightAppearance = LightAppearance.PAPER,
+        darkAppearance = DarkAppearance.DARK,
         themeOptions = listOf(),
         showDialog = false,
         themeLabel = Theme.SYSTEM.toLabelResource(),
         keepScreenOnWhileReading = keepScreenOn,
+        fullscreenWhileReading = fullscreenWhileReading,
     )
 
     @Before
@@ -57,14 +64,24 @@ class UiSettingsScreenUnitTest {
                     snackbarHostState = SnackbarHostState(),
                     settingsUiState = buildState(),
                     onThemeModeSelected = {},
-                    onSepiaToggled = {},
+                    onLightAppearanceSelected = {},
+                    onDarkAppearanceSelected = {},
                     onKeepScreenOnWhileReadingToggled = {},
+                    onFullscreenWhileReadingToggled = {},
                     onClickBack = {},
                 )
             }
         }
 
-        composeTestRule.onNodeWithText("Keep screen on while reading").assertIsDisplayed()
+        composeTestRule.onNodeWithText("When app is light").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Paper").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Sepia").assertIsDisplayed()
+        composeTestRule.onNodeWithText("When app is dark").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Black").assertIsDisplayed()
+        composeTestRule.onNodeWithTag(UiSettingsScreenTestTags.FULLSCREEN_READING_ROW).performScrollTo()
+        composeTestRule.onNodeWithTag(UiSettingsScreenTestTags.FULLSCREEN_READING_ROW).assertIsDisplayed()
+        composeTestRule.onNodeWithTag(UiSettingsScreenTestTags.KEEP_SCREEN_ON_ROW).performScrollTo()
+        composeTestRule.onNodeWithTag(UiSettingsScreenTestTags.KEEP_SCREEN_ON_ROW).assertIsDisplayed()
     }
 
     @Test
@@ -75,14 +92,17 @@ class UiSettingsScreenUnitTest {
                     snackbarHostState = SnackbarHostState(),
                     settingsUiState = buildState(keepScreenOn = true),
                     onThemeModeSelected = {},
-                    onSepiaToggled = {},
+                    onLightAppearanceSelected = {},
+                    onDarkAppearanceSelected = {},
                     onKeepScreenOnWhileReadingToggled = {},
+                    onFullscreenWhileReadingToggled = {},
                     onClickBack = {},
                 )
             }
         }
 
-        composeTestRule.onNodeWithText("Keep screen on while reading").assertIsDisplayed()
+        composeTestRule.onNodeWithTag(UiSettingsScreenTestTags.KEEP_SCREEN_ON_ROW).performScrollTo()
+        composeTestRule.onNodeWithTag(UiSettingsScreenTestTags.KEEP_SCREEN_ON_ROW).assertIsDisplayed()
     }
 
     @Test
@@ -94,14 +114,17 @@ class UiSettingsScreenUnitTest {
                     snackbarHostState = SnackbarHostState(),
                     settingsUiState = buildState(keepScreenOn = true),
                     onThemeModeSelected = {},
-                    onSepiaToggled = {},
+                    onLightAppearanceSelected = {},
+                    onDarkAppearanceSelected = {},
                     onKeepScreenOnWhileReadingToggled = { toggledValue = it },
+                    onFullscreenWhileReadingToggled = {},
                     onClickBack = {},
                 )
             }
         }
 
-        composeTestRule.onNodeWithText("Keep screen on while reading").performClick()
+        composeTestRule.onNodeWithTag(UiSettingsScreenTestTags.KEEP_SCREEN_ON_ROW).performScrollTo()
+        composeTestRule.onNodeWithTag(UiSettingsScreenTestTags.KEEP_SCREEN_ON_ROW).performClick()
         assertFalse(toggledValue!!)
     }
 
@@ -114,14 +137,40 @@ class UiSettingsScreenUnitTest {
                     snackbarHostState = SnackbarHostState(),
                     settingsUiState = buildState(keepScreenOn = false),
                     onThemeModeSelected = {},
-                    onSepiaToggled = {},
+                    onLightAppearanceSelected = {},
+                    onDarkAppearanceSelected = {},
                     onKeepScreenOnWhileReadingToggled = { toggledValue = it },
+                    onFullscreenWhileReadingToggled = {},
                     onClickBack = {},
                 )
             }
         }
 
-        composeTestRule.onNodeWithText("Keep screen on while reading").performClick()
+        composeTestRule.onNodeWithTag(UiSettingsScreenTestTags.KEEP_SCREEN_ON_ROW).performScrollTo()
+        composeTestRule.onNodeWithTag(UiSettingsScreenTestTags.KEEP_SCREEN_ON_ROW).performClick()
+        assertTrue(toggledValue!!)
+    }
+
+    @Test
+    fun uiSettingsView_fullscreenToggle_clickCallsCallback() {
+        var toggledValue: Boolean? = null
+        composeTestRule.setContent {
+            MyDeckTheme {
+                UiSettingsView(
+                    snackbarHostState = SnackbarHostState(),
+                    settingsUiState = buildState(fullscreenWhileReading = false),
+                    onThemeModeSelected = {},
+                    onLightAppearanceSelected = {},
+                    onDarkAppearanceSelected = {},
+                    onKeepScreenOnWhileReadingToggled = {},
+                    onFullscreenWhileReadingToggled = { toggledValue = it },
+                    onClickBack = {},
+                )
+            }
+        }
+
+        composeTestRule.onNodeWithTag(UiSettingsScreenTestTags.FULLSCREEN_READING_ROW).performScrollTo()
+        composeTestRule.onNodeWithTag(UiSettingsScreenTestTags.FULLSCREEN_READING_ROW).performClick()
         assertTrue(toggledValue!!)
     }
 }

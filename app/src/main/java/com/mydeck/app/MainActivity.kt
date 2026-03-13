@@ -14,6 +14,7 @@ import androidx.compose.runtime.remember
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.compose.rememberNavController
 import dagger.hilt.android.AndroidEntryPoint
+import com.mydeck.app.domain.model.resolveEffectiveAppearance
 import com.mydeck.app.domain.model.Theme
 import com.mydeck.app.ui.navigation.AccountSettingsRoute
 import com.mydeck.app.ui.navigation.BookmarkDetailRoute
@@ -37,7 +38,8 @@ class MainActivity : ComponentActivity() {
         setContent {
             val viewModel = hiltViewModel<MainViewModel>()
             val theme = viewModel.theme.collectAsState()
-            val sepiaEnabled = viewModel.sepiaEnabled.collectAsState()
+            val lightAppearance = viewModel.lightAppearance.collectAsState()
+            val darkAppearance = viewModel.darkAppearance.collectAsState()
             val navController = rememberNavController()
             intentState = remember { mutableStateOf(intent) }
 
@@ -61,12 +63,14 @@ class MainActivity : ComponentActivity() {
                 }
             }
 
-            val themeValue = when (theme.value) {
-                Theme.SYSTEM -> if (isSystemInDarkTheme()) Theme.DARK else Theme.LIGHT
-                else -> theme.value
-            }
+            val effectiveAppearance = resolveEffectiveAppearance(
+                themeMode = theme.value,
+                isSystemDark = isSystemInDarkTheme(),
+                lightAppearance = lightAppearance.value,
+                darkAppearance = darkAppearance.value
+            )
 
-            MyDeckTheme(theme = themeValue, sepiaEnabled = sepiaEnabled.value) {
+            MyDeckTheme(appearance = effectiveAppearance) {
                 AppShell(navController, settingsDataStore)
             }
         }

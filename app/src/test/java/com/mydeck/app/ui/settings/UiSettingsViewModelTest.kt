@@ -1,6 +1,8 @@
 package com.mydeck.app.ui.settings
 
 import android.content.Context
+import com.mydeck.app.domain.model.DarkAppearance
+import com.mydeck.app.domain.model.LightAppearance
 import com.mydeck.app.domain.model.Theme
 import com.mydeck.app.io.prefs.SettingsDataStore
 import io.mockk.coEvery
@@ -10,9 +12,6 @@ import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.take
-import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -42,14 +41,20 @@ class UiSettingsViewModelTest {
         settingsDataStore = mockk()
 
         every { settingsDataStore.themeFlow } returns MutableStateFlow(Theme.SYSTEM.name)
-        every { settingsDataStore.sepiaEnabledFlow } returns MutableStateFlow(false)
+        every { settingsDataStore.lightAppearanceFlow } returns MutableStateFlow(LightAppearance.PAPER)
+        every { settingsDataStore.darkAppearanceFlow } returns MutableStateFlow(DarkAppearance.DARK)
         every { settingsDataStore.keepScreenOnWhileReadingFlow } returns MutableStateFlow(true)
+        every { settingsDataStore.fullscreenWhileReadingFlow } returns MutableStateFlow(false)
         coEvery { settingsDataStore.getTheme() } returns Theme.SYSTEM
-        coEvery { settingsDataStore.isSepiaEnabled() } returns false
+        coEvery { settingsDataStore.getLightAppearance() } returns LightAppearance.PAPER
+        coEvery { settingsDataStore.getDarkAppearance() } returns DarkAppearance.DARK
         coEvery { settingsDataStore.isKeepScreenOnWhileReading() } returns true
+        coEvery { settingsDataStore.isFullscreenWhileReading() } returns false
         coEvery { settingsDataStore.saveTheme(any()) } returns Unit
-        coEvery { settingsDataStore.saveSepiaEnabled(any()) } returns Unit
+        coEvery { settingsDataStore.saveLightAppearance(any()) } returns Unit
+        coEvery { settingsDataStore.saveDarkAppearance(any()) } returns Unit
         coEvery { settingsDataStore.saveKeepScreenOnWhileReading(any()) } returns Unit
+        coEvery { settingsDataStore.saveFullscreenWhileReading(any()) } returns Unit
 
         viewModel = UiSettingsViewModel(settingsDataStore, context)
     }
@@ -82,6 +87,24 @@ class UiSettingsViewModelTest {
         advanceUntilIdle()
         job.cancel()
         assertFalse(states.last().keepScreenOnWhileReading)
+    }
+
+    @Test
+    fun `init loads curated appearances from data store`() = runTest(UnconfinedTestDispatcher()) {
+        coEvery { settingsDataStore.getLightAppearance() } returns LightAppearance.SEPIA
+        coEvery { settingsDataStore.getDarkAppearance() } returns DarkAppearance.BLACK
+
+        viewModel = UiSettingsViewModel(settingsDataStore, context)
+
+        val states = mutableListOf<UiSettingsUiState>()
+        val job = launch {
+            viewModel.uiState.collect { states.add(it) }
+        }
+        advanceUntilIdle()
+        job.cancel()
+
+        assertEquals(LightAppearance.SEPIA, states.last().lightAppearance)
+        assertEquals(DarkAppearance.BLACK, states.last().darkAppearance)
     }
 
     @Test
@@ -121,20 +144,60 @@ class UiSettingsViewModelTest {
     }
 
     @Test
-    fun `onSepiaToggled saves and reflects in state`() = runTest(UnconfinedTestDispatcher()) {
-        coEvery { settingsDataStore.isSepiaEnabled() } returnsMany listOf(false, true)
+    fun `onLightAppearanceSelected saves and reflects in state`() = runTest(UnconfinedTestDispatcher()) {
+        coEvery { settingsDataStore.getLightAppearance() } returnsMany listOf(
+            LightAppearance.PAPER,
+            LightAppearance.SEPIA
+        )
         val states = mutableListOf<UiSettingsUiState>()
         val job = launch {
             viewModel.uiState.collect { states.add(it) }
         }
         advanceUntilIdle()
 
-        viewModel.onSepiaToggled(true)
+        viewModel.onLightAppearanceSelected(LightAppearance.SEPIA)
         advanceUntilIdle()
         job.cancel()
 
-        coVerify { settingsDataStore.saveSepiaEnabled(true) }
-        assertTrue(states.last().useSepiaInLight)
+        coVerify { settingsDataStore.saveLightAppearance(LightAppearance.SEPIA) }
+        assertEquals(LightAppearance.SEPIA, states.last().lightAppearance)
+    }
+
+    @Test
+    fun `onDarkAppearanceSelected saves and reflects in state`() = runTest(UnconfinedTestDispatcher()) {
+        coEvery { settingsDataStore.getDarkAppearance() } returnsMany listOf(
+            DarkAppearance.DARK,
+            DarkAppearance.BLACK
+        )
+        val states = mutableListOf<UiSettingsUiState>()
+        val job = launch {
+            viewModel.uiState.collect { states.add(it) }
+        }
+        advanceUntilIdle()
+
+        viewModel.onDarkAppearanceSelected(DarkAppearance.BLACK)
+        advanceUntilIdle()
+        job.cancel()
+
+        coVerify { settingsDataStore.saveDarkAppearance(DarkAppearance.BLACK) }
+        assertEquals(DarkAppearance.BLACK, states.last().darkAppearance)
+    }
+
+    @Test
+    fun `onFullscreenWhileReadingToggled true saves and updates state`() = runTest(UnconfinedTestDispatcher()) {
+        coEvery { settingsDataStore.isFullscreenWhileReading() } returnsMany listOf(false, true)
+        val states = mutableListOf<UiSettingsUiState>()
+        val job = launch {
+            viewModel.uiState.collect { states.add(it) }
+        }
+        advanceUntilIdle()
+
+        viewModel.onFullscreenWhileReadingToggled(true)
+        advanceUntilIdle()
+        job.cancel()
+
+        coVerify { settingsDataStore.saveFullscreenWhileReading(true) }
+        assertTrue(states.last().fullscreenWhileReading)
     }
 
     @Test

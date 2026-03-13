@@ -27,6 +27,9 @@ import com.mydeck.app.R
 import com.mydeck.app.domain.BookmarkRepository
 import com.mydeck.app.domain.model.Bookmark
 import com.mydeck.app.domain.model.Theme
+import com.mydeck.app.domain.model.DarkAppearance
+import com.mydeck.app.domain.model.LightAppearance
+import com.mydeck.app.domain.model.resolveEffectiveAppearance
 import com.mydeck.app.io.prefs.SettingsDataStore
 import com.mydeck.app.ui.list.AddBookmarkSheet
 import com.mydeck.app.ui.list.SaveAction
@@ -77,6 +80,8 @@ class ShareActivity : ComponentActivity() {
         setContent {
             val themeString = settingsDataStore.themeFlow
             val themeState = remember { mutableStateOf(Theme.SYSTEM) }
+            val lightAppearanceState = remember { mutableStateOf(LightAppearance.PAPER) }
+            val darkAppearanceState = remember { mutableStateOf(DarkAppearance.DARK) }
             val existingLabels = remember { mutableStateOf<List<String>>(emptyList()) }
 
             LaunchedEffect(Unit) {
@@ -88,16 +93,30 @@ class ShareActivity : ComponentActivity() {
             }
 
             LaunchedEffect(Unit) {
+                settingsDataStore.lightAppearanceFlow.collect { value ->
+                    lightAppearanceState.value = value
+                }
+            }
+
+            LaunchedEffect(Unit) {
+                settingsDataStore.darkAppearanceFlow.collect { value ->
+                    darkAppearanceState.value = value
+                }
+            }
+
+            LaunchedEffect(Unit) {
                 val labelsMap = bookmarkRepository.observeAllLabelsWithCounts().first()
                 existingLabels.value = labelsMap.keys.toList()
             }
 
-            val themeValue = when (themeState.value) {
-                Theme.SYSTEM -> if (isSystemInDarkTheme()) Theme.DARK else Theme.LIGHT
-                else -> themeState.value
-            }
+            val effectiveAppearance = resolveEffectiveAppearance(
+                themeMode = themeState.value,
+                isSystemDark = isSystemInDarkTheme(),
+                lightAppearance = lightAppearanceState.value,
+                darkAppearance = darkAppearanceState.value
+            )
 
-            MyDeckTheme(theme = themeValue) {
+            MyDeckTheme(appearance = effectiveAppearance) {
                 ShareBookmarkContent(
                     initialUrl = sharedText.first,
                     initialTitle = sharedText.second,

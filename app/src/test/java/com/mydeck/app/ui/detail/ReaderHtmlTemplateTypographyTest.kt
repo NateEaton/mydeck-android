@@ -64,7 +64,8 @@ class ReaderHtmlTemplateTypographyTest {
         val TEMPLATE_FILES = listOf(
             "html_template_light.html",
             "html_template_dark.html",
-            "html_template_sepia.html"
+            "html_template_sepia.html",
+            "html_template_black.html"
         )
     }
 }

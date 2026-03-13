@@ -3,6 +3,8 @@ package com.mydeck.app.io.prefs
 import android.content.Context
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.test.core.app.ApplicationProvider
+import com.mydeck.app.domain.model.DarkAppearance
+import com.mydeck.app.domain.model.LightAppearance
 import com.mydeck.app.domain.model.TypographySettings
 import com.mydeck.app.domain.model.Theme
 import io.mockk.every
@@ -50,6 +52,20 @@ class SettingsDataStoreImplTest {
         dataStore.saveTheme(Theme.DARK)
 
         assertEquals(Theme.DARK.name, dataStore.themeFlow.value)
+    }
+
+    @Test
+    fun `migrates legacy sepia preference to curated appearances`() = runTest {
+        userPreferences.edit()
+            .putBoolean("sepia_enabled", true)
+            .commit()
+
+        val dataStore = SettingsDataStoreImpl(context)
+
+        assertEquals(LightAppearance.SEPIA, dataStore.getLightAppearance())
+        assertEquals(DarkAppearance.DARK, dataStore.getDarkAppearance())
+        assertEquals(LightAppearance.SEPIA, dataStore.lightAppearanceFlow.value)
+        assertEquals(DarkAppearance.DARK, dataStore.darkAppearanceFlow.value)
     }
 
     @Test
@@ -110,5 +126,22 @@ class SettingsDataStoreImplTest {
             userPreferences.getInt("typography_line_spacing_percent", -1)
         )
         assertFalse(userPreferences.contains("typography_line_spacing"))
+    }
+
+    @Test
+    fun `fullscreenWhileReading defaults to false`() = runTest {
+        val dataStore = SettingsDataStoreImpl(context)
+
+        assertFalse(dataStore.isFullscreenWhileReading())
+        assertFalse(dataStore.fullscreenWhileReadingFlow.value)
+    }
+
+    @Test
+    fun `fullscreenWhileReadingFlow updates when preference is saved`() = runTest {
+        val dataStore = SettingsDataStoreImpl(context)
+
+        dataStore.saveFullscreenWhileReading(true)
+
+        assertEquals(true, dataStore.fullscreenWhileReadingFlow.value)
     }
 }

@@ -43,6 +43,8 @@ The top bar provides quick access to essential navigation and reading actions:
 
 As you scroll down to read, the top bar hides to give you more screen space. It reappears when you scroll back toward the top.
 
+If **Fullscreen while reading** is enabled in **Settings → User Interface**, the reader hides the system bars and top bar after a short delay. Swipe from the edge or tap near the top edge to reveal them temporarily.
+
 The screen stays on while you read, so you won't lose your place to the device's screen timeout. This behaviour can be turned off in **Settings → User Interface**.
 
 ### Typography Settings

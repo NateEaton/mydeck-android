@@ -103,6 +103,14 @@ other{}
     <string name="ui_settings_theme_dialog_support_text">¿Qué tema se debe usar?</string>
     <string name="ui_settings_sepia_title">Tema de lectura sepia</string>
     <string name="ui_settings_sepia_description">Usa colores cálidos para leer en modo claro</string>
+    <string name="appearance_paper">Paper</string>
+    <string name="appearance_sepia">Sepia</string>
+    <string name="appearance_dark">Dark</string>
+    <string name="appearance_black">Black</string>
+    <string name="ui_settings_light_appearance_title">When app is light</string>
+    <string name="ui_settings_dark_appearance_title">When app is dark</string>
+    <string name="ui_settings_fullscreen_reading_title">Fullscreen while reading</string>
+    <string name="ui_settings_fullscreen_reading_description">Hides the top bar and system bars while you read</string>
     <string name="ui_settings_keep_screen_on_title">Mantener la pantalla encendida mientras se lee</string>
     <string name="ui_settings_keep_screen_on_description">Evita que la pantalla se apague mientras lees</string>
     <string name="action_open_in_browser">Abrir en el navegador</string>

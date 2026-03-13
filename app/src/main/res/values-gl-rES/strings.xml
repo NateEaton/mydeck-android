@@ -268,6 +268,14 @@ other{}
     <string name="layout">Layout</string>
     <string name="ui_settings_sepia_title">Tema de lectura sepia</string>
     <string name="ui_settings_sepia_description">Usar cores quentes para a lectura no modo claro</string>
+    <string name="appearance_paper">Paper</string>
+    <string name="appearance_sepia">Sepia</string>
+    <string name="appearance_dark">Dark</string>
+    <string name="appearance_black">Black</string>
+    <string name="ui_settings_light_appearance_title">When app is light</string>
+    <string name="ui_settings_dark_appearance_title">When app is dark</string>
+    <string name="ui_settings_fullscreen_reading_title">Fullscreen while reading</string>
+    <string name="ui_settings_fullscreen_reading_description">Hides the top bar and system bars while you read</string>
     <string name="ui_settings_keep_screen_on_title">Keep screen on while reading</string>
     <string name="ui_settings_keep_screen_on_description">Prevents the screen from turning off while you read</string>
     <string name="select_bookmark">Select a bookmark to read</string>

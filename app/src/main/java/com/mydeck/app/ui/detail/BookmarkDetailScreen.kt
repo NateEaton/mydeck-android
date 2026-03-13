@@ -1,5 +1,6 @@
 package com.mydeck.app.ui.detail
 
+import android.app.Activity
 import android.app.DownloadManager
 import android.content.ClipData
 import android.content.ClipboardManager
@@ -24,12 +25,14 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.verticalScroll
@@ -99,6 +102,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.ui.draw.clip
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.ui.focus.FocusRequester
@@ -113,6 +117,9 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.navigation.NavController
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import com.mydeck.app.R
 import com.mydeck.app.domain.model.ImageGalleryData
 import com.mydeck.app.domain.model.Template
@@ -363,6 +370,7 @@ fun BookmarkDetailHost(
     }
 
     val keepScreenOn by viewModel.keepScreenOnWhileReading.collectAsState()
+    val fullscreenWhileReading by viewModel.fullscreenWhileReading.collectAsState()
     val view = LocalView.current
     DisposableEffect(keepScreenOn) {
         view.keepScreenOn = keepScreenOn
@@ -462,6 +470,7 @@ fun BookmarkDetailHost(
                     readerWebView = readerWebView.value,
                     onAnnotationScrollHandled = { viewModel.onAnnotationScrollHandled() },
                     onReaderWebViewChanged = { readerWebView.value = it },
+                    fullscreenWhileReading = fullscreenWhileReading,
                 )
 
                 // Gallery draws on top of the reader screen. fillMaxSize() fills the
@@ -647,12 +656,34 @@ fun BookmarkDetailScreen(
     readerWebView: WebView? = null,
     onAnnotationScrollHandled: () -> Unit = {},
     onReaderWebViewChanged: (WebView?) -> Unit = {},
+    fullscreenWhileReading: Boolean = false,
 ) {
     val topBarScrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior()
     val scrollState = rememberScrollState()
     val coroutineScope = rememberCoroutineScope()
     var articleTopOffset by remember { mutableStateOf(0f) }
     var viewportHeight by remember { mutableIntStateOf(0) }
+    val fullscreenReaderMode = fullscreenWhileReading && contentMode == ContentMode.READER
+    var showFullscreenTopBar by remember(uiState.bookmark.bookmarkId, fullscreenReaderMode) {
+        mutableStateOf(fullscreenReaderMode)
+    }
+
+    LaunchedEffect(fullscreenReaderMode) {
+        if (!fullscreenReaderMode) {
+            showFullscreenTopBar = false
+        } else {
+            showFullscreenTopBar = true
+        }
+    }
+
+    LaunchedEffect(fullscreenReaderMode, showFullscreenTopBar, articleSearchState.isActive) {
+        if (fullscreenReaderMode && showFullscreenTopBar && !articleSearchState.isActive) {
+            delay(2500)
+            showFullscreenTopBar = false
+        }
+    }
+
+    ReaderFullscreenEffect(enabled = fullscreenReaderMode)
 
     LaunchedEffect(
         pendingAnnotationScrollId,
@@ -691,34 +722,36 @@ fun BookmarkDetailScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         modifier = modifier.nestedScroll(topBarScrollBehavior.nestedScrollConnection),
         topBar = {
-            BookmarkDetailTopBar(
-                articleSearchState = articleSearchState,
-                onArticleSearchQueryChange = onArticleSearchQueryChange,
-                onArticleSearchPrevious = onArticleSearchPrevious,
-                onArticleSearchNext = onArticleSearchNext,
-                onArticleSearchDeactivate = onArticleSearchDeactivate,
-                onClickBack = onClickBack,
-                uiState = uiState,
-                onClickToggleFavorite = onClickToggleFavorite,
-                onClickToggleArchive = onClickToggleArchive,
-                onShowTypographyPanel = onShowTypographyPanel,
-                onShowDetails = onShowDetails,
-                onShowHighlights = onShowHighlights,
-                contentMode = contentMode,
-                onClickToggleRead = onClickToggleRead,
-                onClickShareBookmark = onClickShareBookmark,
-                onClickDeleteBookmark = onClickDeleteBookmark,
-                onArticleSearchActivate = onArticleSearchActivate,
-                onClickOpenInBrowser = onClickOpenInBrowser,
-                onContentModeChange = onContentModeChange,
-                scrollBehavior = topBarScrollBehavior,
-                scrollState = scrollState,
-                onScrollToTop = {
-                    coroutineScope.launch {
-                        scrollState.animateScrollTo(0)
-                    }
-                },
-            )
+            if (!fullscreenReaderMode || showFullscreenTopBar || articleSearchState.isActive) {
+                BookmarkDetailTopBar(
+                    articleSearchState = articleSearchState,
+                    onArticleSearchQueryChange = onArticleSearchQueryChange,
+                    onArticleSearchPrevious = onArticleSearchPrevious,
+                    onArticleSearchNext = onArticleSearchNext,
+                    onArticleSearchDeactivate = onArticleSearchDeactivate,
+                    onClickBack = onClickBack,
+                    uiState = uiState,
+                    onClickToggleFavorite = onClickToggleFavorite,
+                    onClickToggleArchive = onClickToggleArchive,
+                    onShowTypographyPanel = onShowTypographyPanel,
+                    onShowDetails = onShowDetails,
+                    onShowHighlights = onShowHighlights,
+                    contentMode = contentMode,
+                    onClickToggleRead = onClickToggleRead,
+                    onClickShareBookmark = onClickShareBookmark,
+                    onClickDeleteBookmark = onClickDeleteBookmark,
+                    onArticleSearchActivate = onArticleSearchActivate,
+                    onClickOpenInBrowser = onClickOpenInBrowser,
+                    onContentModeChange = onContentModeChange,
+                    scrollBehavior = topBarScrollBehavior,
+                    scrollState = scrollState,
+                    onScrollToTop = {
+                        coroutineScope.launch {
+                            scrollState.animateScrollTo(0)
+                        }
+                    },
+                )
+            }
         }
     ) { padding ->
         Box(
@@ -749,6 +782,40 @@ fun BookmarkDetailScreen(
                 onClickToggleArchive = onClickToggleArchive,
                 scrollState = scrollState
             )
+
+            if (fullscreenReaderMode && !showFullscreenTopBar && !articleSearchState.isActive) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .fillMaxWidth()
+                        .windowInsetsPadding(WindowInsets.statusBars)
+                        .height(28.dp)
+                        .clickable { showFullscreenTopBar = true }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ReaderFullscreenEffect(enabled: Boolean) {
+    val view = LocalView.current
+
+    DisposableEffect(enabled, view) {
+        val activity = view.context as? Activity
+        val window = activity?.window
+        val controller = window?.let { WindowCompat.getInsetsController(it, view) }
+
+        if (enabled && controller != null) {
+            controller.systemBarsBehavior =
+                WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            controller.hide(WindowInsetsCompat.Type.systemBars())
+        } else {
+            controller?.show(WindowInsetsCompat.Type.systemBars())
+        }
+
+        onDispose {
+            controller?.show(WindowInsetsCompat.Type.systemBars())
         }
     }
 }

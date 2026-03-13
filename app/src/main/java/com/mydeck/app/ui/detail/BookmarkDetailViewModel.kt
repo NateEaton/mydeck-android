@@ -11,10 +11,14 @@ import com.mydeck.app.R
 import com.mydeck.app.domain.BookmarkRepository
 import com.mydeck.app.domain.model.Annotation
 import com.mydeck.app.domain.model.Bookmark.ContentState
+import com.mydeck.app.domain.model.DarkAppearance
+import com.mydeck.app.domain.model.EffectiveAppearance
+import com.mydeck.app.domain.model.LightAppearance
 import com.mydeck.app.domain.model.BookmarkMetadataUpdate
 import com.mydeck.app.domain.model.SelectionData
 import com.mydeck.app.domain.model.Template
 import com.mydeck.app.domain.model.Theme
+import com.mydeck.app.domain.model.toEffectiveAppearance
 import com.mydeck.app.domain.usecase.LoadArticleUseCase
 import com.mydeck.app.domain.usecase.UpdateBookmarkUseCase
 import com.mydeck.app.io.AssetLoader
@@ -86,26 +90,20 @@ class BookmarkDetailViewModel @Inject constructor(
     private val _bookmarkId = MutableStateFlow<String?>(savedStateHandle["bookmarkId"])
     private val template: Flow<Template?> = combine(
         settingsDataStore.themeFlow,
-        settingsDataStore.sepiaEnabledFlow
-    ) { themeStr, sepiaEnabled ->
+        settingsDataStore.lightAppearanceFlow,
+        settingsDataStore.darkAppearanceFlow
+    ) { themeStr, lightAppearance, darkAppearance ->
         val themeMode = themeStr?.let {
             try { Theme.valueOf(it) } catch (_: IllegalArgumentException) { Theme.LIGHT }
         } ?: Theme.SYSTEM
         when (themeMode) {
-            Theme.DARK -> assetLoader.loadAsset(Template.DARK_TEMPLATE_FILE)?.let { Template.SimpleTemplate(it) }
-            Theme.LIGHT -> {
-                val templateFile = if (sepiaEnabled) Template.SEPIA_TEMPLATE_FILE else Template.LIGHT_TEMPLATE_FILE
-                assetLoader.loadAsset(templateFile)?.let { Template.SimpleTemplate(it) }
-            }
+            Theme.DARK -> loadTemplateForAppearance(darkAppearance.toEffectiveAppearance())
+            Theme.LIGHT -> loadTemplateForAppearance(lightAppearance.toEffectiveAppearance())
             Theme.SYSTEM -> {
-                val lightTemplate = if (sepiaEnabled) {
-                    assetLoader.loadAsset(Template.SEPIA_TEMPLATE_FILE)
-                } else {
-                    assetLoader.loadAsset(Template.LIGHT_TEMPLATE_FILE)
-                }
-                val dark = assetLoader.loadAsset(Template.DARK_TEMPLATE_FILE)
-                if (!lightTemplate.isNullOrBlank() && !dark.isNullOrBlank()) {
-                    Template.DynamicTemplate(light = lightTemplate, dark = dark)
+                val lightTemplate = loadTemplateContent(lightAppearance.toEffectiveAppearance())
+                val darkTemplate = loadTemplateContent(darkAppearance.toEffectiveAppearance())
+                if (!lightTemplate.isNullOrBlank() && !darkTemplate.isNullOrBlank()) {
+                    Template.DynamicTemplate(light = lightTemplate, dark = darkTemplate)
                 } else null
             }
         }
@@ -113,11 +111,26 @@ class BookmarkDetailViewModel @Inject constructor(
     private val zoomFactor: Flow<Int> = settingsDataStore.zoomFactorFlow
     private val typographySettings = settingsDataStore.typographySettingsFlow
     val keepScreenOnWhileReading: StateFlow<Boolean> = settingsDataStore.keepScreenOnWhileReadingFlow
+    val fullscreenWhileReading: StateFlow<Boolean> = settingsDataStore.fullscreenWhileReadingFlow
     private val updateState = MutableStateFlow<UpdateBookmarkState?>(null)
 
     val labelsWithCounts: StateFlow<Map<String, Int>> = bookmarkRepository
         .observeAllLabelsWithCounts()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
+
+    private fun loadTemplateForAppearance(appearance: EffectiveAppearance): Template? {
+        return loadTemplateContent(appearance)?.let { Template.SimpleTemplate(it) }
+    }
+
+    private fun loadTemplateContent(appearance: EffectiveAppearance): String? {
+        val templateFile = when (appearance) {
+            EffectiveAppearance.PAPER -> Template.LIGHT_TEMPLATE_FILE
+            EffectiveAppearance.SEPIA -> Template.SEPIA_TEMPLATE_FILE
+            EffectiveAppearance.DARK -> Template.DARK_TEMPLATE_FILE
+            EffectiveAppearance.BLACK -> Template.BLACK_TEMPLATE_FILE
+        }
+        return assetLoader.loadAsset(templateFile)
+    }
 
     // Local tracking of scroll progress (not immediately persisted)
     private var currentScrollProgress = 0
