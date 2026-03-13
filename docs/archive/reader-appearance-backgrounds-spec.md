@@ -7,7 +7,7 @@
 
 This specification defines the next focused slice of reader appearance work: background styling, surface treatment, and the relationship between app-wide appearance and reader appearance.
 
-It intentionally narrows the broader [reader-appearance-and-typography-controls-spec.md](/Users/nathan/development/MyDeck/docs/specs/reader-appearance-and-typography-controls-spec.md) into one implementation-ready decision set:
+It intentionally narrows the broader [reader-appearance-and-typography-controls-spec.md](./reader-appearance-and-typography-controls-spec.md) into one implementation-ready decision set:
 
 1. replace the current `sepiaEnabled` toggle model with explicit curated appearance families
 2. keep one appearance family applied across both the Compose UI and the reader WebView

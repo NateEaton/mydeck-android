@@ -12,7 +12,7 @@ This specification defines a smaller first slice of the broader reader appearanc
 
 The goal is to improve article readability without introducing new heading-specific user controls.
 
-This spec is intentionally narrower than [reader-appearance-and-typography-controls-spec.md](/Users/nathan/development/MyDeck/docs/specs/reader-appearance-and-typography-controls-spec.md). It isolates one concrete problem that can be implemented, tested, and evaluated before deciding whether deeper typography controls are still necessary.
+This spec is intentionally narrower than [reader-appearance-and-typography-controls-spec.md](./reader-appearance-and-typography-controls-spec.md). It isolates one concrete problem that can be implemented, tested, and evaluated before deciding whether deeper typography controls are still necessary.
 
 ## Problem Statement
 

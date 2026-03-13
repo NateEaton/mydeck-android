@@ -3,11 +3,19 @@
 **Date:** 2026-03-07
 **Status:** Draft
 
+> **Update — March 13, 2026:** Subsequent article analysis, UI review, and implementation work changed the direction of this effort. Instead of implementing the full title/heading control surface described below, the work on this branch was carried through these focused specs:
+>
+> - [Reader Appearance Backgrounds Specification](./reader-appearance-backgrounds-spec.md)
+> - [Reader Heading Scale and Body Size Specification](./reader-heading-scale-and-body-size-spec.md)
+> - [Reader Line Spacing and Width Controls Specification](./reader-line-spacing-and-width-controls-spec.md)
+>
+> This document is preserved as the original umbrella draft and archived for historical context.
+
 ## Overview
 
 This specification defines the next iteration of MyDeck's reading appearance and typography controls.
 
-For the focused implementation slices now in progress, the detailed behavior for app and reader appearance backgrounds is captured in [reader-appearance-backgrounds-spec.md](/Users/nathan/development/MyDeck/docs/specs/reader-appearance-backgrounds-spec.md), the detailed behavior for body size and heading scale is captured in [reader-heading-scale-and-body-size-spec.md](/Users/nathan/development/MyDeck/docs/specs/reader-heading-scale-and-body-size-spec.md), and the detailed behavior for line spacing and width is captured in [reader-line-spacing-and-width-controls-spec.md](/Users/nathan/development/MyDeck/docs/specs/reader-line-spacing-and-width-controls-spec.md).
+For the focused implementation slices that followed, the detailed behavior for app and reader appearance backgrounds is captured in [reader-appearance-backgrounds-spec.md](./reader-appearance-backgrounds-spec.md), the detailed behavior for body size and heading scale is captured in [reader-heading-scale-and-body-size-spec.md](./reader-heading-scale-and-body-size-spec.md), and the detailed behavior for line spacing and width is captured in [reader-line-spacing-and-width-controls-spec.md](./reader-line-spacing-and-width-controls-spec.md).
 
 The work has two linked goals:
 
