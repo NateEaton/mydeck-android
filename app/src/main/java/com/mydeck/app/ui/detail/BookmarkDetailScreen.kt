@@ -1383,7 +1383,6 @@ fun BookmarkDetailScreenPreview() {
                 bookmark = sampleBookmark,
                 updateBookmarkState = null,
                 template = Template.SimpleTemplate("template"),
-                zoomFactor = 100,
                 typographySettings = com.mydeck.app.domain.model.TypographySettings()
             ),
             onClickToggleFavorite = { _, _ -> },
@@ -1406,7 +1405,6 @@ private fun BookmarkDetailContentPreview() {
                 bookmark = sampleBookmark,
                 updateBookmarkState = null,
                 template = Template.SimpleTemplate("template"),
-                zoomFactor = 100,
                 typographySettings = com.mydeck.app.domain.model.TypographySettings()
             ),
             onClickOpenUrl = {},

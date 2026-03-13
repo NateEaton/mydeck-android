@@ -18,7 +18,7 @@
         body {
           font-size: 1.95rem;
           line-height: 1.618;
-          max-width: 38em;
+          max-width: 100%;
           margin: auto;
           color: #4a3b2b;
           background-color: #f4ecd8;
@@ -85,7 +85,10 @@
         }
 
         a {
-          text-decoration: none;
+          text-decoration: underline;
+          text-decoration-color: rgba(140, 110, 80, 0.65);
+          text-underline-offset: 0.12em;
+          text-decoration-thickness: 1px;
           color: #7a4b21;
         }
         a:visited {
@@ -93,7 +96,6 @@
         }
         a:hover {
           color: #a76d3d;
-          border-bottom: 2px solid #a76d3d;
         }
 
         ul {

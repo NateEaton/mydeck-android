@@ -161,6 +161,8 @@ fun BookmarkDetailArticle(
     // Apply typography settings when they change (non-textZoom properties via JS)
     LaunchedEffect(uiState.typographySettings) {
         webViewRef.value?.let { webView ->
+            // Font size still uses textZoom so body text and in-article headings
+            // scale together under the current simplified reader model.
             webView.settings.textZoom = uiState.typographySettings.fontSizePercent
             // Small delay to let any pending content load finish
             delay(150)

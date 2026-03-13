@@ -18,7 +18,6 @@ interface SettingsDataStore {
     val urlFlow: StateFlow<String?>
     val initialSyncPerformedFlow: StateFlow<Boolean>
     val themeFlow: StateFlow<String?>
-    val zoomFactorFlow: StateFlow<Int>
     fun saveToken(token: String)
     fun saveUrl(url: String)
     suspend fun saveLastBookmarkTimestamp(timestamp: Instant)
@@ -46,8 +45,6 @@ interface SettingsDataStore {
     suspend fun getLightAppearance(): LightAppearance
     suspend fun saveDarkAppearance(appearance: DarkAppearance)
     suspend fun getDarkAppearance(): DarkAppearance
-    suspend fun  getZoomFactor(): Int
-    suspend fun  saveZoomFactor(zoomFactor: Int)
     suspend fun setSyncOnAppOpenEnabled(isEnabled: Boolean)
     suspend fun isSyncOnAppOpenEnabled(): Boolean
     suspend fun setSyncNotificationsEnabled(isEnabled: Boolean)
@@ -73,9 +70,12 @@ interface SettingsDataStore {
     val typographySettingsFlow: StateFlow<TypographySettings>
     suspend fun saveTypographySettings(settings: TypographySettings)
 
-    // Sepia preference (independent of theme mode)
+    // Sepia preference retained only for migration from older builds.
+    @Deprecated("Migration-only. Use lightAppearanceFlow instead.")
     val sepiaEnabledFlow: StateFlow<Boolean>
+    @Deprecated("Migration-only. Use saveLightAppearance instead.")
     suspend fun saveSepiaEnabled(enabled: Boolean)
+    @Deprecated("Migration-only. Use getLightAppearance instead.")
     suspend fun isSepiaEnabled(): Boolean
 
     // Reader appearance preferences

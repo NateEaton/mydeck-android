@@ -108,7 +108,6 @@ class BookmarkDetailViewModel @Inject constructor(
             }
         }
     }
-    private val zoomFactor: Flow<Int> = settingsDataStore.zoomFactorFlow
     private val typographySettings = settingsDataStore.typographySettingsFlow
     val keepScreenOnWhileReading: StateFlow<Boolean> = settingsDataStore.keepScreenOnWhileReadingFlow
     val fullscreenWhileReading: StateFlow<Boolean> = settingsDataStore.fullscreenWhileReadingFlow
@@ -302,9 +301,8 @@ class BookmarkDetailViewModel @Inject constructor(
                 bookmarkRepository.observeBookmark(id),
                 updateState,
                 template,
-                zoomFactor,
                 typographySettings
-            ) { bookmark, updateState, template, zoomFactor, typographySettings ->
+            ) { bookmark, updateState, template, typographySettings ->
                 if (bookmark == null) {
                     Timber.e("Error loading bookmark [bookmarkId=$id]")
                     UiState.Error
@@ -351,7 +349,6 @@ class BookmarkDetailViewModel @Inject constructor(
                         ),
                         updateBookmarkState = updateState,
                         template = template,
-                        zoomFactor = zoomFactor,
                         typographySettings = typographySettings
                     )
                 }
@@ -531,16 +528,6 @@ class BookmarkDetailViewModel @Inject constructor(
         viewModelScope.launch {
             saveCurrentProgress()
             _navigationEvent.send(NavigationEvent.NavigateBack)
-        }
-    }
-
-    fun onClickChangeZoomFactor(value: Int) {
-        viewModelScope.launch {
-            val currentZoom = settingsDataStore.zoomFactorFlow
-                .stateIn(viewModelScope)
-                .value
-            val newZoom = (currentZoom + value).coerceAtMost(400).coerceAtLeast(25)
-            settingsDataStore.saveZoomFactor(newZoom)
         }
     }
 
@@ -1028,7 +1015,6 @@ class BookmarkDetailViewModel @Inject constructor(
             val bookmark: Bookmark, 
             val updateBookmarkState: UpdateBookmarkState?, 
             val template: Template, 
-            val zoomFactor: Int,
             val typographySettings: com.mydeck.app.domain.model.TypographySettings
         ) : UiState()
 

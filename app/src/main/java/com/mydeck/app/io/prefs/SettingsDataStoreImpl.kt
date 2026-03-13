@@ -47,7 +47,6 @@ class SettingsDataStoreImpl @Inject constructor(@ApplicationContext private val 
     private val KEY_AUTOSYNC_ENABLED = booleanPreferencesKey("autosync_enabled")
     private val KEY_AUTOSYNC_TIMEFRAME = stringPreferencesKey("autosync_timeframe")
     private val KEY_THEME = stringPreferencesKey("theme")
-    private val KEY_ZOOM_FACTOR = intPreferencesKey("zoom_factor")
     private val KEY_SYNC_ON_APP_OPEN = booleanPreferencesKey("sync_on_app_open")
     private val KEY_SYNC_NOTIFICATIONS_ENABLED = booleanPreferencesKey("sync_notifications_enabled")
     private val KEY_LAYOUT_MODE = stringPreferencesKey("layout_mode")
@@ -249,12 +248,14 @@ class SettingsDataStoreImpl @Inject constructor(@ApplicationContext private val 
         } ?: DarkAppearance.DARK
     }
 
+    @Deprecated("Migration-only. Use saveLightAppearance instead.")
     override suspend fun saveSepiaEnabled(enabled: Boolean) {
         userPreferences.edit {
             putBoolean(KEY_SEPIA_ENABLED.name, enabled)
         }
     }
 
+    @Deprecated("Migration-only. Use getLightAppearance instead.")
     override suspend fun isSepiaEnabled(): Boolean {
         return userPreferences.getBoolean(KEY_SEPIA_ENABLED.name, false)
     }
@@ -277,16 +278,6 @@ class SettingsDataStoreImpl @Inject constructor(@ApplicationContext private val 
 
     override suspend fun isFullscreenWhileReading(): Boolean {
         return userPreferences.getBoolean(KEY_FULLSCREEN_WHILE_READING.name, false)
-    }
-
-    override suspend fun getZoomFactor(): Int {
-        return userPreferences.getInt(KEY_ZOOM_FACTOR.name, 100)
-    }
-
-    override suspend fun saveZoomFactor(zoomFactor: Int) {
-        userPreferences.edit {
-            putInt(KEY_ZOOM_FACTOR.name, zoomFactor.coerceIn(25, 400))
-        }
     }
 
     override suspend fun setSyncOnAppOpenEnabled(isEnabled: Boolean) {
@@ -315,7 +306,7 @@ class SettingsDataStoreImpl @Inject constructor(@ApplicationContext private val 
     override val initialSyncPerformedFlow =
         getBooleanFlow(encryptedSharedPreferences, KEY_INITIAL_SYNC_PERFORMED, false)
     override val themeFlow = getStringFlow(userPreferences, KEY_THEME.name, Theme.SYSTEM.name)
-    override val zoomFactorFlow = getIntFlow(userPreferences, KEY_ZOOM_FACTOR.name, 100)
+    @Deprecated("Migration-only. Use lightAppearanceFlow instead.")
     override val sepiaEnabledFlow = getBooleanFlow(userPreferences, KEY_SEPIA_ENABLED.name, false)
     override val lightAppearanceFlow = getEnumFlow(
         preferences = userPreferences,
@@ -664,7 +655,6 @@ class SettingsDataStoreImpl @Inject constructor(@ApplicationContext private val 
             migrateBooleanPreference(this, KEY_AUTOSYNC_ENABLED.name)
             migrateStringPreference(this, KEY_AUTOSYNC_TIMEFRAME.name)
             migrateStringPreference(this, KEY_THEME.name)
-            migrateIntPreference(this, KEY_ZOOM_FACTOR.name)
             migrateBooleanPreference(this, KEY_SYNC_ON_APP_OPEN.name)
             migrateBooleanPreference(this, KEY_SYNC_NOTIFICATIONS_ENABLED.name)
             migrateStringPreference(this, KEY_LAYOUT_MODE.name)
@@ -683,6 +673,7 @@ class SettingsDataStoreImpl @Inject constructor(@ApplicationContext private val 
             migrateIntPreference(this, KEY_TYPO_FONT_SIZE.name)
             migrateStringPreference(this, KEY_TYPO_FONT_FAMILY.name)
             migrateStringPreference(this, KEY_TYPO_LINE_SPACING.name)
+            migrateIntPreference(this, KEY_TYPO_LINE_SPACING_PERCENT.name)
             migrateStringPreference(this, KEY_TYPO_TEXT_WIDTH.name)
             migrateBooleanPreference(this, KEY_TYPO_JUSTIFIED.name)
             migrateBooleanPreference(this, KEY_TYPO_HYPHENATION.name)

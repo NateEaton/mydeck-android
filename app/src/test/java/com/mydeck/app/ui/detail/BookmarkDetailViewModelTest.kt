@@ -79,7 +79,6 @@ class BookmarkDetailViewModelTest {
         every { settingsDataStore.themeFlow } returns MutableStateFlow(Theme.LIGHT.name)
         every { settingsDataStore.lightAppearanceFlow } returns MutableStateFlow(LightAppearance.PAPER)
         every { settingsDataStore.darkAppearanceFlow } returns MutableStateFlow(DarkAppearance.DARK)
-        every { settingsDataStore.zoomFactorFlow } returns MutableStateFlow(100)
         every { settingsDataStore.typographySettingsFlow } returns MutableStateFlow(com.mydeck.app.domain.model.TypographySettings())
         every { settingsDataStore.keepScreenOnWhileReadingFlow } returns MutableStateFlow(true)
         every { settingsDataStore.fullscreenWhileReadingFlow } returns MutableStateFlow(false)

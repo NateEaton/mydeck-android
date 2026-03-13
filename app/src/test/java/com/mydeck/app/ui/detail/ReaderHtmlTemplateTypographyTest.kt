@@ -17,8 +17,10 @@ class ReaderHtmlTemplateTypographyTest {
             assertTrue(template.contains("font-size: 1.95rem;"))
             assertTrue(template.contains("font-size: 1.75rem;"))
             assertTrue(template.contains("font-size: 1.65rem;"))
+            assertTrue(template.contains("max-width: 100%;"))
             assertFalse(template.contains("font-size: 1.53rem;"))
             assertFalse(template.contains("font-size: 1.35rem;"))
+            assertFalse(template.contains("max-width: 38em;"))
         }
     }
 
@@ -45,6 +47,17 @@ class ReaderHtmlTemplateTypographyTest {
             assertFalse(template.contains("font-size: 1.25em;"))
             assertFalse(template.contains("font-weight: 700;"))
         }
+    }
+
+    @Test
+    fun `sepia template keeps article links subtly underlined`() {
+        val sepiaTemplate = loadTemplates().getValue("html_template_sepia.html")
+
+        assertTrue(sepiaTemplate.contains("text-decoration: underline;"))
+        assertTrue(sepiaTemplate.contains("text-decoration-color: rgba(140, 110, 80, 0.65);"))
+        assertTrue(sepiaTemplate.contains("text-underline-offset: 0.12em;"))
+        assertTrue(sepiaTemplate.contains("text-decoration-thickness: 1px;"))
+        assertFalse(sepiaTemplate.contains("border-bottom: 2px solid #a76d3d;"))
     }
 
     private fun loadTemplates(): Map<String, String> = TEMPLATE_FILES.associateWith { fileName ->

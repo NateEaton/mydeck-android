@@ -88,6 +88,8 @@ The menu includes visual dividers to separate related actions and destructive ac
 
 Tapping a link within bookmark content (articles, pictures with descriptions, or videos with text) opens the associated web page in your device's default browser.
 
+In the **Sepia** appearance, article links also use a subtle underline so they are easier to distinguish from body text while reading.
+
 ## Long-press Context Menus
 
 Long-pressing on links or images within bookmark content opens a context menu dialog with quick actions. The dialog header shows the URL or image source — tap the header to expand truncated text, tap again to collapse.

@@ -15,6 +15,7 @@ import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -24,6 +25,7 @@ import org.robolectric.RobolectricTestRunner
 class SettingsDataStoreImplTest {
 
     private lateinit var context: Context
+    private lateinit var encryptedSharedPreferences: EncryptedSharedPreferences
     private val userPreferences
         get() = context.getSharedPreferences("user_preferences", Context.MODE_PRIVATE)
 
@@ -32,7 +34,7 @@ class SettingsDataStoreImplTest {
         context = ApplicationProvider.getApplicationContext()
         userPreferences.edit().clear().commit()
 
-        val encryptedSharedPreferences = mockk<EncryptedSharedPreferences>(relaxed = true)
+        encryptedSharedPreferences = mockk(relaxed = true)
         every { encryptedSharedPreferences.contains(any()) } returns false
 
         mockkObject(EncryptionHelper)
@@ -126,6 +128,18 @@ class SettingsDataStoreImplTest {
             userPreferences.getInt("typography_line_spacing_percent", -1)
         )
         assertFalse(userPreferences.contains("typography_line_spacing"))
+    }
+
+    @Test
+    fun `migrates stepped line spacing percent from encrypted preferences`() = runTest {
+        every { encryptedSharedPreferences.contains("typography_line_spacing_percent") } returns true
+        every { encryptedSharedPreferences.getInt("typography_line_spacing_percent", 0) } returns 115
+
+        val dataStore = SettingsDataStoreImpl(context)
+
+        assertEquals(115, dataStore.typographySettingsFlow.value.lineSpacingPercent)
+        assertTrue(userPreferences.contains("typography_line_spacing_percent"))
+        assertEquals(115, userPreferences.getInt("typography_line_spacing_percent", -1))
     }
 
     @Test
