@@ -7,6 +7,8 @@ Follow the project rules in `CLAUDE.md`, especially:
 ## Default verification (run after changes)
 Use the Gradle wrapper only:
 
+Run verification tasks serially, not in parallel. Parallel Gradle runs in this project can collide in KSP/generated outputs and produce false failures.
+
 - `./gradlew :app:assembleDebugAll`
 - `./gradlew :app:testDebugUnitTestAll`
 
