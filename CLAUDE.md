@@ -78,5 +78,8 @@ The English text serves as a placeholder until professional translators provide 
 ## Other Guidelines
 
 - Follow existing code style and patterns
-- Run lint checks before committing
+- Run the aggregate debug verification tasks before committing:
+  - `./gradlew :app:assembleDebugAll`
+  - `./gradlew :app:testDebugUnitTestAll`
+  - `./gradlew :app:lintDebugAll`
 - Keep commits focused and well-documented
