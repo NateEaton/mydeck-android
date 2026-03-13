@@ -185,6 +185,8 @@
     <string name="action_edit_metadata">Edit metadata</string>
     <string name="action_increase_text_size">Increase Text Size</string>
     <string name="action_decrease_text_size">Decrease Text Size</string>
+    <string name="action_increase_line_spacing">Increase line spacing</string>
+    <string name="action_decrease_line_spacing">Decrease line spacing</string>
     <string name="search_in_article_hint">Find in article</string>
     <string name="search_match_counter">%1$d/%2$d</string>
     <string name="search_next_match">Next match</string>
@@ -250,6 +252,7 @@
     <string name="line_spacing_tight">紧凑</string>
     <string name="line_spacing_loose">宽松</string>
     <string name="width_wide">宽</string>
+    <string name="width_medium">Medium</string>
     <string name="width_narrow">窄</string>
     <string name="justify_label">两端对齐</string>
     <string name="hyphenation_label">连字符断词</string>

@@ -66,7 +66,7 @@ class SettingsDataStoreImplTest {
 
     @Test
     fun `typographySettingsFlow clamps legacy font size when read`() = runTest {
-        userPreferences.edit().putInt("typography_font_size_percent", 80).commit()
+        userPreferences.edit().putInt("typography_font_size_percent", 75).commit()
 
         val dataStore = SettingsDataStoreImpl(context)
 
@@ -81,5 +81,34 @@ class SettingsDataStoreImplTest {
 
         assertEquals(TypographySettings.MAX_FONT_SIZE, dataStore.typographySettingsFlow.value.fontSizePercent)
         assertEquals(TypographySettings.MAX_FONT_SIZE, userPreferences.getInt("typography_font_size_percent", -1))
+    }
+
+    @Test
+    fun `typographySettingsFlow migrates legacy loose line spacing to max stepped value`() = runTest {
+        userPreferences.edit().putString("typography_line_spacing", "LOOSE").commit()
+
+        val dataStore = SettingsDataStoreImpl(context)
+
+        assertEquals(TypographySettings.MAX_LINE_SPACING_PERCENT, dataStore.typographySettingsFlow.value.lineSpacingPercent)
+    }
+
+    @Test
+    fun `saveTypographySettings stores clamped stepped line spacing and removes legacy value`() = runTest {
+        userPreferences.edit().putString("typography_line_spacing", "TIGHT").commit()
+        val dataStore = SettingsDataStoreImpl(context)
+
+        dataStore.saveTypographySettings(
+            TypographySettings(lineSpacingPercent = 130)
+        )
+
+        assertEquals(
+            TypographySettings.MAX_LINE_SPACING_PERCENT,
+            dataStore.typographySettingsFlow.value.lineSpacingPercent
+        )
+        assertEquals(
+            TypographySettings.MAX_LINE_SPACING_PERCENT,
+            userPreferences.getInt("typography_line_spacing_percent", -1)
+        )
+        assertFalse(userPreferences.contains("typography_line_spacing"))
     }
 }

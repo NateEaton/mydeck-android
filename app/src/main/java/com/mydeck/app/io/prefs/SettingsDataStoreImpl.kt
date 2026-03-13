@@ -9,7 +9,6 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import com.mydeck.app.BuildConfig
 import com.mydeck.app.domain.model.AutoSyncTimeframe
 import com.mydeck.app.domain.model.CachedServerInfo
-import com.mydeck.app.domain.model.LineSpacing
 import com.mydeck.app.domain.model.ReaderFontFamily
 import com.mydeck.app.domain.model.TextWidth
 import com.mydeck.app.domain.model.Theme
@@ -63,6 +62,7 @@ class SettingsDataStoreImpl @Inject constructor(@ApplicationContext private val 
     private val KEY_TYPO_FONT_SIZE = intPreferencesKey("typography_font_size_percent")
     private val KEY_TYPO_FONT_FAMILY = stringPreferencesKey("typography_font_family")
     private val KEY_TYPO_LINE_SPACING = stringPreferencesKey("typography_line_spacing")
+    private val KEY_TYPO_LINE_SPACING_PERCENT = intPreferencesKey("typography_line_spacing_percent")
     private val KEY_TYPO_TEXT_WIDTH = stringPreferencesKey("typography_text_width")
     private val KEY_TYPO_JUSTIFIED = booleanPreferencesKey("typography_justified")
     private val KEY_TYPO_HYPHENATION = booleanPreferencesKey("typography_hyphenation")
@@ -440,17 +440,14 @@ class SettingsDataStoreImpl @Inject constructor(@ApplicationContext private val 
             KEY_TYPO_FONT_FAMILY.name,
             ReaderFontFamily.SYSTEM_DEFAULT.name
         ) ?: ReaderFontFamily.SYSTEM_DEFAULT.name
-        val lineSpacingStr = userPreferences.getString(
-            KEY_TYPO_LINE_SPACING.name,
-            LineSpacing.TIGHT.name
-        ) ?: LineSpacing.TIGHT.name
         val textWidthStr = userPreferences.getString(
             KEY_TYPO_TEXT_WIDTH.name,
-            TextWidth.WIDE.name
-        ) ?: TextWidth.WIDE.name
+            TextWidth.MEDIUM.name
+        ) ?: TextWidth.MEDIUM.name
         val clampedFontSizePercent = TypographySettings.clampFontSizePercent(
             userPreferences.getInt(KEY_TYPO_FONT_SIZE.name, 100)
         )
+        val clampedLineSpacingPercent = readLineSpacingPercent()
 
         return TypographySettings(
             fontSizePercent = clampedFontSizePercent,
@@ -459,15 +456,11 @@ class SettingsDataStoreImpl @Inject constructor(@ApplicationContext private val 
             } catch (_: IllegalArgumentException) {
                 ReaderFontFamily.SYSTEM_DEFAULT
             },
-            lineSpacing = try {
-                LineSpacing.valueOf(lineSpacingStr)
-            } catch (_: IllegalArgumentException) {
-                LineSpacing.TIGHT
-            },
+            lineSpacingPercent = clampedLineSpacingPercent,
             textWidth = try {
                 TextWidth.valueOf(textWidthStr)
             } catch (_: IllegalArgumentException) {
-                TextWidth.WIDE
+                TextWidth.MEDIUM
             },
             justified = userPreferences.getBoolean(KEY_TYPO_JUSTIFIED.name, false),
             hyphenation = userPreferences.getBoolean(KEY_TYPO_HYPHENATION.name, false)
@@ -476,17 +469,37 @@ class SettingsDataStoreImpl @Inject constructor(@ApplicationContext private val 
 
     override suspend fun saveTypographySettings(settings: TypographySettings) {
         val sanitizedSettings = settings.copy(
-            fontSizePercent = TypographySettings.clampFontSizePercent(settings.fontSizePercent)
+            fontSizePercent = TypographySettings.clampFontSizePercent(settings.fontSizePercent),
+            lineSpacingPercent = TypographySettings.clampLineSpacingPercent(settings.lineSpacingPercent)
         )
         userPreferences.edit {
             putInt(KEY_TYPO_FONT_SIZE.name, sanitizedSettings.fontSizePercent)
             putString(KEY_TYPO_FONT_FAMILY.name, sanitizedSettings.fontFamily.name)
-            putString(KEY_TYPO_LINE_SPACING.name, sanitizedSettings.lineSpacing.name)
+            putInt(KEY_TYPO_LINE_SPACING_PERCENT.name, sanitizedSettings.lineSpacingPercent)
+            remove(KEY_TYPO_LINE_SPACING.name)
             putString(KEY_TYPO_TEXT_WIDTH.name, sanitizedSettings.textWidth.name)
             putBoolean(KEY_TYPO_JUSTIFIED.name, sanitizedSettings.justified)
             putBoolean(KEY_TYPO_HYPHENATION.name, sanitizedSettings.hyphenation)
         }
         _typographySettingsFlow.value = sanitizedSettings
+    }
+
+    private fun readLineSpacingPercent(): Int {
+        if (userPreferences.contains(KEY_TYPO_LINE_SPACING_PERCENT.name)) {
+            return TypographySettings.clampLineSpacingPercent(
+                userPreferences.getInt(
+                    KEY_TYPO_LINE_SPACING_PERCENT.name,
+                    TypographySettings.DEFAULT_LINE_SPACING_PERCENT
+                )
+            )
+        }
+
+        val legacyLineSpacing = userPreferences.getString(KEY_TYPO_LINE_SPACING.name, null)
+        return when (legacyLineSpacing) {
+            "LOOSE" -> TypographySettings.MAX_LINE_SPACING_PERCENT
+            "TIGHT", null -> TypographySettings.DEFAULT_LINE_SPACING_PERCENT
+            else -> TypographySettings.DEFAULT_LINE_SPACING_PERCENT
+        }
     }
 
     override suspend fun saveServerInfo(info: CachedServerInfo) {

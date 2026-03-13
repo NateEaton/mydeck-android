@@ -863,10 +863,7 @@ fun BookmarkDetailContent(
                     .alpha(if (shouldHideReaderContent) 0f else 1f),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                val contentWidthFraction = when (uiState.typographySettings.textWidth) {
-                    TextWidth.WIDE -> 0.9f
-                    TextWidth.NARROW -> 0.8f
-                }
+                val contentWidthFraction = uiState.typographySettings.textWidth.widthFraction
                 BookmarkDetailHeader(
                     modifier = Modifier.fillMaxWidth(contentWidthFraction),
                     uiState = uiState

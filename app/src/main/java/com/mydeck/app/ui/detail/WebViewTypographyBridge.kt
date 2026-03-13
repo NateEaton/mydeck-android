@@ -45,8 +45,8 @@ object WebViewTypographyBridge {
                 // Apply typography to body
                 var body = document.body;
                 body.style.fontFamily = '${settings.fontFamily.cssValue}';
-                body.style.lineHeight = '${settings.lineSpacing.cssValue}';
-                body.style.maxWidth = '${settings.textWidth.cssMaxWidth}';
+                body.style.lineHeight = '${TypographySettings.lineSpacingCssValue(settings.lineSpacingPercent)}';
+                body.style.maxWidth = '100%';
                 body.style.margin = '0 auto';
                 body.style.padding = '0 8px';
                 body.style.textAlign = '${if (settings.justified) "justify" else "left"}';

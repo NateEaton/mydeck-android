@@ -150,6 +150,8 @@ other{}
     <string name="action_edit_metadata">Edit metadata</string>
     <string name="action_increase_text_size">Increase Text Size</string>
     <string name="action_decrease_text_size">Decrease Text Size</string>
+    <string name="action_increase_line_spacing">Increase line spacing</string>
+    <string name="action_decrease_line_spacing">Decrease line spacing</string>
     <string name="search_in_article_hint">Find in article</string>
     <string name="search_match_counter">%1$d/%2$d</string>
     <string name="search_next_match">Next match</string>
@@ -216,6 +218,7 @@ other{}
     <string name="line_spacing_tight">Compacto</string>
     <string name="line_spacing_loose">Amplo</string>
     <string name="width_wide">Ancho</string>
+    <string name="width_medium">Medium</string>
     <string name="width_narrow">Estreito</string>
     <string name="justify_label">Xustificar texto</string>
     <string name="hyphenation_label">Separar en sílabas</string>

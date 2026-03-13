@@ -1,6 +1,5 @@
 package com.mydeck.app.ui.detail
 
-import com.mydeck.app.domain.model.LineSpacing
 import com.mydeck.app.domain.model.ReaderFontFamily
 import com.mydeck.app.domain.model.TextWidth
 import com.mydeck.app.domain.model.TypographySettings
@@ -34,11 +33,20 @@ class WebViewTypographyBridgeTest {
 
     @Test
     fun `applyTypography includes line-height CSS`() {
-        val settings = TypographySettings(lineSpacing = LineSpacing.TIGHT)
+        val settings = TypographySettings(lineSpacingPercent = 100)
         val js = WebViewTypographyBridge.applyTypography(settings)
         
         assertTrue(js.contains("body.style.lineHeight"))
         assertTrue(js.contains("1.7"))
+    }
+
+    @Test
+    fun `applyTypography includes adjusted line-height CSS`() {
+        val settings = TypographySettings(lineSpacingPercent = 125)
+        val js = WebViewTypographyBridge.applyTypography(settings)
+
+        assertTrue(js.contains("body.style.lineHeight"))
+        assertTrue(js.contains("2.125"))
     }
 
     @Test
@@ -47,7 +55,7 @@ class WebViewTypographyBridgeTest {
         val js = WebViewTypographyBridge.applyTypography(settings)
         
         assertTrue(js.contains("body.style.maxWidth"))
-        assertTrue(js.contains("75vw"))
+        assertTrue(js.contains("100%"))
     }
 
     @Test
@@ -56,7 +64,16 @@ class WebViewTypographyBridgeTest {
         val js = WebViewTypographyBridge.applyTypography(settings)
         
         assertTrue(js.contains("body.style.maxWidth"))
-        assertTrue(js.contains("90vw"))
+        assertTrue(js.contains("100%"))
+    }
+
+    @Test
+    fun `applyTypography includes max-width for medium`() {
+        val settings = TypographySettings(textWidth = TextWidth.MEDIUM)
+        val js = WebViewTypographyBridge.applyTypography(settings)
+
+        assertTrue(js.contains("body.style.maxWidth"))
+        assertTrue(js.contains("100%"))
     }
 
     @Test

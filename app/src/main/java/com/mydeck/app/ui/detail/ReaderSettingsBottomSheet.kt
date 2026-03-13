@@ -36,10 +36,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import com.mydeck.app.R
-import com.mydeck.app.domain.model.LineSpacing
 import com.mydeck.app.domain.model.ReaderFontFamily
 import com.mydeck.app.domain.model.TextWidth
 import com.mydeck.app.domain.model.TypographySettings
@@ -150,7 +151,7 @@ fun ReaderSettingsBottomSheet(
                 }
             }
 
-            // Line Spacing — segmented button: Tight / Loose
+            // Line Spacing — label with +/- buttons
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -161,28 +162,49 @@ fun ReaderSettingsBottomSheet(
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                SingleChoiceSegmentedButtonRow {
-                    LineSpacing.entries.forEachIndexed { index, spacing ->
-                        SegmentedButton(
-                            selected = spacing == settings.lineSpacing,
-                            onClick = { update(settings.copy(lineSpacing = spacing)) },
-                            shape = SegmentedButtonDefaults.itemShape(
-                                index = index,
-                                count = LineSpacing.entries.size
-                            )
-                        ) {
-                            Text(
-                                when (spacing) {
-                                    LineSpacing.TIGHT -> stringResource(R.string.line_spacing_tight)
-                                    LineSpacing.LOOSE -> stringResource(R.string.line_spacing_loose)
-                                }
-                            )
-                        }
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    IconButton(
+                        onClick = {
+                            val newSpacing = (
+                                settings.lineSpacingPercent - TypographySettings.LINE_SPACING_STEP
+                            ).coerceAtLeast(TypographySettings.MIN_LINE_SPACING_PERCENT)
+                            update(settings.copy(lineSpacingPercent = newSpacing))
+                        },
+                        enabled = settings.lineSpacingPercent > TypographySettings.MIN_LINE_SPACING_PERCENT,
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Icon(
+                            Icons.Outlined.Remove,
+                            contentDescription = stringResource(R.string.action_decrease_line_spacing)
+                        )
+                    }
+                    Text(
+                        text = "${settings.lineSpacingPercent}%",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    IconButton(
+                        onClick = {
+                            val newSpacing = (
+                                settings.lineSpacingPercent + TypographySettings.LINE_SPACING_STEP
+                            ).coerceAtMost(TypographySettings.MAX_LINE_SPACING_PERCENT)
+                            update(settings.copy(lineSpacingPercent = newSpacing))
+                        },
+                        enabled = settings.lineSpacingPercent < TypographySettings.MAX_LINE_SPACING_PERCENT,
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Icon(
+                            Icons.Outlined.Add,
+                            contentDescription = stringResource(R.string.action_increase_line_spacing)
+                        )
                     }
                 }
             }
 
-            // Text Width — segmented button: Wide / Narrow
+            // Text Width — segmented button: W / M / N
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -195,20 +217,19 @@ fun ReaderSettingsBottomSheet(
                 )
                 SingleChoiceSegmentedButtonRow {
                     TextWidth.entries.forEachIndexed { index, width ->
+                        val widthContentDescription = getWidthContentDescription(width)
                         SegmentedButton(
                             selected = width == settings.textWidth,
                             onClick = { update(settings.copy(textWidth = width)) },
+                            modifier = Modifier.semantics {
+                                contentDescription = widthContentDescription
+                            },
                             shape = SegmentedButtonDefaults.itemShape(
                                 index = index,
                                 count = TextWidth.entries.size
                             )
                         ) {
-                            Text(
-                                when (width) {
-                                    TextWidth.WIDE -> stringResource(R.string.width_wide)
-                                    TextWidth.NARROW -> stringResource(R.string.width_narrow)
-                                }
-                            )
+                            Text(text = width.pillLabel)
                         }
                     }
                 }
@@ -285,3 +306,11 @@ private fun getFontDisplayName(font: ReaderFontFamily): String {
     }
 }
 
+@Composable
+private fun getWidthContentDescription(width: TextWidth): String {
+    return when (width) {
+        TextWidth.WIDE -> stringResource(R.string.width_wide)
+        TextWidth.MEDIUM -> stringResource(R.string.width_medium)
+        TextWidth.NARROW -> stringResource(R.string.width_narrow)
+    }
+}

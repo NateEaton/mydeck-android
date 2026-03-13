@@ -128,6 +128,8 @@ other{}
     <string name="action_edit_metadata">Edit metadata</string>
     <string name="action_increase_text_size">Increase text size</string>
     <string name="action_decrease_text_size">Decrease text size</string>
+    <string name="action_increase_line_spacing">Increase line spacing</string>
+    <string name="action_decrease_line_spacing">Decrease line spacing</string>
     <string name="action_search_in_article">Find in article</string>
     <string name="action_find_in_page">Find in page</string>
     <string name="highlights_title">Highlights</string>
@@ -387,6 +389,7 @@ other{}
 
     <!-- Text width options -->
     <string name="width_wide">Wide</string>
+    <string name="width_medium">Medium</string>
     <string name="width_narrow">Narrow</string>
 
     <!-- Justify and Hyphenation toggles -->

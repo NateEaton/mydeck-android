@@ -26,7 +26,7 @@ fun BookmarkDetailHeader(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .padding(16.dp)
+            .padding(horizontal = 8.dp, vertical = 16.dp)
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -35,9 +35,13 @@ fun BookmarkDetailHeader(
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 val fontFamily = TypographyUtils.getFontFamily(uiState.typographySettings.fontFamily)
+                val titleStyle = TypographyUtils.bookmarkTitleTextStyle(
+                    typography = MaterialTheme.typography,
+                    fontFamily = fontFamily
+                )
                 Text(
                     text = uiState.bookmark.title,
-                    style = MaterialTheme.typography.headlineSmall.copy(fontFamily = fontFamily),
+                    style = titleStyle,
                     maxLines = 3,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.fillMaxWidth()

@@ -104,7 +104,7 @@ The zoom control remains percentage-based, but its range and increment behavior 
 
 - default remains `100%`
 - increment changes from `10%` to `5%`
-- range changes from `80–200%` to `85–170%`
+- range changes from `80–200%` to `80–170%`
 
 Bookmark title sizing is not a primary target of this slice, but it should still be checked as part of the overall visual hierarchy. The intended hierarchy remains:
 
@@ -112,7 +112,7 @@ Bookmark title sizing is not a primary target of this slice, but it should still
 - article headings beneath the title in descending order
 - body text beneath headings
 
-If the heading and body-text changes preserve that hierarchy cleanly, no title-specific adjustment is needed in this slice.
+If the heading and body-text changes preserve that hierarchy cleanly, no title-specific adjustment is needed in this slice. If they do not, the app may tune the Compose-rendered bookmark title styling to restore hierarchy, as long as this does not add a new user-facing title control.
 
 ## Functional Requirements
 
@@ -127,7 +127,7 @@ If the heading and body-text changes preserve that hierarchy cleanly, no title-s
 The zoom control should remain percentage-based, but the values should be adjusted to fit the new default reading baseline more naturally.
 
 - default: `100%`
-- minimum: `85%`
+- minimum: `80%`
 - maximum: `170%`
 - increment: `5%`
 
@@ -141,6 +141,7 @@ This includes:
 
 - reducing the default heading-size ratio relative to body text
 - reviewing `h1`, `h2`, and `h3` together so the hierarchy remains clear
+- softening heading weight if needed so article headings do not visually overpower the title
 - reducing heading margins if needed to create a steadier reading rhythm
 
 The exact numeric values are an implementation decision to be validated visually, but the outcome should be visibly closer to a comfortable long-form reading layout than the current default.
@@ -196,10 +197,11 @@ The goal is to improve default typography ratios, not to flatten articles into a
 
 - In the sampled reader-enhancement articles, headings no longer feel oversized compared with body text at the default `100%` setting.
 - The visual gap between body text and `h2` headings is clearly smaller than it is today.
+- Article headings feel visually subordinate to the bookmark title without losing scanability.
 - Heading spacing feels intentional and does not create unnecessarily abrupt breaks.
 - The default body-text size feels comfortable for long-form reading on a phone-sized screen without immediate zoom adjustment.
 - The zoom control adjusts in `5%` increments.
-- The zoom range is limited to `85–170%`.
+- The zoom range is limited to `80–170%`.
 - The new default is achieved while keeping `100%` as the default zoom value.
 - The bookmark title still reads as the largest text element without requiring a new title-specific control.
 - The updated defaults behave consistently across light, sepia, and dark templates.

@@ -7,6 +7,8 @@
 
 This specification defines the next iteration of MyDeck's reading appearance and typography controls.
 
+For the focused implementation slices now in progress, the detailed behavior for body size and heading scale is captured in [reader-heading-scale-and-body-size-spec.md](/Users/nathan/development/MyDeck/docs/specs/reader-heading-scale-and-body-size-spec.md), and the detailed behavior for line spacing and width is captured in [reader-line-spacing-and-width-controls-spec.md](/Users/nathan/development/MyDeck/docs/specs/reader-line-spacing-and-width-controls-spec.md).
+
 The work has two linked goals:
 
 1. Replace the current global sepia toggle with explicit light and dark reading appearance choices in `Settings > User Interface`.
@@ -232,7 +234,7 @@ Control format:
 Behavior:
 
 - default: `100%`
-- range: `85%` to `170%`
+- range: `80%` to `170%`
 - increment: `5%`
 
 #### 3.3 Line spacing
@@ -247,7 +249,7 @@ Behavior:
 
 - `100%` equals the current default article line spacing
 - default line-height baseline: current reader default, equivalent to `1.7`
-- range: `85%` to `130%`
+- range: `80%` to `125%`
 - increment: `5%`
 
 This range intentionally reaches approximately the current `Loose` upper bound without making line spacing unreasonably large.
@@ -258,20 +260,21 @@ Replace the `Wide / Narrow` segmented control with plus/minus controls.
 
 Control format:
 
-- `[-] 85% [+]`
+- `W | M | N`
 
 Behavior:
 
-- displayed value is the actual content width as a percentage of the available reader width
-- default: `85%`
-- range: `75%` to `90%`
-- increment: `5%`
+- visible labels map to width stops:
+  - `W` = `95%`
+  - `M` = `88%`
+  - `N` = `82.5%`
+- default: `M`
 
 Width mapping:
 
-- `90%` matches the current `Wide` layout
-- `85%` becomes the new default
-- `75%` is slightly narrower than the current `Narrow` layout
+- `95%` becomes the new wide layout
+- `88%` becomes the new default medium layout
+- `82.5%` becomes the new narrow layout
 
 This control applies to the article container and the header/title width together.
 

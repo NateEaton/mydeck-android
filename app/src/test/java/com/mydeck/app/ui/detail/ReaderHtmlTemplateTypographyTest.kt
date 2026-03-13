@@ -27,6 +27,10 @@ class ReaderHtmlTemplateTypographyTest {
         val templates = loadTemplates()
 
         templates.values.forEach { template ->
+            assertTrue(
+                Regex("""h1, h2, h3, h4, h5, h6 \{[\s\S]*?font-weight: 600;""")
+                    .containsMatchIn(template)
+            )
             assertTrue(template.contains("line-height: 1.18;"))
             assertTrue(template.contains("margin-top: 2.2rem;"))
             assertTrue(template.contains("margin-bottom: 1.1rem;"))
@@ -39,6 +43,7 @@ class ReaderHtmlTemplateTypographyTest {
             assertFalse(template.contains("font-size: 2em;"))
             assertFalse(template.contains("font-size: 1.75em;"))
             assertFalse(template.contains("font-size: 1.25em;"))
+            assertFalse(template.contains("font-weight: 700;"))
         }
     }
 
