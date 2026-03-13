@@ -52,6 +52,16 @@ class TypographySettingsTest {
     }
 
     @Test
+    fun `TypographySettings font size constants and clamp are correct`() {
+        assertEquals(85, TypographySettings.MIN_FONT_SIZE)
+        assertEquals(170, TypographySettings.MAX_FONT_SIZE)
+        assertEquals(5, TypographySettings.FONT_SIZE_STEP)
+        assertEquals(85, TypographySettings.clampFontSizePercent(80))
+        assertEquals(100, TypographySettings.clampFontSizePercent(100))
+        assertEquals(170, TypographySettings.clampFontSizePercent(200))
+    }
+
+    @Test
     fun `LineSpacing enum has correct CSS values`() {
         assertEquals("1.7", LineSpacing.TIGHT.cssValue)
         assertEquals("2.2", LineSpacing.LOOSE.cssValue)

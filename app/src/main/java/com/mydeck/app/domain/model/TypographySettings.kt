@@ -1,7 +1,7 @@
 package com.mydeck.app.domain.model
 
 data class TypographySettings(
-    val fontSizePercent: Int = 100,               // 80–200, step 10
+    val fontSizePercent: Int = 100,               // 85–170, step 5
     val fontFamily: ReaderFontFamily = ReaderFontFamily.SYSTEM_DEFAULT,
     val lineSpacing: LineSpacing = LineSpacing.TIGHT,
     val textWidth: TextWidth = TextWidth.WIDE,
@@ -9,9 +9,11 @@ data class TypographySettings(
     val hyphenation: Boolean = false
 ) {
     companion object {
-        const val MIN_FONT_SIZE = 80
-        const val MAX_FONT_SIZE = 200
-        const val FONT_SIZE_STEP = 10
+        const val MIN_FONT_SIZE = 85
+        const val MAX_FONT_SIZE = 170
+        const val FONT_SIZE_STEP = 5
+
+        fun clampFontSizePercent(value: Int): Int = value.coerceIn(MIN_FONT_SIZE, MAX_FONT_SIZE)
     }
 }
 

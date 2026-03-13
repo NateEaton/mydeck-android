@@ -448,9 +448,12 @@ class SettingsDataStoreImpl @Inject constructor(@ApplicationContext private val 
             KEY_TYPO_TEXT_WIDTH.name,
             TextWidth.WIDE.name
         ) ?: TextWidth.WIDE.name
+        val clampedFontSizePercent = TypographySettings.clampFontSizePercent(
+            userPreferences.getInt(KEY_TYPO_FONT_SIZE.name, 100)
+        )
 
         return TypographySettings(
-            fontSizePercent = userPreferences.getInt(KEY_TYPO_FONT_SIZE.name, 100),
+            fontSizePercent = clampedFontSizePercent,
             fontFamily = try {
                 ReaderFontFamily.valueOf(fontFamilyStr)
             } catch (_: IllegalArgumentException) {
@@ -472,15 +475,18 @@ class SettingsDataStoreImpl @Inject constructor(@ApplicationContext private val 
     }
 
     override suspend fun saveTypographySettings(settings: TypographySettings) {
+        val sanitizedSettings = settings.copy(
+            fontSizePercent = TypographySettings.clampFontSizePercent(settings.fontSizePercent)
+        )
         userPreferences.edit {
-            putInt(KEY_TYPO_FONT_SIZE.name, settings.fontSizePercent)
-            putString(KEY_TYPO_FONT_FAMILY.name, settings.fontFamily.name)
-            putString(KEY_TYPO_LINE_SPACING.name, settings.lineSpacing.name)
-            putString(KEY_TYPO_TEXT_WIDTH.name, settings.textWidth.name)
-            putBoolean(KEY_TYPO_JUSTIFIED.name, settings.justified)
-            putBoolean(KEY_TYPO_HYPHENATION.name, settings.hyphenation)
+            putInt(KEY_TYPO_FONT_SIZE.name, sanitizedSettings.fontSizePercent)
+            putString(KEY_TYPO_FONT_FAMILY.name, sanitizedSettings.fontFamily.name)
+            putString(KEY_TYPO_LINE_SPACING.name, sanitizedSettings.lineSpacing.name)
+            putString(KEY_TYPO_TEXT_WIDTH.name, sanitizedSettings.textWidth.name)
+            putBoolean(KEY_TYPO_JUSTIFIED.name, sanitizedSettings.justified)
+            putBoolean(KEY_TYPO_HYPHENATION.name, sanitizedSettings.hyphenation)
         }
-        _typographySettingsFlow.value = settings
+        _typographySettingsFlow.value = sanitizedSettings
     }
 
     override suspend fun saveServerInfo(info: CachedServerInfo) {

@@ -50,7 +50,7 @@ The screen stays on while you read, so you won't lose your place to the device's
 Tap **TT** in the top bar to open the reading settings sheet.
 
 - **Font** — scroll the font row to choose from: System Default, Noto Serif, Literata, Source Serif, Noto Sans, or JetBrains Mono
-- **Font size** — tap **−** or **+** to adjust (shown as a percentage of the default)
+- **Font size** — tap **−** or **+** to adjust in 5% steps (from 85% to 170%, shown as a percentage of the default)
 - **Spacing** — Tight or Loose
 - **Width** — Wide or Narrow
 - **Justify text** — toggle on or off

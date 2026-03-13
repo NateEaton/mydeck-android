@@ -232,8 +232,8 @@ Control format:
 Behavior:
 
 - default: `100%`
-- range: `80%` to `200%`
-- increment: `10%`
+- range: `85%` to `170%`
+- increment: `5%`
 
 #### 3.3 Line spacing
 

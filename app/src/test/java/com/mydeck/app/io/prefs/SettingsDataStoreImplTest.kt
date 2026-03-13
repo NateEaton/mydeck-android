@@ -3,6 +3,7 @@ package com.mydeck.app.io.prefs
 import android.content.Context
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.test.core.app.ApplicationProvider
+import com.mydeck.app.domain.model.TypographySettings
 import com.mydeck.app.domain.model.Theme
 import io.mockk.every
 import io.mockk.mockk
@@ -21,11 +22,13 @@ import org.robolectric.RobolectricTestRunner
 class SettingsDataStoreImplTest {
 
     private lateinit var context: Context
+    private val userPreferences
+        get() = context.getSharedPreferences("user_preferences", Context.MODE_PRIVATE)
 
     @Before
     fun setUp() {
         context = ApplicationProvider.getApplicationContext()
-        context.getSharedPreferences("user_preferences", Context.MODE_PRIVATE).edit().clear().commit()
+        userPreferences.edit().clear().commit()
 
         val encryptedSharedPreferences = mockk<EncryptedSharedPreferences>(relaxed = true)
         every { encryptedSharedPreferences.contains(any()) } returns false
@@ -36,7 +39,7 @@ class SettingsDataStoreImplTest {
 
     @After
     fun tearDown() {
-        context.getSharedPreferences("user_preferences", Context.MODE_PRIVATE).edit().clear().commit()
+        userPreferences.edit().clear().commit()
         unmockkObject(EncryptionHelper)
     }
 
@@ -59,5 +62,24 @@ class SettingsDataStoreImplTest {
         val listeners = field.get(dataStore) as List<*>
 
         assertFalse(listeners.isEmpty())
+    }
+
+    @Test
+    fun `typographySettingsFlow clamps legacy font size when read`() = runTest {
+        userPreferences.edit().putInt("typography_font_size_percent", 80).commit()
+
+        val dataStore = SettingsDataStoreImpl(context)
+
+        assertEquals(TypographySettings.MIN_FONT_SIZE, dataStore.typographySettingsFlow.value.fontSizePercent)
+    }
+
+    @Test
+    fun `saveTypographySettings clamps font size before persisting`() = runTest {
+        val dataStore = SettingsDataStoreImpl(context)
+
+        dataStore.saveTypographySettings(TypographySettings(fontSizePercent = 200))
+
+        assertEquals(TypographySettings.MAX_FONT_SIZE, dataStore.typographySettingsFlow.value.fontSizePercent)
+        assertEquals(TypographySettings.MAX_FONT_SIZE, userPreferences.getInt("typography_font_size_percent", -1))
     }
 }
