@@ -2,6 +2,7 @@ package com.mydeck.app.io.prefs
 
 import com.mydeck.app.domain.model.AutoSyncTimeframe
 import com.mydeck.app.domain.model.CachedServerInfo
+import com.mydeck.app.domain.model.BookmarkShareFormat
 import com.mydeck.app.domain.model.DarkAppearance
 import com.mydeck.app.domain.model.LightAppearance
 import com.mydeck.app.domain.model.Theme
@@ -81,6 +82,9 @@ interface SettingsDataStore {
     // Reader appearance preferences
     val lightAppearanceFlow: StateFlow<LightAppearance>
     val darkAppearanceFlow: StateFlow<DarkAppearance>
+    val bookmarkShareFormatFlow: StateFlow<BookmarkShareFormat>
+    suspend fun saveBookmarkShareFormat(format: BookmarkShareFormat)
+    suspend fun getBookmarkShareFormat(): BookmarkShareFormat
 
     // Keep screen on while reading preference
     val keepScreenOnWhileReadingFlow: StateFlow<Boolean>

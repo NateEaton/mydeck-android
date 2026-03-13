@@ -28,6 +28,7 @@ import com.mydeck.app.io.rest.model.CreateAnnotationDto
 import com.mydeck.app.io.rest.model.UpdateAnnotationDto
 import com.mydeck.app.io.rest.model.toAnnotationCachePayload
 import com.mydeck.app.util.BookmarkDebugExporter
+import com.mydeck.app.util.formatBookmarkShareText
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
@@ -484,11 +485,16 @@ class BookmarkDetailViewModel @Inject constructor(
         cacheAnnotationSnapshot(bookmarkId)
     }
 
-    fun onClickShareBookmark(url: String) {
+    fun onClickShareBookmark(title: String, url: String) {
         viewModelScope.launch {
+            val shareText = formatBookmarkShareText(
+                title = title,
+                url = url,
+                format = settingsDataStore.getBookmarkShareFormat()
+            )
             val intent = Intent().apply {
                 action = Intent.ACTION_SEND
-                putExtra(Intent.EXTRA_TEXT, url)
+                putExtra(Intent.EXTRA_TEXT, shareText)
                 type = "text/plain"
             }
 

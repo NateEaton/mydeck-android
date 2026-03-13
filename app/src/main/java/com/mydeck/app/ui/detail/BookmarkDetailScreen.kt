@@ -5,12 +5,16 @@ import android.app.DownloadManager
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import android.content.ContextWrapper
 import android.content.Intent
 import android.icu.text.MessageFormat
 import android.net.Uri
 import android.widget.Toast
 import android.view.View
+import android.view.ViewGroup
+import android.webkit.WebChromeClient
 import android.webkit.WebView
+import android.widget.FrameLayout
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.tween
@@ -104,6 +108,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -190,9 +195,9 @@ fun BookmarkDetailHost(
         dismissPendingDeleteSnackbar()
         viewModel.onClickOpenUrl(it)
     }
-    val onClickShareBookmark: (String) -> Unit = { url ->
+    val onClickShareBookmark: (String, String) -> Unit = { title, url ->
         dismissPendingDeleteSnackbar()
-        viewModel.onClickShareBookmark(url)
+        viewModel.onClickShareBookmark(title, url)
     }
     val onClickToggleRead: (String, Boolean) -> Unit = { id, isRead ->
         dismissPendingDeleteSnackbar()
@@ -212,7 +217,24 @@ fun BookmarkDetailHost(
     val readerWebView = remember { mutableStateOf<WebView?>(null) }
     var detailOverlay by remember { mutableStateOf(DetailOverlay.NONE) }
     var showTypographyPanel by remember { mutableStateOf(false) }
+    var videoFullscreenView by remember { mutableStateOf<View?>(null) }
+    var videoFullscreenCallback by remember { mutableStateOf<WebChromeClient.CustomViewCallback?>(null) }
     val lifecycleOwner = LocalLifecycleOwner.current
+
+    fun hideVideoFullscreen(notifyWebChrome: Boolean) {
+        val callback = videoFullscreenCallback
+        val previousView = videoFullscreenView
+        (previousView?.parent as? ViewGroup)?.removeView(previousView)
+        videoFullscreenView = null
+        videoFullscreenCallback = null
+        if (notifyWebChrome) {
+            callback?.onCustomViewHidden()
+        }
+    }
+
+    BackHandler(enabled = videoFullscreenView != null) {
+        hideVideoFullscreen(notifyWebChrome = true)
+    }
 
     BackHandler(enabled = detailOverlay != DetailOverlay.NONE) {
         detailOverlay = when (detailOverlay) {
@@ -470,6 +492,15 @@ fun BookmarkDetailHost(
                     readerWebView = readerWebView.value,
                     onAnnotationScrollHandled = { viewModel.onAnnotationScrollHandled() },
                     onReaderWebViewChanged = { readerWebView.value = it },
+                    videoFullscreenView = videoFullscreenView,
+                    onVideoEnterFullscreen = { view, callback ->
+                        if (videoFullscreenView !== view) {
+                            hideVideoFullscreen(notifyWebChrome = false)
+                            videoFullscreenView = view
+                            videoFullscreenCallback = callback
+                        }
+                    },
+                    onVideoExitFullscreen = { hideVideoFullscreen(notifyWebChrome = false) },
                     fullscreenWhileReading = fullscreenWhileReading,
                 )
 
@@ -630,7 +661,7 @@ fun BookmarkDetailScreen(
     onClickToggleRead: (String, Boolean) -> Unit,
     onClickDeleteBookmark: (String) -> Unit,
     onClickOpenUrl: (String) -> Unit,
-    onClickShareBookmark: (String) -> Unit,
+    onClickShareBookmark: (String, String) -> Unit,
     onClickOpenInBrowser: (String) -> Unit = {},
     onArticleSearchActivate: () -> Unit = {},
     onShowDetails: () -> Unit = {},
@@ -656,6 +687,9 @@ fun BookmarkDetailScreen(
     readerWebView: WebView? = null,
     onAnnotationScrollHandled: () -> Unit = {},
     onReaderWebViewChanged: (WebView?) -> Unit = {},
+    videoFullscreenView: View? = null,
+    onVideoEnterFullscreen: (View, WebChromeClient.CustomViewCallback?) -> Unit = { _, _ -> },
+    onVideoExitFullscreen: () -> Unit = {},
     fullscreenWhileReading: Boolean = false,
 ) {
     val topBarScrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior()
@@ -664,6 +698,7 @@ fun BookmarkDetailScreen(
     var articleTopOffset by remember { mutableStateOf(0f) }
     var viewportHeight by remember { mutableIntStateOf(0) }
     val fullscreenReaderMode = fullscreenWhileReading && contentMode == ContentMode.READER
+    val immersiveModeEnabled = fullscreenReaderMode || videoFullscreenView != null
     var showFullscreenTopBar by remember(uiState.bookmark.bookmarkId, fullscreenReaderMode) {
         mutableStateOf(fullscreenReaderMode)
     }
@@ -721,7 +756,7 @@ fun BookmarkDetailScreen(
         }
     }
 
-    ReaderFullscreenEffect(enabled = fullscreenReaderMode)
+    ReaderFullscreenEffect(enabled = immersiveModeEnabled)
 
     LaunchedEffect(
         pendingAnnotationScrollId,
@@ -756,83 +791,97 @@ fun BookmarkDetailScreen(
         onAnnotationScrollHandled()
     }
 
-    Scaffold(
-        snackbarHost = { SnackbarHost(snackbarHostState) },
-        modifier = modifier
-            .nestedScroll(fullscreenTopBarRevealConnection)
-            .nestedScroll(topBarScrollBehavior.nestedScrollConnection),
-        topBar = {
-            if (!fullscreenReaderMode || showFullscreenTopBar || articleSearchState.isActive) {
-                BookmarkDetailTopBar(
-                    articleSearchState = articleSearchState,
-                    onArticleSearchQueryChange = onArticleSearchQueryChange,
-                    onArticleSearchPrevious = onArticleSearchPrevious,
-                    onArticleSearchNext = onArticleSearchNext,
-                    onArticleSearchDeactivate = onArticleSearchDeactivate,
-                    onClickBack = onClickBack,
-                    uiState = uiState,
-                    onClickToggleFavorite = onClickToggleFavorite,
-                    onClickToggleArchive = onClickToggleArchive,
-                    onShowTypographyPanel = onShowTypographyPanel,
-                    onShowDetails = onShowDetails,
-                    onShowHighlights = onShowHighlights,
-                    contentMode = contentMode,
-                    onClickToggleRead = onClickToggleRead,
-                    onClickShareBookmark = onClickShareBookmark,
-                    onClickDeleteBookmark = onClickDeleteBookmark,
-                    onArticleSearchActivate = onArticleSearchActivate,
-                    onClickOpenInBrowser = onClickOpenInBrowser,
-                    onContentModeChange = onContentModeChange,
-                    scrollBehavior = topBarScrollBehavior,
-                    scrollState = scrollState,
-                    onScrollToTop = {
-                        coroutineScope.launch {
-                            scrollState.animateScrollTo(0)
-                        }
-                    },
-                )
-            }
-        }
-    ) { padding ->
-        Box(
+    Box(modifier = modifier.fillMaxSize()) {
+        Scaffold(
+            snackbarHost = { SnackbarHost(snackbarHostState) },
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding)
-                .onSizeChanged { viewportHeight = it.height }
-        ) {
-            // Main content with buttons at the end
-            BookmarkDetailContent(
-                modifier = Modifier.fillMaxSize(),
-                uiState = uiState,
-                onClickOpenUrl = onClickOpenUrl,
-                onScrollProgressChanged = onScrollProgressChanged,
-                initialReadProgress = initialReadProgress,
-                contentMode = contentMode,
-                contentLoadState = contentLoadState,
-                articleSearchState = articleSearchState,
-                onArticleSearchUpdateResults = onArticleSearchUpdateResults,
-                onImageTapped = onImageTapped,
-                onImageLongPress = onImageLongPress,
-                onLinkLongPress = onLinkLongPress,
-                onTextSelectionCaptured = onTextSelectionCaptured,
-                onAnnotationClicked = onAnnotationClicked,
-                onArticlePositionChanged = { articleTopOffset = it },
-                onReaderWebViewChanged = onReaderWebViewChanged,
-                onClickToggleFavorite = onClickToggleFavorite,
-                onClickToggleArchive = onClickToggleArchive,
-                scrollState = scrollState
-            )
-
-            if (fullscreenReaderMode && !showFullscreenTopBar && !articleSearchState.isActive) {
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.TopCenter)
-                        .fillMaxWidth()
-                        .windowInsetsPadding(WindowInsets.statusBars)
-                        .height(28.dp)
-                        .clickable { showFullscreenTopBar = true }
-                )
+                .nestedScroll(fullscreenTopBarRevealConnection)
+                .nestedScroll(topBarScrollBehavior.nestedScrollConnection),
+            topBar = {
+                if (
+                    videoFullscreenView == null &&
+                    (!fullscreenReaderMode || showFullscreenTopBar || articleSearchState.isActive)
+                ) {
+                    BookmarkDetailTopBar(
+                        articleSearchState = articleSearchState,
+                        onArticleSearchQueryChange = onArticleSearchQueryChange,
+                        onArticleSearchPrevious = onArticleSearchPrevious,
+                        onArticleSearchNext = onArticleSearchNext,
+                        onArticleSearchDeactivate = onArticleSearchDeactivate,
+                        onClickBack = onClickBack,
+                        uiState = uiState,
+                        onClickToggleFavorite = onClickToggleFavorite,
+                        onClickToggleArchive = onClickToggleArchive,
+                        onShowTypographyPanel = onShowTypographyPanel,
+                        onShowDetails = onShowDetails,
+                        onShowHighlights = onShowHighlights,
+                        contentMode = contentMode,
+                        onClickToggleRead = onClickToggleRead,
+                        onClickShareBookmark = onClickShareBookmark,
+                        onClickDeleteBookmark = onClickDeleteBookmark,
+                        onArticleSearchActivate = onArticleSearchActivate,
+                        onClickOpenInBrowser = onClickOpenInBrowser,
+                        onContentModeChange = onContentModeChange,
+                        scrollBehavior = topBarScrollBehavior,
+                        scrollState = scrollState,
+                        onScrollToTop = {
+                            coroutineScope.launch {
+                                scrollState.animateScrollTo(0)
+                            }
+                        },
+                    )
+                }
             }
+        ) { padding ->
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+                    .onSizeChanged { viewportHeight = it.height }
+            ) {
+                BookmarkDetailContent(
+                    modifier = Modifier.fillMaxSize(),
+                    uiState = uiState,
+                    onClickOpenUrl = onClickOpenUrl,
+                    onScrollProgressChanged = onScrollProgressChanged,
+                    initialReadProgress = initialReadProgress,
+                    contentMode = contentMode,
+                    contentLoadState = contentLoadState,
+                    articleSearchState = articleSearchState,
+                    onArticleSearchUpdateResults = onArticleSearchUpdateResults,
+                    onImageTapped = onImageTapped,
+                    onImageLongPress = onImageLongPress,
+                    onLinkLongPress = onLinkLongPress,
+                    onTextSelectionCaptured = onTextSelectionCaptured,
+                    onAnnotationClicked = onAnnotationClicked,
+                    onArticlePositionChanged = { articleTopOffset = it },
+                    onReaderWebViewChanged = onReaderWebViewChanged,
+                    onVideoEnterFullscreen = onVideoEnterFullscreen,
+                    onVideoExitFullscreen = onVideoExitFullscreen,
+                    onClickToggleFavorite = onClickToggleFavorite,
+                    onClickToggleArchive = onClickToggleArchive,
+                    scrollState = scrollState
+                )
+
+                if (fullscreenReaderMode && !showFullscreenTopBar && !articleSearchState.isActive) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopCenter)
+                            .fillMaxWidth()
+                            .windowInsetsPadding(WindowInsets.statusBars)
+                            .height(28.dp)
+                            .clickable { showFullscreenTopBar = true }
+                    )
+                }
+            }
+        }
+
+        if (videoFullscreenView != null) {
+            VideoFullscreenOverlay(
+                customView = videoFullscreenView,
+                onDismiss = onVideoExitFullscreen
+            )
         }
     }
 }
@@ -842,11 +891,53 @@ internal fun shouldRevealFullscreenTopBarOnScroll(deltaY: Float): Boolean {
 }
 
 @Composable
+private fun VideoFullscreenOverlay(
+    customView: View,
+    onDismiss: () -> Unit,
+) {
+    BackHandler(onBack = onDismiss)
+
+    DisposableEffect(customView) {
+        onDispose {
+            (customView.parent as? ViewGroup)?.removeView(customView)
+        }
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black)
+    ) {
+        AndroidView(
+            modifier = Modifier.fillMaxSize(),
+            factory = { context ->
+                FrameLayout(context).apply {
+                    setBackgroundColor(android.graphics.Color.BLACK)
+                }
+            },
+            update = { container ->
+                if (customView.parent !== container) {
+                    (customView.parent as? ViewGroup)?.removeView(customView)
+                    container.removeAllViews()
+                    container.addView(
+                        customView,
+                        FrameLayout.LayoutParams(
+                            ViewGroup.LayoutParams.MATCH_PARENT,
+                            ViewGroup.LayoutParams.MATCH_PARENT
+                        )
+                    )
+                }
+            }
+        )
+    }
+}
+
+@Composable
 private fun ReaderFullscreenEffect(enabled: Boolean) {
     val view = LocalView.current
 
     DisposableEffect(enabled, view) {
-        val activity = view.context as? Activity
+        val activity = view.context.findActivity()
         val window = activity?.window
         val controller = window?.let { WindowCompat.getInsetsController(it, view) }
 
@@ -861,6 +952,14 @@ private fun ReaderFullscreenEffect(enabled: Boolean) {
         onDispose {
             controller?.show(WindowInsetsCompat.Type.systemBars())
         }
+    }
+}
+
+private tailrec fun Context.findActivity(): Activity? {
+    return when (this) {
+        is Activity -> this
+        is ContextWrapper -> baseContext.findActivity()
+        else -> null
     }
 }
 
@@ -882,6 +981,8 @@ fun BookmarkDetailContent(
     onAnnotationClicked: (String) -> Unit = {},
     onArticlePositionChanged: (Float) -> Unit = {},
     onReaderWebViewChanged: (WebView?) -> Unit = {},
+    onVideoEnterFullscreen: (View, WebChromeClient.CustomViewCallback?) -> Unit = { _, _ -> },
+    onVideoExitFullscreen: () -> Unit = {},
     onClickToggleFavorite: (String, Boolean) -> Unit = { _, _ -> },
     onClickToggleArchive: (String, Boolean) -> Unit = { _, _ -> },
     scrollState: ScrollState = rememberScrollState()
@@ -1000,6 +1101,8 @@ fun BookmarkDetailContent(
                             onLinkLongPress = onLinkLongPress,
                             onTextSelectionCaptured = onTextSelectionCaptured,
                             onAnnotationClicked = onAnnotationClicked,
+                            onVideoEnterFullscreen = onVideoEnterFullscreen,
+                            onVideoExitFullscreen = onVideoExitFullscreen,
                         )
                     }
                 }
@@ -1390,7 +1493,7 @@ fun BookmarkDetailScreenPreview() {
             onClickToggleRead = { _, _ -> },
             onClickDeleteBookmark = { },
             onClickOpenUrl = { },
-            onClickShareBookmark = { }
+            onClickShareBookmark = { _, _ -> }
         )
     }
 }

@@ -7,6 +7,7 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import com.mydeck.app.domain.model.BookmarkShareFormat
 import com.mydeck.app.domain.model.DarkAppearance
 import com.mydeck.app.domain.model.LightAppearance
 import com.mydeck.app.domain.model.Theme
@@ -38,6 +39,7 @@ class UiSettingsScreenUnitTest {
     val hiltRule = HiltAndroidRule(this)
 
     private fun buildState(
+        shareFormat: BookmarkShareFormat = BookmarkShareFormat.URL_ONLY,
         keepScreenOn: Boolean = true,
         fullscreenWhileReading: Boolean = false
     ) = UiSettingsUiState(
@@ -47,6 +49,7 @@ class UiSettingsScreenUnitTest {
         themeOptions = listOf(),
         showDialog = false,
         themeLabel = Theme.SYSTEM.toLabelResource(),
+        bookmarkShareFormat = shareFormat,
         keepScreenOnWhileReading = keepScreenOn,
         fullscreenWhileReading = fullscreenWhileReading,
     )
@@ -66,6 +69,7 @@ class UiSettingsScreenUnitTest {
                     onThemeModeSelected = {},
                     onLightAppearanceSelected = {},
                     onDarkAppearanceSelected = {},
+                    onBookmarkShareFormatSelected = {},
                     onKeepScreenOnWhileReadingToggled = {},
                     onFullscreenWhileReadingToggled = {},
                     onClickBack = {},
@@ -78,6 +82,9 @@ class UiSettingsScreenUnitTest {
         composeTestRule.onNodeWithText("Sepia").assertIsDisplayed()
         composeTestRule.onNodeWithText("When app is dark").assertIsDisplayed()
         composeTestRule.onNodeWithText("Black").assertIsDisplayed()
+        composeTestRule.onNodeWithTag(UiSettingsScreenTestTags.SHARE_FORMAT_SECTION).performScrollTo()
+        composeTestRule.onNodeWithText("Share links as").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Title + URL").assertIsDisplayed()
         composeTestRule.onNodeWithTag(UiSettingsScreenTestTags.FULLSCREEN_READING_ROW).performScrollTo()
         composeTestRule.onNodeWithTag(UiSettingsScreenTestTags.FULLSCREEN_READING_ROW).assertIsDisplayed()
         composeTestRule.onNodeWithTag(UiSettingsScreenTestTags.KEEP_SCREEN_ON_ROW).performScrollTo()
@@ -94,6 +101,7 @@ class UiSettingsScreenUnitTest {
                     onThemeModeSelected = {},
                     onLightAppearanceSelected = {},
                     onDarkAppearanceSelected = {},
+                    onBookmarkShareFormatSelected = {},
                     onKeepScreenOnWhileReadingToggled = {},
                     onFullscreenWhileReadingToggled = {},
                     onClickBack = {},
@@ -116,6 +124,7 @@ class UiSettingsScreenUnitTest {
                     onThemeModeSelected = {},
                     onLightAppearanceSelected = {},
                     onDarkAppearanceSelected = {},
+                    onBookmarkShareFormatSelected = {},
                     onKeepScreenOnWhileReadingToggled = { toggledValue = it },
                     onFullscreenWhileReadingToggled = {},
                     onClickBack = {},
@@ -139,6 +148,7 @@ class UiSettingsScreenUnitTest {
                     onThemeModeSelected = {},
                     onLightAppearanceSelected = {},
                     onDarkAppearanceSelected = {},
+                    onBookmarkShareFormatSelected = {},
                     onKeepScreenOnWhileReadingToggled = { toggledValue = it },
                     onFullscreenWhileReadingToggled = {},
                     onClickBack = {},
@@ -162,6 +172,7 @@ class UiSettingsScreenUnitTest {
                     onThemeModeSelected = {},
                     onLightAppearanceSelected = {},
                     onDarkAppearanceSelected = {},
+                    onBookmarkShareFormatSelected = {},
                     onKeepScreenOnWhileReadingToggled = {},
                     onFullscreenWhileReadingToggled = { toggledValue = it },
                     onClickBack = {},
@@ -173,4 +184,5 @@ class UiSettingsScreenUnitTest {
         composeTestRule.onNodeWithTag(UiSettingsScreenTestTags.FULLSCREEN_READING_ROW).performClick()
         assertTrue(toggledValue!!)
     }
+
 }

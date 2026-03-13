@@ -23,6 +23,7 @@ import com.mydeck.app.domain.usecase.FullSyncUseCase
 import com.mydeck.app.domain.usecase.UpdateBookmarkUseCase
 import com.mydeck.app.io.prefs.SettingsDataStore
 import com.mydeck.app.util.extractUrlAndTitle
+import com.mydeck.app.util.formatBookmarkShareText
 import com.mydeck.app.util.isValidUrl
 import com.mydeck.app.util.MAX_TITLE_LENGTH
 import com.mydeck.app.worker.CreateBookmarkWorker
@@ -356,13 +357,20 @@ class BookmarkListViewModel @Inject constructor(
         }
     }
 
-    fun onClickShareBookmark(url: String) {
-        val intent = Intent().apply {
-            action = Intent.ACTION_SEND
-            putExtra(Intent.EXTRA_TEXT, url)
-            type = "text/plain"
+    fun onClickShareBookmark(title: String, url: String) {
+        viewModelScope.launch {
+            val shareText = formatBookmarkShareText(
+                title = title,
+                url = url,
+                format = settingsDataStore.getBookmarkShareFormat()
+            )
+            val intent = Intent().apply {
+                action = Intent.ACTION_SEND
+                putExtra(Intent.EXTRA_TEXT, shareText)
+                type = "text/plain"
+            }
+            _shareIntent.value = intent
         }
-        _shareIntent.value = intent
     }
 
     fun onShareIntentConsumed() {

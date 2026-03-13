@@ -9,6 +9,7 @@ import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import com.mydeck.app.R
+import com.mydeck.app.domain.model.BookmarkShareFormat
 import com.mydeck.app.domain.model.DarkAppearance
 import com.mydeck.app.domain.model.LightAppearance
 import com.mydeck.app.domain.model.Theme
@@ -36,6 +37,7 @@ class UiSettingsViewModel @Inject constructor(
     private val lightAppearance = MutableStateFlow(LightAppearance.PAPER)
     private val darkAppearance = MutableStateFlow(DarkAppearance.DARK)
     private val showDialog = MutableStateFlow(false)
+    private val bookmarkShareFormat = MutableStateFlow(BookmarkShareFormat.URL_ONLY)
     private val keepScreenOnWhileReading = MutableStateFlow(true)
     private val fullscreenWhileReading = MutableStateFlow(false)
 
@@ -44,6 +46,7 @@ class UiSettingsViewModel @Inject constructor(
             theme.value = settingsDataStore.getTheme()
             lightAppearance.value = settingsDataStore.getLightAppearance()
             darkAppearance.value = settingsDataStore.getDarkAppearance()
+            bookmarkShareFormat.value = settingsDataStore.getBookmarkShareFormat()
             keepScreenOnWhileReading.value = settingsDataStore.isKeepScreenOnWhileReading()
             fullscreenWhileReading.value = settingsDataStore.isFullscreenWhileReading()
         }
@@ -52,9 +55,9 @@ class UiSettingsViewModel @Inject constructor(
         theme,
         lightAppearance,
         darkAppearance,
-        keepScreenOnWhileReading,
-        fullscreenWhileReading
-    ) { themeMode, lightAppearance, darkAppearance, keepScreenOn, fullscreen ->
+        bookmarkShareFormat,
+        keepScreenOnWhileReading
+    ) { themeMode, lightAppearance, darkAppearance, shareFormat, keepScreenOn ->
         UiSettingsUiState(
             themeMode = themeMode,
             lightAppearance = lightAppearance,
@@ -62,10 +65,14 @@ class UiSettingsViewModel @Inject constructor(
             themeOptions = getThemeOptionList(themeMode),
             showDialog = showDialog.value,
             themeLabel = themeMode.toLabelResource(),
+            bookmarkShareFormat = shareFormat,
             keepScreenOnWhileReading = keepScreenOn,
-            fullscreenWhileReading = fullscreen,
+            fullscreenWhileReading = fullscreenWhileReading.value,
         )
     }
+        .combine(fullscreenWhileReading) { state, fullscreen ->
+            state.copy(fullscreenWhileReading = fullscreen)
+        }
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
@@ -77,6 +84,7 @@ class UiSettingsViewModel @Inject constructor(
                     themeOptions = getThemeOptionList(Theme.SYSTEM),
                     showDialog = false,
                     themeLabel = Theme.SYSTEM.toLabelResource(),
+                    bookmarkShareFormat = BookmarkShareFormat.URL_ONLY,
                     keepScreenOnWhileReading = true,
                     fullscreenWhileReading = false,
                 )
@@ -117,6 +125,14 @@ class UiSettingsViewModel @Inject constructor(
         viewModelScope.launch {
             settingsDataStore.saveDarkAppearance(appearance)
             darkAppearance.value = settingsDataStore.getDarkAppearance()
+        }
+    }
+
+    fun onBookmarkShareFormatSelected(format: BookmarkShareFormat) {
+        Timber.d("onBookmarkShareFormatSelected [format=$format]")
+        viewModelScope.launch {
+            settingsDataStore.saveBookmarkShareFormat(format)
+            bookmarkShareFormat.value = settingsDataStore.getBookmarkShareFormat()
         }
     }
 
@@ -171,6 +187,7 @@ data class UiSettingsUiState(
     val showDialog: Boolean,
     @StringRes
     val themeLabel: Int,
+    val bookmarkShareFormat: BookmarkShareFormat,
     val keepScreenOnWhileReading: Boolean,
     val fullscreenWhileReading: Boolean,
 )
@@ -204,5 +221,13 @@ fun DarkAppearance.toLabelResource(): Int {
     return when (this) {
         DarkAppearance.DARK -> R.string.appearance_dark
         DarkAppearance.BLACK -> R.string.appearance_black
+    }
+}
+
+@StringRes
+fun BookmarkShareFormat.toLabelResource(): Int {
+    return when (this) {
+        BookmarkShareFormat.URL_ONLY -> R.string.ui_settings_share_format_url_only
+        BookmarkShareFormat.TITLE_AND_URL_MULTILINE -> R.string.ui_settings_share_format_title_and_url
     }
 }

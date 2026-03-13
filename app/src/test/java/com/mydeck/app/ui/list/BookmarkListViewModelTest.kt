@@ -7,6 +7,7 @@ import androidx.work.WorkManager
 import com.mydeck.app.R
 import com.mydeck.app.domain.BookmarkRepository
 import com.mydeck.app.domain.model.Bookmark
+import com.mydeck.app.domain.model.BookmarkShareFormat
 import com.mydeck.app.domain.model.BookmarkCounts
 import com.mydeck.app.domain.model.BookmarkListItem
 import com.mydeck.app.domain.sync.ConnectivityMonitor
@@ -110,6 +111,7 @@ class BookmarkListViewModelTest {
         every { connectivityMonitor.isBatterySaverOn() } returns false
         coEvery { settingsDataStore.getLayoutMode() } returns null
         coEvery { settingsDataStore.getSortOption() } returns null
+        coEvery { settingsDataStore.getBookmarkShareFormat() } returns BookmarkShareFormat.URL_ONLY
         every { settingsDataStore.urlFlow } returns kotlinx.coroutines.flow.MutableStateFlow(null)
     }
 

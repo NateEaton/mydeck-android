@@ -52,6 +52,7 @@ The **User Interface Settings** screen controls the app's appearance.
 - **Theme** — choose **Light**, **Dark**, or **System** (follows your device's system setting)
 - **When app is light** — choose **Paper** or **Sepia** for the light appearance used throughout the app and reader
 - **When app is dark** — choose **Dark** or **Black** for the dark appearance used throughout the app and reader
+- **Share links as** — choose whether bookmark sharing sends just the URL or a two-line block with the bookmark title above the URL
 - **Fullscreen while reading** — when enabled, article reading view hides the system bars and top bar after a short delay so the page can use the full screen. Swipe from the edge or tap near the top edge to reveal them temporarily.
 - **Keep screen on while reading** — when enabled, the screen stays on while you have a bookmark open in reading view. Enabled by default.
 

@@ -84,6 +84,8 @@ fun BookmarkDetailArticle(
     onLinkLongPress: (linkUrl: String, linkText: String) -> Unit = { _, _ -> },
     onTextSelectionCaptured: (SelectionData) -> Unit = {},
     onAnnotationClicked: (String) -> Unit = {},
+    onVideoEnterFullscreen: (View, android.webkit.WebChromeClient.CustomViewCallback?) -> Unit = { _, _ -> },
+    onVideoExitFullscreen: () -> Unit = {},
 ) {
     val isSystemInDarkMode = isSystemInDarkTheme()
     val content = remember(
@@ -286,6 +288,25 @@ fun BookmarkDetailArticle(
                             WebViewAnnotationTapBridge.BRIDGE_NAME
                         )
                         webChromeClient = object : android.webkit.WebChromeClient() {
+                            override fun onShowCustomView(
+                                view: View?,
+                                callback: CustomViewCallback?
+                            ) {
+                                if (!isVideo || view == null) {
+                                    callback?.onCustomViewHidden()
+                                    return
+                                }
+                                onVideoEnterFullscreen(view, callback)
+                            }
+
+                            override fun onHideCustomView() {
+                                if (isVideo) {
+                                    onVideoExitFullscreen()
+                                } else {
+                                    super.onHideCustomView()
+                                }
+                            }
+
                             override fun onConsoleMessage(consoleMessage: ConsoleMessage): Boolean {
                                 val message = consoleMessage.message()
                                 if (message.contains("[AnnotationTap]")) {

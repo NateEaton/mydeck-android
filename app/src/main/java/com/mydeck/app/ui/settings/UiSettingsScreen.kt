@@ -49,6 +49,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.mydeck.app.R
+import com.mydeck.app.domain.model.BookmarkShareFormat
 import com.mydeck.app.domain.model.DarkAppearance
 import com.mydeck.app.domain.model.LightAppearance
 import com.mydeck.app.domain.model.Theme
@@ -67,6 +68,9 @@ fun UiSettingsScreen(
     val onDarkAppearanceSelected: (DarkAppearance) -> Unit = { viewModel.onDarkAppearanceSelected(it) }
     val onKeepScreenOnWhileReadingToggled: (Boolean) -> Unit = { viewModel.onKeepScreenOnWhileReadingToggled(it) }
     val onFullscreenWhileReadingToggled: (Boolean) -> Unit = { viewModel.onFullscreenWhileReadingToggled(it) }
+    val onBookmarkShareFormatSelected: (BookmarkShareFormat) -> Unit = {
+        viewModel.onBookmarkShareFormatSelected(it)
+    }
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(key1 = navigationEvent.value) {
@@ -87,6 +91,7 @@ fun UiSettingsScreen(
         onThemeModeSelected = onThemeModeSelected,
         onLightAppearanceSelected = onLightAppearanceSelected,
         onDarkAppearanceSelected = onDarkAppearanceSelected,
+        onBookmarkShareFormatSelected = onBookmarkShareFormatSelected,
         onKeepScreenOnWhileReadingToggled = onKeepScreenOnWhileReadingToggled,
         onFullscreenWhileReadingToggled = onFullscreenWhileReadingToggled,
         settingsUiState = settingsUiState
@@ -102,6 +107,7 @@ fun UiSettingsView(
     onThemeModeSelected: (Theme) -> Unit,
     onLightAppearanceSelected: (LightAppearance) -> Unit,
     onDarkAppearanceSelected: (DarkAppearance) -> Unit,
+    onBookmarkShareFormatSelected: (BookmarkShareFormat) -> Unit,
     onKeepScreenOnWhileReadingToggled: (Boolean) -> Unit,
     onFullscreenWhileReadingToggled: (Boolean) -> Unit,
     onClickBack: () -> Unit,
@@ -200,6 +206,50 @@ fun UiSettingsView(
                 )
             }
 
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag(UiSettingsScreenTestTags.SHARE_FORMAT_SECTION),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    text = stringResource(R.string.ui_settings_share_format_title),
+                    style = MaterialTheme.typography.titleMedium
+                )
+                SingleChoiceSegmentedButtonRow(
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    val shareFormats = listOf(
+                        BookmarkShareFormat.URL_ONLY,
+                        BookmarkShareFormat.TITLE_AND_URL_MULTILINE
+                    )
+                    shareFormats.forEachIndexed { index, shareFormat ->
+                        SegmentedButton(
+                            modifier = Modifier.testTag(
+                                when (shareFormat) {
+                                    BookmarkShareFormat.URL_ONLY -> UiSettingsScreenTestTags.SHARE_FORMAT_URL_ONLY
+                                    BookmarkShareFormat.TITLE_AND_URL_MULTILINE ->
+                                        UiSettingsScreenTestTags.SHARE_FORMAT_TITLE_AND_URL
+                                }
+                            ),
+                            selected = settingsUiState.bookmarkShareFormat == shareFormat,
+                            onClick = { onBookmarkShareFormatSelected(shareFormat) },
+                            shape = SegmentedButtonDefaults.itemShape(
+                                index = index,
+                                count = shareFormats.size
+                            )
+                        ) {
+                            Text(stringResource(shareFormat.toLabelResource()))
+                        }
+                    }
+                }
+                Text(
+                    text = stringResource(R.string.ui_settings_share_format_description),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
             ListItem(
                 modifier = Modifier
                     .testTag(UiSettingsScreenTestTags.FULLSCREEN_READING_ROW)
@@ -264,6 +314,7 @@ fun UiSettingsScreenViewPreview() {
         themeOptions = listOf(),
         showDialog = false,
         themeLabel = Theme.SYSTEM.toLabelResource(),
+        bookmarkShareFormat = BookmarkShareFormat.URL_ONLY,
         keepScreenOnWhileReading = true,
         fullscreenWhileReading = false,
     )
@@ -274,6 +325,7 @@ fun UiSettingsScreenViewPreview() {
         onThemeModeSelected = {},
         onLightAppearanceSelected = {},
         onDarkAppearanceSelected = {},
+        onBookmarkShareFormatSelected = {},
         onKeepScreenOnWhileReadingToggled = {},
         onFullscreenWhileReadingToggled = {},
         settingsUiState = settingsUiState
@@ -372,6 +424,9 @@ private fun RowScope.AppearanceOptionCard(
 
 object UiSettingsScreenTestTags {
     const val BACK_BUTTON = "AccountSettingsScreenTestTags.BackButton"
+    const val SHARE_FORMAT_SECTION = "UiSettingsScreenTestTags.ShareFormatSection"
+    const val SHARE_FORMAT_URL_ONLY = "UiSettingsScreenTestTags.ShareFormatUrlOnly"
+    const val SHARE_FORMAT_TITLE_AND_URL = "UiSettingsScreenTestTags.ShareFormatTitleAndUrl"
     const val KEEP_SCREEN_ON_ROW = "UiSettingsScreenTestTags.KeepScreenOnRow"
     const val FULLSCREEN_READING_ROW = "UiSettingsScreenTestTags.FullscreenReadingRow"
 }

@@ -1,6 +1,7 @@
 package com.mydeck.app.ui.settings
 
 import android.content.Context
+import com.mydeck.app.domain.model.BookmarkShareFormat
 import com.mydeck.app.domain.model.DarkAppearance
 import com.mydeck.app.domain.model.LightAppearance
 import com.mydeck.app.domain.model.Theme
@@ -43,16 +44,19 @@ class UiSettingsViewModelTest {
         every { settingsDataStore.themeFlow } returns MutableStateFlow(Theme.SYSTEM.name)
         every { settingsDataStore.lightAppearanceFlow } returns MutableStateFlow(LightAppearance.PAPER)
         every { settingsDataStore.darkAppearanceFlow } returns MutableStateFlow(DarkAppearance.DARK)
+        every { settingsDataStore.bookmarkShareFormatFlow } returns MutableStateFlow(BookmarkShareFormat.URL_ONLY)
         every { settingsDataStore.keepScreenOnWhileReadingFlow } returns MutableStateFlow(true)
         every { settingsDataStore.fullscreenWhileReadingFlow } returns MutableStateFlow(false)
         coEvery { settingsDataStore.getTheme() } returns Theme.SYSTEM
         coEvery { settingsDataStore.getLightAppearance() } returns LightAppearance.PAPER
         coEvery { settingsDataStore.getDarkAppearance() } returns DarkAppearance.DARK
+        coEvery { settingsDataStore.getBookmarkShareFormat() } returns BookmarkShareFormat.URL_ONLY
         coEvery { settingsDataStore.isKeepScreenOnWhileReading() } returns true
         coEvery { settingsDataStore.isFullscreenWhileReading() } returns false
         coEvery { settingsDataStore.saveTheme(any()) } returns Unit
         coEvery { settingsDataStore.saveLightAppearance(any()) } returns Unit
         coEvery { settingsDataStore.saveDarkAppearance(any()) } returns Unit
+        coEvery { settingsDataStore.saveBookmarkShareFormat(any()) } returns Unit
         coEvery { settingsDataStore.saveKeepScreenOnWhileReading(any()) } returns Unit
         coEvery { settingsDataStore.saveFullscreenWhileReading(any()) } returns Unit
 
@@ -198,6 +202,31 @@ class UiSettingsViewModelTest {
 
         coVerify { settingsDataStore.saveFullscreenWhileReading(true) }
         assertTrue(states.last().fullscreenWhileReading)
+    }
+
+    @Test
+    fun `onBookmarkShareFormatSelected saves and reflects in state`() = runTest(UnconfinedTestDispatcher()) {
+        coEvery { settingsDataStore.getBookmarkShareFormat() } returnsMany listOf(
+            BookmarkShareFormat.URL_ONLY,
+            BookmarkShareFormat.TITLE_AND_URL_MULTILINE
+        )
+        val states = mutableListOf<UiSettingsUiState>()
+        val job = launch {
+            viewModel.uiState.collect { states.add(it) }
+        }
+        advanceUntilIdle()
+
+        viewModel.onBookmarkShareFormatSelected(BookmarkShareFormat.TITLE_AND_URL_MULTILINE)
+        advanceUntilIdle()
+        job.cancel()
+
+        coVerify {
+            settingsDataStore.saveBookmarkShareFormat(BookmarkShareFormat.TITLE_AND_URL_MULTILINE)
+        }
+        assertEquals(
+            BookmarkShareFormat.TITLE_AND_URL_MULTILINE,
+            states.last().bookmarkShareFormat
+        )
     }
 
     @Test

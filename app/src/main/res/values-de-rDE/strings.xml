@@ -328,6 +328,10 @@ other{}
     <string name="appearance_black">Black</string>
     <string name="ui_settings_light_appearance_title">When app is light</string>
     <string name="ui_settings_dark_appearance_title">When app is dark</string>
+    <string name="ui_settings_share_format_title">Share links as</string>
+    <string name="ui_settings_share_format_description">Choose whether shared links include only the URL or the title on a separate line above it</string>
+    <string name="ui_settings_share_format_url_only">URL only</string>
+    <string name="ui_settings_share_format_title_and_url">Title + URL</string>
     <string name="ui_settings_fullscreen_reading_title">Fullscreen while reading</string>
     <string name="ui_settings_fullscreen_reading_description">Hides the top bar and system bars while you read</string>
     <string name="ui_settings_keep_screen_on_title">Keep screen on while reading</string>

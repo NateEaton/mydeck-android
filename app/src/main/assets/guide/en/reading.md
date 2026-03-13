@@ -16,7 +16,7 @@ MyDeck supports three types of bookmarks, each with unique features:
 Articles display extracted text content in a clean, distraction-free reading layout. If the bookmark already has highlights from Readeck, those highlights appear inline in their saved colors while you read. Articles support full typography controls and text search, and may include images that can be opened in the **Image Lightbox** and links that can be long-pressed to access **Long-press Context Menus**.
 
 ### Videos  
-For video bookmarks (YouTube, Vimeo, etc.), MyDeck shows an embedded video player at the top, followed by any text content (description or transcript). Videos stream from their original servers and require an internet connection. If the video includes text content, you can long-press links to access **Long-press Context Menus**.
+For video bookmarks (YouTube, Vimeo, etc.), MyDeck shows an embedded video player at the top, followed by any text content (description or transcript). Videos stream from their original servers and require an internet connection. Use the player's fullscreen control to expand the video when the provider supports it. If device rotation is enabled, rotating the device while fullscreen video is open resizes the fullscreen player instead of dropping you back into the reader. If the video includes text content, you can long-press links to access **Long-press Context Menus**.
 
 ### Pictures
 For picture bookmarks, MyDeck shows the stored image at the top at full content width, followed by any text content. Tap the image to open it in the **Image Lightbox** where you can zoom and pan. Pictures may also include text content with links that support **Long-press Context Menus**.
@@ -78,7 +78,7 @@ Tap **⋮** in the top bar for additional actions:
 - **Archive / Unarchive** — move the bookmark to the archive (or back to My List)
 - **Mark as read / Mark as unread** — toggle whether the bookmark has been read; this is reflected back in the bookmark list
 - **View web page / View [bookmark type]** — switch between the reading view and the web page in an in-app viewer (see above)
-- **Share link** — open the Android share sheet to share the bookmark's URL
+- **Share link** — open the Android share sheet to share the bookmark using the format selected in **Settings → User Interface**
 - **Details** — open the Bookmark Details screen (see below)
 - **Delete** — delete the bookmark; you are returned to the list and a **"Bookmark deleted"** bar appears with an **Undo** option
 

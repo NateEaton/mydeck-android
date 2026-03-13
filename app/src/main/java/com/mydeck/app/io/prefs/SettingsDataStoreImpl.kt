@@ -8,6 +8,7 @@ import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import com.mydeck.app.BuildConfig
 import com.mydeck.app.domain.model.AutoSyncTimeframe
+import com.mydeck.app.domain.model.BookmarkShareFormat
 import com.mydeck.app.domain.model.CachedServerInfo
 import com.mydeck.app.domain.model.DarkAppearance
 import com.mydeck.app.domain.model.LightAppearance
@@ -60,6 +61,7 @@ class SettingsDataStoreImpl @Inject constructor(@ApplicationContext private val 
     private val KEY_SEPIA_ENABLED = booleanPreferencesKey("sepia_enabled")
     private val KEY_LIGHT_APPEARANCE = stringPreferencesKey("light_appearance")
     private val KEY_DARK_APPEARANCE = stringPreferencesKey("dark_appearance")
+    private val KEY_BOOKMARK_SHARE_FORMAT = stringPreferencesKey("bookmark_share_format")
     private val KEY_KEEP_SCREEN_ON_READING = booleanPreferencesKey("keep_screen_on_reading")
     private val KEY_FULLSCREEN_WHILE_READING = booleanPreferencesKey("fullscreen_while_reading")
 
@@ -248,6 +250,25 @@ class SettingsDataStoreImpl @Inject constructor(@ApplicationContext private val 
         } ?: DarkAppearance.DARK
     }
 
+    override suspend fun saveBookmarkShareFormat(format: BookmarkShareFormat) {
+        userPreferences.edit {
+            putString(KEY_BOOKMARK_SHARE_FORMAT.name, format.name)
+        }
+    }
+
+    override suspend fun getBookmarkShareFormat(): BookmarkShareFormat {
+        return userPreferences.getString(
+            KEY_BOOKMARK_SHARE_FORMAT.name,
+            BookmarkShareFormat.URL_ONLY.name
+        )?.let {
+            try {
+                BookmarkShareFormat.valueOf(it)
+            } catch (_: IllegalArgumentException) {
+                BookmarkShareFormat.URL_ONLY
+            }
+        } ?: BookmarkShareFormat.URL_ONLY
+    }
+
     @Deprecated("Migration-only. Use saveLightAppearance instead.")
     override suspend fun saveSepiaEnabled(enabled: Boolean) {
         userPreferences.edit {
@@ -319,6 +340,12 @@ class SettingsDataStoreImpl @Inject constructor(@ApplicationContext private val 
         key = KEY_DARK_APPEARANCE.name,
         defaultValue = DarkAppearance.DARK,
         parse = { value -> DarkAppearance.valueOf(value) }
+    )
+    override val bookmarkShareFormatFlow = getEnumFlow(
+        preferences = userPreferences,
+        key = KEY_BOOKMARK_SHARE_FORMAT.name,
+        defaultValue = BookmarkShareFormat.URL_ONLY,
+        parse = { value -> BookmarkShareFormat.valueOf(value) }
     )
     override val keepScreenOnWhileReadingFlow =
         getBooleanFlow(userPreferences, KEY_KEEP_SCREEN_ON_READING.name, true)

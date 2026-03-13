@@ -3,6 +3,7 @@ package com.mydeck.app.io.prefs
 import android.content.Context
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.test.core.app.ApplicationProvider
+import com.mydeck.app.domain.model.BookmarkShareFormat
 import com.mydeck.app.domain.model.DarkAppearance
 import com.mydeck.app.domain.model.LightAppearance
 import com.mydeck.app.domain.model.TypographySettings
@@ -157,5 +158,25 @@ class SettingsDataStoreImplTest {
         dataStore.saveFullscreenWhileReading(true)
 
         assertEquals(true, dataStore.fullscreenWhileReadingFlow.value)
+    }
+
+    @Test
+    fun `bookmarkShareFormat defaults to url only`() = runTest {
+        val dataStore = SettingsDataStoreImpl(context)
+
+        assertEquals(BookmarkShareFormat.URL_ONLY, dataStore.getBookmarkShareFormat())
+        assertEquals(BookmarkShareFormat.URL_ONLY, dataStore.bookmarkShareFormatFlow.value)
+    }
+
+    @Test
+    fun `bookmarkShareFormatFlow updates when preference is saved`() = runTest {
+        val dataStore = SettingsDataStoreImpl(context)
+
+        dataStore.saveBookmarkShareFormat(BookmarkShareFormat.TITLE_AND_URL_MULTILINE)
+
+        assertEquals(
+            BookmarkShareFormat.TITLE_AND_URL_MULTILINE,
+            dataStore.bookmarkShareFormatFlow.value
+        )
     }
 }

@@ -106,6 +106,10 @@ other{}
     <string name="appearance_black">Black</string>
     <string name="ui_settings_light_appearance_title">When app is light</string>
     <string name="ui_settings_dark_appearance_title">When app is dark</string>
+    <string name="ui_settings_share_format_title">Share links as</string>
+    <string name="ui_settings_share_format_description">Choose whether shared links include only the URL or the title on a separate line above it</string>
+    <string name="ui_settings_share_format_url_only">URL only</string>
+    <string name="ui_settings_share_format_title_and_url">Title + URL</string>
     <string name="ui_settings_sepia_title">Sepia reading theme</string>
     <string name="ui_settings_sepia_description">Use warm tinted colors for reading in light mode</string>
     <string name="ui_settings_fullscreen_reading_title">Fullscreen while reading</string>

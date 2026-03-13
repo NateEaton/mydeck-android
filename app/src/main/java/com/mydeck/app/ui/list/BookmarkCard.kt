@@ -146,7 +146,7 @@ fun BookmarkMosaicCard(
     onClickCopyLink: (String) -> Unit = {},
     onClickCopyLinkText: (String) -> Unit = {},
     onClickDownloadLink: (String, String) -> Unit = { _, _ -> },
-    onClickShareLink: (String) -> Unit = {},
+    onClickShareLink: (String, String) -> Unit = { _, _ -> },
     onClickOpenInBrowserFromMenu: (String) -> Unit = {},
     onClickCopyImage: (String) -> Unit = {},
     onClickDownloadImage: (String) -> Unit = {},
@@ -360,7 +360,7 @@ fun BookmarkMosaicCard(
                 LongPressContextMenuItem(
                     icon = Icons.Outlined.Share,
                     text = stringResource(R.string.action_share_link),
-                    onClick = { showBodyContextMenu = false; onClickShareLink(bookmark.url) },
+                    onClick = { showBodyContextMenu = false; onClickShareLink(bookmark.title, bookmark.url) },
                 )
                 LongPressContextMenuItem(
                     icon = Icons.AutoMirrored.Filled.OpenInNew,
@@ -410,7 +410,7 @@ fun BookmarkGridCard(
     onClickCopyLink: (String) -> Unit = {},
     onClickCopyLinkText: (String) -> Unit = {},
     onClickDownloadLink: (String, String) -> Unit = { _, _ -> },
-    onClickShareLink: (String) -> Unit = {},
+    onClickShareLink: (String, String) -> Unit = { _, _ -> },
     onClickOpenInBrowserFromMenu: (String) -> Unit = {},
     onClickCopyImage: (String) -> Unit = {},
     onClickDownloadImage: (String) -> Unit = {},
@@ -495,7 +495,7 @@ private fun BookmarkGridCardMobilePortrait(
     onClickCopyLink: (String) -> Unit = {},
     onClickCopyLinkText: (String) -> Unit = {},
     onClickDownloadLink: (String, String) -> Unit = { _, _ -> },
-    onClickShareLink: (String) -> Unit = {},
+    onClickShareLink: (String, String) -> Unit = { _, _ -> },
     onClickOpenInBrowserFromMenu: (String) -> Unit = {},
     onClickCopyImage: (String) -> Unit = {},
     onClickDownloadImage: (String) -> Unit = {},
@@ -757,7 +757,7 @@ private fun BookmarkGridCardMobilePortrait(
                 LongPressContextMenuItem(
                     icon = Icons.Outlined.Share,
                     text = stringResource(R.string.action_share_link),
-                    onClick = { showBodyContextMenu = false; onClickShareLink(bookmark.url) },
+                    onClick = { showBodyContextMenu = false; onClickShareLink(bookmark.title, bookmark.url) },
                 )
                 LongPressContextMenuItem(
                     icon = Icons.AutoMirrored.Filled.OpenInNew,
@@ -806,7 +806,7 @@ private fun BookmarkGridCardNarrow(
     onClickCopyLink: (String) -> Unit = {},
     onClickCopyLinkText: (String) -> Unit = {},
     onClickDownloadLink: (String, String) -> Unit = { _, _ -> },
-    onClickShareLink: (String) -> Unit = {},
+    onClickShareLink: (String, String) -> Unit = { _, _ -> },
     onClickOpenInBrowserFromMenu: (String) -> Unit = {},
     onClickCopyImage: (String) -> Unit = {},
     onClickDownloadImage: (String) -> Unit = {},
@@ -1064,7 +1064,7 @@ private fun BookmarkGridCardNarrow(
                 LongPressContextMenuItem(
                     icon = Icons.Outlined.Share,
                     text = stringResource(R.string.action_share_link),
-                    onClick = { showBodyContextMenu = false; onClickShareLink(bookmark.url) },
+                    onClick = { showBodyContextMenu = false; onClickShareLink(bookmark.title, bookmark.url) },
                 )
                 LongPressContextMenuItem(
                     icon = Icons.AutoMirrored.Filled.OpenInNew,
@@ -1113,7 +1113,7 @@ private fun BookmarkGridCardWide(
     onClickCopyLink: (String) -> Unit = {},
     onClickCopyLinkText: (String) -> Unit = {},
     onClickDownloadLink: (String, String) -> Unit = { _, _ -> },
-    onClickShareLink: (String) -> Unit = {},
+    onClickShareLink: (String, String) -> Unit = { _, _ -> },
     onClickOpenInBrowserFromMenu: (String) -> Unit = {},
     onClickCopyImage: (String) -> Unit = {},
     onClickDownloadImage: (String) -> Unit = {},
@@ -1376,7 +1376,7 @@ private fun BookmarkGridCardWide(
                 LongPressContextMenuItem(
                     icon = Icons.Outlined.Share,
                     text = stringResource(R.string.action_share_link),
-                    onClick = { showBodyContextMenu = false; onClickShareLink(bookmark.url) },
+                    onClick = { showBodyContextMenu = false; onClickShareLink(bookmark.title, bookmark.url) },
                 )
                 LongPressContextMenuItem(
                     icon = Icons.AutoMirrored.Filled.OpenInNew,
@@ -1426,7 +1426,7 @@ fun BookmarkCompactCard(
     onClickCopyLink: (String) -> Unit = {},
     onClickCopyLinkText: (String) -> Unit = {},
     onClickDownloadLink: (String, String) -> Unit = { _, _ -> },
-    onClickShareLink: (String) -> Unit = {},
+    onClickShareLink: (String, String) -> Unit = { _, _ -> },
     onClickOpenInBrowserFromMenu: (String) -> Unit = {},
     onClickCopyImage: (String) -> Unit = {},
     onClickDownloadImage: (String) -> Unit = {},
@@ -1485,7 +1485,7 @@ private fun BookmarkCompactCardNarrow(
     onClickCopyLink: (String) -> Unit = {},
     onClickCopyLinkText: (String) -> Unit = {},
     onClickDownloadLink: (String, String) -> Unit = { _, _ -> },
-    onClickShareLink: (String) -> Unit = {},
+    onClickShareLink: (String, String) -> Unit = { _, _ -> },
     onClickOpenInBrowserFromMenu: (String) -> Unit = {},
     onClickCopyImage: (String) -> Unit = {},
     onClickDownloadImage: (String) -> Unit = {},
@@ -1694,7 +1694,7 @@ private fun BookmarkCompactCardNarrow(
                 LongPressContextMenuItem(
                     icon = Icons.Outlined.Share,
                     text = stringResource(R.string.action_share_link),
-                    onClick = { showBodyContextMenu = false; onClickShareLink(bookmark.url) },
+                    onClick = { showBodyContextMenu = false; onClickShareLink(bookmark.title, bookmark.url) },
                 )
                 LongPressContextMenuItem(
                     icon = Icons.AutoMirrored.Filled.OpenInNew,
@@ -1743,7 +1743,7 @@ private fun BookmarkCompactCardWide(
     onClickCopyLink: (String) -> Unit = {},
     onClickCopyLinkText: (String) -> Unit = {},
     onClickDownloadLink: (String, String) -> Unit = { _, _ -> },
-    onClickShareLink: (String) -> Unit = {},
+    onClickShareLink: (String, String) -> Unit = { _, _ -> },
     onClickOpenInBrowserFromMenu: (String) -> Unit = {},
     onClickCopyImage: (String) -> Unit = {},
     onClickDownloadImage: (String) -> Unit = {},
@@ -1939,7 +1939,7 @@ private fun BookmarkCompactCardWide(
                 LongPressContextMenuItem(
                     icon = Icons.Outlined.Share,
                     text = stringResource(R.string.action_share_link),
-                    onClick = { showBodyContextMenu = false; onClickShareLink(bookmark.url) },
+                    onClick = { showBodyContextMenu = false; onClickShareLink(bookmark.title, bookmark.url) },
                 )
                 LongPressContextMenuItem(
                     icon = Icons.AutoMirrored.Filled.OpenInNew,

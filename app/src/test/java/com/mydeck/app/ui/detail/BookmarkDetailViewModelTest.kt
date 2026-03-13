@@ -4,6 +4,7 @@ import androidx.lifecycle.SavedStateHandle
 import com.mydeck.app.domain.BookmarkRepository
 import com.mydeck.app.domain.model.Annotation
 import com.mydeck.app.domain.model.Bookmark
+import com.mydeck.app.domain.model.BookmarkShareFormat
 import com.mydeck.app.domain.model.DarkAppearance
 import com.mydeck.app.domain.model.LightAppearance
 import com.mydeck.app.domain.model.SelectionData
@@ -82,6 +83,7 @@ class BookmarkDetailViewModelTest {
         every { settingsDataStore.typographySettingsFlow } returns MutableStateFlow(com.mydeck.app.domain.model.TypographySettings())
         every { settingsDataStore.keepScreenOnWhileReadingFlow } returns MutableStateFlow(true)
         every { settingsDataStore.fullscreenWhileReadingFlow } returns MutableStateFlow(false)
+        coEvery { settingsDataStore.getBookmarkShareFormat() } returns BookmarkShareFormat.URL_ONLY
         every { bookmarkRepository.observeAllLabelsWithCounts() } returns MutableStateFlow(emptyMap())
         coEvery { settingsDataStore.saveCachedAnnotationSnapshot(any(), any()) } just Runs
         coEvery { settingsDataStore.getCachedAnnotationSnapshot(any()) } returns null
