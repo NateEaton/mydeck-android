@@ -46,8 +46,8 @@ android {
         applicationId = "com.mydeck.app"
         minSdk = 24
         targetSdk = 35
-        versionCode = 10000
-        versionName = "0.10.0"
+        versionCode = 11000
+        versionName = "0.11.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -290,9 +290,15 @@ tasks.register("lintDebugAll") {
 }
 
 aboutLibraries {
-    registerAndroidTasks = false
-    prettyPrint = true
-    configPath = "config"
+    android {
+        registerAndroidTasks = false
+    }
+    export {
+        prettyPrint = true
+    }
+    collect {
+        configPath.set(file("../config"))
+    }
 }
 
 tasks.whenTaskAdded {

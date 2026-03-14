@@ -1,0 +1,20 @@
+<b>Added</b>
+- Image gallery lightbox in reading view: tap any article image to open a full-screen gallery with swipe navigation, pinch-to-zoom, double-tap to zoom, and a thumbnail strip
+- Long-press context menus for images and links in reader view and bookmark list (copy, download, share, open in browser)
+- Highlights and annotations: view, create, and edit Readeck highlights directly in the reading view
+- "Keep screen on while reading" toggle in Settings → User Interface
+- Reader appearance settings: curated themes, font size, line spacing, content width, and fullscreen mode
+- Fullscreen reading mode: hides top bar while reading; swipe up to reveal controls
+- Typography and Find in Page now available for Video and Picture bookmark types
+- About screen shows app and server info in collapsible cards (version, build, server name, URL)
+- 15-minute option added to auto-sync schedule
+
+<b>Changed</b>
+- Favorite and Archive actions moved from top bar to overflow menu and inline buttons at end of article content
+- Long-press context menus replaced with centered dialog popups showing a preview header
+- "View original" renamed to "View web page" throughout
+- Menu items and filter labels now use sentence case
+- Bookmark deletion: card stays visible but greyed-out until snackbar is dismissed or undo is pressed
+- Delta sync re-enabled for Readeck 0.22+; deleted bookmarks now detected immediately on pull-to-refresh
+- Navigation drawer and settings screen typography refined for better visual hierarchy
+- User guide gains a "Contents" button for one-tap navigation back to the table of contents
