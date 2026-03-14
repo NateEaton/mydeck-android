@@ -679,8 +679,8 @@ fun BookmarkDetailOriginalWebView(
                     .fillMaxHeight(),
                 factory = { context ->
                     WebView(context).apply {
-                        settings.javaScriptEnabled = false
-                        settings.domStorageEnabled = false
+                        settings.javaScriptEnabled = true
+                        settings.domStorageEnabled = true
                         settings.mediaPlaybackRequiresUserGesture = false
                         settings.useWideViewPort = true
                         settings.loadWithOverviewMode = true

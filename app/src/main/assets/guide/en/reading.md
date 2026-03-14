@@ -30,7 +30,6 @@ MyDeck supports two view formats for bookmarks: **extracted content view** (Arti
 
 > **No article content:** If Readeck was unable to extract article content when the bookmark was saved, MyDeck automatically opens the bookmark in **web view** instead of showing an empty reading view. In that case, the overflow menu hides the **View [bookmark type]** action because extracted content is unavailable.
 
-> **If a page looks incomplete in web view:** MyDeck's in-app web view is best for straightforward page viewing. If a page does not load or behave correctly there, use **⋮ → Open in browser** to open it in your device's browser instead.
 
 ### Top Bar
 
