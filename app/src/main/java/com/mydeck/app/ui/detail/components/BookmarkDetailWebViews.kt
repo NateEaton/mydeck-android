@@ -296,11 +296,13 @@ fun BookmarkDetailArticle(
                                     callback?.onCustomViewHidden()
                                     return
                                 }
+                                this@apply.visibility = View.GONE
                                 onVideoEnterFullscreen(view, callback)
                             }
 
                             override fun onHideCustomView() {
                                 if (isVideo) {
+                                    this@apply.visibility = View.VISIBLE
                                     onVideoExitFullscreen()
                                 } else {
                                     super.onHideCustomView()

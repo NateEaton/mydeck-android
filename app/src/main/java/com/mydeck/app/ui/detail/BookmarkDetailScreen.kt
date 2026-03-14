@@ -7,6 +7,7 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.content.ContextWrapper
 import android.content.Intent
+import android.content.pm.ActivityInfo
 import android.icu.text.MessageFormat
 import android.net.Uri
 import android.widget.Toast
@@ -57,6 +58,19 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.CheckCircle
+import androidx.compose.material.icons.outlined.FormatSize
+import androidx.compose.material.icons.outlined.Description
+import androidx.compose.material.icons.outlined.Inventory2
+import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.Share
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.ui.layout.layout
+import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.material.icons.outlined.FormatSize
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Inventory2
@@ -231,6 +245,8 @@ fun BookmarkDetailHost(
             callback?.onCustomViewHidden()
         }
     }
+
+    // Orientation lock removed in favor of VideoFullscreenOverlay's visual rotation
 
     BackHandler(enabled = videoFullscreenView != null) {
         hideVideoFullscreen(notifyWebChrome = true)
@@ -500,7 +516,7 @@ fun BookmarkDetailHost(
                             videoFullscreenCallback = callback
                         }
                     },
-                    onVideoExitFullscreen = { hideVideoFullscreen(notifyWebChrome = false) },
+                    onVideoExitFullscreen = { hideVideoFullscreen(notifyWebChrome = true) },
                     fullscreenWhileReading = fullscreenWhileReading,
                 )
 
@@ -895,10 +911,30 @@ private fun VideoFullscreenOverlay(
     customView: View,
     onDismiss: () -> Unit,
 ) {
-    BackHandler(onBack = onDismiss)
+    var isRotated by remember { mutableStateOf(false) }
+    var containerSize by remember { mutableStateOf(androidx.compose.ui.unit.IntSize.Zero) }
+    var showControls by remember { mutableStateOf(true) }
+
+    LaunchedEffect(showControls) {
+        if (showControls) {
+            kotlinx.coroutines.delay(3000)
+            showControls = false
+        }
+    }
+
+    BackHandler(onBack = {
+        if (isRotated) {
+            isRotated = false
+        } else {
+            onDismiss()
+        }
+    })
 
     DisposableEffect(customView) {
         onDispose {
+            customView.rotation = 0f
+            customView.translationX = 0f
+            customView.translationY = 0f
             (customView.parent as? ViewGroup)?.removeView(customView)
         }
     }
@@ -907,6 +943,18 @@ private fun VideoFullscreenOverlay(
         modifier = Modifier
             .fillMaxSize()
             .background(Color.Black)
+            .onSizeChanged { containerSize = it }
+            .pointerInput(Unit) {
+                awaitPointerEventScope {
+                    while (true) {
+                        val event = awaitPointerEvent(PointerEventPass.Initial)
+                        if (event.type == PointerEventType.Press || 
+                            event.type == PointerEventType.Move) {
+                            showControls = true
+                        }
+                    }
+                }
+            }
     ) {
         AndroidView(
             modifier = Modifier.fillMaxSize(),
@@ -919,16 +967,84 @@ private fun VideoFullscreenOverlay(
                 if (customView.parent !== container) {
                     (customView.parent as? ViewGroup)?.removeView(customView)
                     container.removeAllViews()
-                    container.addView(
-                        customView,
-                        FrameLayout.LayoutParams(
-                            ViewGroup.LayoutParams.MATCH_PARENT,
-                            ViewGroup.LayoutParams.MATCH_PARENT
-                        )
+                    container.addView(customView)
+                }
+
+                if (isRotated && containerSize.width > 0 && containerSize.height > 0) {
+                    customView.rotation = 90f
+                    customView.layoutParams = FrameLayout.LayoutParams(containerSize.height, containerSize.width)
+                    customView.translationX = (containerSize.width - containerSize.height) / 2f
+                    customView.translationY = (containerSize.height - containerSize.width) / 2f
+                } else {
+                    customView.rotation = 0f
+                    customView.layoutParams = FrameLayout.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                        ViewGroup.LayoutParams.MATCH_PARENT
                     )
+                    customView.translationX = 0f
+                    customView.translationY = 0f
                 }
             }
         )
+
+        // On-screen controls overlay
+        val controlsModifier = if (isRotated) {
+            Modifier
+                .layout { measurable, constraints ->
+                    val placeable = measurable.measure(
+                        Constraints.fixed(constraints.maxHeight, constraints.maxWidth)
+                    )
+                    layout(constraints.maxWidth, constraints.maxHeight) {
+                        val xOffset = (constraints.maxWidth - placeable.width) / 2
+                        val yOffset = (constraints.maxHeight - placeable.height) / 2
+                        placeable.place(xOffset, yOffset)
+                    }
+                }
+                .graphicsLayer {
+                    rotationZ = 90f
+                }
+        } else {
+            Modifier.fillMaxSize()
+        }
+        
+        Box(modifier = controlsModifier) {
+            androidx.compose.animation.AnimatedVisibility(
+                visible = showControls,
+                enter = androidx.compose.animation.fadeIn(),
+                exit = androidx.compose.animation.fadeOut()
+            ) {
+                androidx.compose.foundation.layout.Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp)
+                        .windowInsetsPadding(WindowInsets.statusBars)
+                        .align(Alignment.TopCenter),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    IconButton(
+                        onClick = onDismiss,
+                        modifier = Modifier.background(Color.Black.copy(alpha = 0.5f), shape = androidx.compose.foundation.shape.CircleShape)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Close",
+                            tint = Color.White
+                        )
+                    }
+
+                    IconButton(
+                        onClick = { isRotated = !isRotated },
+                        modifier = Modifier.background(Color.Black.copy(alpha = 0.5f), shape = androidx.compose.foundation.shape.CircleShape)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Refresh,
+                            contentDescription = "Rotate",
+                            tint = Color.White
+                        )
+                    }
+                }
+            }
+        }
     }
 }
 
