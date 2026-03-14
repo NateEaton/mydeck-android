@@ -320,6 +320,7 @@ class BookmarkRepositoryImplTest {
         // Assert
         assertTrue(result is BookmarkRepository.SyncResult.Success)
         assertEquals(1, (result as BookmarkRepository.SyncResult.Success).countDeleted)
+        assertEquals(1, result.countUpdated)
         coVerify(exactly = 1) { bookmarkDao.deleteBookmark("bookmark-2") }
         coVerify(exactly = 0) { bookmarkDao.deleteBookmark("bookmark-1") }
     }

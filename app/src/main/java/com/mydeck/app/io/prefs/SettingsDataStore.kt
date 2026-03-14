@@ -2,6 +2,9 @@ package com.mydeck.app.io.prefs
 
 import com.mydeck.app.domain.model.AutoSyncTimeframe
 import com.mydeck.app.domain.model.CachedServerInfo
+import com.mydeck.app.domain.model.BookmarkShareFormat
+import com.mydeck.app.domain.model.DarkAppearance
+import com.mydeck.app.domain.model.LightAppearance
 import com.mydeck.app.domain.model.Theme
 import com.mydeck.app.domain.model.TypographySettings
 import com.mydeck.app.domain.sync.ContentSyncConstraints
@@ -16,7 +19,6 @@ interface SettingsDataStore {
     val urlFlow: StateFlow<String?>
     val initialSyncPerformedFlow: StateFlow<Boolean>
     val themeFlow: StateFlow<String?>
-    val zoomFactorFlow: StateFlow<Int>
     fun saveToken(token: String)
     fun saveUrl(url: String)
     suspend fun saveLastBookmarkTimestamp(timestamp: Instant)
@@ -40,8 +42,10 @@ interface SettingsDataStore {
     suspend fun getAutoSyncTimeframe(): AutoSyncTimeframe
     suspend fun saveTheme(theme: Theme)
     suspend fun getTheme(): Theme
-    suspend fun  getZoomFactor(): Int
-    suspend fun  saveZoomFactor(zoomFactor: Int)
+    suspend fun saveLightAppearance(appearance: LightAppearance)
+    suspend fun getLightAppearance(): LightAppearance
+    suspend fun saveDarkAppearance(appearance: DarkAppearance)
+    suspend fun getDarkAppearance(): DarkAppearance
     suspend fun setSyncOnAppOpenEnabled(isEnabled: Boolean)
     suspend fun isSyncOnAppOpenEnabled(): Boolean
     suspend fun setSyncNotificationsEnabled(isEnabled: Boolean)
@@ -67,15 +71,30 @@ interface SettingsDataStore {
     val typographySettingsFlow: StateFlow<TypographySettings>
     suspend fun saveTypographySettings(settings: TypographySettings)
 
-    // Sepia preference (independent of theme mode)
+    // Sepia preference retained only for migration from older builds.
+    @Deprecated("Migration-only. Use lightAppearanceFlow instead.")
     val sepiaEnabledFlow: StateFlow<Boolean>
+    @Deprecated("Migration-only. Use saveLightAppearance instead.")
     suspend fun saveSepiaEnabled(enabled: Boolean)
+    @Deprecated("Migration-only. Use getLightAppearance instead.")
     suspend fun isSepiaEnabled(): Boolean
+
+    // Reader appearance preferences
+    val lightAppearanceFlow: StateFlow<LightAppearance>
+    val darkAppearanceFlow: StateFlow<DarkAppearance>
+    val bookmarkShareFormatFlow: StateFlow<BookmarkShareFormat>
+    suspend fun saveBookmarkShareFormat(format: BookmarkShareFormat)
+    suspend fun getBookmarkShareFormat(): BookmarkShareFormat
 
     // Keep screen on while reading preference
     val keepScreenOnWhileReadingFlow: StateFlow<Boolean>
     suspend fun saveKeepScreenOnWhileReading(enabled: Boolean)
     suspend fun isKeepScreenOnWhileReading(): Boolean
+
+    // Fullscreen while reading preference
+    val fullscreenWhileReadingFlow: StateFlow<Boolean>
+    suspend fun saveFullscreenWhileReading(enabled: Boolean)
+    suspend fun isFullscreenWhileReading(): Boolean
 
     // Server info caching
     suspend fun saveServerInfo(info: CachedServerInfo)

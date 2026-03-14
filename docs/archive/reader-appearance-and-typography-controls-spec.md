@@ -3,9 +3,19 @@
 **Date:** 2026-03-07
 **Status:** Draft
 
+> **Update — March 13, 2026:** Subsequent article analysis, UI review, and implementation work changed the direction of this effort. Instead of implementing the full title/heading control surface described below, the work on this branch was carried through these focused specs:
+>
+> - [Reader Appearance Backgrounds Specification](./reader-appearance-backgrounds-spec.md)
+> - [Reader Heading Scale and Body Size Specification](./reader-heading-scale-and-body-size-spec.md)
+> - [Reader Line Spacing and Width Controls Specification](./reader-line-spacing-and-width-controls-spec.md)
+>
+> This document is preserved as the original umbrella draft and archived for historical context.
+
 ## Overview
 
 This specification defines the next iteration of MyDeck's reading appearance and typography controls.
+
+For the focused implementation slices that followed, the detailed behavior for app and reader appearance backgrounds is captured in [reader-appearance-backgrounds-spec.md](./reader-appearance-backgrounds-spec.md), the detailed behavior for body size and heading scale is captured in [reader-heading-scale-and-body-size-spec.md](./reader-heading-scale-and-body-size-spec.md), and the detailed behavior for line spacing and width is captured in [reader-line-spacing-and-width-controls-spec.md](./reader-line-spacing-and-width-controls-spec.md).
 
 The work has two linked goals:
 
@@ -232,8 +242,8 @@ Control format:
 Behavior:
 
 - default: `100%`
-- range: `80%` to `200%`
-- increment: `10%`
+- range: `80%` to `170%`
+- increment: `5%`
 
 #### 3.3 Line spacing
 
@@ -247,7 +257,7 @@ Behavior:
 
 - `100%` equals the current default article line spacing
 - default line-height baseline: current reader default, equivalent to `1.7`
-- range: `85%` to `130%`
+- range: `80%` to `125%`
 - increment: `5%`
 
 This range intentionally reaches approximately the current `Loose` upper bound without making line spacing unreasonably large.
@@ -258,20 +268,21 @@ Replace the `Wide / Narrow` segmented control with plus/minus controls.
 
 Control format:
 
-- `[-] 85% [+]`
+- `W | M | N`
 
 Behavior:
 
-- displayed value is the actual content width as a percentage of the available reader width
-- default: `85%`
-- range: `75%` to `90%`
-- increment: `5%`
+- visible labels map to width stops:
+  - `W` = `95%`
+  - `M` = `88%`
+  - `N` = `82.5%`
+- default: `M`
 
 Width mapping:
 
-- `90%` matches the current `Wide` layout
-- `85%` becomes the new default
-- `75%` is slightly narrower than the current `Narrow` layout
+- `95%` becomes the new wide layout
+- `88%` becomes the new default medium layout
+- `82.5%` becomes the new narrow layout
 
 This control applies to the article container and the header/title width together.
 

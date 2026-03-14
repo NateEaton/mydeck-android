@@ -103,6 +103,18 @@ other{}
     <string name="ui_settings_theme_dialog_support_text">¿Qué tema se debe usar?</string>
     <string name="ui_settings_sepia_title">Tema de lectura sepia</string>
     <string name="ui_settings_sepia_description">Usa colores cálidos para leer en modo claro</string>
+    <string name="appearance_paper">Paper</string>
+    <string name="appearance_sepia">Sepia</string>
+    <string name="appearance_dark">Dark</string>
+    <string name="appearance_black">Black</string>
+    <string name="ui_settings_light_appearance_title">When app is light</string>
+    <string name="ui_settings_dark_appearance_title">When app is dark</string>
+    <string name="ui_settings_share_format_title">Share links as</string>
+    <string name="ui_settings_share_format_description">Choose whether shared links include only the URL or the title on a separate line above it</string>
+    <string name="ui_settings_share_format_url_only">URL only</string>
+    <string name="ui_settings_share_format_title_and_url">Title + URL</string>
+    <string name="ui_settings_fullscreen_reading_title">Fullscreen while reading</string>
+    <string name="ui_settings_fullscreen_reading_description">Hides the top bar and system bars while you read</string>
     <string name="ui_settings_keep_screen_on_title">Mantener la pantalla encendida mientras se lee</string>
     <string name="ui_settings_keep_screen_on_description">Evita que la pantalla se apague mientras lees</string>
     <string name="action_open_in_browser">Abrir en el navegador</string>
@@ -193,6 +205,8 @@ other{}
     <string name="action_edit_metadata">Edit metadata</string>
     <string name="action_increase_text_size">Aumentar tamaño de texto</string>
     <string name="action_decrease_text_size">Disminuir tamaño de texto</string>
+    <string name="action_increase_line_spacing">Increase line spacing</string>
+    <string name="action_decrease_line_spacing">Decrease line spacing</string>
     <string name="search_in_article_hint">Buscar en el artículo</string>
     <string name="search_match_counter">%1$d/%2$d</string>
     <string name="search_next_match">Siguiente coincidencia</string>
@@ -258,6 +272,7 @@ other{}
     <string name="line_spacing_tight">Compacto</string>
     <string name="line_spacing_loose">Amplio</string>
     <string name="width_wide">Ancho</string>
+    <string name="width_medium">Medium</string>
     <string name="width_narrow">Estrecho</string>
     <string name="justify_label">Justificar texto</string>
     <string name="hyphenation_label">Separar en sílabas</string>
@@ -325,6 +340,7 @@ other{}
 
     <!-- Image Gallery -->
     <string name="gallery_close">Close</string>
+    <string name="video_fullscreen_rotate">Rotate</string>
     <string name="gallery_open_link">Open link</string>
     <string name="gallery_image_counter">%1$d of %2$d</string>
     <string name="action_view_photograph">View Photograph</string>

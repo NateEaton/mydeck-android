@@ -262,6 +262,33 @@ dependencies {
     }
 }
 
+tasks.register("assembleDebugAll") {
+    group = "verification"
+    description = "Assembles all debug flavor variants."
+    dependsOn(
+        ":app:assembleGithubReleaseDebug",
+        ":app:assembleGithubSnapshotDebug"
+    )
+}
+
+tasks.register("testDebugUnitTestAll") {
+    group = "verification"
+    description = "Runs unit tests for all debug flavor variants."
+    dependsOn(
+        ":app:testGithubReleaseDebugUnitTest",
+        ":app:testGithubSnapshotDebugUnitTest"
+    )
+}
+
+tasks.register("lintDebugAll") {
+    group = "verification"
+    description = "Runs lint for all debug flavor variants."
+    dependsOn(
+        ":app:lintGithubReleaseDebug",
+        ":app:lintGithubSnapshotDebug"
+    )
+}
+
 aboutLibraries {
     registerAndroidTasks = false
     prettyPrint = true

@@ -100,8 +100,20 @@ other{}
     <string name="theme_sepia">Sepia</string>
     <string name="ui_settings_theme_heading">Theming</string>
     <string name="ui_settings_theme_dialog_support_text">Which theme should be used?</string>
+    <string name="appearance_paper">Paper</string>
+    <string name="appearance_sepia">Sepia</string>
+    <string name="appearance_dark">Dark</string>
+    <string name="appearance_black">Black</string>
+    <string name="ui_settings_light_appearance_title">When app is light</string>
+    <string name="ui_settings_dark_appearance_title">When app is dark</string>
+    <string name="ui_settings_share_format_title">Share links as</string>
+    <string name="ui_settings_share_format_description">Choose whether shared links include only the URL or the title on a separate line above it</string>
+    <string name="ui_settings_share_format_url_only">URL only</string>
+    <string name="ui_settings_share_format_title_and_url">Title + URL</string>
     <string name="ui_settings_sepia_title">Sepia reading theme</string>
     <string name="ui_settings_sepia_description">Use warm tinted colors for reading in light mode</string>
+    <string name="ui_settings_fullscreen_reading_title">Fullscreen while reading</string>
+    <string name="ui_settings_fullscreen_reading_description">Hides the top bar and system bars while you read</string>
     <string name="ui_settings_keep_screen_on_title">Keep screen on while reading</string>
     <string name="ui_settings_keep_screen_on_description">Prevents the screen from turning off while you read</string>
 
@@ -128,6 +140,8 @@ other{}
     <string name="action_edit_metadata">Edit metadata</string>
     <string name="action_increase_text_size">Increase text size</string>
     <string name="action_decrease_text_size">Decrease text size</string>
+    <string name="action_increase_line_spacing">Increase line spacing</string>
+    <string name="action_decrease_line_spacing">Decrease line spacing</string>
     <string name="action_search_in_article">Find in article</string>
     <string name="action_find_in_page">Find in page</string>
     <string name="highlights_title">Highlights</string>
@@ -387,6 +401,7 @@ other{}
 
     <!-- Text width options -->
     <string name="width_wide">Wide</string>
+    <string name="width_medium">Medium</string>
     <string name="width_narrow">Narrow</string>
 
     <!-- Justify and Hyphenation toggles -->
@@ -446,6 +461,7 @@ other{}
 
     <!-- Image Gallery -->
     <string name="gallery_close">Close</string>
+    <string name="video_fullscreen_rotate">Rotate</string>
     <string name="gallery_open_link">Open link</string>
     <string name="gallery_image_counter">%1$d of %2$d</string>
 </resources>

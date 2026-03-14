@@ -9,6 +9,9 @@ import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import com.mydeck.app.R
+import com.mydeck.app.domain.model.BookmarkShareFormat
+import com.mydeck.app.domain.model.DarkAppearance
+import com.mydeck.app.domain.model.LightAppearance
 import com.mydeck.app.domain.model.Theme
 import com.mydeck.app.io.prefs.SettingsDataStore
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -31,40 +34,59 @@ class UiSettingsViewModel @Inject constructor(
     private val _navigationEvent = MutableStateFlow<NavigationEvent?>(null)
     val navigationEvent: StateFlow<NavigationEvent?> = _navigationEvent.asStateFlow()
     private val theme = MutableStateFlow(Theme.SYSTEM)
-    private val sepiaEnabled = MutableStateFlow(false)
+    private val lightAppearance = MutableStateFlow(LightAppearance.PAPER)
+    private val darkAppearance = MutableStateFlow(DarkAppearance.DARK)
     private val showDialog = MutableStateFlow(false)
+    private val bookmarkShareFormat = MutableStateFlow(BookmarkShareFormat.URL_ONLY)
     private val keepScreenOnWhileReading = MutableStateFlow(true)
+    private val fullscreenWhileReading = MutableStateFlow(false)
 
     init {
         viewModelScope.launch {
             theme.value = settingsDataStore.getTheme()
-            sepiaEnabled.value = settingsDataStore.isSepiaEnabled()
+            lightAppearance.value = settingsDataStore.getLightAppearance()
+            darkAppearance.value = settingsDataStore.getDarkAppearance()
+            bookmarkShareFormat.value = settingsDataStore.getBookmarkShareFormat()
             keepScreenOnWhileReading.value = settingsDataStore.isKeepScreenOnWhileReading()
+            fullscreenWhileReading.value = settingsDataStore.isFullscreenWhileReading()
         }
     }
-
-
-    val uiState = combine(theme, sepiaEnabled, showDialog, keepScreenOnWhileReading) { theme, sepiaEnabled, showDialog, keepScreenOn ->
+    val uiState = combine(
+        theme,
+        lightAppearance,
+        darkAppearance,
+        bookmarkShareFormat,
+        keepScreenOnWhileReading
+    ) { themeMode, lightAppearance, darkAppearance, shareFormat, keepScreenOn ->
         UiSettingsUiState(
-            themeMode = theme,
-            useSepiaInLight = sepiaEnabled,
-            themeOptions = getThemeOptionList(theme),
-            showDialog = showDialog,
-            themeLabel = theme.toLabelResource(),
+            themeMode = themeMode,
+            lightAppearance = lightAppearance,
+            darkAppearance = darkAppearance,
+            themeOptions = getThemeOptionList(themeMode),
+            showDialog = showDialog.value,
+            themeLabel = themeMode.toLabelResource(),
+            bookmarkShareFormat = shareFormat,
             keepScreenOnWhileReading = keepScreenOn,
+            fullscreenWhileReading = fullscreenWhileReading.value,
         )
     }
+        .combine(fullscreenWhileReading) { state, fullscreen ->
+            state.copy(fullscreenWhileReading = fullscreen)
+        }
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
             initialValue =
                 UiSettingsUiState(
                     themeMode = Theme.SYSTEM,
-                    useSepiaInLight = false,
+                    lightAppearance = LightAppearance.PAPER,
+                    darkAppearance = DarkAppearance.DARK,
                     themeOptions = getThemeOptionList(Theme.SYSTEM),
                     showDialog = false,
                     themeLabel = Theme.SYSTEM.toLabelResource(),
+                    bookmarkShareFormat = BookmarkShareFormat.URL_ONLY,
                     keepScreenOnWhileReading = true,
+                    fullscreenWhileReading = false,
                 )
         )
 
@@ -90,11 +112,27 @@ class UiSettingsViewModel @Inject constructor(
         updateTheme(mode)
     }
 
-    fun onSepiaToggled(enabled: Boolean) {
-        Timber.d("onSepiaToggled [enabled=$enabled]")
+    fun onLightAppearanceSelected(appearance: LightAppearance) {
+        Timber.d("onLightAppearanceSelected [appearance=$appearance]")
         viewModelScope.launch {
-            settingsDataStore.saveSepiaEnabled(enabled)
-            sepiaEnabled.value = settingsDataStore.isSepiaEnabled()
+            settingsDataStore.saveLightAppearance(appearance)
+            lightAppearance.value = settingsDataStore.getLightAppearance()
+        }
+    }
+
+    fun onDarkAppearanceSelected(appearance: DarkAppearance) {
+        Timber.d("onDarkAppearanceSelected [appearance=$appearance]")
+        viewModelScope.launch {
+            settingsDataStore.saveDarkAppearance(appearance)
+            darkAppearance.value = settingsDataStore.getDarkAppearance()
+        }
+    }
+
+    fun onBookmarkShareFormatSelected(format: BookmarkShareFormat) {
+        Timber.d("onBookmarkShareFormatSelected [format=$format]")
+        viewModelScope.launch {
+            settingsDataStore.saveBookmarkShareFormat(format)
+            bookmarkShareFormat.value = settingsDataStore.getBookmarkShareFormat()
         }
     }
 
@@ -103,6 +141,14 @@ class UiSettingsViewModel @Inject constructor(
         viewModelScope.launch {
             settingsDataStore.saveKeepScreenOnWhileReading(enabled)
             keepScreenOnWhileReading.value = settingsDataStore.isKeepScreenOnWhileReading()
+        }
+    }
+
+    fun onFullscreenWhileReadingToggled(enabled: Boolean) {
+        Timber.d("onFullscreenWhileReadingToggled [enabled=$enabled]")
+        viewModelScope.launch {
+            settingsDataStore.saveFullscreenWhileReading(enabled)
+            fullscreenWhileReading.value = settingsDataStore.isFullscreenWhileReading()
         }
     }
 
@@ -135,12 +181,15 @@ class UiSettingsViewModel @Inject constructor(
 @Immutable
 data class UiSettingsUiState(
     val themeMode: Theme,  // The base mode (LIGHT, DARK, or SYSTEM)
-    val useSepiaInLight: Boolean,  // Whether sepia applies when effective theme is light
+    val lightAppearance: LightAppearance,
+    val darkAppearance: DarkAppearance,
     val themeOptions: List<ThemeOption>,
     val showDialog: Boolean,
     @StringRes
     val themeLabel: Int,
+    val bookmarkShareFormat: BookmarkShareFormat,
     val keepScreenOnWhileReading: Boolean,
+    val fullscreenWhileReading: Boolean,
 )
 
 data class ThemeOption(
@@ -156,5 +205,29 @@ fun Theme.toLabelResource(): Int {
         Theme.LIGHT -> R.string.theme_light
         Theme.DARK -> R.string.theme_dark
         Theme.SYSTEM -> R.string.theme_system
+    }
+}
+
+@StringRes
+fun LightAppearance.toLabelResource(): Int {
+    return when (this) {
+        LightAppearance.PAPER -> R.string.appearance_paper
+        LightAppearance.SEPIA -> R.string.appearance_sepia
+    }
+}
+
+@StringRes
+fun DarkAppearance.toLabelResource(): Int {
+    return when (this) {
+        DarkAppearance.DARK -> R.string.appearance_dark
+        DarkAppearance.BLACK -> R.string.appearance_black
+    }
+}
+
+@StringRes
+fun BookmarkShareFormat.toLabelResource(): Int {
+    return when (this) {
+        BookmarkShareFormat.URL_ONLY -> R.string.ui_settings_share_format_url_only
+        BookmarkShareFormat.TITLE_AND_URL_MULTILINE -> R.string.ui_settings_share_format_title_and_url
     }
 }

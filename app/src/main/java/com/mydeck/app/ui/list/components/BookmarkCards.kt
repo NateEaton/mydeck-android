@@ -75,7 +75,7 @@ fun BookmarkGridCard(
     onClickDelete: (String) -> Unit,
     onClickArchive: (String, Boolean) -> Unit,
     onClickFavorite: (String, Boolean) -> Unit,
-    onClickShareBookmark: (String) -> Unit,
+    onClickShareBookmark: (String, String) -> Unit,
     onClickLabel: (String) -> Unit,
     onClickOpenUrl: (String) -> Unit,
     onClickOpenInBrowser: (String) -> Unit
@@ -198,7 +198,7 @@ fun BookmarkCompactCard(
     onClickDelete: (String) -> Unit,
     onClickArchive: (String, Boolean) -> Unit,
     onClickFavorite: (String, Boolean) -> Unit,
-    onClickShareBookmark: (String) -> Unit,
+    onClickShareBookmark: (String, String) -> Unit,
     onClickLabel: (String) -> Unit,
     onClickOpenUrl: (String) -> Unit,
     onClickOpenInBrowser: (String) -> Unit
@@ -283,7 +283,7 @@ fun BookmarkMosaicCard(
     onClickDelete: (String) -> Unit,
     onClickArchive: (String, Boolean) -> Unit,
     onClickFavorite: (String, Boolean) -> Unit,
-    onClickShareBookmark: (String) -> Unit,
+    onClickShareBookmark: (String, String) -> Unit,
     onClickLabel: (String) -> Unit,
     onClickOpenUrl: (String) -> Unit,
     onClickOpenInBrowser: (String) -> Unit
@@ -310,7 +310,7 @@ private fun BookmarkCardActions(
     onClickDelete: (String) -> Unit,
     onClickArchive: (String, Boolean) -> Unit,
     onClickFavorite: (String, Boolean) -> Unit,
-    onClickShareBookmark: (String) -> Unit,
+    onClickShareBookmark: (String, String) -> Unit,
     onClickOpenUrl: (String) -> Unit,
     onClickOpenInBrowser: (String) -> Unit
 ) {
@@ -365,7 +365,7 @@ private fun BookmarkCardActions(
                 },
                 onClick = {
                     expanded = false
-                    onClickShareBookmark(bookmark.url)
+                    onClickShareBookmark(bookmark.title, bookmark.url)
                 }
             )
              DropdownMenuItem(

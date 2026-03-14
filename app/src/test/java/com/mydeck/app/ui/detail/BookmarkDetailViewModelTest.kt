@@ -4,6 +4,9 @@ import androidx.lifecycle.SavedStateHandle
 import com.mydeck.app.domain.BookmarkRepository
 import com.mydeck.app.domain.model.Annotation
 import com.mydeck.app.domain.model.Bookmark
+import com.mydeck.app.domain.model.BookmarkShareFormat
+import com.mydeck.app.domain.model.DarkAppearance
+import com.mydeck.app.domain.model.LightAppearance
 import com.mydeck.app.domain.model.SelectionData
 import com.mydeck.app.domain.model.Theme
 import com.mydeck.app.domain.usecase.LoadArticleUseCase
@@ -75,10 +78,12 @@ class BookmarkDetailViewModelTest {
         every { assetLoader.loadAsset("html_template_light.html") } returns htmlTemplate
         every { savedStateHandle.get<String>("bookmarkId") } returns "123"
         every { settingsDataStore.themeFlow } returns MutableStateFlow(Theme.LIGHT.name)
-        every { settingsDataStore.sepiaEnabledFlow } returns MutableStateFlow(false)
-        every { settingsDataStore.zoomFactorFlow } returns MutableStateFlow(100)
+        every { settingsDataStore.lightAppearanceFlow } returns MutableStateFlow(LightAppearance.PAPER)
+        every { settingsDataStore.darkAppearanceFlow } returns MutableStateFlow(DarkAppearance.DARK)
         every { settingsDataStore.typographySettingsFlow } returns MutableStateFlow(com.mydeck.app.domain.model.TypographySettings())
         every { settingsDataStore.keepScreenOnWhileReadingFlow } returns MutableStateFlow(true)
+        every { settingsDataStore.fullscreenWhileReadingFlow } returns MutableStateFlow(false)
+        coEvery { settingsDataStore.getBookmarkShareFormat() } returns BookmarkShareFormat.URL_ONLY
         every { bookmarkRepository.observeAllLabelsWithCounts() } returns MutableStateFlow(emptyMap())
         coEvery { settingsDataStore.saveCachedAnnotationSnapshot(any(), any()) } just Runs
         coEvery { settingsDataStore.getCachedAnnotationSnapshot(any()) } returns null

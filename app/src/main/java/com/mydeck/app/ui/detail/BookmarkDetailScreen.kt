@@ -1,15 +1,20 @@
 package com.mydeck.app.ui.detail
 
+import android.app.Activity
 import android.app.DownloadManager
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import android.content.ContextWrapper
 import android.content.Intent
 import android.icu.text.MessageFormat
 import android.net.Uri
 import android.widget.Toast
 import android.view.View
+import android.view.ViewGroup
+import android.webkit.WebChromeClient
 import android.webkit.WebView
+import android.widget.FrameLayout
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.tween
@@ -24,12 +29,14 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.verticalScroll
@@ -50,6 +57,19 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.CheckCircle
+import androidx.compose.material.icons.outlined.FormatSize
+import androidx.compose.material.icons.outlined.Description
+import androidx.compose.material.icons.outlined.Inventory2
+import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.Share
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.ui.layout.layout
+import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.material.icons.outlined.FormatSize
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Inventory2
@@ -99,7 +119,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -113,6 +135,9 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.navigation.NavController
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import com.mydeck.app.R
 import com.mydeck.app.domain.model.ImageGalleryData
 import com.mydeck.app.domain.model.Template
@@ -129,11 +154,17 @@ import com.mydeck.app.ui.detail.components.*
 import timber.log.Timber
 
 private const val PendingDeleteFromDetailKey = "pending_delete_bookmark_id"
+private const val VideoFullscreenControlsAutoHideDelayMs = 3_000L
 
 private enum class DetailOverlay {
     NONE,
     DETAILS,
     METADATA_EDITOR
+}
+
+enum class VideoFullscreenDismissSource {
+    UI,
+    WEB_CHROME
 }
 
 @Composable
@@ -183,9 +214,9 @@ fun BookmarkDetailHost(
         dismissPendingDeleteSnackbar()
         viewModel.onClickOpenUrl(it)
     }
-    val onClickShareBookmark: (String) -> Unit = { url ->
+    val onClickShareBookmark: (String, String) -> Unit = { title, url ->
         dismissPendingDeleteSnackbar()
-        viewModel.onClickShareBookmark(url)
+        viewModel.onClickShareBookmark(title, url)
     }
     val onClickToggleRead: (String, Boolean) -> Unit = { id, isRead ->
         dismissPendingDeleteSnackbar()
@@ -205,7 +236,33 @@ fun BookmarkDetailHost(
     val readerWebView = remember { mutableStateOf<WebView?>(null) }
     var detailOverlay by remember { mutableStateOf(DetailOverlay.NONE) }
     var showTypographyPanel by remember { mutableStateOf(false) }
+    var videoFullscreenView by remember { mutableStateOf<View?>(null) }
+    var videoFullscreenCallback by remember { mutableStateOf<WebChromeClient.CustomViewCallback?>(null) }
     val lifecycleOwner = LocalLifecycleOwner.current
+    val currentReaderWebView = readerWebView.value
+
+    fun clearVideoFullscreenState(restoreReaderVisibility: Boolean = true): WebChromeClient.CustomViewCallback? {
+        val callback = videoFullscreenCallback
+        val previousView = videoFullscreenView
+        (previousView?.parent as? ViewGroup)?.removeView(previousView)
+        if (restoreReaderVisibility) {
+            currentReaderWebView?.visibility = View.VISIBLE
+        }
+        videoFullscreenView = null
+        videoFullscreenCallback = null
+        return callback
+    }
+
+    fun dismissVideoFullscreen(source: VideoFullscreenDismissSource) {
+        val callback = clearVideoFullscreenState()
+        if (source == VideoFullscreenDismissSource.UI) {
+            callback?.onCustomViewHidden()
+        }
+    }
+
+    BackHandler(enabled = videoFullscreenView != null) {
+        dismissVideoFullscreen(VideoFullscreenDismissSource.UI)
+    }
 
     BackHandler(enabled = detailOverlay != DetailOverlay.NONE) {
         detailOverlay = when (detailOverlay) {
@@ -363,6 +420,7 @@ fun BookmarkDetailHost(
     }
 
     val keepScreenOn by viewModel.keepScreenOnWhileReading.collectAsState()
+    val fullscreenWhileReading by viewModel.fullscreenWhileReading.collectAsState()
     val view = LocalView.current
     DisposableEffect(keepScreenOn) {
         view.keepScreenOn = keepScreenOn
@@ -462,6 +520,16 @@ fun BookmarkDetailHost(
                     readerWebView = readerWebView.value,
                     onAnnotationScrollHandled = { viewModel.onAnnotationScrollHandled() },
                     onReaderWebViewChanged = { readerWebView.value = it },
+                    videoFullscreenView = videoFullscreenView,
+                    onVideoEnterFullscreen = { view, callback ->
+                        if (videoFullscreenView !== view) {
+                            clearVideoFullscreenState(restoreReaderVisibility = false)
+                            videoFullscreenView = view
+                            videoFullscreenCallback = callback
+                        }
+                    },
+                    onVideoExitFullscreen = { source -> dismissVideoFullscreen(source) },
+                    fullscreenWhileReading = fullscreenWhileReading,
                 )
 
                 // Gallery draws on top of the reader screen. fillMaxSize() fills the
@@ -621,7 +689,7 @@ fun BookmarkDetailScreen(
     onClickToggleRead: (String, Boolean) -> Unit,
     onClickDeleteBookmark: (String) -> Unit,
     onClickOpenUrl: (String) -> Unit,
-    onClickShareBookmark: (String) -> Unit,
+    onClickShareBookmark: (String, String) -> Unit,
     onClickOpenInBrowser: (String) -> Unit = {},
     onArticleSearchActivate: () -> Unit = {},
     onShowDetails: () -> Unit = {},
@@ -647,12 +715,76 @@ fun BookmarkDetailScreen(
     readerWebView: WebView? = null,
     onAnnotationScrollHandled: () -> Unit = {},
     onReaderWebViewChanged: (WebView?) -> Unit = {},
+    videoFullscreenView: View? = null,
+    onVideoEnterFullscreen: (View, WebChromeClient.CustomViewCallback?) -> Unit = { _, _ -> },
+    onVideoExitFullscreen: (VideoFullscreenDismissSource) -> Unit = {},
+    fullscreenWhileReading: Boolean = false,
 ) {
     val topBarScrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior()
     val scrollState = rememberScrollState()
     val coroutineScope = rememberCoroutineScope()
     var articleTopOffset by remember { mutableStateOf(0f) }
     var viewportHeight by remember { mutableIntStateOf(0) }
+    val fullscreenReaderMode = fullscreenWhileReading && contentMode == ContentMode.READER
+    val immersiveModeEnabled = fullscreenReaderMode || videoFullscreenView != null
+    var showFullscreenTopBar by remember(uiState.bookmark.bookmarkId, fullscreenReaderMode) {
+        mutableStateOf(fullscreenReaderMode)
+    }
+    val fullscreenTopBarRevealConnection = remember(
+        fullscreenReaderMode,
+        showFullscreenTopBar,
+        articleSearchState.isActive
+    ) {
+        object : NestedScrollConnection {
+            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                if (
+                    fullscreenReaderMode &&
+                    !showFullscreenTopBar &&
+                    !articleSearchState.isActive &&
+                    shouldRevealFullscreenTopBarOnScroll(available.y)
+                ) {
+                    showFullscreenTopBar = true
+                }
+                return Offset.Zero
+            }
+
+            override fun onPostScroll(
+                consumed: Offset,
+                available: Offset,
+                source: NestedScrollSource
+            ): Offset {
+                if (
+                    fullscreenReaderMode &&
+                    !showFullscreenTopBar &&
+                    !articleSearchState.isActive &&
+                    (
+                        shouldRevealFullscreenTopBarOnScroll(consumed.y) ||
+                            shouldRevealFullscreenTopBarOnScroll(available.y)
+                        )
+                ) {
+                    showFullscreenTopBar = true
+                }
+                return Offset.Zero
+            }
+        }
+    }
+
+    LaunchedEffect(fullscreenReaderMode) {
+        if (!fullscreenReaderMode) {
+            showFullscreenTopBar = false
+        } else {
+            showFullscreenTopBar = true
+        }
+    }
+
+    LaunchedEffect(fullscreenReaderMode, showFullscreenTopBar, articleSearchState.isActive) {
+        if (fullscreenReaderMode && showFullscreenTopBar && !articleSearchState.isActive) {
+            delay(2500)
+            showFullscreenTopBar = false
+        }
+    }
+
+    ReaderFullscreenEffect(enabled = immersiveModeEnabled)
 
     LaunchedEffect(
         pendingAnnotationScrollId,
@@ -687,69 +819,284 @@ fun BookmarkDetailScreen(
         onAnnotationScrollHandled()
     }
 
-    Scaffold(
-        snackbarHost = { SnackbarHost(snackbarHostState) },
-        modifier = modifier.nestedScroll(topBarScrollBehavior.nestedScrollConnection),
-        topBar = {
-            BookmarkDetailTopBar(
-                articleSearchState = articleSearchState,
-                onArticleSearchQueryChange = onArticleSearchQueryChange,
-                onArticleSearchPrevious = onArticleSearchPrevious,
-                onArticleSearchNext = onArticleSearchNext,
-                onArticleSearchDeactivate = onArticleSearchDeactivate,
-                onClickBack = onClickBack,
-                uiState = uiState,
-                onClickToggleFavorite = onClickToggleFavorite,
-                onClickToggleArchive = onClickToggleArchive,
-                onShowTypographyPanel = onShowTypographyPanel,
-                onShowDetails = onShowDetails,
-                onShowHighlights = onShowHighlights,
-                contentMode = contentMode,
-                onClickToggleRead = onClickToggleRead,
-                onClickShareBookmark = onClickShareBookmark,
-                onClickDeleteBookmark = onClickDeleteBookmark,
-                onArticleSearchActivate = onArticleSearchActivate,
-                onClickOpenInBrowser = onClickOpenInBrowser,
-                onContentModeChange = onContentModeChange,
-                scrollBehavior = topBarScrollBehavior,
-                scrollState = scrollState,
-                onScrollToTop = {
-                    coroutineScope.launch {
-                        scrollState.animateScrollTo(0)
-                    }
-                },
-            )
-        }
-    ) { padding ->
-        Box(
+    Box(modifier = modifier.fillMaxSize()) {
+        Scaffold(
+            snackbarHost = { SnackbarHost(snackbarHostState) },
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding)
-                .onSizeChanged { viewportHeight = it.height }
-        ) {
-            // Main content with buttons at the end
-            BookmarkDetailContent(
-                modifier = Modifier.fillMaxSize(),
-                uiState = uiState,
-                onClickOpenUrl = onClickOpenUrl,
-                onScrollProgressChanged = onScrollProgressChanged,
-                initialReadProgress = initialReadProgress,
-                contentMode = contentMode,
-                contentLoadState = contentLoadState,
-                articleSearchState = articleSearchState,
-                onArticleSearchUpdateResults = onArticleSearchUpdateResults,
-                onImageTapped = onImageTapped,
-                onImageLongPress = onImageLongPress,
-                onLinkLongPress = onLinkLongPress,
-                onTextSelectionCaptured = onTextSelectionCaptured,
-                onAnnotationClicked = onAnnotationClicked,
-                onArticlePositionChanged = { articleTopOffset = it },
-                onReaderWebViewChanged = onReaderWebViewChanged,
-                onClickToggleFavorite = onClickToggleFavorite,
-                onClickToggleArchive = onClickToggleArchive,
-                scrollState = scrollState
+                .nestedScroll(fullscreenTopBarRevealConnection)
+                .nestedScroll(topBarScrollBehavior.nestedScrollConnection),
+            topBar = {
+                if (
+                    videoFullscreenView == null &&
+                    (!fullscreenReaderMode || showFullscreenTopBar || articleSearchState.isActive)
+                ) {
+                    BookmarkDetailTopBar(
+                        articleSearchState = articleSearchState,
+                        onArticleSearchQueryChange = onArticleSearchQueryChange,
+                        onArticleSearchPrevious = onArticleSearchPrevious,
+                        onArticleSearchNext = onArticleSearchNext,
+                        onArticleSearchDeactivate = onArticleSearchDeactivate,
+                        onClickBack = onClickBack,
+                        uiState = uiState,
+                        onClickToggleFavorite = onClickToggleFavorite,
+                        onClickToggleArchive = onClickToggleArchive,
+                        onShowTypographyPanel = onShowTypographyPanel,
+                        onShowDetails = onShowDetails,
+                        onShowHighlights = onShowHighlights,
+                        contentMode = contentMode,
+                        onClickToggleRead = onClickToggleRead,
+                        onClickShareBookmark = onClickShareBookmark,
+                        onClickDeleteBookmark = onClickDeleteBookmark,
+                        onArticleSearchActivate = onArticleSearchActivate,
+                        onClickOpenInBrowser = onClickOpenInBrowser,
+                        onContentModeChange = onContentModeChange,
+                        scrollBehavior = topBarScrollBehavior,
+                        scrollState = scrollState,
+                        onScrollToTop = {
+                            coroutineScope.launch {
+                                scrollState.animateScrollTo(0)
+                            }
+                        },
+                    )
+                }
+            }
+        ) { padding ->
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+                    .onSizeChanged { viewportHeight = it.height }
+            ) {
+                BookmarkDetailContent(
+                    modifier = Modifier.fillMaxSize(),
+                    uiState = uiState,
+                    onClickOpenUrl = onClickOpenUrl,
+                    onScrollProgressChanged = onScrollProgressChanged,
+                    initialReadProgress = initialReadProgress,
+                    contentMode = contentMode,
+                    contentLoadState = contentLoadState,
+                    articleSearchState = articleSearchState,
+                    onArticleSearchUpdateResults = onArticleSearchUpdateResults,
+                    onImageTapped = onImageTapped,
+                    onImageLongPress = onImageLongPress,
+                    onLinkLongPress = onLinkLongPress,
+                    onTextSelectionCaptured = onTextSelectionCaptured,
+                    onAnnotationClicked = onAnnotationClicked,
+                    onArticlePositionChanged = { articleTopOffset = it },
+                    onReaderWebViewChanged = onReaderWebViewChanged,
+                    onVideoEnterFullscreen = onVideoEnterFullscreen,
+                    onVideoExitFullscreen = onVideoExitFullscreen,
+                    onClickToggleFavorite = onClickToggleFavorite,
+                    onClickToggleArchive = onClickToggleArchive,
+                    scrollState = scrollState
+                )
+
+                if (fullscreenReaderMode && !showFullscreenTopBar && !articleSearchState.isActive) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopCenter)
+                            .fillMaxWidth()
+                            .windowInsetsPadding(WindowInsets.statusBars)
+                            .height(28.dp)
+                            .clickable { showFullscreenTopBar = true }
+                    )
+                }
+            }
+        }
+
+        if (videoFullscreenView != null) {
+            VideoFullscreenOverlay(
+                customView = videoFullscreenView,
+                onDismiss = onVideoExitFullscreen
             )
         }
+    }
+}
+
+internal fun shouldRevealFullscreenTopBarOnScroll(deltaY: Float): Boolean {
+    return deltaY > 0f
+}
+
+@Composable
+private fun VideoFullscreenOverlay(
+    customView: View,
+    onDismiss: (VideoFullscreenDismissSource) -> Unit,
+) {
+    var isRotated by remember { mutableStateOf(false) }
+    var containerSize by remember { mutableStateOf(androidx.compose.ui.unit.IntSize.Zero) }
+    var showControls by remember { mutableStateOf(true) }
+    var controlsInteractionNonce by remember { mutableIntStateOf(0) }
+
+    fun revealControls() {
+        showControls = true
+        controlsInteractionNonce += 1
+    }
+
+    LaunchedEffect(controlsInteractionNonce, showControls) {
+        if (showControls) {
+            kotlinx.coroutines.delay(VideoFullscreenControlsAutoHideDelayMs)
+            showControls = false
+        }
+    }
+
+    BackHandler(onBack = {
+        if (isRotated) {
+            isRotated = false
+            revealControls()
+        } else {
+            onDismiss(VideoFullscreenDismissSource.UI)
+        }
+    })
+
+    DisposableEffect(customView) {
+        onDispose {
+            customView.rotation = 0f
+            customView.translationX = 0f
+            customView.translationY = 0f
+            (customView.parent as? ViewGroup)?.removeView(customView)
+        }
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black)
+            .onSizeChanged { containerSize = it }
+            .pointerInput(Unit) {
+                awaitPointerEventScope {
+                    while (true) {
+                        val event = awaitPointerEvent(PointerEventPass.Initial)
+                        if (event.type == PointerEventType.Press) {
+                            revealControls()
+                        }
+                    }
+                }
+            }
+    ) {
+        AndroidView(
+            modifier = Modifier.fillMaxSize(),
+            factory = { context ->
+                FrameLayout(context).apply {
+                    setBackgroundColor(android.graphics.Color.BLACK)
+                }
+            },
+            update = { container ->
+                if (customView.parent !== container) {
+                    (customView.parent as? ViewGroup)?.removeView(customView)
+                    container.removeAllViews()
+                    container.addView(customView)
+                }
+
+                if (isRotated && containerSize.width > 0 && containerSize.height > 0) {
+                    customView.rotation = 90f
+                    customView.layoutParams = FrameLayout.LayoutParams(containerSize.height, containerSize.width)
+                    customView.translationX = (containerSize.width - containerSize.height) / 2f
+                    customView.translationY = (containerSize.height - containerSize.width) / 2f
+                } else {
+                    customView.rotation = 0f
+                    customView.layoutParams = FrameLayout.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                        ViewGroup.LayoutParams.MATCH_PARENT
+                    )
+                    customView.translationX = 0f
+                    customView.translationY = 0f
+                }
+            }
+        )
+
+        // On-screen controls overlay
+        val controlsModifier = if (isRotated) {
+            Modifier
+                .layout { measurable, constraints ->
+                    val placeable = measurable.measure(
+                        Constraints.fixed(constraints.maxHeight, constraints.maxWidth)
+                    )
+                    layout(constraints.maxWidth, constraints.maxHeight) {
+                        val xOffset = (constraints.maxWidth - placeable.width) / 2
+                        val yOffset = (constraints.maxHeight - placeable.height) / 2
+                        placeable.place(xOffset, yOffset)
+                    }
+                }
+                .graphicsLayer {
+                    rotationZ = 90f
+                }
+        } else {
+            Modifier.fillMaxSize()
+        }
+
+        Box(modifier = controlsModifier) {
+            androidx.compose.animation.AnimatedVisibility(
+                visible = showControls,
+                enter = androidx.compose.animation.fadeIn(),
+                exit = androidx.compose.animation.fadeOut()
+            ) {
+                androidx.compose.foundation.layout.Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp)
+                        .windowInsetsPadding(WindowInsets.statusBars)
+                        .align(Alignment.TopCenter),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    IconButton(
+                        onClick = { onDismiss(VideoFullscreenDismissSource.UI) },
+                        modifier = Modifier.background(Color.Black.copy(alpha = 0.5f), shape = androidx.compose.foundation.shape.CircleShape)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = stringResource(R.string.gallery_close),
+                            tint = Color.White
+                        )
+                    }
+
+                    IconButton(
+                        onClick = {
+                            isRotated = !isRotated
+                            revealControls()
+                        },
+                        modifier = Modifier.background(Color.Black.copy(alpha = 0.5f), shape = androidx.compose.foundation.shape.CircleShape)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Refresh,
+                            contentDescription = stringResource(R.string.video_fullscreen_rotate),
+                            tint = Color.White
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ReaderFullscreenEffect(enabled: Boolean) {
+    val view = LocalView.current
+
+    DisposableEffect(enabled, view) {
+        val activity = view.context.findActivity()
+        val window = activity?.window
+        val controller = window?.let { WindowCompat.getInsetsController(it, view) }
+
+        if (enabled && controller != null) {
+            controller.systemBarsBehavior =
+                WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            controller.hide(WindowInsetsCompat.Type.systemBars())
+        } else {
+            controller?.show(WindowInsetsCompat.Type.systemBars())
+        }
+
+        onDispose {
+            controller?.show(WindowInsetsCompat.Type.systemBars())
+        }
+    }
+}
+
+private tailrec fun Context.findActivity(): Activity? {
+    return when (this) {
+        is Activity -> this
+        is ContextWrapper -> baseContext.findActivity()
+        else -> null
     }
 }
 
@@ -771,6 +1118,8 @@ fun BookmarkDetailContent(
     onAnnotationClicked: (String) -> Unit = {},
     onArticlePositionChanged: (Float) -> Unit = {},
     onReaderWebViewChanged: (WebView?) -> Unit = {},
+    onVideoEnterFullscreen: (View, WebChromeClient.CustomViewCallback?) -> Unit = { _, _ -> },
+    onVideoExitFullscreen: (VideoFullscreenDismissSource) -> Unit = {},
     onClickToggleFavorite: (String, Boolean) -> Unit = { _, _ -> },
     onClickToggleArchive: (String, Boolean) -> Unit = { _, _ -> },
     scrollState: ScrollState = rememberScrollState()
@@ -863,10 +1212,7 @@ fun BookmarkDetailContent(
                     .alpha(if (shouldHideReaderContent) 0f else 1f),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                val contentWidthFraction = when (uiState.typographySettings.textWidth) {
-                    TextWidth.WIDE -> 0.9f
-                    TextWidth.NARROW -> 0.8f
-                }
+                val contentWidthFraction = uiState.typographySettings.textWidth.widthFraction
                 BookmarkDetailHeader(
                     modifier = Modifier.fillMaxWidth(contentWidthFraction),
                     uiState = uiState
@@ -892,6 +1238,8 @@ fun BookmarkDetailContent(
                             onLinkLongPress = onLinkLongPress,
                             onTextSelectionCaptured = onTextSelectionCaptured,
                             onAnnotationClicked = onAnnotationClicked,
+                            onVideoEnterFullscreen = onVideoEnterFullscreen,
+                            onVideoExitFullscreen = onVideoExitFullscreen,
                         )
                     }
                 }
@@ -1275,7 +1623,6 @@ fun BookmarkDetailScreenPreview() {
                 bookmark = sampleBookmark,
                 updateBookmarkState = null,
                 template = Template.SimpleTemplate("template"),
-                zoomFactor = 100,
                 typographySettings = com.mydeck.app.domain.model.TypographySettings()
             ),
             onClickToggleFavorite = { _, _ -> },
@@ -1283,7 +1630,7 @@ fun BookmarkDetailScreenPreview() {
             onClickToggleRead = { _, _ -> },
             onClickDeleteBookmark = { },
             onClickOpenUrl = { },
-            onClickShareBookmark = { }
+            onClickShareBookmark = { _, _ -> }
         )
     }
 }
@@ -1298,7 +1645,6 @@ private fun BookmarkDetailContentPreview() {
                 bookmark = sampleBookmark,
                 updateBookmarkState = null,
                 template = Template.SimpleTemplate("template"),
-                zoomFactor = 100,
                 typographySettings = com.mydeck.app.domain.model.TypographySettings()
             ),
             onClickOpenUrl = {},

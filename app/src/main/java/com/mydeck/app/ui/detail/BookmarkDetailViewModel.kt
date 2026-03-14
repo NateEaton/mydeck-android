@@ -11,10 +11,14 @@ import com.mydeck.app.R
 import com.mydeck.app.domain.BookmarkRepository
 import com.mydeck.app.domain.model.Annotation
 import com.mydeck.app.domain.model.Bookmark.ContentState
+import com.mydeck.app.domain.model.DarkAppearance
+import com.mydeck.app.domain.model.EffectiveAppearance
+import com.mydeck.app.domain.model.LightAppearance
 import com.mydeck.app.domain.model.BookmarkMetadataUpdate
 import com.mydeck.app.domain.model.SelectionData
 import com.mydeck.app.domain.model.Template
 import com.mydeck.app.domain.model.Theme
+import com.mydeck.app.domain.model.toEffectiveAppearance
 import com.mydeck.app.domain.usecase.LoadArticleUseCase
 import com.mydeck.app.domain.usecase.UpdateBookmarkUseCase
 import com.mydeck.app.io.AssetLoader
@@ -24,6 +28,7 @@ import com.mydeck.app.io.rest.model.CreateAnnotationDto
 import com.mydeck.app.io.rest.model.UpdateAnnotationDto
 import com.mydeck.app.io.rest.model.toAnnotationCachePayload
 import com.mydeck.app.util.BookmarkDebugExporter
+import com.mydeck.app.util.formatBookmarkShareText
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
@@ -86,38 +91,46 @@ class BookmarkDetailViewModel @Inject constructor(
     private val _bookmarkId = MutableStateFlow<String?>(savedStateHandle["bookmarkId"])
     private val template: Flow<Template?> = combine(
         settingsDataStore.themeFlow,
-        settingsDataStore.sepiaEnabledFlow
-    ) { themeStr, sepiaEnabled ->
+        settingsDataStore.lightAppearanceFlow,
+        settingsDataStore.darkAppearanceFlow
+    ) { themeStr, lightAppearance, darkAppearance ->
         val themeMode = themeStr?.let {
             try { Theme.valueOf(it) } catch (_: IllegalArgumentException) { Theme.LIGHT }
         } ?: Theme.SYSTEM
         when (themeMode) {
-            Theme.DARK -> assetLoader.loadAsset(Template.DARK_TEMPLATE_FILE)?.let { Template.SimpleTemplate(it) }
-            Theme.LIGHT -> {
-                val templateFile = if (sepiaEnabled) Template.SEPIA_TEMPLATE_FILE else Template.LIGHT_TEMPLATE_FILE
-                assetLoader.loadAsset(templateFile)?.let { Template.SimpleTemplate(it) }
-            }
+            Theme.DARK -> loadTemplateForAppearance(darkAppearance.toEffectiveAppearance())
+            Theme.LIGHT -> loadTemplateForAppearance(lightAppearance.toEffectiveAppearance())
             Theme.SYSTEM -> {
-                val lightTemplate = if (sepiaEnabled) {
-                    assetLoader.loadAsset(Template.SEPIA_TEMPLATE_FILE)
-                } else {
-                    assetLoader.loadAsset(Template.LIGHT_TEMPLATE_FILE)
-                }
-                val dark = assetLoader.loadAsset(Template.DARK_TEMPLATE_FILE)
-                if (!lightTemplate.isNullOrBlank() && !dark.isNullOrBlank()) {
-                    Template.DynamicTemplate(light = lightTemplate, dark = dark)
+                val lightTemplate = loadTemplateContent(lightAppearance.toEffectiveAppearance())
+                val darkTemplate = loadTemplateContent(darkAppearance.toEffectiveAppearance())
+                if (!lightTemplate.isNullOrBlank() && !darkTemplate.isNullOrBlank()) {
+                    Template.DynamicTemplate(light = lightTemplate, dark = darkTemplate)
                 } else null
             }
         }
     }
-    private val zoomFactor: Flow<Int> = settingsDataStore.zoomFactorFlow
     private val typographySettings = settingsDataStore.typographySettingsFlow
     val keepScreenOnWhileReading: StateFlow<Boolean> = settingsDataStore.keepScreenOnWhileReadingFlow
+    val fullscreenWhileReading: StateFlow<Boolean> = settingsDataStore.fullscreenWhileReadingFlow
     private val updateState = MutableStateFlow<UpdateBookmarkState?>(null)
 
     val labelsWithCounts: StateFlow<Map<String, Int>> = bookmarkRepository
         .observeAllLabelsWithCounts()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
+
+    private fun loadTemplateForAppearance(appearance: EffectiveAppearance): Template? {
+        return loadTemplateContent(appearance)?.let { Template.SimpleTemplate(it) }
+    }
+
+    private fun loadTemplateContent(appearance: EffectiveAppearance): String? {
+        val templateFile = when (appearance) {
+            EffectiveAppearance.PAPER -> Template.LIGHT_TEMPLATE_FILE
+            EffectiveAppearance.SEPIA -> Template.SEPIA_TEMPLATE_FILE
+            EffectiveAppearance.DARK -> Template.DARK_TEMPLATE_FILE
+            EffectiveAppearance.BLACK -> Template.BLACK_TEMPLATE_FILE
+        }
+        return assetLoader.loadAsset(templateFile)
+    }
 
     // Local tracking of scroll progress (not immediately persisted)
     private var currentScrollProgress = 0
@@ -289,9 +302,8 @@ class BookmarkDetailViewModel @Inject constructor(
                 bookmarkRepository.observeBookmark(id),
                 updateState,
                 template,
-                zoomFactor,
                 typographySettings
-            ) { bookmark, updateState, template, zoomFactor, typographySettings ->
+            ) { bookmark, updateState, template, typographySettings ->
                 if (bookmark == null) {
                     Timber.e("Error loading bookmark [bookmarkId=$id]")
                     UiState.Error
@@ -338,7 +350,6 @@ class BookmarkDetailViewModel @Inject constructor(
                         ),
                         updateBookmarkState = updateState,
                         template = template,
-                        zoomFactor = zoomFactor,
                         typographySettings = typographySettings
                     )
                 }
@@ -474,11 +485,16 @@ class BookmarkDetailViewModel @Inject constructor(
         cacheAnnotationSnapshot(bookmarkId)
     }
 
-    fun onClickShareBookmark(url: String) {
+    fun onClickShareBookmark(title: String, url: String) {
         viewModelScope.launch {
+            val shareText = formatBookmarkShareText(
+                title = title,
+                url = url,
+                format = settingsDataStore.getBookmarkShareFormat()
+            )
             val intent = Intent().apply {
                 action = Intent.ACTION_SEND
-                putExtra(Intent.EXTRA_TEXT, url)
+                putExtra(Intent.EXTRA_TEXT, shareText)
                 type = "text/plain"
             }
 
@@ -518,16 +534,6 @@ class BookmarkDetailViewModel @Inject constructor(
         viewModelScope.launch {
             saveCurrentProgress()
             _navigationEvent.send(NavigationEvent.NavigateBack)
-        }
-    }
-
-    fun onClickChangeZoomFactor(value: Int) {
-        viewModelScope.launch {
-            val currentZoom = settingsDataStore.zoomFactorFlow
-                .stateIn(viewModelScope)
-                .value
-            val newZoom = (currentZoom + value).coerceAtMost(400).coerceAtLeast(25)
-            settingsDataStore.saveZoomFactor(newZoom)
         }
     }
 
@@ -1015,7 +1021,6 @@ class BookmarkDetailViewModel @Inject constructor(
             val bookmark: Bookmark, 
             val updateBookmarkState: UpdateBookmarkState?, 
             val template: Template, 
-            val zoomFactor: Int,
             val typographySettings: com.mydeck.app.domain.model.TypographySettings
         ) : UiState()
 

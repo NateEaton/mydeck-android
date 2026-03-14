@@ -16,7 +16,7 @@ MyDeck supports three types of bookmarks, each with unique features:
 Articles display extracted text content in a clean, distraction-free reading layout. If the bookmark already has highlights from Readeck, those highlights appear inline in their saved colors while you read. Articles support full typography controls and text search, and may include images that can be opened in the **Image Lightbox** and links that can be long-pressed to access **Long-press Context Menus**.
 
 ### Videos  
-For video bookmarks (YouTube, Vimeo, etc.), MyDeck shows an embedded video player at the top, followed by any text content (description or transcript). Videos stream from their original servers and require an internet connection. If the video includes text content, you can long-press links to access **Long-press Context Menus**.
+For video bookmarks (YouTube, Vimeo, etc.), MyDeck shows an embedded video player at the top, followed by any text content (description or transcript). Videos stream from their original servers and require an internet connection. Use the player's fullscreen control to expand the video when the provider supports it. While fullscreen video is open, temporary overlay controls appear for **Close** and **Rotate**; touch the screen to bring them back after they fade. Tap **Rotate** in the top-right corner to switch the fullscreen player between portrait and landscape without leaving fullscreen mode. If the video includes text content, you can long-press links to access **Long-press Context Menus**.
 
 ### Pictures
 For picture bookmarks, MyDeck shows the stored image at the top at full content width, followed by any text content. Tap the image to open it in the **Image Lightbox** where you can zoom and pan. Pictures may also include text content with links that support **Long-press Context Menus**.
@@ -30,7 +30,6 @@ MyDeck supports two view formats for bookmarks: **extracted content view** (Arti
 
 > **No article content:** If Readeck was unable to extract article content when the bookmark was saved, MyDeck automatically opens the bookmark in **web view** instead of showing an empty reading view. In that case, the overflow menu hides the **View [bookmark type]** action because extracted content is unavailable.
 
-> **If a page looks incomplete in web view:** MyDeck's in-app web view is best for straightforward page viewing. If a page does not load or behave correctly there, use **⋮ → Open in browser** to open it in your device's browser instead.
 
 ### Top Bar
 
@@ -43,6 +42,8 @@ The top bar provides quick access to essential navigation and reading actions:
 
 As you scroll down to read, the top bar hides to give you more screen space. It reappears when you scroll back toward the top.
 
+If **Fullscreen while reading** is enabled in **Settings → User Interface**, the reader hides the system bars and top bar after a short delay. Swipe from the edge or tap near the top edge to reveal them temporarily.
+
 The screen stays on while you read, so you won't lose your place to the device's screen timeout. This behaviour can be turned off in **Settings → User Interface**.
 
 ### Typography Settings
@@ -50,9 +51,9 @@ The screen stays on while you read, so you won't lose your place to the device's
 Tap **TT** in the top bar to open the reading settings sheet.
 
 - **Font** — scroll the font row to choose from: System Default, Noto Serif, Literata, Source Serif, Noto Sans, or JetBrains Mono
-- **Font size** — tap **−** or **+** to adjust (shown as a percentage of the default)
-- **Spacing** — Tight or Loose
-- **Width** — Wide or Narrow
+- **Font size** — tap **−** or **+** to adjust in 5% steps (from 80% to 170%, shown as a percentage of the default)
+- **Spacing** — tap **−** or **+** to adjust in 5% steps (from 80% to 125%, shown as a percentage of the default)
+- **Width** — choose **W**, **M**, or **N** for Wide, Medium, or Narrow
 - **Justify text** — toggle on or off
 - **Hyphenate words** — toggle on or off
 - **Reset to defaults** — restore all reading settings at once
@@ -76,7 +77,7 @@ Tap **⋮** in the top bar for additional actions:
 - **Archive / Unarchive** — move the bookmark to the archive (or back to My List)
 - **Mark as read / Mark as unread** — toggle whether the bookmark has been read; this is reflected back in the bookmark list
 - **View web page / View [bookmark type]** — switch between the reading view and the web page in an in-app viewer (see above)
-- **Share link** — open the Android share sheet to share the bookmark's URL
+- **Share link** — open the Android share sheet to share the bookmark using the format selected in **Settings → User Interface**
 - **Details** — open the Bookmark Details screen (see below)
 - **Delete** — delete the bookmark; you are returned to the list and a **"Bookmark deleted"** bar appears with an **Undo** option
 
@@ -85,6 +86,8 @@ The menu includes visual dividers to separate related actions and destructive ac
 ## Links in Content
 
 Tapping a link within bookmark content (articles, pictures with descriptions, or videos with text) opens the associated web page in your device's default browser.
+
+In the **Sepia** appearance, article links also use a subtle underline so they are easier to distinguish from body text while reading.
 
 ## Long-press Context Menus
 

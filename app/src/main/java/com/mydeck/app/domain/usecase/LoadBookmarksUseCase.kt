@@ -12,6 +12,7 @@ import com.mydeck.app.io.prefs.SettingsDataStore
 import com.mydeck.app.io.rest.ReadeckApi
 import com.mydeck.app.io.rest.model.BookmarkDto
 import com.mydeck.app.worker.BatchArticleLoadWorker
+import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toInstant
 import timber.log.Timber
@@ -35,12 +36,19 @@ class LoadBookmarksUseCase @Inject constructor(
 
         var offset = initialOffset
         try {
-            val lastLoadedTimestamp = settingsDataStore.getLastBookmarkTimestamp()
-            Timber.i("Loaded last bookmark timestamp: [utc=$lastLoadedTimestamp]")
+            val storedCursor = settingsDataStore.getLastBookmarkTimestamp()
+            val requestCursor = storedCursor?.truncateToSyncCursor()
+            Timber.i("Loaded last bookmark timestamp: [stored=$storedCursor, request=$requestCursor]")
 
             var hasMorePages = true
+            var maxUpdatedCursor = requestCursor
             while (hasMorePages) {
-                val response = readeckApi.getBookmarks(pageSize, offset, lastLoadedTimestamp, ReadeckApi.SortOrder(ReadeckApi.Sort.Created))
+                val response = readeckApi.getBookmarks(
+                    pageSize,
+                    offset,
+                    requestCursor,
+                    ReadeckApi.SortOrder(ReadeckApi.Sort.Created)
+                )
                 if (response.isSuccessful && response.body() != null) {
                     val bookmarkDtos = response.body() as List<BookmarkDto>
                     
@@ -80,12 +88,19 @@ class LoadBookmarksUseCase @Inject constructor(
 
                     bookmarkRepository.insertBookmarks(bookmarks)
 
-                    // Find the latest created timestamp in the current page
-                    val latestBookmark = bookmarks.maxByOrNull { it.created }
-                    latestBookmark?.let {
-                        val timestamp = it.created.toInstant(TimeZone.currentSystemDefault())
-                        settingsDataStore.saveLastBookmarkTimestamp(timestamp)
-                        Timber.i("Saved last bookmark timestamp: [local=${it.created}, utc=$timestamp]")
+                    // Persist the cursor only after the full run succeeds. Pagination is created-based,
+                    // but the API cursor is update-based, so saving per-page progress can skip rows.
+                    val pageMaxUpdatedCursor = bookmarks
+                        .maxByOrNull { it.updated }
+                        ?.updated
+                        ?.toInstant(TimeZone.currentSystemDefault())
+                        ?.truncateToSyncCursor()
+
+                    if (
+                        pageMaxUpdatedCursor != null &&
+                        (maxUpdatedCursor == null || pageMaxUpdatedCursor > maxUpdatedCursor)
+                    ) {
+                        maxUpdatedCursor = pageMaxUpdatedCursor
                     }
 
                     if (currentPage < totalPages) {
@@ -97,6 +112,11 @@ class LoadBookmarksUseCase @Inject constructor(
                     Timber.w("Error loading bookmarks: [code=${response.code()}, body=${response.body()}]")
                     return UseCaseResult.Error(Exception("Unsuccessful response: ${response.code()}"))
                 }
+            }
+
+            if (maxUpdatedCursor != null && maxUpdatedCursor != storedCursor) {
+                settingsDataStore.saveLastBookmarkTimestamp(maxUpdatedCursor)
+                Timber.i("Saved last bookmark timestamp: [utc=$maxUpdatedCursor]")
             }
 
             // After metadata sync completes, conditionally enqueue content sync
@@ -135,4 +155,6 @@ class LoadBookmarksUseCase @Inject constructor(
     companion object {
         const val DEFAULT_PAGE_SIZE = 50
     }
+
+    private fun Instant.truncateToSyncCursor(): Instant = Instant.fromEpochSeconds(epochSeconds)
 }

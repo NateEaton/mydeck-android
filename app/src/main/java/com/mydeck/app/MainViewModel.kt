@@ -3,6 +3,8 @@ package com.mydeck.app
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import com.mydeck.app.domain.model.DarkAppearance
+import com.mydeck.app.domain.model.LightAppearance
 import com.mydeck.app.domain.model.Theme
 import com.mydeck.app.io.prefs.SettingsDataStore
 import kotlinx.coroutines.flow.SharingStarted
@@ -24,9 +26,15 @@ class MainViewModel @Inject constructor(
         initialValue = Theme.SYSTEM
     )
 
-    val sepiaEnabled = settingsDataStore.sepiaEnabledFlow.stateIn(
+    val lightAppearance = settingsDataStore.lightAppearanceFlow.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
-        initialValue = false
+        initialValue = LightAppearance.PAPER
+    )
+
+    val darkAppearance = settingsDataStore.darkAppearanceFlow.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = DarkAppearance.DARK
     )
 }

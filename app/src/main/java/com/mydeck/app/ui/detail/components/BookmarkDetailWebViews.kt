@@ -52,6 +52,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.mydeck.app.R
 import com.mydeck.app.ui.detail.BookmarkDetailViewModel
+import com.mydeck.app.ui.detail.VideoFullscreenDismissSource
 import com.mydeck.app.ui.detail.WebViewSearchBridge
 import com.mydeck.app.ui.detail.WebViewTypographyBridge
 import com.mydeck.app.util.openUrlInCustomTab
@@ -84,6 +85,8 @@ fun BookmarkDetailArticle(
     onLinkLongPress: (linkUrl: String, linkText: String) -> Unit = { _, _ -> },
     onTextSelectionCaptured: (SelectionData) -> Unit = {},
     onAnnotationClicked: (String) -> Unit = {},
+    onVideoEnterFullscreen: (View, android.webkit.WebChromeClient.CustomViewCallback?) -> Unit = { _, _ -> },
+    onVideoExitFullscreen: (VideoFullscreenDismissSource) -> Unit = {},
 ) {
     val isSystemInDarkMode = isSystemInDarkTheme()
     val content = remember(
@@ -161,6 +164,8 @@ fun BookmarkDetailArticle(
     // Apply typography settings when they change (non-textZoom properties via JS)
     LaunchedEffect(uiState.typographySettings) {
         webViewRef.value?.let { webView ->
+            // Font size still uses textZoom so body text and in-article headings
+            // scale together under the current simplified reader model.
             webView.settings.textZoom = uiState.typographySettings.fontSizePercent
             // Small delay to let any pending content load finish
             delay(150)
@@ -284,6 +289,27 @@ fun BookmarkDetailArticle(
                             WebViewAnnotationTapBridge.BRIDGE_NAME
                         )
                         webChromeClient = object : android.webkit.WebChromeClient() {
+                            override fun onShowCustomView(
+                                view: View?,
+                                callback: CustomViewCallback?
+                            ) {
+                                if (!isVideo || view == null) {
+                                    callback?.onCustomViewHidden()
+                                    return
+                                }
+                                this@apply.visibility = View.GONE
+                                onVideoEnterFullscreen(view, callback)
+                            }
+
+                            override fun onHideCustomView() {
+                                if (isVideo) {
+                                    this@apply.visibility = View.VISIBLE
+                                    onVideoExitFullscreen(VideoFullscreenDismissSource.WEB_CHROME)
+                                } else {
+                                    super.onHideCustomView()
+                                }
+                            }
+
                             override fun onConsoleMessage(consoleMessage: ConsoleMessage): Boolean {
                                 val message = consoleMessage.message()
                                 if (message.contains("[AnnotationTap]")) {
@@ -653,8 +679,8 @@ fun BookmarkDetailOriginalWebView(
                     .fillMaxHeight(),
                 factory = { context ->
                     WebView(context).apply {
-                        settings.javaScriptEnabled = false
-                        settings.domStorageEnabled = false
+                        settings.javaScriptEnabled = true
+                        settings.domStorageEnabled = true
                         settings.mediaPlaybackRequiresUserGesture = false
                         settings.useWideViewPort = true
                         settings.loadWithOverviewMode = true

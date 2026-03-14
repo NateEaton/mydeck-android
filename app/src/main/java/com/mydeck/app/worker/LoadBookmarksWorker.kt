@@ -19,6 +19,7 @@ import com.mydeck.app.io.prefs.SettingsDataStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.datetime.Clock
+import kotlinx.datetime.Instant
 import timber.log.Timber
 import java.io.IOException
 import java.util.UUID
@@ -44,15 +45,23 @@ class LoadBookmarksWorker @AssistedInject constructor(
         if (!isInitialLoad) {
             // Prefer lastSyncTimestamp (advances after every delta sync) over lastBookmarkTimestamp
             // (only advances when bookmark metadata changes, not on deletions)
-            val syncSince = settingsDataStore.getLastSyncTimestamp()
-                ?: settingsDataStore.getLastBookmarkTimestamp()
-            if (syncSince != null && syncSince.epochSeconds > 0) {
-                val deltaResult = bookmarkRepository.performDeltaSync(syncSince)
-                when (deltaResult) {
+            val syncSince = resolveSyncSince(
+                lastSyncTimestamp = settingsDataStore.getLastSyncTimestamp(),
+                lastBookmarkTimestamp = settingsDataStore.getLastBookmarkTimestamp()
+            )
+            if (syncSince != null) {
+                when (val result = bookmarkRepository.performDeltaSync(syncSince)) {
                     is BookmarkRepository.SyncResult.Success -> {
-                        settingsDataStore.saveLastSyncTimestamp(deltaResult.maxServerTime ?: Clock.System.now())
-                        if (deltaResult.countDeleted > 0) {
-                            Timber.i("Delta sync removed ${deltaResult.countDeleted} deleted bookmarks")
+                        settingsDataStore.saveLastSyncTimestamp(result.maxServerTime ?: Clock.System.now())
+                        if (result.countDeleted > 0) {
+                            Timber.i("Delta sync removed ${result.countDeleted} deleted bookmarks")
+                        }
+                        if (result.countUpdated == 0) {
+                            Timber.i("Delta sync reported no metadata updates; skipping bookmark reload")
+                            if (!settingsDataStore.isInitialSyncPerformed()) {
+                                settingsDataStore.setInitialSyncPerformed(true)
+                            }
+                            return Result.success()
                         }
                     }
                     else -> Timber.w("Delta sync failed during pull-to-refresh, continuing with incremental load")
@@ -94,6 +103,15 @@ class LoadBookmarksWorker @AssistedInject constructor(
     companion object {
         const val PARAM_IS_INITIAL_LOAD = "isInitialLoad"
         const val UNIQUE_WORK_NAME = "LoadBookmarksSync"
+
+        internal fun resolveSyncSince(
+            lastSyncTimestamp: Instant?,
+            lastBookmarkTimestamp: Instant?
+        ): Instant? {
+            return lastSyncTimestamp
+                ?.takeIf { it.epochSeconds > 0 }
+                ?: lastBookmarkTimestamp?.takeIf { it.epochSeconds > 0 }
+        }
 
         fun enqueue(context: Context, isInitialLoad: Boolean = false): UUID {
             val data = Data.Builder().putBoolean(PARAM_IS_INITIAL_LOAD, isInitialLoad).build()

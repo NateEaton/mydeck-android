@@ -14,13 +14,12 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
 import kotlinx.coroutines.runBlocking
-import kotlinx.datetime.Clock
+import kotlinx.datetime.Instant
 import okhttp3.Headers
 import org.junit.Assert.*
 import org.junit.Before
 import org.junit.Test
 import retrofit2.Response
-import kotlin.time.Duration.Companion.days
 
 class LoadBookmarksUseCaseTest {
 
@@ -134,15 +133,48 @@ class LoadBookmarksUseCaseTest {
         loadBookmarksUseCase.execute(10, 0)
 
         // Verify that the timestamp is saved
-        coVerify { settingsDataStore.saveLastBookmarkTimestamp(bookmark2.created) }
+        coVerify {
+            settingsDataStore.saveLastBookmarkTimestamp(
+                Instant.fromEpochSeconds(bookmark2.updated.epochSeconds)
+            )
+        }
         coVerify { bookmarkRepository.insertBookmarks(sampleBookmarks.map { it.toDomain() }) }
+    }
+
+    @Test
+    fun `execute truncates stored cursor before requesting updates`() = runBlocking {
+        val response: Response<List<BookmarkDto>> = Response.success(
+            emptyList(),
+            Headers.headersOf(
+                ReadeckApi.Header.TOTAL_COUNT,
+                "0",
+                ReadeckApi.Header.TOTAL_PAGES,
+                "1",
+                ReadeckApi.Header.CURRENT_PAGE,
+                "1"
+            )
+        )
+        val storedCursor = Instant.parse("2026-03-12T19:46:28.351123456Z")
+        coEvery { readeckApi.getBookmarks(any(), any(), any(), any()) } returns response
+        coEvery { settingsDataStore.getLastBookmarkTimestamp() } returns storedCursor
+
+        loadBookmarksUseCase.execute(10, 0)
+
+        coVerify {
+            readeckApi.getBookmarks(
+                10,
+                0,
+                Instant.fromEpochSeconds(storedCursor.epochSeconds),
+                ReadeckApi.SortOrder(ReadeckApi.Sort.Created)
+            )
+        }
     }
 
     val bookmark2 = BookmarkDto(
         id = "2",
         href = "https://example.com",
-        created = Clock.System.now(),
-        updated = Clock.System.now(),
+        created = Instant.parse("2026-03-06T08:15:30Z"),
+        updated = Instant.parse("2026-03-12T19:46:28.351123456Z"),
         state = 1,
         loaded = true,
         url = "https://example.com/article",
@@ -179,8 +211,8 @@ class LoadBookmarksUseCaseTest {
     val bookmark1 = BookmarkDto(
         id = "1",
         href = "https://example.com",
-        created = Clock.System.now().minus(1.days),
-        updated = Clock.System.now().minus(1.days),
+        created = Instant.parse("2024-03-06T08:15:30Z"),
+        updated = Instant.parse("2026-03-11T10:00:00Z"),
         state = 1,
         loaded = true,
         url = "https://example.com/article",

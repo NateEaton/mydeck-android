@@ -81,6 +81,17 @@ class FullSyncWorker @AssistedInject constructor(
                 }
             }
 
+            val syncSuccess = syncResult as SyncResult.Success
+
+            if (!needsFullSync && syncSuccess.countUpdated == 0) {
+                val syncTime = syncSuccess.maxServerTime ?: Clock.System.now()
+                settingsDataStore.saveLastSyncTimestamp(syncTime)
+                Timber.d("Skipping bookmark reload; delta sync reported no metadata updates")
+                return Result.success(
+                    Data.Builder().putInt(OUTPUT_DATA_COUNT, syncSuccess.countDeleted).build()
+                )
+            }
+
             // Step 2: Fetch updated/new bookmarks (this also triggers article content loading)
             Timber.d("Fetching updated bookmarks")
             val loadResult = loadBookmarksUseCase.execute()
@@ -92,10 +103,10 @@ class FullSyncWorker @AssistedInject constructor(
                 }
                 is LoadBookmarksUseCase.UseCaseResult.Success -> {
                     // Prefer server event time from delta sync to avoid clock skew issues
-                    val syncTime = (syncResult as? SyncResult.Success)?.maxServerTime ?: Clock.System.now()
+                    val syncTime = syncSuccess.maxServerTime ?: Clock.System.now()
                     settingsDataStore.saveLastSyncTimestamp(syncTime)
                     Result.success(
-                        Data.Builder().putInt(OUTPUT_DATA_COUNT, (syncResult as SyncResult.Success).countDeleted).build()
+                        Data.Builder().putInt(OUTPUT_DATA_COUNT, syncSuccess.countDeleted).build()
                     )
                 }
             }

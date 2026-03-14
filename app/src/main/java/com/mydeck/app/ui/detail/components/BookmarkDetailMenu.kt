@@ -44,7 +44,7 @@ fun BookmarkDetailMenu(
     onClickToggleFavorite: (String, Boolean) -> Unit,
     onClickToggleArchive: (String, Boolean) -> Unit,
     onClickToggleRead: (String, Boolean) -> Unit,
-    onClickShareBookmark: (String) -> Unit,
+    onClickShareBookmark: (String, String) -> Unit,
     onClickDeleteBookmark: (String) -> Unit,
     onShowDetails: () -> Unit = {},
     onShowHighlights: () -> Unit = {},
@@ -212,7 +212,7 @@ fun BookmarkDetailMenu(
             DropdownMenuItem(
                 text = { Text(stringResource(R.string.action_share)) },
                 onClick = {
-                    onClickShareBookmark(uiState.bookmark.url)
+                    onClickShareBookmark(uiState.bookmark.title, uiState.bookmark.url)
                     expanded = false
                 },
                 leadingIcon = {

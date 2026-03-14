@@ -212,8 +212,8 @@ fun BookmarkListScreen(
     val onClickCopyLink: (String) -> Unit = { url ->
         clipboardManager.setText(androidx.compose.ui.text.AnnotatedString(url))
     }
-    val onClickShareLink: (String) -> Unit = { url ->
-        viewModel.onClickShareBookmark(url)
+    val onClickShareLink: (String, String) -> Unit = { title, url ->
+        viewModel.onClickShareBookmark(title, url)
     }
     val onClickCopyImage: (String) -> Unit = { imageUrl ->
         if (imageUrl.isNotBlank()) {
@@ -885,7 +885,7 @@ fun BookmarkListView(
     onClickOpenInBrowser: (String) -> Unit = {},
     onClickCopyLink: (String) -> Unit = {},
     onClickCopyLinkText: (String) -> Unit = {},
-    onClickShareLink: (String) -> Unit = {},
+    onClickShareLink: (String, String) -> Unit = { _, _ -> },
     onClickOpenInBrowserFromMenu: (String) -> Unit = {},
     onClickCopyImage: (String) -> Unit = {},
     onClickDownloadLink: (String, String) -> Unit = { _, _ -> },
@@ -931,6 +931,7 @@ fun BookmarkListView(
                     val noop: (String) -> Unit = {}
                     val noop2: (String, Boolean) -> Unit = { _, _ -> }
                     val noop2s: (String, String) -> Unit = { _, _ -> }
+                    val noopShare: (String, String) -> Unit = { _, _ -> }
                     Box(modifier = Modifier.alpha(if (isPendingDeletion) 0.38f else 1f)) {
                     when (layoutMode) {
                         LayoutMode.GRID -> BookmarkGridCard(
@@ -944,7 +945,7 @@ fun BookmarkListView(
                             onClickOpenInBrowser = if (isPendingDeletion) noop else onClickOpenInBrowser,
                             onClickCopyLink = if (isPendingDeletion) noop else onClickCopyLink,
                             onClickCopyLinkText = if (isPendingDeletion) noop else onClickCopyLinkText,
-                            onClickShareLink = if (isPendingDeletion) noop else onClickShareLink,
+                            onClickShareLink = if (isPendingDeletion) noopShare else onClickShareLink,
                             onClickOpenInBrowserFromMenu = if (isPendingDeletion) noop else onClickOpenInBrowserFromMenu,
                             onClickCopyImage = if (isPendingDeletion) noop else onClickCopyImage,
                             onClickDownloadLink = if (isPendingDeletion) noop2s else onClickDownloadLink,
@@ -963,7 +964,7 @@ fun BookmarkListView(
                             onClickOpenInBrowser = if (isPendingDeletion) noop else onClickOpenInBrowser,
                             onClickCopyLink = if (isPendingDeletion) noop else onClickCopyLink,
                             onClickCopyLinkText = if (isPendingDeletion) noop else onClickCopyLinkText,
-                            onClickShareLink = if (isPendingDeletion) noop else onClickShareLink,
+                            onClickShareLink = if (isPendingDeletion) noopShare else onClickShareLink,
                             onClickOpenInBrowserFromMenu = if (isPendingDeletion) noop else onClickOpenInBrowserFromMenu,
                             onClickCopyImage = if (isPendingDeletion) noop else onClickCopyImage,
                             onClickDownloadLink = if (isPendingDeletion) noop2s else onClickDownloadLink,
@@ -981,7 +982,7 @@ fun BookmarkListView(
                             onClickOpenInBrowser = if (isPendingDeletion) noop else onClickOpenInBrowser,
                             onClickCopyLink = if (isPendingDeletion) noop else onClickCopyLink,
                             onClickCopyLinkText = if (isPendingDeletion) noop else onClickCopyLinkText,
-                            onClickShareLink = if (isPendingDeletion) noop else onClickShareLink,
+                            onClickShareLink = if (isPendingDeletion) noopShare else onClickShareLink,
                             onClickOpenInBrowserFromMenu = if (isPendingDeletion) noop else onClickOpenInBrowserFromMenu,
                             onClickCopyImage = if (isPendingDeletion) noop else onClickCopyImage,
                             onClickDownloadLink = if (isPendingDeletion) noop2s else onClickDownloadLink,
@@ -1017,6 +1018,7 @@ fun BookmarkListView(
                     val noop: (String) -> Unit = {}
                     val noop2: (String, Boolean) -> Unit = { _, _ -> }
                     val noop2s: (String, String) -> Unit = { _, _ -> }
+                    val noopShare: (String, String) -> Unit = { _, _ -> }
                     Box(modifier = Modifier.alpha(if (isPendingDeletion) 0.38f else 1f)) {
                     when (layoutMode) {
                         LayoutMode.GRID -> BookmarkGridCard(
@@ -1030,7 +1032,7 @@ fun BookmarkListView(
                             onClickOpenInBrowser = if (isPendingDeletion) noop else onClickOpenInBrowser,
                             onClickCopyLink = if (isPendingDeletion) noop else onClickCopyLink,
                             onClickCopyLinkText = if (isPendingDeletion) noop else onClickCopyLinkText,
-                            onClickShareLink = if (isPendingDeletion) noop else onClickShareLink,
+                            onClickShareLink = if (isPendingDeletion) noopShare else onClickShareLink,
                             onClickOpenInBrowserFromMenu = if (isPendingDeletion) noop else onClickOpenInBrowserFromMenu,
                             onClickCopyImage = if (isPendingDeletion) noop else onClickCopyImage,
                             onClickDownloadLink = if (isPendingDeletion) noop2s else onClickDownloadLink,
@@ -1049,7 +1051,7 @@ fun BookmarkListView(
                             onClickOpenInBrowser = if (isPendingDeletion) noop else onClickOpenInBrowser,
                             onClickCopyLink = if (isPendingDeletion) noop else onClickCopyLink,
                             onClickCopyLinkText = if (isPendingDeletion) noop else onClickCopyLinkText,
-                            onClickShareLink = if (isPendingDeletion) noop else onClickShareLink,
+                            onClickShareLink = if (isPendingDeletion) noopShare else onClickShareLink,
                             onClickOpenInBrowserFromMenu = if (isPendingDeletion) noop else onClickOpenInBrowserFromMenu,
                             onClickCopyImage = if (isPendingDeletion) noop else onClickCopyImage,
                             onClickDownloadLink = if (isPendingDeletion) noop2s else onClickDownloadLink,
@@ -1067,7 +1069,7 @@ fun BookmarkListView(
                             onClickOpenInBrowser = if (isPendingDeletion) noop else onClickOpenInBrowser,
                             onClickCopyLink = if (isPendingDeletion) noop else onClickCopyLink,
                             onClickCopyLinkText = if (isPendingDeletion) noop else onClickCopyLinkText,
-                            onClickShareLink = if (isPendingDeletion) noop else onClickShareLink,
+                            onClickShareLink = if (isPendingDeletion) noopShare else onClickShareLink,
                             onClickOpenInBrowserFromMenu = if (isPendingDeletion) noop else onClickOpenInBrowserFromMenu,
                             onClickCopyImage = if (isPendingDeletion) noop else onClickCopyImage,
                             onClickDownloadLink = if (isPendingDeletion) noop2s else onClickDownloadLink,

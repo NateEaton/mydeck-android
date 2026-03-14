@@ -43,7 +43,7 @@ fun BookmarkDetailTopBar(
     onShowHighlights: () -> Unit,
     contentMode: ContentMode,
     onClickToggleRead: (String, Boolean) -> Unit,
-    onClickShareBookmark: (String) -> Unit,
+    onClickShareBookmark: (String, String) -> Unit,
     onClickDeleteBookmark: (String) -> Unit,
     onArticleSearchActivate: () -> Unit,
     onClickOpenInBrowser: (String) -> Unit,

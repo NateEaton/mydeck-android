@@ -1,6 +1,5 @@
 package com.mydeck.app.io.prefs
 
-import com.mydeck.app.domain.model.LineSpacing
 import com.mydeck.app.domain.model.ReaderFontFamily
 import com.mydeck.app.domain.model.TextWidth
 import com.mydeck.app.domain.model.TypographySettings
@@ -45,21 +44,43 @@ class TypographySettingsTest {
         val defaults = TypographySettings()
         assertEquals(100, defaults.fontSizePercent)
         assertEquals(ReaderFontFamily.SYSTEM_DEFAULT, defaults.fontFamily)
-        assertEquals(LineSpacing.TIGHT, defaults.lineSpacing)
-        assertEquals(TextWidth.WIDE, defaults.textWidth)
+        assertEquals(TypographySettings.DEFAULT_LINE_SPACING_PERCENT, defaults.lineSpacingPercent)
+        assertEquals(TextWidth.MEDIUM, defaults.textWidth)
         assertEquals(false, defaults.justified)
         assertEquals(false, defaults.hyphenation)
     }
 
     @Test
-    fun `LineSpacing enum has correct CSS values`() {
-        assertEquals("1.7", LineSpacing.TIGHT.cssValue)
-        assertEquals("2.2", LineSpacing.LOOSE.cssValue)
+    fun `TypographySettings font size constants and clamp are correct`() {
+        assertEquals(80, TypographySettings.MIN_FONT_SIZE)
+        assertEquals(170, TypographySettings.MAX_FONT_SIZE)
+        assertEquals(5, TypographySettings.FONT_SIZE_STEP)
+        assertEquals(80, TypographySettings.clampFontSizePercent(75))
+        assertEquals(100, TypographySettings.clampFontSizePercent(100))
+        assertEquals(170, TypographySettings.clampFontSizePercent(200))
     }
 
     @Test
-    fun `TextWidth enum has correct CSS max-width values`() {
-        assertEquals("90vw", TextWidth.WIDE.cssMaxWidth)
-        assertEquals("75vw", TextWidth.NARROW.cssMaxWidth)
+    fun `TypographySettings line spacing constants and css values are correct`() {
+        assertEquals(100, TypographySettings.DEFAULT_LINE_SPACING_PERCENT)
+        assertEquals(80, TypographySettings.MIN_LINE_SPACING_PERCENT)
+        assertEquals(125, TypographySettings.MAX_LINE_SPACING_PERCENT)
+        assertEquals(5, TypographySettings.LINE_SPACING_STEP)
+        assertEquals(80, TypographySettings.clampLineSpacingPercent(75))
+        assertEquals(110, TypographySettings.clampLineSpacingPercent(110))
+        assertEquals(125, TypographySettings.clampLineSpacingPercent(130))
+        assertEquals("1.7", TypographySettings.lineSpacingCssValue(100))
+        assertEquals("1.36", TypographySettings.lineSpacingCssValue(80))
+        assertEquals("2.125", TypographySettings.lineSpacingCssValue(125))
+    }
+
+    @Test
+    fun `TextWidth enum has correct width fractions and pill labels`() {
+        assertEquals(0.95f, TextWidth.WIDE.widthFraction)
+        assertEquals(0.88f, TextWidth.MEDIUM.widthFraction)
+        assertEquals(0.825f, TextWidth.NARROW.widthFraction)
+        assertEquals("W", TextWidth.WIDE.pillLabel)
+        assertEquals("M", TextWidth.MEDIUM.pillLabel)
+        assertEquals("N", TextWidth.NARROW.pillLabel)
     }
 }

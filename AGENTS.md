@@ -7,12 +7,14 @@ Follow the project rules in `CLAUDE.md`, especially:
 ## Default verification (run after changes)
 Use the Gradle wrapper only:
 
-- `./gradlew :app:assembleDebug`
-- `./gradlew :app:testDebugUnitTest`
+Run verification tasks serially, not in parallel. Parallel Gradle runs in this project can collide in KSP/generated outputs and produce false failures.
+
+- `./gradlew :app:assembleDebugAll`
+- `./gradlew :app:testDebugUnitTestAll`
 
 If changes touch UI/resources/build config/dependencies, also run:
 
-- `./gradlew :app:lintDebug`
+- `./gradlew :app:lintDebugAll`
 
 ## Do not run (cloud environment limits)
 Avoid emulator/device-required tasks:

@@ -8,8 +8,10 @@ import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import com.mydeck.app.BuildConfig
 import com.mydeck.app.domain.model.AutoSyncTimeframe
+import com.mydeck.app.domain.model.BookmarkShareFormat
 import com.mydeck.app.domain.model.CachedServerInfo
-import com.mydeck.app.domain.model.LineSpacing
+import com.mydeck.app.domain.model.DarkAppearance
+import com.mydeck.app.domain.model.LightAppearance
 import com.mydeck.app.domain.model.ReaderFontFamily
 import com.mydeck.app.domain.model.TextWidth
 import com.mydeck.app.domain.model.Theme
@@ -33,6 +35,7 @@ class SettingsDataStoreImpl @Inject constructor(@ApplicationContext private val 
 
     private val encryptedSharedPreferences = EncryptionHelper.getEncryptedSharedPreferences(context)
     private val userPreferences = context.getSharedPreferences(USER_PREFERENCES_FILE_NAME, Context.MODE_PRIVATE)
+    private val preferenceChangeListeners = mutableListOf<SharedPreferences.OnSharedPreferenceChangeListener>()
 
     private val KEY_USERNAME = stringPreferencesKey("username")
     private val KEY_TOKEN = stringPreferencesKey("token")
@@ -45,7 +48,6 @@ class SettingsDataStoreImpl @Inject constructor(@ApplicationContext private val 
     private val KEY_AUTOSYNC_ENABLED = booleanPreferencesKey("autosync_enabled")
     private val KEY_AUTOSYNC_TIMEFRAME = stringPreferencesKey("autosync_timeframe")
     private val KEY_THEME = stringPreferencesKey("theme")
-    private val KEY_ZOOM_FACTOR = intPreferencesKey("zoom_factor")
     private val KEY_SYNC_ON_APP_OPEN = booleanPreferencesKey("sync_on_app_open")
     private val KEY_SYNC_NOTIFICATIONS_ENABLED = booleanPreferencesKey("sync_notifications_enabled")
     private val KEY_LAYOUT_MODE = stringPreferencesKey("layout_mode")
@@ -57,11 +59,16 @@ class SettingsDataStoreImpl @Inject constructor(@ApplicationContext private val 
     private val KEY_DATE_RANGE_FROM = stringPreferencesKey("date_range_from")
     private val KEY_DATE_RANGE_TO = stringPreferencesKey("date_range_to")
     private val KEY_SEPIA_ENABLED = booleanPreferencesKey("sepia_enabled")
+    private val KEY_LIGHT_APPEARANCE = stringPreferencesKey("light_appearance")
+    private val KEY_DARK_APPEARANCE = stringPreferencesKey("dark_appearance")
+    private val KEY_BOOKMARK_SHARE_FORMAT = stringPreferencesKey("bookmark_share_format")
     private val KEY_KEEP_SCREEN_ON_READING = booleanPreferencesKey("keep_screen_on_reading")
+    private val KEY_FULLSCREEN_WHILE_READING = booleanPreferencesKey("fullscreen_while_reading")
 
     private val KEY_TYPO_FONT_SIZE = intPreferencesKey("typography_font_size_percent")
     private val KEY_TYPO_FONT_FAMILY = stringPreferencesKey("typography_font_family")
     private val KEY_TYPO_LINE_SPACING = stringPreferencesKey("typography_line_spacing")
+    private val KEY_TYPO_LINE_SPACING_PERCENT = intPreferencesKey("typography_line_spacing_percent")
     private val KEY_TYPO_TEXT_WIDTH = stringPreferencesKey("typography_text_width")
     private val KEY_TYPO_JUSTIFIED = booleanPreferencesKey("typography_justified")
     private val KEY_TYPO_HYPHENATION = booleanPreferencesKey("typography_hyphenation")
@@ -75,6 +82,7 @@ class SettingsDataStoreImpl @Inject constructor(@ApplicationContext private val 
         migrateLegacySepiaSetting(encryptedSharedPreferences)
         migrateNonSensitivePreferencesIfNeeded()
         migrateLegacySepiaSetting(userPreferences)
+        migrateAppearancePreferencesIfNeeded()
     }
 
     override fun saveToken(token: String) {
@@ -204,12 +212,71 @@ class SettingsDataStoreImpl @Inject constructor(@ApplicationContext private val 
         }
     }
 
+    override suspend fun saveLightAppearance(appearance: LightAppearance) {
+        userPreferences.edit {
+            putString(KEY_LIGHT_APPEARANCE.name, appearance.name)
+        }
+    }
+
+    override suspend fun getLightAppearance(): LightAppearance {
+        return userPreferences.getString(
+            KEY_LIGHT_APPEARANCE.name,
+            LightAppearance.PAPER.name
+        )?.let {
+            try {
+                LightAppearance.valueOf(it)
+            } catch (_: IllegalArgumentException) {
+                LightAppearance.PAPER
+            }
+        } ?: LightAppearance.PAPER
+    }
+
+    override suspend fun saveDarkAppearance(appearance: DarkAppearance) {
+        userPreferences.edit {
+            putString(KEY_DARK_APPEARANCE.name, appearance.name)
+        }
+    }
+
+    override suspend fun getDarkAppearance(): DarkAppearance {
+        return userPreferences.getString(
+            KEY_DARK_APPEARANCE.name,
+            DarkAppearance.DARK.name
+        )?.let {
+            try {
+                DarkAppearance.valueOf(it)
+            } catch (_: IllegalArgumentException) {
+                DarkAppearance.DARK
+            }
+        } ?: DarkAppearance.DARK
+    }
+
+    override suspend fun saveBookmarkShareFormat(format: BookmarkShareFormat) {
+        userPreferences.edit {
+            putString(KEY_BOOKMARK_SHARE_FORMAT.name, format.name)
+        }
+    }
+
+    override suspend fun getBookmarkShareFormat(): BookmarkShareFormat {
+        return userPreferences.getString(
+            KEY_BOOKMARK_SHARE_FORMAT.name,
+            BookmarkShareFormat.URL_ONLY.name
+        )?.let {
+            try {
+                BookmarkShareFormat.valueOf(it)
+            } catch (_: IllegalArgumentException) {
+                BookmarkShareFormat.URL_ONLY
+            }
+        } ?: BookmarkShareFormat.URL_ONLY
+    }
+
+    @Deprecated("Migration-only. Use saveLightAppearance instead.")
     override suspend fun saveSepiaEnabled(enabled: Boolean) {
         userPreferences.edit {
             putBoolean(KEY_SEPIA_ENABLED.name, enabled)
         }
     }
 
+    @Deprecated("Migration-only. Use getLightAppearance instead.")
     override suspend fun isSepiaEnabled(): Boolean {
         return userPreferences.getBoolean(KEY_SEPIA_ENABLED.name, false)
     }
@@ -224,14 +291,14 @@ class SettingsDataStoreImpl @Inject constructor(@ApplicationContext private val 
         return userPreferences.getBoolean(KEY_KEEP_SCREEN_ON_READING.name, true)
     }
 
-    override suspend fun getZoomFactor(): Int {
-        return userPreferences.getInt(KEY_ZOOM_FACTOR.name, 100)
+    override suspend fun saveFullscreenWhileReading(enabled: Boolean) {
+        userPreferences.edit {
+            putBoolean(KEY_FULLSCREEN_WHILE_READING.name, enabled)
+        }
     }
 
-    override suspend fun saveZoomFactor(zoomFactor: Int) {
-        userPreferences.edit {
-            putInt(KEY_ZOOM_FACTOR.name, zoomFactor.coerceIn(25, 400))
-        }
+    override suspend fun isFullscreenWhileReading(): Boolean {
+        return userPreferences.getBoolean(KEY_FULLSCREEN_WHILE_READING.name, false)
     }
 
     override suspend fun setSyncOnAppOpenEnabled(isEnabled: Boolean) {
@@ -260,10 +327,30 @@ class SettingsDataStoreImpl @Inject constructor(@ApplicationContext private val 
     override val initialSyncPerformedFlow =
         getBooleanFlow(encryptedSharedPreferences, KEY_INITIAL_SYNC_PERFORMED, false)
     override val themeFlow = getStringFlow(userPreferences, KEY_THEME.name, Theme.SYSTEM.name)
-    override val zoomFactorFlow = getIntFlow(userPreferences, KEY_ZOOM_FACTOR.name, 100)
+    @Deprecated("Migration-only. Use lightAppearanceFlow instead.")
     override val sepiaEnabledFlow = getBooleanFlow(userPreferences, KEY_SEPIA_ENABLED.name, false)
+    override val lightAppearanceFlow = getEnumFlow(
+        preferences = userPreferences,
+        key = KEY_LIGHT_APPEARANCE.name,
+        defaultValue = LightAppearance.PAPER,
+        parse = { value -> LightAppearance.valueOf(value) }
+    )
+    override val darkAppearanceFlow = getEnumFlow(
+        preferences = userPreferences,
+        key = KEY_DARK_APPEARANCE.name,
+        defaultValue = DarkAppearance.DARK,
+        parse = { value -> DarkAppearance.valueOf(value) }
+    )
+    override val bookmarkShareFormatFlow = getEnumFlow(
+        preferences = userPreferences,
+        key = KEY_BOOKMARK_SHARE_FORMAT.name,
+        defaultValue = BookmarkShareFormat.URL_ONLY,
+        parse = { value -> BookmarkShareFormat.valueOf(value) }
+    )
     override val keepScreenOnWhileReadingFlow =
         getBooleanFlow(userPreferences, KEY_KEEP_SCREEN_ON_READING.name, true)
+    override val fullscreenWhileReadingFlow =
+        getBooleanFlow(userPreferences, KEY_FULLSCREEN_WHILE_READING.name, false)
 
     override suspend fun clearCredentials() {
         Timber.d("clearCredentials")
@@ -313,6 +400,21 @@ class SettingsDataStoreImpl @Inject constructor(@ApplicationContext private val 
         preferences.getBoolean(key, defaultValue)
     }
 
+    private fun <T> getEnumFlow(
+        preferences: SharedPreferences,
+        key: String,
+        defaultValue: T,
+        parse: (String) -> T
+    ): StateFlow<T> = preferenceFlow(preferences, key) {
+        preferences.getString(key, null)?.let { value ->
+            try {
+                parse(value)
+            } catch (_: IllegalArgumentException) {
+                defaultValue
+            }
+        } ?: defaultValue
+    }
+
     private fun <T> preferenceFlow(
         preferences: SharedPreferences,
         key: String,
@@ -328,6 +430,7 @@ class SettingsDataStoreImpl @Inject constructor(@ApplicationContext private val 
         }
 
         preferences.registerOnSharedPreferenceChangeListener(listener)
+        preferenceChangeListeners += listener
         return state.asStateFlow()
     }
 
@@ -438,31 +541,27 @@ class SettingsDataStoreImpl @Inject constructor(@ApplicationContext private val 
             KEY_TYPO_FONT_FAMILY.name,
             ReaderFontFamily.SYSTEM_DEFAULT.name
         ) ?: ReaderFontFamily.SYSTEM_DEFAULT.name
-        val lineSpacingStr = userPreferences.getString(
-            KEY_TYPO_LINE_SPACING.name,
-            LineSpacing.TIGHT.name
-        ) ?: LineSpacing.TIGHT.name
         val textWidthStr = userPreferences.getString(
             KEY_TYPO_TEXT_WIDTH.name,
-            TextWidth.WIDE.name
-        ) ?: TextWidth.WIDE.name
+            TextWidth.MEDIUM.name
+        ) ?: TextWidth.MEDIUM.name
+        val clampedFontSizePercent = TypographySettings.clampFontSizePercent(
+            userPreferences.getInt(KEY_TYPO_FONT_SIZE.name, 100)
+        )
+        val clampedLineSpacingPercent = readLineSpacingPercent()
 
         return TypographySettings(
-            fontSizePercent = userPreferences.getInt(KEY_TYPO_FONT_SIZE.name, 100),
+            fontSizePercent = clampedFontSizePercent,
             fontFamily = try {
                 ReaderFontFamily.valueOf(fontFamilyStr)
             } catch (_: IllegalArgumentException) {
                 ReaderFontFamily.SYSTEM_DEFAULT
             },
-            lineSpacing = try {
-                LineSpacing.valueOf(lineSpacingStr)
-            } catch (_: IllegalArgumentException) {
-                LineSpacing.TIGHT
-            },
+            lineSpacingPercent = clampedLineSpacingPercent,
             textWidth = try {
                 TextWidth.valueOf(textWidthStr)
             } catch (_: IllegalArgumentException) {
-                TextWidth.WIDE
+                TextWidth.MEDIUM
             },
             justified = userPreferences.getBoolean(KEY_TYPO_JUSTIFIED.name, false),
             hyphenation = userPreferences.getBoolean(KEY_TYPO_HYPHENATION.name, false)
@@ -470,15 +569,38 @@ class SettingsDataStoreImpl @Inject constructor(@ApplicationContext private val 
     }
 
     override suspend fun saveTypographySettings(settings: TypographySettings) {
+        val sanitizedSettings = settings.copy(
+            fontSizePercent = TypographySettings.clampFontSizePercent(settings.fontSizePercent),
+            lineSpacingPercent = TypographySettings.clampLineSpacingPercent(settings.lineSpacingPercent)
+        )
         userPreferences.edit {
-            putInt(KEY_TYPO_FONT_SIZE.name, settings.fontSizePercent)
-            putString(KEY_TYPO_FONT_FAMILY.name, settings.fontFamily.name)
-            putString(KEY_TYPO_LINE_SPACING.name, settings.lineSpacing.name)
-            putString(KEY_TYPO_TEXT_WIDTH.name, settings.textWidth.name)
-            putBoolean(KEY_TYPO_JUSTIFIED.name, settings.justified)
-            putBoolean(KEY_TYPO_HYPHENATION.name, settings.hyphenation)
+            putInt(KEY_TYPO_FONT_SIZE.name, sanitizedSettings.fontSizePercent)
+            putString(KEY_TYPO_FONT_FAMILY.name, sanitizedSettings.fontFamily.name)
+            putInt(KEY_TYPO_LINE_SPACING_PERCENT.name, sanitizedSettings.lineSpacingPercent)
+            remove(KEY_TYPO_LINE_SPACING.name)
+            putString(KEY_TYPO_TEXT_WIDTH.name, sanitizedSettings.textWidth.name)
+            putBoolean(KEY_TYPO_JUSTIFIED.name, sanitizedSettings.justified)
+            putBoolean(KEY_TYPO_HYPHENATION.name, sanitizedSettings.hyphenation)
         }
-        _typographySettingsFlow.value = settings
+        _typographySettingsFlow.value = sanitizedSettings
+    }
+
+    private fun readLineSpacingPercent(): Int {
+        if (userPreferences.contains(KEY_TYPO_LINE_SPACING_PERCENT.name)) {
+            return TypographySettings.clampLineSpacingPercent(
+                userPreferences.getInt(
+                    KEY_TYPO_LINE_SPACING_PERCENT.name,
+                    TypographySettings.DEFAULT_LINE_SPACING_PERCENT
+                )
+            )
+        }
+
+        val legacyLineSpacing = userPreferences.getString(KEY_TYPO_LINE_SPACING.name, null)
+        return when (legacyLineSpacing) {
+            "LOOSE" -> TypographySettings.MAX_LINE_SPACING_PERCENT
+            "TIGHT", null -> TypographySettings.DEFAULT_LINE_SPACING_PERCENT
+            else -> TypographySettings.DEFAULT_LINE_SPACING_PERCENT
+        }
     }
 
     override suspend fun saveServerInfo(info: CachedServerInfo) {
@@ -530,6 +652,27 @@ class SettingsDataStoreImpl @Inject constructor(@ApplicationContext private val 
         }
     }
 
+    private fun migrateAppearancePreferencesIfNeeded() {
+        val hasLightAppearance = userPreferences.contains(KEY_LIGHT_APPEARANCE.name)
+        val hasDarkAppearance = userPreferences.contains(KEY_DARK_APPEARANCE.name)
+        if (hasLightAppearance && hasDarkAppearance) {
+            return
+        }
+
+        val legacySepiaEnabled = userPreferences.getBoolean(KEY_SEPIA_ENABLED.name, false)
+        userPreferences.edit(commit = true) {
+            if (!hasLightAppearance) {
+                putString(
+                    KEY_LIGHT_APPEARANCE.name,
+                    if (legacySepiaEnabled) LightAppearance.SEPIA.name else LightAppearance.PAPER.name
+                )
+            }
+            if (!hasDarkAppearance) {
+                putString(KEY_DARK_APPEARANCE.name, DarkAppearance.DARK.name)
+            }
+        }
+    }
+
     private fun migrateNonSensitivePreferencesIfNeeded() {
         if (userPreferences.getBoolean(KEY_UI_PREFS_MIGRATED, false)) {
             return
@@ -539,7 +682,6 @@ class SettingsDataStoreImpl @Inject constructor(@ApplicationContext private val 
             migrateBooleanPreference(this, KEY_AUTOSYNC_ENABLED.name)
             migrateStringPreference(this, KEY_AUTOSYNC_TIMEFRAME.name)
             migrateStringPreference(this, KEY_THEME.name)
-            migrateIntPreference(this, KEY_ZOOM_FACTOR.name)
             migrateBooleanPreference(this, KEY_SYNC_ON_APP_OPEN.name)
             migrateBooleanPreference(this, KEY_SYNC_NOTIFICATIONS_ENABLED.name)
             migrateStringPreference(this, KEY_LAYOUT_MODE.name)
@@ -551,10 +693,14 @@ class SettingsDataStoreImpl @Inject constructor(@ApplicationContext private val 
             migrateStringPreference(this, KEY_DATE_RANGE_FROM.name)
             migrateStringPreference(this, KEY_DATE_RANGE_TO.name)
             migrateBooleanPreference(this, KEY_SEPIA_ENABLED.name)
+            migrateStringPreference(this, KEY_LIGHT_APPEARANCE.name)
+            migrateStringPreference(this, KEY_DARK_APPEARANCE.name)
             migrateBooleanPreference(this, KEY_KEEP_SCREEN_ON_READING.name)
+            migrateBooleanPreference(this, KEY_FULLSCREEN_WHILE_READING.name)
             migrateIntPreference(this, KEY_TYPO_FONT_SIZE.name)
             migrateStringPreference(this, KEY_TYPO_FONT_FAMILY.name)
             migrateStringPreference(this, KEY_TYPO_LINE_SPACING.name)
+            migrateIntPreference(this, KEY_TYPO_LINE_SPACING_PERCENT.name)
             migrateStringPreference(this, KEY_TYPO_TEXT_WIDTH.name)
             migrateBooleanPreference(this, KEY_TYPO_JUSTIFIED.name)
             migrateBooleanPreference(this, KEY_TYPO_HYPHENATION.name)

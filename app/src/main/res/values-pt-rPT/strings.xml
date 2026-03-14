@@ -70,6 +70,8 @@
     <string name="action_edit_metadata">Edit metadata</string>
     <string name="action_increase_text_size">Increase Text Size</string>
     <string name="action_decrease_text_size">Decrease Text Size</string>
+    <string name="action_increase_line_spacing">Increase line spacing</string>
+    <string name="action_decrease_line_spacing">Decrease line spacing</string>
     <string name="search_in_article_hint">Find in article</string>
     <string name="search_match_counter">%1$d/%2$d</string>
     <string name="search_next_match">Next match</string>
@@ -150,6 +152,7 @@
     <string name="line_spacing_tight">Compacto</string>
     <string name="line_spacing_loose">Espaçado</string>
     <string name="width_wide">Largo</string>
+    <string name="width_medium">Medium</string>
     <string name="width_narrow">Estreito</string>
     <string name="justify_label">Justificar texto</string>
     <string name="hyphenation_label">Hifenizar palavras</string>
@@ -199,6 +202,18 @@
     <string name="layout">Layout</string>
     <string name="ui_settings_sepia_title">Tema de leitura sépia</string>
     <string name="ui_settings_sepia_description">Usar cores quentes para leitura no modo claro</string>
+    <string name="appearance_paper">Paper</string>
+    <string name="appearance_sepia">Sepia</string>
+    <string name="appearance_dark">Dark</string>
+    <string name="appearance_black">Black</string>
+    <string name="ui_settings_light_appearance_title">When app is light</string>
+    <string name="ui_settings_dark_appearance_title">When app is dark</string>
+    <string name="ui_settings_share_format_title">Share links as</string>
+    <string name="ui_settings_share_format_description">Choose whether shared links include only the URL or the title on a separate line above it</string>
+    <string name="ui_settings_share_format_url_only">URL only</string>
+    <string name="ui_settings_share_format_title_and_url">Title + URL</string>
+    <string name="ui_settings_fullscreen_reading_title">Fullscreen while reading</string>
+    <string name="ui_settings_fullscreen_reading_description">Hides the top bar and system bars while you read</string>
     <string name="ui_settings_keep_screen_on_title">Keep screen on while reading</string>
     <string name="ui_settings_keep_screen_on_description">Prevents the screen from turning off while you read</string>
     <string name="select_bookmark">Select a bookmark to read</string>
@@ -223,6 +238,7 @@
 
     <!-- Image Gallery -->
     <string name="gallery_close">Close</string>
+    <string name="video_fullscreen_rotate">Rotate</string>
     <string name="gallery_open_link">Open link</string>
     <string name="gallery_image_counter">%1$d of %2$d</string>
     <string name="action_view_photograph">View Photograph</string>

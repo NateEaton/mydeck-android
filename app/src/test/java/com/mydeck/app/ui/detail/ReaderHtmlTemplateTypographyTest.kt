@@ -1,0 +1,84 @@
+package com.mydeck.app.ui.detail
+
+import java.nio.file.Files
+import java.nio.file.Path
+import java.nio.charset.StandardCharsets
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
+import org.junit.Test
+
+class ReaderHtmlTemplateTypographyTest {
+
+    @Test
+    fun `reader templates share the updated body text baseline`() {
+        val templates = loadTemplates()
+
+        templates.values.forEach { template ->
+            assertTrue(template.contains("font-size: 1.95rem;"))
+            assertTrue(template.contains("font-size: 1.75rem;"))
+            assertTrue(template.contains("font-size: 1.65rem;"))
+            assertTrue(template.contains("max-width: 100%;"))
+            assertFalse(template.contains("font-size: 1.53rem;"))
+            assertFalse(template.contains("font-size: 1.35rem;"))
+            assertFalse(template.contains("max-width: 38em;"))
+        }
+    }
+
+    @Test
+    fun `reader templates share the moderated heading scale and spacing`() {
+        val templates = loadTemplates()
+
+        templates.values.forEach { template ->
+            assertTrue(
+                Regex("""h1, h2, h3, h4, h5, h6 \{[\s\S]*?font-weight: 600;""")
+                    .containsMatchIn(template)
+            )
+            assertTrue(template.contains("line-height: 1.18;"))
+            assertTrue(template.contains("margin-top: 2.2rem;"))
+            assertTrue(template.contains("margin-bottom: 1.1rem;"))
+            assertTrue(template.contains("font-size: 1.5em;"))
+            assertTrue(template.contains("font-size: 1.32em;"))
+            assertTrue(template.contains("font-size: 1.18em;"))
+            assertTrue(template.contains("font-size: 1.08em;"))
+            assertTrue(template.contains("font-size: 0.94em;"))
+            assertFalse(template.contains("font-size: 2.35em;"))
+            assertFalse(template.contains("font-size: 2em;"))
+            assertFalse(template.contains("font-size: 1.75em;"))
+            assertFalse(template.contains("font-size: 1.25em;"))
+            assertFalse(template.contains("font-weight: 700;"))
+        }
+    }
+
+    @Test
+    fun `sepia template keeps article links subtly underlined`() {
+        val sepiaTemplate = loadTemplates().getValue("html_template_sepia.html")
+
+        assertTrue(sepiaTemplate.contains("text-decoration: underline;"))
+        assertTrue(sepiaTemplate.contains("text-decoration-color: rgba(140, 110, 80, 0.65);"))
+        assertTrue(sepiaTemplate.contains("text-underline-offset: 0.12em;"))
+        assertTrue(sepiaTemplate.contains("text-decoration-thickness: 1px;"))
+        assertFalse(sepiaTemplate.contains("border-bottom: 2px solid #a76d3d;"))
+    }
+
+    private fun loadTemplates(): Map<String, String> = TEMPLATE_FILES.associateWith { fileName ->
+        String(Files.readAllBytes(resolveTemplatePath(fileName)), StandardCharsets.UTF_8)
+    }
+
+    private fun resolveTemplatePath(fileName: String): Path {
+        val candidates = listOf(
+            Path.of("app", "src", "main", "assets", fileName),
+            Path.of("src", "main", "assets", fileName)
+        )
+        return candidates.firstOrNull(Files::exists)
+            ?: error("Unable to locate template asset: $fileName")
+    }
+
+    private companion object {
+        val TEMPLATE_FILES = listOf(
+            "html_template_light.html",
+            "html_template_dark.html",
+            "html_template_sepia.html",
+            "html_template_black.html"
+        )
+    }
+}
