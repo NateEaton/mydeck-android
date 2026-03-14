@@ -7,7 +7,6 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.content.ContextWrapper
 import android.content.Intent
-import android.content.pm.ActivityInfo
 import android.icu.text.MessageFormat
 import android.net.Uri
 import android.widget.Toast
@@ -155,11 +154,17 @@ import com.mydeck.app.ui.detail.components.*
 import timber.log.Timber
 
 private const val PendingDeleteFromDetailKey = "pending_delete_bookmark_id"
+private const val VideoFullscreenControlsAutoHideDelayMs = 3_000L
 
 private enum class DetailOverlay {
     NONE,
     DETAILS,
     METADATA_EDITOR
+}
+
+enum class VideoFullscreenDismissSource {
+    UI,
+    WEB_CHROME
 }
 
 @Composable
@@ -234,22 +239,29 @@ fun BookmarkDetailHost(
     var videoFullscreenView by remember { mutableStateOf<View?>(null) }
     var videoFullscreenCallback by remember { mutableStateOf<WebChromeClient.CustomViewCallback?>(null) }
     val lifecycleOwner = LocalLifecycleOwner.current
+    val currentReaderWebView = readerWebView.value
 
-    fun hideVideoFullscreen(notifyWebChrome: Boolean) {
+    fun clearVideoFullscreenState(restoreReaderVisibility: Boolean = true): WebChromeClient.CustomViewCallback? {
         val callback = videoFullscreenCallback
         val previousView = videoFullscreenView
         (previousView?.parent as? ViewGroup)?.removeView(previousView)
+        if (restoreReaderVisibility) {
+            currentReaderWebView?.visibility = View.VISIBLE
+        }
         videoFullscreenView = null
         videoFullscreenCallback = null
-        if (notifyWebChrome) {
+        return callback
+    }
+
+    fun dismissVideoFullscreen(source: VideoFullscreenDismissSource) {
+        val callback = clearVideoFullscreenState()
+        if (source == VideoFullscreenDismissSource.UI) {
             callback?.onCustomViewHidden()
         }
     }
 
-    // Orientation lock removed in favor of VideoFullscreenOverlay's visual rotation
-
     BackHandler(enabled = videoFullscreenView != null) {
-        hideVideoFullscreen(notifyWebChrome = true)
+        dismissVideoFullscreen(VideoFullscreenDismissSource.UI)
     }
 
     BackHandler(enabled = detailOverlay != DetailOverlay.NONE) {
@@ -511,12 +523,12 @@ fun BookmarkDetailHost(
                     videoFullscreenView = videoFullscreenView,
                     onVideoEnterFullscreen = { view, callback ->
                         if (videoFullscreenView !== view) {
-                            hideVideoFullscreen(notifyWebChrome = false)
+                            clearVideoFullscreenState(restoreReaderVisibility = false)
                             videoFullscreenView = view
                             videoFullscreenCallback = callback
                         }
                     },
-                    onVideoExitFullscreen = { hideVideoFullscreen(notifyWebChrome = true) },
+                    onVideoExitFullscreen = { source -> dismissVideoFullscreen(source) },
                     fullscreenWhileReading = fullscreenWhileReading,
                 )
 
@@ -705,7 +717,7 @@ fun BookmarkDetailScreen(
     onReaderWebViewChanged: (WebView?) -> Unit = {},
     videoFullscreenView: View? = null,
     onVideoEnterFullscreen: (View, WebChromeClient.CustomViewCallback?) -> Unit = { _, _ -> },
-    onVideoExitFullscreen: () -> Unit = {},
+    onVideoExitFullscreen: (VideoFullscreenDismissSource) -> Unit = {},
     fullscreenWhileReading: Boolean = false,
 ) {
     val topBarScrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior()
@@ -909,15 +921,21 @@ internal fun shouldRevealFullscreenTopBarOnScroll(deltaY: Float): Boolean {
 @Composable
 private fun VideoFullscreenOverlay(
     customView: View,
-    onDismiss: () -> Unit,
+    onDismiss: (VideoFullscreenDismissSource) -> Unit,
 ) {
     var isRotated by remember { mutableStateOf(false) }
     var containerSize by remember { mutableStateOf(androidx.compose.ui.unit.IntSize.Zero) }
     var showControls by remember { mutableStateOf(true) }
+    var controlsInteractionNonce by remember { mutableIntStateOf(0) }
 
-    LaunchedEffect(showControls) {
+    fun revealControls() {
+        showControls = true
+        controlsInteractionNonce += 1
+    }
+
+    LaunchedEffect(controlsInteractionNonce, showControls) {
         if (showControls) {
-            kotlinx.coroutines.delay(3000)
+            kotlinx.coroutines.delay(VideoFullscreenControlsAutoHideDelayMs)
             showControls = false
         }
     }
@@ -925,8 +943,9 @@ private fun VideoFullscreenOverlay(
     BackHandler(onBack = {
         if (isRotated) {
             isRotated = false
+            revealControls()
         } else {
-            onDismiss()
+            onDismiss(VideoFullscreenDismissSource.UI)
         }
     })
 
@@ -948,9 +967,8 @@ private fun VideoFullscreenOverlay(
                 awaitPointerEventScope {
                     while (true) {
                         val event = awaitPointerEvent(PointerEventPass.Initial)
-                        if (event.type == PointerEventType.Press || 
-                            event.type == PointerEventType.Move) {
-                            showControls = true
+                        if (event.type == PointerEventType.Press) {
+                            revealControls()
                         }
                     }
                 }
@@ -1006,7 +1024,7 @@ private fun VideoFullscreenOverlay(
         } else {
             Modifier.fillMaxSize()
         }
-        
+
         Box(modifier = controlsModifier) {
             androidx.compose.animation.AnimatedVisibility(
                 visible = showControls,
@@ -1022,23 +1040,26 @@ private fun VideoFullscreenOverlay(
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     IconButton(
-                        onClick = onDismiss,
+                        onClick = { onDismiss(VideoFullscreenDismissSource.UI) },
                         modifier = Modifier.background(Color.Black.copy(alpha = 0.5f), shape = androidx.compose.foundation.shape.CircleShape)
                     ) {
                         Icon(
                             imageVector = Icons.Default.Close,
-                            contentDescription = "Close",
+                            contentDescription = stringResource(R.string.gallery_close),
                             tint = Color.White
                         )
                     }
 
                     IconButton(
-                        onClick = { isRotated = !isRotated },
+                        onClick = {
+                            isRotated = !isRotated
+                            revealControls()
+                        },
                         modifier = Modifier.background(Color.Black.copy(alpha = 0.5f), shape = androidx.compose.foundation.shape.CircleShape)
                     ) {
                         Icon(
                             imageVector = Icons.Default.Refresh,
-                            contentDescription = "Rotate",
+                            contentDescription = stringResource(R.string.video_fullscreen_rotate),
                             tint = Color.White
                         )
                     }
@@ -1098,7 +1119,7 @@ fun BookmarkDetailContent(
     onArticlePositionChanged: (Float) -> Unit = {},
     onReaderWebViewChanged: (WebView?) -> Unit = {},
     onVideoEnterFullscreen: (View, WebChromeClient.CustomViewCallback?) -> Unit = { _, _ -> },
-    onVideoExitFullscreen: () -> Unit = {},
+    onVideoExitFullscreen: (VideoFullscreenDismissSource) -> Unit = {},
     onClickToggleFavorite: (String, Boolean) -> Unit = { _, _ -> },
     onClickToggleArchive: (String, Boolean) -> Unit = { _, _ -> },
     scrollState: ScrollState = rememberScrollState()

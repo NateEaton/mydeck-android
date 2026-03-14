@@ -52,6 +52,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.mydeck.app.R
 import com.mydeck.app.ui.detail.BookmarkDetailViewModel
+import com.mydeck.app.ui.detail.VideoFullscreenDismissSource
 import com.mydeck.app.ui.detail.WebViewSearchBridge
 import com.mydeck.app.ui.detail.WebViewTypographyBridge
 import com.mydeck.app.util.openUrlInCustomTab
@@ -85,7 +86,7 @@ fun BookmarkDetailArticle(
     onTextSelectionCaptured: (SelectionData) -> Unit = {},
     onAnnotationClicked: (String) -> Unit = {},
     onVideoEnterFullscreen: (View, android.webkit.WebChromeClient.CustomViewCallback?) -> Unit = { _, _ -> },
-    onVideoExitFullscreen: () -> Unit = {},
+    onVideoExitFullscreen: (VideoFullscreenDismissSource) -> Unit = {},
 ) {
     val isSystemInDarkMode = isSystemInDarkTheme()
     val content = remember(
@@ -303,7 +304,7 @@ fun BookmarkDetailArticle(
                             override fun onHideCustomView() {
                                 if (isVideo) {
                                     this@apply.visibility = View.VISIBLE
-                                    onVideoExitFullscreen()
+                                    onVideoExitFullscreen(VideoFullscreenDismissSource.WEB_CHROME)
                                 } else {
                                     super.onHideCustomView()
                                 }

@@ -333,6 +333,7 @@
 
     <!-- Image Gallery -->
     <string name="gallery_close">Close</string>
+    <string name="video_fullscreen_rotate">Rotate</string>
     <string name="gallery_open_link">Open link</string>
     <string name="gallery_image_counter">%1$d of %2$d</string>
     <string name="action_view_photograph">View Photograph</string>
