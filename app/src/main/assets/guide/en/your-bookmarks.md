@@ -84,7 +84,7 @@ Long-pressing on a bookmark card opens a context menu dialog. The dialog header 
 
 Tap the **+** button at the bottom-right of the list to open the **Add Link** sheet. Enter the URL of the page you want to save, and optionally a title, labels, and mark it as a favorite (❤️), then tap **Add**.
 
-For labels, use the **Add labels** / **Edit labels** row in the Labels section. This opens a picker where you can select multiple labels (and create a new label from search text). Tap **Done** to apply picker changes, or tap **Back** to cancel picker changes.
+For labels, use the **Add labels** / **Edit labels** row in the Labels section. This opens a picker where you can select multiple labels (and create a new label from search text). When you pick a label from search results, the search clears, and your selected labels stay pinned below the search field while you continue choosing more. Tap **Done** to apply picker changes, or tap **Back** to cancel picker changes.
 
 - **Add** — saves the bookmark and closes the sheet
 - **View** — saves the bookmark and immediately opens it to read
