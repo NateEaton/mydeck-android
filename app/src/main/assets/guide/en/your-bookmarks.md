@@ -15,6 +15,7 @@ Tap the **menu icon** (☰) in the top-left corner to open the navigation drawer
 - **Labels** — browse bookmarks by label; tap a label to see all bookmarks with that label
 
 Each item shows a count of how many bookmarks it contains.
+Tap outside the drawer or swipe it closed to dismiss it without changing sections.
 
 ## Bookmark Cards
 
