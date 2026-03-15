@@ -53,6 +53,7 @@ Tap **TT** in the top bar to open the reading settings sheet.
 - **Text** tab — contains the controls for Font, Font size, and Spacing
 - **Layout** tab — contains the controls for Width, Justify text, and Hyphenate words
 - **Theme** tab — contains the controls for Paper, Sepia, Dark, and Black reading themes
+- The settings sheet automatically sizes itself to the tallest tab that fits on screen, so it stays compact on larger devices and only scrolls when a tab truly needs the extra space
 - **Font** — scroll the font row to choose from: System Default, Noto Serif, Literata, Source Serif, Noto Sans, or JetBrains Mono
 - **Font size** — tap **−** or **+** to adjust in 5% steps (from 80% to 170%, shown as a percentage of the default)
 - **Spacing** — tap **−** or **+** to adjust in 5% steps (from 80% to 125%, shown as a percentage of the default)

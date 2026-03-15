@@ -47,12 +47,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.SubcomposeLayout
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.Dp
 import com.mydeck.app.R
@@ -69,6 +71,19 @@ private enum class ReaderSettingsTab(@StringRes val titleRes: Int) {
     LAYOUT(R.string.layout),
     THEME(R.string.typography_tab_theme),
 }
+
+private enum class ReaderSettingsSheetSlot {
+    HEADER,
+    FOOTER,
+    ACTIVE_BODY,
+}
+
+private data class ReaderSettingsSheetMeasureSlot(val tab: ReaderSettingsTab)
+
+private val ReaderSettingsSectionSpacing = 16.dp
+private val ReaderSettingsSheetHorizontalPadding = 24.dp
+private val ReaderSettingsSheetBottomPadding = 40.dp
+private const val ReaderSettingsMaxHeightFraction = 0.85f
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -89,7 +104,7 @@ fun ReaderSettingsBottomSheet(
     val isSystemDark = isSystemInDarkTheme()
     val activeAppearance = appearanceSelection.effectiveAppearance(isSystemDark)
     val screenHeight = LocalConfiguration.current.screenHeightDp.dp
-    val sheetContentHeight = screenHeight * 0.5f
+    val maxSheetHeight = screenHeight * ReaderSettingsMaxHeightFraction
     val defaultSettings = remember { TypographySettings() }
     val sectionLabelStyle = MaterialTheme.typography.titleMedium
     val sectionLabelColor = MaterialTheme.colorScheme.onSurfaceVariant
@@ -146,383 +161,549 @@ fun ReaderSettingsBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(sheetContentHeight)
-                .padding(horizontal = 24.dp)
-                .padding(bottom = 40.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ReaderSettingsSheetContent(
+            selectedTab = selectedTab,
+            onTabSelected = { selectedTab = it },
+            resetLabelRes = resetLabelRes,
+            onReset = ::resetCurrentTab,
+            maxSheetHeight = maxSheetHeight,
+            settings = settings,
+            onSettingsChanged = ::update,
+            appearanceSelection = appearanceSelection,
+            activeAppearance = activeAppearance,
+            onAppearanceSelectionChanged = ::updateAppearanceSelection,
+            isSystemDark = isSystemDark,
+            sectionLabelColor = sectionLabelColor,
+            sectionLabelStyle = sectionLabelStyle,
+            widthOptions = widthOptions,
+        )
+    }
+}
+
+@Composable
+private fun ReaderSettingsSheetContent(
+    selectedTab: ReaderSettingsTab,
+    onTabSelected: (ReaderSettingsTab) -> Unit,
+    @StringRes resetLabelRes: Int,
+    onReset: () -> Unit,
+    maxSheetHeight: Dp,
+    settings: TypographySettings,
+    onSettingsChanged: (TypographySettings) -> Unit,
+    appearanceSelection: ReaderAppearanceSelection,
+    activeAppearance: EffectiveAppearance,
+    onAppearanceSelectionChanged: (ReaderAppearanceSelection) -> Unit,
+    isSystemDark: Boolean,
+    sectionLabelStyle: androidx.compose.ui.text.TextStyle,
+    sectionLabelColor: Color,
+    widthOptions: List<TextWidth>,
+) {
+    val sectionSpacingPx = with(androidx.compose.ui.platform.LocalDensity.current) {
+        ReaderSettingsSectionSpacing.roundToPx()
+    }
+    val maxSheetHeightPx = with(androidx.compose.ui.platform.LocalDensity.current) {
+        maxSheetHeight.roundToPx()
+    }
+
+    SubcomposeLayout(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = ReaderSettingsSheetHorizontalPadding)
+            .padding(bottom = ReaderSettingsSheetBottomPadding)
+    ) { constraints ->
+        val fullWidthConstraints = constraints.copy(
+            minWidth = constraints.maxWidth,
+            maxWidth = constraints.maxWidth,
+            minHeight = 0,
+        )
+
+        val headerPlaceables = subcompose(ReaderSettingsSheetSlot.HEADER) {
+            ReaderSettingsTabSwitcher(
+                selectedTab = selectedTab,
+                onTabSelected = onTabSelected,
+            )
+        }.map { it.measure(fullWidthConstraints) }
+        val headerHeight = headerPlaceables.maxOfOrNull { it.height } ?: 0
+
+        val footerPlaceables = subcompose(ReaderSettingsSheetSlot.FOOTER) {
+            ReaderSettingsSheetFooter(
+                resetLabelRes = resetLabelRes,
+                onReset = onReset,
+            )
+        }.map { it.measure(fullWidthConstraints) }
+        val footerHeight = footerPlaceables.maxOfOrNull { it.height } ?: 0
+
+        val naturalBodyHeights = ReaderSettingsTab.entries.associateWith { tab ->
+            subcompose(ReaderSettingsSheetMeasureSlot(tab)) {
+                ReaderSettingsTabBody(
+                    tab = tab,
+                    settings = settings,
+                    onSettingsChanged = onSettingsChanged,
+                    appearanceSelection = appearanceSelection,
+                    activeAppearance = activeAppearance,
+                    onAppearanceSelectionChanged = onAppearanceSelectionChanged,
+                    isSystemDark = isSystemDark,
+                    sectionLabelStyle = sectionLabelStyle,
+                    sectionLabelColor = sectionLabelColor,
+                    widthOptions = widthOptions,
+                    scrollable = false,
+                )
+            }.map { measurable ->
+                measurable.measure(
+                    fullWidthConstraints.copy(maxHeight = Constraints.Infinity)
+                )
+            }.maxOfOrNull { it.height } ?: 0
+        }
+
+        val tallestBodyHeight = naturalBodyHeights.values.maxOrNull() ?: 0
+        val chromeHeight = headerHeight + footerHeight + (sectionSpacingPx * 2)
+        val maxBodyHeight = (maxSheetHeightPx - chromeHeight).coerceAtLeast(0)
+        val bodyViewportHeight = tallestBodyHeight.coerceAtMost(maxBodyHeight)
+
+        val bodyPlaceables = subcompose(ReaderSettingsSheetSlot.ACTIVE_BODY) {
+            ReaderSettingsTabBody(
+                tab = selectedTab,
+                settings = settings,
+                onSettingsChanged = onSettingsChanged,
+                appearanceSelection = appearanceSelection,
+                activeAppearance = activeAppearance,
+                onAppearanceSelectionChanged = onAppearanceSelectionChanged,
+                isSystemDark = isSystemDark,
+                sectionLabelStyle = sectionLabelStyle,
+                sectionLabelColor = sectionLabelColor,
+                widthOptions = widthOptions,
+                scrollable = true,
+            )
+        }.map { measurable ->
+            measurable.measure(
+                fullWidthConstraints.copy(
+                    minHeight = bodyViewportHeight,
+                    maxHeight = bodyViewportHeight,
+                )
+            )
+        }
+
+        val layoutHeight = headerHeight + bodyViewportHeight + footerHeight + (sectionSpacingPx * 2)
+
+        layout(width = constraints.maxWidth, height = layoutHeight) {
+            var yPosition = 0
+            headerPlaceables.forEach { placeable ->
+                placeable.placeRelative(x = 0, y = yPosition)
+            }
+            yPosition += headerHeight + sectionSpacingPx
+
+            bodyPlaceables.forEach { placeable ->
+                placeable.placeRelative(x = 0, y = yPosition)
+            }
+            yPosition += bodyViewportHeight + sectionSpacingPx
+
+            footerPlaceables.forEach { placeable ->
+                placeable.placeRelative(x = 0, y = yPosition)
+            }
+        }
+    }
+}
+
+@Composable
+private fun ReaderSettingsTabSwitcher(
+    selectedTab: ReaderSettingsTab,
+    onTabSelected: (ReaderSettingsTab) -> Unit,
+) {
+    SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+        ReaderSettingsTab.entries.forEachIndexed { index, tab ->
+            val isSelected = selectedTab == tab
+            SegmentedButton(
+                selected = isSelected,
+                onClick = { onTabSelected(tab) },
+                modifier = Modifier.weight(1f),
+                icon = { SegmentedButtonDefaults.Icon(active = isSelected) },
+                shape = SegmentedButtonDefaults.itemShape(
+                    index = index,
+                    count = ReaderSettingsTab.entries.size
+                )
+            ) {
+                Text(text = stringResource(tab.titleRes))
+            }
+        }
+    }
+}
+
+@Composable
+private fun ReaderSettingsSheetFooter(
+    @StringRes resetLabelRes: Int,
+    onReset: () -> Unit,
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(40.dp),
+        contentAlignment = Alignment.CenterEnd
+    ) {
+        TextButton(
+            onClick = onReset,
+            colors = ButtonDefaults.textButtonColors(
+                contentColor = MaterialTheme.colorScheme.tertiary
+            )
         ) {
-            SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                ReaderSettingsTab.entries.forEachIndexed { index, tab ->
-                    val isSelected = selectedTab == tab
-                    SegmentedButton(
-                        selected = isSelected,
-                        onClick = { selectedTab = tab },
-                        modifier = Modifier.weight(1f),
-                        icon = { SegmentedButtonDefaults.Icon(active = isSelected) },
-                        shape = SegmentedButtonDefaults.itemShape(
-                            index = index,
-                            count = ReaderSettingsTab.entries.size
-                        )
-                    ) {
-                        Text(text = stringResource(tab.titleRes))
-                    }
-                }
-            }
+            Icon(
+                imageVector = Icons.Outlined.RestartAlt,
+                contentDescription = null
+            )
+            Spacer(Modifier.width(8.dp))
+            Text(text = stringResource(resetLabelRes))
+        }
+    }
+}
 
-            Box(
+@Composable
+private fun ReaderSettingsTabBody(
+    tab: ReaderSettingsTab,
+    settings: TypographySettings,
+    onSettingsChanged: (TypographySettings) -> Unit,
+    appearanceSelection: ReaderAppearanceSelection,
+    activeAppearance: EffectiveAppearance,
+    onAppearanceSelectionChanged: (ReaderAppearanceSelection) -> Unit,
+    isSystemDark: Boolean,
+    sectionLabelStyle: androidx.compose.ui.text.TextStyle,
+    sectionLabelColor: Color,
+    widthOptions: List<TextWidth>,
+    scrollable: Boolean,
+) {
+    val scrollModifier = if (scrollable) {
+        Modifier.verticalScroll(rememberScrollState())
+    } else {
+        Modifier
+    }
+
+    when (tab) {
+        ReaderSettingsTab.TEXT -> {
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .weight(1f, fill = true),
+                    .then(scrollModifier),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                when (selectedTab) {
-                    ReaderSettingsTab.TEXT -> {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .verticalScroll(rememberScrollState()),
-                            verticalArrangement = Arrangement.spacedBy(16.dp)
-                        ) {
-                            Column(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalArrangement = Arrangement.spacedBy(12.dp)
-                            ) {
-                                Text(
-                                    text = stringResource(R.string.typography_section_font),
-                                    style = sectionLabelStyle,
-                                    color = sectionLabelColor,
-                                )
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .horizontalScroll(rememberScrollState()),
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                ) {
-                                    ReaderFontFamily.entries.forEach { font ->
-                                        val isSelected = font == settings.fontFamily
-                                        FilterChip(
-                                            selected = isSelected,
-                                            onClick = { update(settings.copy(fontFamily = font)) },
-                                            leadingIcon = if (isSelected) {
-                                                {
-                                                    Icon(
-                                                        imageVector = Icons.Filled.Check,
-                                                        contentDescription = null,
-                                                        modifier = Modifier.size(18.dp)
-                                                    )
-                                                }
-                                            } else {
-                                                null
-                                            },
-                                            label = {
-                                                Text(
-                                                    text = getFontDisplayName(font),
-                                                    fontFamily = TypographyUtils.getFontFamily(font),
-                                                )
-                                            }
-                                        )
-                                    }
-                                }
-                            }
-
-                            // Font Size — label with +/- buttons
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    text = stringResource(R.string.typography_section_size),
-                                    style = sectionLabelStyle,
-                                    color = sectionLabelColor
-                                )
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                                ) {
-                                    IconButton(
-                                        onClick = {
-                                            val newSize = (
-                                                settings.fontSizePercent - TypographySettings.FONT_SIZE_STEP
-                                            ).coerceAtLeast(TypographySettings.MIN_FONT_SIZE)
-                                            update(settings.copy(fontSizePercent = newSize))
-                                        },
-                                        enabled = settings.fontSizePercent > TypographySettings.MIN_FONT_SIZE,
-                                        modifier = Modifier.size(36.dp)
-                                    ) {
-                                        Icon(
-                                            Icons.Outlined.Remove,
-                                            contentDescription = stringResource(R.string.action_decrease_text_size)
-                                        )
-                                    }
-                                    Text(
-                                        text = "${settings.fontSizePercent}%",
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.onSurface
-                                    )
-                                    IconButton(
-                                        onClick = {
-                                            val newSize = (
-                                                settings.fontSizePercent + TypographySettings.FONT_SIZE_STEP
-                                            ).coerceAtMost(TypographySettings.MAX_FONT_SIZE)
-                                            update(settings.copy(fontSizePercent = newSize))
-                                        },
-                                        enabled = settings.fontSizePercent < TypographySettings.MAX_FONT_SIZE,
-                                        modifier = Modifier.size(36.dp)
-                                    ) {
-                                        Icon(
-                                            Icons.Outlined.Add,
-                                            contentDescription = stringResource(R.string.action_increase_text_size)
-                                        )
-                                    }
-                                }
-                            }
-
-                            // Line Spacing — label with +/- buttons
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    text = stringResource(R.string.typography_section_line_spacing),
-                                    style = sectionLabelStyle,
-                                    color = sectionLabelColor
-                                )
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                                ) {
-                                    IconButton(
-                                        onClick = {
-                                            val newSpacing = (
-                                                settings.lineSpacingPercent - TypographySettings.LINE_SPACING_STEP
-                                            ).coerceAtLeast(TypographySettings.MIN_LINE_SPACING_PERCENT)
-                                            update(settings.copy(lineSpacingPercent = newSpacing))
-                                        },
-                                        enabled = settings.lineSpacingPercent > TypographySettings.MIN_LINE_SPACING_PERCENT,
-                                        modifier = Modifier.size(36.dp)
-                                    ) {
-                                        Icon(
-                                            Icons.Outlined.Remove,
-                                            contentDescription = stringResource(R.string.action_decrease_line_spacing)
-                                        )
-                                    }
-                                    Text(
-                                        text = "${settings.lineSpacingPercent}%",
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.onSurface
-                                    )
-                                    IconButton(
-                                        onClick = {
-                                            val newSpacing = (
-                                                settings.lineSpacingPercent + TypographySettings.LINE_SPACING_STEP
-                                            ).coerceAtMost(TypographySettings.MAX_LINE_SPACING_PERCENT)
-                                            update(settings.copy(lineSpacingPercent = newSpacing))
-                                        },
-                                        enabled = settings.lineSpacingPercent < TypographySettings.MAX_LINE_SPACING_PERCENT,
-                                        modifier = Modifier.size(36.dp)
-                                    ) {
-                                        Icon(
-                                            Icons.Outlined.Add,
-                                            contentDescription = stringResource(R.string.action_increase_line_spacing)
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    ReaderSettingsTab.LAYOUT -> {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .verticalScroll(rememberScrollState()),
-                            verticalArrangement = Arrangement.spacedBy(20.dp)
-                        ) {
-                            Column(
-                                verticalArrangement = Arrangement.spacedBy(12.dp)
-                            ) {
-                                Column(
-                                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                                ) {
-                                    Text(
-                                        text = stringResource(R.string.typography_section_width),
-                                        style = sectionLabelStyle,
-                                        color = sectionLabelColor
-                                    )
-                                    SingleChoiceSegmentedButtonRow(
-                                        modifier = Modifier.fillMaxWidth()
-                                    ) {
-                                    widthOptions.forEachIndexed { index, width ->
-                                        val widthContentDescription = getWidthContentDescription(width)
-                                        val isSelected = width == settings.textWidth
-                                        SegmentedButton(
-                                            selected = isSelected,
-                                            onClick = { update(settings.copy(textWidth = width)) },
-                                            modifier = Modifier.semantics {
-                                                contentDescription = widthContentDescription
-                                            }.weight(1f),
-                                            icon = { SegmentedButtonDefaults.Icon(active = isSelected) },
-                                            shape = SegmentedButtonDefaults.itemShape(
-                                                index = index,
-                                                count = widthOptions.size
-                                            )
-                                        ) {
-                                            Row(
-                                                verticalAlignment = Alignment.CenterVertically,
-                                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                            ) {
-                                                WidthOptionIcon(width = width)
-                                                Text(text = width.pillLabel)
-                                            }
-                                        }
-                                    }
-                                }
-                                }
-                            }
-
-                            Column(
-                                verticalArrangement = Arrangement.spacedBy(12.dp)
-                            ) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Text(
-                                        text = stringResource(R.string.justify_label),
-                                        style = MaterialTheme.typography.bodyLarge,
-                                        color = MaterialTheme.colorScheme.onSurface
-                                    )
-                                    Switch(
-                                        checked = settings.justified,
-                                        onCheckedChange = { update(settings.copy(justified = it)) }
-                                    )
-                                }
-
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Text(
-                                        text = stringResource(R.string.hyphenation_label),
-                                        style = MaterialTheme.typography.bodyLarge,
-                                        color = MaterialTheme.colorScheme.onSurface
-                                    )
-                                    Switch(
-                                        checked = settings.hyphenation,
-                                        onCheckedChange = { update(settings.copy(hyphenation = it)) }
-                                    )
-                                }
-                            }
-                        }
-                    }
-
-                    ReaderSettingsTab.THEME -> {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .verticalScroll(rememberScrollState()),
-                            verticalArrangement = Arrangement.spacedBy(20.dp)
-                        ) {
-                            Column(
-                                verticalArrangement = Arrangement.spacedBy(12.dp)
-                            ) {
-                                Text(
-                                    text = stringResource(R.string.typography_section_reading_theme),
-                                    style = sectionLabelStyle,
-                                    color = sectionLabelColor
-                                )
-
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                ) {
-                                    ThemeOptionCard(
-                                        appearance = EffectiveAppearance.PAPER,
-                                        selectedAppearance = activeAppearance,
-                                        onClick = {
-                                            updateAppearanceSelection(
-                                                selectReaderAppearance(
-                                                    selectedAppearance = EffectiveAppearance.PAPER,
-                                                    currentSelection = appearanceSelection,
-                                                    isSystemDark = isSystemDark
-                                                )
-                                            )
-                                        },
-                                        modifier = Modifier.weight(1f)
-                                    )
-                                    ThemeOptionCard(
-                                        appearance = EffectiveAppearance.SEPIA,
-                                        selectedAppearance = activeAppearance,
-                                        onClick = {
-                                            updateAppearanceSelection(
-                                                selectReaderAppearance(
-                                                    selectedAppearance = EffectiveAppearance.SEPIA,
-                                                    currentSelection = appearanceSelection,
-                                                    isSystemDark = isSystemDark
-                                                )
-                                            )
-                                        },
-                                        modifier = Modifier.weight(1f)
-                                    )
-                                    ThemeOptionCard(
-                                        appearance = EffectiveAppearance.DARK,
-                                        selectedAppearance = activeAppearance,
-                                        onClick = {
-                                            updateAppearanceSelection(
-                                                selectReaderAppearance(
-                                                    selectedAppearance = EffectiveAppearance.DARK,
-                                                    currentSelection = appearanceSelection,
-                                                    isSystemDark = isSystemDark
-                                                )
-                                            )
-                                        },
-                                        modifier = Modifier.weight(1f)
-                                    )
-                                    ThemeOptionCard(
-                                        appearance = EffectiveAppearance.BLACK,
-                                        selectedAppearance = activeAppearance,
-                                        onClick = {
-                                            updateAppearanceSelection(
-                                                selectReaderAppearance(
-                                                    selectedAppearance = EffectiveAppearance.BLACK,
-                                                    currentSelection = appearanceSelection,
-                                                    isSystemDark = isSystemDark
-                                                )
-                                            )
-                                        },
-                                        modifier = Modifier.weight(1f)
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(40.dp),
-                contentAlignment = Alignment.CenterEnd
-            ) {
-                TextButton(
-                    onClick = { resetCurrentTab() },
-                    colors = ButtonDefaults.textButtonColors(
-                        contentColor = MaterialTheme.colorScheme.tertiary
-                    )
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Icon(
-                        imageVector = Icons.Outlined.RestartAlt,
-                        contentDescription = null
+                    Text(
+                        text = stringResource(R.string.typography_section_font),
+                        style = sectionLabelStyle,
+                        color = sectionLabelColor,
                     )
-                    Spacer(Modifier.width(8.dp))
-                    Text(text = stringResource(resetLabelRes))
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        ReaderFontFamily.entries.forEach { font ->
+                            val isSelected = font == settings.fontFamily
+                            FilterChip(
+                                selected = isSelected,
+                                onClick = {
+                                    onSettingsChanged(settings.copy(fontFamily = font))
+                                },
+                                leadingIcon = if (isSelected) {
+                                    {
+                                        Icon(
+                                            imageVector = Icons.Filled.Check,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    }
+                                } else {
+                                    null
+                                },
+                                label = {
+                                    Text(
+                                        text = getFontDisplayName(font),
+                                        fontFamily = TypographyUtils.getFontFamily(font),
+                                    )
+                                }
+                            )
+                        }
+                    }
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = stringResource(R.string.typography_section_size),
+                        style = sectionLabelStyle,
+                        color = sectionLabelColor
+                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        IconButton(
+                            onClick = {
+                                val newSize = (
+                                    settings.fontSizePercent - TypographySettings.FONT_SIZE_STEP
+                                ).coerceAtLeast(TypographySettings.MIN_FONT_SIZE)
+                                onSettingsChanged(settings.copy(fontSizePercent = newSize))
+                            },
+                            enabled = settings.fontSizePercent > TypographySettings.MIN_FONT_SIZE,
+                            modifier = Modifier.size(36.dp)
+                        ) {
+                            Icon(
+                                Icons.Outlined.Remove,
+                                contentDescription = stringResource(R.string.action_decrease_text_size)
+                            )
+                        }
+                        Text(
+                            text = "${settings.fontSizePercent}%",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        IconButton(
+                            onClick = {
+                                val newSize = (
+                                    settings.fontSizePercent + TypographySettings.FONT_SIZE_STEP
+                                ).coerceAtMost(TypographySettings.MAX_FONT_SIZE)
+                                onSettingsChanged(settings.copy(fontSizePercent = newSize))
+                            },
+                            enabled = settings.fontSizePercent < TypographySettings.MAX_FONT_SIZE,
+                            modifier = Modifier.size(36.dp)
+                        ) {
+                            Icon(
+                                Icons.Outlined.Add,
+                                contentDescription = stringResource(R.string.action_increase_text_size)
+                            )
+                        }
+                    }
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = stringResource(R.string.typography_section_line_spacing),
+                        style = sectionLabelStyle,
+                        color = sectionLabelColor
+                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        IconButton(
+                            onClick = {
+                                val newSpacing = (
+                                    settings.lineSpacingPercent - TypographySettings.LINE_SPACING_STEP
+                                ).coerceAtLeast(TypographySettings.MIN_LINE_SPACING_PERCENT)
+                                onSettingsChanged(settings.copy(lineSpacingPercent = newSpacing))
+                            },
+                            enabled = settings.lineSpacingPercent > TypographySettings.MIN_LINE_SPACING_PERCENT,
+                            modifier = Modifier.size(36.dp)
+                        ) {
+                            Icon(
+                                Icons.Outlined.Remove,
+                                contentDescription = stringResource(R.string.action_decrease_line_spacing)
+                            )
+                        }
+                        Text(
+                            text = "${settings.lineSpacingPercent}%",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        IconButton(
+                            onClick = {
+                                val newSpacing = (
+                                    settings.lineSpacingPercent + TypographySettings.LINE_SPACING_STEP
+                                ).coerceAtMost(TypographySettings.MAX_LINE_SPACING_PERCENT)
+                                onSettingsChanged(settings.copy(lineSpacingPercent = newSpacing))
+                            },
+                            enabled = settings.lineSpacingPercent < TypographySettings.MAX_LINE_SPACING_PERCENT,
+                            modifier = Modifier.size(36.dp)
+                        ) {
+                            Icon(
+                                Icons.Outlined.Add,
+                                contentDescription = stringResource(R.string.action_increase_line_spacing)
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        ReaderSettingsTab.LAYOUT -> {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .then(scrollModifier),
+                verticalArrangement = Arrangement.spacedBy(20.dp)
+            ) {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Text(
+                            text = stringResource(R.string.typography_section_width),
+                            style = sectionLabelStyle,
+                            color = sectionLabelColor
+                        )
+                        SingleChoiceSegmentedButtonRow(
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            widthOptions.forEachIndexed { index, width ->
+                                val widthContentDescription = getWidthContentDescription(width)
+                                val isSelected = width == settings.textWidth
+                                SegmentedButton(
+                                    selected = isSelected,
+                                    onClick = {
+                                        onSettingsChanged(settings.copy(textWidth = width))
+                                    },
+                                    modifier = Modifier
+                                        .semantics {
+                                            contentDescription = widthContentDescription
+                                        }
+                                        .weight(1f),
+                                    icon = { SegmentedButtonDefaults.Icon(active = isSelected) },
+                                    shape = SegmentedButtonDefaults.itemShape(
+                                        index = index,
+                                        count = widthOptions.size
+                                    )
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        WidthOptionIcon(width = width)
+                                        Text(text = width.pillLabel)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = stringResource(R.string.justify_label),
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Switch(
+                            checked = settings.justified,
+                            onCheckedChange = {
+                                onSettingsChanged(settings.copy(justified = it))
+                            }
+                        )
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = stringResource(R.string.hyphenation_label),
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Switch(
+                            checked = settings.hyphenation,
+                            onCheckedChange = {
+                                onSettingsChanged(settings.copy(hyphenation = it))
+                            }
+                        )
+                    }
+                }
+            }
+        }
+
+        ReaderSettingsTab.THEME -> {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .then(scrollModifier),
+                verticalArrangement = Arrangement.spacedBy(20.dp)
+            ) {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Text(
+                        text = stringResource(R.string.typography_section_reading_theme),
+                        style = sectionLabelStyle,
+                        color = sectionLabelColor
+                    )
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        ThemeOptionCard(
+                            appearance = EffectiveAppearance.PAPER,
+                            selectedAppearance = activeAppearance,
+                            onClick = {
+                                onAppearanceSelectionChanged(
+                                    selectReaderAppearance(
+                                        selectedAppearance = EffectiveAppearance.PAPER,
+                                        currentSelection = appearanceSelection,
+                                        isSystemDark = isSystemDark
+                                    )
+                                )
+                            },
+                            modifier = Modifier.weight(1f)
+                        )
+                        ThemeOptionCard(
+                            appearance = EffectiveAppearance.SEPIA,
+                            selectedAppearance = activeAppearance,
+                            onClick = {
+                                onAppearanceSelectionChanged(
+                                    selectReaderAppearance(
+                                        selectedAppearance = EffectiveAppearance.SEPIA,
+                                        currentSelection = appearanceSelection,
+                                        isSystemDark = isSystemDark
+                                    )
+                                )
+                            },
+                            modifier = Modifier.weight(1f)
+                        )
+                        ThemeOptionCard(
+                            appearance = EffectiveAppearance.DARK,
+                            selectedAppearance = activeAppearance,
+                            onClick = {
+                                onAppearanceSelectionChanged(
+                                    selectReaderAppearance(
+                                        selectedAppearance = EffectiveAppearance.DARK,
+                                        currentSelection = appearanceSelection,
+                                        isSystemDark = isSystemDark
+                                    )
+                                )
+                            },
+                            modifier = Modifier.weight(1f)
+                        )
+                        ThemeOptionCard(
+                            appearance = EffectiveAppearance.BLACK,
+                            selectedAppearance = activeAppearance,
+                            onClick = {
+                                onAppearanceSelectionChanged(
+                                    selectReaderAppearance(
+                                        selectedAppearance = EffectiveAppearance.BLACK,
+                                        currentSelection = appearanceSelection,
+                                        isSystemDark = isSystemDark
+                                    )
+                                )
+                            },
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
                 }
             }
         }
