@@ -120,38 +120,45 @@ transient mis-rendering.
 
 ---
 
-## 4. Video Fullscreen Not Working for YouTube/Vimeo Embeds
+## 4. Embedded Videos Stripped from Article Bookmarks
 
 ### Problem
 
-The custom fullscreen button (rotate icon at top-right) only appears for
-bookmarks typed as VIDEO. YouTube and Vimeo links saved as articles with
-embedded video don't get this treatment — they render inline with no working
-fullscreen.
+When a web page is classified as ARTICLE by Readeck but contains an embedded
+video player (e.g. a YouTube iframe within an fstoppers.com article), the
+embedded video is **removed entirely during server-side extraction**. The
+`articleHtml` returned by the Readeck API contains only the text content; the
+iframe/embed is stripped out by the sanitizer.
+
+This means the app never receives the video content for article-type bookmarks
+— it's a server-side limitation, not a client-side rendering issue.
 
 ### Root Cause
 
-* `BookmarkDetailWebViews.kt:307-311` — `settings.javaScriptEnabled` and
-  `settings.domStorageEnabled` are set based on `bookmark.type == VIDEO`.
-* The `onShowCustomView` / `onHideCustomView` callbacks that drive fullscreen
-  are gated on `isVideo` (line 342).
-* Content type is determined by Readeck server-side extraction, not by the
-  app. An article page that happens to contain an embedded YouTube iframe is
-  classified as ARTICLE, not VIDEO.
+Readeck's article extraction pipeline strips `<iframe>` and `<embed>` tags
+during HTML sanitization for ARTICLE-typed bookmarks. Only VIDEO-typed
+bookmarks preserve the embed HTML (in the separate `embed` JSON field).
 
-### Proposed Fix
+### Options
 
-1. Detect embedded iframes in article content at render time (the HTML is
-   available in `articleContent`).
-2. When an article contains `<iframe` tags with video-hosting domains
-   (youtube.com, vimeo.com, dailymotion.com, etc.), enable `domStorageEnabled`
-   and register the fullscreen callbacks even for ARTICLE type.
-3. This is a targeted enhancement — it doesn't reclassify the bookmark, just
-   enables the video player affordances when video embeds are detected.
+1. **Accept as limitation** — Document that embedded videos in articles are
+   excluded by Readeck's extraction. Users can open the original URL in a
+   browser to view the video. This is the current Readeck web UI behavior too.
+2. **Client-side enrichment (future)** — Detect known video URLs (YouTube,
+   Vimeo, etc.) in the original page's metadata or OG tags (if available via
+   the API) and inject a video embed into the rendered article. This would
+   require additional API data that may not be currently exposed.
+3. **Server-side change (upstream)** — Request that Readeck preserve video
+   embeds in article content, possibly behind a configuration flag.
+
+### Recommendation
+
+Option 1 for now. This is a known Readeck behavior and not something the app
+can fix unilaterally. Revisit if/when Readeck exposes additional metadata.
 
 ### Files
 
-* `app/src/main/java/com/mydeck/app/ui/detail/components/BookmarkDetailWebViews.kt`
+* No app changes required for Option 1.
 
 ---
 
@@ -263,7 +270,7 @@ With this approach:
 | 2 | Text size shifts with margins | Bug — visual | Low |
 | 3 | Layout glitch (issue #11) | Bug — visual | Low (if #2 fixes it) |
 | 5 | Narrower minimum margin | Enhancement | Trivial |
-| 4 | Video fullscreen for articles | Enhancement | Medium |
+| 4 | Embedded videos in articles | Server-side limitation | N/A (accept) |
 | 6 | Theme switch reflow | Enhancement | Medium-High |
 
 Items 2, 3, and 5 are quick wins. Item 1 is the most impactful bug.
