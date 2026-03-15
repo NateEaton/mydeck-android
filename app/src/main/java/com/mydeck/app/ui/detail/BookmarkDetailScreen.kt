@@ -624,8 +624,12 @@ fun BookmarkDetailHost(
             if (showTypographyPanel) {
                 ReaderSettingsBottomSheet(
                     currentSettings = uiState.typographySettings,
+                    currentAppearanceSelection = uiState.readerAppearanceSelection,
                     onSettingsChanged = { settings ->
                         viewModel.onTypographySettingsChanged(settings)
+                    },
+                    onThemeSelectionChanged = { selection ->
+                        viewModel.onReaderThemeSelectionChanged(selection)
                     },
                     onDismiss = { showTypographyPanel = false }
                 )
@@ -1623,7 +1627,12 @@ fun BookmarkDetailScreenPreview() {
                 bookmark = sampleBookmark,
                 updateBookmarkState = null,
                 template = Template.SimpleTemplate("template"),
-                typographySettings = com.mydeck.app.domain.model.TypographySettings()
+                typographySettings = com.mydeck.app.domain.model.TypographySettings(),
+                readerAppearanceSelection = com.mydeck.app.domain.model.ReaderAppearanceSelection(
+                    themeMode = com.mydeck.app.domain.model.Theme.SYSTEM,
+                    lightAppearance = com.mydeck.app.domain.model.LightAppearance.PAPER,
+                    darkAppearance = com.mydeck.app.domain.model.DarkAppearance.DARK
+                )
             ),
             onClickToggleFavorite = { _, _ -> },
             onClickToggleArchive = { _, _ -> },
@@ -1645,7 +1654,12 @@ private fun BookmarkDetailContentPreview() {
                 bookmark = sampleBookmark,
                 updateBookmarkState = null,
                 template = Template.SimpleTemplate("template"),
-                typographySettings = com.mydeck.app.domain.model.TypographySettings()
+                typographySettings = com.mydeck.app.domain.model.TypographySettings(),
+                readerAppearanceSelection = com.mydeck.app.domain.model.ReaderAppearanceSelection(
+                    themeMode = com.mydeck.app.domain.model.Theme.SYSTEM,
+                    lightAppearance = com.mydeck.app.domain.model.LightAppearance.PAPER,
+                    darkAppearance = com.mydeck.app.domain.model.DarkAppearance.DARK
+                )
             ),
             onClickOpenUrl = {},
             onClickToggleFavorite = { _, _ -> },

@@ -144,11 +144,16 @@
 
     <!-- Reader Typography Panel -->
     <string name="action_typography_settings">Formatowanie tekstu</string>
+    <string name="typography_tab_text">Text</string>
+    <string name="typography_tab_theme">Theme</string>
     <string name="typography_section_font">Czcionka</string>
     <string name="typography_section_size">Rozmiar czcionki</string>
     <string name="typography_section_line_spacing">Interlinia</string>
     <string name="typography_section_width">Szerokość</string>
-    <string name="typography_reset">Przywróć ustawienia domyślne</string>
+    <string name="typography_section_reading_theme">Reading theme</string>
+    <string name="typography_reset_text">Reset text</string>
+    <string name="typography_reset_layout">Reset layout</string>
+    <string name="typography_reset_theme">Reset theme</string>
     <string name="line_spacing_tight">Zwarta</string>
     <string name="line_spacing_loose">Luźna</string>
     <string name="width_wide">Szeroki</string>

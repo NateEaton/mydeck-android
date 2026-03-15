@@ -50,13 +50,18 @@ The screen stays on while you read, so you won't lose your place to the device's
 
 Tap **TT** in the top bar to open the reading settings sheet.
 
+- **Text** tab — contains the controls for Font, Font size, and Spacing
+- **Layout** tab — contains the controls for Width, Justify text, and Hyphenate words
+- **Theme** tab — contains the controls for Paper, Sepia, Dark, and Black reading themes
 - **Font** — scroll the font row to choose from: System Default, Noto Serif, Literata, Source Serif, Noto Sans, or JetBrains Mono
 - **Font size** — tap **−** or **+** to adjust in 5% steps (from 80% to 170%, shown as a percentage of the default)
 - **Spacing** — tap **−** or **+** to adjust in 5% steps (from 80% to 125%, shown as a percentage of the default)
-- **Width** — choose **W**, **M**, or **N** for Wide, Medium, or Narrow
+- **Width** — choose the Narrow, Medium, or Wide layout button (75%, 85%, or 95% of the reader width)
 - **Justify text** — toggle on or off
 - **Hyphenate words** — toggle on or off
-- **Reset to defaults** — restore all reading settings at once
+- **Reading theme** — choose Paper, Sepia, Dark, or Black; if you pick a light theme while reading in dark mode, or a dark theme while reading in light mode, MyDeck switches the app theme to match and remembers your last light and dark reading themes separately
+- **Reset theme** — use the footer action to return the app theme to **System** and use the saved light or dark reading theme that matches the current system theme
+- **Reset text** / **Reset layout** — use the footer action to reset only the controls in the current tab
 
 These settings are saved automatically and apply to every Article, Video, and Picture bookmark you read.
 

@@ -7,6 +7,7 @@ import com.mydeck.app.domain.model.Bookmark
 import com.mydeck.app.domain.model.BookmarkShareFormat
 import com.mydeck.app.domain.model.DarkAppearance
 import com.mydeck.app.domain.model.LightAppearance
+import com.mydeck.app.domain.model.ReaderAppearanceSelection
 import com.mydeck.app.domain.model.SelectionData
 import com.mydeck.app.domain.model.Theme
 import com.mydeck.app.domain.usecase.LoadArticleUseCase
@@ -58,6 +59,9 @@ class BookmarkDetailViewModelTest {
     private lateinit var loadArticleUseCase: LoadArticleUseCase
     private lateinit var readeckApi: ReadeckApi
     private lateinit var context: Context
+    private lateinit var themeFlow: MutableStateFlow<String?>
+    private lateinit var lightAppearanceFlow: MutableStateFlow<LightAppearance>
+    private lateinit var darkAppearanceFlow: MutableStateFlow<DarkAppearance>
     private val json = Json { ignoreUnknownKeys = true }
 
     @Before
@@ -77,13 +81,34 @@ class BookmarkDetailViewModelTest {
         coEvery { bookmarkRepository.refreshBookmarkFromApi(any()) } returns Unit
         every { assetLoader.loadAsset("html_template_light.html") } returns htmlTemplate
         every { savedStateHandle.get<String>("bookmarkId") } returns "123"
-        every { settingsDataStore.themeFlow } returns MutableStateFlow(Theme.LIGHT.name)
-        every { settingsDataStore.lightAppearanceFlow } returns MutableStateFlow(LightAppearance.PAPER)
-        every { settingsDataStore.darkAppearanceFlow } returns MutableStateFlow(DarkAppearance.DARK)
+        themeFlow = MutableStateFlow(Theme.LIGHT.name)
+        lightAppearanceFlow = MutableStateFlow(LightAppearance.PAPER)
+        darkAppearanceFlow = MutableStateFlow(DarkAppearance.DARK)
+        every { settingsDataStore.themeFlow } returns themeFlow
+        every { settingsDataStore.lightAppearanceFlow } returns lightAppearanceFlow
+        every { settingsDataStore.darkAppearanceFlow } returns darkAppearanceFlow
         every { settingsDataStore.typographySettingsFlow } returns MutableStateFlow(com.mydeck.app.domain.model.TypographySettings())
         every { settingsDataStore.keepScreenOnWhileReadingFlow } returns MutableStateFlow(true)
         every { settingsDataStore.fullscreenWhileReadingFlow } returns MutableStateFlow(false)
         coEvery { settingsDataStore.getBookmarkShareFormat() } returns BookmarkShareFormat.URL_ONLY
+        coEvery { settingsDataStore.getTheme() } coAnswers {
+            Theme.valueOf(themeFlow.value ?: Theme.SYSTEM.name)
+        }
+        coEvery { settingsDataStore.getLightAppearance() } coAnswers {
+            lightAppearanceFlow.value
+        }
+        coEvery { settingsDataStore.getDarkAppearance() } coAnswers {
+            darkAppearanceFlow.value
+        }
+        coEvery { settingsDataStore.saveTheme(any()) } coAnswers {
+            themeFlow.value = firstArg<Theme>().name
+        }
+        coEvery { settingsDataStore.saveLightAppearance(any()) } coAnswers {
+            lightAppearanceFlow.value = firstArg()
+        }
+        coEvery { settingsDataStore.saveDarkAppearance(any()) } coAnswers {
+            darkAppearanceFlow.value = firstArg()
+        }
         every { bookmarkRepository.observeAllLabelsWithCounts() } returns MutableStateFlow(emptyMap())
         coEvery { settingsDataStore.saveCachedAnnotationSnapshot(any(), any()) } just Runs
         coEvery { settingsDataStore.getCachedAnnotationSnapshot(any()) } returns null
@@ -284,6 +309,50 @@ class BookmarkDetailViewModelTest {
         viewModel.onClickBack()
         advanceUntilIdle()
         assertEquals(BookmarkDetailViewModel.NavigationEvent.NavigateBack, viewModel.navigationEvent.first())
+    }
+
+    @Test
+    fun `onReaderThemeSelectionChanged saves dark appearance and theme when switching from light`() = runTest {
+        viewModel = createViewModel()
+
+        viewModel.onReaderThemeSelectionChanged(
+            ReaderAppearanceSelection(
+                themeMode = Theme.DARK,
+                lightAppearance = LightAppearance.PAPER,
+                darkAppearance = DarkAppearance.BLACK
+            )
+        )
+        advanceUntilIdle()
+
+        assertEquals(Theme.DARK.name, themeFlow.value)
+        assertEquals(LightAppearance.PAPER, lightAppearanceFlow.value)
+        assertEquals(DarkAppearance.BLACK, darkAppearanceFlow.value)
+        coVerify { settingsDataStore.saveDarkAppearance(DarkAppearance.BLACK) }
+        coVerify { settingsDataStore.saveTheme(Theme.DARK) }
+    }
+
+    @Test
+    fun `onReaderThemeSelectionChanged reset to system keeps stored appearances`() = runTest {
+        themeFlow.value = Theme.DARK.name
+        lightAppearanceFlow.value = LightAppearance.SEPIA
+        darkAppearanceFlow.value = DarkAppearance.BLACK
+        viewModel = createViewModel()
+
+        viewModel.onReaderThemeSelectionChanged(
+            ReaderAppearanceSelection(
+                themeMode = Theme.SYSTEM,
+                lightAppearance = LightAppearance.SEPIA,
+                darkAppearance = DarkAppearance.BLACK
+            )
+        )
+        advanceUntilIdle()
+
+        assertEquals(Theme.SYSTEM.name, themeFlow.value)
+        assertEquals(LightAppearance.SEPIA, lightAppearanceFlow.value)
+        assertEquals(DarkAppearance.BLACK, darkAppearanceFlow.value)
+        coVerify(exactly = 0) { settingsDataStore.saveLightAppearance(any()) }
+        coVerify(exactly = 0) { settingsDataStore.saveDarkAppearance(any()) }
+        coVerify { settingsDataStore.saveTheme(Theme.SYSTEM) }
     }
 
     @Test
