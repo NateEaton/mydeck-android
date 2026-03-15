@@ -356,6 +356,34 @@ class BookmarkDetailViewModelTest {
     }
 
     @Test
+    fun `onArticleSearchQueryChange resets prior match state for a new search`() = runTest {
+        viewModel = createViewModel()
+
+        viewModel.onArticleSearchUpdateResults(totalMatches = 36, preferredMatch = 27)
+        assertEquals(27, viewModel.articleSearchState.value.currentMatch)
+
+        viewModel.onArticleSearchQueryChange("beef")
+
+        assertEquals("beef", viewModel.articleSearchState.value.query)
+        assertEquals(0, viewModel.articleSearchState.value.totalMatches)
+        assertEquals(0, viewModel.articleSearchState.value.currentMatch)
+    }
+
+    @Test
+    fun `onArticleSearchUpdateResults uses preferred viewport anchored match when none selected`() = runTest {
+        viewModel = createViewModel()
+
+        viewModel.onArticleSearchUpdateResults(totalMatches = 36, preferredMatch = 27)
+
+        assertEquals(36, viewModel.articleSearchState.value.totalMatches)
+        assertEquals(27, viewModel.articleSearchState.value.currentMatch)
+
+        viewModel.onArticleSearchUpdateResults(totalMatches = 36, preferredMatch = 30)
+
+        assertEquals(27, viewModel.articleSearchState.value.currentMatch)
+    }
+
+    @Test
     fun `onToggleFavoriteBookmark updates UiState with Success`() = runTest {
         // Arrange
         val bookmarkId = "123"

@@ -1259,7 +1259,13 @@ class BookmarkDetailViewModel @Inject constructor(
     }
 
     fun onArticleSearchQueryChange(query: String) {
-        _articleSearchState.update { it.copy(query = query) }
+        _articleSearchState.update {
+            it.copy(
+                query = query,
+                totalMatches = 0,
+                currentMatch = 0
+            )
+        }
 
         // Debounce search execution
         searchDebounceJob?.cancel()
@@ -1270,10 +1276,14 @@ class BookmarkDetailViewModel @Inject constructor(
         }
     }
 
-    fun onArticleSearchUpdateResults(totalMatches: Int) {
+    fun onArticleSearchUpdateResults(totalMatches: Int, preferredMatch: Int = 0) {
         _articleSearchState.update { state ->
             val newCurrent = if (totalMatches > 0) {
-                if (state.currentMatch == 0) 1 else state.currentMatch.coerceAtMost(totalMatches)
+                when {
+                    state.currentMatch in 1..totalMatches -> state.currentMatch
+                    preferredMatch in 1..totalMatches -> preferredMatch
+                    else -> 1
+                }
             } else {
                 0
             }

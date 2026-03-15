@@ -375,7 +375,9 @@ fun BookmarkDetailHost(
     val onArticleSearchQueryChange = { query: String -> viewModel.onArticleSearchQueryChange(query) }
     val onArticleSearchNext = { viewModel.onArticleSearchNext() }
     val onArticleSearchPrevious = { viewModel.onArticleSearchPrevious() }
-    val onArticleSearchUpdateResults = { totalMatches: Int -> viewModel.onArticleSearchUpdateResults(totalMatches) }
+    val onArticleSearchUpdateResults = { totalMatches: Int, preferredMatch: Int ->
+        viewModel.onArticleSearchUpdateResults(totalMatches, preferredMatch)
+    }
 
     // Gallery and context menu callbacks
     val onImageTapped = { data: ImageGalleryData -> viewModel.onImageTapped(data) }
@@ -708,7 +710,7 @@ fun BookmarkDetailScreen(
     onArticleSearchQueryChange: (String) -> Unit = {},
     onArticleSearchNext: () -> Unit = {},
     onArticleSearchPrevious: () -> Unit = {},
-    onArticleSearchUpdateResults: (Int) -> Unit = {},
+    onArticleSearchUpdateResults: (Int, Int) -> Unit = { _, _ -> },
     onShowTypographyPanel: () -> Unit = {},
     onImageTapped: (ImageGalleryData) -> Unit = {},
     onImageLongPress: (imageUrl: String, linkUrl: String?, linkType: String, imageAlt: String) -> Unit = { _, _, _, _ -> },
@@ -729,6 +731,7 @@ fun BookmarkDetailScreen(
     val coroutineScope = rememberCoroutineScope()
     var articleTopOffset by remember { mutableStateOf(0f) }
     var viewportHeight by remember { mutableIntStateOf(0) }
+    val articleViewportTopPx = (scrollState.value - articleTopOffset).coerceAtLeast(0f).toInt()
     val fullscreenReaderMode = fullscreenWhileReading && contentMode == ContentMode.READER
     val immersiveModeEnabled = fullscreenReaderMode || videoFullscreenView != null
     var showFullscreenTopBar by remember(uiState.bookmark.bookmarkId, fullscreenReaderMode) {
@@ -888,6 +891,9 @@ fun BookmarkDetailScreen(
                     onTextSelectionCaptured = onTextSelectionCaptured,
                     onAnnotationClicked = onAnnotationClicked,
                     onArticlePositionChanged = { articleTopOffset = it },
+                    articleViewportTopPx = articleViewportTopPx,
+                    articleTopOffsetPx = articleTopOffset,
+                    viewportHeightPx = viewportHeight,
                     onReaderWebViewChanged = onReaderWebViewChanged,
                     onVideoEnterFullscreen = onVideoEnterFullscreen,
                     onVideoExitFullscreen = onVideoExitFullscreen,
@@ -1114,13 +1120,16 @@ fun BookmarkDetailContent(
     contentMode: ContentMode = ContentMode.READER,
     contentLoadState: ContentLoadState = ContentLoadState.Idle,
     articleSearchState: BookmarkDetailViewModel.ArticleSearchState = BookmarkDetailViewModel.ArticleSearchState(),
-    onArticleSearchUpdateResults: (Int) -> Unit = {},
+    onArticleSearchUpdateResults: (Int, Int) -> Unit = { _, _ -> },
     onImageTapped: (ImageGalleryData) -> Unit = {},
     onImageLongPress: (imageUrl: String, linkUrl: String?, linkType: String, imageAlt: String) -> Unit = { _, _, _, _ -> },
     onLinkLongPress: (linkUrl: String, linkText: String) -> Unit = { _, _ -> },
     onTextSelectionCaptured: (com.mydeck.app.domain.model.SelectionData) -> Unit = {},
     onAnnotationClicked: (String) -> Unit = {},
     onArticlePositionChanged: (Float) -> Unit = {},
+    articleViewportTopPx: Int = 0,
+    articleTopOffsetPx: Float = 0f,
+    viewportHeightPx: Int = 0,
     onReaderWebViewChanged: (WebView?) -> Unit = {},
     onVideoEnterFullscreen: (View, WebChromeClient.CustomViewCallback?) -> Unit = { _, _ -> },
     onVideoExitFullscreen: (VideoFullscreenDismissSource) -> Unit = {},
@@ -1235,6 +1244,10 @@ fun BookmarkDetailContent(
                             uiState = uiState,
                             articleSearchState = articleSearchState,
                             onArticleSearchUpdateResults = onArticleSearchUpdateResults,
+                            articleViewportTopPx = articleViewportTopPx,
+                            articleTopOffsetPx = articleTopOffsetPx,
+                            viewportHeightPx = viewportHeightPx,
+                            scrollState = scrollState,
                             onContentReady = { ready -> isReaderContentReady = ready },
                             onWebViewChanged = onReaderWebViewChanged,
                             onImageTapped = onImageTapped,

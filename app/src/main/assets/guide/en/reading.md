@@ -67,7 +67,7 @@ These settings are saved automatically and apply to every Article, Video, and Pi
 
 ### Finding Text
 
-Tap **🔍** to open the in-content search bar. Type to search; matching text in the content is highlighted. If there are multiple matches, the current one is highlighted in amber and others in yellow. Use the **↑** and **↓** arrows to move between matches. The counter shows your current position (e.g., "2/5").
+Tap **🔍** to open the in-content search bar. Type to search; matching text in the content is highlighted. If there are multiple matches, MyDeck starts from the next result at or below your current reading position, and if there are no later matches it jumps to the last one above. The current match is highlighted in amber and other matches in yellow. Use the **↑** and **↓** arrows to move between matches, and keep tapping to wrap from the last result back to the first. The counter shows your current position (for example, "27/36").
 
 ### Highlights
 
