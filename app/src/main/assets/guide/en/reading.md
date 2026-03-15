@@ -92,7 +92,7 @@ The menu includes visual dividers to separate related actions and destructive ac
 
 Tapping a link within bookmark content (articles, pictures with descriptions, or videos with text) opens the associated web page in your device's default browser.
 
-In the **Sepia** appearance, article links also use a subtle underline so they are easier to distinguish from body text while reading.
+In every reading appearance, article links use a subtle underline so they are easier to distinguish from body text while reading. In **Paper**, **Dark**, and **Black**, link and other accent colors follow the current system accent on supported Android versions, while **Sepia** keeps its own curated palette.
 
 ## Long-press Context Menus
 

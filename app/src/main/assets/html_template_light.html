@@ -15,6 +15,14 @@
           font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
         }
 
+        :root {
+          --accent-color: {{ACCENT_COLOR}};
+          --accent-container-color: {{ACCENT_CONTAINER_COLOR}};
+          --accent-underline-color: {{ACCENT_UNDERLINE_COLOR}};
+          --on-accent-color: {{ON_ACCENT_COLOR}};
+          --on-accent-container-color: {{ON_ACCENT_CONTAINER_COLOR}};
+        }
+
         body {
           font-size: 1.95rem;
           line-height: 1.618;
@@ -81,19 +89,22 @@
         }
 
         hr {
-          border-color: #1d7484;
+          border-color: var(--accent-color);
         }
 
         a {
-          text-decoration: none;
-          color: #1d7484;
+          text-decoration: underline;
+          text-decoration-color: var(--accent-underline-color);
+          text-underline-offset: 0.12em;
+          text-decoration-thickness: 1px;
+          color: var(--accent-color);
         }
         a:visited {
-          color: #144f5a;
+          color: var(--accent-color);
         }
         a:hover {
-          color: #982c61;
-          border-bottom: 2px solid #4a4a4a;
+          color: var(--accent-color);
+          text-decoration-color: var(--accent-color);
         }
 
         ul {
@@ -113,7 +124,7 @@
           padding-top: 0.8em;
           padding-bottom: 0.8em;
           padding-right: 0.8em;
-          border-left: 5px solid #1d7484;
+          border-left: 5px solid var(--accent-color);
           margin-bottom: 2.5rem;
           background-color: #f1f1f1;
         }
@@ -200,7 +211,7 @@
           border: 1px solid #4a4a4a;
         }
         input:focus, textarea:focus {
-          border: 1px solid #1d7484;
+          border: 1px solid var(--accent-color);
         }
 
         textarea {
@@ -213,10 +224,10 @@
           text-align: center;
           text-decoration: none;
           white-space: nowrap;
-          background-color: #1d7484;
-          color: #f9f9f9;
+          background-color: var(--accent-color);
+          color: var(--on-accent-color);
           border-radius: 1px;
-          border: 1px solid #1d7484;
+          border: 1px solid var(--accent-color);
           cursor: pointer;
           box-sizing: border-box;
         }
@@ -225,8 +236,8 @@
           opacity: 0.5;
         }
         .button:hover, button:hover, input[type=submit]:hover, input[type=reset]:hover, input[type=button]:hover, input[type=file]::file-selector-button:hover {
-          background-color: #982c61;
-          color: #f9f9f9;
+          background-color: var(--accent-container-color);
+          color: var(--on-accent-container-color);
           outline: 0;
         }
         .button:focus-visible, button:focus-visible, input[type=submit]:focus-visible, input[type=reset]:focus-visible, input[type=button]:focus-visible, input[type=file]::file-selector-button:focus-visible {
@@ -245,12 +256,12 @@
           box-sizing: border-box;
         }
         textarea:focus, select:focus, input:focus {
-          border: 1px solid #1d7484;
+          border: 1px solid var(--accent-color);
           outline: 0;
         }
 
         input[type=checkbox]:focus {
-          outline: 1px dotted #1d7484;
+          outline: 1px dotted var(--accent-color);
         }
 
         label, legend, fieldset {

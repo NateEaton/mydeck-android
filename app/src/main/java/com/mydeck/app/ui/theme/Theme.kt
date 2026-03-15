@@ -11,7 +11,6 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 import com.mydeck.app.domain.model.EffectiveAppearance
-import com.mydeck.app.ui.theme.sepia.SepiaColorScheme
 
 val LocalEffectiveAppearance = compositionLocalOf { EffectiveAppearance.PAPER }
 
@@ -21,12 +20,10 @@ fun MyDeckTheme(
     content: @Composable () -> Unit
 ) {
     val view = LocalView.current
-    val colorScheme = when (appearance) {
-        EffectiveAppearance.PAPER -> PaperColorScheme
-        EffectiveAppearance.SEPIA -> SepiaColorScheme
-        EffectiveAppearance.DARK -> DarkColorScheme
-        EffectiveAppearance.BLACK -> BlackColorScheme
-    }
+    val colorScheme = resolveAppColorScheme(
+        context = view.context,
+        appearance = appearance
+    )
 
     if (!view.isInEditMode) {
         SideEffect {

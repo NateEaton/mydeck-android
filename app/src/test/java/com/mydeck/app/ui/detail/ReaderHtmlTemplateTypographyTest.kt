@@ -50,14 +50,45 @@ class ReaderHtmlTemplateTypographyTest {
     }
 
     @Test
-    fun `sepia template keeps article links subtly underlined`() {
+    fun `reader templates underline article links in every appearance`() {
+        val templates = loadTemplates()
+
+        templates.values.forEach { template ->
+            assertTrue(template.contains("text-decoration: underline;"))
+            assertTrue(template.contains("text-underline-offset: 0.12em;"))
+            assertTrue(template.contains("text-decoration-thickness: 1px;"))
+        }
+    }
+
+    @Test
+    fun `dynamic reader templates expose accent tokens for runtime injection`() {
+        val templates = loadTemplates()
+
+        listOf(
+            "html_template_light.html",
+            "html_template_dark.html",
+            "html_template_black.html"
+        ).forEach { fileName ->
+            val template = templates.getValue(fileName)
+            assertTrue(template.contains("--accent-color: {{ACCENT_COLOR}};"))
+            assertTrue(template.contains("--accent-container-color: {{ACCENT_CONTAINER_COLOR}};"))
+            assertTrue(template.contains("--accent-underline-color: {{ACCENT_UNDERLINE_COLOR}};"))
+            assertTrue(template.contains("--on-accent-color: {{ON_ACCENT_COLOR}};"))
+            assertTrue(template.contains("--on-accent-container-color: {{ON_ACCENT_CONTAINER_COLOR}};"))
+        }
+    }
+
+    @Test
+    fun `sepia template keeps curated article links subtly underlined`() {
         val sepiaTemplate = loadTemplates().getValue("html_template_sepia.html")
 
         assertTrue(sepiaTemplate.contains("text-decoration: underline;"))
         assertTrue(sepiaTemplate.contains("text-decoration-color: rgba(140, 110, 80, 0.65);"))
         assertTrue(sepiaTemplate.contains("text-underline-offset: 0.12em;"))
         assertTrue(sepiaTemplate.contains("text-decoration-thickness: 1px;"))
-        assertFalse(sepiaTemplate.contains("border-bottom: 2px solid #a76d3d;"))
+        assertTrue(sepiaTemplate.contains("color: #7a4b21;"))
+        assertTrue(sepiaTemplate.contains("color: #68401b;"))
+        assertFalse(sepiaTemplate.contains("#1d7484"))
     }
 
     private fun loadTemplates(): Map<String, String> = TEMPLATE_FILES.associateWith { fileName ->

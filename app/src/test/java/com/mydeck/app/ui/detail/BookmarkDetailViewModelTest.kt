@@ -79,7 +79,7 @@ class BookmarkDetailViewModelTest {
         every { bookmarkRepository.observeBookmark(any()) } returns MutableStateFlow(sampleBookmark)
         coEvery { bookmarkRepository.getBookmarkById(any()) } returns sampleBookmark
         coEvery { bookmarkRepository.refreshBookmarkFromApi(any()) } returns Unit
-        every { assetLoader.loadAsset("html_template_light.html") } returns htmlTemplate
+        every { assetLoader.loadAsset(match { it.startsWith("html_template_") }) } returns htmlTemplate
         every { savedStateHandle.get<String>("bookmarkId") } returns "123"
         themeFlow = MutableStateFlow(Theme.LIGHT.name)
         lightAppearanceFlow = MutableStateFlow(LightAppearance.PAPER)
