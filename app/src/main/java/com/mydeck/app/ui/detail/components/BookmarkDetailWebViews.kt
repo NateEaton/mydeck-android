@@ -56,7 +56,9 @@ import com.mydeck.app.R
 import com.mydeck.app.ui.detail.BookmarkDetailViewModel
 import com.mydeck.app.ui.detail.VideoFullscreenDismissSource
 import com.mydeck.app.ui.detail.WebViewSearchBridge
+import com.mydeck.app.ui.detail.WebViewThemeBridge
 import com.mydeck.app.ui.detail.WebViewTypographyBridge
+import com.mydeck.app.ui.theme.resolveReaderThemePalette
 import com.mydeck.app.util.openUrlInCustomTab
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -96,10 +98,13 @@ fun BookmarkDetailArticle(
     onVideoExitFullscreen: (VideoFullscreenDismissSource) -> Unit = {},
 ) {
     val isSystemInDarkMode = isSystemInDarkTheme()
+    val localContext = LocalContext.current
+    val effectiveAppearance = uiState.readerAppearanceSelection.effectiveAppearance(isSystemInDarkMode)
+    val readerThemePalette = remember(localContext, effectiveAppearance) {
+        resolveReaderThemePalette(context = localContext, appearance = effectiveAppearance)
+    }
     val content = remember(
         uiState.bookmark.bookmarkId,
-        isSystemInDarkMode,
-        uiState.template,
         uiState.bookmark.articleContent,
         uiState.bookmark.embed
     ) {
@@ -109,9 +114,17 @@ fun BookmarkDetailArticle(
     val json = remember { Json { ignoreUnknownKeys = true } }
     val latestSelectionHandler = rememberUpdatedState(onTextSelectionCaptured)
     val latestAnnotationClickHandler = rememberUpdatedState(onAnnotationClicked)
+    val latestTypographySettings = rememberUpdatedState(uiState.typographySettings)
+    val latestThemePalette = rememberUpdatedState(readerThemePalette)
+    val latestThemeScript = rememberUpdatedState(WebViewThemeBridge.applyTheme(readerThemePalette))
     val lastDeliveredAnnotationTap = remember { mutableStateOf<Pair<String, Long>?>(null) }
     var hasReportedReady by remember(uiState.bookmark.bookmarkId, content.value) { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
+
+    fun applyTheme(webView: WebView) {
+        webView.setBackgroundColor(android.graphics.Color.parseColor(latestThemePalette.value.bodyBackgroundColor))
+        webView.evaluateJavascript(latestThemeScript.value, null)
+    }
 
     suspend fun focusSearchMatch(webView: WebView, matchIndex: Int) {
         if (matchIndex < 0) return
@@ -146,8 +159,6 @@ fun BookmarkDetailArticle(
 
     LaunchedEffect(
         uiState.bookmark.bookmarkId,
-        isSystemInDarkMode,
-        uiState.template,
         uiState.bookmark.articleContent,
         uiState.bookmark.embed
     ) {
@@ -194,6 +205,14 @@ fun BookmarkDetailArticle(
             withContext(Dispatchers.Main) {
                 val js = WebViewTypographyBridge.applyTypography(uiState.typographySettings)
                 webView.evaluateJavascript(js, null)
+            }
+        }
+    }
+
+    LaunchedEffect(readerThemePalette) {
+        webViewRef.value?.let { webView ->
+            withContext(Dispatchers.Main) {
+                applyTheme(webView)
             }
         }
     }
@@ -374,7 +393,8 @@ fun BookmarkDetailArticle(
                         webViewClient = object : android.webkit.WebViewClient() {
                             private fun applyReaderEnhancements(webView: WebView) {
                                 val typographyJs =
-                                    WebViewTypographyBridge.applyTypography(uiState.typographySettings)
+                                    WebViewTypographyBridge.applyTypography(latestTypographySettings.value)
+                                applyTheme(webView)
                                 webView.evaluateJavascript(typographyJs, null)
                                 val imageJs = WebViewImageBridge.injectImageInterceptor()
                                 webView.evaluateJavascript(imageJs, null)
@@ -505,6 +525,7 @@ fun BookmarkDetailArticle(
                     webViewRef.value = it
                     onWebViewChanged(it)
                     it.settings.textZoom = uiState.typographySettings.fontSizePercent
+                    it.setBackgroundColor(android.graphics.Color.parseColor(readerThemePalette.bodyBackgroundColor))
                 }
             )
         }

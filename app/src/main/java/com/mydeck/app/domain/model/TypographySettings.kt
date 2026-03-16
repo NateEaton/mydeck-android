@@ -54,7 +54,7 @@ enum class TextWidth(
     val widthFraction: Float,
     val pillLabel: String
 ) {
-    WIDE("Wide", 0.95f, "W"),
+    WIDE("Wide", 0.98f, "W"),
     MEDIUM("Medium", 0.85f, "M"),
     NARROW("Narrow", 0.75f, "N")
 }

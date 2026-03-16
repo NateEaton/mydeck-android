@@ -28,7 +28,6 @@ import com.mydeck.app.io.rest.ReadeckApi
 import com.mydeck.app.io.rest.model.CreateAnnotationDto
 import com.mydeck.app.io.rest.model.UpdateAnnotationDto
 import com.mydeck.app.io.rest.model.toAnnotationCachePayload
-import com.mydeck.app.ui.theme.applyReaderThemeTokens
 import com.mydeck.app.util.BookmarkDebugExporter
 import com.mydeck.app.util.formatBookmarkShareText
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -143,13 +142,7 @@ class BookmarkDetailViewModel @Inject constructor(
             EffectiveAppearance.DARK -> Template.DARK_TEMPLATE_FILE
             EffectiveAppearance.BLACK -> Template.BLACK_TEMPLATE_FILE
         }
-        return assetLoader.loadAsset(templateFile)?.let { template ->
-            applyReaderThemeTokens(
-                template = template,
-                context = context,
-                appearance = appearance
-            )
-        }
+        return assetLoader.loadAsset(templateFile)
     }
 
     // Local tracking of scroll progress (not immediately persisted)

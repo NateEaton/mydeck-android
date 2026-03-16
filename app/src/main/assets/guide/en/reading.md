@@ -16,7 +16,7 @@ MyDeck supports three types of bookmarks, each with unique features:
 Articles display extracted text content in a clean, distraction-free reading layout. If the bookmark already has highlights from Readeck, those highlights appear inline in their saved colors while you read. Articles support full typography controls and text search, and may include images that can be opened in the **Image Lightbox** and links that can be long-pressed to access **Long-press Context Menus**.
 
 ### Videos  
-For video bookmarks (YouTube, Vimeo, etc.), MyDeck shows an embedded video player at the top, followed by any text content (description or transcript). Videos stream from their original servers and require an internet connection. Use the player's fullscreen control to expand the video when the provider supports it. While fullscreen video is open, temporary overlay controls appear for **Close** and **Rotate**; touch the screen to bring them back after they fade. Tap **Rotate** in the top-right corner to switch the fullscreen player between portrait and landscape without leaving fullscreen mode. If the video includes text content, you can long-press links to access **Long-press Context Menus**.
+For video bookmarks (YouTube, Vimeo, etc.), MyDeck shows an embedded video player at the top, followed by any text content (description or transcript). Videos stream from their original servers and require an internet connection. Use the player's fullscreen control to expand the video when the provider supports it. While fullscreen video is open, temporary overlay controls appear for **Close** and **Rotate** near the middle of the screen; touch the screen to bring them back after they fade. Tap **Rotate** to switch the fullscreen player between portrait and landscape without leaving fullscreen mode. If the video includes text content, you can long-press links to access **Long-press Context Menus**.
 
 ### Pictures
 For picture bookmarks, MyDeck shows the stored image at the top at full content width, followed by any text content. Tap the image to open it in the **Image Lightbox** where you can zoom and pan. Pictures may also include text content with links that support **Long-press Context Menus**.
@@ -57,7 +57,7 @@ Tap **TT** in the top bar to open the reading settings sheet.
 - **Font** — scroll the font row to choose from: System Default, Noto Serif, Literata, Source Serif, Noto Sans, or JetBrains Mono
 - **Font size** — tap **−** or **+** to adjust in 5% steps (from 80% to 170%, shown as a percentage of the default)
 - **Spacing** — tap **−** or **+** to adjust in 5% steps (from 80% to 125%, shown as a percentage of the default)
-- **Width** — choose the Narrow, Medium, or Wide layout button (75%, 85%, or 95% of the reader width)
+- **Width** — choose the Narrow, Medium, or Wide layout button (75%, 85%, or 98% of the reader width)
 - **Justify text** — toggle on or off
 - **Hyphenate words** — toggle on or off
 - **Reading theme** — choose Paper, Sepia, Dark, or Black; if you pick a light theme while reading in dark mode, or a dark theme while reading in light mode, MyDeck switches the app theme to match and remembers your last light and dark reading themes separately

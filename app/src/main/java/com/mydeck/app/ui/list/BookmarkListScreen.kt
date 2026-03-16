@@ -139,7 +139,7 @@ fun BookmarkListScreen(
     val sortOption = viewModel.sortOption.collectAsState()
     val labelsWithCounts = viewModel.labelsWithCounts.collectAsState()
     val isLabelsSheetOpen = viewModel.isLabelsSheetOpen.collectAsState()
-    val pendingDeletionBookmarkId = viewModel.pendingDeletionBookmarkId.collectAsState()
+    val pendingDeletionBookmarkIds = viewModel.pendingDeletionBookmarkIds.collectAsState()
 
     var showLayoutMenu by remember { mutableStateOf(false) }
     var showSortMenu by remember { mutableStateOf(false) }
@@ -173,9 +173,9 @@ fun BookmarkListScreen(
                 duration = SnackbarDuration.Indefinite
             )
             if (result == androidx.compose.material3.SnackbarResult.ActionPerformed) {
-                viewModel.onCancelDeleteBookmark()
+                viewModel.onCancelDeleteBookmark(bookmarkId)
             } else {
-                viewModel.onConfirmDeleteBookmark()
+                viewModel.onConfirmDeleteBookmark(bookmarkId)
             }
         }
     }
@@ -613,7 +613,7 @@ fun BookmarkListScreen(
                                 scrollToTopTrigger = scrollToTopTrigger,
                                 layoutMode = layoutMode.value,
                                 bookmarks = uiState.bookmarks,
-                                pendingDeletionBookmarkId = pendingDeletionBookmarkId.value,
+                                pendingDeletionBookmarkIds = pendingDeletionBookmarkIds.value.toSet(),
                                 onClickBookmark = onClickBookmark,
                                 onClickDelete = onClickDelete,
                                 onClickArchive = onClickArchive,
@@ -874,7 +874,7 @@ fun BookmarkListView(
     scrollToTopTrigger: Int = 0,
     layoutMode: LayoutMode = LayoutMode.GRID,
     bookmarks: List<BookmarkListItem>,
-    pendingDeletionBookmarkId: String? = null,
+    pendingDeletionBookmarkIds: Set<String> = emptySet(),
     isMultiColumn: Boolean = LocalIsWideLayout.current,
     onClickBookmark: (String) -> Unit,
     onClickDelete: (String) -> Unit,
@@ -926,7 +926,7 @@ fun BookmarkListView(
                 contentPadding = PaddingValues(horizontal = spacing),
             ) {
                 items(bookmarks) { bookmark ->
-                    val isPendingDeletion = bookmark.id == pendingDeletionBookmarkId
+                    val isPendingDeletion = bookmark.id in pendingDeletionBookmarkIds
                     val confirmDelete: (String) -> Unit = { _ -> onUserInteraction() }
                     val noop: (String) -> Unit = {}
                     val noop2: (String, Boolean) -> Unit = { _, _ -> }
@@ -1013,7 +1013,7 @@ fun BookmarkListView(
         Box(modifier = modifier) {
             LazyColumn(state = lazyListState, modifier = Modifier.fillMaxSize()) {
                 items(bookmarks) { bookmark ->
-                    val isPendingDeletion = bookmark.id == pendingDeletionBookmarkId
+                    val isPendingDeletion = bookmark.id in pendingDeletionBookmarkIds
                     val confirmDelete: (String) -> Unit = { _ -> onUserInteraction() }
                     val noop: (String) -> Unit = {}
                     val noop2: (String, Boolean) -> Unit = { _, _ -> }

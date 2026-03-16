@@ -26,10 +26,12 @@ import com.mydeck.app.ui.components.LongPressContextMenuItem
 import androidx.compose.ui.draw.alpha
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.absoluteOffset
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -117,7 +119,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.ui.draw.clip
@@ -1041,41 +1045,64 @@ private fun VideoFullscreenOverlay(
                 enter = androidx.compose.animation.fadeIn(),
                 exit = androidx.compose.animation.fadeOut()
             ) {
-                androidx.compose.foundation.layout.Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp)
-                        .windowInsetsPadding(WindowInsets.statusBars)
-                        .align(Alignment.TopCenter),
-                    horizontalArrangement = Arrangement.SpaceBetween
+                BoxWithConstraints(
+                    modifier = Modifier.fillMaxSize()
                 ) {
-                    IconButton(
-                        onClick = { onDismiss(VideoFullscreenDismissSource.UI) },
-                        modifier = Modifier.background(Color.Black.copy(alpha = 0.5f), shape = androidx.compose.foundation.shape.CircleShape)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Close,
-                            contentDescription = stringResource(R.string.gallery_close),
-                            tint = Color.White
-                        )
-                    }
+                    val controlWidth = 72.dp
+                    val minHorizontalPadding = 24.dp
+                    val leftOffset = ((maxWidth * 0.25f) - (controlWidth / 2))
+                        .coerceAtLeast(minHorizontalPadding)
+                    val rightOffset = ((maxWidth * 0.75f) - (controlWidth / 2))
+                        .coerceAtMost(maxWidth - controlWidth - minHorizontalPadding)
 
-                    IconButton(
+                    VideoFullscreenControlButton(
+                        modifier = Modifier
+                            .align(Alignment.CenterStart)
+                            .absoluteOffset(x = leftOffset),
+                        onClick = { onDismiss(VideoFullscreenDismissSource.UI) },
+                        contentDescription = stringResource(R.string.gallery_close),
+                        icon = Icons.Default.Close
+                    )
+                    VideoFullscreenControlButton(
+                        modifier = Modifier
+                            .align(Alignment.CenterStart)
+                            .absoluteOffset(x = rightOffset),
                         onClick = {
                             isRotated = !isRotated
                             revealControls()
                         },
-                        modifier = Modifier.background(Color.Black.copy(alpha = 0.5f), shape = androidx.compose.foundation.shape.CircleShape)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Refresh,
-                            contentDescription = stringResource(R.string.video_fullscreen_rotate),
-                            tint = Color.White
-                        )
-                    }
+                        contentDescription = stringResource(R.string.video_fullscreen_rotate),
+                        icon = Icons.Default.Refresh
+                    )
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun VideoFullscreenControlButton(
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit,
+    contentDescription: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector
+) {
+    val shape = RoundedCornerShape(24.dp)
+    Box(
+        modifier = modifier
+            .width(72.dp)
+            .height(48.dp)
+            .clip(shape)
+            .border(1.dp, Color.White.copy(alpha = 0.28f), shape)
+            .background(Color.Black.copy(alpha = 0.56f))
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = contentDescription,
+            tint = Color.White
+        )
     }
 }
 

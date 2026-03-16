@@ -1,49 +1,75 @@
-# Spec: Reader & Delete Bugfixes (v0.11.1)
+# Spec: Reader & Delete Bugfixes (v0.11.1, revised)
 
 ## Summary
 
-A collection of bugs and small improvements surfaced during user testing.
-This spec covers five items: rapid-delete race condition, text-size shift when
-margins change, a reproducible layout glitch, video fullscreen gaps, narrower
-minimum margin, and a theme-switch reflow investigation.
+This spec covers six scoped reader/list improvements identified during review:
+
+1. rapid successive deletes losing identity
+2. text-size shifts when reader width changes
+3. follow-up investigation for the reproducible layout glitch
+4. video fullscreen overlay control polish only
+5. narrower minimum margin for the Wide width preset
+6. theme-switch flash/reflow reduction
+
+The original draft has been revised to match the actual Compose Material 3
+snackbar behavior and the current WebView fullscreen implementation.
 
 ---
 
-## 1. Rapid Successive Deletes — Only First Registers
+## 1. Rapid Successive Deletes — Preserve Per-Item Identity
 
 ### Problem
 
-`pendingDeletionBookmarkId` in `BookmarkListViewModel` is a single `String?`.
-When the user deletes Card A and then Card B 3-4 seconds later:
-
-1. Card B's ID overwrites Card A → Card A un-greys.
-2. A new snackbar replaces the first; the first coroutine is orphaned.
-3. When the second snackbar dismisses, only Card B's delete executes.
+`BookmarkListViewModel` currently stores a single pending delete ID. If the
+user stages delete for Card A and then Card B before Card A's snackbar flow has
+resolved, Card B overwrites the shared pending state. That can cause the wrong
+card to remain greyed out and can cause later snackbar results to confirm or
+cancel the wrong item.
 
 ### Root Cause
 
-* `BookmarkListViewModel.kt:88-89` — `_pendingDeletionBookmarkId: MutableStateFlow<String?>`
-* `BookmarkListScreen.kt:164-181` — `stageDeleteWithSnackbar()` launches a new
-  coroutine per delete but only one snackbar can be active at a time.
+Two implementation details combine to create the bug:
+
+* `BookmarkListViewModel` tracks only one pending delete via
+  `MutableStateFlow<String?>`.
+* `BookmarkListScreen.stageDeleteWithSnackbar()` launches one snackbar coroutine
+  per delete, but the snackbar result handlers call parameterless
+  `onConfirmDeleteBookmark()` / `onCancelDeleteBookmark()`, so the result is
+  applied to "whatever ID is currently pending" instead of the ID that snackbar
+  was created for.
+
+Important nuance: `SnackbarHostState.showSnackbar()` in Compose Material 3
+queues snackbar requests. It does not replace the currently shown snackbar.
+The fix should therefore preserve snackbar queueing and repair the identity
+tracking, rather than dismissing the current snackbar to emulate replacement.
 
 ### Proposed Fix
 
-When a second delete is staged while one is already pending, **immediately
-confirm (execute) the first delete** before staging the second. This matches
-standard MD3 snackbar behavior: showing a new snackbar dismisses the previous
-one, and dismissal without Undo = confirm delete.
+Make staged deletion explicitly item-scoped.
 
-Concretely:
+1. Replace the single pending delete state with an ordered collection, e.g.
+   `MutableStateFlow<List<String>>` or equivalent.
+2. Expose a collection that the UI can use to grey out every pending card while
+   its snackbar is queued or visible.
+3. Change the delete callbacks to take an explicit bookmark ID:
+   `onConfirmDeleteBookmark(bookmarkId: String)` and
+   `onCancelDeleteBookmark(bookmarkId: String)`.
+4. In `stageDeleteWithSnackbar(bookmarkId)`, stage that ID, then await
+   `showSnackbar(...)`, then confirm or cancel that same ID based on the
+   returned `SnackbarResult`.
+5. Do not dismiss the currently visible snackbar when another delete is staged.
+   Let `SnackbarHostState` queue naturally.
 
-1. Change `_pendingDeletionBookmarkId` to `MutableStateFlow<Set<String>>` so
-   the UI can grey out multiple cards simultaneously during the brief overlap.
-2. In `stageDeleteWithSnackbar`, before launching a new snackbar coroutine,
-   dismiss any existing snackbar via `snackbarHostState.currentSnackbarData
-   ?.dismiss()`. The existing coroutine's `SnackbarResult.Dismissed` branch
-   will fire `onConfirmDeleteBookmark()` for the previous card.
-3. `onConfirmDeleteBookmark()` should pop the oldest pending ID from the set
-   (not clear the entire set).
-4. `onCancelDeleteBookmark()` removes only the currently-snackbar'd ID.
+This keeps the existing user model of "delete now, undo from snackbar" while
+making the bookkeeping safe for multiple quick deletes.
+
+### Notes
+
+* The UI may still expose only one visible snackbar at a time; the change is
+  about correctly tracking multiple pending items behind that UI.
+* Existing explicit dismiss paths remain valid. If the current snackbar is
+  dismissed because the user navigates away or performs another action, only the
+  item associated with that snackbar should be confirmed.
 
 ### Files
 
@@ -52,33 +78,37 @@ Concretely:
 
 ---
 
-## 2. Text Size Changes When Switching Margin/Width Setting
+## 2. Text Size Changes When Switching Width Setting
 
 ### Problem
 
-Changing the text width from Wide → Narrow (or vice versa) causes an apparent
-~14% change in rendered text size, confirmed by screenshot analysis.
+Changing the reader width from Wide to Medium or Narrow changes the apparent
+body text size. The width control is acting like a hidden font-size control.
 
 ### Root Cause
 
-The Sakura-based HTML templates contain responsive CSS media queries:
+The reader HTML templates still contain Sakura-derived responsive font-size
+media queries:
 
 ```css
 @media (max-width: 684px) { body { font-size: 1.75rem; } }
 @media (max-width: 382px) { body { font-size: 1.65rem; } }
 ```
 
-The content width fractions (Wide=0.95, Medium=0.85, Narrow=0.75) change the
-WebView's pixel width. When the width crosses 684px or 382px, the media query
-fires and changes the CSS font-size. Meanwhile `textZoom` is applied
-multiplicatively on top, compounding the shift.
+The reader width presets change the WebView's effective content width. When the
+layout crosses one of those breakpoints, the template changes the base CSS font
+size. `WebView.settings.textZoom` is then applied on top of that, so the visual
+change is compounded.
 
 ### Proposed Fix
 
-Remove both `@media (max-width: ...)` font-size blocks from all four HTML
-templates. Font size is already fully controlled by `WebView.settings.textZoom`
-from the Android side; these CSS breakpoints are vestigial from the original
-Sakura theme and are now counterproductive.
+Remove the breakpoint-based body font-size overrides from all four reader HTML
+templates. Font size should be controlled by `textZoom`, not by width breakpoints.
+
+### Required Collateral Change
+
+Update the template unit test so it no longer expects the removed responsive
+font-size blocks and instead asserts that those breakpoints are absent.
 
 ### Files
 
@@ -86,6 +116,7 @@ Sakura theme and are now counterproductive.
 * `app/src/main/assets/html_template_dark.html`
 * `app/src/main/assets/html_template_sepia.html`
 * `app/src/main/assets/html_template_black.html`
+* `app/src/test/java/com/mydeck/app/ui/detail/ReaderHtmlTemplateTypographyTest.kt`
 
 ---
 
@@ -93,136 +124,79 @@ Sakura theme and are now counterproductive.
 
 ### Problem
 
-Certain articles (e.g. worksinprogress.co/issue/why-europe-doesnt-have-a-tesla)
-break visually when typography settings are changed. The break is intermittent
-and appears tied to a specific combination of settings values rather than any
-single setting.
+Some articles can break visually after typography changes. The issue appears to
+depend on a specific combination of settings rather than on a single control.
 
-### Root Cause (Hypothesis)
+### Current Conclusion
 
-Likely related to item #2: the media-query font-size jump interacts badly with
-certain article layouts that use relative units. Removing the media queries may
-resolve this. If not, the interaction between `textZoom`, the JS typography
-bridge (`WebViewTypographyBridge.applyTypography`), and the 150ms delay in the
-`LaunchedEffect` (BookmarkDetailWebViews.kt:193) should be investigated — a
-race between the WebView's layout pass and the JS injection could cause
-transient mis-rendering.
+The most likely first-order cause is item 2: the hidden breakpoint-driven font
+size change can interact badly with article CSS that relies on relative units.
+That is the first fix to apply.
+
+If the issue remains after item 2, the next place to investigate is the
+typography application sequence in `BookmarkDetailWebViews`:
+
+* typography is applied in a `LaunchedEffect` keyed on typography settings
+* typography is also applied again from page lifecycle callbacks
+* the `LaunchedEffect` currently waits 150 ms before injecting JS
+
+That combination may be causing a timing issue inside the document.
 
 ### Proposed Fix
 
-1. Apply fix #2 first and re-test.
-2. If the glitch persists, investigate removing the delay or using
-   `requestLayout()` after JS evaluation completes.
+This item stays as a validation checkpoint, not a committed code change beyond
+item 2.
+
+1. Apply item 2 and re-test the known failing article(s).
+2. If the glitch is still reproducible, open a focused follow-up to inspect the
+   typography injection order.
+3. Candidate follow-ups are:
+   * consolidating duplicate typography injection paths
+   * reducing or removing the 150 ms delay after confirming it is safe
+4. Do not add `requestLayout()` as part of this spec. Current evidence points
+   to DOM/CSS timing rather than Android view measurement.
 
 ### Files
 
-* Same as #2, plus `BookmarkDetailWebViews.kt:186-199`
+* Same as item 2 for the immediate fix
+* Potential follow-up: `app/src/main/java/com/mydeck/app/ui/detail/components/BookmarkDetailWebViews.kt`
 
 ---
 
-## 4. Video Fullscreen UX Polish
+## 4. Video Fullscreen Overlay Control Polish
+
+### Scope
+
+Only the fullscreen overlay control placement/styling issue is in scope for
+this spec revision. The following ideas are explicitly deferred:
+
+* app-controlled fullscreen entry
+* iframe sandbox/navigation changes
+* sensor-based auto-rotation changes
 
 ### Current State
 
-Video fullscreen **works correctly** for all tested providers (YouTube, Vimeo,
-TED). The `onShowCustomView` path fires properly, and both portrait and
-landscape orientations render with correctly oriented provider controls. The
-app provides a custom `VideoFullscreenOverlay` with close (X) and rotate
-buttons.
+Provider-driven fullscreen already works through the existing
+`WebChromeClient.onShowCustomView` path. The remaining UX problem in scope is
+that MyDeck's own close/rotate controls overlap provider controls when the
+fullscreen overlay is visible.
 
-### Issues
+### Proposed Fix
 
-1. **Discoverability** — The path to fullscreen is non-obvious. Users must tap
-   the embed to reveal provider-specific controls, then find and tap the
-   provider's native fullscreen button (which differs across YouTube, Vimeo,
-   TED, etc.). The tester didn't initially realize fullscreen was available.
+Redesign the `VideoFullscreenOverlay` controls only.
 
-2. **Auto-rotation** — Device sensor rotation doesn't automatically switch
-   the fullscreen overlay to landscape. The app's rotate button
-   (`VideoFullscreenOverlay`, line 1063) works but is a manual workaround.
-   Ideally, holding the device in landscape while in fullscreen should
-   auto-rotate without requiring the button.
-
-3. **"Open in [service]" links don't work** — Tapping YouTube's logo/link
-   or Vimeo's "open in app" within the embedded player does nothing. The
-   Readeck-provided `sandbox` attribute (`allow-scripts allow-same-origin`)
-   blocks iframe navigation — it lacks `allow-popups` and
-   `allow-top-navigation-by-user-activation`, so the iframe can't open links
-   or navigate the parent frame.
-
-4. **Overlay controls overlap provider controls** — The X (close) and Rotate
-   buttons are positioned at the top corners, where they conflict with
-   provider-specific controls (YouTube title/settings, Vimeo title/menu).
-
-### Proposed Improvements
-
-**4a. App-controlled fullscreen entry (replaces provider dependency):**
-
-Add a MyDeck-controlled fullscreen button as a Compose overlay positioned
-over the inline video embed area. Tapping it triggers fullscreen via one of:
-
-* JS bridge: inject a tap handler on the `video-embed` div that calls back
-  to native Android, which then invokes the existing `onVideoEnterFullscreen`
-  path.
-* Direct iframe fullscreen: `document.querySelector('iframe')
-  .requestFullscreen()` — if sandbox allows it.
-* Fallback: extract the embed `src` URL from the iframe and load it in a
-  dedicated fullscreen WebView, bypassing the iframe sandbox entirely.
-
-This makes fullscreen discoverable and consistent across all providers.
-
-**4b. Enable "Open in [service]" links:**
-
-When preparing the embed HTML for rendering, add `allow-popups
-allow-top-navigation-by-user-activation` to the iframe `sandbox` attribute:
-
-```kotlin
-// In getContent() or a pre-processing step
-val sanitizedEmbed = embed?.replace(
-    Regex("""sandbox="([^"]*)""""),
-    """sandbox="$1 allow-popups allow-top-navigation-by-user-activation""""
-)
-```
-
-This lets the user tap provider links (YouTube logo, Vimeo "open in app"),
-which will then be caught by `shouldOverrideUrlLoading` (line 410) and
-opened in Chrome Custom Tabs or resolved to the native app via intent.
-
-**4c. Auto-rotation via Activity orientation:**
-
-Replace the `View.rotation = 90f` transform approach with an actual
-`Activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR`
-when entering fullscreen. This lets the device sensor handle rotation
-natively, so the provider's embed re-layouts at the correct dimensions.
-Restore the previous orientation on fullscreen exit.
-
-The rotate button remains as a manual override for users with system
-rotation lock enabled (force landscape via
-`SCREEN_ORIENTATION_LANDSCAPE` toggle).
-
-**4d. Reposition and restyle overlay controls:**
-
-Redesign the `VideoFullscreenOverlay` controls:
-
-* **Position**: Vertically centered (halfway between top and bottom).
-  X button horizontally at 25% from left (halfway between left edge and
-  center). Rotate button at 75% from left (halfway between center and
-  right edge).
-* **Style**: Larger touch targets in pill-shaped outlined containers
-  (similar to MD3 outlined button / chip) instead of small circular
-  icon buttons.
-* **Behavior**: Keep the existing 3-second auto-hide timer. The new
-  positions avoid overlap with provider controls, which are typically
-  clustered at the top and bottom edges of the video.
+1. Move the close and rotate controls away from the top corners and into a
+   vertically centered overlay row so they do not collide with provider chrome.
+2. Use larger pill-shaped semi-transparent or outlined containers instead of
+   the current small circular buttons.
+3. Keep the existing 3-second auto-hide behavior.
+4. Keep the existing close action, rotate action, and fullscreen plumbing.
+5. Do not change WebView embed handling or fullscreen entry behavior in this
+   item.
 
 ### Files
 
 * `app/src/main/java/com/mydeck/app/ui/detail/BookmarkDetailScreen.kt`
-  (VideoFullscreenOverlay, lines 932-1080)
-* `app/src/main/java/com/mydeck/app/ui/detail/BookmarkDetailViewModel.kt`
-  (getContent / embed processing, lines 1121-1132)
-* `app/src/main/java/com/mydeck/app/ui/detail/components/BookmarkDetailWebViews.kt`
-  (WebView setup, fullscreen callbacks)
 
 ---
 
@@ -230,20 +204,25 @@ Redesign the `VideoFullscreenOverlay` controls:
 
 ### Problem
 
-The WIDE setting (`widthFraction = 0.95f`) still leaves noticeable margins.
-User feedback suggests the ideal narrowest margin is ~50% of the current value.
+The current `WIDE` width preset still leaves more side margin than users want.
 
 ### Proposed Fix
 
-Change `TextWidth.WIDE` from `0.95f` to `0.98f`. This leaves ~1% margin on
-each side (plus the 8px CSS body padding and the 13px template padding),
-resulting in content that feels nearly edge-to-edge without going truly
-full-bleed. Going to `1.0f` would work too, but 0.98f avoids any clipping
-edge cases.
+Change `TextWidth.WIDE` from `0.95f` to `0.98f`.
+
+This remains safely short of true edge-to-edge rendering because the article
+still has runtime body padding and container spacing. The goal is to make the
+widest preset feel clearly wider without introducing clipping risk.
+
+### Required Collateral Change
+
+Update the English reader guide so the documented Wide width percentage matches
+the new setting.
 
 ### Files
 
 * `app/src/main/java/com/mydeck/app/domain/model/TypographySettings.kt`
+* `app/src/main/assets/guide/en/reading.md`
 
 ---
 
@@ -251,74 +230,54 @@ edge cases.
 
 ### Problem
 
-Changing the reading theme (Paper/Sepia/Dark/Black) from the typography sheet
-causes a visible flash and content reflow as the entire article reloads.
+Changing the reading theme (Paper, Sepia, Dark, Black) currently causes a full
+HTML reload in the reader WebView, producing a visible flash and content reflow.
 
 ### Root Cause
 
-Each theme is a separate HTML file (`html_template_light.html`, etc.). When the
-theme changes:
+Appearance currently changes the template content itself. When appearance
+changes:
 
-1. `readerAppearanceSelection` emits → `template` flow produces a new
-   `Template` object.
-2. `content` is recomputed in `remember(... uiState.template ...)` →
-   `getContent()` produces a brand-new HTML string.
-3. `update` block detects `it.tag != content.value` → calls
-   `loadDataWithBaseURL()` → full WebView document reload.
+1. the ViewModel emits a different template
+2. the rendered HTML string changes
+3. the `AndroidView` update path sees different content and calls
+   `loadDataWithBaseURL()`
 
-### Analysis
-
-Diffing the four templates shows they are structurally identical — they differ
-**only** in ~15 hardcoded color values (body text, background, blockquote bg,
-input borders, table borders, annotation highlight opacities). The layout,
-fonts, and all structural CSS are shared.
+That forces a full document reload even though the article body itself has not
+changed.
 
 ### Proposed Fix
 
-Refactor the templates so all theme-varying colors are expressed as CSS custom
-properties (variables) on `:root`. This is already partially done for accent
-colors (`--accent-color`, etc.). Extend the pattern to cover all theme-varying
-properties:
+Refactor reader theming so appearance changes update CSS variables in the
+existing document instead of replacing the whole document.
 
-```css
-:root {
-  --body-color: #4a4a4a;
-  --body-bg: #f9f9f9;
-  --surface-color: #f1f1f1;
-  --border-color: #f1f1f1;
-  --input-color: #4a4a4a;
-  /* ... plus existing accent vars ... */
-}
-```
+1. Move all appearance-specific colors, not just accent colors, into CSS custom
+   properties.
+2. Introduce a theme-neutral reader template whose structure does not vary by
+   appearance.
+3. Add a `WebViewThemeBridge` that updates those CSS variables in-place when
+   the appearance changes.
+4. In `BookmarkDetailWebViews`, treat appearance changes separately from
+   content changes. Only real content changes should call `loadDataWithBaseURL()`.
+5. Keep initial theme application on first load so the first render matches the
+   current appearance.
 
-Then add a new `WebViewThemeBridge.applyTheme(appearance)` JS function
-(analogous to `WebViewTypographyBridge.applyTypography`) that updates these
-CSS variables at runtime:
-
-```javascript
-document.documentElement.style.setProperty('--body-bg', '#222222');
-// ... etc.
-```
-
-With this approach:
-* A single template file suffices (or one light + one dark for system-theme
-  transitions, each using the same CSS variable names).
-* Theme switches execute a small JS snippet instead of `loadDataWithBaseURL()`.
-* No document reload, no reflow, no flash.
-* The `content` remember key no longer includes `uiState.template`, so the
-  WebView is only reloaded when the actual article content changes.
+Expected outcome: theme switching should avoid a full document reload and
+substantially reduce flash/reflow. A minor repaint may still occur, but the
+document should no longer be torn down and rebuilt on every theme change.
 
 ### Migration Path
 
-1. Consolidate the four templates into one (or two for system-theme).
-2. Move color definitions to CSS custom properties.
-3. Create `WebViewThemeBridge` with `applyTheme()`.
-4. Add a `LaunchedEffect` keyed on appearance that calls the new bridge.
-5. Remove `template` from the `content` remember keys.
+1. Convert hardcoded theme colors in the templates to shared CSS variable names.
+2. Create the runtime theme bridge.
+3. Separate content reload triggers from appearance update triggers in
+   `BookmarkDetailWebViews`.
+4. After behavior is verified, optionally consolidate any remaining duplicated
+   template assets.
 
 ### Files
 
-* `app/src/main/assets/html_template_*.html` (consolidate)
+* `app/src/main/assets/html_template_*.html`
 * New: `app/src/main/java/com/mydeck/app/ui/detail/WebViewThemeBridge.kt`
 * `app/src/main/java/com/mydeck/app/ui/detail/components/BookmarkDetailWebViews.kt`
 * `app/src/main/java/com/mydeck/app/ui/detail/BookmarkDetailViewModel.kt`
@@ -330,13 +289,24 @@ With this approach:
 
 | # | Item | Severity | Effort |
 |---|------|----------|--------|
-| 1 | Rapid successive deletes | Bug — data loss | Medium |
-| 2 | Text size shifts with margins | Bug — visual | Low |
-| 3 | Layout glitch (issue #11) | Bug — visual | Low (if #2 fixes it) |
+| 1 | Rapid successive deletes | Bug - correctness/data loss risk | Medium |
+| 2 | Text size shifts with width | Bug - visual | Low |
+| 3 | Layout glitch (issue #11) | Validation after item 2 | Low |
 | 5 | Narrower minimum margin | Enhancement | Trivial |
-| 4 | Video fullscreen UX polish | Enhancement | Medium |
+| 4 | Video overlay control polish | Enhancement | Low |
 | 6 | Theme switch reflow | Enhancement | Medium-High |
 
-Items 2, 3, and 5 are quick wins. Item 1 is the most impactful bug.
-Item 6 is the most involved but has the biggest UX payoff for readers who
-switch themes frequently.
+Items 1 and 2 are the most important correctness fixes. Item 3 should be
+re-tested immediately after item 2. Item 6 is still worthwhile, but it is the
+largest and riskiest change in the set.
+
+---
+
+## Verification
+
+Because these changes touch UI/assets, run the standard aggregate debug tasks
+serially after implementation:
+
+* `./gradlew :app:assembleDebugAll`
+* `./gradlew :app:testDebugUnitTestAll`
+* `./gradlew :app:lintDebugAll`

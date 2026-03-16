@@ -1,8 +1,8 @@
 package com.mydeck.app.ui.detail
 
+import java.nio.charset.StandardCharsets
 import java.nio.file.Files
 import java.nio.file.Path
-import java.nio.charset.StandardCharsets
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -15,11 +15,11 @@ class ReaderHtmlTemplateTypographyTest {
 
         templates.values.forEach { template ->
             assertTrue(template.contains("font-size: 1.95rem;"))
-            assertTrue(template.contains("font-size: 1.75rem;"))
-            assertTrue(template.contains("font-size: 1.65rem;"))
             assertTrue(template.contains("max-width: 100%;"))
-            assertFalse(template.contains("font-size: 1.53rem;"))
-            assertFalse(template.contains("font-size: 1.35rem;"))
+            assertFalse(template.contains("@media (max-width: 684px)"))
+            assertFalse(template.contains("@media (max-width: 382px)"))
+            assertFalse(template.contains("font-size: 1.75rem;"))
+            assertFalse(template.contains("font-size: 1.65rem;"))
             assertFalse(template.contains("max-width: 38em;"))
         }
     }
@@ -50,44 +50,30 @@ class ReaderHtmlTemplateTypographyTest {
     }
 
     @Test
-    fun `reader templates underline article links in every appearance`() {
+    fun `reader templates expose css variables for runtime theming`() {
         val templates = loadTemplates()
 
         templates.values.forEach { template ->
-            assertTrue(template.contains("text-decoration: underline;"))
-            assertTrue(template.contains("text-underline-offset: 0.12em;"))
-            assertTrue(template.contains("text-decoration-thickness: 1px;"))
+            assertTrue(template.contains("--body-color:"))
+            assertTrue(template.contains("--body-bg:"))
+            assertTrue(template.contains("--link-color:"))
+            assertTrue(template.contains("--annotation-active-outline-color:"))
+            assertTrue(template.contains("color: var(--body-color);"))
+            assertTrue(template.contains("background-color: var(--body-bg);"))
+            assertTrue(template.contains("text-decoration-color: var(--accent-underline-color);"))
+            assertTrue(template.contains("outline: 2px solid var(--annotation-active-outline-color);"))
+            assertFalse(template.contains("{{"))
         }
     }
 
     @Test
-    fun `dynamic reader templates expose accent tokens for runtime injection`() {
-        val templates = loadTemplates()
-
-        listOf(
-            "html_template_light.html",
-            "html_template_dark.html",
-            "html_template_black.html"
-        ).forEach { fileName ->
-            val template = templates.getValue(fileName)
-            assertTrue(template.contains("--accent-color: {{ACCENT_COLOR}};"))
-            assertTrue(template.contains("--accent-container-color: {{ACCENT_CONTAINER_COLOR}};"))
-            assertTrue(template.contains("--accent-underline-color: {{ACCENT_UNDERLINE_COLOR}};"))
-            assertTrue(template.contains("--on-accent-color: {{ON_ACCENT_COLOR}};"))
-            assertTrue(template.contains("--on-accent-container-color: {{ON_ACCENT_CONTAINER_COLOR}};"))
-        }
-    }
-
-    @Test
-    fun `sepia template keeps curated article links subtly underlined`() {
+    fun `sepia template keeps curated article link defaults`() {
         val sepiaTemplate = loadTemplates().getValue("html_template_sepia.html")
 
-        assertTrue(sepiaTemplate.contains("text-decoration: underline;"))
-        assertTrue(sepiaTemplate.contains("text-decoration-color: rgba(140, 110, 80, 0.65);"))
-        assertTrue(sepiaTemplate.contains("text-underline-offset: 0.12em;"))
-        assertTrue(sepiaTemplate.contains("text-decoration-thickness: 1px;"))
-        assertTrue(sepiaTemplate.contains("color: #7a4b21;"))
-        assertTrue(sepiaTemplate.contains("color: #68401b;"))
+        assertTrue(sepiaTemplate.contains("--link-color: #7A4B21;"))
+        assertTrue(sepiaTemplate.contains("--link-visited-color: #68401B;"))
+        assertTrue(sepiaTemplate.contains("--link-hover-color: #A76D3D;"))
+        assertTrue(sepiaTemplate.contains("--accent-underline-color: rgba(140, 110, 80, 0.65);"))
         assertFalse(sepiaTemplate.contains("#1d7484"))
     }
 

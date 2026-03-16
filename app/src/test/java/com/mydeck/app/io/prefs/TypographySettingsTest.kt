@@ -76,7 +76,7 @@ class TypographySettingsTest {
 
     @Test
     fun `TextWidth enum has correct width fractions and pill labels`() {
-        assertEquals(0.95f, TextWidth.WIDE.widthFraction)
+        assertEquals(0.98f, TextWidth.WIDE.widthFraction)
         assertEquals(0.85f, TextWidth.MEDIUM.widthFraction)
         assertEquals(0.75f, TextWidth.NARROW.widthFraction)
         assertEquals("W", TextWidth.WIDE.pillLabel)
