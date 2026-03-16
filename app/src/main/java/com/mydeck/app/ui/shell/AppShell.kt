@@ -34,6 +34,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.unit.Dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.navigation.NavDestination
+import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -73,6 +75,10 @@ import com.mydeck.app.ui.welcome.WelcomeScreen
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
+// Typed route matching stays stable after release obfuscation.
+private inline fun <reified T : Any> NavDestination?.matchesRoute(): Boolean =
+    this?.hasRoute<T>() == true
+
 @SuppressLint("WrongStartDestinationType")
 @Composable
 fun AppShell(
@@ -103,10 +109,9 @@ fun AppShell(
 
     // Determine whether navigation (rail/drawer) should be hidden
     val currentBackStackEntry = navController.currentBackStackEntryAsState().value
-    val currentRoute = currentBackStackEntry?.destination?.route
-    val hideNavigation = currentRoute?.let {
-        it.startsWith(BookmarkDetailRoute::class.qualifiedName ?: "") ||
-        it.startsWith(WelcomeRoute::class.qualifiedName ?: "")
+    val currentDestination = currentBackStackEntry?.destination
+    val hideNavigation = currentDestination?.let {
+        it.matchesRoute<BookmarkDetailRoute>() || it.matchesRoute<WelcomeRoute>()
     } ?: true
 
     when (layoutTier) {
@@ -197,8 +202,7 @@ private fun CompactAppShell(
 
     // Only allow swipe-to-open drawer gesture on BookmarkListScreen (matches original behavior)
     val currentBackStackEntry = navController.currentBackStackEntryAsState().value
-    val isOnBookmarkList = currentBackStackEntry?.destination?.route
-        ?.startsWith(BookmarkListRoute::class.qualifiedName ?: "") == true
+    val isOnBookmarkList = currentBackStackEntry?.destination.matchesRoute<BookmarkListRoute>()
 
     ModalNavigationDrawer(
         drawerState = drawerState,
@@ -383,8 +387,7 @@ private fun MediumAppShell(
     }
 
     fun navigateToListAndApply(action: () -> Unit) {
-        val currentRoute = navController.currentBackStackEntry?.destination?.route
-        if (currentRoute?.startsWith(BookmarkListRoute::class.qualifiedName ?: "") != true) {
+        if (!navController.currentBackStackEntry?.destination.matchesRoute<BookmarkListRoute>()) {
             navController.navigate(BookmarkListRoute()) {
                 popUpTo(BookmarkListRoute()) { inclusive = true }
                 launchSingleTop = true
@@ -571,8 +574,7 @@ private fun ExpandedAppShell(
     }
 
     fun navigateToListAndApply(action: () -> Unit) {
-        val currentRoute = navController.currentBackStackEntry?.destination?.route
-        if (currentRoute?.startsWith(BookmarkListRoute::class.qualifiedName ?: "") != true) {
+        if (!navController.currentBackStackEntry?.destination.matchesRoute<BookmarkListRoute>()) {
             navController.navigate(BookmarkListRoute()) {
                 popUpTo(BookmarkListRoute()) { inclusive = true }
                 launchSingleTop = true

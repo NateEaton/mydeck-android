@@ -15,6 +15,7 @@ import com.mydeck.app.domain.model.DarkAppearance
 import com.mydeck.app.domain.model.EffectiveAppearance
 import com.mydeck.app.domain.model.LightAppearance
 import com.mydeck.app.domain.model.BookmarkMetadataUpdate
+import com.mydeck.app.domain.model.ReaderAppearanceSelection
 import com.mydeck.app.domain.model.SelectionData
 import com.mydeck.app.domain.model.Template
 import com.mydeck.app.domain.model.Theme
@@ -89,20 +90,32 @@ class BookmarkDetailViewModel @Inject constructor(
     val debugExportEvent: Flow<DebugExportEvent> = _debugExportEvent.receiveAsFlow()
 
     private val _bookmarkId = MutableStateFlow<String?>(savedStateHandle["bookmarkId"])
-    private val template: Flow<Template?> = combine(
-        settingsDataStore.themeFlow,
-        settingsDataStore.lightAppearanceFlow,
-        settingsDataStore.darkAppearanceFlow
-    ) { themeStr, lightAppearance, darkAppearance ->
-        val themeMode = themeStr?.let {
-            try { Theme.valueOf(it) } catch (_: IllegalArgumentException) { Theme.LIGHT }
-        } ?: Theme.SYSTEM
-        when (themeMode) {
-            Theme.DARK -> loadTemplateForAppearance(darkAppearance.toEffectiveAppearance())
-            Theme.LIGHT -> loadTemplateForAppearance(lightAppearance.toEffectiveAppearance())
+    private val themeModeFlow = settingsDataStore.themeFlow
+        .map { themeStr ->
+            themeStr?.let {
+                try { Theme.valueOf(it) } catch (_: IllegalArgumentException) { Theme.LIGHT }
+            } ?: Theme.SYSTEM
+        }
+    private val lightAppearance = settingsDataStore.lightAppearanceFlow
+    private val darkAppearance = settingsDataStore.darkAppearanceFlow
+    private val readerAppearanceSelection: Flow<ReaderAppearanceSelection> = combine(
+        themeModeFlow,
+        lightAppearance,
+        darkAppearance
+    ) { themeMode, lightAppearance, darkAppearance ->
+        ReaderAppearanceSelection(
+            themeMode = themeMode,
+            lightAppearance = lightAppearance,
+            darkAppearance = darkAppearance
+        )
+    }
+    private val template: Flow<Template?> = readerAppearanceSelection.map { selection ->
+        when (selection.themeMode) {
+            Theme.DARK -> loadTemplateForAppearance(selection.darkAppearance.toEffectiveAppearance())
+            Theme.LIGHT -> loadTemplateForAppearance(selection.lightAppearance.toEffectiveAppearance())
             Theme.SYSTEM -> {
-                val lightTemplate = loadTemplateContent(lightAppearance.toEffectiveAppearance())
-                val darkTemplate = loadTemplateContent(darkAppearance.toEffectiveAppearance())
+                val lightTemplate = loadTemplateContent(selection.lightAppearance.toEffectiveAppearance())
+                val darkTemplate = loadTemplateContent(selection.darkAppearance.toEffectiveAppearance())
                 if (!lightTemplate.isNullOrBlank() && !darkTemplate.isNullOrBlank()) {
                     Template.DynamicTemplate(light = lightTemplate, dark = darkTemplate)
                 } else null
@@ -302,8 +315,9 @@ class BookmarkDetailViewModel @Inject constructor(
                 bookmarkRepository.observeBookmark(id),
                 updateState,
                 template,
-                typographySettings
-            ) { bookmark, updateState, template, typographySettings ->
+                typographySettings,
+                readerAppearanceSelection
+            ) { bookmark, updateState, template, typographySettings, readerAppearanceSelection ->
                 if (bookmark == null) {
                     Timber.e("Error loading bookmark [bookmarkId=$id]")
                     UiState.Error
@@ -350,7 +364,8 @@ class BookmarkDetailViewModel @Inject constructor(
                         ),
                         updateBookmarkState = updateState,
                         template = template,
-                        typographySettings = typographySettings
+                        typographySettings = typographySettings,
+                        readerAppearanceSelection = readerAppearanceSelection
                     )
                 }
             }
@@ -540,6 +555,24 @@ class BookmarkDetailViewModel @Inject constructor(
     fun onTypographySettingsChanged(settings: com.mydeck.app.domain.model.TypographySettings) {
         viewModelScope.launch {
             settingsDataStore.saveTypographySettings(settings)
+        }
+    }
+
+    fun onReaderThemeSelectionChanged(selection: ReaderAppearanceSelection) {
+        viewModelScope.launch {
+            val currentLightAppearance = settingsDataStore.getLightAppearance()
+            val currentDarkAppearance = settingsDataStore.getDarkAppearance()
+            val currentThemeMode = settingsDataStore.getTheme()
+
+            if (selection.lightAppearance != currentLightAppearance) {
+                settingsDataStore.saveLightAppearance(selection.lightAppearance)
+            }
+            if (selection.darkAppearance != currentDarkAppearance) {
+                settingsDataStore.saveDarkAppearance(selection.darkAppearance)
+            }
+            if (selection.themeMode != currentThemeMode) {
+                settingsDataStore.saveTheme(selection.themeMode)
+            }
         }
     }
 
@@ -1021,7 +1054,8 @@ class BookmarkDetailViewModel @Inject constructor(
             val bookmark: Bookmark, 
             val updateBookmarkState: UpdateBookmarkState?, 
             val template: Template, 
-            val typographySettings: com.mydeck.app.domain.model.TypographySettings
+            val typographySettings: com.mydeck.app.domain.model.TypographySettings,
+            val readerAppearanceSelection: ReaderAppearanceSelection
         ) : UiState()
 
         data object Loading : UiState()
@@ -1218,7 +1252,13 @@ class BookmarkDetailViewModel @Inject constructor(
     }
 
     fun onArticleSearchQueryChange(query: String) {
-        _articleSearchState.update { it.copy(query = query) }
+        _articleSearchState.update {
+            it.copy(
+                query = query,
+                totalMatches = 0,
+                currentMatch = 0
+            )
+        }
 
         // Debounce search execution
         searchDebounceJob?.cancel()
@@ -1229,10 +1269,14 @@ class BookmarkDetailViewModel @Inject constructor(
         }
     }
 
-    fun onArticleSearchUpdateResults(totalMatches: Int) {
+    fun onArticleSearchUpdateResults(totalMatches: Int, preferredMatch: Int = 0) {
         _articleSearchState.update { state ->
             val newCurrent = if (totalMatches > 0) {
-                if (state.currentMatch == 0) 1 else state.currentMatch.coerceAtMost(totalMatches)
+                when {
+                    state.currentMatch in 1..totalMatches -> state.currentMatch
+                    preferredMatch in 1..totalMatches -> preferredMatch
+                    else -> 1
+                }
             } else {
                 0
             }

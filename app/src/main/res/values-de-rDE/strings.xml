@@ -93,6 +93,9 @@ other{}
     <string name="action_mark_unread">Als ungelesen markieren</string>
     <string name="more_options">Mehr Optionen</string>
     <string name="action_delete">Löschen</string>
+    <string name="action_undo">Undo</string>
+    <string name="bookmark_delete_pending">Deleting bookmark</string>
+    <string name="bookmark_delete_pending_named">Deleting bookmark &quot;%1$s&quot;</string>
     <string name="action_open_in_browser">Im Browser öffnen</string>
     <string name="error_no_article_content">Fehler, kein Artikelinhalt verfügbar</string>
     <string name="update_successful">Aktualisierung erfolgreich</string>
@@ -264,11 +267,16 @@ other{}
 
     <!-- Reader Typography Panel -->
     <string name="action_typography_settings">Textformatierung</string>
+    <string name="typography_tab_text">Text</string>
+    <string name="typography_tab_theme">Theme</string>
     <string name="typography_section_font">Schrift</string>
     <string name="typography_section_size">Schriftgröße</string>
     <string name="typography_section_line_spacing">Zeilenabstand</string>
     <string name="typography_section_width">Breite</string>
-    <string name="typography_reset">Auf Standard zurücksetzen</string>
+    <string name="typography_section_reading_theme">Reading theme</string>
+    <string name="typography_reset_text">Reset text</string>
+    <string name="typography_reset_layout">Reset layout</string>
+    <string name="typography_reset_theme">Reset theme</string>
     <string name="line_spacing_tight">Eng</string>
     <string name="line_spacing_loose">Weit</string>
     <string name="width_wide">Breit</string>

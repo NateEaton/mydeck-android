@@ -84,9 +84,9 @@ class BookmarkListViewModel @Inject constructor(
     private val _shareIntent = MutableStateFlow<Intent?>(null)
     val shareIntent = _shareIntent.asStateFlow()
 
-    // Pending deletion (single-item Gmail-style staging)
-    private val _pendingDeletionBookmarkId = MutableStateFlow<String?>(null)
-    val pendingDeletionBookmarkId = _pendingDeletionBookmarkId.asStateFlow()
+    // Pending deletion IDs tracked per staged snackbar so rapid deletes keep item identity.
+    private val _pendingDeletionBookmarkIds = MutableStateFlow<List<String>>(emptyList())
+    val pendingDeletionBookmarkIds = _pendingDeletionBookmarkIds.asStateFlow()
 
     init {
         viewModelScope.launch {
@@ -393,13 +393,14 @@ class BookmarkListViewModel @Inject constructor(
     }
 
     fun onDeleteBookmark(bookmarkId: String) {
-        // Store bookmark ID for potential undo; actual deletion occurs on snackbar dismissal.
-        _pendingDeletionBookmarkId.value = bookmarkId
+        _pendingDeletionBookmarkIds.update { pendingIds ->
+            if (bookmarkId in pendingIds) pendingIds else pendingIds + bookmarkId
+        }
     }
 
-    fun onConfirmDeleteBookmark() {
-        val bookmarkId = _pendingDeletionBookmarkId.value ?: return
-        _pendingDeletionBookmarkId.value = null
+    fun onConfirmDeleteBookmark(bookmarkId: String) {
+        val wasPending = removePendingDeletion(bookmarkId)
+        if (!wasPending) return
 
         viewModelScope.launch {
             try {
@@ -412,9 +413,22 @@ class BookmarkListViewModel @Inject constructor(
         }
     }
 
-    fun onCancelDeleteBookmark() {
-        _pendingDeletionBookmarkId.value = null
+    fun onCancelDeleteBookmark(bookmarkId: String) {
+        removePendingDeletion(bookmarkId)
         Timber.d("Delete bookmark cancelled")
+    }
+
+    private fun removePendingDeletion(bookmarkId: String): Boolean {
+        var removed = false
+        _pendingDeletionBookmarkIds.update { pendingIds ->
+            if (bookmarkId !in pendingIds) {
+                pendingIds
+            } else {
+                removed = true
+                pendingIds.filterNot { it == bookmarkId }
+            }
+        }
+        return removed
     }
 
     fun onToggleMarkReadBookmark(bookmarkId: String, isRead: Boolean) {

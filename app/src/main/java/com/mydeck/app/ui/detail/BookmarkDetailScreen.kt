@@ -26,10 +26,12 @@ import com.mydeck.app.ui.components.LongPressContextMenuItem
 import androidx.compose.ui.draw.alpha
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.absoluteOffset
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -117,7 +119,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.ui.draw.clip
@@ -375,7 +379,9 @@ fun BookmarkDetailHost(
     val onArticleSearchQueryChange = { query: String -> viewModel.onArticleSearchQueryChange(query) }
     val onArticleSearchNext = { viewModel.onArticleSearchNext() }
     val onArticleSearchPrevious = { viewModel.onArticleSearchPrevious() }
-    val onArticleSearchUpdateResults = { totalMatches: Int -> viewModel.onArticleSearchUpdateResults(totalMatches) }
+    val onArticleSearchUpdateResults = { totalMatches: Int, preferredMatch: Int ->
+        viewModel.onArticleSearchUpdateResults(totalMatches, preferredMatch)
+    }
 
     // Gallery and context menu callbacks
     val onImageTapped = { data: ImageGalleryData -> viewModel.onImageTapped(data) }
@@ -624,8 +630,12 @@ fun BookmarkDetailHost(
             if (showTypographyPanel) {
                 ReaderSettingsBottomSheet(
                     currentSettings = uiState.typographySettings,
+                    currentAppearanceSelection = uiState.readerAppearanceSelection,
                     onSettingsChanged = { settings ->
                         viewModel.onTypographySettingsChanged(settings)
+                    },
+                    onThemeSelectionChanged = { selection ->
+                        viewModel.onReaderThemeSelectionChanged(selection)
                     },
                     onDismiss = { showTypographyPanel = false }
                 )
@@ -704,7 +714,7 @@ fun BookmarkDetailScreen(
     onArticleSearchQueryChange: (String) -> Unit = {},
     onArticleSearchNext: () -> Unit = {},
     onArticleSearchPrevious: () -> Unit = {},
-    onArticleSearchUpdateResults: (Int) -> Unit = {},
+    onArticleSearchUpdateResults: (Int, Int) -> Unit = { _, _ -> },
     onShowTypographyPanel: () -> Unit = {},
     onImageTapped: (ImageGalleryData) -> Unit = {},
     onImageLongPress: (imageUrl: String, linkUrl: String?, linkType: String, imageAlt: String) -> Unit = { _, _, _, _ -> },
@@ -725,6 +735,7 @@ fun BookmarkDetailScreen(
     val coroutineScope = rememberCoroutineScope()
     var articleTopOffset by remember { mutableStateOf(0f) }
     var viewportHeight by remember { mutableIntStateOf(0) }
+    val articleViewportTopPx = (scrollState.value - articleTopOffset).coerceAtLeast(0f).toInt()
     val fullscreenReaderMode = fullscreenWhileReading && contentMode == ContentMode.READER
     val immersiveModeEnabled = fullscreenReaderMode || videoFullscreenView != null
     var showFullscreenTopBar by remember(uiState.bookmark.bookmarkId, fullscreenReaderMode) {
@@ -884,6 +895,9 @@ fun BookmarkDetailScreen(
                     onTextSelectionCaptured = onTextSelectionCaptured,
                     onAnnotationClicked = onAnnotationClicked,
                     onArticlePositionChanged = { articleTopOffset = it },
+                    articleViewportTopPx = articleViewportTopPx,
+                    articleTopOffsetPx = articleTopOffset,
+                    viewportHeightPx = viewportHeight,
                     onReaderWebViewChanged = onReaderWebViewChanged,
                     onVideoEnterFullscreen = onVideoEnterFullscreen,
                     onVideoExitFullscreen = onVideoExitFullscreen,
@@ -1031,41 +1045,64 @@ private fun VideoFullscreenOverlay(
                 enter = androidx.compose.animation.fadeIn(),
                 exit = androidx.compose.animation.fadeOut()
             ) {
-                androidx.compose.foundation.layout.Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp)
-                        .windowInsetsPadding(WindowInsets.statusBars)
-                        .align(Alignment.TopCenter),
-                    horizontalArrangement = Arrangement.SpaceBetween
+                BoxWithConstraints(
+                    modifier = Modifier.fillMaxSize()
                 ) {
-                    IconButton(
-                        onClick = { onDismiss(VideoFullscreenDismissSource.UI) },
-                        modifier = Modifier.background(Color.Black.copy(alpha = 0.5f), shape = androidx.compose.foundation.shape.CircleShape)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Close,
-                            contentDescription = stringResource(R.string.gallery_close),
-                            tint = Color.White
-                        )
-                    }
+                    val controlWidth = 72.dp
+                    val minHorizontalPadding = 24.dp
+                    val leftOffset = ((maxWidth * 0.25f) - (controlWidth / 2))
+                        .coerceAtLeast(minHorizontalPadding)
+                    val rightOffset = ((maxWidth * 0.75f) - (controlWidth / 2))
+                        .coerceAtMost(maxWidth - controlWidth - minHorizontalPadding)
 
-                    IconButton(
+                    VideoFullscreenControlButton(
+                        modifier = Modifier
+                            .align(Alignment.CenterStart)
+                            .absoluteOffset(x = leftOffset),
+                        onClick = { onDismiss(VideoFullscreenDismissSource.UI) },
+                        contentDescription = stringResource(R.string.gallery_close),
+                        icon = Icons.Default.Close
+                    )
+                    VideoFullscreenControlButton(
+                        modifier = Modifier
+                            .align(Alignment.CenterStart)
+                            .absoluteOffset(x = rightOffset),
                         onClick = {
                             isRotated = !isRotated
                             revealControls()
                         },
-                        modifier = Modifier.background(Color.Black.copy(alpha = 0.5f), shape = androidx.compose.foundation.shape.CircleShape)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Refresh,
-                            contentDescription = stringResource(R.string.video_fullscreen_rotate),
-                            tint = Color.White
-                        )
-                    }
+                        contentDescription = stringResource(R.string.video_fullscreen_rotate),
+                        icon = Icons.Default.Refresh
+                    )
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun VideoFullscreenControlButton(
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit,
+    contentDescription: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector
+) {
+    val shape = RoundedCornerShape(24.dp)
+    Box(
+        modifier = modifier
+            .width(72.dp)
+            .height(48.dp)
+            .clip(shape)
+            .border(1.dp, Color.White.copy(alpha = 0.28f), shape)
+            .background(Color.Black.copy(alpha = 0.56f))
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = contentDescription,
+            tint = Color.White
+        )
     }
 }
 
@@ -1110,13 +1147,16 @@ fun BookmarkDetailContent(
     contentMode: ContentMode = ContentMode.READER,
     contentLoadState: ContentLoadState = ContentLoadState.Idle,
     articleSearchState: BookmarkDetailViewModel.ArticleSearchState = BookmarkDetailViewModel.ArticleSearchState(),
-    onArticleSearchUpdateResults: (Int) -> Unit = {},
+    onArticleSearchUpdateResults: (Int, Int) -> Unit = { _, _ -> },
     onImageTapped: (ImageGalleryData) -> Unit = {},
     onImageLongPress: (imageUrl: String, linkUrl: String?, linkType: String, imageAlt: String) -> Unit = { _, _, _, _ -> },
     onLinkLongPress: (linkUrl: String, linkText: String) -> Unit = { _, _ -> },
     onTextSelectionCaptured: (com.mydeck.app.domain.model.SelectionData) -> Unit = {},
     onAnnotationClicked: (String) -> Unit = {},
     onArticlePositionChanged: (Float) -> Unit = {},
+    articleViewportTopPx: Int = 0,
+    articleTopOffsetPx: Float = 0f,
+    viewportHeightPx: Int = 0,
     onReaderWebViewChanged: (WebView?) -> Unit = {},
     onVideoEnterFullscreen: (View, WebChromeClient.CustomViewCallback?) -> Unit = { _, _ -> },
     onVideoExitFullscreen: (VideoFullscreenDismissSource) -> Unit = {},
@@ -1231,6 +1271,10 @@ fun BookmarkDetailContent(
                             uiState = uiState,
                             articleSearchState = articleSearchState,
                             onArticleSearchUpdateResults = onArticleSearchUpdateResults,
+                            articleViewportTopPx = articleViewportTopPx,
+                            articleTopOffsetPx = articleTopOffsetPx,
+                            viewportHeightPx = viewportHeightPx,
+                            scrollState = scrollState,
                             onContentReady = { ready -> isReaderContentReady = ready },
                             onWebViewChanged = onReaderWebViewChanged,
                             onImageTapped = onImageTapped,
@@ -1623,7 +1667,12 @@ fun BookmarkDetailScreenPreview() {
                 bookmark = sampleBookmark,
                 updateBookmarkState = null,
                 template = Template.SimpleTemplate("template"),
-                typographySettings = com.mydeck.app.domain.model.TypographySettings()
+                typographySettings = com.mydeck.app.domain.model.TypographySettings(),
+                readerAppearanceSelection = com.mydeck.app.domain.model.ReaderAppearanceSelection(
+                    themeMode = com.mydeck.app.domain.model.Theme.SYSTEM,
+                    lightAppearance = com.mydeck.app.domain.model.LightAppearance.PAPER,
+                    darkAppearance = com.mydeck.app.domain.model.DarkAppearance.DARK
+                )
             ),
             onClickToggleFavorite = { _, _ -> },
             onClickToggleArchive = { _, _ -> },
@@ -1645,7 +1694,12 @@ private fun BookmarkDetailContentPreview() {
                 bookmark = sampleBookmark,
                 updateBookmarkState = null,
                 template = Template.SimpleTemplate("template"),
-                typographySettings = com.mydeck.app.domain.model.TypographySettings()
+                typographySettings = com.mydeck.app.domain.model.TypographySettings(),
+                readerAppearanceSelection = com.mydeck.app.domain.model.ReaderAppearanceSelection(
+                    themeMode = com.mydeck.app.domain.model.Theme.SYSTEM,
+                    lightAppearance = com.mydeck.app.domain.model.LightAppearance.PAPER,
+                    darkAppearance = com.mydeck.app.domain.model.DarkAppearance.DARK
+                )
             ),
             onClickOpenUrl = {},
             onClickToggleFavorite = { _, _ -> },

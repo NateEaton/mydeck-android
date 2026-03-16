@@ -50,9 +50,12 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Snackbar
+import androidx.compose.material3.SnackbarData
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarVisuals
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -80,7 +83,11 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.navigation.NavHostController
@@ -113,11 +120,11 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.navigation.compose.rememberNavController
 
 private const val PendingDeleteFromDetailKey = "pending_delete_bookmark_id"
+private const val PendingDeleteSnackbarTitleMaxChars = 18
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -139,7 +146,7 @@ fun BookmarkListScreen(
     val sortOption = viewModel.sortOption.collectAsState()
     val labelsWithCounts = viewModel.labelsWithCounts.collectAsState()
     val isLabelsSheetOpen = viewModel.isLabelsSheetOpen.collectAsState()
-    val pendingDeletionBookmarkId = viewModel.pendingDeletionBookmarkId.collectAsState()
+    val pendingDeletionBookmarkIds = viewModel.pendingDeletionBookmarkIds.collectAsState()
 
     var showLayoutMenu by remember { mutableStateOf(false) }
     var showSortMenu by remember { mutableStateOf(false) }
@@ -152,6 +159,8 @@ fun BookmarkListScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val hapticFeedback = LocalHapticFeedback.current
     val lifecycleOwner = LocalLifecycleOwner.current
+    val context = LocalContext.current
+    val undoActionLabel = stringResource(R.string.action_undo)
 
     val pullToRefreshState = rememberPullToRefreshState()
     val isLoading by viewModel.loadBookmarksIsRunning.collectAsState()
@@ -161,21 +170,63 @@ fun BookmarkListScreen(
         snackbarHostState.currentSnackbarData?.dismiss()
     }
 
+    fun pendingDeleteSnackbarMessage(bookmarkId: String): String {
+        val titleSnippet = formatPendingDeleteSnackbarTitleSnippet(
+            title = (uiState as? BookmarkListViewModel.UiState.Success)
+                ?.bookmarks
+                ?.firstOrNull { it.id == bookmarkId }
+                ?.title
+                .orEmpty()
+        )
+        return if (titleSnippet.isNotEmpty()) {
+            context.getString(R.string.bookmark_delete_pending_named, titleSnippet)
+        } else {
+            context.getString(R.string.bookmark_delete_pending)
+        }
+    }
+
+    fun pendingDeleteSnackbarVisuals(bookmarkId: String): PendingDeleteSnackbarVisuals? {
+        val titleSnippet = formatPendingDeleteSnackbarTitleSnippet(
+            title = (uiState as? BookmarkListViewModel.UiState.Success)
+                ?.bookmarks
+                ?.firstOrNull { it.id == bookmarkId }
+                ?.title
+                .orEmpty()
+        )
+        if (titleSnippet.isEmpty()) {
+            return null
+        }
+
+        return PendingDeleteSnackbarVisuals(
+            message = context.getString(R.string.bookmark_delete_pending_named, titleSnippet),
+            prefixText = context.getString(R.string.bookmark_delete_pending),
+            titleSnippet = titleSnippet,
+            actionLabel = undoActionLabel,
+            duration = SnackbarDuration.Indefinite
+        )
+    }
+
     fun stageDeleteWithSnackbar(bookmarkId: String, withHaptic: Boolean = false) {
         if (withHaptic) {
             hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
         }
+        val pendingDeleteMessage = pendingDeleteSnackbarMessage(bookmarkId)
+        val pendingDeleteVisuals = pendingDeleteSnackbarVisuals(bookmarkId)
         viewModel.onDeleteBookmark(bookmarkId)
         scope.launch {
-            val result = snackbarHostState.showSnackbar(
-                message = "Bookmark deleted",
-                actionLabel = "UNDO",
-                duration = SnackbarDuration.Indefinite
-            )
-            if (result == androidx.compose.material3.SnackbarResult.ActionPerformed) {
-                viewModel.onCancelDeleteBookmark()
+            val result = if (pendingDeleteVisuals != null) {
+                snackbarHostState.showSnackbar(pendingDeleteVisuals)
             } else {
-                viewModel.onConfirmDeleteBookmark()
+                snackbarHostState.showSnackbar(
+                    message = pendingDeleteMessage,
+                    actionLabel = undoActionLabel,
+                    duration = SnackbarDuration.Indefinite
+                )
+            }
+            if (result == androidx.compose.material3.SnackbarResult.ActionPerformed) {
+                viewModel.onCancelDeleteBookmark(bookmarkId)
+            } else {
+                viewModel.onConfirmDeleteBookmark(bookmarkId)
             }
         }
     }
@@ -206,7 +257,6 @@ fun BookmarkListScreen(
         viewModel.onClickOpenInBrowser(url)
     }
 
-    val context = LocalContext.current
     val clipboardManager = LocalClipboardManager.current
 
     val onClickCopyLink: (String) -> Unit = { url ->
@@ -360,7 +410,17 @@ fun BookmarkListScreen(
 
     Scaffold(
         snackbarHost = {
-            SnackbarHost(snackbarHostState)
+            SnackbarHost(snackbarHostState) { snackbarData ->
+                val pendingDeleteVisuals = snackbarData.visuals as? PendingDeleteSnackbarVisuals
+                if (pendingDeleteVisuals != null) {
+                    PendingDeleteSnackbar(
+                        snackbarData = snackbarData,
+                        visuals = pendingDeleteVisuals
+                    )
+                } else {
+                    Snackbar(snackbarData = snackbarData)
+                }
+            }
         },
         topBar = {
             TopAppBar(
@@ -613,7 +673,7 @@ fun BookmarkListScreen(
                                 scrollToTopTrigger = scrollToTopTrigger,
                                 layoutMode = layoutMode.value,
                                 bookmarks = uiState.bookmarks,
-                                pendingDeletionBookmarkId = pendingDeletionBookmarkId.value,
+                                pendingDeletionBookmarkIds = pendingDeletionBookmarkIds.value.toSet(),
                                 onClickBookmark = onClickBookmark,
                                 onClickDelete = onClickDelete,
                                 onClickArchive = onClickArchive,
@@ -874,7 +934,7 @@ fun BookmarkListView(
     scrollToTopTrigger: Int = 0,
     layoutMode: LayoutMode = LayoutMode.GRID,
     bookmarks: List<BookmarkListItem>,
-    pendingDeletionBookmarkId: String? = null,
+    pendingDeletionBookmarkIds: Set<String> = emptySet(),
     isMultiColumn: Boolean = LocalIsWideLayout.current,
     onClickBookmark: (String) -> Unit,
     onClickDelete: (String) -> Unit,
@@ -926,7 +986,7 @@ fun BookmarkListView(
                 contentPadding = PaddingValues(horizontal = spacing),
             ) {
                 items(bookmarks) { bookmark ->
-                    val isPendingDeletion = bookmark.id == pendingDeletionBookmarkId
+                    val isPendingDeletion = bookmark.id in pendingDeletionBookmarkIds
                     val confirmDelete: (String) -> Unit = { _ -> onUserInteraction() }
                     val noop: (String) -> Unit = {}
                     val noop2: (String, Boolean) -> Unit = { _, _ -> }
@@ -1013,7 +1073,7 @@ fun BookmarkListView(
         Box(modifier = modifier) {
             LazyColumn(state = lazyListState, modifier = Modifier.fillMaxSize()) {
                 items(bookmarks) { bookmark ->
-                    val isPendingDeletion = bookmark.id == pendingDeletionBookmarkId
+                    val isPendingDeletion = bookmark.id in pendingDeletionBookmarkIds
                     val confirmDelete: (String) -> Unit = { _ -> onUserInteraction() }
                     val noop: (String) -> Unit = {}
                     val noop2: (String, Boolean) -> Unit = { _, _ -> }
@@ -1087,6 +1147,61 @@ fun BookmarkListView(
                 lazyListState = lazyListState
             )
         }
+    }
+}
+
+internal fun formatPendingDeleteSnackbarTitleSnippet(
+    title: String,
+    maxChars: Int = PendingDeleteSnackbarTitleMaxChars
+): String {
+    val normalizedTitle = title
+        .replace(Regex("\\s+"), " ")
+        .trim()
+    if (normalizedTitle.isEmpty()) {
+        return ""
+    }
+
+    val safeMaxChars = maxChars.coerceAtLeast(4)
+    return if (normalizedTitle.length <= safeMaxChars) {
+        normalizedTitle
+    } else {
+        normalizedTitle.take(safeMaxChars - 3).trimEnd() + "..."
+    }
+}
+
+private data class PendingDeleteSnackbarVisuals(
+    override val message: String,
+    val prefixText: String,
+    val titleSnippet: String,
+    override val actionLabel: String?,
+    override val duration: SnackbarDuration,
+    override val withDismissAction: Boolean = false
+) : SnackbarVisuals
+
+@Composable
+private fun PendingDeleteSnackbar(
+    snackbarData: SnackbarData,
+    visuals: PendingDeleteSnackbarVisuals
+) {
+    Snackbar(
+        action = {
+            visuals.actionLabel?.let { actionLabel ->
+                TextButton(onClick = { snackbarData.performAction() }) {
+                    Text(actionLabel)
+                }
+            }
+        }
+    ) {
+        Text(
+            text = buildAnnotatedString {
+                append(visuals.prefixText)
+                append(" \"")
+                withStyle(SpanStyle(fontWeight = FontWeight.Bold)) {
+                    append(visuals.titleSnippet)
+                }
+                append("\"")
+            }
+        )
     }
 }
 

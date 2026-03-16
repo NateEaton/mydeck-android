@@ -40,6 +40,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -50,14 +51,18 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.foundation.ScrollState
 import com.mydeck.app.R
 import com.mydeck.app.ui.detail.BookmarkDetailViewModel
 import com.mydeck.app.ui.detail.VideoFullscreenDismissSource
 import com.mydeck.app.ui.detail.WebViewSearchBridge
+import com.mydeck.app.ui.detail.WebViewThemeBridge
 import com.mydeck.app.ui.detail.WebViewTypographyBridge
+import com.mydeck.app.ui.theme.resolveReaderThemePalette
 import com.mydeck.app.util.openUrlInCustomTab
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import timber.log.Timber
@@ -77,7 +82,11 @@ fun BookmarkDetailArticle(
     modifier: Modifier,
     uiState: BookmarkDetailViewModel.UiState.Success,
     articleSearchState: BookmarkDetailViewModel.ArticleSearchState = BookmarkDetailViewModel.ArticleSearchState(),
-    onArticleSearchUpdateResults: (Int) -> Unit = {},
+    onArticleSearchUpdateResults: (Int, Int) -> Unit = { _, _ -> },
+    articleViewportTopPx: Int = 0,
+    articleTopOffsetPx: Float = 0f,
+    viewportHeightPx: Int = 0,
+    scrollState: ScrollState,
     onContentReady: (Boolean) -> Unit = {},
     onWebViewChanged: (WebView?) -> Unit = {},
     onImageTapped: (ImageGalleryData) -> Unit = {},
@@ -89,10 +98,13 @@ fun BookmarkDetailArticle(
     onVideoExitFullscreen: (VideoFullscreenDismissSource) -> Unit = {},
 ) {
     val isSystemInDarkMode = isSystemInDarkTheme()
+    val localContext = LocalContext.current
+    val effectiveAppearance = uiState.readerAppearanceSelection.effectiveAppearance(isSystemInDarkMode)
+    val readerThemePalette = remember(localContext, effectiveAppearance) {
+        resolveReaderThemePalette(context = localContext, appearance = effectiveAppearance)
+    }
     val content = remember(
         uiState.bookmark.bookmarkId,
-        isSystemInDarkMode,
-        uiState.template,
         uiState.bookmark.articleContent,
         uiState.bookmark.embed
     ) {
@@ -102,8 +114,31 @@ fun BookmarkDetailArticle(
     val json = remember { Json { ignoreUnknownKeys = true } }
     val latestSelectionHandler = rememberUpdatedState(onTextSelectionCaptured)
     val latestAnnotationClickHandler = rememberUpdatedState(onAnnotationClicked)
+    val latestTypographySettings = rememberUpdatedState(uiState.typographySettings)
+    val latestThemePalette = rememberUpdatedState(readerThemePalette)
+    val latestThemeScript = rememberUpdatedState(WebViewThemeBridge.applyTheme(readerThemePalette))
     val lastDeliveredAnnotationTap = remember { mutableStateOf<Pair<String, Long>?>(null) }
     var hasReportedReady by remember(uiState.bookmark.bookmarkId, content.value) { mutableStateOf(false) }
+    val coroutineScope = rememberCoroutineScope()
+
+    fun applyTheme(webView: WebView) {
+        webView.setBackgroundColor(android.graphics.Color.parseColor(latestThemePalette.value.bodyBackgroundColor))
+        webView.evaluateJavascript(latestThemeScript.value, null)
+    }
+
+    suspend fun focusSearchMatch(webView: WebView, matchIndex: Int) {
+        if (matchIndex < 0) return
+        WebViewSearchBridge.highlightCurrentMatch(webView, matchIndex)
+        if (viewportHeightPx <= 0) return
+        val centerRatio = WebViewSearchBridge.getMatchViewportCenterRatio(webView, matchIndex) ?: return
+        val targetInsideArticle = webView.height.toFloat() * centerRatio
+        val targetScroll = (
+            articleTopOffsetPx +
+                targetInsideArticle -
+                (viewportHeightPx / 2f)
+            ).toInt().coerceIn(0, scrollState.maxValue)
+        scrollState.animateScrollTo(targetScroll)
+    }
 
     fun deliverAnnotationTap(annotationId: String, source: String) {
         val now = SystemClock.elapsedRealtime()
@@ -124,8 +159,6 @@ fun BookmarkDetailArticle(
 
     LaunchedEffect(
         uiState.bookmark.bookmarkId,
-        isSystemInDarkMode,
-        uiState.template,
         uiState.bookmark.articleContent,
         uiState.bookmark.embed
     ) {
@@ -176,19 +209,39 @@ fun BookmarkDetailArticle(
         }
     }
 
+    LaunchedEffect(readerThemePalette) {
+        webViewRef.value?.let { webView ->
+            withContext(Dispatchers.Main) {
+                applyTheme(webView)
+            }
+        }
+    }
+
     // Handle search query changes
     LaunchedEffect(articleSearchState.query) {
         webViewRef.value?.let { webView ->
             if (articleSearchState.isActive && articleSearchState.query.isNotEmpty()) {
-                WebViewSearchBridge.searchAndHighlight(webView, articleSearchState.query) { matchCount ->
-                    onArticleSearchUpdateResults(matchCount)
-                    if (matchCount > 0) {
-                        WebViewSearchBridge.highlightCurrentMatch(webView, 0)
+                WebViewSearchBridge.searchAndHighlight(
+                    webView = webView,
+                    query = articleSearchState.query,
+                    viewportTopPx = articleViewportTopPx
+                ) { matchCount, preferredIndex ->
+                    val targetMatch = when {
+                        articleSearchState.currentMatch in 1..matchCount -> articleSearchState.currentMatch
+                        preferredIndex >= 0 -> preferredIndex + 1
+                        matchCount > 0 -> 1
+                        else -> 0
+                    }
+                    onArticleSearchUpdateResults(matchCount, targetMatch)
+                    if (targetMatch > 0 && articleSearchState.currentMatch == targetMatch) {
+                        coroutineScope.launch {
+                            focusSearchMatch(webView, targetMatch - 1)
+                        }
                     }
                 }
             } else if (articleSearchState.query.isEmpty()) {
                 WebViewSearchBridge.clearHighlights(webView)
-                onArticleSearchUpdateResults(0)
+                onArticleSearchUpdateResults(0, 0)
             }
         }
     }
@@ -200,7 +253,7 @@ fun BookmarkDetailArticle(
                 articleSearchState.currentMatch > 0 &&
                 articleSearchState.totalMatches > 0) {
                 // Convert 1-based index to 0-based for JavaScript
-                WebViewSearchBridge.highlightCurrentMatch(webView, articleSearchState.currentMatch - 1)
+                focusSearchMatch(webView, articleSearchState.currentMatch - 1)
             }
         }
     }
@@ -222,10 +275,22 @@ fun BookmarkDetailArticle(
             // Delay to ensure WebView has loaded the new content
             delay(100)
             webViewRef.value?.let { webView ->
-                WebViewSearchBridge.searchAndHighlight(webView, articleSearchState.query) { matchCount ->
-                    onArticleSearchUpdateResults(matchCount)
-                    if (matchCount > 0) {
-                        WebViewSearchBridge.highlightCurrentMatch(webView, 0)
+                WebViewSearchBridge.searchAndHighlight(
+                    webView = webView,
+                    query = articleSearchState.query,
+                    viewportTopPx = articleViewportTopPx
+                ) { matchCount, preferredIndex ->
+                    val targetMatch = when {
+                        articleSearchState.currentMatch in 1..matchCount -> articleSearchState.currentMatch
+                        preferredIndex >= 0 -> preferredIndex + 1
+                        matchCount > 0 -> 1
+                        else -> 0
+                    }
+                    onArticleSearchUpdateResults(matchCount, targetMatch)
+                    if (targetMatch > 0 && articleSearchState.currentMatch == targetMatch) {
+                        coroutineScope.launch {
+                            focusSearchMatch(webView, targetMatch - 1)
+                        }
                     }
                 }
             }
@@ -328,7 +393,8 @@ fun BookmarkDetailArticle(
                         webViewClient = object : android.webkit.WebViewClient() {
                             private fun applyReaderEnhancements(webView: WebView) {
                                 val typographyJs =
-                                    WebViewTypographyBridge.applyTypography(uiState.typographySettings)
+                                    WebViewTypographyBridge.applyTypography(latestTypographySettings.value)
+                                applyTheme(webView)
                                 webView.evaluateJavascript(typographyJs, null)
                                 val imageJs = WebViewImageBridge.injectImageInterceptor()
                                 webView.evaluateJavascript(imageJs, null)
@@ -459,6 +525,7 @@ fun BookmarkDetailArticle(
                     webViewRef.value = it
                     onWebViewChanged(it)
                     it.settings.textZoom = uiState.typographySettings.fontSizePercent
+                    it.setBackgroundColor(android.graphics.Color.parseColor(readerThemePalette.bodyBackgroundColor))
                 }
             )
         }

@@ -15,6 +15,7 @@ Tap the **menu icon** (☰) in the top-left corner to open the navigation drawer
 - **Labels** — browse bookmarks by label; tap a label to see all bookmarks with that label
 
 Each item shows a count of how many bookmarks it contains.
+Tap outside the drawer or swipe it closed to dismiss it without changing sections.
 
 ## Bookmark Cards
 
@@ -57,7 +58,7 @@ Each card has four action buttons:
 - **❤️ Favorite** — toggle the favorite status; filled when set
 - **Archive** — move the bookmark to the archive (or back to My List if already archived); the card is removed from the current view when toggled
 - **🌐 View web page** — open the web page in an in-app viewer
-- **🗑️ Delete** — delete the bookmark; the card is greyed out and a **"Bookmark deleted"** bar appears at the bottom with an **Undo** option. Tap **Undo** to restore the bookmark, or tap anywhere else (including the greyed-out card itself) to confirm deletion
+- **🗑️ Delete** — delete the bookmark; the card is greyed out and a **"Deleting bookmark \"Title...\""** bar appears at the bottom with an **Undo** option and a short title snippet so you can tell which queued delete you are restoring. Tap **Undo** to restore the bookmark, or tap anywhere else (including the greyed-out card itself) to confirm deletion
 
 See [Organizing](./organizing.md) for more on how favorites, archive, labels, and deletion work across your whole collection.
 
@@ -83,7 +84,7 @@ Long-pressing on a bookmark card opens a context menu dialog. The dialog header 
 
 Tap the **+** button at the bottom-right of the list to open the **Add Link** sheet. Enter the URL of the page you want to save, and optionally a title, labels, and mark it as a favorite (❤️), then tap **Add**.
 
-For labels, use the **Add labels** / **Edit labels** row in the Labels section. This opens a picker where you can select multiple labels (and create a new label from search text). Tap **Done** to apply picker changes, or tap **Back** to cancel picker changes.
+For labels, use the **Add labels** / **Edit labels** row in the Labels section. This opens a picker where you can select multiple labels (and create a new label from search text). When you pick a label from search results, the search clears, and your selected labels stay pinned below the search field while you continue choosing more. Tap **Done** to apply picker changes, or tap **Back** to cancel picker changes.
 
 - **Add** — saves the bookmark and closes the sheet
 - **View** — saves the bookmark and immediately opens it to read

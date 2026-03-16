@@ -130,6 +130,9 @@
     <string name="action_mark_read">Marcar como lido</string>
     <string name="action_mark_unread">Marcar como não lido</string>
     <string name="more_options">Mais opções</string>
+    <string name="action_undo">Undo</string>
+    <string name="bookmark_delete_pending">Deleting bookmark</string>
+    <string name="bookmark_delete_pending_named">Deleting bookmark &quot;%1$s&quot;</string>
 
     <!-- Welcome Screen -->
     <string name="welcome_title">Welcome to MyDeck</string>
@@ -144,11 +147,16 @@
 
     <!-- Reader Typography Panel -->
     <string name="action_typography_settings">Formatação de texto</string>
+    <string name="typography_tab_text">Text</string>
+    <string name="typography_tab_theme">Theme</string>
     <string name="typography_section_font">Fonte</string>
     <string name="typography_section_size">Tamanho da fonte</string>
     <string name="typography_section_line_spacing">Espaçamento</string>
     <string name="typography_section_width">Largura</string>
-    <string name="typography_reset">Repor predefinições</string>
+    <string name="typography_section_reading_theme">Reading theme</string>
+    <string name="typography_reset_text">Reset text</string>
+    <string name="typography_reset_layout">Reset layout</string>
+    <string name="typography_reset_theme">Reset theme</string>
     <string name="line_spacing_tight">Compacto</string>
     <string name="line_spacing_loose">Espaçado</string>
     <string name="width_wide">Largo</string>

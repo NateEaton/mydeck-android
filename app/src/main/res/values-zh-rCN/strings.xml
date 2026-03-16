@@ -112,6 +112,9 @@
     <string name="action_mark_unread">标记为未读</string>
     <string name="action_share">分享链接</string>
     <string name="action_delete">删除</string>
+    <string name="action_undo">Undo</string>
+    <string name="bookmark_delete_pending">Deleting bookmark</string>
+    <string name="bookmark_delete_pending_named">Deleting bookmark &quot;%1$s&quot;</string>
     <string name="action_open_in_browser">在浏览器中打开</string>
     <string name="more_options">More options</string>
     <string name="error_no_article_content">错误，未提供文章内容</string>
@@ -256,11 +259,16 @@
 
     <!-- Reader Typography Panel -->
     <string name="action_typography_settings">文本格式</string>
+    <string name="typography_tab_text">Text</string>
+    <string name="typography_tab_theme">Theme</string>
     <string name="typography_section_font">字体</string>
     <string name="typography_section_size">字体大小</string>
     <string name="typography_section_line_spacing">行距</string>
     <string name="typography_section_width">宽度</string>
-    <string name="typography_reset">恢复默认设置</string>
+    <string name="typography_section_reading_theme">Reading theme</string>
+    <string name="typography_reset_text">Reset text</string>
+    <string name="typography_reset_layout">Reset layout</string>
+    <string name="typography_reset_theme">Reset theme</string>
     <string name="line_spacing_tight">紧凑</string>
     <string name="line_spacing_loose">宽松</string>
     <string name="width_wide">宽</string>

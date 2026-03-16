@@ -16,7 +16,7 @@ MyDeck supports three types of bookmarks, each with unique features:
 Articles display extracted text content in a clean, distraction-free reading layout. If the bookmark already has highlights from Readeck, those highlights appear inline in their saved colors while you read. Articles support full typography controls and text search, and may include images that can be opened in the **Image Lightbox** and links that can be long-pressed to access **Long-press Context Menus**.
 
 ### Videos  
-For video bookmarks (YouTube, Vimeo, etc.), MyDeck shows an embedded video player at the top, followed by any text content (description or transcript). Videos stream from their original servers and require an internet connection. Use the player's fullscreen control to expand the video when the provider supports it. While fullscreen video is open, temporary overlay controls appear for **Close** and **Rotate**; touch the screen to bring them back after they fade. Tap **Rotate** in the top-right corner to switch the fullscreen player between portrait and landscape without leaving fullscreen mode. If the video includes text content, you can long-press links to access **Long-press Context Menus**.
+For video bookmarks (YouTube, Vimeo, etc.), MyDeck shows an embedded video player at the top, followed by any text content (description or transcript). Videos stream from their original servers and require an internet connection. Use the player's fullscreen control to expand the video when the provider supports it. While fullscreen video is open, temporary overlay controls appear for **Close** and **Rotate** near the middle of the screen; touch the screen to bring them back after they fade. Tap **Rotate** to switch the fullscreen player between portrait and landscape without leaving fullscreen mode. If the video includes text content, you can long-press links to access **Long-press Context Menus**.
 
 ### Pictures
 For picture bookmarks, MyDeck shows the stored image at the top at full content width, followed by any text content. Tap the image to open it in the **Image Lightbox** where you can zoom and pan. Pictures may also include text content with links that support **Long-press Context Menus**.
@@ -50,19 +50,25 @@ The screen stays on while you read, so you won't lose your place to the device's
 
 Tap **TT** in the top bar to open the reading settings sheet.
 
+- **Text** tab — contains the controls for Font, Font size, and Spacing
+- **Layout** tab — contains the controls for Width, Justify text, and Hyphenate words
+- **Theme** tab — contains the controls for Paper, Sepia, Dark, and Black reading themes
+- The settings sheet automatically sizes itself to the tallest tab that fits on screen, so it stays compact on larger devices and only scrolls when a tab truly needs the extra space
 - **Font** — scroll the font row to choose from: System Default, Noto Serif, Literata, Source Serif, Noto Sans, or JetBrains Mono
 - **Font size** — tap **−** or **+** to adjust in 5% steps (from 80% to 170%, shown as a percentage of the default)
 - **Spacing** — tap **−** or **+** to adjust in 5% steps (from 80% to 125%, shown as a percentage of the default)
-- **Width** — choose **W**, **M**, or **N** for Wide, Medium, or Narrow
+- **Width** — choose the Narrow, Medium, or Wide layout button (75%, 85%, or 98% of the reader width)
 - **Justify text** — toggle on or off
 - **Hyphenate words** — toggle on or off
-- **Reset to defaults** — restore all reading settings at once
+- **Reading theme** — choose Paper, Sepia, Dark, or Black; if you pick a light theme while reading in dark mode, or a dark theme while reading in light mode, MyDeck switches the app theme to match and remembers your last light and dark reading themes separately
+- **Reset theme** — use the footer action to return the app theme to **System** and use the saved light or dark reading theme that matches the current system theme
+- **Reset text** / **Reset layout** — use the footer action to reset only the controls in the current tab
 
 These settings are saved automatically and apply to every Article, Video, and Picture bookmark you read.
 
 ### Finding Text
 
-Tap **🔍** to open the in-content search bar. Type to search; matching text in the content is highlighted. If there are multiple matches, the current one is highlighted in amber and others in yellow. Use the **↑** and **↓** arrows to move between matches. The counter shows your current position (e.g., "2/5").
+Tap **🔍** to open the in-content search bar. Type to search; matching text in the content is highlighted. If there are multiple matches, MyDeck starts from the next result at or below your current reading position, and if there are no later matches it jumps to the last one above. The current match is highlighted in amber and other matches in yellow. Use the **↑** and **↓** arrows to move between matches, and keep tapping to wrap from the last result back to the first. The counter shows your current position (for example, "27/36").
 
 ### Highlights
 
@@ -79,7 +85,7 @@ Tap **⋮** in the top bar for additional actions:
 - **View web page / View [bookmark type]** — switch between the reading view and the web page in an in-app viewer (see above)
 - **Share link** — open the Android share sheet to share the bookmark using the format selected in **Settings → User Interface**
 - **Details** — open the Bookmark Details screen (see below)
-- **Delete** — delete the bookmark; you are returned to the list and a **"Bookmark deleted"** bar appears with an **Undo** option
+- **Delete** — delete the bookmark; you are returned to the list and a **"Deleting bookmark \"Title...\""** bar appears with an **Undo** option
 
 The menu includes visual dividers to separate related actions and destructive actions.
 
@@ -87,7 +93,7 @@ The menu includes visual dividers to separate related actions and destructive ac
 
 Tapping a link within bookmark content (articles, pictures with descriptions, or videos with text) opens the associated web page in your device's default browser.
 
-In the **Sepia** appearance, article links also use a subtle underline so they are easier to distinguish from body text while reading.
+In every reading appearance, article links use a subtle underline so they are easier to distinguish from body text while reading. In **Paper**, **Dark**, and **Black**, link and other accent colors follow the current system accent on supported Android versions, while **Sepia** keeps its own curated palette.
 
 ## Long-press Context Menus
 

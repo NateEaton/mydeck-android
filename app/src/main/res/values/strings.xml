@@ -129,6 +129,9 @@ other{}
     <string name="action_is_read">Is read</string>
     <string name="action_share">Share link</string>
     <string name="action_delete">Delete</string>
+    <string name="action_undo">Undo</string>
+    <string name="bookmark_delete_pending">Deleting bookmark</string>
+    <string name="bookmark_delete_pending_named">Deleting bookmark &quot;%1$s&quot;</string>
     <string name="action_open_in_browser">Open in browser</string>
     <string name="more_options">More options</string>
     <string name="action_view_original">View web page</string>
@@ -381,11 +384,16 @@ other{}
 
     <!-- Reader Typography Panel -->
     <string name="action_typography_settings">Text formatting</string>
+    <string name="typography_tab_text">Text</string>
+    <string name="typography_tab_theme">Theme</string>
     <string name="typography_section_font">Font</string>
     <string name="typography_section_size">Font size</string>
     <string name="typography_section_line_spacing">Spacing</string>
     <string name="typography_section_width">Width</string>
-    <string name="typography_reset">Reset to defaults</string>
+    <string name="typography_section_reading_theme">Reading theme</string>
+    <string name="typography_reset_text">Reset text</string>
+    <string name="typography_reset_layout">Reset layout</string>
+    <string name="typography_reset_theme">Reset theme</string>
 
     <!-- Font family names (not translated — proper nouns) -->
     <string name="font_system_default" translatable="false">System Default</string>

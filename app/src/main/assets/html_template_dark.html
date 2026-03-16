@@ -15,26 +15,43 @@
           font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
         }
 
+        :root {
+          --accent-color: #9BC4CE;
+          --accent-container-color: #24454D;
+          --accent-underline-color: rgba(155, 196, 206, 0.55);
+          --on-accent-color: #17353B;
+          --on-accent-container-color: #CDE7ED;
+          --body-color: #C9C9C9;
+          --body-bg: #222222;
+          --blockquote-bg: #4A4A4A;
+          --code-bg: #4A4A4A;
+          --table-border-color: #4A4A4A;
+          --input-color: #C9C9C9;
+          --input-bg: #4A4A4A;
+          --input-border-color: #4A4A4A;
+          --link-color: #9BC4CE;
+          --link-visited-color: #9BC4CE;
+          --link-hover-color: #9BC4CE;
+          --button-border-color: #9BC4CE;
+          --annotation-active-outline-color: rgba(255, 255, 255, 0.8);
+          --annotation-active-shadow-color: rgba(255, 255, 255, 0.18);
+          --annotation-yellow-color: rgba(255, 235, 59, 0.3);
+          --annotation-red-color: rgba(239, 83, 80, 0.3);
+          --annotation-blue-color: rgba(66, 165, 245, 0.3);
+          --annotation-green-color: rgba(102, 187, 106, 0.3);
+          --annotation-none-underline-color: rgba(200, 200, 200, 0.5);
+        }
+
         body {
           font-size: 1.95rem;
           line-height: 1.618;
           max-width: 100%;
           margin: auto;
-          color: #c9c9c9;
-          background-color: #222222;
+          color: var(--body-color);
+          background-color: var(--body-bg);
           padding: 13px;
         }
 
-        @media (max-width: 684px) {
-          body {
-            font-size: 1.75rem;
-          }
-        }
-        @media (max-width: 382px) {
-          body {
-            font-size: 1.65rem;
-          }
-        }
         h1, h2, h3, h4, h5, h6 {
           line-height: 1.18;
           font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
@@ -81,19 +98,22 @@
         }
 
         hr {
-          border-color: #ffffff;
+          border-color: var(--accent-color);
         }
 
         a {
-          text-decoration: none;
-          color: #ffffff;
+          text-decoration: underline;
+          text-decoration-color: var(--accent-underline-color);
+          text-underline-offset: 0.12em;
+          text-decoration-thickness: 1px;
+          color: var(--link-color);
         }
         a:visited {
-          color: #e6e6e6;
+          color: var(--link-visited-color);
         }
         a:hover {
-          color: #c9c9c9;
-          border-bottom: 2px solid #c9c9c9;
+          color: var(--link-hover-color);
+          text-decoration-color: var(--link-hover-color);
         }
 
         ul {
@@ -113,9 +133,9 @@
           padding-top: 0.8em;
           padding-bottom: 0.8em;
           padding-right: 0.8em;
-          border-left: 5px solid #ffffff;
+          border-left: 5px solid var(--accent-color);
           margin-bottom: 2.5rem;
-          background-color: #4a4a4a;
+          background-color: var(--blockquote-bg);
         }
 
         blockquote p {
@@ -159,7 +179,7 @@
 
         /* Pre and Code */
         pre {
-          background-color: #4a4a4a;
+          background-color: var(--code-bg);
           display: block;
           padding: 1em;
           overflow-x: auto;
@@ -171,7 +191,7 @@
         code, kbd, samp {
           font-size: 0.9em;
           padding: 0 0.5em;
-          background-color: #4a4a4a;
+          background-color: var(--code-bg);
           white-space: pre-wrap;
         }
 
@@ -192,15 +212,15 @@
 
         td, th {
           padding: 0.5em;
-          border-bottom: 1px solid #4a4a4a;
+          border-bottom: 1px solid var(--table-border-color);
         }
 
         /* Buttons, forms and input */
         input, textarea {
-          border: 1px solid #c9c9c9;
+          border: 1px solid var(--input-color);
         }
         input:focus, textarea:focus {
-          border: 1px solid #ffffff;
+          border: 1px solid var(--accent-color);
         }
 
         textarea {
@@ -213,10 +233,10 @@
           text-align: center;
           text-decoration: none;
           white-space: nowrap;
-          background-color: #ffffff;
-          color: #222222;
+          background-color: var(--accent-color);
+          color: var(--on-accent-color);
           border-radius: 1px;
-          border: 1px solid #ffffff;
+          border: 1px solid var(--button-border-color);
           cursor: pointer;
           box-sizing: border-box;
         }
@@ -225,8 +245,8 @@
           opacity: 0.5;
         }
         .button:hover, button:hover, input[type=submit]:hover, input[type=reset]:hover, input[type=button]:hover, input[type=file]::file-selector-button:hover {
-          background-color: #c9c9c9;
-          color: #222222;
+          background-color: var(--accent-container-color);
+          color: var(--on-accent-container-color);
           outline: 0;
         }
         .button:focus-visible, button:focus-visible, input[type=submit]:focus-visible, input[type=reset]:focus-visible, input[type=button]:focus-visible, input[type=file]::file-selector-button:focus-visible {
@@ -235,22 +255,22 @@
         }
 
         textarea, select, input {
-          color: #c9c9c9;
+          color: var(--input-color);
           padding: 6px 10px; /* The 6px vertically centers text on FF, ignored by Webkit */
           margin-bottom: 10px;
-          background-color: #4a4a4a;
-          border: 1px solid #4a4a4a;
+          background-color: var(--input-bg);
+          border: 1px solid var(--input-border-color);
           border-radius: 4px;
           box-shadow: none;
           box-sizing: border-box;
         }
         textarea:focus, select:focus, input:focus {
-          border: 1px solid #ffffff;
+          border: 1px solid var(--accent-color);
           outline: 0;
         }
 
         input[type=checkbox]:focus {
-          outline: 1px dotted #ffffff;
+          outline: 1px dotted var(--accent-color);
         }
 
         label, legend, fieldset {
@@ -284,26 +304,26 @@
             display: none;
         }
         rd-annotation.mydeck-annotation-active {
-            outline: 2px solid rgba(255, 255, 255, 0.8);
-            box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.18);
+            outline: 2px solid var(--annotation-active-outline-color);
+            box-shadow: 0 0 0 2px var(--annotation-active-shadow-color);
         }
         rd-annotation[data-annotation-color="yellow"],
         rd-annotation:not([data-annotation-color]) {
-            background-color: rgba(255, 235, 59, 0.3);
+            background-color: var(--annotation-yellow-color);
         }
         rd-annotation[data-annotation-color="red"] {
-            background-color: rgba(239, 83, 80, 0.3);
+            background-color: var(--annotation-red-color);
         }
         rd-annotation[data-annotation-color="blue"] {
-            background-color: rgba(66, 165, 245, 0.3);
+            background-color: var(--annotation-blue-color);
         }
         rd-annotation[data-annotation-color="green"] {
-            background-color: rgba(102, 187, 106, 0.3);
+            background-color: var(--annotation-green-color);
         }
         rd-annotation[data-annotation-color="none"] {
             background-color: transparent;
             text-decoration: underline;
-            text-decoration-color: rgba(200, 200, 200, 0.5);
+            text-decoration-color: var(--annotation-none-underline-color);
             text-underline-offset: 2px;
         }
 

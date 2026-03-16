@@ -1,8 +1,15 @@
 package com.mydeck.app.ui.theme
 
+import android.content.Context
+import android.os.Build
+import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.dynamicDarkColorScheme
+import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.ui.graphics.Color
+import com.mydeck.app.domain.model.EffectiveAppearance
+import com.mydeck.app.ui.theme.sepia.SepiaColorScheme
 
 val PaperColorScheme = lightColorScheme(
     primary = Color(0xFF1D7484),
@@ -87,3 +94,50 @@ val BlackColorScheme = darkColorScheme(
     surfaceContainerHigh = Color(0xFF161616),
     surfaceContainerHighest = Color(0xFF1D1D1D)
 )
+
+fun resolveAppColorScheme(
+    context: Context,
+    appearance: EffectiveAppearance
+): ColorScheme {
+    val curatedScheme = when (appearance) {
+        EffectiveAppearance.PAPER -> PaperColorScheme
+        EffectiveAppearance.SEPIA -> SepiaColorScheme
+        EffectiveAppearance.DARK -> DarkColorScheme
+        EffectiveAppearance.BLACK -> BlackColorScheme
+    }
+
+    if (appearance == EffectiveAppearance.SEPIA || Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
+        return curatedScheme
+    }
+
+    val dynamicScheme = if (appearance.isDark) {
+        dynamicDarkColorScheme(context)
+    } else {
+        dynamicLightColorScheme(context)
+    }
+
+    return dynamicScheme.withCuratedSurfaces(curatedScheme)
+}
+
+private fun ColorScheme.withCuratedSurfaces(curatedScheme: ColorScheme): ColorScheme {
+    return copy(
+        background = curatedScheme.background,
+        onBackground = curatedScheme.onBackground,
+        surface = curatedScheme.surface,
+        onSurface = curatedScheme.onSurface,
+        surfaceVariant = curatedScheme.surfaceVariant,
+        onSurfaceVariant = curatedScheme.onSurfaceVariant,
+        outline = curatedScheme.outline,
+        outlineVariant = curatedScheme.outlineVariant,
+        scrim = curatedScheme.scrim,
+        inverseSurface = curatedScheme.inverseSurface,
+        inverseOnSurface = curatedScheme.inverseOnSurface,
+        surfaceDim = curatedScheme.surfaceDim,
+        surfaceBright = curatedScheme.surfaceBright,
+        surfaceContainerLowest = curatedScheme.surfaceContainerLowest,
+        surfaceContainerLow = curatedScheme.surfaceContainerLow,
+        surfaceContainer = curatedScheme.surfaceContainer,
+        surfaceContainerHigh = curatedScheme.surfaceContainerHigh,
+        surfaceContainerHighest = curatedScheme.surfaceContainerHighest
+    )
+}
