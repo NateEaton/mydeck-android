@@ -65,11 +65,13 @@
         "properties": {
           "client_name": {
             "type": "string",
+            "maxLength": 128,
             "description": "The client's name"
           },
           "client_uri": {
             "type": "string",
             "format": "uri",
+            "maxLength": 256,
             "description": "An URL where client information can be found. HTTPS only.\n\nThe URL must resolve to a non local and non private IP address.\n"
           },
           "logo_uri": {
@@ -81,99 +83,20 @@
           },
           "software_id": {
             "type": "string",
+            "maxLength": 128,
             "description": "A unique identifier for the application, for example a UUID"
           },
           "software_version": {
             "type": "string",
+            "maxLength": 64,
             "description": "Version of the client"
           },
           "redirect_uris": {
             "type": "array",
             "items": {
               "type": "string",
-              "format": "uri"
-            },
-            "description": "A list of possible redirection URIs. URIs must be one of:\n\n- any https URI\n- http URI for loopback IP address (`127.0.0.0/8` or `[::1]`)\n- any other app link scheme (ie `my-app.org:/callback`)\n\nThis field is required when `grant_types` contains `authorization_code`.\n"
-          },
-          "token_endpoint_auth_method": {
-            "type": "string",
-            "description": "Client supported auth method",
-            "enum": [
-              "none"
-            ],
-            "default": "none"
-          },
-          "grant_types": {
-            "type": "array",
-            "items": {
-              "type": "string",
-              "enum": [
-                "authorization_code",
-                "urn:ietf:params:oauth:grant-type:device_code"
-              ],
-              "default": [
-                "authorization_code",
-                "urn:ietf:params:oauth:grant-type:device_code"
-              ]
-            },
-            "description": "Client supported grant types"
-          },
-          "response_types": {
-            "type": "array",
-            "items": {
-              "type": "string",
-              "enum": [
-                "code"
-              ],
-              "default": "code"
-            },
-            "description": "Client supported response type"
-          }
-        }
-      },
-      "oauthClientUpdate": {
-        "required": [
-          "client_id",
-          "client_name",
-          "client_uri",
-          "software_id",
-          "software_version",
-          "redirect_uris"
-        ],
-        "properties": {
-          "client_id": {
-            "type": "string",
-            "description": "Client's ID"
-          },
-          "client_name": {
-            "type": "string",
-            "description": "The client's name"
-          },
-          "client_uri": {
-            "type": "string",
-            "format": "uri",
-            "description": "An URL where client information can be found. HTTPS only.\n\nThe URL must resolve to a non local and non private IP address.\n"
-          },
-          "logo_uri": {
-            "type": "string",
-            "format": "uri",
-            "pattern": "^data:image/png;base64,[A-Za-z0-9+/]+$",
-            "maxLength": 8192,
-            "description": "An URL for the client's logo.\n\nOnly data URI of a base64 PNG encoded image is allowed.\n"
-          },
-          "software_id": {
-            "type": "string",
-            "description": "A unique identifier for the application, for example a UUID"
-          },
-          "software_version": {
-            "type": "string",
-            "description": "Version of the client"
-          },
-          "redirect_uris": {
-            "type": "array",
-            "items": {
-              "type": "string",
-              "format": "uri"
+              "format": "uri",
+              "maxLength": 256
             },
             "description": "A list of possible redirection URIs. URIs must be one of:\n\n- any https URI\n- http URI for loopback IP address (`127.0.0.0/8` or `[::1]`)\n- any other app link scheme (ie `my-app.org:/callback`)\n\nThis field is required when `grant_types` contains `authorization_code`.\n"
           },
@@ -281,10 +204,12 @@
               },
               "code": {
                 "type": "string",
+                "maxLength": 2048,
                 "description": "The code as received in the authorization redirection"
               },
               "code_verifier": {
                 "type": "string",
+                "maxLength": 256,
                 "description": "The PKCE Verifier"
               }
             }
@@ -297,10 +222,12 @@
               },
               "device_code": {
                 "type": "string",
-                "description": "The device code"
+                "description": "The device code",
+                "maxLength": 64
               },
               "client_id": {
                 "type": "string",
+                "maxLength": 52,
                 "description": "The client ID"
               }
             }
@@ -446,8 +373,8 @@
           "text_direction": {
             "type": "string",
             "enum": [
-              "rtl",
-              "ltr"
+              "ltr",
+              "rtl"
             ],
             "description": "Direction of the article's text. It can be empty when it's unknown.\n"
           },
@@ -639,6 +566,7 @@
           },
           "resource_prefix": {
             "type": "string",
+            "maxLength": 128,
             "default": ".",
             "description": "A prefix added to resource URLs in HTML parts.\n\nEach image link in the HTML content will have this prefix added. To include the\nbookmark ID, use the `%` placeholder.\n\n**Note**: an empty prefix value will render raw, absolute URLs to each resource\non Readeck. The default value is `.` (direct relative prefix).\n",
             "examples": [
@@ -705,10 +633,12 @@
         "properties": {
           "url": {
             "type": "string",
+            "maxLength": 1024,
             "description": "URL to fetch"
           },
           "title": {
             "type": "string",
+            "maxLength": 1024,
             "description": "Title of the bookmark"
           },
           "labels": {
@@ -722,6 +652,11 @@
             "type": "string",
             "format": "date-time",
             "description": "Creation date\n\nThis is optional and defaults to the current time.\n"
+          },
+          "html": {
+            "type": "string",
+            "format": "binary",
+            "description": "The page's HTML source code. When provided, its value is used and Readeck doesn't\nfetch the remote page.\\\n**Can't be used alongside the `resource` parameter**\n"
           }
         }
       },
@@ -729,7 +664,43 @@
         "properties": {
           "title": {
             "type": "string",
+            "maxLength": 1024,
             "description": "New bookmark's title"
+          },
+          "description": {
+            "type": "string",
+            "description": "Bookmark's description"
+          },
+          "site_name": {
+            "type": "string",
+            "description": "Bookmark's site name"
+          },
+          "authors": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Bookmark's author list"
+          },
+          "published": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "Bookmark's publication date"
+          },
+          "lang": {
+            "type": "string",
+            "description": "Language Code"
+          },
+          "text_direction": {
+            "type": "string",
+            "enum": [
+              "ltr",
+              "rtl"
+            ],
+            "description": "Direction of the article's text.\n"
           },
           "is_marked": {
             "type": "boolean",
@@ -751,6 +722,7 @@
           },
           "read_anchor": {
             "type": "string",
+            "maxLength": 256,
             "description": "CSS selector of the last seen element"
           },
           "labels": {
@@ -853,7 +825,8 @@
         "properties": {
           "email": {
             "type": "string",
-            "format": "email"
+            "format": "email",
+            "maxLength": 128
           },
           "format": {
             "type": "string",
@@ -989,22 +962,27 @@
         "properties": {
           "start_selector": {
             "type": "string",
+            "maxLength": 256,
             "description": "Start element's XPath selector"
           },
           "start_offset": {
             "type": "integer",
+            "minimum": 0,
             "description": "Start element's text offset"
           },
           "end_selector": {
             "type": "string",
+            "maxLength": 256,
             "description": "End element's XPath selector"
           },
           "end_offset": {
             "type": "integer",
+            "minimum": 0,
             "description": "End element's text offset"
           },
           "color": {
-            "type": "color",
+            "type": "string",
+            "maxLength": 32,
             "description": "Annotation color"
           }
         }
@@ -1015,7 +993,8 @@
         ],
         "properties": {
           "color": {
-            "type": "color",
+            "type": "string",
+            "maxLength": 32,
             "description": "Annotation color"
           }
         }
@@ -1135,6 +1114,7 @@
         "properties": {
           "name": {
             "type": "string",
+            "maxLength": 128,
             "description": "Collection's name"
           },
           "is_pinned": {
@@ -1218,6 +1198,7 @@
         "properties": {
           "label": {
             "type": "string",
+            "maxLength": 128,
             "description": "Label to add to all imported bookmarks."
           },
           "ignore_duplicates": {
@@ -1254,10 +1235,12 @@
           "url": {
             "type": "string",
             "format": "uri",
+            "maxLength": 128,
             "description": "Your Wallabag instance's URL"
           },
           "username": {
             "type": "string",
+            "maxLength": 256,
             "description": "Your Wallabag username"
           },
           "password": {
@@ -1266,10 +1249,12 @@
           },
           "client_id": {
             "type": "string",
+            "maxLength": 256,
             "description": "API Client ID"
           },
           "client_secret": {
             "type": "string",
+            "maxLength": 256,
             "description": "API Client Secret"
           }
         }
@@ -1445,6 +1430,21 @@
                 "line_height": 3
               }
             }
+          }
+        }
+      },
+      "cookbookExtractParams": {
+        "properties": {
+          "url": {
+            "type": "string",
+            "format": "uri",
+            "maxLength": 1024,
+            "description": "URL to extract"
+          },
+          "html": {
+            "type": "string",
+            "format": "binary",
+            "description": "HTML content of the resource at url"
           }
         }
       }
@@ -1749,6 +1749,7 @@
                 "properties": {
                   "token": {
                     "type": "string",
+                    "maxLength": 64,
                     "description": "Access token to revoke"
                   }
                 }
@@ -2219,7 +2220,7 @@
           }
         },
         "summary": "Bookmark Create",
-        "description": "Creates a new bookmark",
+        "description": "\nThis route creates a new bookmark.\n\nOnly the `url` parameter is mandatory. The route's body can be a JSON object or a `multipart/form-data` payload.\n\n### Sending an existing HTML content as a page\n\nIf you want to save a page for which you already have an HTML content, you can call this route with an `html` parameter that contains the page's source. This parameter is accepted in `multipart/form-data` and `JSON`.\n\n#### Example with a JSON payload\n\n```http\nPOST https://read.eatonfamily.net/api/bookmarks\n\nContent-Type: application/json\nAccept: application/json\n\n{\n    \"url\": \"https://example.org/\",\n    \"html\": \"<p>test\"\n}\n```\n\n#### Example with a multipart payload\n\n```request\nPOST https://read.eatonfamily.net/api/bookmarks\n\nContent-Type: multipart/form-data;boundary=\"delimiter123\"\nAccept: application/json\n\n--delimiter123\nContent-Disposition: form-data; name=\"url\"\n\nhttps://example.org/\n--delimiter123\nContent-Disposition: form-data; name=\"html\"; filename=\"_\"\n\n<p>test\n--delimiter123--\n```\n\n### Sending non HTML and/or multiple resources\n\nIf you want to save a page with extra resources (such as images), you need to call this route with\na `multipart/form-data` body and some `resource` values.\n\nEach `resource` entry is a file part, it **must** contain the following headers:\n\n| Name                  | Content                                    |\n| :-------------------- | :----------------------------------------- |\n| `Content-Disposition` | `form-data; name=\"resource\"; filename=\"_\"` |\n| `Location`            | `https://some-url`                         |\n\nThe `filename` property in `Content-Disposition` **must** have a value, otherwise headers won't\nbe read properly. The value doesn't matter and can be, for example, `_`.\n\nA resource can have more headers, like a `Content-Type`.\n\n#### Example\n\n```\nPOST https://read.eatonfamily.net/api/bookmarks\n\nContent-Type: multipart/form-data;boundary=\"delimiter123\"\nAccept: application/json\n\n--delimiter123\nContent-Disposition: form-data; name=\"url\"\n\nhttps://example.org/\n--delimiter123\nContent-Disposition: form-data; name=\"resource\"; filename=\"_\"\nLocation: https://example.org/\nContent-Type: text/html\n\n<p>test\n    <img src=\"/logo.svg\">\n--delimiter123\nContent-Disposition: form-data; name=\"resource\"; filename=\"_\"\nLocation: https://example.org/logo.svg\nContent-Type: image/svg+xml\n\n<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1 1\">\n<path d=\"M0,0h1v1H0\" fill=\"#f00\"/>\n</svg>\n--delimiter123--\n```\n\n\n",
         "requestBody": {
           "content": {
             "application/json": {
@@ -3205,7 +3206,7 @@
         }
       }
     },
-    "/bookmarks/{id}annotations/{annotation_id}": {
+    "/bookmarks/{id}/annotations/{annotation_id}": {
       "parameters": [
         {
           "name": "id",
@@ -3327,7 +3328,7 @@
           }
         },
         "summary": "Highlight Update",
-        "description": "This route updates then given highlight in the given bookmark.\n",
+        "description": "This route updates the given highlight in the given bookmark.\n",
         "requestBody": {
           "content": {
             "application/json": {
@@ -4129,6 +4130,122 @@
         "description": "This route creates bookmarks from a GoodLinks export file.\n"
       }
     },
+    "/bookmarks/import/pinboard": {
+      "post": {
+        "tags": [
+          "bookmark import"
+        ],
+        "responses": {
+          "401": {
+            "description": "Unauthorized. The request token found in the Authorization header is not valid.\n",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/message"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden. The user doesn't have permission to perform the request but has other permissions.\n",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/message"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "This HTTP response is sent when the input data is not valid. It contains an object\nwith all the detected errors.\n",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "is_valid": {
+                      "type": "boolean",
+                      "description": "`true` if the input is valid\n"
+                    },
+                    "errors": {
+                      "type": "[string]",
+                      "nullable": true,
+                      "description": "List of global input errors"
+                    },
+                    "fields": {
+                      "type": "object",
+                      "description": "All the fields, with and without errors\n",
+                      "additionalProperties": {
+                        "properties": {
+                          "is_null": {
+                            "type": "boolean",
+                            "description": "`true` if the input value is null\n"
+                          },
+                          "is_bound": {
+                            "type": "boolean",
+                            "description": "`true` when the value is bound to the form\n"
+                          },
+                          "value": {
+                            "type": "any",
+                            "description": "Item's value; can be any type"
+                          },
+                          "errors": {
+                            "type": "[string]",
+                            "nullable": true,
+                            "description": "List of errors for this field"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "202": {
+            "headers": {
+              "Location": {
+                "description": "URL of the created resource",
+                "schema": {
+                  "type": "string",
+                  "format": "uri"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/message"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#components/schemas/baseImport"
+                  },
+                  {
+                    "properties": {
+                      "data": {
+                        "type": "string",
+                        "format": "binary",
+                        "description": "Import file"
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "summary": "Import Pinboard bookmarks.",
+        "description": "This route creates bookmarks from a Pinboard JSON backup file.\n"
+      }
+    },
     "/bookmarks/import/linkwarden": {
       "post": {
         "tags": [
@@ -4905,16 +5022,6 @@
     "/cookbook/extract": {
       "parameters": [
         {
-          "name": "url",
-          "in": "query",
-          "required": true,
-          "schema": {
-            "type": "string",
-            "format": "uri"
-          },
-          "description": "URL to extract"
-        },
-        {
           "name": "Accept",
           "in": "header",
           "required": false,
@@ -5117,7 +5224,20 @@
           }
         },
         "summary": "Extract Link",
-        "description": "This route extracts a link and returns the extraction result.\n\nYou can pass an `Accept` header to the request, with one of the following values:\n\n- `application/json` (default) returns a JSON response\n- `text/html` returns an HTML response with all the media included as base64 encoded\n  URLs.\n"
+        "description": "This route extracts a link and returns the extraction result.\n\nYou can pass an `Accept` header to the request, with one of the following values:\n\n- `application/json` (default) returns a JSON response\n- `text/html` returns an HTML response with all the media included as base64 encoded\n  URLs.\n",
+        "parameters": [
+          {
+            "name": "url",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uri",
+              "maxLength": 1024
+            },
+            "description": "URL to extract"
+          }
+        ]
       },
       "post": {
         "tags": [
@@ -5309,27 +5429,18 @@
           }
         },
         "summary": "Extract Link with content",
-        "description": "This route extracts a link and returns the extraction result.\n\nYou can pass an `Accept` header to the request, with one of the following values:\n\n- `application/json` (default) returns a JSON response\n- `text/html` returns an HTML response with all the media included as base64 encoded\n  URLs.\n\nTo pass the entire contents of a page together with its url, send this request with\nthe `Content-Type: text/html` header and the page contents as the request body. This\nway, the article fetcher can use that instead of having to fetch the page at url.\n",
-        "parameters": [
-          {
-            "name": "Content-Type",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "enum": [
-                "text/html"
-              ]
-            }
-          }
-        ],
+        "description": "This route extracts a link and returns the extraction result.\n\nYou can pass an `Accept` header to the request, with one of the following values:\n\n- `application/json` (default) returns a JSON response\n- `text/html` returns an HTML response with all the media included as base64 encoded\n  URLs.\n\nTo pass the entire contents of a page together with its url, send this request with\nthe `html` field in the request body. This way, the article fetcher can use that instead\nof having to fetch the page at url.\n\nYou can send this request as `application/json`, `application/x-www-form-urlencoded` or\n`multipart/form-data`.\n",
         "requestBody": {
           "required": false,
           "content": {
-            "text/html": {
+            "application/json": {
               "schema": {
-                "type": "string",
-                "description": "Optional HTML content of the resource at url"
+                "$ref": "#/components/schemas/cookbookExtractParams"
+              }
+            },
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/cookbookExtractParams"
               }
             }
           }
