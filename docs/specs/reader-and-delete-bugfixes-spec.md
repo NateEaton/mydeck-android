@@ -130,7 +130,7 @@ landscape orientations render with correctly oriented provider controls. The
 app provides a custom `VideoFullscreenOverlay` with close (X) and rotate
 buttons.
 
-### Issues (UX polish, not bugs)
+### Issues
 
 1. **Discoverability** — The path to fullscreen is non-obvious. Users must tap
    the embed to reveal provider-specific controls, then find and tap the
@@ -143,9 +143,52 @@ buttons.
    Ideally, holding the device in landscape while in fullscreen should
    auto-rotate without requiring the button.
 
+3. **"Open in [service]" links don't work** — Tapping YouTube's logo/link
+   or Vimeo's "open in app" within the embedded player does nothing. The
+   Readeck-provided `sandbox` attribute (`allow-scripts allow-same-origin`)
+   blocks iframe navigation — it lacks `allow-popups` and
+   `allow-top-navigation-by-user-activation`, so the iframe can't open links
+   or navigate the parent frame.
+
+4. **Overlay controls overlap provider controls** — The X (close) and Rotate
+   buttons are positioned at the top corners, where they conflict with
+   provider-specific controls (YouTube title/settings, Vimeo title/menu).
+
 ### Proposed Improvements
 
-**Auto-rotation via Activity orientation:**
+**4a. App-controlled fullscreen entry (replaces provider dependency):**
+
+Add a MyDeck-controlled fullscreen button as a Compose overlay positioned
+over the inline video embed area. Tapping it triggers fullscreen via one of:
+
+* JS bridge: inject a tap handler on the `video-embed` div that calls back
+  to native Android, which then invokes the existing `onVideoEnterFullscreen`
+  path.
+* Direct iframe fullscreen: `document.querySelector('iframe')
+  .requestFullscreen()` — if sandbox allows it.
+* Fallback: extract the embed `src` URL from the iframe and load it in a
+  dedicated fullscreen WebView, bypassing the iframe sandbox entirely.
+
+This makes fullscreen discoverable and consistent across all providers.
+
+**4b. Enable "Open in [service]" links:**
+
+When preparing the embed HTML for rendering, add `allow-popups
+allow-top-navigation-by-user-activation` to the iframe `sandbox` attribute:
+
+```kotlin
+// In getContent() or a pre-processing step
+val sanitizedEmbed = embed?.replace(
+    Regex("""sandbox="([^"]*)""""),
+    """sandbox="$1 allow-popups allow-top-navigation-by-user-activation""""
+)
+```
+
+This lets the user tap provider links (YouTube logo, Vimeo "open in app"),
+which will then be caught by `shouldOverrideUrlLoading` (line 410) and
+opened in Chrome Custom Tabs or resolved to the native app via intent.
+
+**4c. Auto-rotation via Activity orientation:**
 
 Replace the `View.rotation = 90f` transform approach with an actual
 `Activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR`
@@ -153,21 +196,33 @@ when entering fullscreen. This lets the device sensor handle rotation
 natively, so the provider's embed re-layouts at the correct dimensions.
 Restore the previous orientation on fullscreen exit.
 
-The rotate button can remain as a manual override for users with system
+The rotate button remains as a manual override for users with system
 rotation lock enabled (force landscape via
 `SCREEN_ORIENTATION_LANDSCAPE` toggle).
 
-**Discoverability (low priority):**
+**4d. Reposition and restyle overlay controls:**
 
-Consider adding a subtle fullscreen hint on the inline embed (e.g. a
-semi-transparent expand icon overlay at the corner of the video-embed div)
-to guide users toward the fullscreen experience. This would be an app-level
-overlay, not dependent on individual provider UIs.
+Redesign the `VideoFullscreenOverlay` controls:
+
+* **Position**: Vertically centered (halfway between top and bottom).
+  X button horizontally at 25% from left (halfway between left edge and
+  center). Rotate button at 75% from left (halfway between center and
+  right edge).
+* **Style**: Larger touch targets in pill-shaped outlined containers
+  (similar to MD3 outlined button / chip) instead of small circular
+  icon buttons.
+* **Behavior**: Keep the existing 3-second auto-hide timer. The new
+  positions avoid overlap with provider controls, which are typically
+  clustered at the top and bottom edges of the video.
 
 ### Files
 
 * `app/src/main/java/com/mydeck/app/ui/detail/BookmarkDetailScreen.kt`
   (VideoFullscreenOverlay, lines 932-1080)
+* `app/src/main/java/com/mydeck/app/ui/detail/BookmarkDetailViewModel.kt`
+  (getContent / embed processing, lines 1121-1132)
+* `app/src/main/java/com/mydeck/app/ui/detail/components/BookmarkDetailWebViews.kt`
+  (WebView setup, fullscreen callbacks)
 
 ---
 
