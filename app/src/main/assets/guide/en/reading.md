@@ -85,7 +85,7 @@ Tap **⋮** in the top bar for additional actions:
 - **View web page / View [bookmark type]** — switch between the reading view and the web page in an in-app viewer (see above)
 - **Share link** — open the Android share sheet to share the bookmark using the format selected in **Settings → User Interface**
 - **Details** — open the Bookmark Details screen (see below)
-- **Delete** — delete the bookmark; you are returned to the list and a **"Bookmark deleted"** bar appears with an **Undo** option
+- **Delete** — delete the bookmark; you are returned to the list and a **"Deleting bookmark \"Title...\""** bar appears with an **Undo** option
 
 The menu includes visual dividers to separate related actions and destructive actions.
 

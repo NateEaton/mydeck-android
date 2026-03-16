@@ -63,4 +63,4 @@ To see all your archived bookmarks, open the navigation drawer and tap **Archive
 
 To delete a bookmark, tap the **🗑️** button on its card in a list view, or tap **⋮** → **Delete** in the reading view.
 
-When deleting from a list view, the card is greyed out and a **"Bookmark deleted"** bar appears at the bottom of the screen. Tap **Undo** to restore it, or tap anywhere else (including the greyed-out card) to confirm deletion. When deleting from the reading view, you are returned to the list and the same undo bar appears.
+When deleting from a list view, the card is greyed out and a **"Deleting bookmark \"Title...\""** bar appears at the bottom of the screen with a short title snippet so you can tell which queued delete **Undo** will restore. Tap **Undo** to restore it, or tap anywhere else (including the greyed-out card) to confirm deletion. When deleting from the reading view, you are returned to the list and the same undo bar appears.

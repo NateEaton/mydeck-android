@@ -77,6 +77,9 @@ other{}
     <string name="action_mark_read">Marcar como lido</string>
     <string name="action_mark_unread">Marcar como non lido</string>
     <string name="action_delete">Eliminar</string>
+    <string name="action_undo">Undo</string>
+    <string name="bookmark_delete_pending">Deleting bookmark</string>
+    <string name="bookmark_delete_pending_named">Deleting bookmark &quot;%1$s&quot;</string>
     <string name="error_no_article_content">Erro, o contido do artigo non está dispoñible</string>
     <string name="update_successful">Actualización correcta</string>
     <string name="notification_channel_sync_name">Erros ao sincronizar</string>
