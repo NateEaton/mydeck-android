@@ -120,45 +120,54 @@ transient mis-rendering.
 
 ---
 
-## 4. Embedded Videos Stripped from Article Bookmarks
+## 4. Video Fullscreen UX Polish
 
-### Problem
+### Current State
 
-When a web page is classified as ARTICLE by Readeck but contains an embedded
-video player (e.g. a YouTube iframe within an fstoppers.com article), the
-embedded video is **removed entirely during server-side extraction**. The
-`articleHtml` returned by the Readeck API contains only the text content; the
-iframe/embed is stripped out by the sanitizer.
+Video fullscreen **works correctly** for all tested providers (YouTube, Vimeo,
+TED). The `onShowCustomView` path fires properly, and both portrait and
+landscape orientations render with correctly oriented provider controls. The
+app provides a custom `VideoFullscreenOverlay` with close (X) and rotate
+buttons.
 
-This means the app never receives the video content for article-type bookmarks
-— it's a server-side limitation, not a client-side rendering issue.
+### Issues (UX polish, not bugs)
 
-### Root Cause
+1. **Discoverability** — The path to fullscreen is non-obvious. Users must tap
+   the embed to reveal provider-specific controls, then find and tap the
+   provider's native fullscreen button (which differs across YouTube, Vimeo,
+   TED, etc.). The tester didn't initially realize fullscreen was available.
 
-Readeck's article extraction pipeline strips `<iframe>` and `<embed>` tags
-during HTML sanitization for ARTICLE-typed bookmarks. Only VIDEO-typed
-bookmarks preserve the embed HTML (in the separate `embed` JSON field).
+2. **Auto-rotation** — Device sensor rotation doesn't automatically switch
+   the fullscreen overlay to landscape. The app's rotate button
+   (`VideoFullscreenOverlay`, line 1063) works but is a manual workaround.
+   Ideally, holding the device in landscape while in fullscreen should
+   auto-rotate without requiring the button.
 
-### Options
+### Proposed Improvements
 
-1. **Accept as limitation** — Document that embedded videos in articles are
-   excluded by Readeck's extraction. Users can open the original URL in a
-   browser to view the video. This is the current Readeck web UI behavior too.
-2. **Client-side enrichment (future)** — Detect known video URLs (YouTube,
-   Vimeo, etc.) in the original page's metadata or OG tags (if available via
-   the API) and inject a video embed into the rendered article. This would
-   require additional API data that may not be currently exposed.
-3. **Server-side change (upstream)** — Request that Readeck preserve video
-   embeds in article content, possibly behind a configuration flag.
+**Auto-rotation via Activity orientation:**
 
-### Recommendation
+Replace the `View.rotation = 90f` transform approach with an actual
+`Activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR`
+when entering fullscreen. This lets the device sensor handle rotation
+natively, so the provider's embed re-layouts at the correct dimensions.
+Restore the previous orientation on fullscreen exit.
 
-Option 1 for now. This is a known Readeck behavior and not something the app
-can fix unilaterally. Revisit if/when Readeck exposes additional metadata.
+The rotate button can remain as a manual override for users with system
+rotation lock enabled (force landscape via
+`SCREEN_ORIENTATION_LANDSCAPE` toggle).
+
+**Discoverability (low priority):**
+
+Consider adding a subtle fullscreen hint on the inline embed (e.g. a
+semi-transparent expand icon overlay at the corner of the video-embed div)
+to guide users toward the fullscreen experience. This would be an app-level
+overlay, not dependent on individual provider UIs.
 
 ### Files
 
-* No app changes required for Option 1.
+* `app/src/main/java/com/mydeck/app/ui/detail/BookmarkDetailScreen.kt`
+  (VideoFullscreenOverlay, lines 932-1080)
 
 ---
 
@@ -270,7 +279,7 @@ With this approach:
 | 2 | Text size shifts with margins | Bug — visual | Low |
 | 3 | Layout glitch (issue #11) | Bug — visual | Low (if #2 fixes it) |
 | 5 | Narrower minimum margin | Enhancement | Trivial |
-| 4 | Embedded videos in articles | Server-side limitation | N/A (accept) |
+| 4 | Video fullscreen UX polish | Enhancement | Medium |
 | 6 | Theme switch reflow | Enhancement | Medium-High |
 
 Items 2, 3, and 5 are quick wins. Item 1 is the most impactful bug.
