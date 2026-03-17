@@ -46,7 +46,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
@@ -75,11 +74,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.layout.layout
-import androidx.compose.ui.zIndex
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalClipboardManager
@@ -169,7 +165,6 @@ fun BookmarkListScreen(
     val pullToRefreshState = rememberPullToRefreshState()
     val isInitialLoading by viewModel.isInitialLoading.collectAsState()
     val isUserRefreshing by viewModel.isUserRefreshing.collectAsState()
-    val isSyncingInBackground by viewModel.isSyncingInBackground.collectAsState()
 
     val isLabelMode = activeLabel.value != null
     val dismissPendingDeleteSnackbar: () -> Unit = {
@@ -646,22 +641,6 @@ fun BookmarkListScreen(
                     drawerPreset = drawerPreset.value,
                     onFilterChanged = { viewModel.onApplyFilter(it) },
                     onOpenFilterSheet = { viewModel.onOpenFilterSheet() }
-                )
-            }
-
-            // Background sync indicator — overlays the top of the list without taking layout space
-            if (isSyncingInBackground) {
-                LinearProgressIndicator(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .zIndex(1f)
-                        .layout { measurable, constraints ->
-                            val placeable = measurable.measure(constraints)
-                            layout(placeable.width, 0) {
-                                placeable.place(0, 0)
-                            }
-                        },
-                    strokeCap = StrokeCap.Round,
                 )
             }
 

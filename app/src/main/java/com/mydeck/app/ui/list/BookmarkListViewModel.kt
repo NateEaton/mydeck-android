@@ -181,15 +181,6 @@ class BookmarkListViewModel @Inject constructor(
         isRunning && userRequestedRefresh
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
-    val isSyncingInBackground: StateFlow<Boolean> = combine(
-        loadBookmarksIsRunning,
-        settingsDataStore.initialSyncPerformedFlow,
-        isUserRefreshing,
-        isOnline
-    ) { isRunning, initialSyncPerformed, userRefreshing, online ->
-        isRunning && initialSyncPerformed && !userRefreshing && online
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
-
     private val loadBookmarksHasFailed: StateFlow<Boolean> = loadBookmarksWorkInfos
         .map { workInfoList ->
             val hasLoadInProgress = workInfoList.any {

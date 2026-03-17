@@ -232,39 +232,6 @@ class BookmarkListViewModelTest {
     }
 
     @Test
-    fun `background sync state is true when returning user has active load`() = runTest {
-        initialSyncPerformedFlow.value = true
-        workInfoFlow.value = listOf(
-            mockk {
-                every { state } returns WorkInfo.State.RUNNING
-            }
-        )
-
-        viewModel = BookmarkListViewModel(
-            updateBookmarkUseCase,
-            fullSyncUseCase,
-            workManager,
-            bookmarkRepository,
-            context,
-            settingsDataStore,
-            savedStateHandle,
-            connectivityMonitor
-        )
-
-        val backgroundJob = launch { viewModel.isSyncingInBackground.collect() }
-        val refreshJob = launch { viewModel.isUserRefreshing.collect() }
-        val initialJob = launch { viewModel.isInitialLoading.collect() }
-        advanceUntilIdle()
-
-        assertTrue(viewModel.isSyncingInBackground.value)
-        assertFalse(viewModel.isUserRefreshing.value)
-        assertFalse(viewModel.isInitialLoading.value)
-        backgroundJob.cancel()
-        refreshJob.cancel()
-        initialJob.cancel()
-    }
-
-    @Test
     fun `pull to refresh shows user refreshing while work is active`() = runTest {
         initialSyncPerformedFlow.value = true
 
@@ -280,7 +247,6 @@ class BookmarkListViewModelTest {
         )
 
         val refreshJob = launch { viewModel.isUserRefreshing.collect() }
-        val backgroundJob = launch { viewModel.isSyncingInBackground.collect() }
         viewModel.onPullToRefresh()
         workInfoFlow.value = listOf(
             mockk {
@@ -291,10 +257,8 @@ class BookmarkListViewModelTest {
         advanceUntilIdle()
 
         assertTrue(viewModel.isUserRefreshing.value)
-        assertFalse(viewModel.isSyncingInBackground.value)
         verify(exactly = 1) { LoadBookmarksWorker.enqueue(context, LoadBookmarksWorker.Trigger.PULL_TO_REFRESH) }
         refreshJob.cancel()
-        backgroundJob.cancel()
     }
 
     @Test
