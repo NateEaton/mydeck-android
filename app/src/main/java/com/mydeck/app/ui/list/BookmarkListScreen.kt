@@ -77,6 +77,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalClipboardManager
@@ -631,26 +632,23 @@ fun BookmarkListScreen(
             }
         }
     ) { padding ->
-        Column(
+        Box(
             modifier = Modifier
                 .padding(padding)
                 .fillMaxWidth()
         ) {
-            // FilterBar: visible when filters are active beyond preset defaults, not in label mode
-            if (!isLabelMode) {
-                FilterBar(
-                    filterFormState = filterFormState.value,
-                    drawerPreset = drawerPreset.value,
-                    onFilterChanged = { viewModel.onApplyFilter(it) },
-                    onOpenFilterSheet = { viewModel.onOpenFilterSheet() }
-                )
-            }
+            Column(modifier = Modifier.fillMaxWidth()) {
+                // FilterBar: visible when filters are active beyond preset defaults, not in label mode
+                if (!isLabelMode) {
+                    FilterBar(
+                        filterFormState = filterFormState.value,
+                        drawerPreset = drawerPreset.value,
+                        onFilterChanged = { viewModel.onApplyFilter(it) },
+                        onOpenFilterSheet = { viewModel.onOpenFilterSheet() }
+                    )
+                }
 
-            if (isSyncingInBackground) {
-                LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
-            }
-
-            PullToRefreshBox(
+                PullToRefreshBox(
                 isRefreshing = isInitialLoading || isUserRefreshing,
                 onRefresh = { viewModel.onPullToRefresh() },
                 state = pullToRefreshState,
@@ -772,7 +770,15 @@ fun BookmarkListScreen(
             }
         }
 
-    }
+            }
+
+            if (isSyncingInBackground) {
+                LinearProgressIndicator(
+                    modifier = Modifier.fillMaxWidth(),
+                    strokeCap = StrokeCap.Round,
+                )
+            }
+        }
 
     // Filter bottom sheet
     if (isFilterSheetOpen.value) {
