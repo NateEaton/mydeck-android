@@ -75,6 +75,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.layout.layout
+import androidx.compose.ui.zIndex
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.StrokeCap
@@ -632,23 +634,38 @@ fun BookmarkListScreen(
             }
         }
     ) { padding ->
-        Box(
+        Column(
             modifier = Modifier
                 .padding(padding)
                 .fillMaxWidth()
         ) {
-            Column(modifier = Modifier.fillMaxWidth()) {
-                // FilterBar: visible when filters are active beyond preset defaults, not in label mode
-                if (!isLabelMode) {
-                    FilterBar(
-                        filterFormState = filterFormState.value,
-                        drawerPreset = drawerPreset.value,
-                        onFilterChanged = { viewModel.onApplyFilter(it) },
-                        onOpenFilterSheet = { viewModel.onOpenFilterSheet() }
-                    )
-                }
+            // FilterBar: visible when filters are active beyond preset defaults, not in label mode
+            if (!isLabelMode) {
+                FilterBar(
+                    filterFormState = filterFormState.value,
+                    drawerPreset = drawerPreset.value,
+                    onFilterChanged = { viewModel.onApplyFilter(it) },
+                    onOpenFilterSheet = { viewModel.onOpenFilterSheet() }
+                )
+            }
 
-                PullToRefreshBox(
+            // Background sync indicator — overlays the top of the list without taking layout space
+            if (isSyncingInBackground) {
+                LinearProgressIndicator(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .zIndex(1f)
+                        .layout { measurable, constraints ->
+                            val placeable = measurable.measure(constraints)
+                            layout(placeable.width, 0) {
+                                placeable.place(0, 0)
+                            }
+                        },
+                    strokeCap = StrokeCap.Round,
+                )
+            }
+
+            PullToRefreshBox(
                 isRefreshing = isInitialLoading || isUserRefreshing,
                 onRefresh = { viewModel.onPullToRefresh() },
                 state = pullToRefreshState,
@@ -770,14 +787,6 @@ fun BookmarkListScreen(
             }
         }
 
-            }
-
-            if (isSyncingInBackground) {
-                LinearProgressIndicator(
-                    modifier = Modifier.fillMaxWidth(),
-                    strokeCap = StrokeCap.Round,
-                )
-            }
         }
 
     // Filter bottom sheet
