@@ -165,13 +165,6 @@ class BookmarkListViewModel @Inject constructor(
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
-    // Actively running (not just enqueued waiting for network)
-    private val loadBookmarksIsActivelyRunning: StateFlow<Boolean> = loadBookmarksWorkInfos
-        .map { workInfoList ->
-            workInfoList.any { it.state == WorkInfo.State.RUNNING }
-        }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
-
     private val _userRequestedRefresh = MutableStateFlow(false)
 
     val isInitialLoading: StateFlow<Boolean> = combine(
@@ -189,11 +182,12 @@ class BookmarkListViewModel @Inject constructor(
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
     val isSyncingInBackground: StateFlow<Boolean> = combine(
-        loadBookmarksIsActivelyRunning,
+        loadBookmarksIsRunning,
         settingsDataStore.initialSyncPerformedFlow,
-        isUserRefreshing
-    ) { isActivelyRunning, initialSyncPerformed, userRefreshing ->
-        isActivelyRunning && initialSyncPerformed && !userRefreshing
+        isUserRefreshing,
+        isOnline
+    ) { isRunning, initialSyncPerformed, userRefreshing, online ->
+        isRunning && initialSyncPerformed && !userRefreshing && online
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
     private val loadBookmarksHasFailed: StateFlow<Boolean> = loadBookmarksWorkInfos
