@@ -103,6 +103,11 @@ interface BookmarkDao {
     }
 
     @Transaction
+    suspend fun upsertBookmarksMetadataOnly(bookmarkEntities: List<BookmarkEntity>) {
+        bookmarkEntities.forEach { upsertBookmark(it) }
+    }
+
+    @Transaction
     suspend fun insertBookmarkWithArticleContent(bookmarkWithArticleContent: BookmarkWithArticleContent) {
         with(bookmarkWithArticleContent) {
             // For existing bookmarks, preserve content state and downloaded article content.

@@ -46,6 +46,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
@@ -163,7 +164,9 @@ fun BookmarkListScreen(
     val undoActionLabel = stringResource(R.string.action_undo)
 
     val pullToRefreshState = rememberPullToRefreshState()
-    val isLoading by viewModel.loadBookmarksIsRunning.collectAsState()
+    val isInitialLoading by viewModel.isInitialLoading.collectAsState()
+    val isUserRefreshing by viewModel.isUserRefreshing.collectAsState()
+    val isSyncingInBackground by viewModel.isSyncingInBackground.collectAsState()
 
     val isLabelMode = activeLabel.value != null
     val dismissPendingDeleteSnackbar: () -> Unit = {
@@ -643,8 +646,12 @@ fun BookmarkListScreen(
                 )
             }
 
+            if (isSyncingInBackground) {
+                LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+            }
+
             PullToRefreshBox(
-                isRefreshing = isLoading,
+                isRefreshing = isInitialLoading || isUserRefreshing,
                 onRefresh = { viewModel.onPullToRefresh() },
                 state = pullToRefreshState,
                 modifier = Modifier.fillMaxWidth()

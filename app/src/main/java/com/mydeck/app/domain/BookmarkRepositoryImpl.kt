@@ -332,7 +332,22 @@ class BookmarkRepositoryImpl @Inject constructor(
                 remoteEntity.copy(bookmark = mergedBookmark)
             }
         }
-        bookmarkDao.insertBookmarksWithArticleContent(mergedBookmarks)
+
+        val metadataOnlyBookmarks = mergedBookmarks.filter {
+            it.articleContent == null &&
+                it.bookmark.contentState == BookmarkEntity.ContentState.NOT_ATTEMPTED
+        }
+        val contentBearingBookmarks = mergedBookmarks.filterNot { bookmarkWithContent ->
+            bookmarkWithContent.articleContent == null &&
+                bookmarkWithContent.bookmark.contentState == BookmarkEntity.ContentState.NOT_ATTEMPTED
+        }
+
+        if (metadataOnlyBookmarks.isNotEmpty()) {
+            bookmarkDao.upsertBookmarksMetadataOnly(metadataOnlyBookmarks.map { it.bookmark })
+        }
+        if (contentBearingBookmarks.isNotEmpty()) {
+            bookmarkDao.insertBookmarksWithArticleContent(contentBearingBookmarks)
+        }
     }
 
     override suspend fun getBookmarkById(id: String): Bookmark {

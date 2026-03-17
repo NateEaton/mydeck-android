@@ -310,4 +310,33 @@ class BookmarkDaoTest {
             assertEquals(24, counts?.total)
         }
     }
+
+    @RunWith(RobolectricTestRunner::class)
+    internal class MetadataOnlyUpsertTest : BaseTest() {
+        @Test
+        fun `metadata-only upsert preserves article content and content state`() = runTest(testDispatcher) {
+            val bookmarkId = "test-0"
+            bookmarkDao.updateContentState(
+                bookmarkId,
+                BookmarkEntity.ContentState.DOWNLOADED.value,
+                null
+            )
+
+            val original = bookmarkDao.getBookmarkById(bookmarkId)
+            val updated = original.copy(
+                title = "Updated Title",
+                description = "Updated Description",
+                contentState = BookmarkEntity.ContentState.NOT_ATTEMPTED,
+                contentFailureReason = null
+            )
+
+            bookmarkDao.upsertBookmarksMetadataOnly(listOf(updated))
+
+            val saved = bookmarkDao.getBookmarkById(bookmarkId)
+            assertEquals("Updated Title", saved.title)
+            assertEquals("Updated Description", saved.description)
+            assertEquals(BookmarkEntity.ContentState.DOWNLOADED, saved.contentState)
+            assertEquals("content", bookmarkDao.getArticleContent(bookmarkId))
+        }
+    }
 }

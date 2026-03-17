@@ -1,6 +1,8 @@
 package com.mydeck.app.domain
 
 import androidx.room.withTransaction
+import com.mydeck.app.domain.mapper.toDomain
+import com.mydeck.app.domain.model.Bookmark
 import com.mydeck.app.domain.sync.SyncScheduler
 import com.mydeck.app.io.db.MyDeckDatabase
 import com.mydeck.app.io.db.dao.BookmarkDao
@@ -369,7 +371,7 @@ class BookmarkRepositoryImplTest {
         assertEquals(bookmarkId, result)
         coVerify { readeckApi.createBookmark(createBookmarkDto) }
         coVerify { readeckApi.getBookmarkById(bookmarkId) }
-        coVerify { bookmarkDao.insertBookmarksWithArticleContent(any()) }
+        coVerify { bookmarkDao.upsertBookmarksMetadataOnly(any()) }
         verify { syncScheduler.scheduleArticleDownload(bookmarkId) }
     }
 
@@ -387,7 +389,21 @@ class BookmarkRepositoryImplTest {
         
         // Assert
         coVerify { readeckApi.getBookmarkById(bookmarkId) }
-        coVerify { bookmarkDao.insertBookmarksWithArticleContent(any()) }
+        coVerify { bookmarkDao.upsertBookmarksMetadataOnly(any()) }
+    }
+
+    @Test
+    fun `insertBookmarks uses content-aware path when article content is present`() = runTest {
+        val bookmark = bookmarkDto.toDomain().copy(
+            articleContent = "<article>Synced content</article>",
+            contentState = Bookmark.ContentState.DOWNLOADED,
+            contentFailureReason = null
+        )
+
+        bookmarkRepositoryImpl.insertBookmarks(listOf(bookmark))
+
+        coVerify(exactly = 1) { bookmarkDao.insertBookmarksWithArticleContent(any()) }
+        coVerify(exactly = 0) { bookmarkDao.upsertBookmarksMetadataOnly(any()) }
     }
 
     @Test
