@@ -267,7 +267,7 @@ other{}
     <string name="filter_label">Label</string>
     <string name="filter_from_date">From date</string>
     <string name="filter_to_date">To date</string>
-    <string name="filter_is_loaded">Is loaded</string>
+    <string name="filter_is_loaded">Downloaded</string>
     <string name="filter_with_labels">With labels</string>
     <string name="filter_with_errors">With errors</string>
     <string name="filter_select_label">Tap to select a label</string>

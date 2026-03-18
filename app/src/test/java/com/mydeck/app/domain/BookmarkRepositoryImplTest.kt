@@ -1,8 +1,10 @@
 package com.mydeck.app.domain
 
 import androidx.room.withTransaction
+import com.mydeck.app.domain.mapper.toEntity
 import com.mydeck.app.domain.mapper.toDomain
 import com.mydeck.app.domain.model.Bookmark
+import com.mydeck.app.domain.model.BookmarkMetadataUpdate
 import com.mydeck.app.domain.sync.SyncScheduler
 import com.mydeck.app.io.db.MyDeckDatabase
 import com.mydeck.app.io.db.dao.BookmarkDao
@@ -222,7 +224,7 @@ class BookmarkRepositoryImplTest {
         val bookmarkList3 = List(20) { bookmarkDto.copy(id = "bookmark_${it + 2 * pageSize}") }
 
         coEvery {
-            readeckApi.getBookmarks(limit = pageSize, offset = 0, updatedSince = null, ReadeckApi.SortOrder(ReadeckApi.Sort.Created))
+            readeckApi.getBookmarks(limit = pageSize, offset = 0, updatedSince = null, ReadeckApi.SortOrder(ReadeckApi.Sort.Created), hasErrors = null)
         } returns Response.success(bookmarkList1, Headers.headersOf(
             ReadeckApi.Header.TOTAL_COUNT, totalCount.toString(),
             ReadeckApi.Header.TOTAL_PAGES, totalPages.toString(),
@@ -230,7 +232,7 @@ class BookmarkRepositoryImplTest {
         ))
 
         coEvery {
-            readeckApi.getBookmarks(limit = pageSize, offset = pageSize, updatedSince = null, ReadeckApi.SortOrder(ReadeckApi.Sort.Created))
+            readeckApi.getBookmarks(limit = pageSize, offset = pageSize, updatedSince = null, ReadeckApi.SortOrder(ReadeckApi.Sort.Created), hasErrors = null)
         } returns Response.success(bookmarkList2, Headers.headersOf(
             ReadeckApi.Header.TOTAL_COUNT, totalCount.toString(),
             ReadeckApi.Header.TOTAL_PAGES, totalPages.toString(),
@@ -238,7 +240,7 @@ class BookmarkRepositoryImplTest {
         ))
 
         coEvery {
-            readeckApi.getBookmarks(limit = pageSize, offset = 2 * pageSize, updatedSince = null, ReadeckApi.SortOrder(ReadeckApi.Sort.Created))
+            readeckApi.getBookmarks(limit = pageSize, offset = 2 * pageSize, updatedSince = null, ReadeckApi.SortOrder(ReadeckApi.Sort.Created), hasErrors = null)
         } returns Response.success(bookmarkList3, Headers.headersOf(
             ReadeckApi.Header.TOTAL_COUNT, totalCount.toString(),
             ReadeckApi.Header.TOTAL_PAGES, totalPages.toString(),
@@ -255,9 +257,9 @@ class BookmarkRepositoryImplTest {
         assertTrue(result is BookmarkRepository.SyncResult.Success)
         assertEquals(10, (result as BookmarkRepository.SyncResult.Success).countDeleted)
 
-        coVerify { readeckApi.getBookmarks(limit = pageSize, offset = 0, updatedSince = null, ReadeckApi.SortOrder(ReadeckApi.Sort.Created)) }
-        coVerify { readeckApi.getBookmarks(limit = pageSize, offset = pageSize, updatedSince = null, ReadeckApi.SortOrder(ReadeckApi.Sort.Created)) }
-        coVerify { readeckApi.getBookmarks(limit = pageSize, offset = 2 * pageSize, updatedSince = null, ReadeckApi.SortOrder(ReadeckApi.Sort.Created)) }
+        coVerify { readeckApi.getBookmarks(limit = pageSize, offset = 0, updatedSince = null, ReadeckApi.SortOrder(ReadeckApi.Sort.Created), hasErrors = null) }
+        coVerify { readeckApi.getBookmarks(limit = pageSize, offset = pageSize, updatedSince = null, ReadeckApi.SortOrder(ReadeckApi.Sort.Created), hasErrors = null) }
+        coVerify { readeckApi.getBookmarks(limit = pageSize, offset = 2 * pageSize, updatedSince = null, ReadeckApi.SortOrder(ReadeckApi.Sort.Created), hasErrors = null) }
         coVerify { bookmarkDao.insertRemoteBookmarkIds(any()) }
         coVerify { bookmarkDao.removeDeletedBookmars() }
         coVerify { bookmarkDao.clearRemoteBookmarkIds() }
@@ -266,7 +268,7 @@ class BookmarkRepositoryImplTest {
     @Test
     fun `performFullSync API error`() = runTest {
         // Arrange
-        coEvery { readeckApi.getBookmarks(limit = any(), offset = any(), updatedSince = any(), ReadeckApi.SortOrder(ReadeckApi.Sort.Created)) } returns Response.error(500, "Error".toResponseBody())
+        coEvery { readeckApi.getBookmarks(limit = any(), offset = any(), updatedSince = any(), sortOrder = ReadeckApi.SortOrder(ReadeckApi.Sort.Created), hasErrors = any()) } returns Response.error(500, "Error".toResponseBody())
 
         // Act
         val result = bookmarkRepositoryImpl.performFullSync()
@@ -280,7 +282,7 @@ class BookmarkRepositoryImplTest {
     @Test
     fun `performFullSync missing headers`() = runTest {
         // Arrange
-        coEvery { readeckApi.getBookmarks(limit = any(), offset = any(), updatedSince = any(), ReadeckApi.SortOrder(ReadeckApi.Sort.Created)) } returns Response.success(emptyList())
+        coEvery { readeckApi.getBookmarks(limit = any(), offset = any(), updatedSince = any(), sortOrder = ReadeckApi.SortOrder(ReadeckApi.Sort.Created), hasErrors = any()) } returns Response.success(emptyList())
 
         // Act
         val result = bookmarkRepositoryImpl.performFullSync()
@@ -293,7 +295,7 @@ class BookmarkRepositoryImplTest {
     @Test
     fun `performFullSync network error`() = runTest {
         // Arrange
-        coEvery { readeckApi.getBookmarks(limit = any(), offset = any(), updatedSince = any(), ReadeckApi.SortOrder(ReadeckApi.Sort.Created)) } throws IOException("Network error")
+        coEvery { readeckApi.getBookmarks(limit = any(), offset = any(), updatedSince = any(), sortOrder = ReadeckApi.SortOrder(ReadeckApi.Sort.Created), hasErrors = any()) } throws IOException("Network error")
 
         // Act
         val result = bookmarkRepositoryImpl.performFullSync()
@@ -404,6 +406,98 @@ class BookmarkRepositoryImplTest {
 
         coVerify(exactly = 1) { bookmarkDao.insertBookmarksWithArticleContent(any()) }
         coVerify(exactly = 0) { bookmarkDao.upsertBookmarksMetadataOnly(any()) }
+    }
+
+    @Test
+    fun `insertBookmarks uses content-aware path when content state is explicitly changed`() = runTest {
+        val bookmark = bookmarkDto.toDomain().copy(
+            articleContent = null,
+            contentState = Bookmark.ContentState.DIRTY,
+            contentFailureReason = "network timeout"
+        )
+
+        bookmarkRepositoryImpl.insertBookmarks(listOf(bookmark))
+
+        coVerify(exactly = 1) { bookmarkDao.insertBookmarksWithArticleContent(any()) }
+        coVerify(exactly = 0) { bookmarkDao.upsertBookmarksMetadataOnly(any()) }
+    }
+
+    @Test
+    fun `insertBookmarks metadata-only preserves omitDescription when description is unchanged`() = runTest {
+        val existingBookmark = bookmarkDto.toDomain()
+            .copy(omitDescription = true)
+            .toEntity()
+            .bookmark
+        val incomingBookmark = bookmarkDto.toDomain()
+
+        coEvery { bookmarkDao.getBookmarksByIds(listOf(incomingBookmark.id)) } returns listOf(existingBookmark)
+
+        bookmarkRepositoryImpl.insertBookmarks(listOf(incomingBookmark))
+
+        coVerify(exactly = 1) {
+            bookmarkDao.upsertBookmarksMetadataOnly(
+                match { bookmarks ->
+                    bookmarks.singleOrNull()?.omitDescription == true
+                }
+            )
+        }
+    }
+
+    @Test
+    fun `insertBookmarks metadata-only clears omitDescription when description changes`() = runTest {
+        val existingBookmark = bookmarkDto.toDomain()
+            .copy(description = "Original description", omitDescription = true)
+            .toEntity()
+            .bookmark
+        val incomingBookmark = bookmarkDto.copy(description = "Updated description").toDomain()
+
+        coEvery { bookmarkDao.getBookmarksByIds(listOf(incomingBookmark.id)) } returns listOf(existingBookmark)
+
+        bookmarkRepositoryImpl.insertBookmarks(listOf(incomingBookmark))
+
+        coVerify(exactly = 1) {
+            bookmarkDao.upsertBookmarksMetadataOnly(
+                match { bookmarks ->
+                    bookmarks.singleOrNull()?.omitDescription == null
+                }
+            )
+        }
+    }
+
+    @Test
+    fun `updateMetadata clears omitDescription when description changes`() = runTest {
+        val bookmarkId = "1"
+        val existingBookmark = bookmarkDto.toDomain()
+            .copy(description = "Original description", omitDescription = true)
+            .toEntity()
+            .bookmark
+        val metadata = BookmarkMetadataUpdate(
+            title = "Sample Article",
+            description = "Updated description",
+            siteName = "Example Site",
+            authors = listOf("John Doe", "Jane Smith"),
+            published = null,
+            lang = "en",
+            textDirection = "ltr"
+        )
+
+        coEvery { bookmarkDao.getBookmarkById(bookmarkId) } returns existingBookmark
+
+        bookmarkRepositoryImpl.updateMetadata(bookmarkId, metadata)
+
+        coVerify(exactly = 1) {
+            bookmarkDao.updateMetadata(
+                id = bookmarkId,
+                title = metadata.title,
+                description = metadata.description,
+                siteName = metadata.siteName,
+                authors = metadata.authors,
+                published = metadata.published,
+                lang = metadata.lang,
+                textDirection = metadata.textDirection.orEmpty(),
+                omitDescription = null
+            )
+        }
     }
 
     @Test

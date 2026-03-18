@@ -1740,6 +1740,7 @@ private val sampleBookmark = BookmarkDetailViewModel.Bookmark(
     wordCount = 1500,
     readingTime = 7,
     description = "This is a sample description",
+    omitDescription = null,
     labels = listOf("tech", "android", "kotlin"),
     readProgress = 0,
     hasContent = true

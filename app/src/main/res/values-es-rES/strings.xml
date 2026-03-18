@@ -321,7 +321,7 @@ other{}
     <string name="filter_label">Etiqueta</string>
     <string name="filter_from_date">Desde la fecha</string>
     <string name="filter_to_date">Hasta la fecha</string>
-    <string name="filter_is_loaded">Está cargado</string>
+    <string name="filter_is_loaded">Descargado</string>
     <string name="filter_with_labels">Con etiquetas</string>
     <string name="filter_with_errors">Con errores</string>
     <string name="filter_select_label">Toca para seleccionar una etiqueta</string>

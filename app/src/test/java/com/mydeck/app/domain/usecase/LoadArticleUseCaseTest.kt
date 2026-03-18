@@ -7,6 +7,8 @@ import com.mydeck.app.io.db.dao.BookmarkDao
 import com.mydeck.app.io.prefs.SettingsDataStore
 import com.mydeck.app.io.rest.ReadeckApi
 import com.mydeck.app.io.rest.model.AnnotationDto
+import com.mydeck.app.io.rest.model.BookmarkDto
+import com.mydeck.app.io.rest.model.Resources
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -130,6 +132,70 @@ class LoadArticleUseCaseTest {
         coVerify(exactly = 0) { settingsDataStore.saveCachedAnnotationSnapshot("123", any()) }
     }
 
+    @Test
+    fun `execute fetches omitDescription from bookmark detail after article download`() {
+        val bookmark = sampleBookmark.copy(
+            articleContent = null,
+            contentState = Bookmark.ContentState.DIRTY
+        )
+        val articleContent = "<section><p>Fresh article</p></section>"
+        val bookmarkDetail = sampleBookmarkDetailDto(omitDescription = true)
+
+        coEvery { bookmarkRepository.getBookmarkById("123") } returns bookmark
+        every { connectivityMonitor.isNetworkAvailable() } returns true
+        coEvery { readeckApi.getArticle("123") } returns Response.success(articleContent)
+        coEvery { readeckApi.getBookmarkById("123") } returns Response.success(bookmarkDetail)
+        coEvery { readeckApi.getAnnotations("123") } returns Response.success(emptyList())
+        coEvery { bookmarkRepository.insertBookmarks(any()) } just Runs
+        coEvery { settingsDataStore.saveCachedAnnotationSnapshot("123", any()) } just Runs
+
+        val result = runBlocking {
+            loadArticleUseCase.execute("123")
+        }
+
+        assertTrue(result is LoadArticleUseCase.Result.Success)
+        coVerify(exactly = 1) { readeckApi.getBookmarkById("123") }
+        coVerify {
+            bookmarkRepository.insertBookmarks(
+                match { bookmarks ->
+                    bookmarks.singleOrNull()?.articleContent == articleContent &&
+                        bookmarks.singleOrNull()?.omitDescription == true
+                }
+            )
+        }
+    }
+
+    @Test
+    fun `execute skips bookmark detail fetch when omitDescription is already known`() {
+        val bookmark = sampleBookmark.copy(
+            articleContent = null,
+            contentState = Bookmark.ContentState.DIRTY,
+            omitDescription = false
+        )
+        val articleContent = "<section><p>Fresh article</p></section>"
+
+        coEvery { bookmarkRepository.getBookmarkById("123") } returns bookmark
+        every { connectivityMonitor.isNetworkAvailable() } returns true
+        coEvery { readeckApi.getArticle("123") } returns Response.success(articleContent)
+        coEvery { readeckApi.getAnnotations("123") } returns Response.success(emptyList())
+        coEvery { bookmarkRepository.insertBookmarks(any()) } just Runs
+        coEvery { settingsDataStore.saveCachedAnnotationSnapshot("123", any()) } just Runs
+
+        val result = runBlocking {
+            loadArticleUseCase.execute("123")
+        }
+
+        assertTrue(result is LoadArticleUseCase.Result.Success)
+        coVerify(exactly = 0) { readeckApi.getBookmarkById("123") }
+        coVerify {
+            bookmarkRepository.insertBookmarks(
+                match { bookmarks ->
+                    bookmarks.singleOrNull()?.omitDescription == false
+                }
+            )
+        }
+    }
+
     private val sampleBookmark = Bookmark(
         id = "123",
         href = "https://example.com/bookmark/123",
@@ -167,5 +233,37 @@ class LoadArticleUseCaseTest {
         thumbnail = Bookmark.ImageResource("", 0, 0),
         contentState = Bookmark.ContentState.DOWNLOADED,
         contentFailureReason = null
+    )
+
+    private fun sampleBookmarkDetailDto(omitDescription: Boolean?) = BookmarkDto(
+        id = "123",
+        href = "https://example.com/bookmark/123",
+        created = kotlinx.datetime.Instant.parse("2026-03-09T08:00:00Z"),
+        updated = kotlinx.datetime.Instant.parse("2026-03-09T08:00:00Z"),
+        state = 0,
+        loaded = true,
+        url = "https://example.com/article",
+        title = "Sample Article",
+        siteName = "Example",
+        site = "example.com",
+        authors = listOf("Author"),
+        lang = "en",
+        textDirection = "ltr",
+        documentTpe = "article",
+        type = "article",
+        hasArticle = true,
+        description = "Description",
+        isDeleted = false,
+        isMarked = false,
+        isArchived = false,
+        labels = emptyList(),
+        readProgress = 0,
+        resources = Resources(),
+        wordCount = 100,
+        readingTime = 1,
+        published = null,
+        embed = null,
+        embedHostname = null,
+        omitDescription = omitDescription
     )
 }

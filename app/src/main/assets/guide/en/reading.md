@@ -4,7 +4,7 @@ Tap any bookmark card to open it. MyDeck displays the bookmark in a view suited 
 
 ## Reading View
 
-For bookmarks with text content, MyDeck shows the extracted text in a clean, distraction-free reading layout. The bookmark title appears at the top, and if the bookmark has a description it is shown directly underneath in italic text. Title changes are managed from **⋮ → Details** rather than inline in the reader header.
+For bookmarks with text content, MyDeck shows the extracted text in a clean, distraction-free reading layout. The bookmark title appears at the top, and if the bookmark has a description it is normally shown directly underneath in italic text. When Readeck marks that description as already duplicated at the start of the extracted article, MyDeck hides the separate header description to avoid repetition. Title changes are managed from **⋮ → Details** rather than inline in the reader header.
 
 Tap any image in the content to open it in the **Image Lightbox** (see below). Long-press links or images to access **Long-press Context Menus** (see below).
 
@@ -29,6 +29,8 @@ MyDeck supports two view formats for bookmarks: **extracted content view** (Arti
 - **From web view:** tap **⋮** → **View [bookmark type]** to return to the extracted content view
 
 > **No article content:** If Readeck was unable to extract article content when the bookmark was saved, MyDeck automatically opens the bookmark in **web view** instead of showing an empty reading view. In that case, the overflow menu hides the **View [bookmark type]** action because extracted content is unavailable.
+
+> **No cached media reader content:** Video and picture bookmarks can include embedded or extracted reader content, but some only have their original web page available. When MyDeck already knows that no local reader payload is available for a media bookmark, it falls back to **web view** instead of leaving the reader on a loading spinner.
 
 
 ### Top Bar

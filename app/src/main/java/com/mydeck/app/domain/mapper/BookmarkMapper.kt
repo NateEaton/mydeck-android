@@ -62,7 +62,9 @@ fun Bookmark.toEntity(): BookmarkWithArticleContent = BookmarkWithArticleContent
             Bookmark.ContentState.DIRTY -> BookmarkEntity.ContentState.DIRTY
             Bookmark.ContentState.PERMANENT_NO_CONTENT -> BookmarkEntity.ContentState.PERMANENT_NO_CONTENT
         },
-        contentFailureReason = contentFailureReason
+        contentFailureReason = contentFailureReason,
+        omitDescription = omitDescription,
+        errors = errors
     ),
     articleContent = articleContent?.let { ArticleContentEntity(bookmarkId = id, content = it) }
 )
@@ -126,7 +128,9 @@ fun BookmarkEntity.toDomain(): Bookmark = Bookmark(
         BookmarkEntity.ContentState.DIRTY -> Bookmark.ContentState.DIRTY
         BookmarkEntity.ContentState.PERMANENT_NO_CONTENT -> Bookmark.ContentState.PERMANENT_NO_CONTENT
     },
-    contentFailureReason = contentFailureReason
+    contentFailureReason = contentFailureReason,
+    omitDescription = omitDescription,
+    errors = errors
 )
 
 fun ResourceEntity.toDomain(): Bookmark.Resource = Bookmark.Resource(
@@ -185,7 +189,9 @@ fun BookmarkDto.toDomain(): Bookmark = Bookmark(
     thumbnail = resources.thumbnail.toDomain(),
     articleContent = null,
     contentState = Bookmark.ContentState.NOT_ATTEMPTED,
-    contentFailureReason = null
+    contentFailureReason = null,
+    omitDescription = omitDescription,
+    errors = errors
 )
 
 fun ResourceDto?.toDomain(): Bookmark.Resource = Bookmark.Resource(

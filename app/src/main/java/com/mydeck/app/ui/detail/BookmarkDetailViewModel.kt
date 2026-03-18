@@ -233,7 +233,12 @@ class BookmarkDetailViewModel @Inject constructor(
                         // (videos and photos can have article content per the API spec)
                         when (bookmark.contentState) {
                             ContentState.DOWNLOADED -> { /* Content already available */ }
-                            ContentState.PERMANENT_NO_CONTENT -> { /* No content available */ }
+                            ContentState.PERMANENT_NO_CONTENT -> {
+                                _contentLoadState.value = ContentLoadState.Failed(
+                                    reason = bookmark.contentFailureReason ?: "No content available",
+                                    canRetry = false
+                                )
+                            }
                             else -> fetchContentOnDemand(id)
                         }
                     }
@@ -353,6 +358,7 @@ class BookmarkDetailViewModel @Inject constructor(
                             wordCount = bookmark.wordCount,
                             readingTime = bookmark.readingTime,
                             description = bookmark.description,
+                            omitDescription = bookmark.omitDescription,
                             labels = bookmark.labels,
                             readProgress = bookmark.readProgress,
                             debugInfo = buildDebugInfo(bookmark),
@@ -1085,6 +1091,7 @@ class BookmarkDetailViewModel @Inject constructor(
         val wordCount: Int?,
         val readingTime: Int?,
         val description: String,
+        val omitDescription: Boolean?,
         val labels: List<String>,
         val readProgress: Int,
         val debugInfo: String = "",
@@ -1093,6 +1100,15 @@ class BookmarkDetailViewModel @Inject constructor(
         enum class Type {
             ARTICLE, PHOTO, VIDEO
         }
+
+        fun shouldShowHeaderDescription(): Boolean {
+            return description.isNotBlank() && !(
+                type == Type.ARTICLE &&
+                    omitDescription == true &&
+                    !articleContent.isNullOrBlank()
+                )
+        }
+
         fun getContent(template: Template, isDark: Boolean): String? {
             val htmlTemplate = when (template) {
                 is Template.SimpleTemplate -> template.template

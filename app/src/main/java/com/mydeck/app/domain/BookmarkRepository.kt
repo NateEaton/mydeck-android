@@ -27,6 +27,7 @@ interface BookmarkRepository {
     ): Flow<List<BookmarkListItem>>
 
     suspend fun insertBookmarks(bookmarks: List<Bookmark>)
+    suspend fun replaceServerErrorFlags(bookmarkIds: Set<String>)
     suspend fun getBookmarkById(id: String): Bookmark
     suspend fun refreshBookmarkFromApi(id: String)
     fun observeBookmark(id: String): Flow<Bookmark?>

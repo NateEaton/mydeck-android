@@ -331,6 +331,17 @@ class BookmarkRepositoryImpl @Inject constructor(
                 }
                 remoteEntity.copy(bookmark = mergedBookmark)
             }
+        }.map { mergedBookmark ->
+            val existingBookmark = existingBookmarksById[mergedBookmark.bookmark.id]
+            mergedBookmark.copy(
+                bookmark = mergedBookmark.bookmark.copy(
+                    hasServerErrors = existingBookmark?.hasServerErrors ?: mergedBookmark.bookmark.hasServerErrors,
+                    omitDescription = resolvePersistedOmitDescription(
+                        existingBookmark = existingBookmark,
+                        incomingBookmark = mergedBookmark
+                    )
+                )
+            )
         }
 
         val metadataOnlyBookmarks = mergedBookmarks.filter {
@@ -348,6 +359,10 @@ class BookmarkRepositoryImpl @Inject constructor(
         if (contentBearingBookmarks.isNotEmpty()) {
             bookmarkDao.insertBookmarksWithArticleContent(contentBearingBookmarks)
         }
+    }
+
+    override suspend fun replaceServerErrorFlags(bookmarkIds: Set<String>) {
+        bookmarkDao.replaceServerErrorFlags(bookmarkIds.toList())
     }
 
     override suspend fun getBookmarkById(id: String): Bookmark {
@@ -561,6 +576,7 @@ class BookmarkRepositoryImpl @Inject constructor(
     ): BookmarkRepository.UpdateResult {
         withContext(dispatcher) {
             database.performTransaction {
+                val existingBookmark = bookmarkDao.getBookmarkById(bookmarkId)
                 bookmarkDao.updateMetadata(
                     id = bookmarkId,
                     title = metadata.title,
@@ -569,7 +585,10 @@ class BookmarkRepositoryImpl @Inject constructor(
                     authors = metadata.authors,
                     published = metadata.published,
                     lang = metadata.lang,
-                    textDirection = metadata.textDirection.orEmpty()
+                    textDirection = metadata.textDirection.orEmpty(),
+                    omitDescription = existingBookmark.omitDescription.takeIf {
+                        existingBookmark.description == metadata.description
+                    }
                 )
                 upsertPendingAction(
                     bookmarkId,
@@ -588,6 +607,28 @@ class BookmarkRepositoryImpl @Inject constructor(
             syncScheduler.scheduleActionSync()
         }
         return BookmarkRepository.UpdateResult.Success
+    }
+
+    private fun resolvePersistedOmitDescription(
+        existingBookmark: BookmarkEntity?,
+        incomingBookmark: com.mydeck.app.io.db.model.BookmarkWithArticleContent
+    ): Boolean? {
+        if (incomingBookmark.articleContent != null) {
+            return incomingBookmark.bookmark.omitDescription
+                ?: existingBookmark?.omitDescription?.takeIf {
+                    existingBookmark.description == incomingBookmark.bookmark.description
+                }
+        }
+
+        if (existingBookmark == null) {
+            return null
+        }
+
+        if (existingBookmark.description != incomingBookmark.bookmark.description) {
+            return null
+        }
+
+        return existingBookmark.omitDescription
     }
 
     override suspend fun updateLabels(

@@ -121,7 +121,9 @@ When no bookmarks match the current filters, the list shows a "No bookmarks matc
 - Unviewed, In progress, Completed
 
 **Toggle filters** (N/A / Yes / No):
-- Is favorite, Is archived, Is loaded, With labels, With errors
+- Is favorite, Is archived, Downloaded, With labels, With errors
+
+**With errors** follows the error status reported by your Readeck server. It matches bookmarks that Readeck marked as errored or bookmarks where Readeck stored extraction or processing errors. It does not simply mean that MyDeck has not downloaded local reader content for the bookmark.
 
 Tap **Search** to apply, or **Reset** to clear all filters.
 

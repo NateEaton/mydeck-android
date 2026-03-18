@@ -15,7 +15,7 @@ import com.mydeck.app.io.db.dao.PendingActionDao
 
 @Database(
     entities = [BookmarkEntity::class, ArticleContentEntity::class, RemoteBookmarkIdEntity::class, PendingActionEntity::class],
-    version = 7,
+    version = 10,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
@@ -122,6 +122,29 @@ abstract class MyDeckDatabase : RoomDatabase() {
                 
                 // 3. Add isLocalDeleted column to bookmarks
                 database.execSQL("ALTER TABLE bookmarks ADD COLUMN isLocalDeleted INTEGER NOT NULL DEFAULT 0")
+            }
+        }
+
+        val MIGRATION_6_7 = object : Migration(6, 7) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+            }
+        }
+
+        val MIGRATION_7_8 = object : Migration(7, 8) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL("ALTER TABLE bookmarks ADD COLUMN omitDescription INTEGER")
+            }
+        }
+
+        val MIGRATION_8_9 = object : Migration(8, 9) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL("ALTER TABLE bookmarks ADD COLUMN errors TEXT NOT NULL DEFAULT ''")
+            }
+        }
+
+        val MIGRATION_9_10 = object : Migration(9, 10) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL("ALTER TABLE bookmarks ADD COLUMN hasServerErrors INTEGER NOT NULL DEFAULT 0")
             }
         }
     }

@@ -61,7 +61,10 @@ data class BookmarkEntity(
 
     val contentState: ContentState = ContentState.NOT_ATTEMPTED,
     val contentFailureReason: String? = null,
-    val isLocalDeleted: Boolean = false
+    val isLocalDeleted: Boolean = false,
+    val hasServerErrors: Boolean = false,
+    val omitDescription: Boolean? = null,
+    val errors: List<String> = emptyList()
 ) {
     enum class Type(val value: String) {
         ARTICLE("article"),

@@ -38,7 +38,9 @@ data class Bookmark(
     val props: Resource,
     val thumbnail: ImageResource,
     val contentState: ContentState = ContentState.NOT_ATTEMPTED,
-    val contentFailureReason: String? = null
+    val contentFailureReason: String? = null,
+    val omitDescription: Boolean? = null,
+    val errors: List<String> = emptyList()
 ) {
     fun isRead(): Boolean {
         return readProgress == 100

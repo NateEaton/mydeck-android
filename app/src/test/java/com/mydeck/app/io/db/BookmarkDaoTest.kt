@@ -108,6 +108,12 @@ class BookmarkDaoTest {
                     log = ResourceEntity(""),
                     props = ResourceEntity(""),
                     thumbnail = ImageResourceEntity("", 100, 100),
+                    hasServerErrors = index == 7 || index == 17 || index == 27,
+                    errors = if (index == 7 || index == 17 || index == 27) {
+                        listOf("extract failed")
+                    } else {
+                        emptyList()
+                    }
                 )
             }
             val bookmarkArticles = bookmarkEntities.map {
@@ -337,6 +343,61 @@ class BookmarkDaoTest {
             assertEquals("Updated Description", saved.description)
             assertEquals(BookmarkEntity.ContentState.DOWNLOADED, saved.contentState)
             assertEquals("content", bookmarkDao.getArticleContent(bookmarkId))
+        }
+
+        @Test
+        fun `metadata-only upsert preserves content failure reason`() = runTest(testDispatcher) {
+            val bookmarkId = "test-0"
+            bookmarkDao.updateContentState(
+                bookmarkId,
+                BookmarkEntity.ContentState.DIRTY.value,
+                "network timeout"
+            )
+
+            val original = bookmarkDao.getBookmarkById(bookmarkId)
+            val updated = original.copy(
+                title = "Updated Title",
+                description = "Updated Description",
+                contentState = BookmarkEntity.ContentState.NOT_ATTEMPTED,
+                contentFailureReason = null
+            )
+
+            bookmarkDao.upsertBookmarksMetadataOnly(listOf(updated))
+
+            val saved = bookmarkDao.getBookmarkById(bookmarkId)
+            assertEquals("Updated Title", saved.title)
+            assertEquals("Updated Description", saved.description)
+            assertEquals(BookmarkEntity.ContentState.DIRTY, saved.contentState)
+            assertEquals("network timeout", saved.contentFailureReason)
+        }
+    }
+
+    @RunWith(RobolectricTestRunner::class)
+    internal class WithErrorsFilterTest : BaseTest() {
+        @Test
+        fun `withErrors yes matches server error state or persisted server errors`() = runTest(testDispatcher) {
+            val list = bookmarkDao.getFilteredBookmarkListItems(withErrors = true).first()
+
+            assertEquals(6, list.size)
+            assertTrue(list.any { it.id == "test-7" })
+            assertTrue(list.any { it.id == "test-9" })
+            assertTrue(list.any { it.id == "test-17" })
+            assertTrue(list.any { it.id == "test-19" })
+            assertTrue(list.any { it.id == "test-27" })
+            assertTrue(list.any { it.id == "test-29" })
+        }
+
+        @Test
+        fun `withErrors no excludes state errors and persisted server errors`() = runTest(testDispatcher) {
+            val list = bookmarkDao.getFilteredBookmarkListItems(withErrors = false).first()
+
+            assertEquals(24, list.size)
+            assertTrue(list.none { it.id == "test-7" })
+            assertTrue(list.none { it.id == "test-9" })
+            assertTrue(list.none { it.id == "test-17" })
+            assertTrue(list.none { it.id == "test-19" })
+            assertTrue(list.none { it.id == "test-27" })
+            assertTrue(list.none { it.id == "test-29" })
         }
     }
 }

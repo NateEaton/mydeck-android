@@ -37,8 +37,10 @@ import kotlinx.coroutines.test.setMain
 import kotlinx.datetime.toInstant
 import kotlinx.serialization.json.Json
 import org.junit.After
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import retrofit2.Response
@@ -739,6 +741,33 @@ class BookmarkDetailViewModelTest {
     }
 
     @Test
+    fun `init sets contentLoadState to Failed when video contentState is PERMANENT_NO_CONTENT`() = runTest {
+        val videoBookmarkWithNoContent = sampleBookmark.copy(
+            type = Bookmark.Type.Video,
+            documentTpe = "video",
+            hasArticle = false,
+            articleContent = null,
+            embed = null,
+            readProgress = 100,
+            contentState = Bookmark.ContentState.PERMANENT_NO_CONTENT,
+            contentFailureReason = "No video reader payload available"
+        )
+        every { bookmarkRepository.observeBookmark("123") } returns MutableStateFlow(videoBookmarkWithNoContent)
+        coEvery { bookmarkRepository.getBookmarkById("123") } returns videoBookmarkWithNoContent
+        coEvery { bookmarkRepository.refreshBookmarkFromApi(any()) } returns Unit
+
+        viewModel = createViewModel()
+        advanceUntilIdle()
+
+        val state = viewModel.contentLoadState.value
+        assert(state is BookmarkDetailViewModel.ContentLoadState.Failed)
+        val failedState = state as BookmarkDetailViewModel.ContentLoadState.Failed
+        assertEquals("No video reader payload available", failedState.reason)
+        assertEquals(false, failedState.canRetry)
+        coVerify(exactly = 0) { loadArticleUseCase.execute(any()) }
+    }
+
+    @Test
     fun `permanent failure from loadArticleUseCase sets canRetry to false`() = runTest {
         // Arrange
         val bookmarkWithNotAttempted = sampleBookmark.copy(
@@ -976,6 +1005,74 @@ class BookmarkDetailViewModelTest {
                 }
             )
         }
+    }
+
+    @Test
+    fun `detail bookmark hides header description when omitDescription is true and article content exists`() {
+        val bookmark = BookmarkDetailViewModel.Bookmark(
+            url = "https://example.com",
+            title = "Title",
+            authors = emptyList(),
+            createdDate = "March 17, 2026",
+            publishedDate = null,
+            publishedDateInput = null,
+            bookmarkId = "123",
+            siteName = "Example",
+            imgSrc = "",
+            iconSrc = "",
+            thumbnailSrc = "",
+            isFavorite = false,
+            isArchived = false,
+            isRead = false,
+            type = BookmarkDetailViewModel.Bookmark.Type.ARTICLE,
+            articleContent = "<p>Article</p>",
+            embed = null,
+            lang = "en",
+            textDirection = "ltr",
+            wordCount = null,
+            readingTime = null,
+            description = "Description",
+            omitDescription = true,
+            labels = emptyList(),
+            readProgress = 0,
+            hasContent = true
+        )
+
+        assertFalse(bookmark.shouldShowHeaderDescription())
+    }
+
+    @Test
+    fun `detail bookmark keeps header description for photo fallback when omitDescription is true`() {
+        val bookmark = BookmarkDetailViewModel.Bookmark(
+            url = "https://example.com",
+            title = "Title",
+            authors = emptyList(),
+            createdDate = "March 17, 2026",
+            publishedDate = null,
+            publishedDateInput = null,
+            bookmarkId = "123",
+            siteName = "Example",
+            imgSrc = "",
+            iconSrc = "",
+            thumbnailSrc = "",
+            isFavorite = false,
+            isArchived = false,
+            isRead = false,
+            type = BookmarkDetailViewModel.Bookmark.Type.PHOTO,
+            articleContent = null,
+            embed = null,
+            lang = "en",
+            textDirection = "ltr",
+            wordCount = null,
+            readingTime = null,
+            description = "Description",
+            omitDescription = true,
+            labels = emptyList(),
+            readProgress = 0,
+            hasContent = true
+        )
+
+        assertTrue(bookmark.shouldShowHeaderDescription())
     }
 
     val sampleBookmark = Bookmark(
