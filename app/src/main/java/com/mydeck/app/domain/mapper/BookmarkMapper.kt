@@ -63,6 +63,7 @@ fun Bookmark.toEntity(): BookmarkWithArticleContent = BookmarkWithArticleContent
             Bookmark.ContentState.PERMANENT_NO_CONTENT -> BookmarkEntity.ContentState.PERMANENT_NO_CONTENT
         },
         contentFailureReason = contentFailureReason,
+        hasServerErrors = errors.isNotEmpty(),
         omitDescription = omitDescription,
         errors = errors
     ),

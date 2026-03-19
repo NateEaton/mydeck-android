@@ -219,6 +219,7 @@ other{}
     <string name="about_credits_app_author">MyDeck by Nate Eaton</string>
     <string name="about_credits_readeck">Readeck server by François Revol and contributors</string>
     <string name="about_credits_fork">This is a fork of ReadeckApp by jensomato, reimagined with a Pocket-like user experience.</string>
+    <string name="about_credits_thanks">A special thanks to Stefan (@Alanon202) for app functionality feedback and for testing support.</string>
     <string name="about_system_info_title">System Info</string>
     <string name="about_system_info_version">Version %1$s (%2$d)</string>
     <string name="about_system_info_build_time">Built: %s</string>

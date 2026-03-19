@@ -335,7 +335,7 @@ class BookmarkRepositoryImpl @Inject constructor(
             val existingBookmark = existingBookmarksById[mergedBookmark.bookmark.id]
             mergedBookmark.copy(
                 bookmark = mergedBookmark.bookmark.copy(
-                    hasServerErrors = existingBookmark?.hasServerErrors ?: mergedBookmark.bookmark.hasServerErrors,
+                    hasServerErrors = (existingBookmark?.hasServerErrors == true) || mergedBookmark.bookmark.hasServerErrors,
                     omitDescription = resolvePersistedOmitDescription(
                         existingBookmark = existingBookmark,
                         incomingBookmark = mergedBookmark

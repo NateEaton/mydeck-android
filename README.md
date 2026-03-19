@@ -69,6 +69,10 @@ MyDeck is derived from **[ReadeckApp](https://github.com/jensomato/ReadeckApp)**
 
 For a summary of code and feature changes from ReadeckApp, see [docs/FORK_DIFFERENCES.md](docs/FORK_DIFFERENCES.md).
 
+### Thanks
+
+A special thanks to Stefan (@Alanon202) for app functionality feedback and for testing support.
+
 ## License
 
 This project is licensed under the [GNU General Public License v3.0](LICENSE). Some of the used libraries are released under different licenses.
