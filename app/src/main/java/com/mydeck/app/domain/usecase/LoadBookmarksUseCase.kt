@@ -119,6 +119,8 @@ class LoadBookmarksUseCase @Inject constructor(
                 Timber.i("Saved last bookmark timestamp: [utc=$maxUpdatedCursor]")
             }
 
+            refreshServerErrorFlags(pageSize)
+
             // After metadata sync completes, conditionally enqueue content sync
             if (policyEvaluator.shouldAutoFetchContent()) {
                 enqueueBatchArticleLoader()
@@ -157,4 +159,49 @@ class LoadBookmarksUseCase @Inject constructor(
     }
 
     private fun Instant.truncateToSyncCursor(): Instant = Instant.fromEpochSeconds(epochSeconds)
+
+    private suspend fun refreshServerErrorFlags(pageSize: Int) {
+        try {
+            var offset = 0
+            var hasMorePages = true
+            val serverErrorIds = mutableSetOf<String>()
+
+            while (hasMorePages) {
+                val response = readeckApi.getBookmarks(
+                    limit = pageSize,
+                    offset = offset,
+                    updatedSince = null,
+                    sortOrder = ReadeckApi.SortOrder(ReadeckApi.Sort.Created),
+                    hasErrors = true
+                )
+
+                if (!response.isSuccessful || response.body() == null) {
+                    Timber.w("Skipping server error flag refresh: [code=${response.code()}]")
+                    return
+                }
+
+                val bookmarkDtos = response.body() ?: emptyList()
+                serverErrorIds += bookmarkDtos.map { it.id }
+
+                val totalPagesHeader = response.headers()[ReadeckApi.Header.TOTAL_PAGES]
+                val currentPageHeader = response.headers()[ReadeckApi.Header.CURRENT_PAGE]
+                if (totalPagesHeader == null || currentPageHeader == null) {
+                    Timber.w("Skipping server error flag refresh due to missing pagination headers")
+                    return
+                }
+
+                val totalPages = totalPagesHeader.toInt()
+                val currentPage = currentPageHeader.toInt()
+                if (currentPage < totalPages) {
+                    offset += pageSize
+                } else {
+                    hasMorePages = false
+                }
+            }
+
+            bookmarkRepository.replaceServerErrorFlags(serverErrorIds)
+        } catch (e: Exception) {
+            Timber.w(e, "Failed to refresh server error flags")
+        }
+    }
 }

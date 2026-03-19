@@ -184,6 +184,14 @@ fun AboutScreenContent(
             )
             // FORK_INFO_END
 
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(
+                text = stringResource(R.string.about_credits_thanks),
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.fillMaxWidth()
+            )
+
             Spacer(modifier = Modifier.height(24.dp))
 
             // System Info Section

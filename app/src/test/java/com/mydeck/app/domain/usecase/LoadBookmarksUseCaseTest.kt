@@ -62,7 +62,7 @@ class LoadBookmarksUseCaseTest {
                 "1"
             )
         )
-        coEvery { readeckApi.getBookmarks(any(), any(), any(), any()) } returns response
+        coEvery { readeckApi.getBookmarks(any(), any(), any(), any(), any()) } returns response
 
         // Mock SettingsDataStore
         coEvery { settingsDataStore.getLastBookmarkTimestamp() } returns null
@@ -73,14 +73,14 @@ class LoadBookmarksUseCaseTest {
         println("result=$result")
         // Verify the result
         assertTrue(result is LoadBookmarksUseCase.UseCaseResult.Success<*>)
-        // Add more specific assertions based on your logic
+        coVerify { bookmarkRepository.replaceServerErrorFlags(setOf("2")) }
     }
 
     @Test
     fun `execute api error`() = runBlocking {
         // Mock API response to return an error
         val response: Response<List<BookmarkDto>> = Response.error(500, mockk(relaxed = true))
-        coEvery { readeckApi.getBookmarks(any(), any(), any(), any()) } returns response
+        coEvery { readeckApi.getBookmarks(any(), any(), any(), any(), any()) } returns response
 
         // Execute the use case
         val result = loadBookmarksUseCase.execute(10, 0)
@@ -95,6 +95,7 @@ class LoadBookmarksUseCaseTest {
         // Mock API to throw an exception
         coEvery {
             readeckApi.getBookmarks(
+                any(),
                 any(),
                 any(),
                 any(),
@@ -124,7 +125,7 @@ class LoadBookmarksUseCaseTest {
                 "1"
             )
         )
-        coEvery { readeckApi.getBookmarks(any(), any(), any(), any()) } returns response
+        coEvery { readeckApi.getBookmarks(any(), any(), any(), any(), any()) } returns response
 
         // Mock SettingsDataStore
         coEvery { settingsDataStore.getLastBookmarkTimestamp() } returns null
@@ -139,6 +140,7 @@ class LoadBookmarksUseCaseTest {
             )
         }
         coVerify { bookmarkRepository.insertBookmarks(sampleBookmarks.map { it.toDomain() }) }
+        coVerify { bookmarkRepository.replaceServerErrorFlags(setOf("2", "1")) }
     }
 
     @Test
@@ -155,7 +157,7 @@ class LoadBookmarksUseCaseTest {
             )
         )
         val storedCursor = Instant.parse("2026-03-12T19:46:28.351123456Z")
-        coEvery { readeckApi.getBookmarks(any(), any(), any(), any()) } returns response
+        coEvery { readeckApi.getBookmarks(any(), any(), any(), any(), any()) } returns response
         coEvery { settingsDataStore.getLastBookmarkTimestamp() } returns storedCursor
 
         loadBookmarksUseCase.execute(10, 0)
@@ -165,7 +167,17 @@ class LoadBookmarksUseCaseTest {
                 10,
                 0,
                 Instant.fromEpochSeconds(storedCursor.epochSeconds),
-                ReadeckApi.SortOrder(ReadeckApi.Sort.Created)
+                ReadeckApi.SortOrder(ReadeckApi.Sort.Created),
+                null
+            )
+        }
+        coVerify {
+            readeckApi.getBookmarks(
+                10,
+                0,
+                null,
+                ReadeckApi.SortOrder(ReadeckApi.Sort.Created),
+                true
             )
         }
     }

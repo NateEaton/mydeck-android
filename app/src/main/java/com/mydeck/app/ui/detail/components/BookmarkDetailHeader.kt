@@ -47,7 +47,7 @@ fun BookmarkDetailHeader(
                     modifier = Modifier.fillMaxWidth()
                 )
 
-                if (uiState.bookmark.description.isNotBlank()) {
+                if (uiState.bookmark.shouldShowHeaderDescription()) {
                     Spacer(modifier = Modifier.height(10.dp))
                     Text(
                         text = uiState.bookmark.description,

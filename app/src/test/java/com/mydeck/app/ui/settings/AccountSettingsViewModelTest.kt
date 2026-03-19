@@ -70,7 +70,7 @@ class AccountSettingsViewModelTest {
         every { settingsDataStore.urlFlow } returns MutableStateFlow("")
         every { settingsDataStore.tokenFlow } returns MutableStateFlow(null)
         every { workManager.getWorkInfosForUniqueWorkFlow(any()) } returns flowOf(emptyList())
-        every { LoadBookmarksWorker.enqueue(any(), any()) } returns UUID.randomUUID()
+        every { LoadBookmarksWorker.enqueue(any(), any<Boolean>()) } returns UUID.randomUUID()
         every { context.getString(R.string.account_settings_initial_sync_failed) } returns
             "Initial sync failed. Please check your connection and try again."
         coEvery { settingsDataStore.clearCredentials() } returns Unit

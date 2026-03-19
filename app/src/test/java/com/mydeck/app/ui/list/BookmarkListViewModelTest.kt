@@ -64,7 +64,7 @@ class BookmarkListViewModelTest {
     private lateinit var workManager : WorkManager
     private lateinit var connectivityMonitor: ConnectivityMonitor
 
-    private lateinit var workInfoFlow: Flow<List<WorkInfo>>
+    private lateinit var workInfoFlow: MutableStateFlow<List<WorkInfo>>
     private lateinit var initialSyncPerformedFlow: MutableStateFlow<Boolean>
 
     @Before
@@ -79,10 +79,11 @@ class BookmarkListViewModelTest {
         workManager = mockk()
         connectivityMonitor = mockk()
 
-        workInfoFlow = flowOf(emptyList())
+        workInfoFlow = MutableStateFlow(emptyList())
         initialSyncPerformedFlow = MutableStateFlow(false)
         mockkObject(LoadBookmarksWorker.Companion)
-        every { LoadBookmarksWorker.enqueue(any(), any()) } returns UUID.randomUUID()
+        every { LoadBookmarksWorker.enqueue(any(), any<Boolean>()) } returns UUID.randomUUID()
+        every { LoadBookmarksWorker.enqueue(any(), any<LoadBookmarksWorker.Trigger>()) } returns UUID.randomUUID()
         mockkObject(CreateBookmarkWorker.Companion)
         every { CreateBookmarkWorker.enqueue(any(), any(), any(), any(), any()) } just Runs
 
@@ -145,7 +146,7 @@ class BookmarkListViewModelTest {
         val failedWorkInfo = mockk<WorkInfo> {
             every { state } returns WorkInfo.State.FAILED
         }
-        workInfoFlow = flowOf(listOf(failedWorkInfo))
+        workInfoFlow = MutableStateFlow(listOf(failedWorkInfo))
         every { workManager.getWorkInfosForUniqueWorkFlow(any()) } returns workInfoFlow
         initialSyncPerformedFlow.value = false
 
@@ -205,7 +206,7 @@ class BookmarkListViewModelTest {
 
         advanceUntilIdle()
 
-        verify(exactly = 1) { LoadBookmarksWorker.enqueue(context, false) }
+        verify(exactly = 1) { LoadBookmarksWorker.enqueue(context, LoadBookmarksWorker.Trigger.APP_OPEN) }
     }
 
     @Test
@@ -226,7 +227,38 @@ class BookmarkListViewModelTest {
 
         advanceUntilIdle()
 
-        verify(exactly = 0) { LoadBookmarksWorker.enqueue(any(), any()) }
+        verify(exactly = 0) { LoadBookmarksWorker.enqueue(any(), any<Boolean>()) }
+        verify(exactly = 0) { LoadBookmarksWorker.enqueue(any(), any<LoadBookmarksWorker.Trigger>()) }
+    }
+
+    @Test
+    fun `pull to refresh shows user refreshing while work is active`() = runTest {
+        initialSyncPerformedFlow.value = true
+
+        viewModel = BookmarkListViewModel(
+            updateBookmarkUseCase,
+            fullSyncUseCase,
+            workManager,
+            bookmarkRepository,
+            context,
+            settingsDataStore,
+            savedStateHandle,
+            connectivityMonitor
+        )
+
+        val refreshJob = launch { viewModel.isUserRefreshing.collect() }
+        viewModel.onPullToRefresh()
+        workInfoFlow.value = listOf(
+            mockk {
+                every { state } returns WorkInfo.State.RUNNING
+            }
+        )
+
+        advanceUntilIdle()
+
+        assertTrue(viewModel.isUserRefreshing.value)
+        verify(exactly = 1) { LoadBookmarksWorker.enqueue(context, LoadBookmarksWorker.Trigger.PULL_TO_REFRESH) }
+        refreshJob.cancel()
     }
 
     @Test

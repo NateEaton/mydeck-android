@@ -85,17 +85,24 @@ fun FilterBar(
                 onFilterChanged(filterFormState.copy(toDate = null))
             })
         }
-        // Type chips: show each type that differs from the preset
-        val addedTypes = filterFormState.types - preset.types
-        addedTypes.forEach { type ->
-            val typeName = when (type) {
-                Bookmark.Type.Article -> stringResource(R.string.filter_type_article)
-                Bookmark.Type.Video -> stringResource(R.string.filter_type_video)
-                Bookmark.Type.Picture -> stringResource(R.string.filter_type_picture)
-            }
-            add(Chip("${stringResource(R.string.filter_type)}: $typeName") {
-                onFilterChanged(filterFormState.copy(types = filterFormState.types - type))
+        // Type chips: show synthetic "Any" chip when preset types were cleared,
+        // otherwise show each type that was added beyond the preset.
+        if (filterFormState.types.isEmpty() && preset.types.isNotEmpty()) {
+            add(Chip("${stringResource(R.string.filter_type)}: ${stringResource(R.string.filter_type_any)}") {
+                onFilterChanged(filterFormState.copy(types = preset.types))
             })
+        } else {
+            val addedTypes = filterFormState.types - preset.types
+            addedTypes.forEach { type ->
+                val typeName = when (type) {
+                    Bookmark.Type.Article -> stringResource(R.string.filter_type_article)
+                    Bookmark.Type.Video -> stringResource(R.string.filter_type_video)
+                    Bookmark.Type.Picture -> stringResource(R.string.filter_type_picture)
+                }
+                add(Chip("${stringResource(R.string.filter_type)}: $typeName") {
+                    onFilterChanged(filterFormState.copy(types = filterFormState.types - type))
+                })
+            }
         }
         // Progress chips
         filterFormState.progress.forEach { pf ->
@@ -108,19 +115,33 @@ fun FilterBar(
                 onFilterChanged(filterFormState.copy(progress = filterFormState.progress - pf))
             })
         }
-        // isFavorite — only show if differs from preset and is non-null
-        if (filterFormState.isFavorite != null && filterFormState.isFavorite != preset.isFavorite) {
-            val yesNo = if (filterFormState.isFavorite) stringResource(R.string.tri_state_yes) else stringResource(R.string.tri_state_no)
-            add(Chip("${stringResource(R.string.filter_is_favorite)}: $yesNo") {
-                onFilterChanged(filterFormState.copy(isFavorite = preset.isFavorite))
-            })
+        // isFavorite — show explicit chip when non-null and differs, or synthetic N/A chip
+        // when null and preset is non-null (broadened scope).
+        if (filterFormState.isFavorite != preset.isFavorite) {
+            if (filterFormState.isFavorite != null) {
+                val yesNo = if (filterFormState.isFavorite) stringResource(R.string.tri_state_yes) else stringResource(R.string.tri_state_no)
+                add(Chip("${stringResource(R.string.filter_is_favorite)}: $yesNo") {
+                    onFilterChanged(filterFormState.copy(isFavorite = preset.isFavorite))
+                })
+            } else if (preset.isFavorite != null) {
+                add(Chip("${stringResource(R.string.filter_is_favorite)}: ${stringResource(R.string.tri_state_any)}") {
+                    onFilterChanged(filterFormState.copy(isFavorite = preset.isFavorite))
+                })
+            }
         }
-        // isArchived — only show if differs from preset and is non-null
-        if (filterFormState.isArchived != null && filterFormState.isArchived != preset.isArchived) {
-            val yesNo = if (filterFormState.isArchived) stringResource(R.string.tri_state_yes) else stringResource(R.string.tri_state_no)
-            add(Chip("${stringResource(R.string.filter_is_archived)}: $yesNo") {
-                onFilterChanged(filterFormState.copy(isArchived = preset.isArchived))
-            })
+        // isArchived — show explicit chip when non-null and differs, or synthetic N/A chip
+        // when null and preset is non-null (broadened scope).
+        if (filterFormState.isArchived != preset.isArchived) {
+            if (filterFormState.isArchived != null) {
+                val yesNo = if (filterFormState.isArchived) stringResource(R.string.tri_state_yes) else stringResource(R.string.tri_state_no)
+                add(Chip("${stringResource(R.string.filter_is_archived)}: $yesNo") {
+                    onFilterChanged(filterFormState.copy(isArchived = preset.isArchived))
+                })
+            } else if (preset.isArchived != null) {
+                add(Chip("${stringResource(R.string.filter_is_archived)}: ${stringResource(R.string.tri_state_any)}") {
+                    onFilterChanged(filterFormState.copy(isArchived = preset.isArchived))
+                })
+            }
         }
         filterFormState.isLoaded?.let { v ->
             val yesNo = if (v) stringResource(R.string.tri_state_yes) else stringResource(R.string.tri_state_no)

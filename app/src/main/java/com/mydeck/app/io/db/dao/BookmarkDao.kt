@@ -57,7 +57,8 @@ interface BookmarkDao {
             description = :description, isDeleted = :isDeleted, isMarked = :isMarked,
             isArchived = :isArchived, labels = :labels, readProgress = :readProgress,
             wordCount = :wordCount, readingTime = :readingTime, published = :published,
-            embed = :embed, embedHostname = :embedHostname,
+            embed = :embed, embedHostname = :embedHostname, hasServerErrors = :hasServerErrors, omitDescription = :omitDescription,
+            errors = :errors,
             article_src = :articleSrc, icon_src = :iconSrc, icon_width = :iconWidth, icon_height = :iconHeight,
             image_src = :imageSrc, image_width = :imageWidth, image_height = :imageHeight,
             log_src = :logSrc, props_src = :propsSrc,
@@ -72,7 +73,7 @@ interface BookmarkDao {
         description: String, isDeleted: Boolean, isMarked: Boolean,
         isArchived: Boolean, labels: List<String>, readProgress: Int,
         wordCount: Int?, readingTime: Int?, published: Instant?,
-        embed: String?, embedHostname: String?,
+        embed: String?, embedHostname: String?, hasServerErrors: Boolean, omitDescription: Boolean?, errors: List<String>,
         articleSrc: String, iconSrc: String, iconWidth: Int, iconHeight: Int,
         imageSrc: String, imageWidth: Int, imageHeight: Int,
         logSrc: String, propsSrc: String,
@@ -92,7 +93,7 @@ interface BookmarkDao {
                     description = description, isDeleted = isDeleted, isMarked = isMarked,
                     isArchived = isArchived, labels = labels, readProgress = readProgress,
                     wordCount = wordCount, readingTime = readingTime, published = published,
-                    embed = embed, embedHostname = embedHostname,
+                    embed = embed, embedHostname = embedHostname, hasServerErrors = hasServerErrors, omitDescription = omitDescription, errors = errors,
                     articleSrc = article.src, iconSrc = icon.src, iconWidth = icon.width, iconHeight = icon.height,
                     imageSrc = image.src, imageWidth = image.width, imageHeight = image.height,
                     logSrc = log.src, propsSrc = props.src,
@@ -100,6 +101,27 @@ interface BookmarkDao {
                 )
             }
         }
+    }
+
+    @Query("UPDATE bookmarks SET hasServerErrors = 0")
+    suspend fun clearServerErrorFlags()
+
+    @Query("UPDATE bookmarks SET hasServerErrors = 1 WHERE id IN (:ids)")
+    suspend fun setServerErrorFlags(ids: List<String>)
+
+    @Transaction
+    suspend fun replaceServerErrorFlags(ids: List<String>) {
+        clearServerErrorFlags()
+        ids.chunked(900).forEach { chunk ->
+            if (chunk.isNotEmpty()) {
+                setServerErrorFlags(chunk)
+            }
+        }
+    }
+
+    @Transaction
+    suspend fun upsertBookmarksMetadataOnly(bookmarkEntities: List<BookmarkEntity>) {
+        bookmarkEntities.forEach { upsertBookmark(it) }
     }
 
     @Transaction
@@ -393,7 +415,8 @@ interface BookmarkDao {
             authors = :authors,
             published = :published,
             lang = :lang,
-            textDirection = :textDirection
+            textDirection = :textDirection,
+            omitDescription = :omitDescription
         WHERE id = :id
         """
     )
@@ -405,7 +428,8 @@ interface BookmarkDao {
         authors: List<String>,
         published: Instant?,
         lang: String,
-        textDirection: String
+        textDirection: String,
+        omitDescription: Boolean?
     )
 
     fun searchBookmarkListItems(
@@ -579,12 +603,12 @@ interface BookmarkDao {
                 }
             }
 
-            // withErrors: true = state=ERROR(1) or contentState=DIRTY(2)/PERMANENT_NO_CONTENT(3)
+            // withErrors: true = state=ERROR(1) or the server has flagged the bookmark with errors
             withErrors?.let {
                 if (it) {
-                    append(" AND (state = 1 OR contentState IN (2, 3))")
+                    append(" AND (state = 1 OR hasServerErrors = 1)")
                 } else {
-                    append(" AND state != 1 AND contentState NOT IN (2, 3)")
+                    append(" AND state != 1 AND hasServerErrors = 0")
                 }
             }
 

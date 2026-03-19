@@ -297,6 +297,7 @@
     <string name="filter_type_article">Article</string>
     <string name="filter_type_video">Video</string>
     <string name="filter_type_picture">Picture</string>
+    <string name="filter_type_any">Any</string>
     <string name="filter_progress">Progress</string>
     <string name="progress_unviewed">Unviewed</string>
     <string name="progress_in_progress">In progress</string>
@@ -313,7 +314,8 @@
     <string name="filter_label">Label</string>
     <string name="filter_from_date">From date</string>
     <string name="filter_to_date">To date</string>
-    <string name="filter_is_loaded">Is loaded</string>
+    <string name="filter_is_loaded">Is downloaded</string>
+    <string name="filtered_list">Filtered List</string>
     <string name="filter_with_labels">With labels</string>
     <string name="filter_with_errors">With errors</string>
     <string name="filter_select_label">Tap to select a label</string>
@@ -373,8 +375,11 @@
     <string name="about_system_info_server_subtitle">Server</string>
     <string name="about_system_info_details_show">Show details</string>
     <string name="about_system_info_details_hide">Hide details</string>
-    <string name="about_system_info_copy">Copy to clipboard</string>
-    <string name="about_system_info_copied">Copied!</string>
+    <string name="about_system_info_copy">复制到剪贴板</string>
+    <string name="about_system_info_copied">已复制!</string>
+    <string name="about_credits_fork">This is a fork of ReadeckApp by jensomato, reimagined with a Pocket-like user experience.</string>
+    <string name="about_credits_thanks">A special thanks to Stefan (@Alanon202) for app functionality feedback and for testing support.</string>
+    <string name="about_system_info_title">System Info</string>
     <string name="about_system_info_server_url">URL: %s</string>
     <string name="about_system_info_server_version">Version: %s</string>
     <string name="about_system_info_server_release">Release: %s</string>

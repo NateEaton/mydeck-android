@@ -1,12 +1,36 @@
-# Spec: API Sync Architecture Optimization
+# Spec: Sync Architecture Optimization Status and Follow-Up
+
+## Superseded Status
+
+This document is superseded as the forward-looking sync plan by:
+
+- `docs/specs/sync-multipart-adoption-spec.md`
+
+Keep this file as a historical record of the `v0.11.1` baseline and the earlier phase-based
+planning that led to the multipart adoption decision.
 
 ## Summary
 
-The current sync architecture has two categories of problems: (1) a blocking sync spinner
-that shows for ~10 seconds on app open, creating a negative UX impression, and (2) an
-insert path with an N+1 query pattern that scales poorly with library size. This spec
-proposes targeted fixes to the sync pipeline while preserving the existing deferred
-content load model.
+This document now tracks the status of the original sync optimization work after the
+phase 1 and phase 2 implementation on this branch.
+
+Completed:
+
+1. **Phase 1: non-blocking sync UX and sync-cursor correctness**
+2. **Phase 2: metadata insert-path cleanup**
+
+Deferred follow-up:
+
+1. **Phase 3: adopt `POST /bookmarks/sync` for content sync**
+2. **Phase 4: migrate incremental metadata reloads from paginated
+   `GET /bookmarks?updated_since=` to the sync API**
+
+Phase 3 is now tracked separately in
+`docs/specs/sync-content-api-omit-description-spec.md`.
+
+Phase 4 remains on the back burner because phase 1 and phase 2 removed the highest-value
+correctness and UX problems without requiring a multipart-based metadata ingestion
+pipeline.
 
 ## Current Architecture Overview
 
@@ -17,269 +41,237 @@ The app syncs bookmarks in three contexts:
 | Trigger | Worker | Entry Point |
 |---|---|---|
 | App open (if enabled) | `LoadBookmarksWorker` | `BookmarkListViewModel.init` |
-| Pull-to-refresh | `LoadBookmarksWorker` | `BookmarkListViewModel.loadBookmarks()` |
+| Pull-to-refresh | `LoadBookmarksWorker` | `BookmarkListViewModel.onPullToRefresh()` |
 | Periodic background sync | `FullSyncWorker` | WorkManager periodic schedule |
 
-### Read Path (Server → Local)
+### Read Path Today (Server -> Local)
 
-1. **Delta sync** — `GET /bookmarks/sync?since=` returns changed IDs and deletions since
-   last sync. If no updates exist, the worker exits early (fast path).
-2. **Incremental load** — `GET /bookmarks?updated_since=&limit=50` fetches metadata page
-   by page. Each page is inserted via `BookmarkRepositoryImpl.insertBookmarks()`.
-3. **Content fetch** (deferred) — article HTML is fetched separately via
-   `GET /bookmarks/{id}/article`, either on-demand when the user opens a bookmark or
-   asynchronously via `BatchArticleLoadWorker` in AUTOMATIC sync mode.
+1. **Delta detection** — `GET /bookmarks/sync?since=` is used to detect updated and
+   deleted bookmark IDs since the last sync cursor.
+2. **Incremental metadata load** — `GET /bookmarks?updated_since=&limit=50` fetches
+   bookmark summaries page by page. Each page is written via
+   `BookmarkRepositoryImpl.insertBookmarks()`.
+3. **Content fetch** — article HTML is still fetched with `GET /bookmarks/{id}/article`.
+   All three content-sync modes share the same path:
+   - on-demand content load from the detail screen
+   - automatic background content sync (`BatchArticleLoadWorker`)
+   - date-range content sync (`DateRangeContentSyncWorker`)
 
-### Write Path (Local → Server)
+### Write Path (Local -> Server)
 
-1. User actions (favorite, archive, read progress, labels, delete, etc.) are applied
-   locally to the Room database immediately.
-2. A `PendingActionEntity` is enqueued for each mutation.
-3. `ActionSyncWorker` drains the queue, calling `PATCH /bookmarks/{id}` or
-   `DELETE /bookmarks/{id}` for each action.
-4. On metadata sync, `insertBookmarks()` merges remote state with any locally pending
-   actions to avoid overwriting unsynced changes.
+1. User mutations are applied locally immediately.
+2. A `PendingActionEntity` is queued for each mutation.
+3. `ActionSyncWorker` drains the queue by calling `PATCH /bookmarks/{id}` or
+   `DELETE /bookmarks/{id}`.
+4. During metadata sync, remote bookmark state is merged with pending local actions so
+   unsynced user changes are not overwritten.
 
-### Deferred Content Load Model
+### Deferred Content Model
 
-Article content is stored in a separate `article_content` table linked by foreign key
-to the `bookmarks` table. The content lifecycle is tracked by `ContentState`:
+Article content lives in a separate `article_content` table linked to `bookmarks`.
+The content lifecycle remains:
 
-- `NOT_ATTEMPTED` — default for newly synced bookmarks
-- `DOWNLOADED` — content fetched and cached
-- `DIRTY` — fetch failed, eligible for retry
-- `PERMANENT_NO_CONTENT` — server has no article content (e.g., image/video bookmarks)
+- `NOT_ATTEMPTED`
+- `DOWNLOADED`
+- `DIRTY`
+- `PERMANENT_NO_CONTENT`
 
-Content is fetched lazily when the user opens a bookmark (`BookmarkDetailViewModel.fetchContentOnDemand()`),
-or proactively in the background when sync mode is AUTOMATIC (`BatchArticleLoadWorker`).
+This model is unchanged by the completed work in phases 1 and 2.
 
-**This model is preserved as-is by all changes in this spec.** The optimizations below
-affect only the metadata sync and insert paths.
+## `omit_description` Status: Implemented on the Shared Content Path
 
-## Problem 1: Blocking Sync Spinner (~10s on App Open)
+`omit_description` no longer needs to wait for multipart sync-API adoption.
 
-### Root Cause
+The incremental metadata list flow still cannot provide the field because
+`GET /bookmarks?updated_since=` returns bookmark summaries, not bookmark detail. Instead,
+the app now enriches the existing shared content-download path:
 
-The bookmark list UI shows a pull-to-refresh spinner whenever `LoadBookmarksWorker` is
-in RUNNING, ENQUEUED, or BLOCKED state (`BookmarkListViewModel.loadBookmarksIsRunning`).
-The spinner persists for the entire duration of the worker, which includes:
+- successful article downloads still use `GET /bookmarks/{id}/article`
+- when an article bookmark has a description and local `omitDescription` is unknown, that
+  same shared path also calls `GET /bookmarks/{id}` to read `omit_description`
+- the stored value is then reused by on-demand, automatic, and date-range content sync
 
-1. Delta sync API call (~0.5–1s)
-2. Paginated bookmark fetch, typically 2–4 pages (~1–3s)
-3. Database inserts with N+1 queries (~5–8s for ~200 bookmarks)
+To keep the cached hint correct when metadata changes ahead of content:
 
-The user sees no bookmarks updating during this time — the list only changes after the
-entire worker completes, because Room's `@Transaction` annotation and the insert loop
-structure prevent incremental visibility.
+- metadata-only sync preserves `omitDescription` only while the description text is
+  unchanged
+- metadata-only sync clears it when description text changes without a content refresh
+- local metadata edits do the same invalidation
 
-### Proposed Fix
+UI behavior stays conservative:
 
-**A. Make the spinner non-blocking for returning users.** The spinner should only block
-the UI during initial sync (empty database). For returning users with cached data:
+- article bookmarks hide the separate italic header description only when
+  `omitDescription == true` and article HTML is present
+- photo and video fallbacks continue showing description when it is still the only useful
+  summary text
+- the raw description is always kept; `omitDescription` is a presentation hint only
 
-- Show cached bookmarks immediately from Room (already happens via Flow observation).
-- Run sync in the background without showing the pull-to-refresh spinner.
-- Optionally show a subtle, non-blocking sync indicator (e.g., a thin progress bar at
-  the top of the list, or a small icon in the toolbar) so the user knows sync is
-  happening without blocking interaction.
+## Phase 1 Status: Completed
 
-Implementation: In `BookmarkListViewModel`, split `loadBookmarksIsRunning` into two
-states:
+### Problem That Was Solved
 
-```kotlin
-// Full-screen blocking spinner: only for initial sync with empty database
-val isInitialLoading: StateFlow<Boolean>
+Returning users were seeing the pull-to-refresh spinner for app-open syncs even when
+cached bookmarks were already visible. At the same time, `LoadBookmarksWorker` advanced
+`lastSyncTimestamp` too early, which could cause acknowledged-but-not-yet-loaded updates
+to be skipped after a failure.
 
-// Subtle background indicator: for incremental syncs with cached data
-val isSyncingInBackground: StateFlow<Boolean>
-```
+### What Shipped
 
-The `BookmarkListScreen` PullToRefreshBox uses `isInitialLoading` for its
-`isRefreshing` property. A separate subtle indicator observes `isSyncingInBackground`.
+1. `LoadBookmarksWorker` now carries an explicit trigger:
+   - `INITIAL`
+   - `APP_OPEN`
+   - `PULL_TO_REFRESH`
+2. `BookmarkListViewModel` now splits list loading state into:
+   - `isInitialLoading`
+   - `isUserRefreshing`
+3. `BookmarkListScreen` now drives the refresh affordance only from:
+   - true first sync on an empty database
+   - explicit user pull-to-refresh
+4. `LoadBookmarksWorker` now persists `lastSyncTimestamp` only:
+   - immediately in the no-update fast path
+   - after metadata reload succeeds when updates must be reloaded
 
-Pull-to-refresh gestures can still show the standard refresh indicator since the user
-explicitly requested it.
+### Design Decision: No Background Sync Indicator
 
-**B. Make inserts visible incrementally.** Each page of bookmarks (50 items) should be
-committed to the database and visible in the UI before the next page is fetched. This is
-already structurally close to how `LoadBookmarksUseCase.execute()` works (it calls
-`insertBookmarks()` per page), but the spinner currently hides updates until the worker
-finishes.
+The original proposal included a separate background-sync indicator for cached-data
+refreshes. That was explored during implementation, but it was removed before landing.
 
-With fix A in place, cached data is visible immediately, and each page insert triggers
-a Room Flow emission that updates the list in real-time.
+Reasoning:
 
-## Problem 2: N+1 Database Insert Pattern
+- it added UI churn without solving a correctness issue
+- it introduced layout/visibility trade-offs that were worse than simply not treating
+  app-open sync as a pull-to-refresh state
+- once the blocking refresh spinner was limited to initial sync and explicit user refresh,
+  the core UX problem was already resolved
 
-### Root Cause
+Current product behavior is therefore:
 
-`BookmarkDao.insertBookmarksWithArticleContent()` (line 139) iterates each bookmark
-individually:
+- **initial sync** remains visibly blocking
+- **user pull-to-refresh** remains visibly refreshing
+- **app-open refresh with cached data** is non-blocking and intentionally quiet
 
-```kotlin
-suspend fun insertBookmarksWithArticleContent(bookmarks: List<BookmarkWithArticleContent>) {
-    bookmarks.forEach {
-        insertBookmarkWithArticleContent(it)  // 3-4 queries per bookmark
-    }
-}
-```
+### Validation and Test Coverage
 
-Each call to `insertBookmarkWithArticleContent()` executes:
+The branch includes tests around:
 
-1. `getContentStateById(id)` — SELECT query
-2. `getArticleContent(id)` — SELECT query (conditional)
-3. `insertBookmark(entity)` — INSERT/REPLACE
-4. `insertArticleContent(entity)` — INSERT/REPLACE (conditional)
+- app-open sync enqueue behavior
+- pull-to-refresh enqueue behavior
+- initial-sync error state handling
+- sync-cursor regression coverage so a failed metadata reload does not persist the new
+  delta cursor
 
-For 200 bookmarks, this is 600–800 sequential SQLite operations. The per-item queries
-exist because Room's `REPLACE` conflict strategy does DELETE+INSERT, which triggers
-CASCADE DELETE on the `article_content` foreign key. The code must read and restore
-content state before each replace.
+## Phase 2 Status: Completed
 
-### Proposed Fix
+### Problem That Was Solved
 
-**Batch the pre-insert lookups and use a single transaction:**
+Normal metadata syncs were using the content-aware replace-and-restore path even when the
+incoming page did not intend to touch article HTML or content state.
 
-```kotlin
-@Transaction
-suspend fun insertBookmarksWithArticleContentBatch(bookmarks: List<BookmarkWithArticleContent>) {
-    if (bookmarks.isEmpty()) return
+That made metadata sync do unnecessary per-bookmark preservation work just to avoid
+damaging `article_content`.
 
-    val ids = bookmarks.map { it.bookmark.id }
+### What Shipped
 
-    // Batch fetch: 2 queries total instead of 2N
-    val existingStates = getContentStatesByIds(ids).associateBy { it.bookmarkId }
-    val existingContents = getArticleContentByIds(ids).associateBy { it.bookmarkId }
+1. `BookmarkDao.upsertBookmarksMetadataOnly()` was added on top of the existing
+   `upsertBookmark()` behavior.
+2. `BookmarkRepositoryImpl.insertBookmarks()` now splits merged bookmarks into:
+   - **metadata-only writes**
+   - **content-bearing or explicit content-state writes**
+3. Metadata-only sync pages now use the metadata-only upsert path.
+4. Explicit content downloads and explicit content-state changes still use
+   `insertBookmarksWithArticleContent()`.
 
-    for (bwac in bookmarks) {
-        val id = bwac.bookmark.id
-        val existingState = existingStates[id]
+### Why This Was Enough
 
-        val bookmarkToInsert = if (existingState != null &&
-            bwac.bookmark.contentState == BookmarkEntity.ContentState.NOT_ATTEMPTED) {
-            bwac.bookmark.copy(
-                contentState = existingState.contentState,
-                contentFailureReason = existingState.contentFailureReason
-            )
-        } else {
-            bwac.bookmark
-        }
+This preserved the important invariants while simplifying the common path:
 
-        insertBookmark(bookmarkToInsert)
+- existing downloaded article HTML remains intact
+- `contentState` remains intact for metadata-only refreshes
+- `contentFailureReason` remains intact for metadata-only refreshes
+- pending local actions still merge ahead of persistence
 
-        val contentToSave = bwac.articleContent ?: existingContents[id]?.let {
-            ArticleContentEntity(bookmarkId = id, content = it)
-        }
-        contentToSave?.run { insertArticleContent(this) }
-    }
-}
-```
+### Validation and Test Coverage
 
-New DAO queries needed:
+The branch includes tests covering:
 
-```kotlin
-@Query("SELECT id AS bookmarkId, content_state AS contentState, content_failure_reason AS contentFailureReason FROM bookmarks WHERE id IN (:ids)")
-suspend fun getContentStatesByIds(ids: List<String>): List<ContentStateProjection>
+- metadata-only upserts preserving downloaded article content
+- metadata-only upserts preserving `contentState`
+- metadata-only upserts preserving `contentFailureReason`
+- content-bearing writes using the content-aware path
+- explicit content-state changes without article HTML still using the content-aware path
 
-@Query("SELECT bookmark_id AS bookmarkId, content FROM article_content WHERE bookmark_id IN (:ids)")
-suspend fun getArticleContentByIds(ids: List<String>): List<ArticleContentProjection>
-```
+## Phase 3 Follow-Up
 
-Room's `IN` clause has a SQLite limit of 999 variables, so for pages of 50 this is well
-within bounds. The existing page size of 50 in `LoadBookmarksUseCase` means this batch
-query approach works without chunking.
+Phase 3 remains a valid follow-up and is now tracked separately in:
 
-**Expected improvement:** From ~800 queries to ~102 queries (2 batch SELECTs + 50
-INSERTs for bookmarks + 50 INSERTs for content) for a 50-bookmark page. Estimated time
-reduction from ~5–8s to <1s for the insert phase.
+`docs/specs/sync-content-api-omit-description-spec.md`
 
-## Problem 3: Full Sync Pagination Redundancy
+That work is still the right place to address:
 
-### Current Behavior
+- `POST /bookmarks/sync` for content sync
+- multipart parsing
+- unifying on-demand, automatic, and date-range content sync transport
+- optionally moving `omit_description` acquisition onto the multipart payload later
 
-`performFullSync()` paginates through ALL bookmarks just to collect their IDs (for
-deletion detection), storing them in a temporary `remote_bookmark_ids` table. This
-duplicates much of the work that `LoadBookmarksUseCase.execute()` does immediately after.
+## Phase 4 Status: Deferred
 
-### Proposed Fix (Lower Priority)
+### What Phase 4 Would Do
 
-Combine the full sync ID collection with the bookmark metadata fetch. Instead of two
-separate paginated walks:
+Phase 4 would replace incremental metadata reloads based on paginated
+`GET /bookmarks?updated_since=` with:
 
-1. Walk 1: `performFullSync()` fetches all bookmark IDs → stores in temp table → deletes
-   missing
-2. Walk 2: `loadBookmarksUseCase.execute()` fetches all bookmark metadata → inserts
+1. `GET /bookmarks/sync?since=`
+2. `POST /bookmarks/sync` for updated IDs with `with_json = true`
 
-Merge into a single walk that collects IDs for deletion detection AND inserts metadata
-in one pass. This halves the number of API calls during a full sync.
+### Why It Is Deferred
 
-This is lower priority because full syncs are infrequent (weekly fallback) and the delta
-sync fast path avoids this entirely for most sync cycles.
+After phases 1 and 2, the main user-facing and correctness pain points are already
+addressed:
 
-## Implementation Plan
+- returning-user refreshes are no longer presented as blocking pull-to-refresh work
+- sync cursor advancement is no longer incorrect
+- metadata sync no longer pays the content-preservation cost on the common path
 
-### Phase 1: Non-Blocking Sync UX (Addresses the 10s spinner)
+Phase 4 still has architectural value, but it now falls into the category of
+lower-priority optimization:
 
-1. Add `isInitialSyncPerformed` check to `BookmarkListViewModel` to distinguish first
-   sync from incremental syncs.
-2. Split `loadBookmarksIsRunning` into `isInitialLoading` and `isSyncingInBackground`.
-3. Update `BookmarkListScreen` to use `isInitialLoading` for the PullToRefreshBox
-   `isRefreshing` property.
-4. Add a subtle sync indicator (thin linear progress or toolbar icon) driven by
-   `isSyncingInBackground`.
-5. Preserve pull-to-refresh spinner behavior for user-initiated refreshes.
+- it requires multipart parsing and a new ingestion path even for metadata-only updates
+- it increases failure-mode complexity
+- it is harder to test and harder to debug than the current paginated JSON path
+- it no longer unlocks a top-priority correctness fix
 
-### Phase 2: Batch Insert Optimization (Addresses the root performance issue)
+### Revisit Criteria
 
-1. Add `getContentStatesByIds()` and `getArticleContentByIds()` batch queries to
-   `BookmarkDao`.
-2. Add `ContentStateProjection` and `ArticleContentProjection` data classes.
-3. Implement `insertBookmarksWithArticleContentBatch()` in `BookmarkDao`.
-4. Update `BookmarkDao.insertBookmarksWithArticleContent()` to delegate to the batch
-   method.
-5. Unit test the batch path with edge cases: empty list, new bookmarks (no existing
-   state), bookmarks with existing downloaded content, mixed states.
+Revisit phase 4 only if at least one of these becomes true:
 
-### Phase 3: Full Sync Consolidation (Optional, lower priority)
-
-1. Refactor `performFullSync()` and `LoadBookmarksUseCase.execute()` to share a single
-   paginated walk.
-2. Collect remote IDs for deletion detection during the metadata fetch pass.
-3. Delete orphaned local bookmarks after the combined walk completes.
+- incremental metadata pagination is still measurably too slow
+- server/API evolution makes the sync API clearly better supported than the list endpoint
+- phase 3 multipart infrastructure is already in place and proven stable
 
 ## Constraints
 
-- **Deferred content model is unchanged.** Article content fetching (on-demand and
-  AUTOMATIC batch) is not modified by any phase.
-- **Pending action merge logic is unchanged.** The `insertBookmarks()` method in
-  `BookmarkRepositoryImpl` that merges remote state with pending local actions remains
-  as-is. It already does batch lookups for pending actions and existing bookmarks.
-- **Wire-compatible.** No API contract changes required — all fixes are client-side.
-- **Backward-compatible database.** No schema migrations needed for Phase 1 or 2. The
-  batch queries use the existing schema.
+- **Deferred content model remains intact.** Content is still a separately tracked local
+  cache with on-demand and background sync modes.
+- **Pending-action merge logic remains intact.** Remote metadata still must be merged with
+  unsynced local actions before persistence.
+- **Wire compatibility is preserved.** All completed work remains client-side and uses the
+  published Readeck API surface already captured in the repo.
+- **Schema migration is now required for `omitDescription`.** The local bookmark schema now
+  persists the presentation hint independently of future sync-API transport work.
 
-## Risks
+## Remaining Risks
 
-- **Phase 1** changes the UX contract around sync feedback. Users accustomed to the
-  spinner may not realize sync completed. The subtle indicator needs to be discoverable
-  enough to provide confidence that data is fresh.
-- **Phase 2** changes the transaction boundary. The current per-item transaction ensures
-  partial progress is committed if the worker is killed mid-page. The batch approach
-  within a single `@Transaction` means a page is all-or-nothing. This is acceptable
-  because pages are 50 items and the worker will retry on next sync.
-- **Room's REPLACE + CASCADE** behavior is the fundamental reason the read-before-write
-  pattern exists. An alternative would be to switch to `INSERT ... ON CONFLICT UPDATE`
-  via `@Upsert` (Room 2.5+), which avoids the DELETE+INSERT cycle entirely. This would
-  eliminate the need to preserve content state and article content across replaces. Worth
-  evaluating as a follow-up but requires careful migration testing.
+- **Phase 3:** multipart parsing introduces a new failure surface:
+  partial streams, malformed parts, missing `Bookmark-Id` headers, and mismatched json/html
+  parts must all fail safely.
+- **`omitDescription`:** it must remain a presentation hint, not a signal to delete
+  description data. The raw description still needs to be stored for fallback cases.
+- **Phase 4:** moving incremental metadata reloads to `POST /bookmarks/sync` should keep a
+  clear rollback option until the new ingestion path is proven in production.
 
-## Testing
+## Next Actions
 
-- **Unit tests:** Verify batch insert preserves content state for existing bookmarks,
-  handles new bookmarks correctly, and produces the same results as the current per-item
-  path.
-- **Integration test:** Measure insert time for 200 bookmarks before and after the batch
-  optimization.
-- **Manual QA:** Verify the non-blocking spinner UX feels natural — cached data appears
-  instantly, sync indicator is visible but not intrusive, pull-to-refresh still works as
-  expected.
+1. Land phases 1 and 2 with their regression coverage.
+2. Keep this document in `docs/specs/` as the status record for the completed work.
+3. Track phase 3 independently as a follow-up feature.
+4. Leave phase 4 deferred unless future profiling or production evidence justifies it.

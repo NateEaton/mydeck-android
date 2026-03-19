@@ -33,8 +33,19 @@ class LoadBookmarksWorker @AssistedInject constructor(
     private val settingsDataStore: SettingsDataStore,
 ) : CoroutineWorker(appContext, workerParams) {
 
+    enum class Trigger {
+        INITIAL,
+        APP_OPEN,
+        PULL_TO_REFRESH
+    }
+
     override suspend fun doWork(): Result {
         val isInitialLoad = inputData.getBoolean(PARAM_IS_INITIAL_LOAD, false)
+        val trigger = inputData.getString(PARAM_TRIGGER)
+            ?.let { runCatching { Trigger.valueOf(it) }.getOrNull() }
+            ?: if (isInitialLoad) Trigger.INITIAL else Trigger.PULL_TO_REFRESH
+
+        Timber.d("LoadBookmarksWorker start [trigger=$trigger, isInitialLoad=$isInitialLoad]")
 
         if (isInitialLoad && isAnotherWorkerRunning()) {
             Timber.i("Another LoadBookmarksWorker is running, exiting early.")
@@ -42,6 +53,7 @@ class LoadBookmarksWorker @AssistedInject constructor(
         }
 
         // Run delta sync to catch deletions (lightweight, only fetches changed IDs)
+        var pendingSyncCursor: Instant? = null
         if (!isInitialLoad) {
             // Prefer lastSyncTimestamp (advances after every delta sync) over lastBookmarkTimestamp
             // (only advances when bookmark metadata changes, not on deletions)
@@ -52,12 +64,13 @@ class LoadBookmarksWorker @AssistedInject constructor(
             if (syncSince != null) {
                 when (val result = bookmarkRepository.performDeltaSync(syncSince)) {
                     is BookmarkRepository.SyncResult.Success -> {
-                        settingsDataStore.saveLastSyncTimestamp(result.maxServerTime ?: Clock.System.now())
+                        pendingSyncCursor = result.maxServerTime ?: Clock.System.now()
                         if (result.countDeleted > 0) {
                             Timber.i("Delta sync removed ${result.countDeleted} deleted bookmarks")
                         }
                         if (result.countUpdated == 0) {
                             Timber.i("Delta sync reported no metadata updates; skipping bookmark reload")
+                            settingsDataStore.saveLastSyncTimestamp(pendingSyncCursor!!)
                             if (!settingsDataStore.isInitialSyncPerformed()) {
                                 settingsDataStore.setInitialSyncPerformed(true)
                             }
@@ -71,6 +84,7 @@ class LoadBookmarksWorker @AssistedInject constructor(
 
         return when (val result = loadBookmarksUseCase.execute()) {
             is LoadBookmarksUseCase.UseCaseResult.Success -> {
+                pendingSyncCursor?.let { settingsDataStore.saveLastSyncTimestamp(it) }
                 if (!settingsDataStore.isInitialSyncPerformed()) {
                     settingsDataStore.setInitialSyncPerformed(true)
                 }
@@ -102,7 +116,11 @@ class LoadBookmarksWorker @AssistedInject constructor(
 
     companion object {
         const val PARAM_IS_INITIAL_LOAD = "isInitialLoad"
+        const val PARAM_TRIGGER = "trigger"
         const val UNIQUE_WORK_NAME = "LoadBookmarksSync"
+        const val TAG_TRIGGER_APP_OPEN = "load_bookmarks_app_open"
+        const val TAG_TRIGGER_PULL_TO_REFRESH = "load_bookmarks_pull_to_refresh"
+        const val TAG_TRIGGER_INITIAL = "load_bookmarks_initial"
 
         internal fun resolveSyncSince(
             lastSyncTimestamp: Instant?,
@@ -114,11 +132,30 @@ class LoadBookmarksWorker @AssistedInject constructor(
         }
 
         fun enqueue(context: Context, isInitialLoad: Boolean = false): UUID {
-            val data = Data.Builder().putBoolean(PARAM_IS_INITIAL_LOAD, isInitialLoad).build()
+            val trigger = if (isInitialLoad) Trigger.INITIAL else Trigger.PULL_TO_REFRESH
+            return enqueue(context, trigger, isInitialLoad)
+        }
+
+        fun enqueue(context: Context, trigger: Trigger): UUID {
+            return enqueue(context, trigger, trigger == Trigger.INITIAL)
+        }
+
+        private fun enqueue(context: Context, trigger: Trigger, isInitialLoad: Boolean): UUID {
+            val data = Data.Builder()
+                .putBoolean(PARAM_IS_INITIAL_LOAD, isInitialLoad)
+                .putString(PARAM_TRIGGER, trigger.name)
+                .build()
             val policy = if (isInitialLoad) ExistingWorkPolicy.REPLACE else ExistingWorkPolicy.KEEP
 
             val request = OneTimeWorkRequestBuilder<LoadBookmarksWorker>()
                 .setInputData(data)
+                .addTag(
+                    when (trigger) {
+                        Trigger.INITIAL -> TAG_TRIGGER_INITIAL
+                        Trigger.APP_OPEN -> TAG_TRIGGER_APP_OPEN
+                        Trigger.PULL_TO_REFRESH -> TAG_TRIGGER_PULL_TO_REFRESH
+                    }
+                )
                 .setConstraints(
                     Constraints.Builder()
                         .setRequiredNetworkType(NetworkType.CONNECTED)

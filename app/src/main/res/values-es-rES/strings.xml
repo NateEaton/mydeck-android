@@ -305,6 +305,7 @@ other{}
     <string name="filter_type_article">Artículo</string>
     <string name="filter_type_video">Video</string>
     <string name="filter_type_picture">Foto</string>
+    <string name="filter_type_any">Any</string>
     <string name="filter_progress">Progreso</string>
     <string name="progress_unviewed">No visto</string>
     <string name="progress_in_progress">En progreso</string>
@@ -321,7 +322,8 @@ other{}
     <string name="filter_label">Etiqueta</string>
     <string name="filter_from_date">Desde la fecha</string>
     <string name="filter_to_date">Hasta la fecha</string>
-    <string name="filter_is_loaded">Está cargado</string>
+    <string name="filter_is_loaded">Está descargado</string>
+    <string name="filtered_list">Filtered List</string>
     <string name="filter_with_labels">Con etiquetas</string>
     <string name="filter_with_errors">Con errores</string>
     <string name="filter_select_label">Toca para seleccionar una etiqueta</string>
@@ -380,8 +382,11 @@ other{}
     <string name="about_system_info_server_subtitle">Server</string>
     <string name="about_system_info_details_show">Show details</string>
     <string name="about_system_info_details_hide">Hide details</string>
-    <string name="about_system_info_copy">Copy to clipboard</string>
-    <string name="about_system_info_copied">Copied!</string>
+    <string name="about_system_info_copy">Copiar al portapapeles</string>
+    <string name="about_system_info_copied">¡Copiado!</string>
+    <string name="about_credits_fork">Esta es una bifurcación de ReadeckApp por jensomato, reimaginada con una experiencia de usuario similar a Pocket.</string>
+    <string name="about_credits_thanks">Un agradecimiento especial a Stefan (@Alanon202) por retroalimentación sobre la funcionalidad de la aplicación y por el soporte de pruebas.</string>
+    <string name="about_system_info_title">System Info</string>
     <string name="about_system_info_server_url">URL: %s</string>
     <string name="about_system_info_server_version">Version: %s</string>
     <string name="about_system_info_server_release">Release: %s</string>

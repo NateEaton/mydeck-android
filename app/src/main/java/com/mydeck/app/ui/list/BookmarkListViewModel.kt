@@ -61,6 +61,11 @@ class BookmarkListViewModel @Inject constructor(
     connectivityMonitor: ConnectivityMonitor
 ) : ViewModel() {
 
+    private enum class LoadTrigger {
+        APP_OPEN,
+        USER_REFRESH
+    }
+
     val isOnline: StateFlow<Boolean> = connectivityMonitor.observeConnectivity()
         .stateIn(
             scope = viewModelScope,
@@ -118,7 +123,7 @@ class BookmarkListViewModel @Inject constructor(
             val url = settingsDataStore.urlFlow.first()
             val syncOnAppOpenEnabled = settingsDataStore.isSyncOnAppOpenEnabled()
             if (!url.isNullOrBlank() && syncOnAppOpenEnabled) {
-                loadBookmarks(false)
+                loadBookmarks(LoadTrigger.APP_OPEN)
             }
         }
     }
@@ -150,7 +155,7 @@ class BookmarkListViewModel @Inject constructor(
         workManager.getWorkInfosForUniqueWorkFlow(LoadBookmarksWorker.UNIQUE_WORK_NAME)
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    val loadBookmarksIsRunning: StateFlow<Boolean> = loadBookmarksWorkInfos
+    private val loadBookmarksIsRunning: StateFlow<Boolean> = loadBookmarksWorkInfos
         .map { workInfoList ->
             workInfoList.any {
                 it.state == WorkInfo.State.RUNNING ||
@@ -159,6 +164,22 @@ class BookmarkListViewModel @Inject constructor(
             }
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
+    private val _userRequestedRefresh = MutableStateFlow(false)
+
+    val isInitialLoading: StateFlow<Boolean> = combine(
+        loadBookmarksIsRunning,
+        settingsDataStore.initialSyncPerformedFlow
+    ) { isRunning, initialSyncPerformed ->
+        isRunning && !initialSyncPerformed
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
+    val isUserRefreshing: StateFlow<Boolean> = combine(
+        loadBookmarksIsRunning,
+        _userRequestedRefresh
+    ) { isRunning, userRequestedRefresh ->
+        isRunning && userRequestedRefresh
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
     private val loadBookmarksHasFailed: StateFlow<Boolean> = loadBookmarksWorkInfos
         .map { workInfoList ->
@@ -177,6 +198,16 @@ class BookmarkListViewModel @Inject constructor(
     val uiState = _uiState.asStateFlow()
 
     init {
+        viewModelScope.launch {
+            var wasRunning = false
+            loadBookmarksIsRunning.collectLatest { isRunning ->
+                if (!isRunning && wasRunning) {
+                    _userRequestedRefresh.value = false
+                }
+                wasRunning = isRunning
+            }
+        }
+
         viewModelScope.launch {
             combine(
                 _filterFormState,
@@ -345,12 +376,28 @@ class BookmarkListViewModel @Inject constructor(
 
     // No need for consume/reset methods with Channel
 
-    private fun loadBookmarks(initialLoad: Boolean = false) {
+    private fun loadBookmarks(trigger: LoadTrigger, initialLoad: Boolean = false) {
+        if (trigger == LoadTrigger.USER_REFRESH) {
+            _userRequestedRefresh.value = true
+        }
         viewModelScope.launch {
             try {
-                LoadBookmarksWorker.enqueue(context, isInitialLoad = initialLoad) // Enqueue for incremental sync
+                when {
+                    initialLoad -> LoadBookmarksWorker.enqueue(context, isInitialLoad = true)
+                    trigger == LoadTrigger.APP_OPEN -> LoadBookmarksWorker.enqueue(
+                        context,
+                        trigger = LoadBookmarksWorker.Trigger.APP_OPEN
+                    )
+                    else -> LoadBookmarksWorker.enqueue(
+                        context,
+                        trigger = LoadBookmarksWorker.Trigger.PULL_TO_REFRESH
+                    )
+                }
             } catch (e: Exception) {
                 // Handle errors (e.g., show error message)
+                if (trigger == LoadTrigger.USER_REFRESH) {
+                    _userRequestedRefresh.value = false
+                }
                 _uiState.value = UiState.Empty(R.string.list_view_empty_error_loading_bookmarks)
                 Timber.e(e, "Error loading bookmarks: ${e.message}")
             }
@@ -389,7 +436,7 @@ class BookmarkListViewModel @Inject constructor(
     }
 
     fun onPullToRefresh() {
-        loadBookmarks(false)
+        loadBookmarks(LoadTrigger.USER_REFRESH)
     }
 
     fun onDeleteBookmark(bookmarkId: String) {

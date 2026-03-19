@@ -219,6 +219,7 @@ other{}
     <string name="about_credits_app_author">MyDeck by Nate Eaton</string>
     <string name="about_credits_readeck">Readeck server by François Revol and contributors</string>
     <string name="about_credits_fork">This is a fork of ReadeckApp by jensomato, reimagined with a Pocket-like user experience.</string>
+    <string name="about_credits_thanks">A special thanks to Stefan (@Alanon202) for app functionality feedback and for testing support.</string>
     <string name="about_system_info_title">System Info</string>
     <string name="about_system_info_version">Version %1$s (%2$d)</string>
     <string name="about_system_info_build_time">Built: %s</string>
@@ -423,6 +424,7 @@ other{}
     <string name="filter_type_article">Article</string>
     <string name="filter_type_video">Video</string>
     <string name="filter_type_picture">Picture</string>
+    <string name="filter_type_any">Any</string>
     <string name="filter_progress">Progress</string>
     <string name="progress_unviewed">Unviewed</string>
     <string name="progress_in_progress">In progress</string>
@@ -440,7 +442,8 @@ other{}
     <string name="filter_label">Label</string>
     <string name="filter_from_date">From date</string>
     <string name="filter_to_date">To date</string>
-    <string name="filter_is_loaded">Is loaded</string>
+    <string name="filter_is_loaded">Is downloaded</string>
+    <string name="filtered_list">Filtered List</string>
     <string name="filter_with_labels">With labels</string>
     <string name="filter_with_errors">With errors</string>
     <string name="filter_select_label">Tap to select a label</string>
