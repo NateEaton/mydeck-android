@@ -305,6 +305,7 @@ other{}
     <string name="filter_type_article">Artículo</string>
     <string name="filter_type_video">Video</string>
     <string name="filter_type_picture">Foto</string>
+    <string name="filter_type_any">Any</string>
     <string name="filter_progress">Progreso</string>
     <string name="progress_unviewed">No visto</string>
     <string name="progress_in_progress">En progreso</string>
@@ -321,7 +322,8 @@ other{}
     <string name="filter_label">Etiqueta</string>
     <string name="filter_from_date">Desde la fecha</string>
     <string name="filter_to_date">Hasta la fecha</string>
-    <string name="filter_is_loaded">Descargado</string>
+    <string name="filter_is_loaded">Está descargado</string>
+    <string name="filtered_list">Filtered List</string>
     <string name="filter_with_labels">Con etiquetas</string>
     <string name="filter_with_errors">Con errores</string>
     <string name="filter_select_label">Toca para seleccionar una etiqueta</string>

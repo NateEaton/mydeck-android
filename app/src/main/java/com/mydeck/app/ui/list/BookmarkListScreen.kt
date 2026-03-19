@@ -400,13 +400,18 @@ fun BookmarkListScreen(
     }
 
     // Determine the current view title based on drawer preset
-    val currentViewTitle = when (drawerPreset.value) {
+    val currentPresetTitle = when (drawerPreset.value) {
         DrawerPreset.MY_LIST -> stringResource(id = R.string.my_list)
         DrawerPreset.ARCHIVE -> stringResource(id = R.string.archive)
         DrawerPreset.FAVORITES -> stringResource(id = R.string.favorites)
         DrawerPreset.ARTICLES -> stringResource(id = R.string.articles)
         DrawerPreset.VIDEOS -> stringResource(id = R.string.videos)
         DrawerPreset.PICTURES -> stringResource(id = R.string.pictures)
+    }
+    val currentViewTitle = if (!isLabelMode && filterFormState.value.differsFromPreset(drawerPreset.value)) {
+        stringResource(id = R.string.filtered_list)
+    } else {
+        currentPresetTitle
     }
 
     Scaffold(

@@ -121,9 +121,18 @@ When no bookmarks match the current filters, the list shows a "No bookmarks matc
 - Unviewed, In progress, Completed
 
 **Toggle filters** (N/A / Yes / No):
-- Is favorite, Is archived, Downloaded, With labels, With errors
+- Is favorite, Is archived, Is downloaded, With labels, With errors
 
 **With errors** follows the error status reported by your Readeck server. It matches bookmarks that Readeck marked as errored or bookmarks where Readeck stored extraction or processing errors. It does not simply mean that MyDeck has not downloaded local reader content for the bookmark.
+
+When your current filters no longer match the default scope of the list you started from, the top bar title changes to **Filtered List**. A chip bar appears below the title showing every active deviation from the starting view. Each chip has an ✕ to dismiss that specific filter.
+
+If you broaden the starting view's core constraint — for example, setting *Is archived* to N/A while in My List, or deselecting all types while in Articles — a synthetic chip appears (e.g. "Is archived: N/A" or "Type: Any"). Dismissing that chip restores the starting view's constraint for that dimension while keeping any other filters intact.
+
+To return to a standard view you can:
+- dismiss all filter chips one by one,
+- tap **Reset** in the filter sheet to restore the full starting-view defaults, or
+- select a predefined view (My List, Archive, etc.) from the navigation drawer.
 
 Tap **Search** to apply, or **Reset** to clear all filters.
 

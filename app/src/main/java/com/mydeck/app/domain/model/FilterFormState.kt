@@ -34,6 +34,8 @@ data class FilterFormState(
         withLabels != null ||
         withErrors != null
 
+    fun differsFromPreset(preset: DrawerPreset): Boolean = this != fromPreset(preset)
+
     companion object {
         fun fromPreset(preset: DrawerPreset): FilterFormState = when (preset) {
             DrawerPreset.MY_LIST -> FilterFormState(isArchived = false)
