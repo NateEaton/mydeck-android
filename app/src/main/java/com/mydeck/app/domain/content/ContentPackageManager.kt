@@ -1,6 +1,7 @@
 package com.mydeck.app.domain.content
 
 import com.mydeck.app.io.db.dao.BookmarkDao
+import com.mydeck.app.io.db.dao.CachedAnnotationDao
 import com.mydeck.app.io.db.dao.ContentPackageDao
 import com.mydeck.app.io.db.model.BookmarkEntity
 import com.mydeck.app.io.db.model.ContentPackageEntity
@@ -21,6 +22,7 @@ import javax.inject.Singleton
 @Singleton
 class ContentPackageManager @Inject constructor(
     private val contentPackageDao: ContentPackageDao,
+    private val cachedAnnotationDao: CachedAnnotationDao,
     private val bookmarkDao: BookmarkDao,
     private val offlineContentDir: File
 ) {
@@ -81,7 +83,15 @@ class ContentPackageManager @Inject constructor(
                 localBasePath = "offline_content/$bookmarkId"
             )
 
+            // Extract annotation metadata from HTML
+            val annotationEntities = AnnotationHtmlParser.parse(pkg.html, bookmarkId)
+
             contentPackageDao.replacePackageAndResources(packageEntity, resourceEntities)
+            cachedAnnotationDao.replaceAnnotationsForBookmark(bookmarkId, annotationEntities)
+
+            if (annotationEntities.isNotEmpty()) {
+                Timber.d("Cached ${annotationEntities.size} annotations for $bookmarkId")
+            }
 
             // Atomic swap: delete old, rename staging to final
             if (finalDir.exists()) {
@@ -134,6 +144,7 @@ class ContentPackageManager @Inject constructor(
      */
     suspend fun deleteAllContent() {
         contentPackageDao.deleteAll()
+        cachedAnnotationDao.deleteAll()
         offlineContentDir.listFiles()?.forEach { it.deleteRecursively() }
         bookmarkDao.resetAllContentState()
     }

@@ -21,7 +21,9 @@ import com.mydeck.app.domain.model.Template
 import com.mydeck.app.domain.model.Theme
 import com.mydeck.app.domain.model.toEffectiveAppearance
 import com.mydeck.app.domain.content.ContentPackageManager
+import com.mydeck.app.domain.sync.ConnectivityMonitor
 import com.mydeck.app.domain.usecase.LoadArticleUseCase
+import com.mydeck.app.io.db.dao.CachedAnnotationDao
 import com.mydeck.app.domain.usecase.LoadContentPackageUseCase
 import com.mydeck.app.domain.usecase.UpdateBookmarkUseCase
 import com.mydeck.app.io.AssetLoader
@@ -76,6 +78,8 @@ class BookmarkDetailViewModel @Inject constructor(
     private val loadArticleUseCase: LoadArticleUseCase,
     private val loadContentPackageUseCase: LoadContentPackageUseCase,
     private val contentPackageManager: ContentPackageManager,
+    private val cachedAnnotationDao: CachedAnnotationDao,
+    private val connectivityMonitor: ConnectivityMonitor,
     private val readeckApi: ReadeckApi,
     @ApplicationContext private val context: Context,
     private val json: Json,
@@ -255,7 +259,13 @@ class BookmarkDetailViewModel @Inject constructor(
                         // Handle content availability
                         when (bookmark.contentState) {
                             ContentState.DOWNLOADED -> {
-                                syncAnnotationsIfNeeded(id)
+                                // Only sync annotations via legacy path when content is NOT
+                                // from a content package. Content packages already have
+                                // server-baked annotations; the legacy sync would trigger
+                                // a re-render that causes annotation color flash and JS issues.
+                                if (contentPackageManager.getContentDir(id) == null) {
+                                    syncAnnotationsIfNeeded(id)
+                                }
                             }
                             ContentState.PERMANENT_NO_CONTENT -> {
                                 // Signal to UI that content is permanently unavailable
@@ -500,6 +510,18 @@ class BookmarkDetailViewModel @Inject constructor(
     }
 
     private suspend fun refreshArticleContent(bookmarkId: String) {
+        // For content-package bookmarks, re-download via multipart transport.
+        // This re-extracts annotation metadata from the updated HTML automatically.
+        if (contentPackageManager.getContentDir(bookmarkId) != null) {
+            val result = loadContentPackageUseCase.executeForceRefresh(bookmarkId)
+            if (result is LoadContentPackageUseCase.Result.Success) {
+                cacheAnnotationSnapshot(bookmarkId)
+                return
+            }
+            // If multipart fails, fall through to legacy path
+            Timber.w("Multipart refresh failed for $bookmarkId, falling back to legacy")
+        }
+
         val response = readeckApi.getArticle(bookmarkId)
         if (!response.isSuccessful || response.body() == null) {
             throw IllegalStateException("Failed to refresh article content: HTTP ${response.code()}")
@@ -698,42 +720,68 @@ class BookmarkDetailViewModel @Inject constructor(
         viewModelScope.launch {
             _annotationsState.update { it.copy(isLoading = true) }
 
-            try {
-                val response = readeckApi.getAnnotations(bookmarkId)
-                if (response.isSuccessful) {
-                    val annotationDtos = response.body().orEmpty()
-                    val renderedById = renderedAnnotations.associateBy { it.id }
-                    val annotations = annotationDtos
-                        .map { dto ->
-                            val renderedAnnotation = renderedById[dto.id]
+            // 1. Load from local cache first (offline-capable)
+            val cachedEntities = try {
+                cachedAnnotationDao.getAnnotationsForBookmark(bookmarkId)
+            } catch (e: Exception) {
+                Timber.w(e, "Failed to load cached annotations for $bookmarkId")
+                emptyList()
+            }
+            val cachedById = cachedEntities.associateBy { it.id }
+            val renderedById = renderedAnnotations.associateBy { it.id }
+
+            // 2. If online, merge with API data; otherwise use local cache
+            if (connectivityMonitor.isNetworkAvailable()) {
+                try {
+                    val response = readeckApi.getAnnotations(bookmarkId)
+                    if (response.isSuccessful) {
+                        val annotationDtos = response.body().orEmpty()
+                        val annotations = annotationDtos.map { dto ->
+                            val cached = cachedById[dto.id]
+                            val rendered = renderedById[dto.id]
                             Annotation(
                                 id = dto.id,
                                 bookmarkId = bookmarkId,
                                 text = dto.text,
-                                color = renderedAnnotation?.color ?: "yellow",
-                                note = renderedAnnotation?.note,
+                                color = rendered?.color ?: cached?.color ?: "yellow",
+                                note = rendered?.note ?: cached?.note,
                                 created = dto.created
                             )
                         }
+                        _annotationsState.value = AnnotationsState(
+                            annotations = annotations,
+                            isLoading = false
+                        )
+                        return@launch
+                    } else {
+                        Timber.w("Failed to load annotations for $bookmarkId: HTTP ${response.code()}")
+                    }
+                } catch (e: Exception) {
+                    Timber.w(e, "Failed to load annotations from API for $bookmarkId")
+                }
+            }
 
-                    _annotationsState.value = AnnotationsState(
-                        annotations = annotations,
-                        isLoading = false
-                    )
-                } else {
-                    Timber.w("Failed to load annotations for $bookmarkId: HTTP ${response.code()}")
-                    _annotationsState.value = AnnotationsState(
-                        annotations = renderedAnnotations,
-                        isLoading = false
+            // 3. Offline or API failed: use cached or rendered annotations
+            val annotations = if (cachedEntities.isNotEmpty()) {
+                cachedEntities.map { entity ->
+                    val rendered = renderedById[entity.id]
+                    Annotation(
+                        id = entity.id,
+                        bookmarkId = bookmarkId,
+                        text = rendered?.text ?: entity.text,
+                        color = rendered?.color ?: entity.color,
+                        note = rendered?.note ?: entity.note,
+                        created = entity.created
                     )
                 }
-            } catch (e: Exception) {
-                Timber.w(e, "Failed to load annotations for $bookmarkId")
-                _annotationsState.value = AnnotationsState(
-                    annotations = renderedAnnotations,
-                    isLoading = false
-                )
+            } else {
+                renderedAnnotations
             }
+
+            _annotationsState.value = AnnotationsState(
+                annotations = annotations,
+                isLoading = false
+            )
         }
     }
 

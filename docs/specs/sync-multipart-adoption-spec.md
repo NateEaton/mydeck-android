@@ -613,6 +613,74 @@ Since annotation changes don't necessarily advance the bookmark's `updated` time
 should bypass the `sourceUpdated` freshness check and always request the package when annotation
 state indicates a refresh is needed.
 
+### Offline annotation data
+
+The Readeck server embeds annotation rendering data directly into article HTML as `<rd-annotation>`
+custom elements with attributes including `data-annotation-id-value`, `data-annotation-color`,
+`title` (note text), and `id="annotation-{id}"`. This HTML is the **authoritative source** for
+annotation color and note data — the `GET /bookmarks/{id}/annotations` REST endpoint returns only
+`id`, `text`, selectors, offsets, and `created` but **does not include color or note**.
+
+To support offline highlight listing, scroll-to-annotation, and tap-to-edit, annotation metadata
+must be extracted from the HTML at content-package commit time and persisted locally.
+
+#### Local annotation cache schema
+
+A new `cached_annotation` table stores annotation metadata extracted from downloaded HTML:
+
+| Column       | Type    | Description                                    |
+|--------------|---------|------------------------------------------------|
+| `id`         | TEXT PK | Annotation ID (from `data-annotation-id-value`)|
+| `bookmarkId` | TEXT FK | Foreign key to `bookmarks`                     |
+| `text`       | TEXT    | Highlighted text content                       |
+| `color`      | TEXT    | Color (from `data-annotation-color`)           |
+| `note`       | TEXT?   | Note text (from `title` attribute)             |
+| `created`    | TEXT    | Creation timestamp (empty if not available)    |
+
+Foreign key cascades on bookmark delete. Indexed on `bookmarkId`.
+
+#### HTML annotation extraction
+
+During `ContentPackageManager.commitPackage()`, after the HTML part is available:
+
+1. Parse all `<rd-annotation>` elements from the HTML string
+2. For each element, extract `data-annotation-id-value`, `data-annotation-color`, `title`,
+   and inner text content
+3. Persist as `CachedAnnotationEntity` rows in the same Room transaction that commits the
+   content package manifest and resources
+
+This is a pure local operation — no network call needed. Every content download path
+(on-demand, batch, date-range) automatically populates the annotation cache.
+
+#### Offline-first annotation loading
+
+The annotations bottom sheet (`fetchAnnotations`) currently makes a live
+`GET /bookmarks/{id}/annotations` call. This must become offline-first:
+
+1. Load from `CachedAnnotationDao.getAnnotationsForBookmark(bookmarkId)` immediately
+2. If online, also call the REST endpoint and merge: API provides `id`, `text`, `created`;
+   local cache provides `color` and `note` (authoritative from HTML)
+3. If offline, use the local cache directly — it has all fields needed for display
+
+#### Legacy annotation sync elimination
+
+For bookmarks with a content package directory, the legacy `syncAnnotationsIfNeeded` /
+`refreshCachedArticleIfAnnotationsChanged` path must be skipped entirely. Content-package
+HTML already contains server-baked annotations with correct colors. Running the legacy sync
+causes a visible color flash (annotations momentarily default to yellow during re-render).
+
+For content-package bookmarks, annotation-driven refresh should:
+
+1. Compare the current annotation snapshot against the cached snapshot
+2. If changed, re-download the content package via `MultipartSyncClient.fetchContentPackages()`
+3. Re-extract annotation metadata from the new HTML and update `cached_annotation` rows
+
+#### Annotation CRUD while offline (future)
+
+Offline annotation create/update/delete is deferred to a future stage. It requires new
+`PendingActionEntity.ActionType` values and optimistic local state updates. For now,
+annotation mutations require network connectivity (existing behavior).
+
 ## Storage Management
 
 ### Visibility
@@ -712,6 +780,23 @@ Implement `v0.12.0` in stages, treating this document as one architectural desti
 - Implement `sourceUpdated` freshness check to skip redundant re-downloads
 - Add storage usage display and "Clear all offline content" to Sync Settings
 
+### Stage 3a: Offline annotation support
+
+- Register `CachedAnnotationEntity` in Room `@Database` entities and add schema migration
+  (version 12)
+- Create `CachedAnnotationDao` with queries for get, replace, and observe by bookmark ID
+- Build `AnnotationHtmlParser` to extract annotation metadata from `<rd-annotation>` elements
+  in article HTML
+- Call the parser and persist results during `ContentPackageManager.commitPackage()` in the
+  same Room transaction
+- Make `BookmarkDetailViewModel.fetchAnnotations()` offline-first: load from local cache,
+  optionally merge with API when online
+- Skip legacy `syncAnnotationsIfNeeded` for content-package bookmarks to eliminate the
+  annotation color flash
+- Update annotation-driven refresh to use multipart content package re-download instead of
+  legacy `GET /bookmarks/{id}/article`
+- Verify scroll-to-annotation and tap-to-edit work correctly with offline content packages
+
 ### Stage 4: Remove legacy content/detail fetches
 
 Once multipart sync is proven stable:
@@ -753,6 +838,21 @@ Once multipart sync is proven stable:
 - `omitDescription` UI suppression behavior driven from multipart JSON payloads
 - Fallback to network rendering when no local package exists
 
+### Annotation tests
+
+- `AnnotationHtmlParser` extracts annotation ID, color, note, and text from `<rd-annotation>`
+  elements
+- Parser handles missing attributes gracefully (missing color defaults to `yellow`, missing
+  note is null)
+- Parser handles HTML with no annotations (returns empty list)
+- Parser handles nested/overlapping annotations
+- `CachedAnnotationDao` round-trip: replace and retrieve annotations for a bookmark
+- `ContentPackageManager.commitPackage()` persists extracted annotations in the same transaction
+- `fetchAnnotations` returns cached annotations when offline
+- `fetchAnnotations` merges API data with cached color/note when online
+- Legacy annotation sync is skipped for content-package bookmarks
+- No annotation color flash on initial article load from content package
+
 ### Worker/use-case tests
 
 - On-demand content sync using multipart transport (single bookmark)
@@ -761,6 +861,8 @@ Once multipart sync is proven stable:
 - `sourceUpdated` freshness check skipping redundant content downloads
 - Retry/failure state transitions for partial package failures
 - Annotation-driven content refresh through multipart transport
+- Annotation cache populated during content package commit
+- Annotation cache cleared when content package is cleared
 
 ### Storage management tests
 
@@ -814,6 +916,23 @@ Once multipart sync is proven stable:
    - Add or modify an annotation on a downloaded article.
    - Expected result: article HTML is refreshed via multipart transport, not via legacy
      `GET /bookmarks/{id}/article`.
+
+9. **Highlights work fully offline.**
+   - Download an article that has annotations. Disable network and reopen it.
+   - Open the highlights bottom sheet from the overflow menu.
+   - Expected result: all highlights appear with correct colors and text.
+
+10. **Highlight tap-to-edit works offline.**
+    - With network disabled, tap a highlight in the article text.
+    - Expected result: the annotation edit sheet opens with correct color and note.
+
+11. **Highlight scroll-from-sheet works offline.**
+    - With network disabled, open highlights sheet, tap an annotation.
+    - Expected result: the sheet closes and the reader scrolls to the highlight position.
+
+12. **No annotation color flash on content-package articles.**
+    - Open a content-package article with annotations while online.
+    - Expected result: highlights render immediately with correct colors; no flash to yellow.
 
 ## Decision Summary
 

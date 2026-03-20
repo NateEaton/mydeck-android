@@ -11,7 +11,9 @@ import com.mydeck.app.domain.model.ReaderAppearanceSelection
 import com.mydeck.app.domain.model.SelectionData
 import com.mydeck.app.domain.model.Theme
 import com.mydeck.app.domain.content.ContentPackageManager
+import com.mydeck.app.domain.sync.ConnectivityMonitor
 import com.mydeck.app.domain.usecase.LoadArticleUseCase
+import com.mydeck.app.io.db.dao.CachedAnnotationDao
 import com.mydeck.app.domain.usecase.LoadContentPackageUseCase
 import com.mydeck.app.domain.usecase.UpdateBookmarkUseCase
 import com.mydeck.app.io.AssetLoader
@@ -64,6 +66,8 @@ class BookmarkDetailViewModelTest {
     private lateinit var loadContentPackageUseCase: LoadContentPackageUseCase
     private lateinit var contentPackageManager: ContentPackageManager
     private lateinit var readeckApi: ReadeckApi
+    private lateinit var cachedAnnotationDao: CachedAnnotationDao
+    private lateinit var connectivityMonitor: ConnectivityMonitor
     private lateinit var context: Context
     private lateinit var themeFlow: MutableStateFlow<String?>
     private lateinit var lightAppearanceFlow: MutableStateFlow<LightAppearance>
@@ -81,8 +85,13 @@ class BookmarkDetailViewModelTest {
         loadArticleUseCase = mockk(relaxed = true)
         loadContentPackageUseCase = mockk(relaxed = true)
         contentPackageManager = mockk(relaxed = true)
+        every { contentPackageManager.getContentDir(any()) } returns null
         coEvery { loadContentPackageUseCase.execute(any()) } returns LoadContentPackageUseCase.Result.TransientFailure("Not available")
         readeckApi = mockk(relaxed = true)
+        cachedAnnotationDao = mockk(relaxed = true)
+        connectivityMonitor = mockk(relaxed = true)
+        coEvery { cachedAnnotationDao.getAnnotationsForBookmark(any()) } returns emptyList()
+        every { connectivityMonitor.isNetworkAvailable() } returns true
         context = mockk(relaxed = true)
         every { context.packageName } returns "com.mydeck.app"
         every { bookmarkRepository.observeBookmark(any()) } returns MutableStateFlow(sampleBookmark)
@@ -135,6 +144,8 @@ class BookmarkDetailViewModelTest {
             loadArticleUseCase = loadArticleUseCase,
             loadContentPackageUseCase = loadContentPackageUseCase,
             contentPackageManager = contentPackageManager,
+            cachedAnnotationDao = cachedAnnotationDao,
+            connectivityMonitor = connectivityMonitor,
             readeckApi = readeckApi,
             context = context,
             json = json,

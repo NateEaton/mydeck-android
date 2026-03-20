@@ -14,11 +14,13 @@ import com.mydeck.app.io.db.model.ContentPackageEntity
 import com.mydeck.app.io.db.model.ContentResourceEntity
 import com.mydeck.app.io.db.model.RemoteBookmarkIdEntity
 import com.mydeck.app.io.db.model.PendingActionEntity
+import com.mydeck.app.io.db.dao.CachedAnnotationDao
 import com.mydeck.app.io.db.dao.PendingActionDao
+import com.mydeck.app.io.db.model.CachedAnnotationEntity
 
 @Database(
-    entities = [BookmarkEntity::class, ArticleContentEntity::class, ContentPackageEntity::class, ContentResourceEntity::class, RemoteBookmarkIdEntity::class, PendingActionEntity::class],
-    version = 11,
+    entities = [BookmarkEntity::class, ArticleContentEntity::class, ContentPackageEntity::class, ContentResourceEntity::class, RemoteBookmarkIdEntity::class, PendingActionEntity::class, CachedAnnotationEntity::class],
+    version = 12,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
@@ -26,6 +28,7 @@ abstract class MyDeckDatabase : RoomDatabase() {
     abstract fun getBookmarkDao(): BookmarkDao
     abstract fun getPendingActionDao(): PendingActionDao
     abstract fun getContentPackageDao(): ContentPackageDao
+    abstract fun getCachedAnnotationDao(): CachedAnnotationDao
 
     open suspend fun <R> performTransaction(block: suspend () -> R): R = withTransaction(block)
 
@@ -207,6 +210,28 @@ abstract class MyDeckDatabase : RoomDatabase() {
 
                 // Reset all content state to NOT_ATTEMPTED since article_content was wiped
                 database.execSQL("UPDATE bookmarks SET contentState = 0, contentFailureReason = NULL")
+            }
+        }
+
+        val MIGRATION_11_12 = object : Migration(11, 12) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `cached_annotation` (
+                        `id` TEXT NOT NULL,
+                        `bookmarkId` TEXT NOT NULL,
+                        `text` TEXT NOT NULL,
+                        `color` TEXT NOT NULL,
+                        `note` TEXT,
+                        `created` TEXT NOT NULL,
+                        PRIMARY KEY(`id`),
+                        FOREIGN KEY(`bookmarkId`) REFERENCES `bookmarks`(`id`) ON DELETE CASCADE
+                    )
+                    """
+                )
+                database.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_cached_annotation_bookmarkId` ON `cached_annotation` (`bookmarkId`)"
+                )
             }
         }
     }

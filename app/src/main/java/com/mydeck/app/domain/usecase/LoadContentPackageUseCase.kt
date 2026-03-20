@@ -34,6 +34,24 @@ class LoadContentPackageUseCase @Inject constructor(
         data class PermanentFailure(val reason: String) : Result()
     }
 
+    /**
+     * Force re-download a content package, bypassing DOWNLOADED and freshness guards.
+     * Used for annotation-driven refresh where HTML needs updating even though the
+     * bookmark's updated timestamp hasn't changed.
+     */
+    suspend fun executeForceRefresh(bookmarkId: String): Result {
+        val bookmark = bookmarkRepository.getBookmarkById(bookmarkId)
+
+        if (bookmark.type is Bookmark.Type.Video) {
+            return Result.PermanentFailure("Video bookmarks are not eligible for offline content packages")
+        }
+        if (!connectivityMonitor.isNetworkAvailable()) {
+            return Result.TransientFailure("Offline")
+        }
+
+        return fetchAndCommit(bookmarkId, bookmark)
+    }
+
     suspend fun execute(bookmarkId: String): Result {
         val bookmark = bookmarkRepository.getBookmarkById(bookmarkId)
 
@@ -85,6 +103,13 @@ class LoadContentPackageUseCase @Inject constructor(
             return Result.TransientFailure("Offline")
         }
 
+        return fetchAndCommit(bookmarkId, bookmark)
+    }
+
+    private suspend fun fetchAndCommit(
+        bookmarkId: String,
+        bookmark: Bookmark
+    ): Result {
         return try {
             val result = multipartSyncClient.fetchContentPackages(listOf(bookmarkId))
             when (result) {
