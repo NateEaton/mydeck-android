@@ -13,6 +13,7 @@ import com.mydeck.app.io.prefs.SettingsDataStoreImpl
 import com.mydeck.app.io.rest.auth.AuthInterceptor
 import com.mydeck.app.io.rest.auth.NotificationHelper
 import com.mydeck.app.io.rest.auth.NotificationHelperImpl
+import com.mydeck.app.io.rest.sync.MultipartSyncClient
 import kotlinx.serialization.json.Json
 import okhttp3.OkHttpClient
 import okhttp3.MediaType.Companion.toMediaType
@@ -21,6 +22,7 @@ import retrofit2.Retrofit
 import retrofit2.converter.kotlinx.serialization.asConverterFactory
 import retrofit2.converter.scalars.ScalarsConverterFactory
 import retrofit2.create
+import java.io.File
 import javax.inject.Singleton
 
 @Module
@@ -79,6 +81,18 @@ object NetworkModule {
     @Singleton
     fun provideNotificationManagerCompat(@ApplicationContext context: Context): NotificationManagerCompat {
         return NotificationManagerCompat.from(context)
+    }
+
+    @Provides
+    @Singleton
+    fun provideMultipartSyncClient(
+        readeckApi: ReadeckApi,
+        json: Json,
+        @ApplicationContext context: Context
+    ): MultipartSyncClient {
+        val tempDir = File(context.cacheDir, "multipart_sync_temp")
+        tempDir.mkdirs()
+        return MultipartSyncClient(readeckApi, json, tempDir)
     }
 
     @Provides

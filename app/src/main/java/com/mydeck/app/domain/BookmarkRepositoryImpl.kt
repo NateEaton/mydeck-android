@@ -775,7 +775,10 @@ class BookmarkRepositoryImpl @Inject constructor(
             val deletedIds = syncStatuses
                 .filter { it.type == "delete" }
                 .map { it.id }
-            val updatedCount = syncStatuses.count { it.type == "update" }
+            val updatedIds = syncStatuses
+                .filter { it.type == "update" }
+                .map { it.id }
+            val updatedCount = updatedIds.size
 
             // Delete locally removed bookmarks
             deletedIds.forEach { id ->
@@ -793,6 +796,7 @@ class BookmarkRepositoryImpl @Inject constructor(
             BookmarkRepository.SyncResult.Success(
                 countDeleted = deletedIds.size,
                 countUpdated = updatedCount,
+                updatedIds = updatedIds,
                 maxServerTime = maxServerTime
             )
         } catch (e: IOException) {

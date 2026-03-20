@@ -93,8 +93,11 @@ class FullSyncWorker @AssistedInject constructor(
             }
 
             // Step 2: Fetch updated/new bookmarks (this also triggers article content loading)
-            Timber.d("Fetching updated bookmarks")
-            val loadResult = loadBookmarksUseCase.execute()
+            // Pass updated IDs from delta sync to use multipart metadata fetch;
+            // null for full sync falls back to legacy paginated endpoint
+            val updatedIds = if (!needsFullSync) syncSuccess.updatedIds else null
+            Timber.d("Fetching updated bookmarks [multipart=${updatedIds != null}, count=${updatedIds?.size ?: "all"}]")
+            val loadResult = loadBookmarksUseCase.execute(updatedIds = updatedIds)
 
             val workResult = when (loadResult) {
                 is LoadBookmarksUseCase.UseCaseResult.Error -> {

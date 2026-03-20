@@ -1,18 +1,19 @@
-# Spec: Multipart Sync Adoption and Offline Content Architecture (v0.12.0)
+# Spec: Multipart Sync Adoption and Offline Content Architecture (v0.12.0) — v2
 
 ## Status
 
-This is the canonical sync/content architecture spec for the planned `v0.12.0` cycle.
+This is the canonical sync/content architecture spec for the `v0.12.0` release cycle.
 
-It supersedes the following documents in `docs/specs/` as the forward-looking plan for sync
-and offline reader behavior:
+It supersedes the following documents in `docs/specs/` as the forward-looking plan for sync and
+offline reader behavior:
 
 - `sync-architecture-optimization-spec.md`
 - `sync-content-api-omit-description-spec.md`
 - `sync-error-media-follow-up-spec.md`
+- v1 of this document
 
-Those documents remain useful as historical records for the `v0.11.1` baseline, but new sync
-and content work should follow this spec.
+Those documents remain useful as historical records for the `v0.11.1` baseline, but new sync and
+content work should follow this spec.
 
 ## Release Framing
 
@@ -32,7 +33,7 @@ Use `v0.11.1` to wrap up and ship the current stabilization branch, including:
 Use `v0.12.0` to make multipart sync adoption the core enhancement:
 
 - adopt the sync API multipart transport as the authoritative retrieval path
-- deliver full offline reading packages for Articles and Pictures
+- deliver full offline reading packages for Articles and Pictures (text + images)
 - make `omit_description` come from sync JSON payloads instead of ad-hoc detail enrichment
 - reduce reliance on endpoint-specific special cases in content loading
 
@@ -69,8 +70,8 @@ sync UX shipped in `v0.11.1`.
    - `GET /bookmarks/{id}/article` for content sync
    - `GET /bookmarks/{id}` as a special `omit_description` enrichment step
 3. Deliver full offline reader capability for:
-   - **Article** bookmarks
-   - **Picture** bookmarks
+   - **Article** bookmarks (text + inline images)
+   - **Picture** bookmarks (primary image + caption)
 4. Keep **Video** bookmarks usable as metadata/embed-based bookmarks while explicitly not treating
    video bytes as offline-downloadable reader content.
 5. Make `omit_description` flow from the sync JSON payload as the authoritative source of truth.
@@ -79,7 +80,6 @@ sync UX shipped in `v0.11.1`.
    - automatic background content sync
    - date-range content sync
 7. Preserve the current write path and conflict-handling rules for pending local actions.
-8. Keep a practical rollback path while multipart ingestion is being proven.
 
 ## Non-Goals
 
@@ -89,6 +89,8 @@ sync UX shipped in `v0.11.1`.
 - Storing Markdown exports in this phase
 - Solving every list-thumbnail caching problem in the same phase
 - Reworking unrelated bookmark filtering or sort behavior beyond what this architecture touches
+- Per-bookmark "remove downloaded content" actions (future enhancement)
+- User toggle for text-only vs. text+images download (future enhancement if needed)
 
 ## `v0.11.1` Baseline Assumptions
 
@@ -97,7 +99,6 @@ below:
 
 - app-open sync stays non-blocking when cached bookmarks already exist
 - sync cursors advance only after successful reload completion
-- metadata-only writes do not overwrite downloaded content state unnecessarily
 - pending local actions still merge ahead of persistence during read-side sync
 - `omitDescription` remains a persisted nullable field across REST/domain/Room
 - the detail UI still hides standalone article description only when:
@@ -138,16 +139,16 @@ That extra request is acceptable as a stopgap, but it should not remain the long
 
 Today the app has separate logic and failure modes for:
 
-- metadata pagination
-- article HTML fetch
-- detail-metadata enrichment
-- resource resolution in WebView
+- metadata pagination (`LoadBookmarksUseCase` → `GET /bookmarks?updated_since=`)
+- article HTML fetch (`LoadArticleUseCase` → `GET /bookmarks/{id}/article`)
+- detail-metadata enrichment (`resolveOmitDescription` → `GET /bookmarks/{id}`)
+- resource resolution in WebView (currently not intercepted — relies on network)
 
 Multipart adoption should reduce those branches and make the retrieval model more uniform.
 
 ## API Direction
 
-## Delta Detection
+### Delta Detection
 
 Keep using:
 
@@ -161,7 +162,7 @@ for:
 
 This endpoint remains the lightweight top-level trigger for read-side sync.
 
-## Authoritative Payload Transport
+### Authoritative Payload Transport
 
 Adopt:
 
@@ -169,7 +170,7 @@ Adopt:
 
 as the authoritative data transport for updated bookmark payloads.
 
-From the current published API surface, the app can request:
+From the current published API surface (Readeck v0.22.1), the app can request:
 
 - `with_json`
 - `with_html`
@@ -179,7 +180,7 @@ From the current published API surface, the app can request:
 
 The response is `multipart/mixed`, with parts grouped by `Bookmark-Id` and identified by `Type`.
 
-## Required Part Support in `v0.12.0`
+### Required Part Support in `v0.12.0`
 
 The client must support at least:
 
@@ -194,11 +195,12 @@ locally, including at least:
 - `Path`
 - `Filename`
 - `Content-Type`
-- `Group` when present
+- `Content-Length`
+- `Group` (`icon`, `image`, `thumbnail`, `embedded`)
 
-## Request Profiles
+### Request Profiles
 
-### A. Metadata-only sync request
+#### A. Metadata-only sync request
 
 Use for reload of updated bookmarks discovered by delta detection:
 
@@ -211,7 +213,7 @@ Use for reload of updated bookmarks discovered by delta detection:
 }
 ```
 
-### B. Full offline content-package request
+#### B. Full offline content-package request
 
 Use for content-eligible bookmarks that should be readable offline:
 
@@ -227,24 +229,111 @@ Use for content-eligible bookmarks that should be readable offline:
 
 Notes:
 
-- never call `POST /bookmarks/sync` with an empty `id` list
-- `resource_prefix` should stay relative so stored HTML can resolve against a local per-bookmark
-  base URL without fragile post-processing
+- never call `POST /bookmarks/sync` with an empty `id` list (the API returns all bookmarks when
+  `id` is omitted — enforce this guard client-side)
+- `resource_prefix` should stay relative (`.`) so stored HTML can resolve against a local
+  per-bookmark base URL without fragile post-processing
 - `with_markdown` remains `false` in this phase
+
+### Batch Size Limits
+
+To keep memory usage and response sizes manageable on mobile:
+
+- **Metadata-only requests**: batch up to 50 IDs per request (JSON-only responses are small)
+- **Content-package requests**: batch up to 10 IDs per request (responses include HTML and image
+  binary data that can be several MB per bookmark)
+
+These limits should be constants that are easy to tune after real-world observation.
+
+## Multipart Client Architecture
+
+### The core technical challenge
+
+Retrofit cannot deserialize `multipart/mixed` responses natively. The `POST /bookmarks/sync`
+endpoint returns a binary stream with MIME boundaries, not structured JSON. This requires a
+purpose-built streaming parser.
+
+### Retrofit interface
+
+Add a new method to `ReadeckApi` that returns the raw response body:
+
+```kotlin
+@POST("bookmarks/sync")
+suspend fun syncBookmarks(
+    @Body request: SyncRequest
+): Response<ResponseBody>
+```
+
+Where `SyncRequest` is a serializable data class matching the request profiles above.
+
+The raw `ResponseBody` is consumed through OkHttp's Okio `BufferedSource` for streaming parsing.
+
+### Streaming multipart parser
+
+Build a dedicated `MultipartSyncParser` that:
+
+1. Reads the `Content-Type` response header to extract the MIME boundary string
+2. Streams through the response body using the Okio `BufferedSource`
+3. For each part between boundaries:
+   a. Parses part headers (`Bookmark-Id`, `Type`, `Path`, `Group`, `Content-Type`,
+      `Content-Length`, `Filename`)
+   b. Routes the part body based on `Type`:
+      - `json` → deserialize into `BookmarkDto` using the existing kotlinx.serialization model
+      - `html` → read as UTF-8 string
+      - `resource` → stream directly to a temporary file on disk (do not buffer in memory)
+      - unknown types → skip and log a warning
+4. Groups parsed parts by `Bookmark-Id` into per-bookmark assembled results
+
+### Memory safety
+
+The parser must stream resource parts directly to disk rather than buffering them in memory. For a
+batch of 10 bookmarks, resource data could total 10+ MB. The parser should hold at most one part's
+headers plus a small read buffer in memory at any time.
+
+### Per-bookmark assembly model
+
+After parsing, each bookmark's results are represented as:
+
+```
+BookmarkSyncPackage:
+  - bookmarkId: String
+  - json: BookmarkDto?
+  - html: String?
+  - resources: List<ResourcePart>
+  - parseWarnings: List<String>
+
+ResourcePart:
+  - path: String          (from Path header)
+  - filename: String      (from Filename header)
+  - mimeType: String      (from Content-Type header)
+  - group: String?        (from Group header: icon/image/thumbnail/embedded)
+  - tempFile: File        (staged temp file on disk)
+  - byteSize: Long
+```
+
+### Error handling in the parser
+
+The parser must handle gracefully:
+
+- Partial/truncated streams (connection dropped mid-response)
+- Malformed MIME boundaries
+- Missing `Bookmark-Id` headers on a part (skip the part)
+- Parts with unknown or unsupported `Type` values (skip and log)
+- Resource parts with missing or unusable `Path` headers (skip and log)
+- JSON deserialization failures for individual bookmarks (skip that bookmark, continue parsing)
+
+On any per-part failure, the parser should continue processing remaining parts. Only a stream-level
+failure (broken connection, invalid boundary) should abort the entire parse.
 
 ## Target Retrieval Architecture
 
 ### 1. One sync-stream client
 
-Add a shared sync-stream client responsible for:
+Add a shared `MultipartSyncClient` responsible for:
 
-1. calling `POST /bookmarks/sync`
-2. parsing the `multipart/mixed` response stream safely
-3. grouping parts by `Bookmark-Id`
-4. producing per-bookmark package results that may contain:
-   - JSON metadata
-   - HTML content
-   - zero or more resource files
+1. Calling `POST /bookmarks/sync` with the appropriate request profile
+2. Invoking the streaming parser
+3. Producing a list of `BookmarkSyncPackage` results
 
 This client becomes the shared retrieval foundation for:
 
@@ -253,44 +342,33 @@ This client becomes the shared retrieval foundation for:
 - automatic background content sync
 - date-range content sync
 
-### 2. One per-bookmark assembly model
-
-Represent multipart results internally as a per-bookmark assembled payload, for example:
-
-- bookmark JSON metadata
-- optional HTML body
-- optional resource list
-- parse warnings / completeness flags
-
-The app should not persist raw stream fragments directly as they arrive. It should first assemble a
-per-bookmark result, validate that the minimum required parts are present, and then commit a single
-bookmark update transaction.
-
-### 3. Metadata sync migration
+### 2. Metadata sync migration
 
 Replace incremental metadata reloads based on paginated `GET /bookmarks?updated_since=` with:
 
 1. `GET /bookmarks/sync?since=` to obtain changed IDs and deletes
-2. batched `POST /bookmarks/sync` with `with_json = true`
+2. Batched `POST /bookmarks/sync` with `with_json = true` (metadata-only profile)
 
-This makes the sync API the primary retrieval model for both metadata and content in `v0.12.0`.
+This replaces `LoadBookmarksUseCase`'s current paginated fetch loop. The delta detection response
+already provides the exact set of changed IDs, so pagination headers are no longer needed.
 
-The old paginated list endpoint should remain available only as a temporary rollback path during
-initial stabilization, not as a co-equal long-term architecture.
+The old paginated list endpoint should remain available only as a temporary fallback during initial
+stabilization.
 
-### 4. Content sync migration
+### 3. Content sync migration
 
-Replace normal content retrieval based on `GET /bookmarks/{id}/article` with multipart package
-requests.
+Replace content retrieval based on `GET /bookmarks/{id}/article` with multipart package requests
+(content-package profile).
 
 Use the same transport for:
 
-- **on-demand content sync**
-  - single bookmark ID
-- **automatic background content sync**
-  - batched eligible bookmark IDs
-- **date-range content sync**
-  - batched eligible bookmark IDs selected from the chosen date range
+- **On-demand content sync** — single bookmark ID, triggered from detail view
+- **Automatic background content sync** — batched eligible bookmark IDs after metadata sync
+- **Date-range content sync** — batched eligible bookmark IDs selected from the chosen date range
+
+This replaces `LoadArticleUseCase`'s current per-bookmark `getArticle()` call and its
+`resolveOmitDescription()` side-request, since both JSON metadata (including `omit_description`)
+and HTML content arrive in the same multipart response.
 
 ## Offline Package Semantics by Bookmark Type
 
@@ -344,70 +422,114 @@ attempting to make video playback offline.
 
 ## Local Storage Model
 
-## Keep the deferred-content model, but extend it into a package model
+### Clean-break migration
 
-Do not collapse everything into the `bookmarks` table.
+Because both current users perform fresh installs across releases, `v0.12.0` treats local content
+storage as a clean break:
 
-Instead:
+- No backward-compatible migration from `v0.11.1` content tables
+- No dual-path code for "legacy HTML-only cache" alongside "full package cache"
+- The Room schema migration should be destructive for content tables — drop and recreate
+- Bookmark metadata migration should remain non-destructive (metadata is cheap to re-sync but
+  preserving it avoids an unnecessary full reload)
+- After upgrade, the app auto-triggers a metadata sync followed by content sync to repopulate
 
-- keep bookmark metadata in `bookmarks`
-- keep the reader entry document in `article_content` for backward compatibility and minimal UI
-  churn
-- add explicit package/resource persistence for offline assets
+### Schema changes
 
-### New persisted concepts
+#### Drop `article_content` table
 
-Add a package manifest model per bookmark, persisted in Room, containing at least:
+The existing `ArticleContentEntity` table (bookmarkId → content string) is replaced by the package
+model. The entry HTML document moves into the package storage.
 
-- `bookmarkId`
-- package kind (`ARTICLE`, `PICTURE`, `VIDEO`, or equivalent capability marker)
-- whether HTML is present
-- whether resources are present
-- source bookmark `updated` timestamp or package revision marker
-- last successful package refresh timestamp
-- local base directory or package identifier
+#### New: `content_package` table
 
-Add a resource index model, persisted in Room, containing at least:
+Per-bookmark package manifest, persisted in Room:
 
-- `bookmarkId`
-- logical `Path` from the multipart part header
-- MIME type
-- group/category when present
-- local relative file path
-- byte size
+| Column | Type | Description |
+|--------|------|-------------|
+| `bookmarkId` | TEXT PK | FK to bookmarks |
+| `packageKind` | TEXT | `ARTICLE`, `PICTURE`, or `VIDEO` |
+| `hasHtml` | INTEGER | whether HTML entry document is present |
+| `hasResources` | INTEGER | whether resource files are present |
+| `sourceUpdated` | TEXT | bookmark `updated` timestamp at time of package download |
+| `lastRefreshed` | INTEGER | epoch millis of last successful package refresh |
+| `localBasePath` | TEXT | relative path under app-private storage |
 
-Persist resource bytes on disk under app-private storage, for example beneath:
+#### New: `content_resource` table
 
-- `files/offline_content/<bookmarkId>/...`
+Per-resource index, persisted in Room:
 
-The stored on-disk structure should preserve the server-provided logical paths so relative
-references inside HTML continue to resolve predictably.
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | INTEGER PK | auto-increment |
+| `bookmarkId` | TEXT | FK to bookmarks |
+| `path` | TEXT | logical path from multipart `Path` header |
+| `mimeType` | TEXT | from `Content-Type` header |
+| `group` | TEXT | `icon`, `image`, `thumbnail`, `embedded`, or null |
+| `localRelativePath` | TEXT | relative file path under package directory |
+| `byteSize` | INTEGER | file size in bytes |
 
-### Why keep `article_content`
+#### File storage layout
 
-Keeping `article_content` as the stored entry document avoids unnecessary reader churn:
+Persist resource bytes on disk under app-private storage:
 
-- the current detail UI already knows how to render stored HTML through the existing template path
-- migration from text-only article cache to package-backed cache becomes incremental
-- picture bookmarks can use the same entry-document concept by storing a generated wrapper HTML
-  when needed
+```
+files/offline_content/<bookmarkId>/index.html
+files/offline_content/<bookmarkId>/image.jpeg
+files/offline_content/<bookmarkId>/Wj66qLatSeikPc31FwvqyS.jpg
+files/offline_content/<bookmarkId>/...
+```
+
+The stored on-disk structure preserves the server-provided logical paths so relative references
+inside HTML resolve predictably against a per-bookmark base URL.
+
+### Content state semantics
+
+The existing `contentState` values are reinterpreted as **offline reader package state**:
+
+#### Article / Picture
+
+- `NOT_ATTEMPTED` = no offline package requested yet
+- `DOWNLOADED` = complete offline reader package is present locally (HTML + resources)
+- `DIRTY` = package refresh is needed or last refresh failed transiently
+- `PERMANENT_NO_CONTENT` = the server does not provide a usable offline-capable package
+
+#### Video
+
+- Do not use `DOWNLOADED` to imply offline playback capability
+- Avoid marking video bookmarks as content-downloaded simply because metadata or embed HTML exists
+- Keep fallback behavior explicit so the UI does not promise offline video playback
 
 ## Reader Rendering Strategy
 
 ### Articles and Pictures must load with a local base URL
 
-For offline-capable bookmarks, stop loading article HTML with `baseUrl = null`.
+For offline-capable bookmarks with a downloaded package, stop loading article HTML with
+`baseUrl = null` (the current behavior in `BookmarkDetailWebViews.kt`).
 
 Instead:
 
-- load the stored HTML entry document through the existing template path
-- set `loadDataWithBaseURL()` to a stable per-bookmark local base URL
-- serve package resources through `WebViewAssetLoader` or an equivalent local resource handler
+- Load the stored HTML entry document through the existing template path
+- Set `loadDataWithBaseURL()` to a stable per-bookmark local base URL
+- Serve package resources through `WebViewAssetLoader` with a custom `PathHandler` that maps
+  resource requests to files under `files/offline_content/<bookmarkId>/`
 
 The key invariant is:
 
-- relative image/resource paths in stored HTML must resolve to local package files, not to the
-  network
+- Relative image/resource paths in stored HTML (e.g., `image.jpeg`,
+  `Wj66qLatSeikPc31FwvqyS.jpg`) must resolve to local package files, not to the network
+
+### WebViewAssetLoader integration
+
+Use `WebViewAssetLoader.Builder()` with a `PathHandler` registered for a synthetic per-bookmark
+domain, for example:
+
+- Base URL: `https://offline.mydeck.local/<bookmarkId>/`
+- Path handler serves files from `files/offline_content/<bookmarkId>/`
+
+The `shouldInterceptRequest` override in the WebViewClient intercepts resource loads and serves
+them from local storage. For bookmarks without a downloaded package, fall through to default
+network loading (preserving current behavior).
 
 ### Picture wrapper rendering
 
@@ -416,16 +538,25 @@ exactly the same reader pipeline as articles.
 
 That wrapper should:
 
-- reference the locally stored primary image
-- preserve description/caption text when useful
-- avoid introducing a separate rendering system for pictures if the existing WebView-based reader
-  can already serve the need
+- Reference the locally stored primary image using its relative path
+- Preserve description/caption text when useful
+- Use the same template/theming system as article content
+- Avoid introducing a separate rendering system for pictures
+
+### Fallback for non-package bookmarks
+
+When a bookmark does not have a local package (e.g., content not yet downloaded, or video type):
+
+- Continue using the current rendering behavior (network-loaded content, `baseUrl = null` for
+  articles, embed HTML for videos)
+- The transition should be transparent — the reader checks for a local package and falls back
+  gracefully
 
 ## `omit_description` Strategy
 
-## Authoritative source
+### Authoritative source
 
-In `v0.12.0`, `omit_description` should come from the multipart `Type: json` payload.
+In `v0.12.0`, `omit_description` comes from the multipart `Type: json` payload.
 
 That makes the JSON sync payload the single authoritative source for:
 
@@ -433,52 +564,81 @@ That makes the JSON sync payload the single authoritative source for:
 - `omit_description`
 - other bookmark-detail fields included in the sync JSON variant
 
-## Resulting architecture change
+### Resulting architecture change
 
 After multipart JSON adoption is stable:
 
-- remove the special `GET /bookmarks/{id}` detail-enrichment request from the normal content path
-- stop treating `omitDescription` as something that must be opportunistically backfilled only
+- Remove the special `GET /bookmarks/{id}` detail-enrichment request
+  (`resolveOmitDescription()` in `LoadArticleUseCase`)
+- Stop treating `omitDescription` as something that must be opportunistically backfilled only
   during article refresh
-- let both metadata sync and content sync refresh it whenever the bookmark appears in a sync batch
+- Let both metadata sync and content sync refresh it whenever the bookmark appears in a sync batch
 
-## UI rule remains the same
+### UI rule remains the same
 
 Keep the same conservative UI behavior:
 
-- hide the standalone description block only when:
+- Hide the standalone description block only when:
   - `omitDescription == true`
   - bookmark type is article
   - article HTML is present
-- keep description visible otherwise
-- keep photo/video fallback descriptions visible when they are still the only useful summary text
-- never delete or blank the raw description based on `omitDescription`
+- Keep description visible otherwise
+- Keep photo/video fallback descriptions visible when they are still the only useful summary text
+- Never delete or blank the raw description based on `omitDescription`
 
-## Content State Semantics
+## Network Efficiency
 
-The existing `contentState` values should be reinterpreted as **offline reader package state** for
-bookmarks that support offline packages.
+### Skip redundant content re-downloads
 
-### Article / Picture
+The primary mechanism for avoiding redundant downloads:
 
-For Articles and Pictures:
+1. Delta detection (`GET /bookmarks/sync?since=`) returns only bookmarks whose `updated` timestamp
+   has advanced since the last sync cursor
+2. Before requesting a content package for a bookmark, compare the server's `updated` timestamp
+   (from the delta detection response or the metadata sync JSON) against the `sourceUpdated` field
+   in the local `content_package` manifest
+3. If `sourceUpdated` matches or is newer than the server's `updated`, skip the content request
+   for that bookmark
 
-- `NOT_ATTEMPTED` = no offline package requested yet
-- `DOWNLOADED` = complete offline reader package is present locally
-- `DIRTY` = package refresh is needed or last refresh failed transiently
-- `PERMANENT_NO_CONTENT` = the server does not provide a usable offline-capable package for this
-  bookmark
+This avoids re-downloading multi-megabyte resource packages for bookmarks that haven't changed.
 
-### Video
+### Annotation-driven refresh
 
-For Videos:
+The current `refreshCachedArticleIfAnnotationsChanged` flow in `LoadArticleUseCase` re-fetches
+article HTML when annotations change. In `v0.12.0`, this should request a content package (HTML +
+resources) through the multipart transport rather than calling `GET /bookmarks/{id}/article`
+directly.
 
-- do not use `DOWNLOADED` to imply offline playback capability
-- avoid marking video bookmarks as content-downloaded simply because metadata or embed HTML exists
-- keep fallback behavior explicit so the UI does not promise offline video playback
+Since annotation changes don't necessarily advance the bookmark's `updated` timestamp, this flow
+should bypass the `sourceUpdated` freshness check and always request the package when annotation
+state indicates a refresh is needed.
 
-If the existing enum names become too misleading in implementation, introduce a follow-up rename or
-capability flag rather than overloading article-centric assumptions further.
+## Storage Management
+
+### Visibility
+
+Add a "Storage used" display in Sync Settings showing total size of downloaded offline content.
+Computed by summing file sizes under `files/offline_content/`.
+
+### Cleanup
+
+Provide a "Clear all offline content" action in Sync Settings that:
+
+1. Deletes all files under `files/offline_content/`
+2. Clears all rows from `content_package` and `content_resource` tables
+3. Resets `contentState` to `NOT_ATTEMPTED` for all bookmarks
+4. Shows a confirmation dialog before proceeding
+
+### Natural limits
+
+The existing user controls already limit accumulation:
+
+- On-demand download: user explicitly chooses which bookmarks to download
+- Automatic sync: only downloads content for bookmarks that appear in normal sync batches
+- Date-range sync: user selects a specific date window
+
+For reference, ~1800 content-bearing bookmarks with full image resources totals approximately
+1.6 GB, which is modest for modern mobile devices (128–256 GB typical storage).
 
 ## Atomicity and Failure Handling
 
@@ -488,124 +648,131 @@ Multipart ingestion introduces new failure modes and must be designed defensivel
 
 For a bookmark package refresh:
 
-- parse and stage new parts first
-- write resources into a temporary location
-- validate required parts for that bookmark type
-- swap the new package into place only after the assembled result is complete enough to use
+1. Parse and stage new parts into a temporary directory
+   (`files/offline_content/<bookmarkId>_staging/`)
+2. Write resources to the staging directory as they stream in
+3. Validate required parts for that bookmark type:
+   - Article: JSON required, HTML required, resources optional but expected
+   - Picture: JSON required, at least one `image`-group resource required
+4. In a single Room transaction:
+   a. Update bookmark metadata from JSON
+   b. Upsert `content_package` manifest
+   c. Replace `content_resource` rows
+   d. Update `contentState` to `DOWNLOADED`
+5. Atomically move the staging directory to the final location (rename, not copy)
+6. Delete the old directory only after the new one is in place
 
 Do not delete the old working package before the new one is fully committed.
 
-### Safe handling requirements
+### Failure recovery
 
-The client must fail safely for at least:
+On any failure during package ingestion for a specific bookmark:
 
-- partial streams
-- malformed MIME boundaries
-- missing `Bookmark-Id` headers
-- parts with unknown or unsupported `Type`
-- json/html/resource mismatches for the same bookmark
-- a resource part whose `Path` is missing or unusable
+- Delete the staging directory for that bookmark
+- Preserve the last known good local package (if any)
+- Mark `contentState` as `DIRTY` with a failure reason
+- Continue processing remaining bookmarks in the batch
 
-The correct default on failure is to preserve the last known good local package and mark the
-bookmark/package as needing retry rather than leaving it half-updated.
+On stream-level failure (connection dropped, invalid boundary):
 
-## Migration Plan
-
-### Database and file migration
-
-`v0.12.0` requires schema work for package manifests and resource indexes.
-
-Migration rules:
-
-- keep existing `omitDescription` persistence intact
-- keep existing `article_content` rows intact
-- add new package/resource persistence alongside them
-
-### Backfill behavior
-
-Existing users may already have:
-
-- bookmark metadata
-- stored HTML in `article_content`
-- no resource package on disk
-
-After upgrade:
-
-- existing cached HTML remains usable as a legacy text-first cache
-- the first multipart content refresh for a bookmark upgrades it into a full local package
-- no destructive migration should discard old readable content just because resources are not yet
-  present
+- Any fully-assembled bookmarks processed before the failure should be committed
+- Remaining bookmarks should be marked `DIRTY` for retry
 
 ## Rollout Strategy
 
-Implement `v0.12.0` in stages, but treat this document as one architectural destination.
+Implement `v0.12.0` in stages, treating this document as one architectural destination.
 
-### Stage 1: infrastructure and metadata
+### Stage 1: Multipart client and metadata migration
 
-- land the multipart client and parser
-- migrate metadata reloads to `POST /bookmarks/sync` with `with_json = true`
-- keep the old paginated metadata path as a short-lived rollback switch while the new path is
+- Land the `MultipartSyncParser` and `MultipartSyncClient`
+- Add the `SyncRequest` model and `syncBookmarks()` Retrofit method
+- Add Room schema migration (version 11): drop `article_content`, add `content_package` and
+  `content_resource` tables
+- Migrate metadata reloads to `POST /bookmarks/sync` with `with_json = true`
+- Keep the old paginated metadata path as a short-lived fallback switch while the new path is
   validated
+- Unit test the parser thoroughly against real and synthetic multipart responses
 
-### Stage 2: on-demand package sync
+### Stage 2: On-demand content packages
 
-- adopt multipart package downloads for single-bookmark Article/Picture requests
-- serve local resources in the reader
-- verify that offline article inline images and picture detail now work reliably
+- Adopt multipart package downloads for single-bookmark Article/Picture requests
+- Implement per-bookmark file storage and staging
+- Implement `WebViewAssetLoader` integration for local resource serving
+- Update `loadDataWithBaseURL()` to use per-bookmark local base URLs
+- Implement picture wrapper HTML generation
+- Verify that offline article inline images and picture detail now work reliably
 
-### Stage 3: automatic and date-range package sync
+### Stage 3: Automatic and date-range content packages
 
-- move `BatchArticleLoadWorker` and `DateRangeContentSyncWorker` onto the shared multipart package
-  transport
-- limit background content batches to Article/Picture bookmarks eligible for offline packages
+- Move `BatchArticleLoadWorker` and `DateRangeContentSyncWorker` onto the shared multipart
+  package transport
+- Update DAO queries to include Picture bookmarks in content-eligible queries (currently
+  `hasArticle = 1` only)
+- Limit background content batches to Article/Picture bookmarks eligible for offline packages
+- Implement `sourceUpdated` freshness check to skip redundant re-downloads
+- Add storage usage display and "Clear all offline content" to Sync Settings
 
-### Stage 4: remove stopgap content/detail fetches
+### Stage 4: Remove legacy content/detail fetches
 
 Once multipart sync is proven stable:
 
-- stop using `GET /bookmarks/{id}/article` in normal content sync flows
-- stop using ad-hoc `GET /bookmarks/{id}` detail enrichment for `omit_description`
-- keep legacy code only as explicit fallback/rollback machinery if still justified
+- Remove `GET /bookmarks/{id}/article` usage from content sync flows
+- Remove `resolveOmitDescription()` and its `GET /bookmarks/{id}` detail-enrichment request
+- Remove the old paginated `GET /bookmarks?updated_since=` metadata reload path
+- Clean up any remaining fallback/rollback machinery
 
 ## Testing Requirements
 
-Implementation should include at least:
-
 ### Parser and transport tests
 
-- multipart parser grouping by `Bookmark-Id`
-- mixed `json` / `html` / `resource` assembly
-- malformed-stream failure behavior
-- unknown part handling
-- empty-batch guard coverage
+- Multipart boundary extraction from Content-Type header
+- Parser grouping by `Bookmark-Id` across interleaved parts
+- Mixed `json` / `html` / `resource` assembly into `BookmarkSyncPackage`
+- Streaming resource parts to disk without memory buffering
+- Malformed-stream failure behavior (truncated stream, bad boundary)
+- Unknown `Type` values are skipped gracefully
+- Missing `Bookmark-Id` on a part is skipped gracefully
+- Empty `id` list guard prevents calling `POST /bookmarks/sync`
+- Batch size chunking for both metadata-only and content-package profiles
 
 ### Persistence tests
 
-- metadata-only multipart writes preserving local pending-action merge rules
-- package-manifest persistence
-- resource-index persistence
-- upgrade from legacy HTML-only cache to full package cache
-- per-bookmark atomic replace behavior preserving last known good package on failure
+- Metadata-only multipart writes preserving local pending-action merge rules
+- Package manifest (`content_package`) persistence and update
+- Resource index (`content_resource`) persistence and update
+- Per-bookmark atomic replace: staging → commit → old directory cleanup
+- Per-bookmark atomic replace: failure preserves last known good package
+- `contentState` transitions: `NOT_ATTEMPTED` → `DOWNLOADED`, failure → `DIRTY`
 
 ### Reader tests
 
-- article reader rendering with local base URL and offline inline images
-- picture reader rendering with generated wrapper HTML when server HTML is absent
-- video fallback behavior remaining honest about online-only playback
+- Article reader rendering with local base URL and offline inline images via `WebViewAssetLoader`
+- Picture reader rendering with generated wrapper HTML when server HTML is absent
+- Picture reader rendering with server-provided HTML when present
+- Video fallback behavior remaining honest about online-only playback
 - `omitDescription` UI suppression behavior driven from multipart JSON payloads
+- Fallback to network rendering when no local package exists
 
 ### Worker/use-case tests
 
-- on-demand content sync using multipart transport
-- automatic background content sync batching eligible Article/Picture bookmarks
-- date-range content sync batching eligible Article/Picture bookmarks
-- retry/failure state transitions for partial package failures
+- On-demand content sync using multipart transport (single bookmark)
+- Automatic background content sync batching eligible Article/Picture bookmarks
+- Date-range content sync batching eligible Article/Picture bookmarks
+- `sourceUpdated` freshness check skipping redundant content downloads
+- Retry/failure state transitions for partial package failures
+- Annotation-driven content refresh through multipart transport
+
+### Storage management tests
+
+- Storage usage calculation
+- "Clear all offline content" cleans files, tables, and resets content state
+- Confirmation dialog before clearing
 
 ### Migration tests
 
-- Room migration for package tables/indexes
-- preservation of existing `article_content`
-- preservation of existing `omitDescription`
+- Room migration from version 10 → 11 (drop `article_content`, add new tables)
+- Bookmark metadata preserved across migration
+- Content state reset to `NOT_ATTEMPTED` after migration
 
 ## Interactive Validation
 
@@ -634,20 +801,30 @@ Implementation should include at least:
    - Expected result: description suppression behavior persists without requiring an extra detail
      fetch.
 
-6. **Legacy cached content is preserved across upgrade.**
-   - Upgrade an install that already contains stored `article_content` but no package resources.
-   - Expected result: the bookmark remains readable immediately after upgrade, then gains full
-     offline resource fidelity after the next multipart content refresh.
+6. **Content re-download is skipped for unchanged bookmarks.**
+   - Download content for a bookmark. Trigger another sync where the bookmark has not changed.
+   - Expected result: no content package is re-requested (observable via network logging).
+
+7. **Storage management works.**
+   - Download content for several bookmarks. Navigate to Sync Settings.
+   - Expected result: storage usage is displayed. "Clear all offline content" removes all
+     downloaded content and resets content state.
+
+8. **Annotation refresh triggers package re-download.**
+   - Add or modify an annotation on a downloaded article.
+   - Expected result: article HTML is refreshed via multipart transport, not via legacy
+     `GET /bookmarks/{id}/article`.
 
 ## Decision Summary
 
-`v0.11.1` should ship the current stabilization work.
+`v0.12.0` adopts the sync API multipart transport as the primary retrieval architecture, including
+metadata JSON, HTML entry documents, and local resource packages for offline-capable Article and
+Picture bookmarks.
 
-`v0.12.0` should adopt the sync API multipart transport as the primary retrieval architecture,
-including metadata JSON, HTML entry documents, and local resource packages for offline-capable
-Article and Picture bookmarks.
+This is a clean-break release for content storage — no backward-compatible migration from
+`v0.11.1` content tables.
 
 This solves both strategic issues at once:
 
-- full offline reading for Articles and Pictures
+- full offline reading for Articles and Pictures (text + images)
 - a durable, transport-native solution for `omit_description`

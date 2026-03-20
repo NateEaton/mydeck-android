@@ -91,6 +91,7 @@ interface BookmarkRepository {
         data class Success(
             val countDeleted: Int,
             val countUpdated: Int = 0,
+            val updatedIds: List<String> = emptyList(),
             val maxServerTime: kotlinx.datetime.Instant? = null
         ): SyncResult()
         data class Error(val errorMessage: String, val code: Int? = null, val ex: Exception? = null): SyncResult()

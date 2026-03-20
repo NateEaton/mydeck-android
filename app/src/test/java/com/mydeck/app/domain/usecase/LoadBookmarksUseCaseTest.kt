@@ -7,6 +7,7 @@ import com.mydeck.app.domain.sync.ContentSyncPolicyEvaluator
 import com.mydeck.app.io.prefs.SettingsDataStore
 import com.mydeck.app.io.rest.ReadeckApi
 import com.mydeck.app.io.rest.model.BookmarkDto
+import com.mydeck.app.io.rest.sync.MultipartSyncClient
 import com.mydeck.app.io.rest.model.ImageResource
 import com.mydeck.app.io.rest.model.Resource
 import com.mydeck.app.io.rest.model.Resources
@@ -25,6 +26,7 @@ class LoadBookmarksUseCaseTest {
 
     private lateinit var bookmarkRepository: BookmarkRepository
     private lateinit var readeckApi: ReadeckApi
+    private lateinit var multipartSyncClient: MultipartSyncClient
     private lateinit var settingsDataStore: SettingsDataStore
     private lateinit var policyEvaluator: ContentSyncPolicyEvaluator
     private lateinit var workManager: WorkManager
@@ -34,6 +36,7 @@ class LoadBookmarksUseCaseTest {
     fun setUp() {
         bookmarkRepository = mockk(relaxed = true)
         readeckApi = mockk()
+        multipartSyncClient = mockk(relaxed = true)
         settingsDataStore = mockk(relaxed = true)
         policyEvaluator = mockk(relaxed = true)
         workManager = mockk(relaxed = true)
@@ -41,6 +44,7 @@ class LoadBookmarksUseCaseTest {
         loadBookmarksUseCase = LoadBookmarksUseCase(
             bookmarkRepository,
             readeckApi,
+            multipartSyncClient,
             settingsDataStore,
             policyEvaluator,
             workManager
@@ -68,7 +72,7 @@ class LoadBookmarksUseCaseTest {
         coEvery { settingsDataStore.getLastBookmarkTimestamp() } returns null
 
         // Execute the use case
-        val result = loadBookmarksUseCase.execute(10, 0)
+        val result = loadBookmarksUseCase.execute(updatedIds = null, pageSize = 10, initialOffset = 0)
 
         println("result=$result")
         // Verify the result
@@ -83,7 +87,7 @@ class LoadBookmarksUseCaseTest {
         coEvery { readeckApi.getBookmarks(any(), any(), any(), any(), any()) } returns response
 
         // Execute the use case
-        val result = loadBookmarksUseCase.execute(10, 0)
+        val result = loadBookmarksUseCase.execute(updatedIds = null, pageSize = 10, initialOffset = 0)
 
         // Verify the result
         assertTrue(result is LoadBookmarksUseCase.UseCaseResult.Error)
@@ -104,7 +108,7 @@ class LoadBookmarksUseCaseTest {
         } throws RuntimeException("Test Exception")
 
         // Execute the use case
-        val result = loadBookmarksUseCase.execute(10, 0)
+        val result = loadBookmarksUseCase.execute(updatedIds = null, pageSize = 10, initialOffset = 0)
 
         // Verify the result
         assertTrue(result is LoadBookmarksUseCase.UseCaseResult.Error)
@@ -131,7 +135,7 @@ class LoadBookmarksUseCaseTest {
         coEvery { settingsDataStore.getLastBookmarkTimestamp() } returns null
 
         // Execute the use case
-        loadBookmarksUseCase.execute(10, 0)
+        loadBookmarksUseCase.execute(updatedIds = null, pageSize = 10, initialOffset = 0)
 
         // Verify that the timestamp is saved
         coVerify {
@@ -160,7 +164,7 @@ class LoadBookmarksUseCaseTest {
         coEvery { readeckApi.getBookmarks(any(), any(), any(), any(), any()) } returns response
         coEvery { settingsDataStore.getLastBookmarkTimestamp() } returns storedCursor
 
-        loadBookmarksUseCase.execute(10, 0)
+        loadBookmarksUseCase.execute(updatedIds = null, pageSize = 10, initialOffset = 0)
 
         coVerify {
             readeckApi.getBookmarks(
