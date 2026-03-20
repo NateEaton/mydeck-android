@@ -19,6 +19,7 @@ import androidx.work.WorkManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import com.mydeck.app.R
+import com.mydeck.app.domain.content.ContentPackageManager
 import com.mydeck.app.domain.model.AutoSyncTimeframe
 import com.mydeck.app.domain.sync.ContentSyncMode
 import com.mydeck.app.domain.sync.DateRangeParams
@@ -52,6 +53,7 @@ class SyncSettingsViewModel @Inject constructor(
     private val bookmarkDao: BookmarkDao,
     private val settingsDataStore: SettingsDataStore,
     private val fullSyncUseCase: FullSyncUseCase,
+    private val contentPackageManager: ContentPackageManager,
     private val workManager: WorkManager,
     @ApplicationContext private val context: Context,
 ) : ViewModel() {
@@ -84,6 +86,9 @@ class SyncSettingsViewModel @Inject constructor(
     private var constraintBlockingDownload: String? = null  // Description of which constraint is blocking
     private var blockedByWifiConstraint = false  // Whether wifi constraint would block
     private var blockedByBatterySaverConstraint = false  // Whether battery saver constraint would block
+
+    // Storage
+    private val offlineStorageSize = MutableStateFlow<String?>(null)
 
     // Last sync timestamps
     private val lastSyncTimestamp = MutableStateFlow<String?>(null)
@@ -135,6 +140,9 @@ class SyncSettingsViewModel @Inject constructor(
             settingsDataStore.getLastContentSyncTimestamp()?.let {
                 lastContentSyncTimestamp.value = dateFormat.format(Date(it.toEpochMilliseconds()))
             }
+
+            // Calculate storage usage
+            refreshStorageSize()
 
             // Perform settings migration for existing users
             performSettingsMigration()
@@ -238,6 +246,8 @@ class SyncSettingsViewModel @Inject constructor(
         state.copy(syncStatus = state.syncStatus.copy(lastBookmarkSyncTimestamp = ts))
     }.combine(lastContentSyncTimestamp) { state, ts ->
         state.copy(syncStatus = state.syncStatus.copy(lastContentSyncTimestamp = ts))
+    }.combine(offlineStorageSize) { state, size ->
+        state.copy(syncStatus = state.syncStatus.copy(offlineStorageSize = size))
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
@@ -467,6 +477,35 @@ class SyncSettingsViewModel @Inject constructor(
         }
     }
 
+    // --- Storage ---
+
+    fun onClickClearOfflineContent() {
+        showDialog.value = SyncSettingsDialog.ClearOfflineContentDialog
+    }
+
+    fun onConfirmClearOfflineContent() {
+        showDialog.value = null
+        viewModelScope.launch {
+            contentPackageManager.deleteAllContent()
+            refreshStorageSize()
+            Timber.i("All offline content cleared by user")
+        }
+    }
+
+    private fun refreshStorageSize() {
+        val bytes = contentPackageManager.calculateTotalSize()
+        offlineStorageSize.value = formatFileSize(bytes)
+    }
+
+    private fun formatFileSize(bytes: Long): String {
+        return when {
+            bytes < 1024 -> "$bytes B"
+            bytes < 1024 * 1024 -> "%.1f KB".format(bytes / 1024.0)
+            bytes < 1024 * 1024 * 1024 -> "%.1f MB".format(bytes / (1024.0 * 1024))
+            else -> "%.2f GB".format(bytes / (1024.0 * 1024 * 1024))
+        }
+    }
+
     // --- Constraints ---
 
     fun onWifiOnlyChanged(enabled: Boolean) {
@@ -577,7 +616,8 @@ data class SyncStatus(
     val contentDirty: Int = 0,
     val permanentNoContent: Int = 0,
     val lastBookmarkSyncTimestamp: String? = null,
-    val lastContentSyncTimestamp: String? = null
+    val lastContentSyncTimestamp: String? = null,
+    val offlineStorageSize: String? = null
 )
 
 enum class SyncSettingsDialog {
@@ -586,7 +626,8 @@ enum class SyncSettingsDialog {
     PermissionRequest,
     DateFromPicker,
     DateToPicker,
-    ConstraintOverrideDialog
+    ConstraintOverrideDialog,
+    ClearOfflineContentDialog
 }
 
 data class AutoSyncTimeframeOption(

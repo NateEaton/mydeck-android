@@ -115,6 +115,12 @@ fun SyncSettingsScreen(
                 onCancel = { viewModel.onConstraintOverrideCancelled() }
             )
         }
+        SyncSettingsDialog.ClearOfflineContentDialog -> {
+            ClearOfflineContentConfirmDialog(
+                onConfirm = { viewModel.onConfirmClearOfflineContent() },
+                onCancel = { viewModel.onDismissDialog() }
+            )
+        }
         null -> { /* noop */ }
     }
 
@@ -130,7 +136,8 @@ fun SyncSettingsScreen(
         onClickDateTo = { viewModel.onShowDialog(SyncSettingsDialog.DateToPicker) },
         onClickDateRangeDownload = { viewModel.onClickDateRangeDownload() },
         onWifiOnlyChanged = { viewModel.onWifiOnlyChanged(it) },
-        onAllowBatterySaverChanged = { viewModel.onAllowBatterySaverChanged(it) }
+        onAllowBatterySaverChanged = { viewModel.onAllowBatterySaverChanged(it) },
+        onClickClearOfflineContent = { viewModel.onClickClearOfflineContent() }
     )
 }
 
@@ -150,6 +157,7 @@ fun SyncSettingsView(
     onClickDateRangeDownload: () -> Unit,
     onWifiOnlyChanged: (Boolean) -> Unit,
     onAllowBatterySaverChanged: (Boolean) -> Unit,
+    onClickClearOfflineContent: () -> Unit = {},
 ) {
     Scaffold(
         modifier = modifier,
@@ -254,6 +262,19 @@ fun SyncSettingsView(
             )
 
             SyncStatusSection(syncStatus = settingsUiState.syncStatus)
+
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+
+            // --- Section 4: Storage ---
+            Text(
+                text = stringResource(R.string.sync_storage_heading),
+                style = MaterialTheme.typography.titleMedium
+            )
+
+            StorageSection(
+                offlineStorageSize = settingsUiState.syncStatus.offlineStorageSize,
+                onClickClearOfflineContent = onClickClearOfflineContent
+            )
 
             Spacer(modifier = Modifier.height(48.dp))
         }
@@ -626,6 +647,53 @@ private fun SyncStatusSection(syncStatus: SyncStatus) {
                 )
             }
     }
+}
+
+// --- Section 5: Storage ---
+@Composable
+private fun StorageSection(
+    offlineStorageSize: String?,
+    onClickClearOfflineContent: () -> Unit
+) {
+    Column(
+        modifier = Modifier.padding(horizontal = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Text(
+            text = stringResource(R.string.sync_storage_usage, offlineStorageSize ?: "…"),
+            style = MaterialTheme.typography.bodySmall
+        )
+
+        OutlinedButton(
+            onClick = onClickClearOfflineContent,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text(stringResource(R.string.sync_storage_clear))
+        }
+    }
+}
+
+// --- Clear Offline Content Confirm Dialog ---
+@Composable
+private fun ClearOfflineContentConfirmDialog(
+    onConfirm: () -> Unit,
+    onCancel: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onCancel,
+        title = { Text(stringResource(R.string.sync_storage_clear_confirm_title)) },
+        text = { Text(stringResource(R.string.sync_storage_clear_confirm_body)) },
+        confirmButton = {
+            Button(onClick = onConfirm) {
+                Text(stringResource(R.string.sync_storage_clear_confirm))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onCancel) {
+                Text(stringResource(R.string.cancel))
+            }
+        }
+    )
 }
 
 // --- Date Picker Dialog ---

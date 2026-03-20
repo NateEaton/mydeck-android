@@ -660,7 +660,8 @@ interface BookmarkDao {
     @Query("""
         SELECT b.id FROM bookmarks b
         WHERE b.isLocalDeleted = 0 AND b.contentState IN (0, 2)
-        AND b.hasArticle = 1
+        AND (b.hasArticle = 1 OR b.type = 'photo')
+        AND b.type != 'video'
         ORDER BY b.created DESC
     """)
     suspend fun getBookmarkIdsEligibleForContentFetch(): List<String>
@@ -668,7 +669,8 @@ interface BookmarkDao {
     @Query("""
         SELECT b.id FROM bookmarks b
         WHERE b.isLocalDeleted = 0 AND b.contentState IN (0, 2)
-        AND b.hasArticle = 1
+        AND (b.hasArticle = 1 OR b.type = 'photo')
+        AND b.type != 'video'
         AND b.created >= :fromEpoch AND b.created <= :toEpoch
         ORDER BY b.created DESC
     """)

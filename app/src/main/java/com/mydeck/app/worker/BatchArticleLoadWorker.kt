@@ -11,6 +11,7 @@ import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import com.mydeck.app.domain.sync.ContentSyncPolicyEvaluator
 import com.mydeck.app.domain.usecase.LoadArticleUseCase
+import com.mydeck.app.domain.usecase.LoadContentPackageUseCase
 import com.mydeck.app.io.db.dao.BookmarkDao
 import com.mydeck.app.io.prefs.SettingsDataStore
 import dagger.assisted.Assisted
@@ -27,6 +28,7 @@ class BatchArticleLoadWorker @AssistedInject constructor(
     @Assisted appContext: Context,
     @Assisted workerParams: WorkerParameters,
     private val bookmarkDao: BookmarkDao,
+    private val loadContentPackageUseCase: LoadContentPackageUseCase,
     private val loadArticleUseCase: LoadArticleUseCase,
     private val policyEvaluator: ContentSyncPolicyEvaluator,
     private val settingsDataStore: SettingsDataStore
@@ -57,9 +59,13 @@ class BatchArticleLoadWorker @AssistedInject constructor(
                     batch.map { id ->
                         async {
                             try {
-                                loadArticleUseCase.execute(id)
+                                val result = loadContentPackageUseCase.execute(id)
+                                if (result is LoadContentPackageUseCase.Result.TransientFailure) {
+                                    Timber.d("Multipart failed for $id, falling back to legacy: ${result.reason}")
+                                    loadArticleUseCase.execute(id)
+                                }
                             } catch (e: Exception) {
-                                Timber.w(e, "Failed to load article $id")
+                                Timber.w(e, "Failed to load content for $id")
                             }
                         }
                     }.awaitAll()

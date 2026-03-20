@@ -42,6 +42,25 @@ class LoadContentPackageUseCase @Inject constructor(
             return Result.AlreadyDownloaded
         }
 
+        // Freshness check: if content is DIRTY but the existing package's sourceUpdated
+        // matches the bookmark's current updated timestamp, the content hasn't changed —
+        // just restore DOWNLOADED state without re-fetching.
+        if (bookmark.contentState == ContentState.DIRTY) {
+            val existingPkg = contentPackageDao.getPackage(bookmarkId)
+            if (existingPkg != null && existingPkg.sourceUpdated == bookmark.updated.toString()) {
+                val contentDir = contentPackageManager.getContentDir(bookmarkId)
+                if (contentDir != null) {
+                    bookmarkDao.updateContentState(
+                        bookmarkId,
+                        com.mydeck.app.io.db.model.BookmarkEntity.ContentState.DOWNLOADED.value,
+                        null
+                    )
+                    Timber.d("Content package for $bookmarkId is fresh (sourceUpdated matches), restored DOWNLOADED")
+                    return Result.AlreadyDownloaded
+                }
+            }
+        }
+
         // Guard: don't attempt for permanent no-content
         if (bookmark.contentState == ContentState.PERMANENT_NO_CONTENT) {
             return Result.PermanentFailure(bookmark.contentFailureReason ?: "No content available")

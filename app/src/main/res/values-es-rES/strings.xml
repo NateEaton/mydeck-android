@@ -191,6 +191,13 @@ other{}
     <string name="sync_status_no_content">No hay contenido del artículo: %d</string>
     <string name="sync_status_last_sync">Última sincronización: %1$s</string>
     <string name="sync_status_last_content_sync">Última sincronización de contenido: %1$s</string>
+    <!-- Storage Management -->
+    <string name="sync_storage_heading">Storage</string>
+    <string name="sync_storage_usage">Offline content: %s</string>
+    <string name="sync_storage_clear">Clear All Offline Content</string>
+    <string name="sync_storage_clear_confirm_title">Clear Offline Content?</string>
+    <string name="sync_storage_clear_confirm_body">This will delete all downloaded content packages. Bookmarks will not be deleted, but content will need to be re-downloaded for offline reading.</string>
+    <string name="sync_storage_clear_confirm">Clear</string>
     <string name="offline_tooltip">Desconectado – no se puede alcanzar el servidor</string>
     <string name="background_sync_rationale_title">Descargas en segundo plano</string>
     <string name="background_sync_rationale_body">Las descargas de contenido pueden continuar mientras la aplicación está en segundo plano. Esto permite que tus marcadores estén listos para leer sin conexión.</string>

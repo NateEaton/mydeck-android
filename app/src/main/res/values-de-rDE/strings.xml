@@ -168,6 +168,13 @@ other{}
     <string name="sync_status_no_content">No article content: %d</string>
     <string name="sync_status_last_sync">Last sync: %1$s</string>
     <string name="sync_status_last_content_sync">Last content sync: %1$s</string>
+    <!-- Storage Management -->
+    <string name="sync_storage_heading">Storage</string>
+    <string name="sync_storage_usage">Offline content: %s</string>
+    <string name="sync_storage_clear">Clear All Offline Content</string>
+    <string name="sync_storage_clear_confirm_title">Clear Offline Content?</string>
+    <string name="sync_storage_clear_confirm_body">This will delete all downloaded content packages. Bookmarks will not be deleted, but content will need to be re-downloaded for offline reading.</string>
+    <string name="sync_storage_clear_confirm">Clear</string>
     <string name="offline_tooltip">Offline – unable to reach server</string>
     <string name="background_sync_rationale_title">Background Downloads</string>
     <string name="background_sync_rationale_body">Content downloads may continue while the app is in the background. This allows your bookmarks to be ready for offline reading.</string>
