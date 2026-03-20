@@ -94,9 +94,14 @@ class SyncSettingsViewModel @Inject constructor(
     private val lastSyncTimestamp = MutableStateFlow<String?>(null)
     private val lastContentSyncTimestamp = MutableStateFlow<String?>(null)
 
-    // Sync status from DB
+    // Sync status from DB — also refreshes storage size when content counts change
     private val detailedSyncStatus = bookmarkDao.observeDetailedSyncStatus()
-        .map { it ?: BookmarkDao.DetailedSyncStatusCounts(0, 0, 0, 0, 0, 0, 0, 0) }
+        .map { counts ->
+            val result = counts ?: BookmarkDao.DetailedSyncStatusCounts(0, 0, 0, 0, 0, 0, 0, 0)
+            // Refresh storage size whenever content download counts change
+            refreshStorageSize()
+            result
+        }
         .stateIn(
             viewModelScope,
             SharingStarted.WhileSubscribed(5000),
@@ -148,10 +153,15 @@ class SyncSettingsViewModel @Inject constructor(
             performSettingsMigration()
         }
 
-        // Observe date range work status
+        // Observe date range work status and refresh storage size when work completes
         viewModelScope.launch {
+            var wasRunning = false
             dateRangeWorkStatus.collect { running ->
                 isDateRangeDownloading.value = running
+                if (wasRunning && !running) {
+                    refreshStorageSize()
+                }
+                wasRunning = running
             }
         }
     }
