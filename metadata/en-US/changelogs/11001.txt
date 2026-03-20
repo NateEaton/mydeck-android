@@ -1,0 +1,16 @@
+<b>Fixed</b>
+- Server error flag propagation: bookmarks with server errors now correctly appear in "With errors" filter after refresh/create operations
+- Text autosizing in reader: fixed 8-12% text size increase when switching from Medium to Wide reader width
+- Filter UI: synthetic filter chips now appear when preset constraints are broadened (e.g., "Is archived: N/A", "Is favorite: N/A", "Type: Any")
+- Sync performance: reduced blocking spinner on app open by showing cached bookmarks immediately during background sync
+- Delete operation: fixed race condition with rapid successive delete actions
+- Layout stability: eliminated theme switching reflow and fixed layout shift in sync indicator
+- Video controls: improved fullscreen discoverability and auto-rotation behavior
+- Missing translations: added localized "Copy to clipboard" text for all languages
+
+<b>Added</b>
+- Special thanks to Stefan (@Alanon202) in About screen and README for app functionality feedback and testing support
+
+<b>Changed</b>
+- Background sync indicator removed for cleaner UI
+- Filter chip behavior: dismissing synthetic chips restores preset defaults, literal chip removal remains unchanged
