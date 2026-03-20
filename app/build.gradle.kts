@@ -181,7 +181,8 @@ dependencies {
     implementation(libs.androidx.junit)
     implementation(libs.androidx.ui.test.junit4.android)
     implementation(libs.androidx.browser)
-    
+    implementation(libs.androidx.webkit)
+
     // hilt
     ksp(libs.dagger.hilt.android.compiler)
     ksp(libs.androidx.hilt.compiler)

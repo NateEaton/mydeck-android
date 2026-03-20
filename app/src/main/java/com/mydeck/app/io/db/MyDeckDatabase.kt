@@ -7,6 +7,7 @@ import androidx.room.withTransaction
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.mydeck.app.io.db.dao.BookmarkDao
+import com.mydeck.app.io.db.dao.ContentPackageDao
 import com.mydeck.app.io.db.model.ArticleContentEntity
 import com.mydeck.app.io.db.model.BookmarkEntity
 import com.mydeck.app.io.db.model.ContentPackageEntity
@@ -24,6 +25,7 @@ import com.mydeck.app.io.db.dao.PendingActionDao
 abstract class MyDeckDatabase : RoomDatabase() {
     abstract fun getBookmarkDao(): BookmarkDao
     abstract fun getPendingActionDao(): PendingActionDao
+    abstract fun getContentPackageDao(): ContentPackageDao
 
     open suspend fun <R> performTransaction(block: suspend () -> R): R = withTransaction(block)
 

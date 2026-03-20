@@ -20,7 +20,9 @@ import com.mydeck.app.domain.model.SelectionData
 import com.mydeck.app.domain.model.Template
 import com.mydeck.app.domain.model.Theme
 import com.mydeck.app.domain.model.toEffectiveAppearance
+import com.mydeck.app.domain.content.ContentPackageManager
 import com.mydeck.app.domain.usecase.LoadArticleUseCase
+import com.mydeck.app.domain.usecase.LoadContentPackageUseCase
 import com.mydeck.app.domain.usecase.UpdateBookmarkUseCase
 import com.mydeck.app.io.AssetLoader
 import com.mydeck.app.io.prefs.SettingsDataStore
@@ -72,6 +74,8 @@ class BookmarkDetailViewModel @Inject constructor(
     private val assetLoader: AssetLoader,
     private val settingsDataStore: SettingsDataStore,
     private val loadArticleUseCase: LoadArticleUseCase,
+    private val loadContentPackageUseCase: LoadContentPackageUseCase,
+    private val contentPackageManager: ContentPackageManager,
     private val readeckApi: ReadeckApi,
     @ApplicationContext private val context: Context,
     private val json: Json,
@@ -330,6 +334,13 @@ class BookmarkDetailViewModel @Inject constructor(
                     Timber.e("Error loading template(s)")
                     UiState.Error
                 } else {
+                    // Check for local offline content package
+                    val localHtml = contentPackageManager.getHtmlContent(id)
+                    val effectiveArticleContent = localHtml ?: bookmark.articleContent
+                    val offlineBaseUrl = if (localHtml != null) {
+                        com.mydeck.app.domain.content.OfflineContentPathHandler.buildBaseUrl(id)
+                    } else null
+
                     UiState.Success(
                         bookmark = Bookmark(
                             url = bookmark.url,
@@ -351,7 +362,7 @@ class BookmarkDetailViewModel @Inject constructor(
                                 is com.mydeck.app.domain.model.Bookmark.Type.Picture -> Bookmark.Type.PHOTO
                                 is com.mydeck.app.domain.model.Bookmark.Type.Video -> Bookmark.Type.VIDEO
                             },
-                            articleContent = bookmark.articleContent,
+                            articleContent = effectiveArticleContent,
                             embed = bookmark.embed,
                             lang = bookmark.lang,
                             textDirection = bookmark.textDirection,
@@ -363,10 +374,11 @@ class BookmarkDetailViewModel @Inject constructor(
                             readProgress = bookmark.readProgress,
                             debugInfo = buildDebugInfo(bookmark),
                             hasContent = when (bookmark.type) {
-                                is com.mydeck.app.domain.model.Bookmark.Type.Article -> !bookmark.articleContent.isNullOrBlank()
-                                is com.mydeck.app.domain.model.Bookmark.Type.Video -> !bookmark.articleContent.isNullOrBlank() || !bookmark.embed.isNullOrBlank()
+                                is com.mydeck.app.domain.model.Bookmark.Type.Article -> !effectiveArticleContent.isNullOrBlank()
+                                is com.mydeck.app.domain.model.Bookmark.Type.Video -> !effectiveArticleContent.isNullOrBlank() || !bookmark.embed.isNullOrBlank()
                                 is com.mydeck.app.domain.model.Bookmark.Type.Picture -> true
-                            }
+                            },
+                            offlineBaseUrl = offlineBaseUrl
                         ),
                         updateBookmarkState = updateState,
                         template = template,
@@ -601,18 +613,39 @@ class BookmarkDetailViewModel @Inject constructor(
     private fun fetchContentOnDemand(bookmarkId: String) {
         viewModelScope.launch {
             _contentLoadState.value = ContentLoadState.Loading
-            val result = loadArticleUseCase.execute(bookmarkId)
-            _contentLoadState.value = when (result) {
-                is LoadArticleUseCase.Result.Success -> ContentLoadState.Loaded
-                is LoadArticleUseCase.Result.AlreadyDownloaded -> ContentLoadState.Loaded
-                is LoadArticleUseCase.Result.TransientFailure -> ContentLoadState.Failed(
-                    reason = result.reason,
-                    canRetry = true
-                )
-                is LoadArticleUseCase.Result.PermanentFailure -> ContentLoadState.Failed(
-                    reason = result.reason,
-                    canRetry = false
-                )
+            // Try multipart content package first (Stage 2)
+            val pkgResult = loadContentPackageUseCase.execute(bookmarkId)
+            _contentLoadState.value = when (pkgResult) {
+                is LoadContentPackageUseCase.Result.Success -> ContentLoadState.Loaded
+                is LoadContentPackageUseCase.Result.AlreadyDownloaded -> ContentLoadState.Loaded
+                is LoadContentPackageUseCase.Result.PermanentFailure -> {
+                    // Fall back to legacy article fetch for articles
+                    val legacyResult = loadArticleUseCase.execute(bookmarkId)
+                    when (legacyResult) {
+                        is LoadArticleUseCase.Result.Success -> ContentLoadState.Loaded
+                        is LoadArticleUseCase.Result.AlreadyDownloaded -> ContentLoadState.Loaded
+                        is LoadArticleUseCase.Result.TransientFailure -> ContentLoadState.Failed(
+                            reason = legacyResult.reason, canRetry = true
+                        )
+                        is LoadArticleUseCase.Result.PermanentFailure -> ContentLoadState.Failed(
+                            reason = legacyResult.reason, canRetry = false
+                        )
+                    }
+                }
+                is LoadContentPackageUseCase.Result.TransientFailure -> {
+                    // Fall back to legacy article fetch
+                    val legacyResult = loadArticleUseCase.execute(bookmarkId)
+                    when (legacyResult) {
+                        is LoadArticleUseCase.Result.Success -> ContentLoadState.Loaded
+                        is LoadArticleUseCase.Result.AlreadyDownloaded -> ContentLoadState.Loaded
+                        is LoadArticleUseCase.Result.TransientFailure -> ContentLoadState.Failed(
+                            reason = legacyResult.reason, canRetry = true
+                        )
+                        is LoadArticleUseCase.Result.PermanentFailure -> ContentLoadState.Failed(
+                            reason = legacyResult.reason, canRetry = false
+                        )
+                    }
+                }
             }
         }
     }
@@ -1095,7 +1128,8 @@ class BookmarkDetailViewModel @Inject constructor(
         val labels: List<String>,
         val readProgress: Int,
         val debugInfo: String = "",
-        val hasContent: Boolean
+        val hasContent: Boolean,
+        val offlineBaseUrl: String? = null
     ) {
         enum class Type {
             ARTICLE, PHOTO, VIDEO

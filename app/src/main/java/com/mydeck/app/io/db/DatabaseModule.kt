@@ -8,7 +8,10 @@ import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import com.mydeck.app.io.db.dao.BookmarkDao
+import com.mydeck.app.io.db.dao.ContentPackageDao
 import com.mydeck.app.io.db.dao.PendingActionDao
+import com.mydeck.app.domain.content.ContentPackageManager
+import java.io.File
 import javax.inject.Singleton
 
 @Module
@@ -43,4 +46,27 @@ object DatabaseModule {
     @Singleton
     fun providePendingActionDao(readeckDatabase: MyDeckDatabase): PendingActionDao =
         readeckDatabase.getPendingActionDao()
+
+    @Provides
+    @Singleton
+    fun provideContentPackageDao(readeckDatabase: MyDeckDatabase): ContentPackageDao =
+        readeckDatabase.getContentPackageDao()
+
+    @Provides
+    @Singleton
+    fun provideOfflineContentDir(@ApplicationContext context: Context): File {
+        val dir = File(context.filesDir, "offline_content")
+        dir.mkdirs()
+        return dir
+    }
+
+    @Provides
+    @Singleton
+    fun provideContentPackageManager(
+        contentPackageDao: ContentPackageDao,
+        bookmarkDao: BookmarkDao,
+        offlineContentDir: File
+    ): ContentPackageManager {
+        return ContentPackageManager(contentPackageDao, bookmarkDao, offlineContentDir)
+    }
 }

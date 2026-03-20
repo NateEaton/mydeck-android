@@ -11,7 +11,11 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.ViewConfiguration
 import android.webkit.ConsoleMessage
+import android.webkit.WebResourceRequest
+import android.webkit.WebResourceResponse
 import android.webkit.WebView
+import androidx.webkit.WebViewAssetLoader
+import com.mydeck.app.domain.content.OfflineContentPathHandler
 import com.mydeck.app.domain.model.ImageGalleryData
 import com.mydeck.app.domain.model.SelectionData
 import com.mydeck.app.ui.detail.WebViewAnnotationBridge
@@ -111,6 +115,18 @@ fun BookmarkDetailArticle(
         mutableStateOf(uiState.bookmark.getContent(uiState.template, isSystemInDarkMode))
     }
     val webViewRef = remember { mutableStateOf<WebView?>(null) }
+    val offlineAssetLoader = remember(uiState.bookmark.offlineBaseUrl) {
+        if (uiState.bookmark.offlineBaseUrl != null) {
+            val offlineDir = java.io.File(localContext.filesDir, "offline_content")
+            WebViewAssetLoader.Builder()
+                .setDomain(OfflineContentPathHandler.OFFLINE_HOST)
+                .addPathHandler(
+                    OfflineContentPathHandler.OFFLINE_PATH_PREFIX,
+                    OfflineContentPathHandler(offlineDir)
+                )
+                .build()
+        } else null
+    }
     val json = remember { Json { ignoreUnknownKeys = true } }
     val latestSelectionHandler = rememberUpdatedState(onTextSelectionCaptured)
     val latestAnnotationClickHandler = rememberUpdatedState(onAnnotationClicked)
@@ -391,6 +407,18 @@ fun BookmarkDetailArticle(
                         // Intercept link clicks and open in Chrome Custom Tabs
                         // Apply typography after page finishes loading
                         webViewClient = object : android.webkit.WebViewClient() {
+                            override fun shouldInterceptRequest(
+                                view: WebView?,
+                                request: WebResourceRequest?
+                            ): WebResourceResponse? {
+                                val url = request?.url ?: return null
+                                offlineAssetLoader?.let { loader ->
+                                    val response = loader.shouldInterceptRequest(url)
+                                    if (response != null) return response
+                                }
+                                return super.shouldInterceptRequest(view, request)
+                            }
+
                             private fun applyReaderEnhancements(webView: WebView) {
                                 val typographyJs =
                                     WebViewTypographyBridge.applyTypography(latestTypographySettings.value)
@@ -507,10 +535,11 @@ fun BookmarkDetailArticle(
                 },
                 update = {
                     if (content.value != null && it.tag as? String != content.value) {
-                        val baseUrl = if (uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.VIDEO) {
-                            extractEmbedBaseUrl(uiState.bookmark.embed) ?: uiState.bookmark.url
-                        } else {
-                            null
+                        val baseUrl = when {
+                            uiState.bookmark.offlineBaseUrl != null -> uiState.bookmark.offlineBaseUrl
+                            uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.VIDEO ->
+                                extractEmbedBaseUrl(uiState.bookmark.embed) ?: uiState.bookmark.url
+                            else -> null
                         }
                         it.loadDataWithBaseURL(
                             baseUrl,

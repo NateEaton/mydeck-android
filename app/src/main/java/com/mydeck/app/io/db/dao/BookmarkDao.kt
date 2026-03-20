@@ -629,6 +629,9 @@ interface BookmarkDao {
     @Query("UPDATE bookmarks SET contentState = :state, contentFailureReason = :reason WHERE id = :id")
     suspend fun updateContentState(id: String, state: Int, reason: String?)
 
+    @Query("UPDATE bookmarks SET contentState = 0, contentFailureReason = NULL")
+    suspend fun resetAllContentState()
+
     data class DetailedSyncStatusCounts(
         val total: Int,
         val unread: Int,

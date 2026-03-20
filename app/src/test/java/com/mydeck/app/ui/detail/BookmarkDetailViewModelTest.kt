@@ -10,7 +10,9 @@ import com.mydeck.app.domain.model.LightAppearance
 import com.mydeck.app.domain.model.ReaderAppearanceSelection
 import com.mydeck.app.domain.model.SelectionData
 import com.mydeck.app.domain.model.Theme
+import com.mydeck.app.domain.content.ContentPackageManager
 import com.mydeck.app.domain.usecase.LoadArticleUseCase
+import com.mydeck.app.domain.usecase.LoadContentPackageUseCase
 import com.mydeck.app.domain.usecase.UpdateBookmarkUseCase
 import com.mydeck.app.io.AssetLoader
 import com.mydeck.app.io.prefs.SettingsDataStore
@@ -59,6 +61,8 @@ class BookmarkDetailViewModelTest {
     private lateinit var updateBookmarkUseCase: UpdateBookmarkUseCase
     private lateinit var settingsDataStore: SettingsDataStore
     private lateinit var loadArticleUseCase: LoadArticleUseCase
+    private lateinit var loadContentPackageUseCase: LoadContentPackageUseCase
+    private lateinit var contentPackageManager: ContentPackageManager
     private lateinit var readeckApi: ReadeckApi
     private lateinit var context: Context
     private lateinit var themeFlow: MutableStateFlow<String?>
@@ -75,6 +79,9 @@ class BookmarkDetailViewModelTest {
         updateBookmarkUseCase = mockk()
         settingsDataStore = mockk()
         loadArticleUseCase = mockk(relaxed = true)
+        loadContentPackageUseCase = mockk(relaxed = true)
+        contentPackageManager = mockk(relaxed = true)
+        coEvery { loadContentPackageUseCase.execute(any()) } returns LoadContentPackageUseCase.Result.TransientFailure("Not available")
         readeckApi = mockk(relaxed = true)
         context = mockk(relaxed = true)
         every { context.packageName } returns "com.mydeck.app"
@@ -126,6 +133,8 @@ class BookmarkDetailViewModelTest {
             assetLoader = assetLoader,
             settingsDataStore = settingsDataStore,
             loadArticleUseCase = loadArticleUseCase,
+            loadContentPackageUseCase = loadContentPackageUseCase,
+            contentPackageManager = contentPackageManager,
             readeckApi = readeckApi,
             context = context,
             json = json,
