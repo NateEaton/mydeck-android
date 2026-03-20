@@ -96,22 +96,29 @@ class LogViewViewModel @Inject constructor(
                 return@launch
             }
             try {
-                val contentValues = ContentValues().apply {
-                    put(MediaStore.Downloads.DISPLAY_NAME, zipFile.name)
-                    put(MediaStore.Downloads.MIME_TYPE, "application/zip")
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    val contentValues = ContentValues().apply {
+                        put(MediaStore.Downloads.DISPLAY_NAME, zipFile.name)
+                        put(MediaStore.Downloads.MIME_TYPE, "application/zip")
                         put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
                     }
-                }
-                val resolver = context.contentResolver
-                val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, contentValues)
-                if (uri != null) {
-                    resolver.openOutputStream(uri)?.use { out ->
-                        zipFile.inputStream().use { input -> input.copyTo(out) }
+                    val resolver = context.contentResolver
+                    val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, contentValues)
+                    if (uri != null) {
+                        resolver.openOutputStream(uri)?.use { out ->
+                            zipFile.inputStream().use { input -> input.copyTo(out) }
+                        }
+                        _navigationEvent.update { NavigationEvent.SavedToDownloads }
+                    } else {
+                        _navigationEvent.update { NavigationEvent.SaveError }
                     }
-                    _navigationEvent.update { NavigationEvent.SavedToDownloads }
                 } else {
-                    _navigationEvent.update { NavigationEvent.SaveError }
+                    // Pre-Q: copy directly to public Downloads directory
+                    @Suppress("DEPRECATION")
+                    val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+                    val destFile = java.io.File(downloadsDir, zipFile.name)
+                    zipFile.copyTo(destFile, overwrite = true)
+                    _navigationEvent.update { NavigationEvent.SavedToDownloads }
                 }
             } catch (e: Exception) {
                 Timber.w(e, "Failed to save logs to Downloads")
