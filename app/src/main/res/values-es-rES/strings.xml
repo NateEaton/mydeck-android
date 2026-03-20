@@ -68,6 +68,9 @@ other{}
     <string name="log_view_share_title">Enviar registro</string>
     <string name="log_view_no_log_file_found">No hai fichero de registro</string>
     <string name="log_view_share_error">Failed to create log archive</string>
+    <string name="log_view_save_to_downloads">Save to Downloads</string>
+    <string name="log_view_saved_to_downloads">Logs saved to Downloads</string>
+    <string name="log_view_save_error">Failed to save log archive</string>
     <string name="log_retention_title">Keep logs for</string>
     <string name="log_retention_1_day">1 day</string>
     <string name="log_retention_1_week">1 week</string>
