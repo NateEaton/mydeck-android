@@ -56,12 +56,14 @@ class BatchArticleLoadWorker @AssistedInject constructor(
                 Timber.d("Processing batch ${index + 1}, size=${batch.size}")
 
                 coroutineScope {
-                    batch.map { id ->
+                    // Use multipart batching (up to 10 IDs per request)
+                    val perIdResults = loadContentPackageUseCase.executeBatch(batch)
+                    // Fallback to legacy for transient failures only
+                    perIdResults.entries.map { (id, res) ->
                         async {
                             try {
-                                val result = loadContentPackageUseCase.execute(id)
-                                if (result is LoadContentPackageUseCase.Result.TransientFailure) {
-                                    Timber.d("Multipart failed for $id, falling back to legacy: ${result.reason}")
+                                if (res is LoadContentPackageUseCase.Result.TransientFailure) {
+                                    Timber.d("Multipart failed for $id, falling back to legacy: ${res.reason}")
                                     loadArticleUseCase.execute(id)
                                 }
                             } catch (e: Exception) {
@@ -90,7 +92,7 @@ class BatchArticleLoadWorker @AssistedInject constructor(
 
     companion object {
         const val UNIQUE_WORK_NAME = "batch_article_load"
-        private const val BATCH_SIZE = 5
+        private const val BATCH_SIZE = 10
         private const val BATCH_DELAY_MS = 500L
 
         fun enqueue(context: Context) {

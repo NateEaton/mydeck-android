@@ -16,6 +16,7 @@ import com.mydeck.app.R
 import com.mydeck.app.domain.BookmarkRepository
 import com.mydeck.app.domain.BookmarkRepository.SyncResult
 import com.mydeck.app.domain.usecase.LoadBookmarksUseCase
+import com.mydeck.app.domain.usecase.FreshnessMarkerUseCase
 import com.mydeck.app.io.prefs.SettingsDataStore
 import kotlinx.datetime.Clock
 import timber.log.Timber
@@ -28,6 +29,7 @@ class FullSyncWorker @AssistedInject constructor(
     val bookmarkRepository: BookmarkRepository,
     val settingsDataStore: SettingsDataStore,
     val loadBookmarksUseCase: LoadBookmarksUseCase,
+    val freshnessMarkerUseCase: FreshnessMarkerUseCase,
 ) : CoroutineWorker(appContext, workerParams) {
     override suspend fun doWork(): Result {
         try {
@@ -108,6 +110,17 @@ class FullSyncWorker @AssistedInject constructor(
                     // Prefer server event time from delta sync to avoid clock skew issues
                     val syncTime = syncSuccess.maxServerTime ?: Clock.System.now()
                     settingsDataStore.saveLastSyncTimestamp(syncTime)
+                    // Mark existing DOWNLOADED packages DIRTY when server updated > stored sourceUpdated (delta path only)
+                    if (!needsFullSync) {
+                        try {
+                            val idsForFreshness = updatedIds.orEmpty()
+                            if (idsForFreshness.isNotEmpty()) {
+                                freshnessMarkerUseCase.markDirtyForBookmarks(idsForFreshness)
+                            }
+                        } catch (e: Exception) {
+                            Timber.w(e, "Freshness marking failed after metadata sync")
+                        }
+                    }
                     Result.success(
                         Data.Builder().putInt(OUTPUT_DATA_COUNT, syncSuccess.countDeleted).build()
                     )

@@ -34,6 +34,25 @@ class MultipartSyncParserTest {
         return buffer
     }
 
+    private fun mixBufferOf(vararg segments: Any): Buffer {
+        val buffer = Buffer()
+        segments.forEachIndexed { index, seg ->
+            when (seg) {
+                is String -> buffer.writeUtf8(seg)
+                is ByteArray -> {
+                    // Ensure CRLF before binary data if preceded by string header
+                    if (index > 0 && segments[index - 1] is String) {
+                        buffer.writeUtf8("\r\n")
+                    }
+                    buffer.write(seg)
+                }
+                is Buffer -> buffer.writeAll(seg)
+                else -> throw IllegalArgumentException("Unsupported segment type: ${'$'}{seg::class}")
+            }
+        }
+        return buffer
+    }
+
     // Minimal valid BookmarkDto JSON for testing
     private fun testBookmarkJson(id: String = "test-id-1") = """
         {
@@ -389,5 +408,90 @@ class MultipartSyncParserTest {
 
         assertEquals(1, packages.size)
         assertEquals(true, packages[0].json?.omitDescription)
+    }
+
+    @Test
+    fun `large resource with content-length streams to disk`() {
+        val boundary = "big"
+        val data = ByteArray(100_000) { (it % 251).toByte() }
+        val headers = """
+            |--$boundary
+            |Bookmark-Id: test-id-1
+            |Type: resource
+            |Content-Type: application/octet-stream
+            |Path: big.bin
+            |Filename: big.bin
+            |Group: embedded
+            |Content-Length: ${'$'}{data.size}
+            |
+        """.trimMargin()
+        val closing = "\r\n--$boundary--\r\n"
+
+        val body = mixBufferOf(headers, data, closing)
+
+        val packages = parser.parse(body, boundary)
+        assertEquals(1, packages.size)
+        val res = packages[0].resources.single()
+        assertEquals("big.bin", res.path)
+        assertEquals(data.size.toLong(), res.tempFile.length())
+        val disk = res.tempFile.readBytes()
+        assertTrue(disk.contentEquals(data))
+    }
+
+    @Test
+    fun `binary resource without content-length is parsed until boundary`() {
+        val boundary = "nolen-bin"
+        val data = byteArrayOf(0x00, 0x7F, 0x10, 0x0A, 0xFF.toByte(), 0x42)
+        val headers = """
+            |--$boundary
+            |Bookmark-Id: test-id-1
+            |Type: resource
+            |Content-Type: application/octet-stream
+            |Path: bin.dat
+            |Filename: bin.dat
+            |Group: embedded
+            |
+        """.trimMargin()
+        val closing = "\r\n--$boundary--\r\n"
+
+        val body = mixBufferOf(headers, data, closing)
+        val packages = parser.parse(body, boundary)
+
+        assertEquals(1, packages.size)
+        val res = packages[0].resources.single()
+        assertEquals("bin.dat", res.path)
+        val disk = res.tempFile.readBytes()
+        assertTrue(disk.contentEquals(data))
+    }
+
+    @Test
+    fun `truncated content-length logs warning and continues`() {
+        val boundary = "trunc"
+        val advertised = 64
+        val actual = 32
+        val data = ByteArray(actual) { 0x2A }
+        val headers = """
+            |--$boundary
+            |Bookmark-Id: test-id-1
+            |Type: resource
+            |Content-Type: application/octet-stream
+            |Path: trunc.bin
+            |Filename: trunc.bin
+            |Group: embedded
+            |Content-Length: $advertised
+            |
+        """.trimMargin()
+        val closing = "\r\n--$boundary--\r\n"
+
+        val body = mixBufferOf(headers, data, closing)
+        val packages = parser.parse(body, boundary)
+        assertEquals(1, packages.size)
+        val res = packages[0].resources.single()
+        assertTrue("Resource temp file should exist", res.tempFile.exists())
+        val actualLength = res.tempFile.length()
+        // When Content-Length is truncated, parser writes available bytes plus boundary padding
+        // The exact count depends on tail buffering; we only assert that at least the advertised bytes are not exceeded
+        assertTrue("File length $actualLength should be <= advertised $advertised", actualLength <= advertised)
+        assertTrue("File length $actualLength should be >= actual data size $actual", actualLength >= actual)
     }
 }

@@ -43,6 +43,7 @@ class ContentPackageManager @Inject constructor(
         val bookmarkId = pkg.bookmarkId
         val finalDir = File(offlineContentDir, bookmarkId)
         val stagingDir = File(offlineContentDir, "${bookmarkId}_staging")
+        val backupDir = File(offlineContentDir, "${bookmarkId}_backup_${System.nanoTime()}")
 
         try {
             // Clean up any leftover staging dir
@@ -72,7 +73,7 @@ class ContentPackageManager @Inject constructor(
                 )
             }
 
-            // Persist manifest in Room
+            // Prepare DB entities (computed before swap but persisted after)
             val packageEntity = ContentPackageEntity(
                 bookmarkId = bookmarkId,
                 packageKind = packageKind,
@@ -83,29 +84,64 @@ class ContentPackageManager @Inject constructor(
                 localBasePath = "offline_content/$bookmarkId"
             )
 
-            // Extract annotation metadata from HTML
             val annotationEntities = AnnotationHtmlParser.parse(pkg.html, bookmarkId)
-
             if (annotationEntities.isEmpty() && pkg.html != null && pkg.html.contains("rd-annotation")) {
                 Timber.w("HTML for $bookmarkId contains rd-annotation tags but no annotations could be extracted (bare tags?)")
             }
 
+            // Atomic swap:
+            // 1) Move existing final to backup (if present)
+            var backupMade = false
+            if (finalDir.exists()) {
+                backupMade = finalDir.renameTo(backupDir)
+                if (!backupMade) {
+                    // If rename-to-backup fails, try copying to backup and then delete final
+                    try {
+                        finalDir.copyRecursively(backupDir, overwrite = true)
+                        finalDir.deleteRecursively()
+                        backupMade = true
+                    } catch (e: Exception) {
+                        Timber.w(e, "Failed to create backup for $bookmarkId; aborting commit to preserve existing package")
+                        stagingDir.deleteRecursively()
+                        return false
+                    }
+                }
+            }
+
+            // 2) Move staging to final
+            val moved = stagingDir.renameTo(finalDir)
+            if (!moved) {
+                try {
+                    stagingDir.copyRecursively(finalDir, overwrite = true)
+                    stagingDir.deleteRecursively()
+                } catch (e: Exception) {
+                    Timber.w(e, "Failed to promote staging to final for $bookmarkId; attempting rollback")
+                    // Restore backup if we made one
+                    if (backupMade && backupDir.exists()) {
+                        finalDir.deleteRecursively()
+                        backupDir.renameTo(finalDir)
+                        backupDir.deleteRecursively()
+                    }
+                    // Mark DIRTY and abort
+                    bookmarkDao.updateContentState(
+                        bookmarkId,
+                        BookmarkEntity.ContentState.DIRTY.value,
+                        "Failed to finalize package commit"
+                    )
+                    return false
+                }
+            }
+
+            // 3) Finalize DB after files are in place
             contentPackageDao.replacePackageAndResources(packageEntity, resourceEntities)
             cachedAnnotationDao.replaceAnnotationsForBookmark(bookmarkId, annotationEntities)
-
             if (annotationEntities.isNotEmpty()) {
                 Timber.d("Cached ${annotationEntities.size} annotations for $bookmarkId")
             }
 
-            // Atomic swap: delete old, rename staging to final
-            if (finalDir.exists()) {
-                finalDir.deleteRecursively()
-            }
-            val renamed = stagingDir.renameTo(finalDir)
-            if (!renamed) {
-                // Fallback: copy then delete staging
-                stagingDir.copyRecursively(finalDir, overwrite = true)
-                stagingDir.deleteRecursively()
+            // 4) Remove backup now that commit is successful
+            if (backupMade && backupDir.exists()) {
+                backupDir.deleteRecursively()
             }
 
             // Update content state

@@ -4,8 +4,11 @@ import com.mydeck.app.io.rest.model.BookmarkDto
 import kotlinx.serialization.json.Json
 import okio.Buffer
 import okio.BufferedSource
+import okio.ByteString
+import okio.ByteString.Companion.toByteString
 import timber.log.Timber
 import java.io.File
+import java.io.OutputStream
 
 /**
  * Streaming parser for multipart/mixed responses from POST /bookmarks/sync.
@@ -186,53 +189,32 @@ class MultipartSyncParser(
         val filename = headers["filename"] ?: headers["path"] ?: "resource"
         val safeFilename = filename.replace(Regex("[^a-zA-Z0-9._-]"), "_")
         val tempFile = File(tempDir, "${bookmarkId}_${safeFilename}_${System.nanoTime()}")
-
-        // We need to stream the body to disk, but we must detect the boundary.
-        // Multipart boundaries appear on their own line, preceded by CRLF.
-        // We read line-by-line but write binary. For binary resources, we use a
-        // buffered approach that peeks for boundaries.
-        val boundaryBytes = "\n$dashBoundary".toByteArray(Charsets.UTF_8)
-        val closeBoundaryBytes = "\n$closeBoundary".toByteArray(Charsets.UTF_8)
-
-        var hitClose = false
-        val bodyBuffer = Buffer()
-
-        // Read the entire body between boundaries into a buffer, then write to file.
-        // This is necessary because we can't reliably detect boundaries in a binary
-        // stream without buffering. The content-length header tells us how much data
-        // to expect, but we still need to handle the boundary detection.
         val contentLength = headers["content-length"]?.toLongOrNull()
+        var hitClose = false
 
-        if (contentLength != null && contentLength > 0) {
-            // Fast path: we know exactly how many bytes to read
-            val bytesRead = readExactBytes(source, bodyBuffer, contentLength)
-            if (bytesRead < contentLength) {
-                Timber.w("Resource body truncated: expected $contentLength bytes, got $bytesRead")
-            }
-
-            // Skip past trailing CRLF and boundary line
-            skipToNextBoundary(source, dashBoundary, closeBoundary).also { hitClose = it }
-        } else {
-            // Slow path: no content-length, read line-by-line accumulating into buffer
-            // This works but is less efficient for binary data
-            var firstLine = true
-            while (!source.exhausted()) {
-                val line = source.readUtf8Line() ?: break
-                if (line.startsWith(dashBoundary)) {
-                    hitClose = line.startsWith(closeBoundary)
-                    break
-                }
-                if (!firstLine) bodyBuffer.writeUtf8("\n")
-                bodyBuffer.writeUtf8(line)
-                firstLine = false
-            }
-        }
-
-        // Write to temp file
         try {
             tempFile.parentFile?.mkdirs()
             tempFile.outputStream().use { out ->
-                bodyBuffer.copyTo(out)
+                if (contentLength != null && contentLength > 0) {
+                    // Stream exactly Content-Length bytes to file in chunks
+                    var remaining = contentLength
+                    val chunk = Buffer()
+                    while (remaining > 0 && !source.exhausted()) {
+                        val toRead = minOf(remaining, 8192L)
+                        val read = source.read(chunk, toRead)
+                        if (read == -1L) break
+                        out.write(chunk.readByteArray(read))
+                        remaining -= read
+                    }
+                    if (remaining > 0) {
+                        Timber.w("Resource body truncated: expected $contentLength bytes, remaining=$remaining")
+                    }
+                    // After body, consume CRLF and the boundary line
+                    hitClose = skipToNextBoundary(source, dashBoundary, closeBoundary)
+                } else {
+                    // No content-length: binary-safe streaming until boundary
+                    hitClose = streamUntilBoundary(source, dashBoundary, out)
+                }
             }
         } catch (e: Exception) {
             Timber.w(e, "Failed to write resource to temp file: ${tempFile.absolutePath}")
@@ -281,6 +263,79 @@ class MultipartSyncParser(
             if (line.startsWith(closeBoundary)) return true
             if (line.startsWith(dashBoundary)) return false
         }
+        return false
+    }
+
+    /**
+     * Binary-safe streaming of a part body until the next boundary line is encountered.
+     * Writes bytes to [out] while holding back a small tail window to detect "\n--boundary".
+     * Returns true if the closing boundary ("--boundary--") was encountered.
+     */
+    private fun streamUntilBoundary(
+        source: BufferedSource,
+        dashBoundary: String,
+        out: OutputStream
+    ): Boolean {
+        val boundaryPrefix: ByteString = "\n$dashBoundary".toByteArray(Charsets.UTF_8).toByteString()
+        val tail = Buffer() // keep last boundaryPrefix.size + 1 bytes (for optional '\r')
+        val outBuffer = Buffer()
+
+        fun flushOutBuffer() {
+            if (outBuffer.size > 0) {
+                out.write(outBuffer.readByteArray())
+            }
+        }
+
+        while (!source.exhausted()) {
+            val b: Byte = try { source.readByte() } catch (e: Exception) { break }
+            tail.writeByte(b.toInt())
+
+            // Keep tail bounded to boundaryPrefix.size + 1
+            while (tail.size > boundaryPrefix.size + 1) {
+                outBuffer.writeByte(tail.readByte().toInt())
+                if (outBuffer.size >= 8192) flushOutBuffer()
+            }
+
+            val snapshot = tail.snapshot()
+            val size = snapshot.size
+            if (size >= boundaryPrefix.size) {
+                val start = size - boundaryPrefix.size
+                val maybeBoundary = snapshot.substring(start, size)
+                if (maybeBoundary == boundaryPrefix) {
+                    // Write any remaining leading bytes in tail excluding optional '\r' before '\n'
+                    if (tail.size > boundaryPrefix.size) {
+                        val leadCount = (tail.size - boundaryPrefix.size).toInt()
+                        if (leadCount > 0) {
+                            // If the single leading byte is '\r', drop it; otherwise write it
+                            if (leadCount == 1) {
+                                val lead = tail.readByte()
+                                if (lead.toInt() != '\r'.code) {
+                                    outBuffer.writeByte(lead.toInt())
+                                }
+                            } else {
+                                val toWrite = tail.readByteArray(leadCount.toLong())
+                                // Drop trailing '\r' if present
+                                if (toWrite.isNotEmpty() && toWrite.last() == '\r'.code.toByte()) {
+                                    outBuffer.write(toWrite, 0, toWrite.size - 1)
+                                } else {
+                                    outBuffer.write(toWrite)
+                                }
+                            }
+                        }
+                    }
+                    // Flush data accumulated so far
+                    flushOutBuffer()
+                    // Drop the boundary prefix from tail
+                    tail.skip(tail.size)
+                    // Read the remainder of the boundary line
+                    val rest = source.readUtf8Line() ?: ""
+                    return rest.startsWith("--")
+                }
+            }
+        }
+
+        // EOF without boundary; flush remaining
+        flushOutBuffer()
         return false
     }
 

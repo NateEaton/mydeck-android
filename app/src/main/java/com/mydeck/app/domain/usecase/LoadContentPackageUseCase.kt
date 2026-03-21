@@ -12,6 +12,10 @@ import com.mydeck.app.io.db.dao.ContentPackageDao
 import com.mydeck.app.io.db.model.BookmarkEntity
 import com.mydeck.app.io.rest.ReadeckApi
 import com.mydeck.app.io.rest.sync.MultipartSyncClient
+import kotlinx.datetime.Instant
+import kotlinx.datetime.LocalDateTime
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toInstant
 import timber.log.Timber
 import javax.inject.Inject
 
@@ -68,7 +72,9 @@ class LoadContentPackageUseCase @Inject constructor(
         // just restore DOWNLOADED state without re-fetching.
         if (bookmark.contentState == ContentState.DIRTY) {
             val existingPkg = contentPackageDao.getPackage(bookmarkId)
-            if (existingPkg != null && existingPkg.sourceUpdated == bookmark.updated.toString()) {
+            val pkgUpdatedInstant = existingPkg?.sourceUpdated?.let { parseInstantLenient(it) }
+            val bookmarkUpdatedInstant = bookmark.updated.toInstant(TimeZone.currentSystemDefault())
+            if (existingPkg != null && pkgUpdatedInstant != null && pkgUpdatedInstant == bookmarkUpdatedInstant) {
                 val contentDir = contentPackageManager.getContentDir(bookmarkId)
                 if (contentDir != null) {
                     bookmarkDao.updateContentState(
@@ -159,9 +165,9 @@ class LoadContentPackageUseCase @Inject constructor(
                     // Enrich bare <rd-annotation> tags with attributes from API
                     val enrichedPkg = enrichAnnotations(bookmarkId, effectivePkg)
 
-                    val sourceUpdated = pkg.json?.updated?.toString() ?: bookmark.updated.toString()
+                    val sourceUpdatedInstant = pkg.json?.updated ?: bookmark.updated.toInstant(TimeZone.currentSystemDefault())
                     val committed = contentPackageManager.commitPackage(
-                        enrichedPkg, packageKind, sourceUpdated
+                        enrichedPkg, packageKind, sourceUpdatedInstant.toString()
                     )
 
                     if (committed) {
@@ -233,5 +239,96 @@ class LoadContentPackageUseCase @Inject constructor(
             Timber.w(e, "Annotation enrichment failed for $bookmarkId")
             pkg
         }
+    }
+
+    /**
+     * Batch download content packages for up to 10 IDs per request, committing those
+     * that succeed and returning a per-ID result for worker fallback decisions.
+     */
+    suspend fun executeBatch(bookmarkIds: List<String>): Map<String, Result> {
+        if (bookmarkIds.isEmpty()) return emptyMap()
+        val results = mutableMapOf<String, Result>()
+
+        fun markAll(ids: List<String>, reason: String): Map<String, Result> {
+            val map = ids.associateWith { Result.TransientFailure(reason) }
+            results.putAll(map)
+            return map
+        }
+
+        val chunks = bookmarkIds.chunked(10)
+        for (chunk in chunks) {
+            try {
+                val fetch = multipartSyncClient.fetchContentPackages(chunk)
+                when (fetch) {
+                    is MultipartSyncClient.Result.Success -> {
+                        val pkgsById = fetch.packages.associateBy { it.bookmarkId }
+                        for (id in chunk) {
+                            val pkg = pkgsById[id]
+                            if (pkg == null) {
+                                results[id] = Result.TransientFailure("No package returned for id")
+                                continue
+                            }
+
+                            val bookmark = try { bookmarkRepository.getBookmarkById(id) } catch (_: Exception) { null }
+                            if (bookmark == null || bookmark.type is Bookmark.Type.Video) {
+                                results[id] = Result.PermanentFailure("Ineligible bookmark type")
+                                continue
+                            }
+
+                            // Update metadata if provided
+                            pkg.json?.let { dto ->
+                                try { bookmarkRepository.insertBookmarks(listOf(dto.toDomain())) } catch (_: Exception) {}
+                            }
+
+                            // Determine package kind
+                            val packageKind = when (bookmark.type) {
+                                is Bookmark.Type.Article -> "ARTICLE"
+                                is Bookmark.Type.Picture -> "PICTURE"
+                                is Bookmark.Type.Video -> "VIDEO"
+                            }
+
+                            // For pictures without HTML, generate wrapper
+                            val effectivePkg = if (bookmark.type is Bookmark.Type.Picture && pkg.html == null) {
+                                val primaryImage = pkg.resources.firstOrNull { it.group == "image" }
+                                if (primaryImage != null) {
+                                    val wrapperHtml = contentPackageManager.generatePictureWrapperHtml(
+                                        imagePath = primaryImage.path,
+                                        description = bookmark.description
+                                    )
+                                    pkg.copy(html = wrapperHtml)
+                                } else pkg
+                            } else pkg
+
+                            // Enrich annotations if needed
+                            val enrichedPkg = try { enrichAnnotations(id, effectivePkg) } catch (_: Exception) { effectivePkg }
+
+                            val sourceUpdatedInstant = pkg.json?.updated ?: bookmark.updated.toInstant(TimeZone.currentSystemDefault())
+                            val committed = contentPackageManager.commitPackage(
+                                enrichedPkg, packageKind, sourceUpdatedInstant.toString()
+                            )
+                            results[id] = if (committed) Result.Success else Result.TransientFailure("Commit failed")
+                        }
+                    }
+                    is MultipartSyncClient.Result.Error -> {
+                        markAll(chunk, fetch.message)
+                    }
+                    is MultipartSyncClient.Result.NetworkError -> {
+                        val msg = fetch.message
+                        markAll(chunk, msg)
+                    }
+                }
+            } catch (e: Exception) {
+                Timber.w(e, "Batch execute failed for ids=${chunk.size}")
+                markAll(chunk, "Unexpected error: ${e.message}")
+            }
+        }
+        return results
+    }
+
+    private fun parseInstantLenient(value: String): Instant? {
+        // Try ISO Instant first
+        runCatching { return Instant.parse(value) }
+        // Fallback: try LocalDateTime ISO then convert using system TZ
+        return runCatching { LocalDateTime.parse(value).toInstant(TimeZone.currentSystemDefault()) }.getOrNull()
     }
 }

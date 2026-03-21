@@ -43,20 +43,25 @@ class DateRangeContentSyncWorker @AssistedInject constructor(
 
         Timber.i("Found ${eligibleIds.size} bookmarks eligible for date range content fetch")
 
-        for (id in eligibleIds) {
-            // If this is an override request, skip the constraint check
+        // Process in batches to leverage multipart efficiency
+        val batches = eligibleIds.chunked(10)
+        for (batch in batches) {
             if (!isOverride && !policyEvaluator.canFetchContent().allowed) {
                 Timber.i("Constraints no longer met, stopping date range sync")
                 return Result.success()
             }
             try {
-                val result = loadContentPackageUseCase.execute(id)
-                if (result is LoadContentPackageUseCase.Result.TransientFailure) {
-                    Timber.d("Multipart failed for $id, falling back to legacy: ${result.reason}")
-                    loadArticleUseCase.execute(id)
+                val perIdResults = loadContentPackageUseCase.executeBatch(batch)
+                perIdResults.forEach { (id, res) ->
+                    if (res is LoadContentPackageUseCase.Result.TransientFailure) {
+                        Timber.d("Multipart failed for $id, falling back to legacy: ${res.reason}")
+                        try { loadArticleUseCase.execute(id) } catch (e: Exception) {
+                            Timber.w(e, "Legacy fallback failed for $id in date range sync")
+                        }
+                    }
                 }
             } catch (e: Exception) {
-                Timber.w(e, "Failed to load content for $id in date range sync")
+                Timber.w(e, "Batch failed in date range sync; continuing with next batch")
             }
         }
 
