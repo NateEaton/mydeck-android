@@ -648,6 +648,7 @@ fun BookmarkDetailHost(
                     isLoading = annotationsState.isLoading,
                     onDismiss = { viewModel.hideAnnotationsSheet() },
                     onAnnotationClick = { annotationId ->
+                        viewModel.hideAnnotationsSheet()
                         viewModel.scrollToAnnotation(annotationId)
                     }
                 )

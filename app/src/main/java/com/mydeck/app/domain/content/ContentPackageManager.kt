@@ -86,6 +86,10 @@ class ContentPackageManager @Inject constructor(
             // Extract annotation metadata from HTML
             val annotationEntities = AnnotationHtmlParser.parse(pkg.html, bookmarkId)
 
+            if (annotationEntities.isEmpty() && pkg.html != null && pkg.html.contains("rd-annotation")) {
+                Timber.w("HTML for $bookmarkId contains rd-annotation tags but no annotations could be extracted (bare tags?)")
+            }
+
             contentPackageDao.replacePackageAndResources(packageEntity, resourceEntities)
             cachedAnnotationDao.replaceAnnotationsForBookmark(bookmarkId, annotationEntities)
 

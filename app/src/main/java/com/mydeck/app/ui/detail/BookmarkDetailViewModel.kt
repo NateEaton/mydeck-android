@@ -743,8 +743,10 @@ class BookmarkDetailViewModel @Inject constructor(
                                 id = dto.id,
                                 bookmarkId = bookmarkId,
                                 text = dto.text,
-                                color = rendered?.color ?: cached?.color ?: "yellow",
-                                note = rendered?.note ?: cached?.note,
+                                color = dto.color.takeIf { it.isNotBlank() }
+                                    ?: rendered?.color ?: cached?.color ?: "yellow",
+                                note = dto.note.takeIf { it.isNotBlank() }
+                                    ?: rendered?.note ?: cached?.note,
                                 created = dto.created
                             )
                         }
@@ -993,6 +995,11 @@ class BookmarkDetailViewModel @Inject constructor(
         color: String
     ) {
         val bookmarkId = _bookmarkId.value ?: return
+        if (!connectivityMonitor.isNetworkAvailable()) {
+            _annotationEditState.value = null
+            updateState.value = UpdateBookmarkState.Error(context.getString(R.string.highlight_offline_unavailable))
+            return
+        }
         _annotationEditState.update { it?.copy(isSaving = true) }
 
         viewModelScope.launch {
@@ -1028,6 +1035,11 @@ class BookmarkDetailViewModel @Inject constructor(
 
     fun updateAnnotationColors(annotationIds: List<String>, color: String) {
         val bookmarkId = _bookmarkId.value ?: return
+        if (!connectivityMonitor.isNetworkAvailable()) {
+            _annotationEditState.value = null
+            updateState.value = UpdateBookmarkState.Error(context.getString(R.string.highlight_offline_unavailable))
+            return
+        }
         _annotationEditState.update { it?.copy(isSaving = true) }
 
         viewModelScope.launch {
@@ -1060,6 +1072,11 @@ class BookmarkDetailViewModel @Inject constructor(
 
     fun deleteAnnotations(annotationIds: List<String>) {
         val bookmarkId = _bookmarkId.value ?: return
+        if (!connectivityMonitor.isNetworkAvailable()) {
+            _annotationEditState.value = null
+            updateState.value = UpdateBookmarkState.Error(context.getString(R.string.highlight_offline_unavailable))
+            return
+        }
         _annotationEditState.update { it?.copy(isSaving = true) }
 
         viewModelScope.launch {

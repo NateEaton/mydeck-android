@@ -693,7 +693,8 @@ class BookmarkDetailViewModelTest {
                     end_selector = "/p[1]",
                     end_offset = 5,
                     created = "2024-01-20T12:00:00Z",
-                    text = "API text"
+                    text = "API text",
+                    color = "red"
                 ),
                 AnnotationDto(
                     id = "remote-only",

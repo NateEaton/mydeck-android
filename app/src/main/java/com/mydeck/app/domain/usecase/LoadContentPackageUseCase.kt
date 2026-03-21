@@ -1,6 +1,7 @@
 package com.mydeck.app.domain.usecase
 
 import com.mydeck.app.domain.BookmarkRepository
+import com.mydeck.app.domain.content.AnnotationHtmlEnricher
 import com.mydeck.app.domain.content.ContentPackageManager
 import com.mydeck.app.domain.mapper.toDomain
 import com.mydeck.app.domain.model.Bookmark
@@ -9,6 +10,7 @@ import com.mydeck.app.domain.sync.ConnectivityMonitor
 import com.mydeck.app.io.db.dao.BookmarkDao
 import com.mydeck.app.io.db.dao.ContentPackageDao
 import com.mydeck.app.io.db.model.BookmarkEntity
+import com.mydeck.app.io.rest.ReadeckApi
 import com.mydeck.app.io.rest.sync.MultipartSyncClient
 import timber.log.Timber
 import javax.inject.Inject
@@ -25,7 +27,8 @@ class LoadContentPackageUseCase @Inject constructor(
     private val contentPackageManager: ContentPackageManager,
     private val contentPackageDao: ContentPackageDao,
     private val bookmarkDao: BookmarkDao,
-    private val connectivityMonitor: ConnectivityMonitor
+    private val connectivityMonitor: ConnectivityMonitor,
+    private val readeckApi: ReadeckApi
 ) {
     sealed class Result {
         data object Success : Result()
@@ -153,9 +156,12 @@ class LoadContentPackageUseCase @Inject constructor(
                         pkg
                     }
 
+                    // Enrich bare <rd-annotation> tags with attributes from API
+                    val enrichedPkg = enrichAnnotations(bookmarkId, effectivePkg)
+
                     val sourceUpdated = pkg.json?.updated?.toString() ?: bookmark.updated.toString()
                     val committed = contentPackageManager.commitPackage(
-                        effectivePkg, packageKind, sourceUpdated
+                        enrichedPkg, packageKind, sourceUpdated
                     )
 
                     if (committed) {
@@ -186,6 +192,46 @@ class LoadContentPackageUseCase @Inject constructor(
                 bookmarkId, BookmarkEntity.ContentState.DIRTY.value, "Unexpected: ${e.message}"
             )
             Result.TransientFailure("Unexpected error: ${e.message}")
+        }
+    }
+
+    /**
+     * Enrich bare `<rd-annotation>` tags in the package HTML with proper attributes
+     * from the annotations REST API. The Readeck multipart sync endpoint strips
+     * annotation attributes; this step restores them for offline highlight support.
+     *
+     * If the API call fails, returns the package unchanged — annotations will render
+     * as yellow but won't support tap-to-edit or offline listing.
+     */
+    private suspend fun enrichAnnotations(
+        bookmarkId: String,
+        pkg: com.mydeck.app.io.rest.sync.BookmarkSyncPackage
+    ): com.mydeck.app.io.rest.sync.BookmarkSyncPackage {
+        if (pkg.html == null || !pkg.html.contains("<rd-annotation>")) {
+            return pkg
+        }
+
+        return try {
+            val response = readeckApi.getAnnotations(bookmarkId)
+            if (response.isSuccessful) {
+                val annotations = response.body().orEmpty()
+                if (annotations.isNotEmpty()) {
+                    val enrichedHtml = AnnotationHtmlEnricher.enrich(pkg.html, annotations)
+                    if (enrichedHtml != pkg.html) {
+                        pkg.copy(html = enrichedHtml)
+                    } else {
+                        pkg
+                    }
+                } else {
+                    pkg
+                }
+            } else {
+                Timber.w("Annotation enrichment failed for $bookmarkId: HTTP ${response.code()}")
+                pkg
+            }
+        } catch (e: Exception) {
+            Timber.w(e, "Annotation enrichment failed for $bookmarkId")
+            pkg
         }
     }
 }
