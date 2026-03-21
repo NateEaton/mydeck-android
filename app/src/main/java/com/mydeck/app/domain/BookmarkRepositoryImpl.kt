@@ -613,22 +613,9 @@ class BookmarkRepositoryImpl @Inject constructor(
         existingBookmark: BookmarkEntity?,
         incomingBookmark: com.mydeck.app.io.db.model.BookmarkWithArticleContent
     ): Boolean? {
-        if (incomingBookmark.articleContent != null) {
-            return incomingBookmark.bookmark.omitDescription
-                ?: existingBookmark?.omitDescription?.takeIf {
-                    existingBookmark.description == incomingBookmark.bookmark.description
-                }
-        }
-
-        if (existingBookmark == null) {
-            return null
-        }
-
-        if (existingBookmark.description != incomingBookmark.bookmark.description) {
-            return null
-        }
-
-        return existingBookmark.omitDescription
+        incomingBookmark.bookmark.omitDescription?.let { return it }
+        val existing = existingBookmark ?: return null
+        return if (existing.description == incomingBookmark.bookmark.description) existing.omitDescription else null
     }
 
     override suspend fun updateLabels(

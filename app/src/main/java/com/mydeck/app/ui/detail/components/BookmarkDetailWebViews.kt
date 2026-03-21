@@ -70,6 +70,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import timber.log.Timber
+import java.io.ByteArrayInputStream
 
 @Composable
 fun EmptyBookmarkDetailArticle(
@@ -412,6 +413,38 @@ fun BookmarkDetailArticle(
                                 request: WebResourceRequest?
                             ): WebResourceResponse? {
                                 val url = request?.url ?: return null
+                                // If offline, substitute a lightweight placeholder for common video embed hosts
+                                try {
+                                    val cm = view?.context?.getSystemService(android.content.Context.CONNECTIVITY_SERVICE) as? android.net.ConnectivityManager
+                                    val network = cm?.activeNetwork
+                                    val isOffline = network == null || cm.getNetworkCapabilities(network)
+                                        ?.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_VALIDATED) != true
+                                    if (isOffline) {
+                                        val host = url.host?.lowercase() ?: ""
+                                        if (host.contains("youtube.com") || host.contains("youtube-nocookie.com") || host.contains("youtu.be") || host.contains("vimeo.com")) {
+                                            val offlineHtml = """
+                                                <!DOCTYPE html>
+                                                <html>
+                                                  <head>
+                                                    <meta name='viewport' content='width=device-width, initial-scale=1.0'/>
+                                                    <style>
+                                                      body { margin:0; padding:0; font-family: sans-serif; background: transparent; }
+                                                      .placeholder { display:flex; align-items:center; justify-content:center; text-align:center; padding: 24px; color: #888888; }
+                                                    </style>
+                                                  </head>
+                                                  <body>
+                                                    <div class='placeholder'>${view?.context?.getString(com.mydeck.app.R.string.video_embed_offline)}</div>
+                                                  </body>
+                                                </html>
+                                            """.trimIndent()
+                                            return WebResourceResponse(
+                                                "text/html",
+                                                "utf-8",
+                                                ByteArrayInputStream(offlineHtml.toByteArray(Charsets.UTF_8))
+                                            )
+                                        }
+                                    }
+                                } catch (_: Exception) { /* ignore and fall through */ }
                                 offlineAssetLoader?.let { loader ->
                                     val response = loader.shouldInterceptRequest(url)
                                     if (response != null) return response

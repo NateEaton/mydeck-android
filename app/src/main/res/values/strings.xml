@@ -361,6 +361,7 @@ other{}
 
     <!-- Offline Indicator -->
     <string name="offline_tooltip">Offline – unable to reach server</string>
+    <string name="video_embed_offline">Video unavailable while offline</string>
 
     <!-- Permission Rationale - Phase 3 -->
     <string name="background_sync_rationale_title">Background Downloads</string>

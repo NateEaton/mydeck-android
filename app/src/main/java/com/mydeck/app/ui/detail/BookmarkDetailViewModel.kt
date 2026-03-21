@@ -225,6 +225,11 @@ class BookmarkDetailViewModel @Inject constructor(
                 initialReadProgress = bookmark.readProgress
                 bookmarkType = bookmark.type
 
+                // Ensure omitDescription is populated when unknown (e.g., list endpoint may omit it)
+                if (bookmark.omitDescription == null && bookmark.type is com.mydeck.app.domain.model.Bookmark.Type.Article) {
+                    bookmarkRepository.refreshBookmarkFromApi(id)
+                }
+
                 // For photos and videos, auto-mark as 100% when opened
                 // and refresh from API to ensure embed data is available
                 when (bookmark.type) {
@@ -351,6 +356,20 @@ class BookmarkDetailViewModel @Inject constructor(
                         com.mydeck.app.domain.content.OfflineContentPathHandler.buildBaseUrl(id)
                     } else null
 
+                    val descNormalized = bookmark.description
+                        .replace(Regex("<[^>]*>"), "")
+                        .replace(Regex("\\s+"), " ")
+                        .trim()
+                    val effNormalized = effectiveArticleContent
+                        ?.replace(Regex("<[^>]*>"), "")
+                        ?.replace(Regex("\\s+"), " ")
+                        ?.trim()
+                    val hasUsefulBody = effNormalized != null && effNormalized.isNotEmpty() && effNormalized != descNormalized
+                    val isAbsoluteImage = bookmark.image.src.startsWith("http://") ||
+                        bookmark.image.src.startsWith("https://") ||
+                        bookmark.image.src.startsWith("data:") ||
+                        bookmark.image.src.startsWith("file://")
+
                     UiState.Success(
                         bookmark = Bookmark(
                             url = bookmark.url,
@@ -386,7 +405,8 @@ class BookmarkDetailViewModel @Inject constructor(
                             hasContent = when (bookmark.type) {
                                 is com.mydeck.app.domain.model.Bookmark.Type.Article -> !effectiveArticleContent.isNullOrBlank()
                                 is com.mydeck.app.domain.model.Bookmark.Type.Video -> !effectiveArticleContent.isNullOrBlank() || !bookmark.embed.isNullOrBlank()
-                                is com.mydeck.app.domain.model.Bookmark.Type.Picture -> true
+                                is com.mydeck.app.domain.model.Bookmark.Type.Picture ->
+                                    offlineBaseUrl != null
                             },
                             offlineBaseUrl = offlineBaseUrl
                         ),
@@ -1201,11 +1221,18 @@ class BookmarkDetailViewModel @Inject constructor(
         }
 
         fun shouldShowHeaderDescription(): Boolean {
+            if (offlineBaseUrl != null && (type == Type.PHOTO || type == Type.VIDEO)) return false
             return description.isNotBlank() && !(
-                type == Type.ARTICLE &&
-                    omitDescription == true &&
+                omitDescription == true &&
                     !articleContent.isNullOrBlank()
                 )
+        }
+
+        private fun normalizeText(s: String): String {
+            return s
+                .replace(Regex("<[^>]*>"), "")
+                .replace(Regex("\\s+"), " ")
+                .trim()
         }
 
         fun getContent(template: Template, isDark: Boolean): String? {
@@ -1222,17 +1249,24 @@ class BookmarkDetailViewModel @Inject constructor(
             return when (type) {
                 Type.PHOTO -> {
                     if (offlineBaseUrl != null && articleContent != null) {
-                        // Content package wrapper already contains the image — don't prepend it again
                         htmlTemplate.replace("%s", articleContent)
                     } else {
-                        val textPart = articleContent ?: description.takeIf { it.isNotBlank() }?.let { "<p>$it</p>" } ?: ""
+                        val articleNormalized = articleContent?.let { normalizeText(it) }
+                        val descNormalized = normalizeText(description)
+                        val textPart = if (articleContent != null && articleNormalized != descNormalized) articleContent else ""
                         val imagePart = """<img src="$imgSrc"/>"""
                         htmlTemplate.replace("%s", imagePart + textPart)
                     }
                 }
 
                 Type.VIDEO -> {
-                    val textPart = articleContent ?: description.takeIf { it.isNotBlank() }?.let { "<p>$it</p>" } ?: ""
+                    val articleNormalized = articleContent?.let { normalizeText(it) }
+                    val descNormalized = normalizeText(description)
+                    val textPart = when {
+                        articleContent != null && articleNormalized != descNormalized -> articleContent
+                        !shouldShowHeaderDescription() && description.isNotBlank() -> "<p>$description</p>"
+                        else -> ""
+                    }
                     val embedPart = embed?.let { raw ->
                         if (raw.contains("<iframe")) {
                             """<div class="video-embed">$raw</div>"""
@@ -1294,6 +1328,7 @@ class BookmarkDetailViewModel @Inject constructor(
             appendLine("  Read Progress: ${bookmark.readProgress}%")
             appendLine("  Embed: ${bookmark.embed ?: "N/A"}")
             appendLine("  Embed Hostname: ${bookmark.embedHostname ?: "N/A"}")
+            appendLine("  Omit Description: ${bookmark.omitDescription ?: "N/A"}")
             appendLine("  Has Article (server): ${bookmark.hasArticle}")
             appendLine("  Content State: ${bookmark.contentState}")
             if (bookmark.contentFailureReason != null) {
