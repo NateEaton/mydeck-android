@@ -797,14 +797,20 @@ Implement `v0.12.0` in stages, treating this document as one architectural desti
   legacy `GET /bookmarks/{id}/article`
 - Verify scroll-to-annotation and tap-to-edit work correctly with offline content packages
 
-### Stage 4: Remove legacy content/detail fetches
+### Stage 4: Remove legacy content/detail fetches and fix bootstrap sync
 
-Once multipart sync is proven stable:
+Completed scope:
 
-- Remove `GET /bookmarks/{id}/article` usage from content sync flows
-- Remove `resolveOmitDescription()` and its `GET /bookmarks/{id}` detail-enrichment request
-- Remove the old paginated `GET /bookmarks?updated_since=` metadata reload path
-- Clean up any remaining fallback/rollback machinery
+- Removed `resolveOmitDescription()` and its `GET /bookmarks/{id}` detail-enrichment request
+- Removed the old paginated `GET /bookmarks?updated_since=` metadata reload path from
+  `LoadBookmarksUseCase`
+- Fixed initial/full-sync bootstrap regression via Option D (see field note below)
+- `LoadArticleUseCase` retained as resilience fallback in on-demand content fetch only
+  (see Retained Legacy Endpoints section)
+- Video bookmarks included in content sync pipeline (metadata + text content, not video bytes)
+- Embed preservation across sync paths (list endpoint nulls don't overwrite multipart values)
+- Reader progress bar: deterministic bar for on-demand fetch, indeterminate for already-downloaded
+  content during WebView render
 
 ## Testing Requirements
 
@@ -934,48 +940,147 @@ Once multipart sync is proven stable:
     - Open a content-package article with annotations while online.
     - Expected result: highlights render immediately with correct colors; no flash to yellow.
 
+## Implementation Status
+
+### Stage 1: Multipart client and metadata migration — Complete
+
+- `MultipartSyncParser` and `MultipartSyncClient` landed and tested
+- `SyncRequest` model and `syncBookmarks()` Retrofit method in place
+- Room schema migration (version 11): dropped `article_content`, added `content_package` and
+  `content_resource` tables
+- Metadata reloads migrated to `POST /bookmarks/sync` with `with_json = true`
+- Old paginated metadata path (`GET /bookmarks?updated_since=`) removed from normal sync
+
+### Stage 2: On-demand content packages — Complete
+
+- Multipart package downloads for single-bookmark Article/Picture requests
+- Per-bookmark file storage with staging directory and atomic replace
+- `WebViewAssetLoader` integration for local resource serving
+- `loadDataWithBaseURL()` uses per-bookmark local base URLs
+- Picture wrapper HTML generation for bookmarks without server HTML
+- Offline article inline images and picture detail verified working
+
+### Stage 3: Automatic and date-range content packages — Complete
+
+- `BatchArticleLoadWorker` and `DateRangeContentSyncWorker` use multipart package transport
+- DAO queries include Picture and Video bookmarks in content-eligible queries
+- `sourceUpdated` freshness check skips redundant re-downloads
+- Storage usage display and “Clear all offline content” in Sync Settings
+
+### Stage 3a: Offline annotation support — Complete
+
+- `CachedAnnotationEntity` in Room with schema migration (version 12)
+- `CachedAnnotationDao` with get, replace, and observe queries
+- `AnnotationHtmlParser` extracts metadata from `<rd-annotation>` elements
+- Annotations persisted during `ContentPackageManager.commitPackage()` in same transaction
+- `fetchAnnotations` is offline-first: local cache → optional API merge
+- Legacy `syncAnnotationsIfNeeded` skipped for content-package bookmarks
+- Annotation-driven refresh uses multipart content package re-download
+
+### Stage 4: Remove legacy content/detail fetches — Complete
+
+- Removed `resolveOmitDescription()` and its `GET /bookmarks/{id}` detail-enrichment request
+- Removed old paginated `GET /bookmarks?updated_since=` metadata reload path
+- `LoadArticleUseCase` retained as resilience fallback only (see Retained Legacy Endpoints below)
+- Video bookmarks now participate in content sync (metadata via multipart JSON, embed preserved)
+
+## Retained Legacy Endpoints
+
+Three `GET`-based endpoint usages remain in the codebase. Each was evaluated for removal and
+determined to be necessary because the multipart sync endpoint cannot fulfill their function.
+
+### 1. `LoadArticleUseCase` as on-demand content fallback
+
+**Endpoint:** `GET /bookmarks/{id}/article`
+
+**Usage:** `BookmarkDetailViewModel.fetchContentOnDemand()` falls back to `LoadArticleUseCase`
+when `LoadContentPackageUseCase` returns a permanent or transient failure.
+
+**Why it stays:** This is a deliberate resilience fallback, not a leftover. If the multipart sync
+endpoint fails (server error, network issue, Readeck version mismatch), the legacy article
+endpoint gives the user a second chance to load content. Removing it would create a single point
+of failure on the sync endpoint. For a reader app where content availability is the core value
+proposition, this tradeoff is correct.
+
+### 2. Single-bookmark polling during `createBookmark`
+
+**Endpoint:** `GET /bookmarks/{id}`
+
+**Usage:** `BookmarkRepositoryImpl.createBookmark()` fetches the newly created bookmark and, if
+the server is still parsing it (`state == LOADING`), polls until `state` transitions to `LOADED`.
+
+**Why it stays:** This is a creation-time polling loop for a bookmark the server has not finished
+processing. The sync endpoint requires you to provide specific IDs to retrieve data you already
+know about — but here the point is to discover when the server has finished producing the data.
+The sync endpoint would return the same incomplete state. Switching transports would add
+complexity for zero benefit.
+
+### 3. Server error flag refresh
+
+**Endpoint:** `GET /bookmarks?has_errors=true`
+
+**Usage:** `LoadBookmarksUseCase.refreshServerErrorFlags()` pages through all bookmarks with
+server-side errors to populate the local error flag set.
+
+**Why it stays:** The sync endpoint requires specific bookmark IDs in the request body. There is
+no way to ask it “give me all bookmarks with server errors” — that is a query/filter operation,
+not a sync operation. The `has_errors=true` parameter is a server-side filter with no multipart
+equivalent. This is the only way to discover which bookmarks have errors.
+
 ## Field Note: Initial Sync Regression (Stage 4)
 
 **Context (2026-03-21):** After removing the legacy paginated metadata reload, initial app open
-can show **zero bookmarks**. Log file: `debug/multipart/mydeck-logs-2026-03-21-214800.txt`.
+showed **zero bookmarks**. Log file: `debug/multipart/mydeck-logs-2026-03-21-214800.txt`.
 
-**Observed flow:**
+**Root cause:** Stage 4 removed the paginated metadata transport, but all bootstrap/full-sync
+paths relied on it. When `updatedIds == null`, `LoadBookmarksUseCase` returned success without
+fetching, which was correct for “no updates” but incorrect for first sync. Every sync path that
+seeds the DB was broken; only incremental delta updates (which require bookmarks to already exist)
+worked.
 
-- `LoadBookmarksWorker` (initial) logs: `No updated IDs to reload (legacy paginated path removed)`.
-- `FullSyncWorker` performs deletion detection via paginated GET /bookmarks, then logs:
-  `Fetching updated bookmarks [multipart=false, count=all]` followed by the same
-  `No updated IDs to reload` message.
-- Result: **no multipart metadata fetch occurs**, so the local DB remains empty.
+**Resolution: Option D — Persist metadata from the full-sync paging response.**
 
-**Root cause:**
+Options A/B/C all involved double-fetching: the full-sync paging loop already downloads complete
+`BookmarkDto` objects for deletion detection but discarded everything except IDs. All three
+options would have re-fetched the same data via multipart POST.
 
-Stage 4 removed the paginated **metadata** transport, but the initial/full-sync path still relies
-on that path to provide updated IDs. When `updatedIds == null`, `LoadBookmarksUseCase` returns
-success without fetching metadata, which is correct for “no updates,” but incorrect for the first
-sync (no cached bookmarks).
+Option D persists metadata in the same loop that collects IDs. Concrete changes:
 
-**Architecture options (to approve before implementation):**
+- `performFullSync()` maps `BookmarkDto` → domain → `insertBookmarks()` during the existing
+  paging loop (alongside ID extraction for deletion detection). Zero additional network requests.
+- `FullSyncWorker` skips `loadBookmarksUseCase.execute()` when full sync already persisted
+  metadata. Still runs `enqueueContentSyncIfNeeded()` and `refreshServerErrorFlags()`.
+- `LoadBookmarksWorker` INITIAL trigger calls `performFullSync()` directly instead of
+  `loadBookmarksUseCase.execute()`, giving users bookmarks immediately upon first login.
+- `LoadBookmarksUseCase.execute()` no longer accepts `updatedIds == null` as a silent no-op.
 
-1. **Option A — Reuse full-sync paging to supply IDs (recommended).**
-   - During `performFullSync`, collect all remote bookmark IDs and pass them to multipart
-     metadata fetch (`LoadBookmarksUseCase.execute(updatedIds)`), instead of `updatedIds = null`.
-   - Keeps legacy paging only for ID discovery + deletion detection, not metadata payloads.
+This does not violate the spec's intent: the spec targets replacing `GET /bookmarks?updated_since=`
+(the incremental metadata reload). `performFullSync` uses `GET /bookmarks` (no `updated_since`)
+for enumeration and deletion detection — a fundamentally different operation with no multipart
+equivalent, since `POST /bookmarks/sync` requires you to already know which IDs to request.
+Multipart POST remains the primary transport for normal delta metadata updates.
 
-2. **Option B — New “LoadAllBookmarksUseCase.”**
-   - Explicitly page IDs for initial sync, then drive multipart metadata fetch in batches.
-   - Keeps deletion detection separate but adds a new orchestration path.
+**Note on `embed`:** The list endpoint does not include `embed` or `embed_domain` in its response
+(confirmed via API testing), but the multipart sync JSON does. `insertBookmarks` preserves
+existing non-null `embed`/`embedHostname` values when incoming data has nulls, so embed data is
+populated on the first multipart interaction (delta sync or content package fetch) and never
+overwritten by the list endpoint's null values. A `refreshBookmarkMetadata()` fallback via
+`GET /bookmarks/{id}` covers the gap when a video bookmark is opened before any multipart path
+has touched it.
 
-3. **Option C — Use `remote_bookmark_ids` table as the handoff.**
-   - Persist IDs from `performFullSync` and let `LoadBookmarksUseCase` read them when
-     `updatedIds == null`, cleaning up the temp table afterward.
+## Field Note: Video Content Package Inclusion (Stage 4)
 
-4. **Option D — Persist metadata from the full-sync paging response.**
-   - `performFullSync()` — In the paging loop, also map `BookmarkDto` → domain → insert (alongside the existing ID extraction for deletion). Return persisted count in `SyncResult`.
-   - `FullSyncWorker` — When `needsFullSync`, skip the `loadBookmarksUseCase.execute()` call (metadata is already persisted). Still run `enqueueContentSyncIfNeeded()` and `refreshServerErrorFlags()`.
-   - `LoadBookmarksWorker` initial load — Call `bookmarkRepository.performFullSync()` directly instead of `loadBookmarksUseCase.execute()`. This gives the user bookmarks immediately upon first login.
-   - `LoadBookmarksUseCase.execute()` — Remove the `updatedIds == null` no-op branch. If called without IDs, it should be a code error, not a silent success.
+**Context (2026-03-21):** Video bookmarks were excluded from automatic/manual/date-range content
+sync DAO queries and from `LoadContentPackageUseCase`. This meant video bookmarks with
+`has_article = true` (i.e., server-extracted transcript/text content) could never receive content
+packages.
 
-**Recommendation:** Option D
+**Resolution:** Removed the `type != 'video'` exclusion from DAO content-eligible queries and
+`LoadContentPackageUseCase`. Video bookmarks now receive metadata via multipart JSON (which
+includes `embed` and `embed_domain`), and those with article content can receive content packages
+like any other type. The spec's non-goal of “offline video playback” remains respected — this
+downloads text/transcript content, not video bytes. The embed iframe remains online-only, with an
+offline placeholder shown when the network is unavailable.
 
 ## Decision Summary
 
