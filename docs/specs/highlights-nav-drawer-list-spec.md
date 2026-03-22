@@ -354,6 +354,74 @@ Add to `values/strings.xml` and all 9 language-variant files:
 
 ---
 
+## Code Review Findings & Required Repairs
+
+The v2 annotation spec made design decisions that were implemented in code, but the code evolved through implementation discoveries not fully captured in that spec. The following is based on a direct review of the current codebase as of this spec's date.
+
+### Critical: Annotations gated to ARTICLE type only
+
+Three hard gates in `BookmarkDetailScreen.kt` restrict all annotation UI to article bookmarks in reader mode:
+
+1. **`BookmarkDetailMenu.kt:66-67`** — The "Highlights" overflow menu item is only shown when `uiState.bookmark.type == ARTICLE && contentMode == READER`
+2. **`BookmarkDetailScreen.kt:648-650`** — `AnnotationsBottomSheet` only renders for `ARTICLE` + `READER`
+3. **`BookmarkDetailScreen.kt:662`** — `AnnotationEditSheet` only renders for `ARTICLE` + `READER`
+
+However, the underlying infrastructure already works for all types:
+- `HighlightActionWebView` (with its text-selection "Highlight" action and annotation tap handling) is used for **all** bookmark types — articles, videos, and photos
+- `injectAnnotationInteractions()` is injected after page load for all content types that have a `.container` element
+- Readeck supports annotations on photos and videos at the server level
+
+**Impact on this spec**: A user could tap a highlight from the global Highlights list that belongs to a photo or video bookmark, navigate to the reading view, see the highlighted text — but the overflow menu "Highlights" item wouldn't appear, tapping the highlight wouldn't open the edit sheet, and text selection wouldn't show the Highlight action.
+
+**Required fix**: Relax the `ARTICLE` type gates to `ARTICLE || VIDEO || PHOTO` (with `READER` mode still required). Specifically:
+- `BookmarkDetailMenu.kt`: Show "Highlights" menu item for all content types in reader mode
+- `BookmarkDetailScreen.kt`: Show `AnnotationsBottomSheet` and `AnnotationEditSheet` for all content types in reader mode
+
+### Critical: Video annotation CRUD broken by content refresh
+
+`BookmarkDetailViewModel.refreshArticleContent()` calls `LoadContentPackageUseCase.executeForceRefresh()`, which explicitly rejects videos:
+
+```kotlin
+if (bookmark.type is Bookmark.Type.Video) {
+    return Result.PermanentFailure("Video bookmarks are not eligible for offline content packages")
+}
+```
+
+This means after creating, updating, or deleting an annotation on a video bookmark, the content refresh throws an exception, causing the operation to report failure even though the API mutation itself succeeded. The annotation CRUD methods (`createAnnotation`, `updateAnnotationColors`, `deleteAnnotations`) all call `refreshArticleContent` after the API call.
+
+**Required fix**: For video bookmarks, skip the multipart content refresh after annotation mutations and instead:
+1. Re-fetch annotations from the per-bookmark API (`GET /bookmarks/{id}/annotations`)
+2. Update the cached annotation entities locally
+3. Inject updated annotation attributes into the existing HTML via the enricher, or simply re-evaluate the JS to update the DOM
+
+This is a pragmatic approach — video bookmark HTML is typically loaded via the original content URL or embed, and the `<rd-annotation>` elements are already in the DOM. A full content package re-download is unnecessary; the annotation data just needs to be refreshed.
+
+### Note: Existing note support is read-only
+
+The current code already handles notes partially:
+- `AnnotationDto` has `note: String = ""` (correct)
+- `CachedAnnotationEntity` has `note: String?` (persists notes locally)
+- `Annotation` domain model has `note: String?`
+- `AnnotationsBottomSheet` shows a note icon when `note.isNotBlank()`
+- `AnnotationEditSheet` displays the note text in a **read-only** `OutlinedTextField` with `readOnly = true` and `enabled = false`
+- `onNoteClicked` shows a toast: `R.string.highlight_note_not_supported`
+
+The note is visible but not editable. `CreateAnnotationDto` and `UpdateAnnotationDto` both lack a `note` field.
+
+### Note: AnnotationHtmlEnricher handles notes in enrichment
+
+The enricher (`AnnotationHtmlEnricher.kt`) already creates `data-annotation-note="true"` and `title="..."` attributes when enriching bare `<rd-annotation>` tags from multipart content. This means offline-cached content will have note data in the HTML. The bridge's `getRenderedAnnotations()` and `getRenderedAnnotation()` JS functions already extract notes from the HTML via the `title` attribute on `data-annotation-note` elements.
+
+### Note: CachedAnnotationSnapshot omits color and note
+
+`AnnotationCache.kt`'s `CachedAnnotationSnapshot` used for cache-freshness comparison does not include `color` or `note`. This means if only the color or note of an annotation changes (but not its text or selectors), the cache comparison would consider it unchanged. This is a minor issue for cache invalidation but means color/note updates won't trigger a content re-download during sync.
+
+### Note: PATCH response type mismatch
+
+The `ReadeckApi.updateAnnotation()` returns `Response<Unit>` but the actual PATCH response includes the full updated annotations list. This response data is discarded. Once we need to update notes (which requires reading the response to confirm the change), the return type should be changed to `Response<UpdateAnnotationResponseDto>` or similar.
+
+---
+
 ## Annotation Notes: Full Support
 
 ### Background
@@ -362,35 +430,37 @@ The previous annotation spec (`annotations-highlights-design-v2.md`) explicitly 
 
 > *"Viewing/editing notes can be added in a future phase — the API spec (`annotationUpdate`) currently only allows color changes"*
 
-This was based on the outdated OpenAPI spec, which shows `annotationCreate` requiring only `start_selector`, `start_offset`, `end_selector`, `end_offset`, and `color`, and `annotationUpdate` accepting only `color`. In reality, the actual API accepts a `note` field on both endpoints, and returns it in all annotation responses (as an empty string when no note exists). This spec adds full notes support.
+This was based on the outdated OpenAPI spec, which shows `annotationCreate` requiring only `start_selector`, `start_offset`, `end_selector`, `end_offset`, and `color`, and `annotationUpdate` accepting only `color`. In reality, the actual API accepts a `note` field on the update endpoint, and returns it in all annotation responses (as an empty string when no note exists). This spec adds full notes support.
 
-### API: Updated Schemas
+### API: Confirmed capabilities
 
-The actual request bodies (confirmed via the Readeck API documentation UI) are:
+**IMPORTANT**: The OpenAPI spec is unreliable. Every endpoint's actual request/response shape should be confirmed with the user via live API documentation UI examples before implementation. The following are confirmed so far:
 
-#### `annotationCreate` (POST `/bookmarks/{id}/annotations`)
+#### `GET /bookmarks/annotations` (global list) — CONFIRMED
+Response includes `color` and `note` fields (see live example data in this spec above).
 
-```json
-{
-  "start_selector": "string",
-  "start_offset": 0,
-  "end_selector": "string",
-  "end_offset": 0,
-  "color": "string",
-  "note": "string"         // ← undocumented, optional
-}
+#### `PATCH /bookmarks/{id}/annotations/{annotationId}` — CONFIRMED accepts `note`
+The update endpoint accepts `note` alongside `color`. The user confirmed this via the API doc UI "fill example" feature.
+
+#### `POST /bookmarks/{id}/annotations` — NEEDS CONFIRMATION
+The OpenAPI spec shows only `start_selector`, `start_offset`, `end_selector`, `end_offset`, and `color` as accepted fields. It is **not yet confirmed** whether the POST endpoint also accepts `note`. If it does not, adding a note during creation requires a two-step flow:
+1. `POST` to create the highlight (color only)
+2. `PATCH` to add the note
+
+The implementation should handle both cases:
+- Try sending `note` in the POST body
+- If the note doesn't persist (check the response), follow up with a PATCH
+- Or, if confirmed that POST doesn't accept notes, always use the two-step flow for highlights with notes
+
+**Action item**: Before implementing, ask the user to test the POST endpoint via the Readeck API doc UI with a body that includes `note` and report whether the note persists.
+
+#### `GET /bookmarks/{id}/annotations` (per-bookmark) — NEEDS CONFIRMATION
+The response schema shows `annotationInfo` with `id`, `start_selector`, `start_offset`, `end_selector`, `end_offset`, `created`, `text`. The current code already has `color` and `note` fields with defaults (`color: String = "yellow"`, `note: String = ""`). Confirm that the actual response includes these fields.
 ```
 
-#### `annotationUpdate` (PATCH `/bookmarks/{id}/annotations/{annotationId}`)
+### Updated DTOs (supersedes current code)
 
-```json
-{
-  "color": "string",
-  "note": "string"         // ← undocumented, optional
-}
-```
-
-### Updated DTOs (supersedes v2 spec)
+The current codebase has `CreateAnnotationDto` without `note` and `UpdateAnnotationDto` without `note`. Both need updating:
 
 ```kotlin
 // io/rest/model/CreateAnnotationDto.kt
@@ -400,13 +470,13 @@ data class CreateAnnotationDto(
     val end_selector: String,
     val end_offset: Int,
     val color: String,
-    val note: String = "",     // empty string for no note
+    val note: String = "",     // NEEDS CONFIRMATION: may not be accepted by POST
 )
 
 // io/rest/model/UpdateAnnotationDto.kt
 data class UpdateAnnotationDto(
     val color: String,
-    val note: String,          // empty string to clear note
+    val note: String = "",     // CONFIRMED: accepted by PATCH
 )
 ```
 
@@ -493,7 +563,7 @@ When the user taps a highlighted annotation in the reading view (handled by `Web
 4. An editable text field for the note
 5. Save / Delete buttons
 
-This replaces the v2 spec's `AnnotationEditSheet` which only had color picking and delete. The updated sheet design:
+The current `AnnotationEditSheet` already displays the note in a read-only `OutlinedTextField` with an `onNoteClicked` callback that shows a "not supported" toast. The fix is to make the text field editable and wire the save flow to include the note in the PATCH call. The updated sheet design:
 
 ```
 ┌─────────────────────────────────────────────┐
@@ -539,7 +609,11 @@ When creating a new highlight (Phase 3 — user selects text, taps "Highlight" i
 └─────────────────────────────────────────────┘
 ```
 
-The `POST /bookmarks/{id}/annotations` call includes the `note` field (empty string if the user leaves it blank).
+If the POST endpoint accepts `note`, the call includes it directly. If not, the flow is:
+1. `POST` with `color` to create the highlight
+2. If the user entered a note, immediately `PATCH` the new annotation with the `note`
+
+The UI should not show two loading states — the two-step flow should appear as a single operation to the user.
 
 ### Note Display: Global Highlights List (This Spec)
 
@@ -554,38 +628,35 @@ The `AnnotationsBottomSheet` (per-bookmark highlights list in the reader overflo
 - Note text (if non-empty), truncated to ~1 line, with a note icon
 - Tap → dismiss sheet + scroll to highlight in WebView
 
-### ViewModel Updates (Supersedes V2 Spec Phase 3E)
+### ViewModel Updates (changes to existing code)
 
-The annotation edit state needs to carry the note:
+The current `AnnotationEditState` already has `noteText: String? = null` but it's read-only. Changes needed:
 
-```kotlin
-data class AnnotationEditState(
-    val annotationId: String?,       // null for new highlight
-    val color: String,
-    val note: String,                // current note text
-    val selectionData: SelectionData?,  // non-null for new highlight
-    val highlightText: String,       // the highlighted text (read-only display)
-)
-```
-
-New/updated ViewModel methods:
+1. **Make `noteText` editable**: Add `onAnnotationEditNoteChanged(note: String)` method (parallel to existing `onAnnotationEditColorSelected`)
+2. **Update `saveAnnotationEdit()`**: Currently calls `updateAnnotationColors(annotationIds, color)` which sends `UpdateAnnotationDto(color = color)`. Must send `UpdateAnnotationDto(color = color, note = note)` instead.
+3. **Update `createAnnotation()`**: Currently sends `CreateAnnotationDto` without `note`. Add `note` parameter and include in request (or follow up with PATCH if POST doesn't support notes).
+4. **Update `updateAnnotationColors()`**: Rename to `updateAnnotations()` and add `note` parameter. Send `UpdateAnnotationDto(color, note)`.
+5. **Update `ReadeckApi.updateAnnotation()`**: Change return type from `Response<Unit>` to parse the response body, so the updated annotation data (including confirmed note) can be used.
 
 ```kotlin
+// New method
+fun onAnnotationEditNoteChanged(note: String) {
+    _annotationEditState.update { state ->
+        state?.copy(noteText = note)
+    }
+}
+
+// Updated signature
+fun updateAnnotations(annotationIds: List<String>, color: String, note: String) { ... }
+
+// Updated create — may need two-step flow
 fun createAnnotation(
     startSelector: String, startOffset: Int,
     endSelector: String, endOffset: Int,
     color: String,
-    note: String,        // ← added
-)
-
-fun updateAnnotation(
-    annotationId: String,
-    color: String,
-    note: String,        // ← added (replaces updateAnnotationColor)
-)
+    note: String,
+) { ... }
 ```
-
-The v2 spec's `updateAnnotationColor` method is replaced by `updateAnnotation` which sends both color and note in the PATCH request.
 
 ### String Resources for Notes
 
@@ -601,27 +672,38 @@ Add to `values/strings.xml` and all 9 language-variant files:
 
 ---
 
-## Relationship to Existing Annotation Specs
+## Relationship to Existing Code and Specs
 
-This spec covers:
-- The nav drawer Highlights item and global highlights list view
-- Full annotation notes support (creating, editing, displaying) across all surfaces
+### Already implemented (from v2 spec, now in codebase)
+- Phase 1 CSS: `<rd-annotation>` styling in HTML templates (highlight colors rendering) — **done**
+- Phase 2 API: `ReadeckApi` annotation endpoints (GET/POST/PATCH/DELETE per bookmark) — **done**
+- Phase 2 domain model: `Annotation`, `SelectionData` — **done**
+- Phase 2 WebView bridges: `WebViewAnnotationBridge`, `WebViewAnnotationTapBridge` — **done**
+- Phase 2 per-bookmark highlights: `AnnotationsBottomSheet` — **done** (articles only)
+- Phase 3 create/edit/delete: `AnnotationEditSheet`, `HighlightActionWebView`, ActionMode — **done** (articles only, notes read-only)
+- Annotation enrichment: `AnnotationHtmlEnricher`, `AnnotationHtmlParser` — **done**
+- Local caching: `CachedAnnotationEntity`, `CachedAnnotationDao` — **done**
 
-It does **not** cover:
-- Displaying highlights within the article reader (CSS for `<rd-annotation>`) — covered by Phase 1 of `annotations-highlights-design-v2.md`
-- Per-bookmark highlights list/panel in the detail screen — covered by Phase 2 of `annotations-highlights-design-v2.md`, with notes additions specified above
-- Creating and deleting highlights via text selection — covered by Phase 3 of `annotations-highlights-design-v2.md`, with notes additions specified above
+### What this spec adds
+- Bug fix: extend annotation support from articles-only to all bookmark types (photo, video)
+- Bug fix: handle video content refresh gracefully after annotation mutations
+- Feature: make notes editable (currently read-only with "not supported" toast)
+- Feature: add `note` to `UpdateAnnotationDto` and `CreateAnnotationDto`
+- Feature: global highlights list via `GET /bookmarks/annotations` endpoint
+- Feature: nav drawer Highlights item → full-screen `HighlightsScreen`
+- Feature: navigate from highlight to bookmark reading view with scroll-to-annotation
 
-**Superseded items from the v2 spec:**
-- `UpdateAnnotationDto` — now includes `note` (was color-only)
-- `CreateAnnotationDto` — now includes `note` (was color-only)
-- `AnnotationEditSheet` — now includes a note text field (was color picker + delete only)
-- `updateAnnotationColor` ViewModel method — replaced by `updateAnnotation` with color + note
+### Items from v2 spec now superseded by this spec
+- `UpdateAnnotationDto` — needs `note` field (was color-only)
+- `CreateAnnotationDto` — needs `note` field (pending API confirmation)
+- `AnnotationEditSheet` note handling — editable text field replaces read-only display
+- `updateAnnotationColors` ViewModel method — replaced by `updateAnnotations` with color + note
 - "What This Plan Does NOT Include" section's notes exclusion — notes are now fully included
+- Article-only type gate — annotations now supported for all bookmark types
 
-This spec has a dependency on Phase 1 (CSS rendering) being implemented first, because the scroll-to-annotation behavior requires `<rd-annotation>` elements to be visible in the rendered article. Without the CSS, the scroll target exists in the DOM but is invisible.
-
-Additionally, the `annotationId` parameter on the `BookmarkDetailScreen` route and the scroll-to-annotation JavaScript logic can be shared with Phase 2's per-bookmark highlights panel (which also needs scroll-to-annotation). Implementing this spec first establishes the scroll infrastructure that Phase 2 reuses.
+### V2 spec items NOT yet implemented and NOT covered here
+- Note indicator CSS in the reader (showing an icon next to highlights that have notes) — specified above but deferred to implementation judgment
+- Offline annotation creation — not planned (requires network)
 
 ---
 
@@ -639,44 +721,77 @@ The only difference is that Collections navigates *back* to the bookmark list wi
 
 ## Implementation Sequence
 
-1. **DTOs**: Create `AnnotationSummaryDto` in `io/rest/model/`; update `CreateAnnotationDto`, `UpdateAnnotationDto`, and `AnnotationDto` to include `note` and `color` fields
-2. **API**: Add `getAnnotationSummaries()` to `ReadeckApi`
-3. **Domain model**: Create `HighlightSummary` and `BookmarkHighlightGroup` data classes
-4. **Repository**: Create `HighlightsRepository` interface and implementation
-5. **DI**: Add Hilt bindings for `HighlightsRepository`
-6. **ViewModel**: Create `HighlightsViewModel` with bookmark grouping logic
-7. **Screen**: Create `HighlightsScreen` composable with colored cards, bookmark grouping, and note display
-8. **Navigation**: Add `highlights` route to the nav graph; add `annotationId` optional parameter to the bookmark detail route
-9. **Scroll-to-annotation**: Implement scroll-to JS in `WebViewAnnotationBridge` (or inline in `BookmarkDetailScreen`), triggered by `annotationId` after `onPageFinished`
-10. **Drawer**: Add `onClickHighlights` to `AppDrawerContent` and `AppNavigationRailContent`; wire in `AppShell`
-11. **Note indicator CSS**: Add CSS for note indicator icon on highlights with notes in all 3 HTML templates
-12. **Annotation edit sheet**: Update `AnnotationEditSheet` (from v2 spec) to include note text field for both create and edit flows
-13. **String resources**: Add all new strings (including note-related) to all 10 locale files
-14. **User guide**: Update `app/src/main/assets/guide/en/your-bookmarks.md` with Highlights section; update `reading.md` with note editing instructions
+### Phase A: Bug fixes (prerequisite for Highlights feature)
+
+1. **Fix type gates**: Remove `ARTICLE`-only restriction from `BookmarkDetailMenu.kt`, `BookmarkDetailScreen.kt` (AnnotationsBottomSheet and AnnotationEditSheet conditionals). Allow `ARTICLE || VIDEO || PHOTO` in reader mode.
+2. **Fix video content refresh**: In `BookmarkDetailViewModel.refreshArticleContent()`, handle video bookmarks gracefully — skip multipart refresh, instead re-fetch annotations from API and update cached entities + re-inject into DOM.
+3. **Confirm API payloads**: Before proceeding, ask the user to test these via the Readeck API doc UI:
+   - Does `POST /bookmarks/{id}/annotations` accept a `note` field?
+   - Does `GET /bookmarks/{id}/annotations` return `color` and `note` fields?
+   - Does `PATCH` response actually return the full annotations list (current code ignores it with `Response<Unit>`)?
+
+### Phase B: Notes support
+
+4. **Update DTOs**: Add `note` to `UpdateAnnotationDto`. Conditionally add to `CreateAnnotationDto` based on API confirmation.
+5. **Update `ReadeckApi.updateAnnotation()`**: Change return type to capture response body.
+6. **Make note editable**: In `AnnotationEditSheet`, change `OutlinedTextField` from read-only to editable. Add `onNoteChanged` callback. Remove the "not supported" toast.
+7. **Update ViewModel**: Add `onAnnotationEditNoteChanged()`. Update `saveAnnotationEdit()` and `createAnnotation()` to include note. Handle two-step create flow if POST doesn't accept notes.
+8. **Note indicator CSS**: Add CSS for note indicator icon on highlights with notes in all 3 HTML templates.
+
+### Phase C: Global highlights list
+
+9. **DTO**: Create `AnnotationSummaryDto` in `io/rest/model/`
+10. **API**: Add `getAnnotationSummaries()` to `ReadeckApi`
+11. **Domain model**: Create `HighlightSummary` and `BookmarkHighlightGroup` data classes
+12. **Repository**: Create `HighlightsRepository` interface and implementation
+13. **DI**: Add Hilt bindings for `HighlightsRepository`
+14. **ViewModel**: Create `HighlightsViewModel` with bookmark grouping logic
+15. **Screen**: Create `HighlightsScreen` composable with colored cards, bookmark grouping, and note display
+16. **Navigation**: Add `highlights` route to the nav graph; add `annotationId` optional parameter to the bookmark detail route
+17. **Scroll-to-annotation**: Implement scroll-to JS in `WebViewAnnotationBridge` (or inline in `BookmarkDetailScreen`), triggered by `annotationId` after `onPageFinished`
+18. **Drawer**: Add `onClickHighlights` to `AppDrawerContent` and `AppNavigationRailContent`; wire in `AppShell`
+
+### Phase D: Polish
+
+19. **String resources**: Add all new strings (including note-related) to all 10 locale files
+20. **User guide**: Update `app/src/main/assets/guide/en/your-bookmarks.md` with Highlights section; update `reading.md` with note editing instructions
 
 ---
 
 ## Verification
 
-### Highlights list
+### Phase A: Bug fixes — video/photo annotation support
+- Open a **photo** bookmark with existing highlights → overflow menu shows "Highlights" item
+- Tap "Highlights" → per-bookmark highlights bottom sheet opens with highlight list
+- Tap a highlight in the bottom sheet → scrolls to it in the reader
+- Tap a highlighted annotation in the photo reader → annotation edit sheet opens
+- Select text in photo reader → "Highlight" action appears in native selection menu
+- Create a highlight on a photo → highlight is created, no crash, highlight appears
+- Delete a highlight on a photo → highlight is removed
+- Repeat all of the above for a **video** bookmark with HTML content that has highlights
+- Video annotation CRUD does not crash (the content refresh for videos is handled gracefully)
+
+### Phase B: Notes
+- Editing an existing highlight: note field is **editable** (not read-only, no "not supported" toast)
+- Editing: current note text is pre-populated in the text field
+- Editing: changing the note and saving persists the update server-side
+- Editing: clearing the note (empty field) and saving removes the note server-side
+- Creating a new highlight: note text field is available
+- Creating a new highlight: submitting with a note persists it server-side (one-step or two-step)
+- Creating a new highlight: leaving note empty works
+- Note indicator icon appears next to highlights with notes in the article reader
+- Notes display in the per-bookmark highlights bottom sheet
+- Verify round-trip: create highlight with note → note appears in Readeck web UI → edit note in web UI → updated note appears in MyDeck
+
+### Phase C: Global highlights list
 - Open nav drawer → "Highlights" item is visible below Labels
 - Tap Highlights → navigates to Highlights screen showing all highlights across bookmarks
 - Highlights are grouped by bookmark, with bookmark title below each group
 - Highlight cards have colored backgrounds matching annotation color
 - Each highlight shows the text snippet, date, and note (if present)
 - Tapping a highlight card opens the bookmark in reading view and scrolls to that highlight
+- Tapping a highlight for a **photo** or **video** bookmark works correctly (opens reading view, annotation features available)
 - Tapping the bookmark title line opens the bookmark at top/last reading position
 - Pressing back from reading view returns to the Highlights screen (not to My List)
 - Empty state shows when user has no highlights
 - Error state with retry shown on network failure
-
-### Notes
-- Creating a new highlight: note text field is available, submitting with a note persists it server-side
-- Creating a new highlight: leaving note empty works (sends empty string)
-- Editing an existing highlight: current note text is pre-populated in the text field
-- Editing: changing the note and saving persists the update server-side
-- Editing: clearing the note (empty field) and saving removes the note server-side
-- Note indicator icon appears next to highlights with notes in the article reader
-- Notes display in the global highlights list cards
-- Notes display in the per-bookmark highlights panel
-- Verify round-trip: create highlight with note → note appears in Readeck web UI → edit note in web UI → updated note appears in MyDeck
