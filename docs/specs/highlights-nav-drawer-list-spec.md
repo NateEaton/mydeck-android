@@ -354,15 +354,272 @@ Add to `values/strings.xml` and all 9 language-variant files:
 
 ---
 
+## Annotation Notes: Full Support
+
+### Background
+
+The previous annotation spec (`annotations-highlights-design-v2.md`) explicitly deferred notes:
+
+> *"Viewing/editing notes can be added in a future phase — the API spec (`annotationUpdate`) currently only allows color changes"*
+
+This was based on the outdated OpenAPI spec, which shows `annotationCreate` requiring only `start_selector`, `start_offset`, `end_selector`, `end_offset`, and `color`, and `annotationUpdate` accepting only `color`. In reality, the actual API accepts a `note` field on both endpoints, and returns it in all annotation responses (as an empty string when no note exists). This spec adds full notes support.
+
+### API: Updated Schemas
+
+The actual request bodies (confirmed via the Readeck API documentation UI) are:
+
+#### `annotationCreate` (POST `/bookmarks/{id}/annotations`)
+
+```json
+{
+  "start_selector": "string",
+  "start_offset": 0,
+  "end_selector": "string",
+  "end_offset": 0,
+  "color": "string",
+  "note": "string"         // ← undocumented, optional
+}
+```
+
+#### `annotationUpdate` (PATCH `/bookmarks/{id}/annotations/{annotationId}`)
+
+```json
+{
+  "color": "string",
+  "note": "string"         // ← undocumented, optional
+}
+```
+
+### Updated DTOs (supersedes v2 spec)
+
+```kotlin
+// io/rest/model/CreateAnnotationDto.kt
+data class CreateAnnotationDto(
+    val start_selector: String,
+    val start_offset: Int,
+    val end_selector: String,
+    val end_offset: Int,
+    val color: String,
+    val note: String = "",     // empty string for no note
+)
+
+// io/rest/model/UpdateAnnotationDto.kt
+data class UpdateAnnotationDto(
+    val color: String,
+    val note: String,          // empty string to clear note
+)
+```
+
+### PATCH Response (supersedes v2 spec)
+
+The `PATCH /bookmarks/{id}/annotations/{annotationId}` response returns the full list of annotations for that bookmark, each now including `color` and `note` (also undocumented in the OpenAPI spec). The `annotationInfo` schema in practice is:
+
+```json
+{
+  "annotations": [
+    {
+      "id": "string",
+      "start_selector": "string",
+      "start_offset": 0,
+      "end_selector": "string",
+      "end_offset": 0,
+      "color": "string",
+      "created": "date-time",
+      "text": "string",
+      "note": "string"
+    }
+  ],
+  "updated": "date-time"
+}
+```
+
+This eliminates the v1 spec's concern about `color` not being in the PATCH response and the need for local-only color storage. Both `color` and `note` round-trip through the API.
+
+```kotlin
+// io/rest/model/AnnotationDto.kt (updated)
+data class AnnotationDto(
+    val id: String,
+    val start_selector: String,
+    val start_offset: Int,
+    val end_selector: String,
+    val end_offset: Int,
+    val color: String,      // ← now confirmed in response
+    val created: String,
+    val text: String,
+    val note: String,       // ← now confirmed in response
+)
+```
+
+### Notes in the Article Reader
+
+Readeck embeds notes in the article HTML as a second `<rd-annotation>` element immediately following the highlight element:
+
+```html
+<rd-annotation id="annotation-{id}"
+    data-annotation-id-value="{id}"
+    data-annotation-color="yellow">highlighted text</rd-annotation>
+<rd-annotation
+    data-annotation-id-value="{id}"
+    data-annotation-note=""
+    title="This is the note text"
+    data-annotation-color="yellow"></rd-annotation>
+```
+
+Phase 1 CSS hides the note element with `display: none`. With full notes support, the note element should instead display a **note indicator** — a small icon (e.g., a tiny comment/note icon) rendered via CSS `::after` pseudo-element on the highlight element when a sibling note element exists:
+
+```css
+/* Show a note indicator after highlights that have notes */
+rd-annotation[id] + rd-annotation[data-annotation-note] {
+    display: inline;
+    font-size: 0;          /* hide any accidental text content */
+}
+rd-annotation[id] + rd-annotation[data-annotation-note]::after {
+    content: " \01F4DD";   /* or use a background-image SVG icon */
+    font-size: 14px;
+    vertical-align: super;
+    cursor: pointer;
+}
+```
+
+Alternatively, the JavaScript annotation bridge can detect note elements and add a visual indicator programmatically. The CSS approach is simpler for display; the JS approach is needed anyway for click handling (see below).
+
+### Note Display: Tap-to-View in Reader
+
+When the user taps a highlighted annotation in the reading view (handled by `WebViewAnnotationBridge.onAnnotationClicked`), the **annotation action sheet** (from Phase 3 of the v2 spec) should show:
+
+1. The highlighted text snippet
+2. The current note text (if any), or a "Add note" prompt if empty
+3. Color picker (existing from v2 spec)
+4. An editable text field for the note
+5. Save / Delete buttons
+
+This replaces the v2 spec's `AnnotationEditSheet` which only had color picking and delete. The updated sheet design:
+
+```
+┌─────────────────────────────────────────────┐
+│  Edit Highlight                              │
+│                                              │
+│  "highlighted text snippet..."               │  ← read-only, truncated
+│                                              │
+│  Color                                       │
+│  ○ yellow  ○ red  ○ blue  ○ green  ○ none   │
+│                                              │
+│  Note                                        │
+│  ┌─────────────────────────────────────────┐ │
+│  │ Add a note...                           │ │
+│  │                                         │ │
+│  └─────────────────────────────────────────┘ │
+│                                              │
+│  [Delete]                        [Save]      │
+└─────────────────────────────────────────────┘
+```
+
+The "Save" button calls `PATCH /bookmarks/{id}/annotations/{annotationId}` with both `color` and `note`. After a successful PATCH, the article content is re-fetched so the HTML reflects the updated note element.
+
+### Note Display: Highlight Creation
+
+When creating a new highlight (Phase 3 — user selects text, taps "Highlight" in the ActionMode), the creation sheet should also include the note field:
+
+```
+┌─────────────────────────────────────────────┐
+│  Create Highlight                            │
+│                                              │
+│  "selected text..."                          │  ← read-only preview
+│                                              │
+│  Color                                       │
+│  ○ yellow  ○ red  ○ blue  ○ green  ○ none   │
+│                                              │
+│  Note (optional)                             │
+│  ┌─────────────────────────────────────────┐ │
+│  │ Add a note...                           │ │
+│  │                                         │ │
+│  └─────────────────────────────────────────┘ │
+│                                              │
+│                              [Create]        │
+└─────────────────────────────────────────────┘
+```
+
+The `POST /bookmarks/{id}/annotations` call includes the `note` field (empty string if the user leaves it blank).
+
+### Note Display: Global Highlights List (This Spec)
+
+Already covered above — the highlight card shows the note below the highlighted text when `note.isNotEmpty()`, styled as `bodySmall` in `onSurfaceVariant` with a small note icon.
+
+### Note Display: Per-Bookmark Highlights Panel (V2 Spec Phase 2)
+
+The `AnnotationsBottomSheet` (per-bookmark highlights list in the reader overflow menu) should also show note indicators and note text. Each highlight item in the bottom sheet displays:
+
+- Color indicator
+- Highlighted text snippet
+- Note text (if non-empty), truncated to ~1 line, with a note icon
+- Tap → dismiss sheet + scroll to highlight in WebView
+
+### ViewModel Updates (Supersedes V2 Spec Phase 3E)
+
+The annotation edit state needs to carry the note:
+
+```kotlin
+data class AnnotationEditState(
+    val annotationId: String?,       // null for new highlight
+    val color: String,
+    val note: String,                // current note text
+    val selectionData: SelectionData?,  // non-null for new highlight
+    val highlightText: String,       // the highlighted text (read-only display)
+)
+```
+
+New/updated ViewModel methods:
+
+```kotlin
+fun createAnnotation(
+    startSelector: String, startOffset: Int,
+    endSelector: String, endOffset: Int,
+    color: String,
+    note: String,        // ← added
+)
+
+fun updateAnnotation(
+    annotationId: String,
+    color: String,
+    note: String,        // ← added (replaces updateAnnotationColor)
+)
+```
+
+The v2 spec's `updateAnnotationColor` method is replaced by `updateAnnotation` which sends both color and note in the PATCH request.
+
+### String Resources for Notes
+
+Add to `values/strings.xml` and all 9 language-variant files:
+
+```xml
+<string name="highlight_note_label">Note</string>
+<string name="highlight_note_hint">Add a note…</string>
+<string name="highlight_note_optional">Note (optional)</string>
+<string name="highlight_save">Save</string>
+<string name="highlight_note_save_error">Failed to save note</string>
+```
+
+---
+
 ## Relationship to Existing Annotation Specs
 
-This spec covers **only** the nav drawer item and global highlights list view. It does **not** cover:
+This spec covers:
+- The nav drawer Highlights item and global highlights list view
+- Full annotation notes support (creating, editing, displaying) across all surfaces
 
+It does **not** cover:
 - Displaying highlights within the article reader (CSS for `<rd-annotation>`) — covered by Phase 1 of `annotations-highlights-design-v2.md`
-- Per-bookmark highlights list/panel in the detail screen — covered by Phase 2 of `annotations-highlights-design-v2.md`
-- Creating, editing, or deleting highlights — covered by Phase 3 of `annotations-highlights-design-v2.md`
+- Per-bookmark highlights list/panel in the detail screen — covered by Phase 2 of `annotations-highlights-design-v2.md`, with notes additions specified above
+- Creating and deleting highlights via text selection — covered by Phase 3 of `annotations-highlights-design-v2.md`, with notes additions specified above
 
-However, this spec has a dependency on Phase 1 (CSS rendering) being implemented first, because the scroll-to-annotation behavior requires `<rd-annotation>` elements to be visible in the rendered article. Without the CSS, the scroll target exists in the DOM but is invisible.
+**Superseded items from the v2 spec:**
+- `UpdateAnnotationDto` — now includes `note` (was color-only)
+- `CreateAnnotationDto` — now includes `note` (was color-only)
+- `AnnotationEditSheet` — now includes a note text field (was color picker + delete only)
+- `updateAnnotationColor` ViewModel method — replaced by `updateAnnotation` with color + note
+- "What This Plan Does NOT Include" section's notes exclusion — notes are now fully included
+
+This spec has a dependency on Phase 1 (CSS rendering) being implemented first, because the scroll-to-annotation behavior requires `<rd-annotation>` elements to be visible in the rendered article. Without the CSS, the scroll target exists in the DOM but is invisible.
 
 Additionally, the `annotationId` parameter on the `BookmarkDetailScreen` route and the scroll-to-annotation JavaScript logic can be shared with Phase 2's per-bookmark highlights panel (which also needs scroll-to-annotation). Implementing this spec first establishes the scroll infrastructure that Phase 2 reuses.
 
@@ -382,29 +639,44 @@ The only difference is that Collections navigates *back* to the bookmark list wi
 
 ## Implementation Sequence
 
-1. **DTO**: Create `AnnotationSummaryDto` in `io/rest/model/`
+1. **DTOs**: Create `AnnotationSummaryDto` in `io/rest/model/`; update `CreateAnnotationDto`, `UpdateAnnotationDto`, and `AnnotationDto` to include `note` and `color` fields
 2. **API**: Add `getAnnotationSummaries()` to `ReadeckApi`
-3. **Domain model**: Create `HighlightSummary` data class
+3. **Domain model**: Create `HighlightSummary` and `BookmarkHighlightGroup` data classes
 4. **Repository**: Create `HighlightsRepository` interface and implementation
 5. **DI**: Add Hilt bindings for `HighlightsRepository`
-6. **ViewModel**: Create `HighlightsViewModel`
-7. **Screen**: Create `HighlightsScreen` composable
+6. **ViewModel**: Create `HighlightsViewModel` with bookmark grouping logic
+7. **Screen**: Create `HighlightsScreen` composable with colored cards, bookmark grouping, and note display
 8. **Navigation**: Add `highlights` route to the nav graph; add `annotationId` optional parameter to the bookmark detail route
 9. **Scroll-to-annotation**: Implement scroll-to JS in `WebViewAnnotationBridge` (or inline in `BookmarkDetailScreen`), triggered by `annotationId` after `onPageFinished`
 10. **Drawer**: Add `onClickHighlights` to `AppDrawerContent` and `AppNavigationRailContent`; wire in `AppShell`
-11. **String resources**: Add all new strings to all 10 locale files
-12. **User guide**: Update `app/src/main/assets/guide/en/your-bookmarks.md` with Highlights section
+11. **Note indicator CSS**: Add CSS for note indicator icon on highlights with notes in all 3 HTML templates
+12. **Annotation edit sheet**: Update `AnnotationEditSheet` (from v2 spec) to include note text field for both create and edit flows
+13. **String resources**: Add all new strings (including note-related) to all 10 locale files
+14. **User guide**: Update `app/src/main/assets/guide/en/your-bookmarks.md` with Highlights section; update `reading.md` with note editing instructions
 
 ---
 
 ## Verification
 
+### Highlights list
 - Open nav drawer → "Highlights" item is visible below Labels
 - Tap Highlights → navigates to Highlights screen showing all highlights across bookmarks
-- Highlights are grouped by date, newest first
-- Each highlight shows the text snippet, date, and parent bookmark title/site
-- Tapping a highlight opens the bookmark in reading view
-- The article scrolls to the tapped highlight (requires Phase 1 CSS to be implemented)
+- Highlights are grouped by bookmark, with bookmark title below each group
+- Highlight cards have colored backgrounds matching annotation color
+- Each highlight shows the text snippet, date, and note (if present)
+- Tapping a highlight card opens the bookmark in reading view and scrolls to that highlight
+- Tapping the bookmark title line opens the bookmark at top/last reading position
 - Pressing back from reading view returns to the Highlights screen (not to My List)
 - Empty state shows when user has no highlights
 - Error state with retry shown on network failure
+
+### Notes
+- Creating a new highlight: note text field is available, submitting with a note persists it server-side
+- Creating a new highlight: leaving note empty works (sends empty string)
+- Editing an existing highlight: current note text is pre-populated in the text field
+- Editing: changing the note and saving persists the update server-side
+- Editing: clearing the note (empty field) and saving removes the note server-side
+- Note indicator icon appears next to highlights with notes in the article reader
+- Notes display in the global highlights list cards
+- Notes display in the per-bookmark highlights panel
+- Verify round-trip: create highlight with note → note appears in Readeck web UI → edit note in web UI → updated note appears in MyDeck
