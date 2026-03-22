@@ -75,7 +75,12 @@ From the OpenAPI spec:
 | `bookmark_title` | `string` | Title of the parent bookmark |
 | `bookmark_site_name` | `string` | Site name of the parent bookmark |
 
-**Color:** The OpenAPI spec does not document a `color` field in `annotationSummary`. However, the native Readeck web UI clearly displays highlight cards with colored backgrounds matching each annotation's color (yellow, red, blue, green, olive/none). This strongly suggests the actual API response includes a `color` field not yet documented in the spec. During implementation, the response should be inspected to confirm. If `color` is present, use it for card background tinting. If not, a fallback approach is to fetch per-bookmark annotations (`GET /bookmarks/{id}/annotations`) which also lacks color in the spec — but the article HTML `<rd-annotation data-annotation-color="...">` is the authoritative source. As a last resort, a neutral highlight style can be used, but the colored card approach matching the Readeck UI is strongly preferred.
+**Undocumented fields:** The OpenAPI spec is out of date — the actual API response includes `color` and `note` fields not listed in the schema. Confirmed via the Readeck API documentation UI with live data. The actual `annotationSummary` fields are:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `color` | `string` | Annotation color: `"yellow"`, `"red"`, `"blue"`, `"green"`, or `"none"` |
+| `note` | `string` | Annotation note text (empty string if no note) |
 
 ---
 
@@ -89,7 +94,8 @@ data class AnnotationSummaryDto(
     val id: String,
     val href: String,
     val text: String,
-    val color: String?,  // Not in OpenAPI spec but likely present (see Color note above)
+    val color: String,
+    val note: String,
     val created: String,
     val bookmark_id: String,
     val bookmark_href: String,
@@ -106,7 +112,8 @@ data class AnnotationSummaryDto(
 data class HighlightSummary(
     val id: String,
     val text: String,
-    val color: String,  // "yellow", "red", "blue", "green", "none"; defaults to "yellow" if absent
+    val color: String,  // "yellow", "red", "blue", "green", "none"
+    val note: String,   // empty string if no note
     val created: kotlinx.datetime.Instant,
     val bookmarkId: String,
     val bookmarkTitle: String,
@@ -266,6 +273,7 @@ Alpha values should be tuned for both light and dark themes to ensure readabilit
 Each card displays:
 - **Date**: Creation timestamp, styled as `labelMedium` in `onSurfaceVariant`
 - **Highlighted text**: The `text` field, truncated to ~2–3 lines, styled as `bodyLarge`
+- **Note** (if non-empty): The `note` field below the highlighted text, styled as `bodySmall` in `onSurfaceVariant`, with a small note icon. Most highlights in practice have an empty note, so this line is only rendered when `note.isNotEmpty()`.
 
 ### Bookmark title line
 
