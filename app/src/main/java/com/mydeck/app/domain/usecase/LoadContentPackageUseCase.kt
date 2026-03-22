@@ -59,8 +59,12 @@ class LoadContentPackageUseCase @Inject constructor(
         return fetchAndCommit(bookmarkId, bookmark)
     }
 
-    suspend fun execute(bookmarkId: String): Result {
+    suspend fun execute(
+        bookmarkId: String,
+        onProgress: ((Float) -> Unit)? = null
+    ): Result {
         val bookmark = bookmarkRepository.getBookmarkById(bookmarkId)
+        onProgress?.invoke(0.1f)
 
         // Guard: never re-fetch downloaded content
         if (bookmark.contentState == ContentState.DOWNLOADED) {
@@ -107,15 +111,18 @@ class LoadContentPackageUseCase @Inject constructor(
             return Result.TransientFailure("Offline")
         }
 
-        return fetchAndCommit(bookmarkId, bookmark)
+        return fetchAndCommit(bookmarkId, bookmark, onProgress)
     }
 
     private suspend fun fetchAndCommit(
         bookmarkId: String,
-        bookmark: Bookmark
+        bookmark: Bookmark,
+        onProgress: ((Float) -> Unit)? = null
     ): Result {
         return try {
+            onProgress?.invoke(0.15f)
             val result = multipartSyncClient.fetchContentPackages(listOf(bookmarkId))
+            onProgress?.invoke(0.5f) // Network fetch + multipart parse complete
             when (result) {
                 is MultipartSyncClient.Result.Success -> {
                     val pkg = result.packages.firstOrNull { it.bookmarkId == bookmarkId }
@@ -133,6 +140,7 @@ class LoadContentPackageUseCase @Inject constructor(
                         val domainBookmark = pkg.json.toDomain()
                         bookmarkRepository.insertBookmarks(listOf(domainBookmark))
                     }
+                    onProgress?.invoke(0.6f) // Metadata updated
 
                     // Determine package kind
                     val packageKind = when (bookmark.type) {
@@ -159,11 +167,13 @@ class LoadContentPackageUseCase @Inject constructor(
 
                     // Enrich bare <rd-annotation> tags with attributes from API
                     val enrichedPkg = enrichAnnotations(bookmarkId, effectivePkg)
+                    onProgress?.invoke(0.75f) // Annotations enriched
 
                     val sourceUpdatedInstant = pkg.json?.updated ?: bookmark.updated.toInstant(TimeZone.currentSystemDefault())
                     val committed = contentPackageManager.commitPackage(
                         enrichedPkg, packageKind, sourceUpdatedInstant.toString()
                     )
+                    onProgress?.invoke(0.95f) // Content committed
 
                     if (committed) {
                         Timber.i("Content package downloaded for $bookmarkId (kind=$packageKind)")

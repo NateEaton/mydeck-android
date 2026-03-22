@@ -625,13 +625,42 @@ class BookmarkDetailViewModel @Inject constructor(
     }
 
     private fun fetchContentOnDemand(bookmarkId: String) {
+        _contentLoadState.value = ContentLoadState.Loading(0f)
         viewModelScope.launch {
-            _contentLoadState.value = ContentLoadState.Loading
-            val pkgResult = loadContentPackageUseCase.execute(bookmarkId)
+            // Track the current floor so the ticker and milestone callbacks
+            // both advance monotonically without jumping backwards.
+            var progressFloor = 0f
+            val setProgress: (Float) -> Unit = { value ->
+                val clamped = value.coerceAtLeast(progressFloor)
+                progressFloor = clamped
+                _contentLoadState.value = ContentLoadState.Loading(clamped)
+            }
+
+            // The network fetch (0.10 → 0.55) is the slowest phase. Run a ticker
+            // that advances the bar in small increments so it keeps moving visually.
+            // When the fetch completes, the milestone callback jumps past the cap.
+            val tickerJob = launch {
+                val tickStart = 0.10f
+                val tickCap = 0.50f   // don't exceed this; leave room to jump to 0.55
+                val tickStep = 0.05f
+                val tickInterval = 300L // ms
+                var tick = tickStart
+                setProgress(tick)
+                while (tick < tickCap) {
+                    delay(tickInterval)
+                    tick = (tick + tickStep).coerceAtMost(tickCap)
+                    setProgress(tick)
+                }
+            }
+
+            val pkgResult = loadContentPackageUseCase.execute(bookmarkId, setProgress)
+            tickerJob.cancel()
+
             val loadState = when (pkgResult) {
                 is LoadContentPackageUseCase.Result.Success -> ContentLoadState.Loaded
                 is LoadContentPackageUseCase.Result.AlreadyDownloaded -> ContentLoadState.Loaded
                 is LoadContentPackageUseCase.Result.PermanentFailure -> {
+                    setProgress(0.55f)
                     val legacyResult = loadArticleUseCase.execute(
                         bookmarkId,
                         markDirtyAfterSuccess = true
@@ -648,6 +677,7 @@ class BookmarkDetailViewModel @Inject constructor(
                     }
                 }
                 is LoadContentPackageUseCase.Result.TransientFailure -> {
+                    setProgress(0.55f)
                     val legacyResult = loadArticleUseCase.execute(
                         bookmarkId,
                         markDirtyAfterSuccess = true
@@ -1134,7 +1164,7 @@ class BookmarkDetailViewModel @Inject constructor(
 
     sealed class ContentLoadState {
         data object Idle : ContentLoadState()
-        data object Loading : ContentLoadState()
+        data class Loading(val progress: Float = 0f) : ContentLoadState()
         data object Loaded : ContentLoadState()
         data class Failed(val reason: String, val canRetry: Boolean) : ContentLoadState()
     }

@@ -86,7 +86,7 @@ class BookmarkDetailViewModelTest {
         loadContentPackageUseCase = mockk(relaxed = true)
         contentPackageManager = mockk(relaxed = true)
         every { contentPackageManager.getContentDir(any()) } returns null
-        coEvery { loadContentPackageUseCase.execute(any()) } returns LoadContentPackageUseCase.Result.TransientFailure("Not available")
+        coEvery { loadContentPackageUseCase.execute(any(), any()) } returns LoadContentPackageUseCase.Result.TransientFailure("Not available")
         readeckApi = mockk(relaxed = true)
         cachedAnnotationDao = mockk(relaxed = true)
         connectivityMonitor = mockk(relaxed = true)
@@ -632,7 +632,7 @@ class BookmarkDetailViewModelTest {
         )
         every { bookmarkRepository.observeBookmark("123") } returns MutableStateFlow(bookmarkWithNotAttempted)
         coEvery { bookmarkRepository.getBookmarkById("123") } returns bookmarkWithNotAttempted
-        coEvery { loadContentPackageUseCase.execute("123") } returns LoadContentPackageUseCase.Result.PermanentFailure("not available")
+        coEvery { loadContentPackageUseCase.execute("123", any()) } returns LoadContentPackageUseCase.Result.PermanentFailure("not available")
         coEvery { loadArticleUseCase.execute("123", markDirtyAfterSuccess = true) } returns LoadArticleUseCase.Result.Success
 
         // Act
@@ -795,7 +795,7 @@ class BookmarkDetailViewModelTest {
         )
         every { bookmarkRepository.observeBookmark("123") } returns MutableStateFlow(bookmarkWithNotAttempted)
         coEvery { bookmarkRepository.getBookmarkById("123") } returns bookmarkWithNotAttempted
-        coEvery { loadContentPackageUseCase.execute("123") } returns LoadContentPackageUseCase.Result.PermanentFailure("not available")
+        coEvery { loadContentPackageUseCase.execute("123", any()) } returns LoadContentPackageUseCase.Result.PermanentFailure("not available")
         coEvery { loadArticleUseCase.execute("123", markDirtyAfterSuccess = true) } returns LoadArticleUseCase.Result.PermanentFailure("Article extraction not supported for this site")
 
         // Act

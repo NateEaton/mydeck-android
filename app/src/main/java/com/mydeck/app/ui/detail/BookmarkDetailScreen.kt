@@ -481,37 +481,9 @@ fun BookmarkDetailHost(
                 }
             }
 
-            val progressTarget = when (contentLoadState) {
-                ContentLoadState.Loading -> 0.9f
-                ContentLoadState.Idle -> 0f
-                else -> 1f
-            }
-            val animatedProgress by animateFloatAsState(
-                targetValue = progressTarget,
-                animationSpec = tween(durationMillis = if (progressTarget >= 1f) 250 else 500),
-                label = "contentLoadProgress"
-            )
-            var showProgress by remember(uiState.bookmark.bookmarkId) { mutableStateOf(false) }
-            LaunchedEffect(contentLoadState, progressTarget) {
-                if (progressTarget > 0f) showProgress = true
-                if (progressTarget >= 1f) {
-                    delay(250)
-                    showProgress = false
-                }
-            }
-
             // Box ensures the gallery overlay stacks directly on top of the
             // reader screen regardless of how the NavHost lays out its children.
             Box(modifier = Modifier.fillMaxSize()) {
-                if (showProgress && animatedProgress < 1f) {
-                    LinearProgressIndicator(
-                        progress = { animatedProgress },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(4.dp)
-                            .align(Alignment.TopCenter)
-                    )
-                }
                 BookmarkDetailScreen(
                     modifier = Modifier,
                     snackbarHostState = snackbarHostState,
@@ -581,6 +553,7 @@ fun BookmarkDetailHost(
                         onPageChanged = { page -> viewModel.onGalleryPageChanged(page) },
                     )
                 }
+
             }
 
             // Reader context menu
@@ -1201,6 +1174,12 @@ fun BookmarkDetailContent(
     val isArticle = uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.ARTICLE
     val needsRestore = isArticle && hasArticleContent && initialReadProgress > 0 && initialReadProgress <= 100
     val hasReaderContent = uiState.bookmark.hasContent && contentMode == ContentMode.READER
+    // Track whether content was already available when this screen first composed.
+    // If false, content was fetched on-demand and the parent's determinate progress bar
+    // handles the loading indicator — the overlay should not show an indeterminate bar.
+    val contentWasInitiallyAvailable by remember(uiState.bookmark.bookmarkId, contentMode) {
+        mutableStateOf(uiState.bookmark.hasContent)
+    }
     // Key on hasArticleContent so when content arrives after on-demand fetch,
     // the state resets and scroll position restore is triggered
     var hasRestoredPosition by remember(hasArticleContent) { mutableStateOf(!needsRestore) }
@@ -1430,7 +1409,7 @@ fun BookmarkDetailContent(
             ) { isLoading ->
                 if (isLoading) {
                     ReaderLoadingOverlay(
-                        contentAlreadyAvailable = uiState.bookmark.hasContent,
+                        contentAlreadyAvailable = contentWasInitiallyAvailable,
                         modifier = Modifier.fillMaxSize()
                     )
                 }
@@ -1443,6 +1422,37 @@ fun BookmarkDetailContent(
                     .fillMaxHeight(),
                 scrollState = scrollState
             )
+
+            // Determinate progress bar for on-demand content loading.
+            // Drawn last in the Scaffold content Box so it sits just below the
+            // top app bar and renders on top of the loading overlay.
+            val progressTarget = when (contentLoadState) {
+                is ContentLoadState.Loading -> contentLoadState.progress.coerceIn(0f, 0.95f)
+                ContentLoadState.Idle -> 0f
+                else -> 1f
+            }
+            val animatedProgress by animateFloatAsState(
+                targetValue = progressTarget,
+                animationSpec = tween(durationMillis = if (progressTarget >= 1f) 250 else 350),
+                label = "contentLoadProgress"
+            )
+            var showProgress by remember(uiState.bookmark.bookmarkId) { mutableStateOf(false) }
+            LaunchedEffect(contentLoadState, progressTarget) {
+                if (progressTarget > 0f) showProgress = true
+                if (progressTarget >= 1f) {
+                    delay(250)
+                    showProgress = false
+                }
+            }
+            if (showProgress && animatedProgress < 1f) {
+                LinearProgressIndicator(
+                    progress = { animatedProgress },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(4.dp)
+                        .align(Alignment.TopStart)
+                )
+            }
         }
     }
     }
@@ -1571,9 +1581,6 @@ private fun ReaderLoadingOverlay(
                     .height(4.dp)
             )
         }
-        // When content is being fetched on-demand, the top-level determinate
-        // progress bar (driven by ContentLoadState) is already visible above
-        // this overlay, so no additional indicator is needed here.
     }
 }
 
