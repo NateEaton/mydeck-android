@@ -75,7 +75,7 @@ From the OpenAPI spec:
 | `bookmark_title` | `string` | Title of the parent bookmark |
 | `bookmark_site_name` | `string` | Site name of the parent bookmark |
 
-Note: There is no `color` field in the summary response. Color is available in the article HTML via `<rd-annotation data-annotation-color="...">` but is not surfaced in this listing endpoint. The list view should use a neutral highlight indicator (e.g., the highlight icon) rather than per-color indicators.
+**Color:** The OpenAPI spec does not document a `color` field in `annotationSummary`. However, the native Readeck web UI clearly displays highlight cards with colored backgrounds matching each annotation's color (yellow, red, blue, green, olive/none). This strongly suggests the actual API response includes a `color` field not yet documented in the spec. During implementation, the response should be inspected to confirm. If `color` is present, use it for card background tinting. If not, a fallback approach is to fetch per-bookmark annotations (`GET /bookmarks/{id}/annotations`) which also lacks color in the spec — but the article HTML `<rd-annotation data-annotation-color="...">` is the authoritative source. As a last resort, a neutral highlight style can be used, but the colored card approach matching the Readeck UI is strongly preferred.
 
 ---
 
@@ -89,6 +89,7 @@ data class AnnotationSummaryDto(
     val id: String,
     val href: String,
     val text: String,
+    val color: String?,  // Not in OpenAPI spec but likely present (see Color note above)
     val created: String,
     val bookmark_id: String,
     val bookmark_href: String,
@@ -105,12 +106,27 @@ data class AnnotationSummaryDto(
 data class HighlightSummary(
     val id: String,
     val text: String,
+    val color: String,  // "yellow", "red", "blue", "green", "none"; defaults to "yellow" if absent
     val created: kotlinx.datetime.Instant,
     val bookmarkId: String,
     val bookmarkTitle: String,
     val bookmarkSiteName: String,
 )
 ```
+
+### Grouped model (for UI)
+
+```kotlin
+// domain/model/BookmarkHighlightGroup.kt
+data class BookmarkHighlightGroup(
+    val bookmarkId: String,
+    val bookmarkTitle: String,
+    val bookmarkSiteName: String,
+    val highlights: List<HighlightSummary>,  // ordered by created descending
+)
+```
+
+The repository returns flat `HighlightSummary` items; the ViewModel groups them by `bookmarkId` and sorts groups by the most recent highlight timestamp (descending).
 
 No Room entity is needed. This is a network-only, non-cached listing (like Labels in single-select mode). The list is fetched fresh each time the user navigates to the Highlights screen. The list is typically small (tens to low hundreds of items) and the endpoint is paginated.
 
@@ -215,37 +231,59 @@ A `Scaffold` with:
 - **Loading state**: `CircularProgressIndicator` during initial fetch
 - **Error state**: Error message with retry button
 
-### Highlight list item
+### Grouping: by bookmark, not by date
 
-Each item displays:
+The Readeck native UI groups highlights **by parent bookmark**, not by date. Multiple highlights from the same bookmark are shown as consecutive cards, with the bookmark title appearing **below** the group (not above it) as a link-styled line. This is the layout visible in the screenshots:
 
 ```
 ┌─────────────────────────────────────────────┐
-│  22 March 2026, 03:44                       │
-│  Intergraph                                 │  ← highlighted text (bold)
-│  Shapr3D - Intergraph - History of CAD      │  ← bookmark title (secondary, clickable link style)
+│  22 March 2026, 03:44                       │  ← date
+│  Intergraph                                 │  ← highlighted text
 └─────────────────────────────────────────────┘
+┌─────────────────────────────────────────────┐
+│  22 March 2026, 03:44                       │  ← date
+│  big five                                   │  ← highlighted text
+└─────────────────────────────────────────────┘
+  Shapr3D - Intergraph - History of CAD         ← bookmark title BELOW the group
 ```
 
-- **Date**: Formatted as relative or absolute depending on recency, styled as `labelMedium` in `onSurfaceVariant`
-- **Highlighted text**: The `text` field from the API, truncated to ~2–3 lines, styled as `bodyLarge`
-- **Bookmark context**: `bookmark_title` by `bookmark_site_name`, styled as `bodyMedium` in the theme's link/accent color, following the Readeck UI pattern shown in the screenshots
+The overall list is sorted by most-recent-highlight descending (bookmarks with the newest highlight appear first). Within a bookmark group, highlights are ordered by creation date descending.
 
-The items are rendered as `Card` or `ListItem` composables with a subtle left border or background tint to evoke a highlight aesthetic. The Readeck native UI uses colored card backgrounds — the implementation can use a subtle surface-variant background or left-edge color bar.
+### Highlight card styling
 
-### Date grouping
+Each highlight card has a **colored background** matching the annotation color, following the Readeck native UI:
 
-Items are sorted by `created` descending (newest first). A sticky header or simple `Text` divider separates items by day, formatted as "22 March 2026". This matches the Readeck native UI grouping pattern visible in the screenshots.
+| Annotation color | Card background |
+|-----------------|-----------------|
+| `yellow` | Warm yellow/amber tint (e.g., `rgba(255, 235, 59, 0.25)`) |
+| `red` | Muted red/rose tint (e.g., `rgba(239, 83, 80, 0.20)`) |
+| `blue` | Subtle blue tint (e.g., `rgba(66, 165, 245, 0.20)`) |
+| `green` | Subtle green tint (e.g., `rgba(102, 187, 106, 0.20)`) |
+| `none` | Olive/neutral tint (e.g., `rgba(150, 150, 100, 0.15)`) |
 
-### Tap action
+Alpha values should be tuned for both light and dark themes to ensure readability. The Readeck screenshots show distinct but muted background colors that make the list visually scannable without being garish.
 
-Tapping a highlight item:
-1. Navigates to `BookmarkDetailScreen` for the parent bookmark
-2. Passes the `annotationId` so the reading view scrolls to that highlight after page load
+Each card displays:
+- **Date**: Creation timestamp, styled as `labelMedium` in `onSurfaceVariant`
+- **Highlighted text**: The `text` field, truncated to ~2–3 lines, styled as `bodyLarge`
 
-### Considerations for the bookmark title link
+### Bookmark title line
 
-In the Readeck web UI, the bookmark title below each highlight group is a link to the bookmark itself (not to a specific highlight). In MyDeck, tapping the bookmark title line could navigate to the bookmark detail view without a specific annotation scroll target, while tapping the highlight text itself navigates with scroll-to. However, for simplicity in the first implementation, both taps can navigate to the reading view with scroll-to-annotation — users who want to just open the bookmark can do so from My List or Archive.
+The bookmark title + site name line appears **below** the last card in a bookmark group, styled as a link (accent/primary color, `bodyMedium`). In the Readeck UI this is formatted as:
+
+```
+Site Name - Bookmark Title
+```
+
+Tapping the bookmark title line navigates to the bookmark in reading view without a specific annotation scroll target (opens at the top or last reading position). Tapping a highlight card navigates to the bookmark with scroll-to-annotation.
+
+### Tap actions
+
+Two distinct tap targets:
+
+1. **Tapping a highlight card**: Navigates to `BookmarkDetailScreen` for the parent bookmark, passing the `annotationId` so the reading view scrolls to that specific highlight after page load.
+
+2. **Tapping the bookmark title line**: Navigates to `BookmarkDetailScreen` for the bookmark without a specific annotation scroll target (opens at the top or last reading position). This matches the Readeck web UI behavior where the title is a link to the bookmark itself.
 
 ---
 
@@ -287,7 +325,7 @@ class HighlightsViewModel @Inject constructor(
 sealed interface HighlightsUiState {
     data object Loading : HighlightsUiState
     data object Empty : HighlightsUiState
-    data class Success(val highlights: List<HighlightSummary>) : HighlightsUiState
+    data class Success(val groups: List<BookmarkHighlightGroup>) : HighlightsUiState
     data class Error(val message: String) : HighlightsUiState
 }
 ```
