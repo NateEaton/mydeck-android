@@ -370,4 +370,5 @@ other{}
     <string name="about_system_info_server_unavailable">No server information available</string>
     <string name="auto_sync_timeframe_15_minutes">Every 15 minutes</string>
     <string name="highlight_offline_unavailable">Highlights can\'t be changed while offline</string>
+    <string name="video_embed_offline">Video unavailable while offline</string>
 </resources>
