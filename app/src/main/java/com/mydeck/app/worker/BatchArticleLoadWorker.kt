@@ -58,16 +58,13 @@ class BatchArticleLoadWorker @AssistedInject constructor(
                 coroutineScope {
                     // Use multipart batching (up to 10 IDs per request)
                     val perIdResults = loadContentPackageUseCase.executeBatch(batch)
-                    // Fallback to legacy for transient failures only
+                    // Stage 4: no background legacy fallback. Transient failures stay DIRTY for retry.
                     perIdResults.entries.map { (id, res) ->
                         async {
-                            try {
-                                if (res is LoadContentPackageUseCase.Result.TransientFailure) {
-                                    Timber.d("Multipart failed for $id, falling back to legacy: ${res.reason}")
-                                    loadArticleUseCase.execute(id)
-                                }
-                            } catch (e: Exception) {
-                                Timber.w(e, "Failed to load content for $id")
+                            if (res is LoadContentPackageUseCase.Result.TransientFailure) {
+                                Timber.d("Multipart content fetch transient failure for $id: ${res.reason}")
+                            } else if (res is LoadContentPackageUseCase.Result.PermanentFailure) {
+                                Timber.d("Multipart content fetch permanent failure for $id: ${res.reason}")
                             }
                         }
                     }.awaitAll()

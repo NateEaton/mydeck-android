@@ -96,7 +96,6 @@ class BookmarkDetailViewModelTest {
         every { context.packageName } returns "com.mydeck.app"
         every { bookmarkRepository.observeBookmark(any()) } returns MutableStateFlow(sampleBookmark)
         coEvery { bookmarkRepository.getBookmarkById(any()) } returns sampleBookmark
-        coEvery { bookmarkRepository.refreshBookmarkFromApi(any()) } returns Unit
         every { assetLoader.loadAsset(match { it.startsWith("html_template_") }) } returns htmlTemplate
         every { savedStateHandle.get<String>("bookmarkId") } returns "123"
         themeFlow = MutableStateFlow(Theme.LIGHT.name)
@@ -633,15 +632,15 @@ class BookmarkDetailViewModelTest {
         )
         every { bookmarkRepository.observeBookmark("123") } returns MutableStateFlow(bookmarkWithNotAttempted)
         coEvery { bookmarkRepository.getBookmarkById("123") } returns bookmarkWithNotAttempted
-        coEvery { bookmarkRepository.refreshBookmarkFromApi(any()) } returns Unit
-        coEvery { loadArticleUseCase.execute("123") } returns LoadArticleUseCase.Result.Success
+        coEvery { loadContentPackageUseCase.execute("123") } returns LoadContentPackageUseCase.Result.PermanentFailure("not available")
+        coEvery { loadArticleUseCase.execute("123", markDirtyAfterSuccess = true) } returns LoadArticleUseCase.Result.Success
 
         // Act
         viewModel = createViewModel()
         advanceUntilIdle()
 
         // Assert
-        coVerify { loadArticleUseCase.execute("123") }
+        coVerify { loadArticleUseCase.execute("123", markDirtyAfterSuccess = true) }
     }
 
     @Test
@@ -654,7 +653,6 @@ class BookmarkDetailViewModelTest {
         )
         every { bookmarkRepository.observeBookmark("123") } returns MutableStateFlow(bookmarkWithDownloaded)
         coEvery { bookmarkRepository.getBookmarkById("123") } returns bookmarkWithDownloaded
-        coEvery { bookmarkRepository.refreshBookmarkFromApi(any()) } returns Unit
         coEvery { loadArticleUseCase.refreshCachedArticleIfAnnotationsChanged("123") } just Runs
         advanceUntilIdle()
         clearMocks(loadArticleUseCase, answers = false, recordedCalls = true)
@@ -664,7 +662,7 @@ class BookmarkDetailViewModelTest {
         advanceUntilIdle()
 
         // Assert
-        coVerify(exactly = 0) { loadArticleUseCase.execute(any()) }
+        coVerify(exactly = 0) { loadArticleUseCase.execute(any(), any()) }
         coVerify(exactly = 1) { loadArticleUseCase.refreshCachedArticleIfAnnotationsChanged("123") }
     }
 
@@ -746,7 +744,6 @@ class BookmarkDetailViewModelTest {
         )
         every { bookmarkRepository.observeBookmark("123") } returns MutableStateFlow(bookmarkWithNoContent)
         coEvery { bookmarkRepository.getBookmarkById("123") } returns bookmarkWithNoContent
-        coEvery { bookmarkRepository.refreshBookmarkFromApi(any()) } returns Unit
 
         // Act
         viewModel = createViewModel()
@@ -758,7 +755,7 @@ class BookmarkDetailViewModelTest {
         val failedState = state as BookmarkDetailViewModel.ContentLoadState.Failed
         assertEquals("Source blocked content extraction", failedState.reason)
         assertEquals(false, failedState.canRetry)
-        coVerify(exactly = 0) { loadArticleUseCase.execute(any()) }
+        coVerify(exactly = 0) { loadArticleUseCase.execute(any(), any()) }
     }
 
     @Test
@@ -775,7 +772,7 @@ class BookmarkDetailViewModelTest {
         )
         every { bookmarkRepository.observeBookmark("123") } returns MutableStateFlow(videoBookmarkWithNoContent)
         coEvery { bookmarkRepository.getBookmarkById("123") } returns videoBookmarkWithNoContent
-        coEvery { bookmarkRepository.refreshBookmarkFromApi(any()) } returns Unit
+        coEvery { bookmarkRepository.refreshBookmarkMetadata("123") } just io.mockk.Runs
 
         viewModel = createViewModel()
         advanceUntilIdle()
@@ -785,7 +782,7 @@ class BookmarkDetailViewModelTest {
         val failedState = state as BookmarkDetailViewModel.ContentLoadState.Failed
         assertEquals("No video reader payload available", failedState.reason)
         assertEquals(false, failedState.canRetry)
-        coVerify(exactly = 0) { loadArticleUseCase.execute(any()) }
+        coVerify(exactly = 0) { loadArticleUseCase.execute(any(), any()) }
     }
 
     @Test
@@ -798,8 +795,8 @@ class BookmarkDetailViewModelTest {
         )
         every { bookmarkRepository.observeBookmark("123") } returns MutableStateFlow(bookmarkWithNotAttempted)
         coEvery { bookmarkRepository.getBookmarkById("123") } returns bookmarkWithNotAttempted
-        coEvery { bookmarkRepository.refreshBookmarkFromApi(any()) } returns Unit
-        coEvery { loadArticleUseCase.execute("123") } returns LoadArticleUseCase.Result.PermanentFailure("Article extraction not supported for this site")
+        coEvery { loadContentPackageUseCase.execute("123") } returns LoadContentPackageUseCase.Result.PermanentFailure("not available")
+        coEvery { loadArticleUseCase.execute("123", markDirtyAfterSuccess = true) } returns LoadArticleUseCase.Result.PermanentFailure("Article extraction not supported for this site")
 
         // Act
         viewModel = createViewModel()
@@ -914,9 +911,8 @@ class BookmarkDetailViewModelTest {
         coEvery {
             readeckApi.createAnnotation("123", any())
         } returns Response.success(createdAnnotation)
-        coEvery { readeckApi.getArticle("123") } returns Response.success("<p>Updated article</p>")
-        coEvery { bookmarkRepository.getBookmarkById("123") } returns sampleBookmark
-        coEvery { bookmarkRepository.insertBookmarks(any()) } just Runs
+        coEvery { loadContentPackageUseCase.executeForceRefresh("123") } returns LoadContentPackageUseCase.Result.Success
+        coEvery { readeckApi.getAnnotations("123") } returns Response.success(emptyList())
 
         viewModel.showCreateAnnotationSheet(selectionData)
         viewModel.onAnnotationEditColorSelected("red")
@@ -925,14 +921,8 @@ class BookmarkDetailViewModelTest {
 
         assertNull(viewModel.annotationEditState.value)
         coVerify { readeckApi.createAnnotation("123", any()) }
-        coVerify { readeckApi.getArticle("123") }
-        coVerify {
-            bookmarkRepository.insertBookmarks(
-                match { bookmarks ->
-                    bookmarks.single().articleContent == "<p>Updated article</p>"
-                }
-            )
-        }
+        coVerify { loadContentPackageUseCase.executeForceRefresh("123") }
+        coVerify { readeckApi.getAnnotations("123") }
     }
 
     @Test
@@ -966,9 +956,8 @@ class BookmarkDetailViewModelTest {
 
         coEvery { readeckApi.updateAnnotation("123", "annotation-1", any()) } returns Response.success(Unit)
         coEvery { readeckApi.updateAnnotation("123", "annotation-2", any()) } returns Response.success(Unit)
-        coEvery { readeckApi.getArticle("123") } returns Response.success("<p>Updated article</p>")
-        coEvery { bookmarkRepository.getBookmarkById("123") } returns sampleBookmark
-        coEvery { bookmarkRepository.insertBookmarks(any()) } just Runs
+        coEvery { loadContentPackageUseCase.executeForceRefresh("123") } returns LoadContentPackageUseCase.Result.Success
+        coEvery { readeckApi.getAnnotations("123") } returns Response.success(emptyList())
 
         viewModel.showCreateAnnotationSheet(selectionData, existingAnnotations)
         viewModel.onAnnotationEditColorSelected("red")
@@ -979,7 +968,8 @@ class BookmarkDetailViewModelTest {
         coVerify { readeckApi.updateAnnotation("123", "annotation-1", any()) }
         coVerify { readeckApi.updateAnnotation("123", "annotation-2", any()) }
         coVerify(exactly = 0) { readeckApi.createAnnotation(any(), any()) }
-        coVerify { readeckApi.getArticle("123") }
+        coVerify { loadContentPackageUseCase.executeForceRefresh("123") }
+        coVerify { readeckApi.getAnnotations("123") }
     }
 
     @Test
@@ -995,9 +985,8 @@ class BookmarkDetailViewModelTest {
 
         coEvery { readeckApi.deleteAnnotation("123", "annotation-1") } returns Response.success(Unit)
         coEvery { readeckApi.deleteAnnotation("123", "annotation-2") } returns Response.success(Unit)
-        coEvery { readeckApi.getArticle("123") } returns Response.success("<p>Updated article</p>")
-        coEvery { bookmarkRepository.getBookmarkById("123") } returns sampleBookmark
-        coEvery { bookmarkRepository.insertBookmarks(any()) } just Runs
+        coEvery { loadContentPackageUseCase.executeForceRefresh("123") } returns LoadContentPackageUseCase.Result.Success
+        coEvery { readeckApi.getAnnotations("123") } returns Response.success(emptyList())
 
         viewModel.showCreateAnnotationSheet(selectionData)
         viewModel.deleteCurrentAnnotation()
@@ -1006,26 +995,20 @@ class BookmarkDetailViewModelTest {
         assertNull(viewModel.annotationEditState.value)
         coVerify { readeckApi.deleteAnnotation("123", "annotation-1") }
         coVerify { readeckApi.deleteAnnotation("123", "annotation-2") }
-        coVerify { readeckApi.getArticle("123") }
+        coVerify { loadContentPackageUseCase.executeForceRefresh("123") }
+        coVerify { readeckApi.getAnnotations("123") }
     }
 
     @Test
     fun `forceRefreshContent refreshes downloaded article content`() = runTest {
-        coEvery { readeckApi.getArticle("123") } returns Response.success("<p>Fresh article</p>")
-        coEvery { bookmarkRepository.getBookmarkById("123") } returns sampleBookmark
-        coEvery { bookmarkRepository.insertBookmarks(any()) } just Runs
+        coEvery { loadContentPackageUseCase.executeForceRefresh("123") } returns LoadContentPackageUseCase.Result.Success
+        coEvery { readeckApi.getAnnotations("123") } returns Response.success(emptyList())
 
         viewModel.forceRefreshContent()
         advanceUntilIdle()
 
-        coVerify { readeckApi.getArticle("123") }
-        coVerify {
-            bookmarkRepository.insertBookmarks(
-                match { bookmarks ->
-                    bookmarks.single().articleContent == "<p>Fresh article</p>"
-                }
-            )
-        }
+        coVerify { loadContentPackageUseCase.executeForceRefresh("123") }
+        coVerify { readeckApi.getAnnotations("123") }
     }
 
     @Test

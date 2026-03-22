@@ -5,7 +5,6 @@ import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.mydeck.app.domain.sync.ContentSyncPolicyEvaluator
-import com.mydeck.app.domain.usecase.LoadArticleUseCase
 import com.mydeck.app.domain.usecase.LoadContentPackageUseCase
 import com.mydeck.app.io.db.dao.BookmarkDao
 import com.mydeck.app.io.prefs.SettingsDataStore
@@ -20,7 +19,6 @@ class DateRangeContentSyncWorker @AssistedInject constructor(
     @Assisted workerParams: WorkerParameters,
     private val bookmarkDao: BookmarkDao,
     private val loadContentPackageUseCase: LoadContentPackageUseCase,
-    private val loadArticleUseCase: LoadArticleUseCase,
     private val policyEvaluator: ContentSyncPolicyEvaluator,
     private val settingsDataStore: SettingsDataStore
 ) : CoroutineWorker(appContext, workerParams) {
@@ -54,10 +52,9 @@ class DateRangeContentSyncWorker @AssistedInject constructor(
                 val perIdResults = loadContentPackageUseCase.executeBatch(batch)
                 perIdResults.forEach { (id, res) ->
                     if (res is LoadContentPackageUseCase.Result.TransientFailure) {
-                        Timber.d("Multipart failed for $id, falling back to legacy: ${res.reason}")
-                        try { loadArticleUseCase.execute(id) } catch (e: Exception) {
-                            Timber.w(e, "Legacy fallback failed for $id in date range sync")
-                        }
+                        Timber.d("Multipart content fetch transient failure for $id: ${res.reason}")
+                    } else if (res is LoadContentPackageUseCase.Result.PermanentFailure) {
+                        Timber.d("Multipart content fetch permanent failure for $id: ${res.reason}")
                     }
                 }
             } catch (e: Exception) {

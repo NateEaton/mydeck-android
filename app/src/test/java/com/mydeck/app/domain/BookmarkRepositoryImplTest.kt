@@ -378,23 +378,6 @@ class BookmarkRepositoryImplTest {
     }
 
     @Test
-    fun `refreshBookmarkFromApi successful`() = runTest {
-        // Arrange
-        val bookmarkId = "test-bookmark-id"
-        val updatedBookmark = bookmarkDto.copy(title = "Updated Title")
-        val response = Response.success(updatedBookmark)
-        
-        coEvery { readeckApi.getBookmarkById(bookmarkId) } returns response
-        
-        // Act
-        bookmarkRepositoryImpl.refreshBookmarkFromApi(bookmarkId)
-        
-        // Assert
-        coVerify { readeckApi.getBookmarkById(bookmarkId) }
-        coVerify { bookmarkDao.upsertBookmarksMetadataOnly(any()) }
-    }
-
-    @Test
     fun `insertBookmarks uses content-aware path when article content is present`() = runTest {
         val bookmark = bookmarkDto.toDomain().copy(
             articleContent = "<article>Synced content</article>",

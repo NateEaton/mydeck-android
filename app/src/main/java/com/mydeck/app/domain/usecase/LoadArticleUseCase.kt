@@ -30,7 +30,7 @@ class LoadArticleUseCase @Inject constructor(
         data class PermanentFailure(val reason: String) : Result()
     }
 
-    suspend fun execute(bookmarkId: String): Result {
+    suspend fun execute(bookmarkId: String, markDirtyAfterSuccess: Boolean = false): Result {
         val bookmark = bookmarkRepository.getBookmarkById(bookmarkId)
 
         // Guard: never re-fetch downloaded content
@@ -64,7 +64,8 @@ class LoadArticleUseCase @Inject constructor(
                 val content = response.body()!!
                 storeDownloadedArticle(
                     bookmark = bookmark,
-                    articleContent = content
+                    articleContent = content,
+                    markDirtyAfterSuccess = markDirtyAfterSuccess
                 )
                 Result.Success
             } else {
@@ -147,16 +148,20 @@ class LoadArticleUseCase @Inject constructor(
     private suspend fun storeDownloadedArticle(
         bookmark: Bookmark,
         articleContent: String,
-        annotationSnapshot: String? = null
+        annotationSnapshot: String? = null,
+        markDirtyAfterSuccess: Boolean = false
     ) {
-        val omitDescription = resolveOmitDescription(bookmark)
         val bookmarkToSave = bookmark.copy(
             articleContent = articleContent,
-            contentState = ContentState.DOWNLOADED,
+            contentState = if (markDirtyAfterSuccess) ContentState.DIRTY else ContentState.DOWNLOADED,
             contentFailureReason = null,
-            omitDescription = omitDescription
+            omitDescription = bookmark.omitDescription
         )
         bookmarkRepository.insertBookmarks(listOf(bookmarkToSave))
+
+        if (markDirtyAfterSuccess) {
+            return
+        }
 
         if (annotationSnapshot != null) {
             settingsDataStore.saveCachedAnnotationSnapshot(bookmark.id, annotationSnapshot)
@@ -177,34 +182,6 @@ class LoadArticleUseCase @Inject constructor(
             Timber.w(e, "Network error while caching annotation snapshot for ${bookmark.id}")
         } catch (e: Exception) {
             Timber.w(e, "Unexpected error while caching annotation snapshot for ${bookmark.id}")
-        }
-    }
-
-    private suspend fun resolveOmitDescription(bookmark: Bookmark): Boolean? {
-        if (bookmark.omitDescription != null) {
-            return bookmark.omitDescription
-        }
-
-        if (bookmark.description.isBlank() || bookmark.type !is Bookmark.Type.Article) {
-            return null
-        }
-
-        return try {
-            val response = readeckApi.getBookmarkById(bookmark.id)
-            if (response.isSuccessful) {
-                response.body()?.omitDescription
-            } else {
-                Timber.w(
-                    "Failed to fetch bookmark detail for omitDescription [bookmarkId=${bookmark.id}, code=${response.code()}]"
-                )
-                null
-            }
-        } catch (e: IOException) {
-            Timber.w(e, "Network error fetching bookmark detail for omitDescription [bookmarkId=${bookmark.id}]")
-            null
-        } catch (e: Exception) {
-            Timber.w(e, "Unexpected error fetching bookmark detail for omitDescription [bookmarkId=${bookmark.id}]")
-            null
         }
     }
 

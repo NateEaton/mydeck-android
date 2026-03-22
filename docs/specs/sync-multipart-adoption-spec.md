@@ -934,6 +934,49 @@ Once multipart sync is proven stable:
     - Open a content-package article with annotations while online.
     - Expected result: highlights render immediately with correct colors; no flash to yellow.
 
+## Field Note: Initial Sync Regression (Stage 4)
+
+**Context (2026-03-21):** After removing the legacy paginated metadata reload, initial app open
+can show **zero bookmarks**. Log file: `debug/multipart/mydeck-logs-2026-03-21-214800.txt`.
+
+**Observed flow:**
+
+- `LoadBookmarksWorker` (initial) logs: `No updated IDs to reload (legacy paginated path removed)`.
+- `FullSyncWorker` performs deletion detection via paginated GET /bookmarks, then logs:
+  `Fetching updated bookmarks [multipart=false, count=all]` followed by the same
+  `No updated IDs to reload` message.
+- Result: **no multipart metadata fetch occurs**, so the local DB remains empty.
+
+**Root cause:**
+
+Stage 4 removed the paginated **metadata** transport, but the initial/full-sync path still relies
+on that path to provide updated IDs. When `updatedIds == null`, `LoadBookmarksUseCase` returns
+success without fetching metadata, which is correct for “no updates,” but incorrect for the first
+sync (no cached bookmarks).
+
+**Architecture options (to approve before implementation):**
+
+1. **Option A — Reuse full-sync paging to supply IDs (recommended).**
+   - During `performFullSync`, collect all remote bookmark IDs and pass them to multipart
+     metadata fetch (`LoadBookmarksUseCase.execute(updatedIds)`), instead of `updatedIds = null`.
+   - Keeps legacy paging only for ID discovery + deletion detection, not metadata payloads.
+
+2. **Option B — New “LoadAllBookmarksUseCase.”**
+   - Explicitly page IDs for initial sync, then drive multipart metadata fetch in batches.
+   - Keeps deletion detection separate but adds a new orchestration path.
+
+3. **Option C — Use `remote_bookmark_ids` table as the handoff.**
+   - Persist IDs from `performFullSync` and let `LoadBookmarksUseCase` read them when
+     `updatedIds == null`, cleaning up the temp table afterward.
+
+4. **Option D — Persist metadata from the full-sync paging response.**
+   - `performFullSync()` — In the paging loop, also map `BookmarkDto` → domain → insert (alongside the existing ID extraction for deletion). Return persisted count in `SyncResult`.
+   - `FullSyncWorker` — When `needsFullSync`, skip the `loadBookmarksUseCase.execute()` call (metadata is already persisted). Still run `enqueueContentSyncIfNeeded()` and `refreshServerErrorFlags()`.
+   - `LoadBookmarksWorker` initial load — Call `bookmarkRepository.performFullSync()` directly instead of `loadBookmarksUseCase.execute()`. This gives the user bookmarks immediately upon first login.
+   - `LoadBookmarksUseCase.execute()` — Remove the `updatedIds == null` no-op branch. If called without IDs, it should be a code error, not a silent success.
+
+**Recommendation:** Option D
+
 ## Decision Summary
 
 `v0.12.0` adopts the sync API multipart transport as the primary retrieval architecture, including

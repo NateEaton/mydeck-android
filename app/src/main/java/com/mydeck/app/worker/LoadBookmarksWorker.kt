@@ -52,37 +52,58 @@ class LoadBookmarksWorker @AssistedInject constructor(
             return Result.success() // Or Result.failure() if you want to signal an error
         }
 
-        // Run delta sync to catch deletions (lightweight, only fetches changed IDs)
-        var pendingSyncCursor: Instant? = null
-        if (!isInitialLoad) {
-            // Prefer lastSyncTimestamp (advances after every delta sync) over lastBookmarkTimestamp
-            // (only advances when bookmark metadata changes, not on deletions)
-            val syncSince = resolveSyncSince(
-                lastSyncTimestamp = settingsDataStore.getLastSyncTimestamp(),
-                lastBookmarkTimestamp = settingsDataStore.getLastBookmarkTimestamp()
-            )
-            if (syncSince != null) {
-                when (val result = bookmarkRepository.performDeltaSync(syncSince)) {
-                    is BookmarkRepository.SyncResult.Success -> {
-                        pendingSyncCursor = result.maxServerTime ?: Clock.System.now()
-                        if (result.countDeleted > 0) {
-                            Timber.i("Delta sync removed ${result.countDeleted} deleted bookmarks")
-                        }
-                        if (result.countUpdated == 0) {
-                            Timber.i("Delta sync reported no metadata updates; skipping bookmark reload")
-                            settingsDataStore.saveLastSyncTimestamp(pendingSyncCursor!!)
-                            if (!settingsDataStore.isInitialSyncPerformed()) {
-                                settingsDataStore.setInitialSyncPerformed(true)
-                            }
-                            return Result.success()
-                        }
-                    }
-                    else -> Timber.w("Delta sync failed during pull-to-refresh, continuing with incremental load")
+        if (isInitialLoad) {
+            // Initial load: use full sync which persists metadata from the paging response
+            Timber.d("Initial load: performing full sync to bootstrap bookmarks")
+            return when (val result = bookmarkRepository.performFullSync()) {
+                is BookmarkRepository.SyncResult.Success -> {
+                    Timber.i("Initial full sync: inserted ${result.countUpdated} bookmarks, deleted ${result.countDeleted}")
+                    settingsDataStore.saveLastSyncTimestamp(Clock.System.now())
+                    settingsDataStore.saveLastFullSyncTimestamp(Clock.System.now())
+                    settingsDataStore.setInitialSyncPerformed(true)
+                    Result.success()
+                }
+                is BookmarkRepository.SyncResult.NetworkError -> {
+                    Timber.e(result.ex, "Network error during initial full sync")
+                    Result.retry()
+                }
+                is BookmarkRepository.SyncResult.Error -> {
+                    Timber.e("Initial full sync failed: ${result.errorMessage}")
+                    Result.failure()
                 }
             }
         }
 
-        return when (val result = loadBookmarksUseCase.execute()) {
+        // Non-initial: run delta sync then fetch updated metadata via multipart
+        val syncSince = resolveSyncSince(
+            lastSyncTimestamp = settingsDataStore.getLastSyncTimestamp(),
+            lastBookmarkTimestamp = settingsDataStore.getLastBookmarkTimestamp()
+        )
+        var pendingSyncCursor: Instant? = null
+        var deltaUpdatedIds: List<String>? = null
+
+        if (syncSince != null) {
+            when (val result = bookmarkRepository.performDeltaSync(syncSince)) {
+                is BookmarkRepository.SyncResult.Success -> {
+                    pendingSyncCursor = result.maxServerTime ?: Clock.System.now()
+                    if (result.countDeleted > 0) {
+                        Timber.i("Delta sync removed ${result.countDeleted} deleted bookmarks")
+                    }
+                    if (result.countUpdated == 0) {
+                        Timber.i("Delta sync reported no metadata updates; skipping bookmark reload")
+                        settingsDataStore.saveLastSyncTimestamp(pendingSyncCursor!!)
+                        if (!settingsDataStore.isInitialSyncPerformed()) {
+                            settingsDataStore.setInitialSyncPerformed(true)
+                        }
+                        return Result.success()
+                    }
+                    deltaUpdatedIds = result.updatedIds
+                }
+                else -> Timber.w("Delta sync failed during pull-to-refresh, continuing with incremental load")
+            }
+        }
+
+        return when (val result = loadBookmarksUseCase.execute(updatedIds = deltaUpdatedIds)) {
             is LoadBookmarksUseCase.UseCaseResult.Success -> {
                 pendingSyncCursor?.let { settingsDataStore.saveLastSyncTimestamp(it) }
                 if (!settingsDataStore.isInitialSyncPerformed()) {

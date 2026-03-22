@@ -94,36 +94,42 @@ class FullSyncWorker @AssistedInject constructor(
                 )
             }
 
-            // Step 2: Fetch updated/new bookmarks (this also triggers article content loading)
-            // Pass updated IDs from delta sync to use multipart metadata fetch;
-            // null for full sync falls back to legacy paginated endpoint
-            val updatedIds = if (!needsFullSync) syncSuccess.updatedIds else null
-            Timber.d("Fetching updated bookmarks [multipart=${updatedIds != null}, count=${updatedIds?.size ?: "all"}]")
-            val loadResult = loadBookmarksUseCase.execute(updatedIds = updatedIds)
+            // Step 2: Fetch updated/new bookmarks
+            val workResult = if (needsFullSync) {
+                // Full sync already persisted metadata in performFullSync(); just save cursor and finish
+                val syncTime = Clock.System.now()
+                settingsDataStore.saveLastSyncTimestamp(syncTime)
+                Timber.d("Full sync path: metadata already persisted (${syncSuccess.countUpdated} bookmarks)")
+                Result.success(
+                    Data.Builder().putInt(OUTPUT_DATA_COUNT, syncSuccess.countDeleted).build()
+                )
+            } else {
+                // Delta path: fetch metadata for updated IDs via multipart POST
+                val updatedIds = syncSuccess.updatedIds
+                Timber.d("Fetching updated bookmarks via multipart [count=${updatedIds.size}]")
+                val loadResult = loadBookmarksUseCase.execute(updatedIds = updatedIds)
 
-            val workResult = when (loadResult) {
-                is LoadBookmarksUseCase.UseCaseResult.Error -> {
-                    Timber.e(loadResult.exception, "Failed to load updated bookmarks")
-                    Result.failure()
-                }
-                is LoadBookmarksUseCase.UseCaseResult.Success -> {
-                    // Prefer server event time from delta sync to avoid clock skew issues
-                    val syncTime = syncSuccess.maxServerTime ?: Clock.System.now()
-                    settingsDataStore.saveLastSyncTimestamp(syncTime)
-                    // Mark existing DOWNLOADED packages DIRTY when server updated > stored sourceUpdated (delta path only)
-                    if (!needsFullSync) {
+                when (loadResult) {
+                    is LoadBookmarksUseCase.UseCaseResult.Error -> {
+                        Timber.e(loadResult.exception, "Failed to load updated bookmarks")
+                        Result.failure()
+                    }
+                    is LoadBookmarksUseCase.UseCaseResult.Success -> {
+                        // Prefer server event time from delta sync to avoid clock skew issues
+                        val syncTime = syncSuccess.maxServerTime ?: Clock.System.now()
+                        settingsDataStore.saveLastSyncTimestamp(syncTime)
+                        // Mark existing DOWNLOADED packages DIRTY when server updated > stored sourceUpdated
                         try {
-                            val idsForFreshness = updatedIds.orEmpty()
-                            if (idsForFreshness.isNotEmpty()) {
-                                freshnessMarkerUseCase.markDirtyForBookmarks(idsForFreshness)
+                            if (updatedIds.isNotEmpty()) {
+                                freshnessMarkerUseCase.markDirtyForBookmarks(updatedIds)
                             }
                         } catch (e: Exception) {
                             Timber.w(e, "Freshness marking failed after metadata sync")
                         }
+                        Result.success(
+                            Data.Builder().putInt(OUTPUT_DATA_COUNT, syncSuccess.countDeleted).build()
+                        )
                     }
-                    Result.success(
-                        Data.Builder().putInt(OUTPUT_DATA_COUNT, syncSuccess.countDeleted).build()
-                    )
                 }
             }
             return workResult

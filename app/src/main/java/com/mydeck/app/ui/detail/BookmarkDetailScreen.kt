@@ -67,7 +67,6 @@ import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.ui.layout.layout
-import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.PointerEventPass
@@ -134,6 +133,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.Constraints
 import com.mydeck.app.ui.theme.Dimens
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -157,6 +157,9 @@ import kotlinx.coroutines.withContext
 import coil3.imageLoader
 import com.mydeck.app.ui.detail.components.*
 import timber.log.Timber
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.runtime.LaunchedEffect
 
 private const val PendingDeleteFromDetailKey = "pending_delete_bookmark_id"
 private const val VideoFullscreenControlsAutoHideDelayMs = 3_000L
@@ -478,9 +481,37 @@ fun BookmarkDetailHost(
                 }
             }
 
+            val progressTarget = when (contentLoadState) {
+                ContentLoadState.Loading -> 0.9f
+                ContentLoadState.Idle -> 0f
+                else -> 1f
+            }
+            val animatedProgress by animateFloatAsState(
+                targetValue = progressTarget,
+                animationSpec = tween(durationMillis = if (progressTarget >= 1f) 250 else 500),
+                label = "contentLoadProgress"
+            )
+            var showProgress by remember(uiState.bookmark.bookmarkId) { mutableStateOf(false) }
+            LaunchedEffect(contentLoadState, progressTarget) {
+                if (progressTarget > 0f) showProgress = true
+                if (progressTarget >= 1f) {
+                    delay(250)
+                    showProgress = false
+                }
+            }
+
             // Box ensures the gallery overlay stacks directly on top of the
             // reader screen regardless of how the NavHost lays out its children.
             Box(modifier = Modifier.fillMaxSize()) {
+                if (showProgress && animatedProgress < 1f) {
+                    LinearProgressIndicator(
+                        progress = { animatedProgress },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(4.dp)
+                            .align(Alignment.TopCenter)
+                    )
+                }
                 BookmarkDetailScreen(
                     modifier = Modifier,
                     snackbarHostState = snackbarHostState,
@@ -1398,7 +1429,10 @@ fun BookmarkDetailContent(
                 label = "reader_loading_crossfade"
             ) { isLoading ->
                 if (isLoading) {
-                    ReaderLoadingOverlay(modifier = Modifier.fillMaxSize())
+                    ReaderLoadingOverlay(
+                        contentAlreadyAvailable = uiState.bookmark.hasContent,
+                        modifier = Modifier.fillMaxSize()
+                    )
                 }
             }
 
@@ -1519,16 +1553,27 @@ private fun ReaderContextMenu(
 }
 
 @Composable
-private fun ReaderLoadingOverlay(modifier: Modifier = Modifier) {
+private fun ReaderLoadingOverlay(
+    contentAlreadyAvailable: Boolean,
+    modifier: Modifier = Modifier
+) {
     Box(
         modifier = modifier
+            .background(MaterialTheme.colorScheme.background)
     ) {
-        LinearProgressIndicator(
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .fillMaxWidth()
-                .height(4.dp)
-        )
+        if (contentAlreadyAvailable) {
+            // Content is in the DB/filesystem, just waiting for WebView to render.
+            // No meaningful progress signal — use indeterminate.
+            LinearProgressIndicator(
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .fillMaxWidth()
+                    .height(4.dp)
+            )
+        }
+        // When content is being fetched on-demand, the top-level determinate
+        // progress bar (driven by ContentLoadState) is already visible above
+        // this overlay, so no additional indicator is needed here.
     }
 }
 

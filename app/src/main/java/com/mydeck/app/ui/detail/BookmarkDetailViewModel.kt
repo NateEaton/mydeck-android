@@ -225,13 +225,7 @@ class BookmarkDetailViewModel @Inject constructor(
                 initialReadProgress = bookmark.readProgress
                 bookmarkType = bookmark.type
 
-                // Ensure omitDescription is populated when unknown (e.g., list endpoint may omit it)
-                if (bookmark.omitDescription == null && bookmark.type is com.mydeck.app.domain.model.Bookmark.Type.Article) {
-                    bookmarkRepository.refreshBookmarkFromApi(id)
-                }
-
                 // For photos and videos, auto-mark as 100% when opened
-                // and refresh from API to ensure embed data is available
                 when (bookmark.type) {
                     is com.mydeck.app.domain.model.Bookmark.Type.Picture,
                     is com.mydeck.app.domain.model.Bookmark.Type.Video -> {
@@ -239,9 +233,12 @@ class BookmarkDetailViewModel @Inject constructor(
                             bookmarkRepository.updateReadProgress(id, 100)
                             currentScrollProgress = 100
                         }
-                        // Refresh from API to get embed and other fields
-                        // that may not have been present during initial sync
-                        bookmarkRepository.refreshBookmarkFromApi(id)
+                        // Refresh metadata from API if embed is missing
+                        // (list endpoint used by full sync doesn't include embed)
+                        if (bookmark.type is com.mydeck.app.domain.model.Bookmark.Type.Video &&
+                            bookmark.embed.isNullOrBlank()) {
+                            bookmarkRepository.refreshBookmarkMetadata(id)
+                        }
                         // Fetch article content on demand if not yet downloaded
                         // (videos and photos can have article content per the API spec)
                         when (bookmark.contentState) {
@@ -264,10 +261,6 @@ class BookmarkDetailViewModel @Inject constructor(
                         // Handle content availability
                         when (bookmark.contentState) {
                             ContentState.DOWNLOADED -> {
-                                // Only sync annotations via legacy path when content is NOT
-                                // from a content package. Content packages already have
-                                // server-baked annotations; the legacy sync would trigger
-                                // a re-render that causes annotation color flash and JS issues.
                                 if (contentPackageManager.getContentDir(id) == null) {
                                     syncAnnotationsIfNeeded(id)
                                 }
@@ -530,34 +523,13 @@ class BookmarkDetailViewModel @Inject constructor(
     }
 
     private suspend fun refreshArticleContent(bookmarkId: String) {
-        // For content-package bookmarks, re-download via multipart transport.
-        // This re-extracts annotation metadata from the updated HTML automatically.
-        if (contentPackageManager.getContentDir(bookmarkId) != null) {
-            val result = loadContentPackageUseCase.executeForceRefresh(bookmarkId)
-            if (result is LoadContentPackageUseCase.Result.Success) {
-                cacheAnnotationSnapshot(bookmarkId)
-                return
-            }
-            // If multipart fails, fall through to legacy path
-            Timber.w("Multipart refresh failed for $bookmarkId, falling back to legacy")
+        // Stage 4: refresh via multipart only
+        val result = loadContentPackageUseCase.executeForceRefresh(bookmarkId)
+        if (result is LoadContentPackageUseCase.Result.Success) {
+            cacheAnnotationSnapshot(bookmarkId)
+        } else {
+            throw IllegalStateException("Content refresh failed via multipart: $result")
         }
-
-        val response = readeckApi.getArticle(bookmarkId)
-        if (!response.isSuccessful || response.body() == null) {
-            throw IllegalStateException("Failed to refresh article content: HTTP ${response.code()}")
-        }
-
-        val bookmark = bookmarkRepository.getBookmarkById(bookmarkId)
-        bookmarkRepository.insertBookmarks(
-            listOf(
-                bookmark.copy(
-                    articleContent = response.body(),
-                    contentState = ContentState.DOWNLOADED,
-                    contentFailureReason = null
-                )
-            )
-        )
-        cacheAnnotationSnapshot(bookmarkId)
     }
 
     fun onClickShareBookmark(title: String, url: String) {
@@ -655,14 +627,15 @@ class BookmarkDetailViewModel @Inject constructor(
     private fun fetchContentOnDemand(bookmarkId: String) {
         viewModelScope.launch {
             _contentLoadState.value = ContentLoadState.Loading
-            // Try multipart content package first (Stage 2)
             val pkgResult = loadContentPackageUseCase.execute(bookmarkId)
-            _contentLoadState.value = when (pkgResult) {
+            val loadState = when (pkgResult) {
                 is LoadContentPackageUseCase.Result.Success -> ContentLoadState.Loaded
                 is LoadContentPackageUseCase.Result.AlreadyDownloaded -> ContentLoadState.Loaded
                 is LoadContentPackageUseCase.Result.PermanentFailure -> {
-                    // Fall back to legacy article fetch for articles
-                    val legacyResult = loadArticleUseCase.execute(bookmarkId)
+                    val legacyResult = loadArticleUseCase.execute(
+                        bookmarkId,
+                        markDirtyAfterSuccess = true
+                    )
                     when (legacyResult) {
                         is LoadArticleUseCase.Result.Success -> ContentLoadState.Loaded
                         is LoadArticleUseCase.Result.AlreadyDownloaded -> ContentLoadState.Loaded
@@ -675,8 +648,10 @@ class BookmarkDetailViewModel @Inject constructor(
                     }
                 }
                 is LoadContentPackageUseCase.Result.TransientFailure -> {
-                    // Fall back to legacy article fetch
-                    val legacyResult = loadArticleUseCase.execute(bookmarkId)
+                    val legacyResult = loadArticleUseCase.execute(
+                        bookmarkId,
+                        markDirtyAfterSuccess = true
+                    )
                     when (legacyResult) {
                         is LoadArticleUseCase.Result.Success -> ContentLoadState.Loaded
                         is LoadArticleUseCase.Result.AlreadyDownloaded -> ContentLoadState.Loaded
@@ -689,6 +664,7 @@ class BookmarkDetailViewModel @Inject constructor(
                     }
                 }
             }
+            _contentLoadState.value = loadState
         }
     }
 

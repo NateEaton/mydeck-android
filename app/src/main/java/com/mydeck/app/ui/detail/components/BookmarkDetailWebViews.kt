@@ -419,9 +419,13 @@ fun BookmarkDetailArticle(
                                     val network = cm?.activeNetwork
                                     val isOffline = network == null || cm.getNetworkCapabilities(network)
                                         ?.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_VALIDATED) != true
-                                    if (isOffline) {
+                                    if (isOffline && isVideo) {
                                         val host = url.host?.lowercase() ?: ""
-                                        if (host.contains("youtube.com") || host.contains("youtube-nocookie.com") || host.contains("youtu.be") || host.contains("vimeo.com")) {
+                                        val embedBaseUrl = extractEmbedBaseUrl(uiState.bookmark.embed)
+                                        val embedHost = embedBaseUrl?.let { Uri.parse(it).host?.lowercase() }
+                                        val isEmbedHost = embedHost != null && host.contains(embedHost)
+                                        val isKnownVideoHost = host.contains("youtube.com") || host.contains("youtube-nocookie.com") || host.contains("youtu.be") || host.contains("vimeo.com")
+                                        if (isEmbedHost || isKnownVideoHost) {
                                             val offlineHtml = """
                                                 <!DOCTYPE html>
                                                 <html>

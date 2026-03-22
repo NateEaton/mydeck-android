@@ -93,18 +93,13 @@ class LoadContentPackageUseCase @Inject constructor(
             return Result.PermanentFailure(bookmark.contentFailureReason ?: "No content available")
         }
 
-        // For articles, check hasArticle
-        if (bookmark.type is Bookmark.Type.Article && !bookmark.hasArticle) {
+        // For articles and videos, check hasArticle
+        if ((bookmark.type is Bookmark.Type.Article || bookmark.type is Bookmark.Type.Video) && !bookmark.hasArticle) {
             bookmarkDao.updateContentState(
                 bookmarkId, BookmarkEntity.ContentState.PERMANENT_NO_CONTENT.value,
                 "No article content available (type=${bookmark.type})"
             )
             return Result.PermanentFailure("No article content available")
-        }
-
-        // Videos are not content-package eligible
-        if (bookmark.type is Bookmark.Type.Video) {
-            return Result.PermanentFailure("Video bookmarks are not eligible for offline content packages")
         }
 
         // Fail fast when offline
@@ -270,8 +265,8 @@ class LoadContentPackageUseCase @Inject constructor(
                             }
 
                             val bookmark = try { bookmarkRepository.getBookmarkById(id) } catch (_: Exception) { null }
-                            if (bookmark == null || bookmark.type is Bookmark.Type.Video) {
-                                results[id] = Result.PermanentFailure("Ineligible bookmark type")
+                            if (bookmark == null) {
+                                results[id] = Result.PermanentFailure("Bookmark not found")
                                 continue
                             }
 
