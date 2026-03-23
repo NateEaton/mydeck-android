@@ -102,6 +102,24 @@ class LoadBookmarksUseCaseTest {
     }
 
     @Test
+    fun `execute with null updatedIds returns success without fetching`() = runBlocking {
+        val result = loadBookmarksUseCase.execute(updatedIds = null)
+
+        assertTrue(result is LoadBookmarksUseCase.UseCaseResult.Success<*>)
+        coVerify(exactly = 0) { multipartSyncClient.fetchMetadata(any()) }
+        coVerify(exactly = 0) { bookmarkRepository.insertBookmarks(any()) }
+    }
+
+    @Test
+    fun `execute with empty updatedIds returns success without fetching`() = runBlocking {
+        val result = loadBookmarksUseCase.execute(updatedIds = emptyList())
+
+        assertTrue(result is LoadBookmarksUseCase.UseCaseResult.Success<*>)
+        coVerify(exactly = 0) { multipartSyncClient.fetchMetadata(any()) }
+        coVerify(exactly = 0) { bookmarkRepository.insertBookmarks(any()) }
+    }
+
+    @Test
     fun `execute saves last bookmark timestamp`() = runBlocking {
         val pkg2 = BookmarkSyncPackage(bookmarkId = "2", json = bookmark2)
         val pkg1 = BookmarkSyncPackage(bookmarkId = "1", json = bookmark1)
