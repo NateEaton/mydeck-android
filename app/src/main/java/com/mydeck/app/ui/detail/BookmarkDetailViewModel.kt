@@ -238,19 +238,27 @@ class BookmarkDetailViewModel @Inject constructor(
                             currentScrollProgress = 100
                         }
                         // Refresh metadata from API if embed is missing
-                        // (list endpoint used by full sync doesn't include embed)
-                        if (bookmark.type is com.mydeck.app.domain.model.Bookmark.Type.Video &&
+                        // (list endpoint used by full sync doesn't include embed).
+                        // Await the refresh before evaluating content state so that
+                        // hasEmbedFallback reflects the freshly-fetched embed. Without
+                        // this, a race between the async metadata refresh and the
+                        // content state check can permanently switch the UI to ORIGINAL
+                        // mode before the embed arrives.
+                        val effectiveBookmark = if (bookmark.type is com.mydeck.app.domain.model.Bookmark.Type.Video &&
                             bookmark.embed.isNullOrBlank()) {
                             bookmarkRepository.refreshBookmarkMetadata(id)
+                            bookmarkRepository.getBookmarkById(id)
+                        } else {
+                            bookmark
                         }
                         // Fetch article content on demand if not yet downloaded.
                         // For videos that have an embed but no article content, skip —
                         // the embed is the content, and fetchContentOnDemand would
                         // incorrectly mark these PERMANENT_NO_CONTENT (blocking the
                         // embed view on first open due to a race with metadata refresh).
-                        val hasEmbedFallback = bookmark.type is com.mydeck.app.domain.model.Bookmark.Type.Video &&
-                            !bookmark.hasArticle && !bookmark.embed.isNullOrBlank()
-                        when (bookmark.contentState) {
+                        val hasEmbedFallback = effectiveBookmark.type is com.mydeck.app.domain.model.Bookmark.Type.Video &&
+                            !effectiveBookmark.hasArticle && !effectiveBookmark.embed.isNullOrBlank()
+                        when (effectiveBookmark.contentState) {
                             ContentState.DOWNLOADED -> {
                                 // Check for annotation changes from other clients
                                 if (contentPackageManager.getContentDir(id) != null) {
@@ -262,7 +270,7 @@ class BookmarkDetailViewModel @Inject constructor(
                                 // no article text — the embed still works as the content.
                                 if (!hasEmbedFallback) {
                                     _contentLoadState.value = ContentLoadState.Failed(
-                                        reason = bookmark.contentFailureReason ?: "No content available",
+                                        reason = effectiveBookmark.contentFailureReason ?: "No content available",
                                         canRetry = false
                                     )
                                 }
