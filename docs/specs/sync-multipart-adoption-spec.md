@@ -415,10 +415,12 @@ Rules:
 - still ingest `Type: json` metadata through multipart sync
 - do not treat remote video/embed bytes as offline content to be persisted
 - do not promise offline playback
+- allow content packages only when `has_article = true` (transcript/text content), keeping
+  video playback online-only while still surfacing useful text offline
 - keep the existing fallback behavior when no cached reader payload exists
 
-Automatic/date-range content sync should therefore focus on Article and Picture bookmarks, not on
-attempting to make video playback offline.
+Automatic/date-range content sync should therefore focus on Article and Picture bookmarks, plus
+Video bookmarks only when `has_article = true`, without attempting to make video playback offline.
 
 ## Local Storage Model
 
@@ -807,7 +809,8 @@ Completed scope:
 - Fixed initial/full-sync bootstrap regression via Option D (see field note below)
 - `LoadArticleUseCase` retained as resilience fallback in on-demand content fetch only
   (see Retained Legacy Endpoints section)
-- Video bookmarks included in content sync pipeline (metadata + text content, not video bytes)
+- Video bookmarks with `has_article = true` included in content sync pipeline (metadata + text
+  content, not video bytes)
 - Embed preservation across sync paths (list endpoint nulls don't overwrite multipart values)
 - Reader progress bar: deterministic bar for on-demand fetch, indeterminate for already-downloaded
   content during WebView render
@@ -963,7 +966,8 @@ Completed scope:
 ### Stage 3: Automatic and date-range content packages — Complete
 
 - `BatchArticleLoadWorker` and `DateRangeContentSyncWorker` use multipart package transport
-- DAO queries include Picture and Video bookmarks in content-eligible queries
+- DAO queries include Picture bookmarks and Video bookmarks with `has_article = true` in
+  content-eligible queries
 - `sourceUpdated` freshness check skips redundant re-downloads
 - Storage usage display and “Clear all offline content” in Sync Settings
 
@@ -985,7 +989,8 @@ Completed scope:
 - Removed `resolveOmitDescription()` and its `GET /bookmarks/{id}` detail-enrichment request
 - Removed old paginated `GET /bookmarks?updated_since=` metadata reload path
 - `LoadArticleUseCase` retained as resilience fallback only (see Retained Legacy Endpoints below)
-- Video bookmarks now participate in content sync (metadata via multipart JSON, embed preserved)
+- Video bookmarks with `has_article = true` now participate in content sync (metadata via
+  multipart JSON, embed preserved)
 
 ## Retained Legacy Endpoints
 
@@ -1079,11 +1084,12 @@ sync DAO queries and from `LoadContentPackageUseCase`. This meant video bookmark
 packages.
 
 **Resolution:** Removed the `type != 'video'` exclusion from DAO content-eligible queries and
-`LoadContentPackageUseCase`. Video bookmarks now receive metadata via multipart JSON (which
-includes `embed` and `embed_domain`), and those with article content can receive content packages
-like any other type. The spec's non-goal of “offline video playback” remains respected — this
-downloads text/transcript content, not video bytes. The embed iframe remains online-only, with an
-offline placeholder shown when the network is unavailable.
+`LoadContentPackageUseCase`, but intentionally kept eligibility gated to `has_article = true`.
+Video bookmarks now receive metadata via multipart JSON (which includes `embed` and
+`embed_domain`), and those with article content can receive content packages for transcript/text
+content only. This is a deliberate UX choice: video playback remains online-only, but transcripts
+can be available offline. The embed iframe remains online-only, with an offline placeholder shown
+when the network is unavailable.
 
 ## Field Note: `omitDescription` Not Persisting from Multipart JSON (Stage 4)
 

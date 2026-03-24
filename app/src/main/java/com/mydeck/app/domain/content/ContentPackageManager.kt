@@ -44,6 +44,25 @@ class ContentPackageManager @Inject constructor(
         val finalDir = File(offlineContentDir, bookmarkId)
         val stagingDir = File(offlineContentDir, "${bookmarkId}_staging")
         val backupDir = File(offlineContentDir, "${bookmarkId}_backup_${System.nanoTime()}")
+        var snapshotLoaded = false
+        var existingPackage: ContentPackageEntity? = null
+        var existingResources: List<ContentResourceEntity> = emptyList()
+        var existingAnnotations: List<com.mydeck.app.io.db.model.CachedAnnotationEntity> = emptyList()
+
+        suspend fun restoreDbSnapshot() {
+            if (!snapshotLoaded) return
+            if (existingPackage != null) {
+                contentPackageDao.replacePackageAndResources(existingPackage!!, existingResources)
+            } else {
+                contentPackageDao.deleteResources(bookmarkId)
+                contentPackageDao.deletePackage(bookmarkId)
+            }
+            if (existingAnnotations.isNotEmpty()) {
+                cachedAnnotationDao.replaceAnnotationsForBookmark(bookmarkId, existingAnnotations)
+            } else {
+                cachedAnnotationDao.deleteAnnotationsForBookmark(bookmarkId)
+            }
+        }
 
         try {
             // Clean up any leftover staging dir
@@ -73,7 +92,7 @@ class ContentPackageManager @Inject constructor(
                 )
             }
 
-            // Prepare DB entities (computed before swap but persisted after)
+            // Prepare DB entities (computed before swap, persisted before swap)
             val packageEntity = ContentPackageEntity(
                 bookmarkId = bookmarkId,
                 packageKind = packageKind,
@@ -87,6 +106,31 @@ class ContentPackageManager @Inject constructor(
             val annotationEntities = AnnotationHtmlParser.parse(pkg.html, bookmarkId)
             if (annotationEntities.isEmpty() && pkg.html != null && pkg.html.contains("rd-annotation")) {
                 Timber.w("HTML for $bookmarkId contains rd-annotation tags but no annotations could be extracted (bare tags?)")
+            }
+            existingPackage = contentPackageDao.getPackage(bookmarkId)
+            existingResources = existingPackage?.let {
+                contentPackageDao.getResources(bookmarkId)
+            }.orEmpty()
+            existingAnnotations = cachedAnnotationDao.getAnnotationsForBookmark(bookmarkId)
+            snapshotLoaded = true
+
+            var dbCommitted = false
+            try {
+                contentPackageDao.replacePackageAndResources(packageEntity, resourceEntities)
+                cachedAnnotationDao.replaceAnnotationsForBookmark(bookmarkId, annotationEntities)
+                dbCommitted = true
+                if (annotationEntities.isNotEmpty()) {
+                    Timber.d("Cached ${annotationEntities.size} annotations for $bookmarkId")
+                }
+            } catch (e: Exception) {
+                Timber.w(e, "Failed to persist package metadata for $bookmarkId")
+                stagingDir.deleteRecursively()
+                bookmarkDao.updateContentState(
+                    bookmarkId,
+                    BookmarkEntity.ContentState.DIRTY.value,
+                    "Failed to persist package metadata"
+                )
+                return false
             }
 
             // Atomic swap:
@@ -102,6 +146,10 @@ class ContentPackageManager @Inject constructor(
                         backupMade = true
                     } catch (e: Exception) {
                         Timber.w(e, "Failed to create backup for $bookmarkId; aborting commit to preserve existing package")
+                        if (dbCommitted) {
+                            runCatching { restoreDbSnapshot() }
+                                .onFailure { Timber.w(it, "Failed to restore DB snapshot for $bookmarkId") }
+                        }
                         stagingDir.deleteRecursively()
                         return false
                     }
@@ -122,6 +170,10 @@ class ContentPackageManager @Inject constructor(
                         backupDir.renameTo(finalDir)
                         backupDir.deleteRecursively()
                     }
+                    if (dbCommitted) {
+                        runCatching { restoreDbSnapshot() }
+                            .onFailure { Timber.w(it, "Failed to restore DB snapshot for $bookmarkId") }
+                    }
                     // Mark DIRTY and abort
                     bookmarkDao.updateContentState(
                         bookmarkId,
@@ -130,13 +182,6 @@ class ContentPackageManager @Inject constructor(
                     )
                     return false
                 }
-            }
-
-            // 3) Finalize DB after files are in place
-            contentPackageDao.replacePackageAndResources(packageEntity, resourceEntities)
-            cachedAnnotationDao.replaceAnnotationsForBookmark(bookmarkId, annotationEntities)
-            if (annotationEntities.isNotEmpty()) {
-                Timber.d("Cached ${annotationEntities.size} annotations for $bookmarkId")
             }
 
             // 4) Remove backup now that commit is successful
@@ -153,6 +198,9 @@ class ContentPackageManager @Inject constructor(
             Timber.e(e, "Failed to commit package for $bookmarkId")
             // Clean up staging
             stagingDir.deleteRecursively()
+            // Restore DB snapshot if we already committed metadata
+            runCatching { restoreDbSnapshot() }
+                .onFailure { Timber.w(it, "Failed to restore DB snapshot for $bookmarkId") }
             // Mark as dirty
             bookmarkDao.updateContentState(
                 bookmarkId,
