@@ -967,7 +967,7 @@ Completed scope:
 - `sourceUpdated` freshness check skips redundant re-downloads
 - Storage usage display and “Clear all offline content” in Sync Settings
 
-### Stage 3a: Offline annotation support — Complete
+### Stage 3a: Offline annotation support — Complete (refined)
 
 - `CachedAnnotationEntity` in Room with schema migration (version 12)
 - `CachedAnnotationDao` with get, replace, and observe queries
@@ -976,6 +976,9 @@ Completed scope:
 - `fetchAnnotations` is offline-first: local cache → optional API merge
 - Legacy `syncAnnotationsIfNeeded` skipped for content-package bookmarks
 - Annotation-driven refresh uses multipart content package re-download
+- **Refined:** Annotation CRUD no longer triggers full WebView reload (see field note below)
+- **Refined:** Annotation sync from other clients now works for content-package bookmarks
+- **Refined:** Annotations with notes no longer hidden by CSS `display: none`
 
 ### Stage 4: Remove legacy content/detail fetches — Complete
 
@@ -1136,6 +1139,73 @@ request body rather than the parser.
 match the caller's intended value cause silent field omission. For request DTOs where the server
 interprets field absence as "don't include this data," defaults should be the *opt-out* value
 (typically `false` or `null`), not the *opt-in* value.
+
+## Field Note: `embed_domain` SerialName Mismatch (Stage 4)
+
+**Discovered:** 2026-03-23 during interactive testing of video bookmarks.
+
+`BookmarkDto.embedHostname` was annotated `@SerialName("embed_hostname")` but the Readeck
+server actually sends `"embed_domain"` in both `GET /bookmarks/{id}` and `POST /bookmarks/sync`
+responses. The field is undocumented in the Readeck OpenAPI spec but confirmed via direct API
+inspection. This caused `embedHostname` to always deserialize as `null`, losing the embed domain
+for video bookmarks.
+
+**Fix:** Changed the `@SerialName` annotation from `"embed_hostname"` to `"embed_domain"`.
+
+## Field Note: Picture/Video Stuck at PERMANENT_NO_CONTENT (Stage 4)
+
+**Discovered:** 2026-03-23 during interactive testing of offline content.
+
+When a Picture or Video bookmark was opened while offline, `fetchContentOnDemand()` attempted
+the `LoadContentPackageUseCase` path, which correctly returned `TransientFailure("Offline")`.
+The code then fell through to the `LoadArticleUseCase` legacy fallback, which called
+`GET /bookmarks/{id}/article`. For Picture/Video bookmarks with `hasArticle=false`, this
+endpoint returns an error that the use case interpreted as permanent — marking the bookmark
+`PERMANENT_NO_CONTENT` and permanently blocking the content package path from ever retrying.
+
+**Fix:** Restricted the `LoadArticleUseCase` legacy fallback to Article type only. Picture
+and Video types now report the content package result directly without the destructive
+side-effect on `contentState`.
+
+## Field Note: Annotation Rendering Overhaul (Stage 3a refinement)
+
+**Discovered:** 2026-03-23 during interactive testing of highlights.
+
+Three issues with annotation rendering in the reader view, documented in detail in
+`docs/specs/highlight-compose-fix.md`:
+
+1. **Full WebView repaint on annotation CRUD.** Every annotation create, recolor, or delete
+   triggered a full multipart re-download → Room write → Compose recomposition → WebView
+   `loadDataWithBaseURL()` — a visible flash/repaint of the entire article.
+
+2. **Annotations from other clients not syncing to reader HTML.** Regular sync (app start,
+   pull-down, sync settings) updated the annotation database but never refreshed the on-disk
+   HTML content package. The DOWNLOADED branch only called `syncAnnotationsIfNeeded()` when
+   the content directory was *missing*, and the legacy path didn't work for content-package
+   bookmarks (it reads Room's `articleContent` column, which is empty when HTML lives on disk).
+
+3. **Annotations with notes hidden entirely.** The CSS rule
+   `rd-annotation[data-annotation-note] { display: none; }` hid the entire highlight element
+   (including its text content) when `AnnotationHtmlEnricher` added the `data-annotation-note`
+   attribute for annotations with notes.
+
+**Fixes:**
+
+- Annotation color changes: pure JS DOM attribute update + on-disk persistence (no network,
+  no Room write, no recomposition)
+- Annotation create/delete: lightweight HTML-only multipart fetch (`withResources=false`)
+  + JS innerHTML replacement via `AnnotationRefreshEvent` channel (no full page reload)
+- Annotation sync from other clients: new `syncAnnotationsForContentPackage()` compares
+  API annotation snapshot against cached snapshot on detail screen open; if changed, triggers
+  lightweight HTML refresh
+- Note CSS: replaced `display: none` with `::after` pseudo-element showing a small pencil
+  icon (✎), matching the Readeck web UI
+
+**Impact on spec design:** The "Annotation-driven refresh" section (line 605) originally
+specified re-downloading the full content package via `fetchContentPackages()` when annotations
+change. The actual implementation uses a lighter-weight `fetchHtmlOnly()` path that skips
+resource re-download. This is safe because annotation changes only affect the HTML — images
+and other resources don't change. The full package re-download remains as a fallback.
 
 ## Decision Summary
 

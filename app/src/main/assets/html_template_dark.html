@@ -317,8 +317,10 @@
             cursor: pointer;
             transition: box-shadow 180ms ease, outline-color 180ms ease;
         }
-        rd-annotation[data-annotation-note] {
-            display: none;
+        rd-annotation[data-annotation-note]::after {
+            content: " \270E";
+            font-size: 0.75em;
+            opacity: 0.6;
         }
         rd-annotation.mydeck-annotation-active {
             outline: 2px solid var(--annotation-active-outline-color);

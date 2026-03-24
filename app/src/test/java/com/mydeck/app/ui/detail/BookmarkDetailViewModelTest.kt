@@ -911,7 +911,7 @@ class BookmarkDetailViewModelTest {
         coEvery {
             readeckApi.createAnnotation("123", any())
         } returns Response.success(createdAnnotation)
-        coEvery { loadContentPackageUseCase.executeForceRefresh("123") } returns LoadContentPackageUseCase.Result.Success
+        coEvery { loadContentPackageUseCase.refreshHtmlForAnnotations("123") } returns "<p>refreshed</p>"
         coEvery { readeckApi.getAnnotations("123") } returns Response.success(emptyList())
 
         viewModel.showCreateAnnotationSheet(selectionData)
@@ -921,8 +921,7 @@ class BookmarkDetailViewModelTest {
 
         assertNull(viewModel.annotationEditState.value)
         coVerify { readeckApi.createAnnotation("123", any()) }
-        coVerify { loadContentPackageUseCase.executeForceRefresh("123") }
-        coVerify { readeckApi.getAnnotations("123") }
+        coVerify { loadContentPackageUseCase.refreshHtmlForAnnotations("123") }
     }
 
     @Test
@@ -956,7 +955,6 @@ class BookmarkDetailViewModelTest {
 
         coEvery { readeckApi.updateAnnotation("123", "annotation-1", any()) } returns Response.success(Unit)
         coEvery { readeckApi.updateAnnotation("123", "annotation-2", any()) } returns Response.success(Unit)
-        coEvery { loadContentPackageUseCase.executeForceRefresh("123") } returns LoadContentPackageUseCase.Result.Success
         coEvery { readeckApi.getAnnotations("123") } returns Response.success(emptyList())
 
         viewModel.showCreateAnnotationSheet(selectionData, existingAnnotations)
@@ -968,7 +966,8 @@ class BookmarkDetailViewModelTest {
         coVerify { readeckApi.updateAnnotation("123", "annotation-1", any()) }
         coVerify { readeckApi.updateAnnotation("123", "annotation-2", any()) }
         coVerify(exactly = 0) { readeckApi.createAnnotation(any(), any()) }
-        coVerify { loadContentPackageUseCase.executeForceRefresh("123") }
+        // Color changes use JS-only path, no full content refresh
+        coVerify(exactly = 0) { loadContentPackageUseCase.executeForceRefresh("123") }
         coVerify { readeckApi.getAnnotations("123") }
     }
 
@@ -985,7 +984,7 @@ class BookmarkDetailViewModelTest {
 
         coEvery { readeckApi.deleteAnnotation("123", "annotation-1") } returns Response.success(Unit)
         coEvery { readeckApi.deleteAnnotation("123", "annotation-2") } returns Response.success(Unit)
-        coEvery { loadContentPackageUseCase.executeForceRefresh("123") } returns LoadContentPackageUseCase.Result.Success
+        coEvery { loadContentPackageUseCase.refreshHtmlForAnnotations("123") } returns "<p>refreshed</p>"
         coEvery { readeckApi.getAnnotations("123") } returns Response.success(emptyList())
 
         viewModel.showCreateAnnotationSheet(selectionData)
@@ -995,8 +994,7 @@ class BookmarkDetailViewModelTest {
         assertNull(viewModel.annotationEditState.value)
         coVerify { readeckApi.deleteAnnotation("123", "annotation-1") }
         coVerify { readeckApi.deleteAnnotation("123", "annotation-2") }
-        coVerify { loadContentPackageUseCase.executeForceRefresh("123") }
-        coVerify { readeckApi.getAnnotations("123") }
+        coVerify { loadContentPackageUseCase.refreshHtmlForAnnotations("123") }
     }
 
     @Test

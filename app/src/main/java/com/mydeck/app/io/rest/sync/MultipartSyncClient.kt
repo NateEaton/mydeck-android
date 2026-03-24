@@ -40,6 +40,22 @@ class MultipartSyncClient @Inject constructor(
     }
 
     /**
+     * Fetch HTML-only (no JSON metadata or resources) for the given bookmark IDs.
+     * Used for lightweight annotation refresh where only the article HTML changed.
+     */
+    suspend fun fetchHtmlOnly(bookmarkIds: List<String>): Result {
+        return fetchBatched(bookmarkIds, CONTENT_BATCH_SIZE) { batch ->
+            SyncRequest(
+                id = batch,
+                withJson = false,
+                withHtml = true,
+                withResources = false,
+                resourcePrefix = "."
+            )
+        }
+    }
+
+    /**
      * Fetch full content packages (JSON + HTML + resources) for the given bookmark IDs.
      */
     suspend fun fetchContentPackages(bookmarkIds: List<String>): Result {

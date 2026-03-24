@@ -164,6 +164,24 @@ class ContentPackageManager @Inject constructor(
     }
 
     /**
+     * Update only the HTML entry document for a bookmark's existing content package.
+     * Used for lightweight annotation refresh without re-downloading resources.
+     *
+     * @return true if the file was updated, false if the content directory doesn't exist
+     */
+    fun updateHtml(bookmarkId: String, html: String): Boolean {
+        val dir = File(offlineContentDir, bookmarkId)
+        if (!dir.exists()) return false
+        return try {
+            File(dir, "index.html").writeText(html)
+            true
+        } catch (e: Exception) {
+            Timber.e(e, "Failed to update HTML for $bookmarkId")
+            false
+        }
+    }
+
+    /**
      * Get the local content directory for a bookmark, or null if no package exists.
      */
     fun getContentDir(bookmarkId: String): File? {

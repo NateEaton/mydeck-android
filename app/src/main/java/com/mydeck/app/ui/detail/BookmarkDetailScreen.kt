@@ -429,6 +429,47 @@ fun BookmarkDetailHost(
         }
     }
 
+    // In-place annotation updates via JS (avoids full WebView reload)
+    LaunchedEffect(Unit) {
+        viewModel.annotationRefreshEvent.collect { event ->
+            val webView = readerWebView.value ?: return@collect
+            when (event) {
+                is BookmarkDetailViewModel.AnnotationRefreshEvent.ColorUpdate -> {
+                    val js = buildString {
+                        for (id in event.annotationIds) {
+                            val escapedId = id.replace("'", "\\'")
+                            append("document.querySelectorAll('rd-annotation[data-annotation-id-value=\"")
+                            append(escapedId)
+                            append("\"]').forEach(function(el){el.setAttribute('data-annotation-color','")
+                            append(event.color.replace("'", "\\'"))
+                            append("');});")
+                        }
+                    }
+                    webView.evaluateJavascript(js, null)
+                }
+                is BookmarkDetailViewModel.AnnotationRefreshEvent.HtmlRefresh -> {
+                    val base64Html = android.util.Base64.encodeToString(
+                        event.containerHtml.toByteArray(Charsets.UTF_8),
+                        android.util.Base64.NO_WRAP
+                    )
+                    webView.evaluateJavascript(
+                        "document.querySelector('.container').innerHTML=decodeURIComponent(escape(atob('$base64Html')));",
+                        null
+                    )
+                    // Re-inject interaction listeners for the new DOM elements
+                    webView.evaluateJavascript(
+                        WebViewImageBridge.injectImageInterceptor(),
+                        null
+                    )
+                    webView.evaluateJavascript(
+                        WebViewAnnotationBridge.injectAnnotationInteractions(),
+                        null
+                    )
+                }
+            }
+        }
+    }
+
     val keepScreenOn by viewModel.keepScreenOnWhileReading.collectAsState()
     val fullscreenWhileReading by viewModel.fullscreenWhileReading.collectAsState()
     val view = LocalView.current

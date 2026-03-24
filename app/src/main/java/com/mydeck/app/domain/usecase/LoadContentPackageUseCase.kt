@@ -250,6 +250,42 @@ class LoadContentPackageUseCase @Inject constructor(
     }
 
     /**
+     * Lightweight HTML-only refresh for annotation changes.
+     *
+     * Fetches just the HTML from the multipart endpoint (no resources), enriches bare
+     * annotation tags, writes the updated index.html to disk, and returns the enriched HTML.
+     * Does NOT update Room bookmarks (avoids triggering recomposition/WebView reload).
+     *
+     * @return The enriched HTML body, or null if the refresh failed
+     */
+    suspend fun refreshHtmlForAnnotations(bookmarkId: String): String? {
+        val result = multipartSyncClient.fetchHtmlOnly(listOf(bookmarkId))
+        return when (result) {
+            is MultipartSyncClient.Result.Success -> {
+                val pkg = result.packages.firstOrNull { it.bookmarkId == bookmarkId }
+                if (pkg?.html == null) {
+                    Timber.w("HTML-only refresh returned no HTML for $bookmarkId")
+                    return null
+                }
+                val enrichedPkg = enrichAnnotations(bookmarkId, pkg)
+                val enrichedHtml = enrichedPkg.html ?: pkg.html
+                // Write updated HTML to disk (no staging/swap — only index.html changes)
+                contentPackageManager.updateHtml(bookmarkId, enrichedHtml)
+                Timber.d("Annotation HTML refresh completed for $bookmarkId")
+                enrichedHtml
+            }
+            is MultipartSyncClient.Result.Error -> {
+                Timber.w("HTML-only refresh failed for $bookmarkId: ${result.message}")
+                null
+            }
+            is MultipartSyncClient.Result.NetworkError -> {
+                Timber.w("HTML-only refresh network error for $bookmarkId: ${result.message}")
+                null
+            }
+        }
+    }
+
+    /**
      * Batch download content packages for up to 10 IDs per request, committing those
      * that succeed and returning a per-ID result for worker fallback decisions.
      */

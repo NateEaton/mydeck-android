@@ -187,6 +187,10 @@ class BookmarkDetailViewModel @Inject constructor(
     private val _readerContextMenu = MutableStateFlow(ReaderContextMenuState())
     val readerContextMenu: StateFlow<ReaderContextMenuState> = _readerContextMenu.asStateFlow()
 
+    // Annotation refresh events for in-place WebView updates (no full reload)
+    private val _annotationRefreshEvent = Channel<AnnotationRefreshEvent>(Channel.BUFFERED)
+    val annotationRefreshEvent: Flow<AnnotationRefreshEvent> = _annotationRefreshEvent.receiveAsFlow()
+
     private var searchDebounceJob: Job? = null
     private var annotationSyncJob: Job? = null
     private var contentRefreshJob: Job? = null
@@ -242,7 +246,12 @@ class BookmarkDetailViewModel @Inject constructor(
                         // Fetch article content on demand if not yet downloaded
                         // (videos and photos can have article content per the API spec)
                         when (bookmark.contentState) {
-                            ContentState.DOWNLOADED -> { /* Content already available */ }
+                            ContentState.DOWNLOADED -> {
+                                // Check for annotation changes from other clients
+                                if (contentPackageManager.getContentDir(id) != null) {
+                                    syncAnnotationsForContentPackage(id)
+                                }
+                            }
                             ContentState.PERMANENT_NO_CONTENT -> {
                                 _contentLoadState.value = ContentLoadState.Failed(
                                     reason = bookmark.contentFailureReason ?: "No content available",
@@ -261,7 +270,11 @@ class BookmarkDetailViewModel @Inject constructor(
                         // Handle content availability
                         when (bookmark.contentState) {
                             ContentState.DOWNLOADED -> {
-                                if (contentPackageManager.getContentDir(id) == null) {
+                                if (contentPackageManager.getContentDir(id) != null) {
+                                    // Content package on disk — check for annotation changes
+                                    syncAnnotationsForContentPackage(id)
+                                } else {
+                                    // Legacy article path — content in Room
                                     syncAnnotationsIfNeeded(id)
                                 }
                             }
@@ -522,14 +535,49 @@ class BookmarkDetailViewModel @Inject constructor(
         }
     }
 
-    private suspend fun refreshArticleContent(bookmarkId: String) {
-        // Stage 4: refresh via multipart only
-        val result = loadContentPackageUseCase.executeForceRefresh(bookmarkId)
-        if (result is LoadContentPackageUseCase.Result.Success) {
+    /**
+     * Lightweight HTML-only refresh after annotation create/delete.
+     * Fetches updated HTML via multipart (no resources), enriches annotations,
+     * writes to disk, and emits a JS innerHTML replacement event.
+     * Falls back to full multipart refresh if the lightweight path fails.
+     */
+    private suspend fun refreshAnnotationHtml(bookmarkId: String) {
+        val enrichedHtml = loadContentPackageUseCase.refreshHtmlForAnnotations(bookmarkId)
+        if (enrichedHtml != null) {
             cacheAnnotationSnapshot(bookmarkId)
+            _annotationRefreshEvent.send(AnnotationRefreshEvent.HtmlRefresh(enrichedHtml))
         } else {
-            throw IllegalStateException("Content refresh failed via multipart: $result")
+            // Fallback: full multipart refresh (will cause WebView reload)
+            val result = loadContentPackageUseCase.executeForceRefresh(bookmarkId)
+            if (result is LoadContentPackageUseCase.Result.Success) {
+                cacheAnnotationSnapshot(bookmarkId)
+            } else {
+                throw IllegalStateException("Content refresh failed: $result")
+            }
         }
+    }
+
+    /**
+     * Update annotation color attribute in the on-disk index.html.
+     * Used for color changes where only the attribute value changes.
+     */
+    private fun updateAnnotationColorOnDisk(bookmarkId: String, annotationIds: List<String>, color: String) {
+        var html = contentPackageManager.getHtmlContent(bookmarkId) ?: return
+        for (id in annotationIds) {
+            val escapedId = Regex.escape(id)
+            // Match entire <rd-annotation ...> opening tag containing this annotation ID,
+            // then replace the color attribute within it (handles any attribute order)
+            val tagRegex = Regex("""<rd-annotation\b([^>]*data-annotation-id-value="$escapedId"[^>]*)>""")
+            html = tagRegex.replace(html) { match ->
+                val attrs = match.groupValues[1]
+                val updatedAttrs = attrs.replace(
+                    Regex("""data-annotation-color="[^"]*""""),
+                    """data-annotation-color="$color""""
+                )
+                "<rd-annotation$updatedAttrs>"
+            }
+        }
+        contentPackageManager.updateHtml(bookmarkId, html)
     }
 
     fun onClickShareBookmark(title: String, url: String) {
@@ -724,7 +772,13 @@ class BookmarkDetailViewModel @Inject constructor(
 
         val job = viewModelScope.launch {
             try {
-                refreshArticleContent(bookmarkId)
+                // Full content refresh (re-downloads entire multipart package)
+                val result = loadContentPackageUseCase.executeForceRefresh(bookmarkId)
+                if (result is LoadContentPackageUseCase.Result.Success) {
+                    cacheAnnotationSnapshot(bookmarkId)
+                } else {
+                    throw IllegalStateException("Content refresh failed: $result")
+                }
                 updateState.value = UpdateBookmarkState.Success(
                     context.getString(R.string.content_refresh_completed)
                 )
@@ -840,6 +894,54 @@ class BookmarkDetailViewModel @Inject constructor(
             if (annotationSyncJob === job) {
                 annotationSyncJob = null
             }
+        }
+    }
+
+    /**
+     * Check for annotation changes from other clients for content-package bookmarks.
+     *
+     * Compares the current annotation list from the REST API against the cached snapshot.
+     * If annotations have changed, performs a lightweight HTML-only refresh and pushes
+     * the update to the WebView via JS — no full page reload.
+     */
+    private fun syncAnnotationsForContentPackage(bookmarkId: String) {
+        if (annotationSyncJob?.isActive == true) return
+
+        val job = viewModelScope.launch {
+            if (!connectivityMonitor.isNetworkAvailable()) return@launch
+
+            try {
+                val response = readeckApi.getAnnotations(bookmarkId)
+                if (!response.isSuccessful) return@launch
+
+                val annotations = response.body().orEmpty()
+                val currentSnapshot = annotations.toAnnotationCachePayload(json)
+                val cachedSnapshot = settingsDataStore.getCachedAnnotationSnapshot(bookmarkId)
+
+                val htmlContent = contentPackageManager.getHtmlContent(bookmarkId)
+                val htmlHasAnnotations = htmlContent?.contains("rd-annotation") == true
+
+                val shouldRefresh = when {
+                    cachedSnapshot == null ->
+                        annotations.isNotEmpty() || htmlHasAnnotations
+                    cachedSnapshot != currentSnapshot -> true
+                    else -> false
+                }
+
+                if (shouldRefresh) {
+                    Timber.d("Annotation change detected for $bookmarkId, refreshing HTML")
+                    refreshAnnotationHtml(bookmarkId)
+                } else if (cachedSnapshot == null && annotations.isEmpty()) {
+                    // No annotations exist anywhere — save empty snapshot to avoid re-checking
+                    settingsDataStore.saveCachedAnnotationSnapshot(bookmarkId, currentSnapshot)
+                }
+            } catch (e: Exception) {
+                Timber.w(e, "Content-package annotation sync failed for $bookmarkId")
+            }
+        }
+        annotationSyncJob = job
+        job.invokeOnCompletion {
+            if (annotationSyncJob === job) annotationSyncJob = null
         }
     }
 
@@ -1059,7 +1161,7 @@ class BookmarkDetailViewModel @Inject constructor(
                     throw IllegalStateException("HTTP ${response.code()}")
                 }
 
-                refreshArticleContent(bookmarkId)
+                refreshAnnotationHtml(bookmarkId)
                 _annotationEditState.value = null
             } catch (e: Exception) {
                 Timber.w(e, "Failed to create annotation for $bookmarkId")
@@ -1096,7 +1198,10 @@ class BookmarkDetailViewModel @Inject constructor(
                     }
                 }
 
-                refreshArticleContent(bookmarkId)
+                // Color change: instant JS update + disk persistence (no full HTML refresh)
+                _annotationRefreshEvent.send(AnnotationRefreshEvent.ColorUpdate(annotationIds, color))
+                updateAnnotationColorOnDisk(bookmarkId, annotationIds, color)
+                cacheAnnotationSnapshot(bookmarkId)
                 _annotationEditState.value = null
             } catch (e: Exception) {
                 Timber.w(e, "Failed to update annotations ${annotationIds.joinToString()} for $bookmarkId")
@@ -1132,7 +1237,7 @@ class BookmarkDetailViewModel @Inject constructor(
                     }
                 }
 
-                refreshArticleContent(bookmarkId)
+                refreshAnnotationHtml(bookmarkId)
                 _annotationEditState.value = null
             } catch (e: Exception) {
                 Timber.w(e, "Failed to delete annotations ${annotationIds.joinToString()} for $bookmarkId")
@@ -1526,5 +1631,15 @@ class BookmarkDetailViewModel @Inject constructor(
         val linkText: String? = null,
         val linkType: String = "none",  // "none" | "image" | "page"
     )
+
+    /**
+     * Events for in-place WebView annotation updates that avoid full page reload.
+     */
+    sealed class AnnotationRefreshEvent {
+        /** Update annotation color attributes in the DOM via JS. No page reload needed. */
+        data class ColorUpdate(val annotationIds: List<String>, val color: String) : AnnotationRefreshEvent()
+        /** Replace .container innerHTML with fresh HTML. Used after create/delete. */
+        data class HtmlRefresh(val containerHtml: String) : AnnotationRefreshEvent()
+    }
 
 }
