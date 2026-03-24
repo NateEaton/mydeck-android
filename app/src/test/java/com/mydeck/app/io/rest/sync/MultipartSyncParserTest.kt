@@ -464,6 +464,78 @@ class MultipartSyncParserTest {
         assertTrue(disk.contentEquals(data))
     }
 
+    /**
+     * Mimics the exact server response format: CRLF headers, LF body endings,
+     * Content-Length resources, unknown fields (links), and realistic header set.
+     * This is the format observed in production via curl.
+     */
+    @Test
+    fun `realistic server format with CRLF headers and content-length resources`() {
+        val boundary = "e964d75b11a903c9ca36e3e15790a296d886eb1115e20e224e074413b2ea"
+        val bookmarkId = "5BWVnejqyNLYsHERvN8yBt"
+
+        // JSON with unknown fields (links) + omit_description, matching real server
+        val jsonBody = """{"id":"$bookmarkId","href":"/api/bookmarks/$bookmarkId","created":"2025-01-01T00:00:00Z","updated":"2025-01-02T00:00:00Z","state":0,"loaded":true,"url":"https://example.com/article","title":"Test Article","site_name":"Example","site":"example.com","authors":[],"lang":"en","text_direction":"ltr","document_type":"article","type":"article","has_article":true,"description":"A test article","omit_description":true,"is_deleted":false,"is_marked":false,"is_archived":false,"labels":[],"read_progress":50,"resources":{"article":{"src":"/api/bookmarks/$bookmarkId/article"},"icon":{"src":"","width":0,"height":0},"image":{"src":"","width":0,"height":0},"log":{"src":""},"props":{"src":""},"thumbnail":{"src":"","width":0,"height":0}},"links":[{"url":"https://example.com","domain":"example.com","title":"Link","is_page":true,"content_type":"text/html"}],"word_count":500,"reading_time":3}"""
+        val htmlBody = "<section><h1>Test</h1><p>Content</p></section>"
+        val imageData = ByteArray(5648) { (it % 251).toByte() }
+
+        // Build with CRLF line endings for headers, LF for body line endings (matching real server)
+        val buffer = Buffer()
+
+        // JSON part
+        buffer.writeUtf8("--$boundary\r\n")
+        buffer.writeUtf8("Bookmark-Id: $bookmarkId\r\n")
+        buffer.writeUtf8("Content-Disposition: attachment; filename=\"info.json\"\r\n")
+        buffer.writeUtf8("Content-Type: application/json; charset=utf-8\r\n")
+        buffer.writeUtf8("Date: 2025-01-01T00:00:00Z\r\n")
+        buffer.writeUtf8("Filename: info.json\r\n")
+        buffer.writeUtf8("Last-Modified: 2025-01-02T00:00:00Z\r\n")
+        buffer.writeUtf8("Location: /api/bookmarks/$bookmarkId\r\n")
+        buffer.writeUtf8("Type: json\r\n")
+        buffer.writeUtf8("\r\n")
+        buffer.writeUtf8("$jsonBody\n")
+
+        // HTML part
+        buffer.writeUtf8("\r\n")
+        buffer.writeUtf8("--$boundary\r\n")
+        buffer.writeUtf8("Bookmark-Id: $bookmarkId\r\n")
+        buffer.writeUtf8("Content-Disposition: attachment; filename=\"index.html\"\r\n")
+        buffer.writeUtf8("Content-Type: text/html; charset=utf-8\r\n")
+        buffer.writeUtf8("Filename: index.html\r\n")
+        buffer.writeUtf8("Type: html\r\n")
+        buffer.writeUtf8("\r\n")
+        buffer.writeUtf8("$htmlBody\n")
+
+        // Resource part with Content-Length
+        buffer.writeUtf8("\r\n")
+        buffer.writeUtf8("--$boundary\r\n")
+        buffer.writeUtf8("Bookmark-Id: $bookmarkId\r\n")
+        buffer.writeUtf8("Content-Type: image/jpeg\r\n")
+        buffer.writeUtf8("Content-Length: ${imageData.size}\r\n")
+        buffer.writeUtf8("Filename: image.jpeg\r\n")
+        buffer.writeUtf8("Group: image\r\n")
+        buffer.writeUtf8("Path: image.jpeg\r\n")
+        buffer.writeUtf8("Type: resource\r\n")
+        buffer.writeUtf8("\r\n")
+        buffer.write(imageData)
+        buffer.writeUtf8("\r\n")
+        buffer.writeUtf8("--$boundary--\r\n")
+
+        val packages = parser.parse(buffer, boundary)
+
+        assertEquals("Should have 1 package", 1, packages.size)
+        val pkg = packages[0]
+        assertEquals(bookmarkId, pkg.bookmarkId)
+        assertNotNull("JSON should be parsed", pkg.json)
+        assertEquals(true, pkg.json!!.omitDescription)
+        assertEquals("Test Article", pkg.json!!.title)
+        assertEquals(htmlBody, pkg.html)
+        assertEquals(1, pkg.resources.size)
+        assertEquals("image.jpeg", pkg.resources[0].path)
+        assertTrue(pkg.resources[0].tempFile.exists())
+        assertEquals(imageData.size.toLong(), pkg.resources[0].tempFile.length())
+    }
+
     @Test
     fun `truncated content-length logs warning and continues`() {
         val boundary = "trunc"

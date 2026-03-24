@@ -602,9 +602,12 @@ class BookmarkRepositoryImpl @Inject constructor(
         existingBookmark: BookmarkEntity?,
         incomingBookmark: com.mydeck.app.io.db.model.BookmarkWithArticleContent
     ): Boolean? {
+        // If the incoming data has an explicit value, use it (server said so)
         incomingBookmark.bookmark.omitDescription?.let { return it }
-        val existing = existingBookmark ?: return null
-        return if (existing.description == incomingBookmark.bookmark.description) existing.omitDescription else null
+        // If the incoming data has no value (e.g. list endpoint omits omit_description),
+        // always preserve the existing value. Only the server or a content package
+        // fetch can authoritatively set/clear this field.
+        return existingBookmark?.omitDescription
     }
 
     override suspend fun updateLabels(

@@ -6,8 +6,10 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class SyncRequest(
     val id: List<String>,
+    // Defaults must be false so Kotlinx serialization (encodeDefaults=false)
+    // actually emits the field when callers pass true.
     @SerialName("with_json")
-    val withJson: Boolean = true,
+    val withJson: Boolean = false,
     @SerialName("with_html")
     val withHtml: Boolean = false,
     @SerialName("with_resources")

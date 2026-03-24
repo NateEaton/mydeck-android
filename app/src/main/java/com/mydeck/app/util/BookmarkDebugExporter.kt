@@ -102,6 +102,7 @@ class BookmarkDebugExporter(
                 put("isMarked", bookmark.isMarked)
                 put("isArchived", bookmark.isArchived)
                 put("isDeleted", bookmark.isDeleted)
+                put("omitDescription", bookmark.omitDescription?.toString() ?: "null")
             }
 
             putJsonObject("bookmarkMetadata") {

@@ -137,8 +137,7 @@ class LoadContentPackageUseCase @Inject constructor(
 
                     // Update metadata from JSON part if present
                     if (pkg.json != null) {
-                        val domainBookmark = pkg.json.toDomain()
-                        bookmarkRepository.insertBookmarks(listOf(domainBookmark))
+                        bookmarkRepository.insertBookmarks(listOf(pkg.json.toDomain()))
                     }
                     onProgress?.invoke(0.6f) // Metadata updated
 
@@ -176,6 +175,10 @@ class LoadContentPackageUseCase @Inject constructor(
                     onProgress?.invoke(0.95f) // Content committed
 
                     if (committed) {
+                        // Direct write of omitDescription after commit to survive concurrent sync races
+                        pkg.json?.omitDescription?.let { omitVal ->
+                            bookmarkDao.updateOmitDescription(bookmarkId, omitVal)
+                        }
                         Timber.i("Content package downloaded for $bookmarkId (kind=$packageKind)")
                         Result.Success
                     } else {
@@ -311,6 +314,11 @@ class LoadContentPackageUseCase @Inject constructor(
                             val committed = contentPackageManager.commitPackage(
                                 enrichedPkg, packageKind, sourceUpdatedInstant.toString()
                             )
+                            if (committed) {
+                                pkg.json?.omitDescription?.let { omitVal ->
+                                    bookmarkDao.updateOmitDescription(id, omitVal)
+                                }
+                            }
                             results[id] = if (committed) Result.Success else Result.TransientFailure("Commit failed")
                         }
                     }

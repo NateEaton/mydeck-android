@@ -540,7 +540,10 @@ class BookmarkRepositoryImplTest {
     }
 
     @Test
-    fun `insertBookmarks metadata-only clears omitDescription when description changes`() = runTest {
+    fun `insertBookmarks metadata-only preserves omitDescription even when description changes`() = runTest {
+        // The list endpoint omits omit_description, so incoming is always null.
+        // We must preserve the existing value regardless of description changes.
+        // Only a content package fetch (non-null incoming) or local metadata edit can change it.
         val existingBookmark = bookmarkDto.toDomain()
             .copy(description = "Original description", omitDescription = true)
             .toEntity()
@@ -554,7 +557,7 @@ class BookmarkRepositoryImplTest {
         coVerify(exactly = 1) {
             bookmarkDao.upsertBookmarksMetadataOnly(
                 match { bookmarks ->
-                    bookmarks.singleOrNull()?.omitDescription == null
+                    bookmarks.singleOrNull()?.omitDescription == true
                 }
             )
         }
