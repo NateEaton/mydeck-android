@@ -1082,6 +1082,61 @@ like any other type. The spec's non-goal of “offline video playback” remains
 downloads text/transcript content, not video bytes. The embed iframe remains online-only, with an
 offline placeholder shown when the network is unavailable.
 
+## Field Note: `omitDescription` Not Persisting from Multipart JSON (Stage 4)
+
+**Context (2026-03-23):** After all four stages were implemented, `omitDescription` was still
+`null` in the local DB after content package downloads, even though the server's multipart JSON
+response includes `omit_description: true` (confirmed via `curl`). Debug export showed
+"Omit Description: N/A" for bookmarks with `contentState = DOWNLOADED`.
+
+**Root cause:** `SyncRequest` defined its boolean fields with `true` as the default value:
+
+```kotlin
+data class SyncRequest(
+    val id: List<String>,
+    @SerialName("with_json") val withJson: Boolean = true,  // ← problem
+    ...
+)
+```
+
+The global `Json` instance used Kotlinx serialization's default behavior of `encodeDefaults = false`.
+When callers set `withJson = true` — matching the data class default — Kotlinx silently omitted the
+field from the serialized request body. The server never received `with_json` and returned **zero
+JSON parts**. This meant `pkg.json` was always `null` in every multipart response, so no metadata
+(including `omitDescription`) ever arrived through the content package path.
+
+The metadata-only sync path was also affected but appeared to work because `fetchMetadata()` passed
+`withJson = true` (the default) — which was silently omitted — but the server happened to return
+JSON by default for metadata-only requests (no HTML/resources requested). Content package requests
+explicitly asked for HTML and resources, so the server returned those but not JSON.
+
+**Diagnosis path:** Added `[MParser]` diagnostic logging to `MultipartSyncParser` which revealed
+all parts had `type=html` or `type=resource` with zero `type=json` parts. This pointed to the
+request body rather than the parser.
+
+**Resolution:**
+
+1. Changed `SyncRequest` boolean defaults from `true` to `false` so that explicit `true` values
+   are always serialized:
+   ```kotlin
+   @SerialName("with_json") val withJson: Boolean = false,
+   @SerialName("with_html") val withHtml: Boolean = false,
+   @SerialName("with_resources") val withResources: Boolean = false,
+   ```
+2. Added `encodeDefaults = true` to the global `Json` configuration in `AppModule` as a
+   belt-and-suspenders guard against similar issues with other DTOs.
+3. Added a direct `bookmarkDao.updateOmitDescription(bookmarkId, omitVal)` call after content
+   package commit in both single (`fetchAndCommit`) and batch (`executeBatch`) paths. This
+   survives concurrent sync races where `performFullSync` (which uses the list endpoint that
+   never carries `omit_description`) could overwrite the value.
+4. Simplified `resolvePersistedOmitDescription()` to always preserve the existing DB value when
+   the incoming value is null (the list endpoint never sends `omit_description`).
+
+**Lesson:** When Kotlinx serialization's `encodeDefaults` is `false`, data class defaults that
+match the caller's intended value cause silent field omission. For request DTOs where the server
+interprets field absence as "don't include this data," defaults should be the *opt-out* value
+(typically `false` or `null`), not the *opt-in* value.
+
 ## Decision Summary
 
 `v0.12.0` adopts the sync API multipart transport as the primary retrieval architecture, including
