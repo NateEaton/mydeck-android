@@ -243,8 +243,13 @@ class BookmarkDetailViewModel @Inject constructor(
                             bookmark.embed.isNullOrBlank()) {
                             bookmarkRepository.refreshBookmarkMetadata(id)
                         }
-                        // Fetch article content on demand if not yet downloaded
-                        // (videos and photos can have article content per the API spec)
+                        // Fetch article content on demand if not yet downloaded.
+                        // For videos that have an embed but no article content, skip —
+                        // the embed is the content, and fetchContentOnDemand would
+                        // incorrectly mark these PERMANENT_NO_CONTENT (blocking the
+                        // embed view on first open due to a race with metadata refresh).
+                        val hasEmbedFallback = bookmark.type is com.mydeck.app.domain.model.Bookmark.Type.Video &&
+                            !bookmark.hasArticle && !bookmark.embed.isNullOrBlank()
                         when (bookmark.contentState) {
                             ContentState.DOWNLOADED -> {
                                 // Check for annotation changes from other clients
@@ -253,12 +258,20 @@ class BookmarkDetailViewModel @Inject constructor(
                                 }
                             }
                             ContentState.PERMANENT_NO_CONTENT -> {
-                                _contentLoadState.value = ContentLoadState.Failed(
-                                    reason = bookmark.contentFailureReason ?: "No content available",
-                                    canRetry = false
-                                )
+                                // For videos with embeds, PERMANENT_NO_CONTENT just means
+                                // no article text — the embed still works as the content.
+                                if (!hasEmbedFallback) {
+                                    _contentLoadState.value = ContentLoadState.Failed(
+                                        reason = bookmark.contentFailureReason ?: "No content available",
+                                        canRetry = false
+                                    )
+                                }
                             }
-                            else -> fetchContentOnDemand(id)
+                            else -> {
+                                if (!hasEmbedFallback) {
+                                    fetchContentOnDemand(id)
+                                }
+                            }
                         }
                     }
                     is com.mydeck.app.domain.model.Bookmark.Type.Article -> {
