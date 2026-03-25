@@ -49,6 +49,7 @@ class LoadBookmarksUseCase @Inject constructor(
             } else {
                 // No updated IDs — nothing to reload
                 Timber.d("No updated IDs to reload via multipart")
+                enqueueContentSyncIfNeeded()
                 UseCaseResult.Success(Unit)
             }
         } catch (e: Exception) {
@@ -117,7 +118,7 @@ class LoadBookmarksUseCase @Inject constructor(
         }
     }
 
-    private suspend fun enqueueContentSyncIfNeeded() {
+    suspend fun enqueueContentSyncIfNeeded() {
         if (policyEvaluator.shouldAutoFetchContent()) {
             enqueueBatchArticleLoader()
         }

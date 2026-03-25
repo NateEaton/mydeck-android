@@ -95,6 +95,7 @@ class LoadBookmarksWorker @AssistedInject constructor(
                         if (!settingsDataStore.isInitialSyncPerformed()) {
                             settingsDataStore.setInitialSyncPerformed(true)
                         }
+                        loadBookmarksUseCase.enqueueContentSyncIfNeeded()
                         return Result.success()
                     }
                     deltaUpdatedIds = result.updatedIds
