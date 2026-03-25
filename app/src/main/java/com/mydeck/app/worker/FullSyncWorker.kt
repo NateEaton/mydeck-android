@@ -89,6 +89,7 @@ class FullSyncWorker @AssistedInject constructor(
                 val syncTime = syncSuccess.maxServerTime ?: Clock.System.now()
                 settingsDataStore.saveLastSyncTimestamp(syncTime)
                 Timber.d("Skipping bookmark reload; delta sync reported no metadata updates")
+                loadBookmarksUseCase.enqueueContentSyncIfNeeded()
                 return Result.success(
                     Data.Builder().putInt(OUTPUT_DATA_COUNT, syncSuccess.countDeleted).build()
                 )
@@ -100,6 +101,7 @@ class FullSyncWorker @AssistedInject constructor(
                 val syncTime = Clock.System.now()
                 settingsDataStore.saveLastSyncTimestamp(syncTime)
                 Timber.d("Full sync path: metadata already persisted (${syncSuccess.countUpdated} bookmarks)")
+                loadBookmarksUseCase.enqueueContentSyncIfNeeded()
                 Result.success(
                     Data.Builder().putInt(OUTPUT_DATA_COUNT, syncSuccess.countDeleted).build()
                 )

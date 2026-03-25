@@ -79,6 +79,7 @@ sync UX shipped in `v0.11.1`.
    - on-demand content loading
    - automatic background content sync
    - date-range content sync
+   - manual "Sync now" triggers automatic content sync when automatic mode is enabled
 7. Preserve the current write path and conflict-handling rules for pending local actions.
 
 ## Non-Goals
