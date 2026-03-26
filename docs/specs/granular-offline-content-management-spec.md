@@ -307,15 +307,175 @@ is being archived (not un-archived).
 - Add "Remove downloaded content" to the long-press context menu (visible when
   `contentState == DOWNLOADED`).
 
-## Sync Settings Screen Changes
+## Sync Settings Screen Redesign
 
-The Content Sync section gains:
+### Current Layout (Problems)
 
-1. **Download images** toggle (below the sync mode selector)
-2. **Sync content for** selector: All bookmarks / My List only
-3. **Clear offline content when archiving** toggle
+The current screen has four sections:
 
-The existing storage section (offline storage usage + clear all button) remains unchanged.
+1. **Bookmark Sync** — frequency, manual sync button
+2. **Content Sync** — mode (automatic/manual/date-range), constraints (wifi-only, battery)
+3. **Sync Status** — bookmark counts, content counts, timestamps
+4. **Storage** — usage size, clear all button
+
+Problems with this layout when adding new settings:
+
+- **"Content Sync" conflates three concerns:** *when* to sync (mode), *what* to sync
+  (currently implicit), and *under what conditions* (constraints). Adding image download
+  toggle, sync scope, and auto-clear here would make it unwieldy.
+- **Constraints are visually coupled to content sync mode** but actually apply to both
+  automatic sync and date-range sync — the nesting is misleading.
+- **Storage cleanup is isolated** from the content settings that determine what gets stored.
+- **No clear grouping around archive behavior** — the auto-clear-on-archive setting and the
+  sync scope filter both relate to how archived bookmarks interact with offline content, but
+  there's no natural home for them in the current structure.
+
+### Proposed Layout
+
+The redesigned screen groups settings by concern: scheduling, content policy, and storage.
+Sync status is kept for diagnostics but is deliberately placed last — it's informational,
+not actionable.
+
+```
+┌─────────────────────────────────────────────┐
+│  ← Sync Settings                            │
+├─────────────────────────────────────────────┤
+│                                             │
+│  SCHEDULE                                   │
+│                                             │
+│  Bookmark sync frequency         [1 hour ▼] │
+│  Next run: in 45 minutes                    │
+│  [       Sync bookmarks now        ]        │
+│                                             │
+│  Content sync mode                          │
+│  ○ Automatic                                │
+│    Downloaded during bookmark sync          │
+│  ○ Manual                                   │
+│    ○ On demand                              │
+│    ○ By date range                          │
+│      [Past week ▼]                          │
+│      [       Download content       ]       │
+│                                             │
+│─────────────────────────────────────────────│
+│                                             │
+│  CONTENT                                    │
+│                                             │
+│  What to download                           │
+│  Sync scope                    [My List ▼]  │
+│    Which bookmarks to download content for  │
+│    when syncing automatically or by date    │
+│    range. On-demand downloads are always    │
+│    available regardless of this setting.    │
+│  Download images                     [ON ]  │
+│    Download images alongside article text.  │
+│    When off, images load from the network.  │
+│                                             │
+│  Constraints                                │
+│  Wi-Fi only                          [OFF]  │
+│  Allow on battery saver              [ON ]  │
+│                                             │
+│─────────────────────────────────────────────│
+│                                             │
+│  STORAGE                                    │
+│                                             │
+│  Offline storage usage: 142 MB              │
+│                                             │
+│  Cleanup                                    │
+│  Clear content when archiving        [OFF]  │
+│    Automatically remove downloaded text     │
+│    and images when a bookmark is archived.  │
+│  [     Clear all offline content      ]     │
+│                                             │
+│─────────────────────────────────────────────│
+│                                             │
+│  STATUS                                     │
+│                                             │
+│  Bookmarks                                  │
+│  Total: 1,234                               │
+│  Unread: 56                                 │
+│  Archived: 1,100                            │
+│  Favorites: 42                              │
+│  Last sync: 10 minutes ago                  │
+│                                             │
+│  Content                                    │
+│  Downloaded: 78                             │
+│  Available: 156                             │
+│  Needs refresh: 3                           │
+│  No content: 12                             │
+│  Last content sync: 1 hour ago              │
+│                                             │
+└─────────────────────────────────────────────┘
+```
+
+### Design Rationale
+
+**Schedule** combines both bookmark sync and content sync scheduling. These are the "when"
+questions: how often does metadata sync run, and when does content get downloaded (auto vs.
+manual vs. date range). The user thinks about these together — "I want my bookmarks to sync
+every hour and content to download automatically" is a single mental model.
+
+Bookmark sync frequency and the manual sync button stay at the top because they're the most
+frequently adjusted settings and the primary entry point for "why aren't my bookmarks
+showing up?"
+
+**Content** answers "what gets downloaded and under what conditions." This groups:
+- **Sync scope** (all vs. My List) — scopes which bookmarks are eligible
+- **Download images** toggle — controls what's included in each download
+- **Constraints** (Wi-Fi only, battery saver) — conditions under which syncing occurs
+
+These are all "content download policy" settings. They apply uniformly to automatic,
+date-range, and (in the case of images) on-demand downloads.
+
+The sync scope selector deserves a brief supporting text to clarify that it only affects
+automatic and date-range syncs — on-demand downloads (tapping into an article) always work
+regardless of scope. This prevents confusion where a user sets "My List only," archives an
+article, then can't figure out why tapping it still loads content.
+
+**Storage** groups everything related to disk usage and cleanup:
+- Current usage display
+- Auto-clear on archive (the automated cleanup mechanism)
+- Clear all button (the manual nuclear option)
+
+This answers "how much space is used, and how do I manage it?" Auto-clear-on-archive belongs
+here rather than under Content because its purpose is storage management, not download policy.
+The user's mental model is: "I'm concerned about storage → here are my cleanup options."
+
+**Status** moves to the bottom. It's diagnostic/informational — users check it occasionally
+to verify sync is working, not as a primary interaction. Placing it last keeps the actionable
+settings front-and-center.
+
+### Interaction Notes
+
+- **Sync scope + auto-clear on archive:** These two settings are complementary but independent.
+  A user might want to sync only My List (don't download archived content) but NOT auto-clear
+  (keep existing downloaded content when archiving, just don't re-download it on next sync).
+  Or they might sync everything but auto-clear on archive (download archived content initially,
+  clean up when they're done with it). Both combinations are valid.
+
+- **Download images + sync scope:** When "Download images" is off and a date-range sync runs,
+  it downloads text-only packages. If the user later turns "Download images" on, existing
+  text-only packages are NOT retroactively upgraded — only new downloads include images.
+  The per-article image toggle on the detail page handles upgrading individual articles.
+
+- **Clear all offline content:** Continues to work as before — removes all text and images for
+  all bookmarks, resets all content state. The confirmation dialog should mention that this
+  affects all bookmarks regardless of sync scope or archive status.
+
+### Open Layout Questions
+
+1. **Sync scope selector style:** Dropdown (compact) vs. radio buttons (more explicit)?
+   Only two options currently (All / My List only), so either works. A dropdown is more
+   compact and leaves room for future options (e.g., "Favorites only").
+
+2. **Section headers:** The current design uses `titleMedium` text for section headers. The
+   proposed layout uses all-caps section labels (SCHEDULE, CONTENT, STORAGE, STATUS) which
+   is a common M3 pattern for settings screens. Either style works — should match the rest
+   of the app's settings screens.
+
+3. **Constraints placement:** Constraints could alternatively stay in the Schedule section
+   (they affect *when* sync runs). However, they're really about *whether* to download, which
+   is more of a content policy concern. Placing them under Content keeps the Schedule section
+   focused on timing.
 
 ## Open Questions
 
