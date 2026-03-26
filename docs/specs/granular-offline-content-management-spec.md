@@ -421,10 +421,19 @@ showing up?"
 **Content** answers "what gets downloaded and under what conditions." This groups:
 - **Sync scope** (all vs. My List) — scopes which bookmarks are eligible
 - **Download images** toggle — controls what's included in each download
-- **Constraints** (Wi-Fi only, battery saver) — conditions under which syncing occurs
+- **Constraints** (Wi-Fi only, battery saver) — conditions under which content download occurs
 
 These are all "content download policy" settings. They apply uniformly to automatic,
 date-range, and (in the case of images) on-demand downloads.
+
+**Important:** Constraints apply only to content sync (downloading article text and images),
+not to bookmark metadata sync. Metadata sync (titles, URLs, labels, read status, etc.)
+should always run whenever any internet connection is available, regardless of Wi-Fi or
+battery state. The rationale is that metadata is small and essential for the app to function,
+while content packages are large and deferrable. This is already the current implementation
+behavior — `FullSyncUseCase` only requires `NetworkType.CONNECTED` with no additional
+constraints. The constraints settings should be labeled and described in a way that makes
+clear they govern content downloads specifically.
 
 The sync scope selector deserves a brief supporting text to clarify that it only affects
 automatic and date-range syncs — on-demand downloads (tapping into an article) always work
