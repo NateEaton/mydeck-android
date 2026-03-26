@@ -18,7 +18,7 @@ This spec extends the offline content architecture shipped in `v0.12.0` with:
 1. A global setting controlling whether images are downloaded alongside article text
 2. Per-article controls for downloading or removing images and content
 3. Automatic content cleanup on archive
-4. Scope filtering for content sync (all bookmarks vs. My List only)
+4. Scope filtering for content sync (My List only by default, with an option to include Archive)
 5. A visual indicator in bookmark lists showing offline content state
 
 These features work together to give users control over offline storage without requiring
@@ -75,10 +75,11 @@ handle the bulk of the use case.
 
 ### Sync scope filter applies to content sync only
 
-The "sync content for: All bookmarks / My List only" setting controls which bookmarks are
-eligible for content download during automatic and date-range syncs. It does not affect
-metadata sync — bookmark metadata (title, URL, labels, read status, etc.) is always synced
-for all bookmarks regardless of this setting.
+The "include archived bookmarks in content sync" toggle controls which bookmarks are eligible
+for content download during automatic and date-range syncs. When the toggle is off (default),
+only My List bookmarks are eligible. It does not affect metadata sync — bookmark metadata
+(title, URL, labels, read status, etc.) is always synced for all bookmarks regardless of this
+setting.
 
 ### Auto-clear on archive removes all offline content
 
@@ -114,21 +115,23 @@ modified when the setting changes).
 
 ### 2. Per-Article Image Download Toggle
 
-**Location:** Bookmark detail page. Exact placement TBD — candidates include the overflow
-menu, the planned multi-icon pill (if the detail page is redesigned), or a dedicated icon
-in the top app bar.
+**Location:** Bookmark detail page, in the metadata list directly under the word count row
+(new row with icon + label). This is a temporary placement until the detail page redesign.
 
 **UI:** A cycling icon with two states:
 
-- **Images downloaded** (image icon, normal): images are stored locally with the article.
+- **Images downloaded** (image icon, filled): images are stored locally with the article.
   Clicking deletes image files from disk and updates the content package to reflect
   text-only storage. The HTML is re-fetched without `resourcePrefix` so image URLs revert
   to absolute. The current WebView session is unaffected (already-rendered images remain
   visible); the change takes effect on next open.
-- **Images lazy-loaded** (image icon, greyed/variant): images are not stored locally.
+- **Images lazy-loaded** (image icon, outline): images are not stored locally.
   Clicking triggers a background download of images for this article. A progress indicator
   (e.g., M3 circular progress around the icon) shows download progress. Non-blocking —
   the user continues reading. The icon updates when the download completes.
+
+**Offline behavior:** This toggle is disabled when the device is offline. The HTML re-fetch
+required for the full → lazy-images transition should not run without connectivity.
 
 **State determination:** Derived from `ContentPackageEntity.hasResources`. No new database
 field is needed for this control.
@@ -162,10 +165,9 @@ check the preference and call the per-bookmark content deletion if enabled.
 
 **Location:** Sync Settings screen, in the Content Sync section.
 
-**UI:** Setting — "Sync content for: All bookmarks / My List only". Default: All bookmarks
-(preserves current behavior).
+**UI:** Toggle — "Include archived bookmarks" or similar. Default: off (My List only).
 
-**Behavior:** When set to "My List only", the eligibility queries for `BatchArticleLoadWorker`
+**Behavior:** When disabled (default), the eligibility queries for `BatchArticleLoadWorker`
 and `DateRangeContentSyncWorker` add `AND isArchived = 0` to exclude archived bookmarks
 from content sync.
 
@@ -179,16 +181,18 @@ acceptable — un-archiving is rare, and on-demand loading handles it transparen
 
 **UI:** A small icon on the bookmark card indicating offline content state. Options:
 
-- Downloaded (full — text + images): solid download/cloud-done icon
-- Downloaded (text only — lazy images): variant icon (TBD)
+- Downloaded (full — text + images): `Icons.Filled.CloudDownload`
+- Downloaded (text only — lazy images): `Icons.Outlined.CloudDownload`
 - Not downloaded: no icon (default state, no visual clutter)
 
 **State source:** `BookmarkEntity.contentState` (already available to list items) combined
-with `ContentPackageEntity.hasResources` (may need to be surfaced to the list item model
-via a JOIN or denormalized field).
+with a denormalized `BookmarkEntity.hasResources` field that mirrors
+`ContentPackageEntity.hasResources`.
 
-**Design note:** The exact icon treatment and placement on the card are TBD. Should be subtle
-enough not to clutter the card but visible enough to be useful.
+**Placement:**
+- **Grid:** top-right corner of the thumbnail, directly below the reading progress indicator.
+- **Mosaic:** top-right corner of the thumbnail, directly below the reading progress indicator.
+- **Compact:** deferred (pending decisions on type/progress icon placement).
 
 ## Data Model Changes
 
@@ -199,8 +203,9 @@ text-only packages. The `packageKind` and `hasHtml` fields remain as-is.
 
 ### BookmarkEntity
 
-No changes to the entity itself. The `contentState` enum (NOT_ATTEMPTED, DOWNLOADED, DIRTY,
-PERMANENT_NO_CONTENT) remains unchanged.
+Add a denormalized boolean field (e.g., `hasResources`) mirroring
+`ContentPackageEntity.hasResources`. The `contentState` enum (NOT_ATTEMPTED, DOWNLOADED,
+DIRTY, PERMANENT_NO_CONTENT) remains unchanged.
 
 ### SettingsDataStore
 
@@ -208,19 +213,12 @@ New preference keys:
 
 - `downloadImagesWithArticles: Boolean` (default: true)
 - `clearContentOnArchive: Boolean` (default: false)
-- `contentSyncScope: ContentSyncScope` (enum: ALL, MY_LIST_ONLY; default: ALL)
+- `includeArchivedContentInSync: Boolean` (default: false)
 
 ### List item model
 
-The bookmark list item model (used by bookmark cards) may need a new field to surface the
-`hasResources` state from the content package, so the visual indicator can distinguish
-"downloaded with images" from "downloaded text only." This could be:
-
-- A JOIN in the list query adding `hasResources` from `content_package`
-- A denormalized `hasResources` field on `BookmarkEntity` updated by `ContentPackageManager`
-
-The denormalized approach is simpler for the list query but adds a field to keep in sync.
-The JOIN is more normalized but may affect list query performance. TBD during implementation.
+Use the denormalized `BookmarkEntity.hasResources` field to distinguish
+"downloaded with images" from "downloaded text only" in list item models.
 
 ## Implementation Approach
 
@@ -286,8 +284,8 @@ rewritten client-side. Re-fetching the HTML is simpler and avoids fragile URL re
 ### Workers
 
 `BatchArticleLoadWorker` and `DateRangeContentSyncWorker` read the `downloadImagesWithArticles`
-and `contentSyncScope` preferences and adjust their fetch calls and eligibility queries
-accordingly.
+and `includeArchivedContentInSync` preferences and adjust their fetch calls and eligibility
+queries accordingly.
 
 ### Archive Action
 
@@ -300,7 +298,7 @@ is being archived (not un-archived).
 
 - Remove "Refresh content" menu item.
 - Add "Remove downloaded content" menu item (visible when `contentState == DOWNLOADED`).
-- Add per-article image download toggle (placement TBD — see Feature Details §2).
+- Add per-article image download toggle row under the word count in the detail metadata list.
 
 ### BookmarkCard Context Menu
 
@@ -361,11 +359,11 @@ not actionable.
 │  CONTENT                                    │
 │                                             │
 │  What to download                           │
-│  Sync scope                    [My List ▼]  │
-│    Which bookmarks to download content for  │
-│    when syncing automatically or by date    │
-│    range. On-demand downloads are always    │
-│    available regardless of this setting.    │
+│  Include archived content            [OFF]  │
+│    When off, only My List downloads offline │
+│    content during automatic or date-range   │
+│    sync. On-demand downloads are always     │
+│    available regardless of this setting.   │
 │  Download images                     [ON ]  │
 │    Download images alongside article text.  │
 │    When off, images load from the network.  │
@@ -419,7 +417,7 @@ frequently adjusted settings and the primary entry point for "why aren't my book
 showing up?"
 
 **Content** answers "what gets downloaded and under what conditions." This groups:
-- **Sync scope** (all vs. My List) — scopes which bookmarks are eligible
+- **Include archived content** (on/off) — scopes which bookmarks are eligible
 - **Download images** toggle — controls what's included in each download
 - **Constraints** (Wi-Fi only, battery saver) — conditions under which content download occurs
 
@@ -435,10 +433,10 @@ behavior — `FullSyncUseCase` only requires `NetworkType.CONNECTED` with no add
 constraints. The constraints settings should be labeled and described in a way that makes
 clear they govern content downloads specifically.
 
-The sync scope selector deserves a brief supporting text to clarify that it only affects
+The archive toggle deserves a brief supporting text to clarify that it only affects
 automatic and date-range syncs — on-demand downloads (tapping into an article) always work
-regardless of scope. This prevents confusion where a user sets "My List only," archives an
-article, then can't figure out why tapping it still loads content.
+regardless of the setting. This prevents confusion where a user turns the toggle off,
+archives an article, then can't figure out why tapping it still loads content.
 
 **Storage** groups everything related to disk usage and cleanup:
 - Current usage display
@@ -455,11 +453,11 @@ settings front-and-center.
 
 ### Interaction Notes
 
-- **Sync scope + auto-clear on archive:** These two settings are complementary but independent.
-  A user might want to sync only My List (don't download archived content) but NOT auto-clear
-  (keep existing downloaded content when archiving, just don't re-download it on next sync).
-  Or they might sync everything but auto-clear on archive (download archived content initially,
-  clean up when they're done with it). Both combinations are valid.
+- **Include archived content + auto-clear on archive:** These two settings are complementary
+  but independent. A user might exclude archived content but NOT auto-clear (keep existing
+  downloads when archiving, just don't re-download them on the next sync). Or they might
+  include archived content but auto-clear on archive (download it initially, clean up when
+  they're done). Both combinations are valid.
 
 - **Download images + sync scope:** When "Download images" is off and a date-range sync runs,
   it downloads text-only packages. If the user later turns "Download images" on, existing
@@ -470,21 +468,11 @@ settings front-and-center.
   all bookmarks, resets all content state. The confirmation dialog should mention that this
   affects all bookmarks regardless of sync scope or archive status.
 
-### Open Layout Questions
+### Layout Decisions
 
-1. **Sync scope selector style:** Dropdown (compact) vs. radio buttons (more explicit)?
-   Only two options currently (All / My List only), so either works. A dropdown is more
-   compact and leaves room for future options (e.g., "Favorites only").
-
-2. **Section headers:** The current design uses `titleMedium` text for section headers. The
-   proposed layout uses all-caps section labels (SCHEDULE, CONTENT, STORAGE, STATUS) which
-   is a common M3 pattern for settings screens. Either style works — should match the rest
-   of the app's settings screens.
-
-3. **Constraints placement:** Constraints could alternatively stay in the Schedule section
-   (they affect *when* sync runs). However, they're really about *whether* to download, which
-   is more of a content policy concern. Placing them under Content keeps the Schedule section
-   focused on timing.
+- **Sync scope control:** Use a single toggle for including archived bookmarks in content sync.
+- **Section headers:** Match existing settings styles.
+- **Constraints placement:** Keep constraints in the Content section.
 
 ## Content Sync Constraint Handling
 
@@ -571,34 +559,14 @@ where it belongs.
 
 #### Fix 2: User feedback for constraint-blocked content sync
 
-When content sync is automatic but constraints prevent it from running, the user should
-see a subtle, non-intrusive indication. Options considered:
+When content sync is automatic but constraints prevent it from running, use:
 
-**Option A: Passive indicator in the bookmark list.**
-Show a small informational banner or icon in the list screen when content sync is pending
-but constraint-blocked. Something like a subtle bar: "Content download waiting for Wi-Fi"
-or "Content download paused (battery saver)". Dismissible, non-blocking. This is the
-recommended approach — it provides awareness without interrupting the user's flow.
+- **Snackbar on app open** when content sync is blocked (e.g., "Content download waiting for Wi-Fi").
+- **Status line in sync settings** to show the current content sync state ("Waiting for Wi-Fi",
+  "Paused (battery saver)", "Up to date", etc.).
 
-**Option B: Snackbar on app open.**
-When app-open sync completes metadata but skips content due to constraints, show a brief
-snackbar: "Content download waiting for Wi-Fi." Low friction but easy to miss.
-
-**Option C: Notification.**
-If the user has automatic content sync enabled and constraints block it for an extended
-period, post a low-priority notification. This is the most discoverable option but also the
-most intrusive — probably overkill for a non-urgent situation.
-
-**Option D: Status in sync settings only.**
-Add a "Content sync status" line in the sync settings STATUS section showing the current
-state: "Waiting for Wi-Fi", "Paused (battery saver)", "Up to date", etc. This is the
-least intrusive — the user would only see it if they go to sync settings. Good as a
-baseline that complements one of the other options.
-
-**Recommendation:** Option B (snackbar on app open) + Option D (status in sync settings).
-The snackbar provides timely, one-time awareness when the user opens the app. The sync
-settings status provides a persistent place to check. Neither interrupts the reading
-experience.
+This provides immediate awareness on app open plus a persistent status location without
+interrupting the reading experience.
 
 #### Fix 3: No override dialog for automatic sync
 
@@ -634,31 +602,41 @@ Background/periodic sync → silent wait with passive indication.
 
 | Trigger | Metadata | Content | If constrained |
 |---------|----------|---------|----------------|
-| Periodic auto-sync | Always runs | WorkManager constraints | Deferred silently; passive indicator |
-| App open | Always runs | WorkManager constraints | Deferred; snackbar on app open |
+| Periodic auto-sync | Always runs | WorkManager constraints | Deferred; settings status only |
+| App open | Always runs | WorkManager constraints | Deferred; snackbar + settings status |
 | Pull to refresh | Always runs | Check constraints | Override dialog (user-initiated) |
 | "Sync now" button | Always runs | Check constraints | Override dialog (user-initiated) |
 | Date range download | N/A | Check constraints | Override dialog (existing behavior) |
 
-## Open Questions
+## Resolved Decisions
 
-1. **Visual indicator design:** What icon and placement on bookmark cards best communicates
-   offline state without adding clutter?
-2. **Detail page redesign interaction:** The per-article image toggle and "remove downloaded
-   content" action may move to different locations if the detail page is redesigned with a
-   persistent/swipeable details panel and multi-icon pill. This spec should be updated to
-   reflect the final detail page design.
-3. **Broken-image icon styling:** When articles are in text+lazy-images mode and opened
-   offline, should we invest in a JS error handler to replace broken-image icons with styled
-   placeholders? This is independent of the download tier feature and could be done later.
-4. **Default for sync scope:** Should "My List only" be the default rather than "All bookmarks"?
-   It's arguably the more sensible default, especially when combined with auto-clear on archive.
-5. **Re-fetch HTML on image removal:** When cycling from full → lazy-images for a specific
-   article, the stored HTML has relative image URLs. The simplest fix is to re-fetch HTML
-   without `resourcePrefix`. Is a lightweight HTML-only fetch acceptable here, or should we
-   explore client-side URL rewriting?
-6. **Constraint feedback mechanism:** Which combination of snackbar, banner, notification,
-   and settings status best communicates why content isn't downloading? See Fix 2 options above.
+1. **Visual indicator design:** Use `Icons.Filled.CloudDownload` for full downloads and
+   `Icons.Outlined.CloudDownload` for text-only downloads. Placement is top-right under the
+   reading progress indicator on grid/mosaic; compact layout deferred.
+2. **Detail page placement:** Show image download status as a row under the word count in the
+   detail metadata list until the detail page redesign is complete.
+3. **Broken-image icon styling:** Defer any styling changes for now.
+4. **Default sync scope:** Default to My List only with an "include archived" toggle.
+5. **Image removal flow:** Re-fetch HTML to restore absolute image URLs, and disable the toggle
+   when offline. Delete resources only *after* re-fetched HTML is successfully committed to
+   avoid a broken intermediate state.
+6. **Constraint feedback:** Snackbar on app open + settings status line.
+7. **List item hasResources:** Use a JOIN on `content_package` in list queries rather than
+   denormalizing `hasResources` onto `BookmarkEntity`. Avoids a DB migration and the burden
+   of keeping a denormalized field in sync across all content package mutation paths.
+8. **fetchTextOnly() method:** Add a new `MultipartSyncClient.fetchTextOnly()` method
+   (`withHtml=true, withResources=false, resourcePrefix=null`) rather than repurposing
+   `fetchHtmlOnly()` (which uses `resourcePrefix="."` for annotation refresh).
+9. **Download images setting scope:** When "download images" is OFF, *all* content download
+   paths (on-demand, automatic, date-range) use text-only fetch with absolute image URLs.
+   When ON, full multipart content packages with relative references are used.
+10. **Auto-clear on archive:** Hook into the repository-level archive path (not individual
+    ViewModels) for clean coverage of all archive surfaces. No UI feedback (snackbar, etc.).
+11. **"Refresh content" menu item:** Retained in the detail overflow menu alongside the new
+    "Remove downloaded content" item (placed below it). Removal deferred until after this
+    spec's implementation is complete.
+12. **Settings screen redesign:** Part of this implementation milestone — the new controls
+    require the reorganized layout.
 
 ## Relationship to Other Features
 
