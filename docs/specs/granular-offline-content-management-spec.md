@@ -486,6 +486,160 @@ settings front-and-center.
    is more of a content policy concern. Placing them under Content keeps the Schedule section
    focused on timing.
 
+## Content Sync Constraint Handling
+
+### Current Behavior (Problems)
+
+Content sync constraints (Wi-Fi only, battery saver) are handled inconsistently across
+sync trigger paths:
+
+| Trigger | Metadata sync | Content sync constraint handling |
+|---------|--------------|--------------------------------|
+| Periodic auto-sync (`FullSyncWorker`) | `CONNECTED` only (correct) | Enqueues `BatchArticleLoadWorker` via `enqueueContentSyncIfNeeded()`. The `ContentSyncPolicyEvaluator` checks constraints before deciding to enqueue, but the WorkManager request itself only requires `CONNECTED` — constraints are not applied to the work request. |
+| "Sync now" button (`FullSyncWorker`) | `CONNECTED` only (correct) | Same as periodic — relies on evaluator gate, no constraints on work request. |
+| App open (`LoadBookmarksWorker`) | `CONNECTED` only (correct) | Same — calls `enqueueContentSyncIfNeeded()` with evaluator gate. |
+| Pull to refresh (`LoadBookmarksWorker`) | `CONNECTED` only (correct) | Same as app open. |
+| Date range download (`DateRangeContentSyncWorker`) | N/A | **Correct** — `SyncSettingsViewModel` checks constraints, shows override dialog if blocked, and applies constraints to the WorkManager request. |
+
+**Problems identified:**
+
+1. **Silent failure on automatic content sync.** When `ContentSyncPolicyEvaluator.shouldAutoFetchContent()`
+   returns false due to a constraint (e.g., battery saver active, not on Wi-Fi), the content
+   sync simply doesn't run. The user gets no feedback — bookmarks sync but content doesn't
+   download, and there's no indication why. This is likely what caused confusion during testing
+   on the multipart sync branch.
+
+2. **Race condition on evaluator gate.** The evaluator checks constraints at enqueue time, but
+   conditions can change between the check and when WorkManager actually runs the worker. If
+   the evaluator approves enqueue and then battery saver activates, the worker runs anyway
+   because the work request has no battery constraint.
+
+3. **`BatchArticleLoadWorker.enqueue()` ignores user constraint preferences.** It hardcodes
+   `NetworkType.CONNECTED` without reading Wi-Fi-only or battery-saver settings. The evaluator
+   gate is the only protection, and it has the race condition described above.
+
+4. **No user feedback mechanism for automatic triggers.** The date-range path has a clean UX
+   (override dialog), but automatic sync has nothing comparable. The user opens the app,
+   metadata syncs fine, but content silently doesn't download.
+
+### Proposed Behavior
+
+**Principle:** Metadata sync always runs on any internet connection. Content sync respects
+user constraints. The user should always understand why content isn't downloading.
+
+#### Fix 1: Apply constraints to WorkManager requests
+
+`enqueueBatchArticleLoader()` in `LoadBookmarksUseCase` should read the user's constraint
+preferences and apply them to the WorkManager request:
+
+```kotlin
+private suspend fun enqueueBatchArticleLoader() {
+    val syncConstraints = settingsDataStore.getContentSyncConstraints()
+    val constraintsBuilder = Constraints.Builder()
+
+    if (syncConstraints.wifiOnly) {
+        constraintsBuilder.setRequiredNetworkType(NetworkType.UNMETERED)
+    } else {
+        constraintsBuilder.setRequiredNetworkType(NetworkType.CONNECTED)
+    }
+
+    if (!syncConstraints.allowOnBatterySaver) {
+        constraintsBuilder.setRequiresBatteryNotLow(true)
+    }
+
+    val request = OneTimeWorkRequestBuilder<BatchArticleLoadWorker>()
+        .setConstraints(constraintsBuilder.build())
+        .build()
+
+    workManager.enqueueUniqueWork(
+        BatchArticleLoadWorker.UNIQUE_WORK_NAME,
+        ExistingWorkPolicy.KEEP,
+        request
+    )
+}
+```
+
+This eliminates the race condition — WorkManager itself enforces the constraints, so even
+if conditions change after enqueue, the worker won't run until constraints are satisfied.
+When conditions are met later (e.g., phone is plugged in, Wi-Fi connects), WorkManager
+automatically runs the pending work.
+
+This also means `ContentSyncPolicyEvaluator.shouldAutoFetchContent()` no longer needs to
+check constraints — it only needs to check whether the content sync mode is `AUTOMATIC`.
+The constraint enforcement moves from the decision layer to the execution layer, which is
+where it belongs.
+
+#### Fix 2: User feedback for constraint-blocked content sync
+
+When content sync is automatic but constraints prevent it from running, the user should
+see a subtle, non-intrusive indication. Options considered:
+
+**Option A: Passive indicator in the bookmark list.**
+Show a small informational banner or icon in the list screen when content sync is pending
+but constraint-blocked. Something like a subtle bar: "Content download waiting for Wi-Fi"
+or "Content download paused (battery saver)". Dismissible, non-blocking. This is the
+recommended approach — it provides awareness without interrupting the user's flow.
+
+**Option B: Snackbar on app open.**
+When app-open sync completes metadata but skips content due to constraints, show a brief
+snackbar: "Content download waiting for Wi-Fi." Low friction but easy to miss.
+
+**Option C: Notification.**
+If the user has automatic content sync enabled and constraints block it for an extended
+period, post a low-priority notification. This is the most discoverable option but also the
+most intrusive — probably overkill for a non-urgent situation.
+
+**Option D: Status in sync settings only.**
+Add a "Content sync status" line in the sync settings STATUS section showing the current
+state: "Waiting for Wi-Fi", "Paused (battery saver)", "Up to date", etc. This is the
+least intrusive — the user would only see it if they go to sync settings. Good as a
+baseline that complements one of the other options.
+
+**Recommendation:** Option B (snackbar on app open) + Option D (status in sync settings).
+The snackbar provides timely, one-time awareness when the user opens the app. The sync
+settings status provides a persistent place to check. Neither interrupts the reading
+experience.
+
+#### Fix 3: No override dialog for automatic sync
+
+Unlike the date-range download (which is user-initiated and warrants an override dialog),
+automatic content sync should simply wait for constraints to be satisfied. The user set
+these constraints deliberately — prompting them to override on every app open would be
+annoying. The correct behavior is:
+
+1. Enqueue the content sync work with proper constraints on the WorkManager request.
+2. WorkManager holds the work until constraints are met.
+3. When the user connects to Wi-Fi or exits battery saver, the pending work runs
+   automatically.
+4. The user gets a snackbar and/or status indicator explaining the wait.
+
+This is consistent with how other Android apps handle constrained background work — the
+work is deferred, not cancelled or prompted.
+
+#### Fix 4: Pull-to-refresh and "Sync now" should behave like date-range override
+
+When the user explicitly triggers a sync via pull-to-refresh or the "Sync now" button, and
+content sync mode is automatic, and constraints would block content download:
+
+- **Metadata sync** proceeds immediately (no constraints).
+- **Content sync** should show the same override dialog as date-range downloads, since the
+  user has explicitly requested a sync and deserves feedback about why content isn't
+  downloading. If they override, the content work is enqueued without constraints. If they
+  cancel, content waits for constraints to be met.
+
+This gives a consistent pattern: user-initiated sync triggers → override dialog if blocked.
+Background/periodic sync → silent wait with passive indication.
+
+### Summary of Constraint Handling by Trigger
+
+| Trigger | Metadata | Content | If constrained |
+|---------|----------|---------|----------------|
+| Periodic auto-sync | Always runs | WorkManager constraints | Deferred silently; passive indicator |
+| App open | Always runs | WorkManager constraints | Deferred; snackbar on app open |
+| Pull to refresh | Always runs | Check constraints | Override dialog (user-initiated) |
+| "Sync now" button | Always runs | Check constraints | Override dialog (user-initiated) |
+| Date range download | N/A | Check constraints | Override dialog (existing behavior) |
+
 ## Open Questions
 
 1. **Visual indicator design:** What icon and placement on bookmark cards best communicates
@@ -503,6 +657,8 @@ settings front-and-center.
    article, the stored HTML has relative image URLs. The simplest fix is to re-fetch HTML
    without `resourcePrefix`. Is a lightweight HTML-only fetch acceptable here, or should we
    explore client-side URL rewriting?
+6. **Constraint feedback mechanism:** Which combination of snackbar, banner, notification,
+   and settings status best communicates why content isn't downloading? See Fix 2 options above.
 
 ## Relationship to Other Features
 
