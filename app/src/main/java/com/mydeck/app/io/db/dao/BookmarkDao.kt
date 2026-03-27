@@ -332,8 +332,8 @@ interface BookmarkDao {
             }
 
             label?.let {
-                append(" AND b.labels LIKE ? COLLATE BINARY")
-                args.add("%\"$it\"%")
+                append(" AND INSTR(b.labels, ?) > 0")
+                args.add("\"$it\"")
             }
 
             append(" ORDER BY b.$orderBy")
@@ -492,8 +492,8 @@ interface BookmarkDao {
             }
 
             label?.let {
-                append(" AND b.labels LIKE ? COLLATE BINARY")
-                args.add("%\"$it\"%")
+                append(" AND INSTR(b.labels, ?) > 0")
+                args.add("\"$it\"")
             }
 
             append(" ORDER BY b.$orderBy")
@@ -581,8 +581,8 @@ interface BookmarkDao {
             }
 
             label?.let {
-                append(" AND b.labels LIKE ? COLLATE BINARY")
-                args.add("%\"$it\"%")
+                append(" AND INSTR(b.labels, ?) > 0")
+                args.add("\"$it\"")
             }
 
             fromDate?.let {
