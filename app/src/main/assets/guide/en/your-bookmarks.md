@@ -29,7 +29,7 @@ The default layout. Each card has a **thumbnail** on the left and the title, sou
 
 ### Compact Layout
 
-A denser view that uses the site's **favicon** instead of a full thumbnail. Reading progress is not shown in compact layout. Useful when you want to scan a long list quickly.
+A denser view that uses the site's **favicon** instead of a full thumbnail. Below the favicon, small icons show **reading progress** and **download status** (see below). Useful when you want to scan a long list quickly.
 
 ### Mosaic Layout
 
@@ -41,15 +41,27 @@ Tap the **layout icon** in the top bar to choose between Grid, Compact, and Mosa
 
 ## Reading Progress
 
-In Grid and Mosaic layouts, the top-right corner of each card's thumbnail shows the bookmark's reading status:
+All three layouts show the bookmark's reading status:
 
 - **No indicator** — not yet opened
 - **Partial circle** — in progress; the arc angle represents how far through the article you've read
 - **Checkmark (✓)** — read (completed)
 
+In Grid and Mosaic layouts, these appear in the top-right corner of the thumbnail. In Compact layout, the reading status icon appears below the favicon.
+
 Progress is tracked based on how far you scroll in the article — it reflects the farthest point you've reached, not your position when you close the bookmark.
 
-A **video icon** or **picture icon** appears in the top-left corner for video and picture bookmarks respectively.
+A **video icon** or **picture icon** appears in the top-left corner for video and picture bookmarks in Grid and Mosaic layouts.
+
+## Download Status
+
+All three layouts show whether a bookmark's content has been downloaded for offline reading:
+
+- **No indicator** — content not yet downloaded
+- **Cloud outline** — text downloaded (without images)
+- **Cloud with checkmark** — fully downloaded (text and images)
+
+In Grid and Mosaic layouts, the download icon appears in the top-right corner of the thumbnail, below the reading progress. In Compact layout, it appears below the reading status icon.
 
 ## Card Actions
 

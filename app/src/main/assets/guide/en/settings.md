@@ -15,42 +15,55 @@ The **Account** option in the drawer shows your username. Tapping it opens the *
 
 The **Synchronization Settings** screen controls how MyDeck keeps your bookmarks and their content in sync with the Readeck server.
 
-MyDeck automatically syncs your bookmark list when you first sign in and each time the app is opened. The periodic sync is for detecting if bookmarks were deleted on the server so they can be removed from the app.
+### Content Downloads
 
-### Schedule
+The top of the screen controls when article content is downloaded. Choose between two modes using the segmented button:
 
-- **Sync frequency** — how often MyDeck syncs in the background. Tap to choose an interval (e.g., every hour).
-- **Next synchronization** — shows when the next automatic sync is scheduled.
-- **Content sync mode** — controls when the full article content for bookmarks is downloaded:
-  - **Automatic** — content is downloaded automatically during each bookmark sync
-  - **Manual (on demand)** — content is downloaded only when you open a bookmark; this is the default when the app is installed
-  - **Manual (date range)** — you can trigger a batch download for bookmarks added within a date range (choose from Past day, Past week, Past month, Past year, or Custom date range, then tap **Download**)
-- **Sync Bookmarks Now** — immediately checks for new, updated, and deleted bookmarks
+- **On demand** (default) — content loads when you open a bookmark. This uses the least resources and works well when you have a network connection.
+- **Automatic** — content is downloaded in the background during each bookmark sync, so bookmarks are ready for offline reading at any time.
 
-### Content
+#### Download for offline reading
 
-Controls what content is downloaded and under which conditions.
+When **On demand** mode is selected, a download section appears that lets you batch-download content for offline reading — useful before a flight or any time you'll be without a connection. Choose a time range from the dropdown:
 
-- **Download images** — when enabled, images are downloaded alongside article text for offline viewing. When off, articles are stored as text only and images load from the network when you read. Picture bookmarks always download their image regardless of this setting. You can override this setting for individual articles using the image toggle in **Details** (see [Reading](./reading.md)).
-- **Include archived bookmarks** — when enabled, content is also downloaded for archived bookmarks; when disabled, only bookmarks in My List are synced
+- **All time** — downloads content for all bookmarks
+- **Past day / Past week / Past month / Past year** — downloads content for bookmarks added within that period
+- **Custom date range** — pick specific from/to dates
+
+Tap **Start Download** to begin. The download runs in the background — you can leave the settings screen and check progress in the **Status** section.
+
+#### Download options
+
+- **Download images** — when enabled, images are downloaded alongside article text for offline viewing. When off, images load from the network when you read.
+- **Include archived content** — when enabled, content is also downloaded for archived bookmarks; when disabled, only bookmarks in My List are downloaded.
+
+#### Download constraints
+
+Expand this section to control download conditions:
+
 - **Only download on Wi-Fi** — prevents content from downloading over mobile data
-- **Allow download on battery saver** — when off, content sync pauses when battery saver is active
+- **Allow download on battery saver** — when off, content downloads pause when battery saver is active
 
-If constraints are currently blocking content downloads (e.g., waiting for Wi-Fi), a status line appears below the constraint toggles showing what's blocking the download.
-
-If you try to sync content while a constraint is active, a warning dialog will give you the option to temporarily override the constraint.
+If you try to download content while a constraint is active, a dialog will give you the option to temporarily override the constraint.
 
 ### Storage
 
-Shows how much space downloaded content is using and provides cleanup options.
+Expand this section to manage downloaded content storage.
 
-- **Content storage** — total disk space used by downloaded bookmark content
-- **Auto-clear content on archive** — when enabled, downloaded content is automatically removed when you archive a bookmark, freeing storage space
-- **Clear all downloaded content** — removes all locally stored content; bookmark metadata remains synced
+- **Offline content** — total disk space used by downloaded bookmark content
+- **Clear content when archiving** — when enabled, downloaded content is automatically removed when you archive a bookmark, freeing storage space
+- **Clear All Offline Content** — removes all locally stored content; bookmark metadata remains synced
 
-### Sync Status
+### Bookmark Sync
 
-Shows a summary of what's been synced:
+Expand this section to control how MyDeck keeps your bookmark list in sync with changes from other devices.
+
+- **Sync frequency** — how often MyDeck syncs in the background. Tap to choose an interval (e.g., every hour).
+- **Sync Now** — immediately checks for new, updated, and deleted bookmarks
+
+### Status
+
+Expand this section to see a summary of what's been synced:
 
 - **Bookmarks** — total count, My List, Archived, Favorites
 - **Content** — how many bookmarks have downloaded content, how many are available to download, and any that failed

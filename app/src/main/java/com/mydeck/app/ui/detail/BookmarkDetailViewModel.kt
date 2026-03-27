@@ -370,6 +370,13 @@ class BookmarkDetailViewModel @Inject constructor(
                 typographySettings,
                 readerAppearanceSelection
             ) { bookmark, updateState, template, typographySettings, readerAppearanceSelection ->
+                ContentRefreshable(bookmark, updateState, template, typographySettings, readerAppearanceSelection)
+            }.combine(_contentRefreshTrigger) { data, _ ->
+                val bookmark = data.bookmark
+                val updateState = data.updateState
+                val template = data.template
+                val typographySettings = data.typographySettings
+                val readerAppearanceSelection = data.readerAppearanceSelection
                 if (bookmark == null) {
                     Timber.e("Error loading bookmark [bookmarkId=$id]")
                     UiState.Error
@@ -562,6 +569,7 @@ class BookmarkDetailViewModel @Inject constructor(
     // Per-article image download toggle state
     private val _imageToggleLoading = MutableStateFlow(false)
     val imageToggleLoading: StateFlow<Boolean> = _imageToggleLoading.asStateFlow()
+    private val _contentRefreshTrigger = MutableStateFlow(0)
 
     /**
      * Toggle per-article image download state.
@@ -600,6 +608,7 @@ class BookmarkDetailViewModel @Inject constructor(
                 Timber.e(e, "Error toggling article images for $bookmarkId")
             } finally {
                 _imageToggleLoading.value = false
+                _contentRefreshTrigger.value++
             }
         }
     }
@@ -1377,6 +1386,14 @@ class BookmarkDetailViewModel @Inject constructor(
         data class Ready(val uri: Uri, val fileName: String) : DebugExportEvent()
         data class Error(val message: String) : DebugExportEvent()
     }
+
+    private data class ContentRefreshable(
+        val bookmark: com.mydeck.app.domain.model.Bookmark?,
+        val updateState: UpdateBookmarkState?,
+        val template: Template?,
+        val typographySettings: com.mydeck.app.domain.model.TypographySettings,
+        val readerAppearanceSelection: ReaderAppearanceSelection
+    )
 
     sealed class UiState {
         data class Success(

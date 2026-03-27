@@ -333,6 +333,7 @@ class SyncSettingsViewModel @Inject constructor(
         }
     }
 
+
     fun onDateRangePresetSelected(preset: DateRangePreset) {
         dateRangePreset.value = preset
 

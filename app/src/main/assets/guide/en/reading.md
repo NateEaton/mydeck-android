@@ -87,7 +87,6 @@ Tap **⋮** in the top bar for additional actions:
 - **View web page / View [bookmark type]** — switch between the reading view and the web page in an in-app viewer (see above)
 - **Share link** — open the Android share sheet to share the bookmark using the format selected in **Settings → User Interface**
 - **Details** — open the Bookmark Details screen (see below)
-- **Remove downloaded content** — deletes the locally stored content for this bookmark, freeing storage space; the content can be re-downloaded later (only shown when the bookmark has downloaded content)
 - **Delete** — delete the bookmark; you are returned to the list and a **"Deleting bookmark \"Title...\""** bar appears with an **Undo** option
 
 The menu includes visual dividers to separate related actions and destructive actions.
@@ -136,7 +135,7 @@ If the current image was originally a hyperlink (linking to another page or site
 - Thumbnail
 - Title row with a pencil icon — tap the title or pencil to open the full-screen metadata editor
 - Site name, date added, date published, author, site root URL, reading time, and word count
-- **Image download status** — shown when the bookmark has downloaded content. Displays "Images downloaded" (filled image icon) when images are stored locally, or "Images load from network" (outline image icon) when only text is stored. Tap to toggle: downloading images fetches them for offline use; removing images re-fetches the article HTML with network image URLs and deletes the local image files. This toggle requires an internet connection and is disabled when offline.
+- **Image download status** — tap to toggle between downloading images for offline use and loading them from the network. Requires an internet connection.
 - **Labels** — add or remove labels for this bookmark; see [Organizing](./organizing.md) for the full guide to working with labels
 - **Refresh content** — re-download the extracted reader content for this bookmark
 - Debug info in debug builds
