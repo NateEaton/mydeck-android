@@ -35,8 +35,9 @@ class DateRangeContentSyncWorker @AssistedInject constructor(
 
         Timber.d("DateRangeContentSyncWorker starting [from=$fromEpoch, to=$toEpoch, override=$isOverride]")
 
+        val includeArchived = settingsDataStore.isIncludeArchivedContentInSyncEnabled()
         val eligibleIds = bookmarkDao.getBookmarkIdsForDateRangeContentFetch(
-            fromEpoch = fromEpoch, toEpoch = toEpoch
+            fromEpoch = fromEpoch, toEpoch = toEpoch, includeArchived = includeArchived
         )
 
         Timber.i("Found ${eligibleIds.size} bookmarks eligible for date range content fetch")

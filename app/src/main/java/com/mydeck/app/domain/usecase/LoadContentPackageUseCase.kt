@@ -10,6 +10,7 @@ import com.mydeck.app.domain.sync.ConnectivityMonitor
 import com.mydeck.app.io.db.dao.BookmarkDao
 import com.mydeck.app.io.db.dao.ContentPackageDao
 import com.mydeck.app.io.db.model.BookmarkEntity
+import com.mydeck.app.io.prefs.SettingsDataStore
 import com.mydeck.app.io.rest.ReadeckApi
 import com.mydeck.app.io.rest.sync.MultipartSyncClient
 import kotlinx.datetime.Instant
@@ -32,7 +33,8 @@ class LoadContentPackageUseCase @Inject constructor(
     private val contentPackageDao: ContentPackageDao,
     private val bookmarkDao: BookmarkDao,
     private val connectivityMonitor: ConnectivityMonitor,
-    private val readeckApi: ReadeckApi
+    private val readeckApi: ReadeckApi,
+    private val settingsDataStore: SettingsDataStore
 ) {
     sealed class Result {
         data object Success : Result()
@@ -121,7 +123,12 @@ class LoadContentPackageUseCase @Inject constructor(
     ): Result {
         return try {
             onProgress?.invoke(0.15f)
-            val result = multipartSyncClient.fetchContentPackages(listOf(bookmarkId))
+            val downloadImages = settingsDataStore.isDownloadImagesEnabled()
+            val result = if (bookmark.type is Bookmark.Type.Picture || downloadImages) {
+                multipartSyncClient.fetchContentPackages(listOf(bookmarkId))
+            } else {
+                multipartSyncClient.fetchTextOnly(listOf(bookmarkId))
+            }
             onProgress?.invoke(0.5f) // Network fetch + multipart parse complete
             when (result) {
                 is MultipartSyncClient.Result.Success -> {
@@ -288,6 +295,9 @@ class LoadContentPackageUseCase @Inject constructor(
     /**
      * Batch download content packages for up to 10 IDs per request, committing those
      * that succeed and returning a per-ID result for worker fallback decisions.
+     *
+     * When image downloads are disabled, picture bookmarks still receive full packages
+     * (images included) while article/video bookmarks receive text-only packages.
      */
     suspend fun executeBatch(bookmarkIds: List<String>): Map<String, Result> {
         if (bookmarkIds.isEmpty()) return emptyMap()
@@ -299,71 +309,94 @@ class LoadContentPackageUseCase @Inject constructor(
             return map
         }
 
+        val downloadImages = settingsDataStore.isDownloadImagesEnabled()
+
+        // Pre-load bookmark types when routing depends on type (images disabled).
+        // When images are enabled, all bookmarks use fetchContentPackages() so type is irrelevant.
+        val cachedBookmarks: Map<String, Bookmark?> = if (!downloadImages) {
+            bookmarkIds.associateWith { id ->
+                try { bookmarkRepository.getBookmarkById(id) } catch (_: Exception) { null }
+            }
+        } else emptyMap()
+
+        // Processes a fetch result for a set of IDs, committing packages and recording outcomes.
+        suspend fun processChunk(chunkIds: List<String>, fetchResult: MultipartSyncClient.Result) {
+            when (fetchResult) {
+                is MultipartSyncClient.Result.Success -> {
+                    val pkgsById = fetchResult.packages.associateBy { it.bookmarkId }
+                    for (id in chunkIds) {
+                        val pkg = pkgsById[id]
+                        if (pkg == null) {
+                            results[id] = Result.TransientFailure("No package returned for id")
+                            continue
+                        }
+
+                        val bookmark = cachedBookmarks[id]
+                            ?: try { bookmarkRepository.getBookmarkById(id) } catch (_: Exception) { null }
+                        if (bookmark == null) {
+                            results[id] = Result.PermanentFailure("Bookmark not found")
+                            continue
+                        }
+
+                        // Update metadata if provided
+                        pkg.json?.let { dto ->
+                            try { bookmarkRepository.insertBookmarks(listOf(dto.toDomain())) } catch (_: Exception) {}
+                        }
+
+                        // Determine package kind
+                        val packageKind = when (bookmark.type) {
+                            is Bookmark.Type.Article -> "ARTICLE"
+                            is Bookmark.Type.Picture -> "PICTURE"
+                            is Bookmark.Type.Video -> "VIDEO"
+                        }
+
+                        // For pictures without HTML, generate wrapper
+                        val effectivePkg = if (bookmark.type is Bookmark.Type.Picture && pkg.html == null) {
+                            val primaryImage = pkg.resources.firstOrNull { it.group == "image" }
+                            if (primaryImage != null) {
+                                val wrapperHtml = contentPackageManager.generatePictureWrapperHtml(
+                                    imagePath = primaryImage.path,
+                                    description = bookmark.description
+                                )
+                                pkg.copy(html = wrapperHtml)
+                            } else pkg
+                        } else pkg
+
+                        // Enrich annotations if needed
+                        val enrichedPkg = try { enrichAnnotations(id, effectivePkg) } catch (_: Exception) { effectivePkg }
+
+                        val sourceUpdatedInstant = pkg.json?.updated ?: bookmark.updated.toInstant(TimeZone.currentSystemDefault())
+                        val committed = contentPackageManager.commitPackage(
+                            enrichedPkg, packageKind, sourceUpdatedInstant.toString()
+                        )
+                        if (committed) {
+                            pkg.json?.omitDescription?.let { omitVal ->
+                                bookmarkDao.updateOmitDescription(id, omitVal)
+                            }
+                        }
+                        results[id] = if (committed) Result.Success else Result.TransientFailure("Commit failed")
+                    }
+                }
+                is MultipartSyncClient.Result.Error -> markAll(chunkIds, fetchResult.message)
+                is MultipartSyncClient.Result.NetworkError -> markAll(chunkIds, fetchResult.message)
+            }
+        }
+
         val chunks = bookmarkIds.chunked(10)
         for (chunk in chunks) {
             try {
-                val fetch = multipartSyncClient.fetchContentPackages(chunk)
-                when (fetch) {
-                    is MultipartSyncClient.Result.Success -> {
-                        val pkgsById = fetch.packages.associateBy { it.bookmarkId }
-                        for (id in chunk) {
-                            val pkg = pkgsById[id]
-                            if (pkg == null) {
-                                results[id] = Result.TransientFailure("No package returned for id")
-                                continue
-                            }
-
-                            val bookmark = try { bookmarkRepository.getBookmarkById(id) } catch (_: Exception) { null }
-                            if (bookmark == null) {
-                                results[id] = Result.PermanentFailure("Bookmark not found")
-                                continue
-                            }
-
-                            // Update metadata if provided
-                            pkg.json?.let { dto ->
-                                try { bookmarkRepository.insertBookmarks(listOf(dto.toDomain())) } catch (_: Exception) {}
-                            }
-
-                            // Determine package kind
-                            val packageKind = when (bookmark.type) {
-                                is Bookmark.Type.Article -> "ARTICLE"
-                                is Bookmark.Type.Picture -> "PICTURE"
-                                is Bookmark.Type.Video -> "VIDEO"
-                            }
-
-                            // For pictures without HTML, generate wrapper
-                            val effectivePkg = if (bookmark.type is Bookmark.Type.Picture && pkg.html == null) {
-                                val primaryImage = pkg.resources.firstOrNull { it.group == "image" }
-                                if (primaryImage != null) {
-                                    val wrapperHtml = contentPackageManager.generatePictureWrapperHtml(
-                                        imagePath = primaryImage.path,
-                                        description = bookmark.description
-                                    )
-                                    pkg.copy(html = wrapperHtml)
-                                } else pkg
-                            } else pkg
-
-                            // Enrich annotations if needed
-                            val enrichedPkg = try { enrichAnnotations(id, effectivePkg) } catch (_: Exception) { effectivePkg }
-
-                            val sourceUpdatedInstant = pkg.json?.updated ?: bookmark.updated.toInstant(TimeZone.currentSystemDefault())
-                            val committed = contentPackageManager.commitPackage(
-                                enrichedPkg, packageKind, sourceUpdatedInstant.toString()
-                            )
-                            if (committed) {
-                                pkg.json?.omitDescription?.let { omitVal ->
-                                    bookmarkDao.updateOmitDescription(id, omitVal)
-                                }
-                            }
-                            results[id] = if (committed) Result.Success else Result.TransientFailure("Commit failed")
-                        }
+                if (downloadImages) {
+                    // Images enabled: all bookmarks get full content packages
+                    processChunk(chunk, multipartSyncClient.fetchContentPackages(chunk))
+                } else {
+                    // Images disabled: pictures always get full packages; others get text-only
+                    val pictureIds = chunk.filter { id -> cachedBookmarks[id]?.type is Bookmark.Type.Picture }
+                    val otherIds = chunk.filter { id -> cachedBookmarks[id]?.type !is Bookmark.Type.Picture }
+                    if (pictureIds.isNotEmpty()) {
+                        processChunk(pictureIds, multipartSyncClient.fetchContentPackages(pictureIds))
                     }
-                    is MultipartSyncClient.Result.Error -> {
-                        markAll(chunk, fetch.message)
-                    }
-                    is MultipartSyncClient.Result.NetworkError -> {
-                        val msg = fetch.message
-                        markAll(chunk, msg)
+                    if (otherIds.isNotEmpty()) {
+                        processChunk(otherIds, multipartSyncClient.fetchTextOnly(otherIds))
                     }
                 }
             } catch (e: Exception) {

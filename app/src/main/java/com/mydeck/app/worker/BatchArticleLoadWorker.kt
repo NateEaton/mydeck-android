@@ -2,12 +2,7 @@ package com.mydeck.app.worker
 
 import android.content.Context
 import androidx.hilt.work.HiltWorker
-import androidx.work.Constraints
 import androidx.work.CoroutineWorker
-import androidx.work.ExistingWorkPolicy
-import androidx.work.NetworkType
-import androidx.work.OneTimeWorkRequestBuilder
-import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import com.mydeck.app.domain.sync.ContentSyncPolicyEvaluator
 import com.mydeck.app.domain.usecase.LoadArticleUseCase
@@ -38,8 +33,9 @@ class BatchArticleLoadWorker @AssistedInject constructor(
         Timber.d("BatchArticleLoadWorker starting")
 
         try {
-            val pendingBookmarkIds = bookmarkDao.getBookmarkIdsEligibleForContentFetch()
-            Timber.i("Found ${pendingBookmarkIds.size} bookmarks without content")
+            val includeArchived = settingsDataStore.isIncludeArchivedContentInSyncEnabled()
+            val pendingBookmarkIds = bookmarkDao.getBookmarkIdsEligibleForContentFetch(includeArchived)
+            Timber.i("Found ${pendingBookmarkIds.size} bookmarks without content (includeArchived=$includeArchived)")
 
             if (pendingBookmarkIds.isEmpty()) {
                 return Result.success()
@@ -91,21 +87,5 @@ class BatchArticleLoadWorker @AssistedInject constructor(
         const val UNIQUE_WORK_NAME = "batch_article_load"
         private const val BATCH_SIZE = 10
         private const val BATCH_DELAY_MS = 500L
-
-        fun enqueue(context: Context) {
-            val constraints = Constraints.Builder()
-                .setRequiredNetworkType(NetworkType.CONNECTED)
-                .build()
-
-            val request = OneTimeWorkRequestBuilder<BatchArticleLoadWorker>()
-                .setConstraints(constraints)
-                .build()
-
-            WorkManager.getInstance(context).enqueueUniqueWork(
-                UNIQUE_WORK_NAME,
-                ExistingWorkPolicy.KEEP,  // Don't restart if already running
-                request
-            )
-        }
     }
 }

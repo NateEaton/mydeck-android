@@ -56,6 +56,22 @@ class MultipartSyncClient @Inject constructor(
     }
 
     /**
+     * Fetch text content (JSON + HTML, no resources) for the given bookmark IDs.
+     * Used when image downloads are disabled; server returns absolute image URLs.
+     */
+    suspend fun fetchTextOnly(bookmarkIds: List<String>): Result {
+        return fetchBatched(bookmarkIds, CONTENT_BATCH_SIZE) { batch ->
+            SyncRequest(
+                id = batch,
+                withJson = true,
+                withHtml = true,
+                withResources = false
+                // resourcePrefix intentionally omitted — server returns absolute image URLs
+            )
+        }
+    }
+
+    /**
      * Fetch full content packages (JSON + HTML + resources) for the given bookmark IDs.
      */
     suspend fun fetchContentPackages(bookmarkIds: List<String>): Result {

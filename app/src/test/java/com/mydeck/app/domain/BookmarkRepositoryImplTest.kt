@@ -106,6 +106,8 @@ class BookmarkRepositoryImplTest {
             readeckApi = readeckApi,
             json = json,
             syncScheduler = syncScheduler,
+            contentPackageManager = mockk(relaxed = true),
+            settingsDataStore = mockk(relaxed = true),
             applicationScope = testScope,
             dispatcher = testDispatcher
         )

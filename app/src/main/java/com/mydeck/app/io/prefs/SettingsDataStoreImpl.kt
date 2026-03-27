@@ -64,6 +64,9 @@ class SettingsDataStoreImpl @Inject constructor(@ApplicationContext private val 
     private val KEY_BOOKMARK_SHARE_FORMAT = stringPreferencesKey("bookmark_share_format")
     private val KEY_KEEP_SCREEN_ON_READING = booleanPreferencesKey("keep_screen_on_reading")
     private val KEY_FULLSCREEN_WHILE_READING = booleanPreferencesKey("fullscreen_while_reading")
+    private val KEY_DOWNLOAD_IMAGES = booleanPreferencesKey("content_sync_download_images")
+    private val KEY_CLEAR_CONTENT_ON_ARCHIVE = booleanPreferencesKey("clear_content_on_archive")
+    private val KEY_INCLUDE_ARCHIVED_CONTENT = booleanPreferencesKey("include_archived_content_in_sync")
 
     private val KEY_TYPO_FONT_SIZE = intPreferencesKey("typography_font_size_percent")
     private val KEY_TYPO_FONT_FAMILY = stringPreferencesKey("typography_font_family")
@@ -520,6 +523,36 @@ class SettingsDataStoreImpl @Inject constructor(@ApplicationContext private val 
         userPreferences.edit {
             putString(KEY_DATE_RANGE_FROM.name, params.from.toString())
             putString(KEY_DATE_RANGE_TO.name, params.to.toString())
+        }
+    }
+
+    override suspend fun isDownloadImagesEnabled(): Boolean {
+        return userPreferences.getBoolean(KEY_DOWNLOAD_IMAGES.name, false)
+    }
+
+    override suspend fun saveDownloadImagesEnabled(enabled: Boolean) {
+        userPreferences.edit {
+            putBoolean(KEY_DOWNLOAD_IMAGES.name, enabled)
+        }
+    }
+
+    override suspend fun isClearContentOnArchiveEnabled(): Boolean {
+        return userPreferences.getBoolean(KEY_CLEAR_CONTENT_ON_ARCHIVE.name, false)
+    }
+
+    override suspend fun saveClearContentOnArchiveEnabled(enabled: Boolean) {
+        userPreferences.edit {
+            putBoolean(KEY_CLEAR_CONTENT_ON_ARCHIVE.name, enabled)
+        }
+    }
+
+    override suspend fun isIncludeArchivedContentInSyncEnabled(): Boolean {
+        return userPreferences.getBoolean(KEY_INCLUDE_ARCHIVED_CONTENT.name, false)
+    }
+
+    override suspend fun saveIncludeArchivedContentInSyncEnabled(enabled: Boolean) {
+        userPreferences.edit {
+            putBoolean(KEY_INCLUDE_ARCHIVED_CONTENT.name, enabled)
         }
     }
 

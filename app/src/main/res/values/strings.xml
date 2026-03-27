@@ -261,6 +261,9 @@ other{}
     <string name="detail_type">Type</string>
     <string name="detail_language">Language</string>
     <string name="detail_word_count">Word Count</string>
+    <string name="detail_images_toggle">Toggle image download</string>
+    <string name="detail_images_downloaded">Images downloaded</string>
+    <string name="detail_images_from_network">Images load from network</string>
     <string name="detail_reading_time">Reading Time</string>
     <string name="detail_about_minutes_read">About %1$d minutes read</string>
     <string name="detail_minutes_short">min</string>
@@ -314,6 +317,7 @@ other{}
     <string name="close_article_search">Close find</string>
 
     <!-- Sync Settings - Phase 3 -->
+    <string name="sync_schedule_section_title">Schedule</string>
     <string name="sync_bookmark_section_title">Bookmark Sync</string>
     <string name="sync_bookmark_description">Your bookmark list is automatically kept up to date with changes from other devices and the server.</string>
     <string name="sync_bookmark_frequency_label">Sync frequency</string>
@@ -337,6 +341,24 @@ other{}
     <string name="sync_wifi_only">Only download on Wi-Fi</string>
     <string name="sync_allow_battery_saver">Allow download on battery saver</string>
 
+    <!-- Content Download Policy -->
+    <string name="sync_content_policy_section_title">What to download</string>
+    <string name="sync_download_images">Download images</string>
+    <string name="sync_download_images_desc">Download images alongside article text. When off, images load from the network.</string>
+    <string name="sync_include_archived">Include archived content</string>
+    <string name="sync_include_archived_desc">When off, only My List downloads offline content during automatic or date-range sync. On-demand downloads are always available regardless of this setting.</string>
+    <string name="sync_clear_on_archive">Clear content when archiving</string>
+    <string name="sync_clear_on_archive_desc">Automatically remove downloaded text and images when a bookmark is archived.</string>
+    <string name="sync_remove_downloaded_content">Remove downloaded content</string>
+    <string name="sync_content_waiting_wifi">Content download waiting for Wi-Fi</string>
+    <string name="sync_content_waiting_battery">Content download paused (battery saver)</string>
+    <string name="sync_content_waiting_wifi_battery">Content download waiting for Wi-Fi and battery</string>
+    <string name="sync_content_status_up_to_date">Up to date</string>
+    <string name="sync_content_status_manual">Manual mode</string>
+    <string name="sync_constraint_override_title">Download Content?</string>
+    <string name="sync_constraint_override_body">Content download is blocked by active constraints (%s). Would you like to temporarily override these settings to complete this download?</string>
+    <string name="sync_constraint_override_confirm">Override &amp; Download</string>
+
     <!-- Sync Status - Phase 3 -->
     <string name="sync_status_section_title">Sync Status</string>
     <string name="sync_status_bookmarks_heading">Bookmarks</string>
@@ -353,6 +375,7 @@ other{}
 
     <!-- Storage Management -->
     <string name="sync_storage_heading">Storage</string>
+    <string name="sync_storage_cleanup_heading">Cleanup</string>
     <string name="sync_storage_usage">Offline content: %s</string>
     <string name="sync_storage_clear">Clear All Offline Content</string>
     <string name="sync_storage_clear_confirm_title">Clear Offline Content?</string>

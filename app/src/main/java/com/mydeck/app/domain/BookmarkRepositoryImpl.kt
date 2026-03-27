@@ -55,6 +55,8 @@ class BookmarkRepositoryImpl @Inject constructor(
     private val readeckApi: ReadeckApi,
     private val json: Json,
     private val syncScheduler: com.mydeck.app.domain.sync.SyncScheduler,
+    private val contentPackageManager: com.mydeck.app.domain.content.ContentPackageManager,
+    private val settingsDataStore: com.mydeck.app.io.prefs.SettingsDataStore,
     @ApplicationScope
     private val applicationScope: CoroutineScope,
     @IoDispatcher
@@ -141,7 +143,8 @@ class BookmarkRepositoryImpl @Inject constructor(
                     readingTime = listItem.readingTime,
                     created = listItem.created.toLocalDateTime(kotlinx.datetime.TimeZone.currentSystemDefault()),
                     wordCount = listItem.wordCount,
-                    published = listItem.published?.toLocalDateTime(kotlinx.datetime.TimeZone.currentSystemDefault())
+                    published = listItem.published?.toLocalDateTime(kotlinx.datetime.TimeZone.currentSystemDefault()),
+                    offlineState = deriveOfflineState(listItem.contentState, listItem.hasResources)
                 )
             }
         }
@@ -202,7 +205,8 @@ class BookmarkRepositoryImpl @Inject constructor(
                     readingTime = listItem.readingTime,
                     created = listItem.created.toLocalDateTime(kotlinx.datetime.TimeZone.currentSystemDefault()),
                     wordCount = listItem.wordCount,
-                    published = listItem.published?.toLocalDateTime(kotlinx.datetime.TimeZone.currentSystemDefault())
+                    published = listItem.published?.toLocalDateTime(kotlinx.datetime.TimeZone.currentSystemDefault()),
+                    offlineState = deriveOfflineState(listItem.contentState, listItem.hasResources)
                 )
             }
         }
@@ -279,9 +283,21 @@ class BookmarkRepositoryImpl @Inject constructor(
                     readingTime = listItem.readingTime,
                     created = listItem.created.toLocalDateTime(kotlinx.datetime.TimeZone.currentSystemDefault()),
                     wordCount = listItem.wordCount,
-                    published = listItem.published?.toLocalDateTime(kotlinx.datetime.TimeZone.currentSystemDefault())
+                    published = listItem.published?.toLocalDateTime(kotlinx.datetime.TimeZone.currentSystemDefault()),
+                    offlineState = deriveOfflineState(listItem.contentState, listItem.hasResources)
                 )
             }
+        }
+    }
+
+    private fun deriveOfflineState(
+        contentState: BookmarkEntity.ContentState,
+        hasResources: Boolean?
+    ): BookmarkListItem.OfflineState {
+        return when {
+            contentState != BookmarkEntity.ContentState.DOWNLOADED -> BookmarkListItem.OfflineState.NOT_DOWNLOADED
+            hasResources == true -> BookmarkListItem.OfflineState.DOWNLOADED_FULL
+            else -> BookmarkListItem.OfflineState.DOWNLOADED_TEXT_ONLY
         }
     }
 
@@ -481,6 +497,18 @@ class BookmarkRepositoryImpl @Inject constructor(
                 isArchived?.let {
                     bookmarkDao.updateIsArchived(bookmarkId, it)
                     upsertPendingAction(bookmarkId, ActionType.TOGGLE_ARCHIVE, TogglePayload(it))
+                    if (it) {
+                        applicationScope.launch {
+                            try {
+                                if (settingsDataStore.isClearContentOnArchiveEnabled()) {
+                                    contentPackageManager.deletePackage(bookmarkId)
+                                    Timber.d("Auto-cleared content on archive for $bookmarkId")
+                                }
+                            } catch (e: Exception) {
+                                Timber.w(e, "Failed to auto-clear content on archive for $bookmarkId")
+                            }
+                        }
+                    }
                 }
                 isRead?.let {
                     bookmarkDao.updateReadProgress(bookmarkId, if (it) 100 else 0)

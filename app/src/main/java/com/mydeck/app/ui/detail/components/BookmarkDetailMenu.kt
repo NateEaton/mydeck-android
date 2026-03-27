@@ -16,6 +16,7 @@ import androidx.compose.material.icons.outlined.Inventory2
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.outlined.CheckCircle
+import androidx.compose.material.icons.outlined.CloudOff
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Share
@@ -49,6 +50,7 @@ fun BookmarkDetailMenu(
     onShowDetails: () -> Unit = {},
     onShowHighlights: () -> Unit = {},
     onClickOpenInBrowser: (String) -> Unit = {},
+    onRemoveDownloadedContent: (String) -> Unit = {},
     contentMode: ContentMode = ContentMode.READER,
     onContentModeChange: (ContentMode) -> Unit = {}
 ) {
@@ -231,6 +233,20 @@ fun BookmarkDetailMenu(
                     Icon(Icons.Outlined.Info, contentDescription = null)
                 }
             )
+
+            // Remove downloaded content (visible when content is downloaded)
+            if (uiState.bookmark.isContentDownloaded) {
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.sync_remove_downloaded_content)) },
+                    onClick = {
+                        onRemoveDownloadedContent(uiState.bookmark.bookmarkId)
+                        expanded = false
+                    },
+                    leadingIcon = {
+                        Icon(Icons.Outlined.CloudOff, contentDescription = null)
+                    }
+                )
+            }
 
             // Thin light divider between Details and Delete
             HorizontalDivider(

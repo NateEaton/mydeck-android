@@ -124,14 +124,22 @@ class LoadBookmarksUseCase @Inject constructor(
         }
     }
 
-    private fun enqueueBatchArticleLoader() {
+    private suspend fun enqueueBatchArticleLoader() {
         try {
-            val constraints = Constraints.Builder()
-                .setRequiredNetworkType(NetworkType.CONNECTED)
-                .build()
+            val syncConstraints = settingsDataStore.getContentSyncConstraints()
+
+            val constraintsBuilder = Constraints.Builder()
+            if (syncConstraints.wifiOnly) {
+                constraintsBuilder.setRequiredNetworkType(NetworkType.UNMETERED)
+            } else {
+                constraintsBuilder.setRequiredNetworkType(NetworkType.CONNECTED)
+            }
+            if (!syncConstraints.allowOnBatterySaver) {
+                constraintsBuilder.setRequiresBatteryNotLow(true)
+            }
 
             val request = OneTimeWorkRequestBuilder<BatchArticleLoadWorker>()
-                .setConstraints(constraints)
+                .setConstraints(constraintsBuilder.build())
                 .build()
 
             workManager.enqueueUniqueWork(
@@ -139,7 +147,7 @@ class LoadBookmarksUseCase @Inject constructor(
                 ExistingWorkPolicy.KEEP,
                 request
             )
-            Timber.d("Batch article loader enqueued (policy: AUTOMATIC)")
+            Timber.d("Batch article loader enqueued (wifiOnly=${syncConstraints.wifiOnly}, batterySaver=${syncConstraints.allowOnBatterySaver})")
         } catch (e: Exception) {
             Timber.w(e, "Failed to enqueue batch article loader")
         }

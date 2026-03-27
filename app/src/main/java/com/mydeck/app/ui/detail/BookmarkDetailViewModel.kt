@@ -80,6 +80,7 @@ class BookmarkDetailViewModel @Inject constructor(
     private val contentPackageManager: ContentPackageManager,
     private val cachedAnnotationDao: CachedAnnotationDao,
     private val connectivityMonitor: ConnectivityMonitor,
+    private val multipartSyncClient: com.mydeck.app.io.rest.sync.MultipartSyncClient,
     private val readeckApi: ReadeckApi,
     @ApplicationContext private val context: Context,
     private val json: Json,
@@ -435,7 +436,9 @@ class BookmarkDetailViewModel @Inject constructor(
                                 is com.mydeck.app.domain.model.Bookmark.Type.Picture ->
                                     offlineBaseUrl != null
                             },
-                            offlineBaseUrl = offlineBaseUrl
+                            isContentDownloaded = bookmark.contentState == ContentState.DOWNLOADED || bookmark.contentState == ContentState.DIRTY,
+                            offlineBaseUrl = offlineBaseUrl,
+                            hasResources = contentPackageManager.hasResources(id)
                         ),
                         updateBookmarkState = updateState,
                         template = template,
@@ -541,6 +544,62 @@ class BookmarkDetailViewModel @Inject constructor(
                 Timber.d("Manually set read progress to $newProgress%")
             } catch (e: Exception) {
                 Timber.e(e, "Error updating read state: ${e.message}")
+            }
+        }
+    }
+
+    fun onRemoveDownloadedContent(bookmarkId: String) {
+        viewModelScope.launch {
+            try {
+                contentPackageManager.deletePackage(bookmarkId)
+                Timber.i("Removed downloaded content for bookmark $bookmarkId")
+            } catch (e: Exception) {
+                Timber.e(e, "Error removing downloaded content: ${e.message}")
+            }
+        }
+    }
+
+    // Per-article image download toggle state
+    private val _imageToggleLoading = MutableStateFlow(false)
+    val imageToggleLoading: StateFlow<Boolean> = _imageToggleLoading.asStateFlow()
+
+    /**
+     * Toggle per-article image download state.
+     * - hasResources=true → re-fetch HTML with absolute URLs, then delete resources
+     * - hasResources=false → download full content package (images included)
+     */
+    fun onToggleArticleImages(bookmarkId: String) {
+        if (_imageToggleLoading.value) return
+        if (!connectivityMonitor.isNetworkAvailable()) return
+
+        viewModelScope.launch {
+            _imageToggleLoading.value = true
+            try {
+                val hasRes = contentPackageManager.hasResources(bookmarkId)
+                if (hasRes == true) {
+                    // Full → lazy-images: re-fetch HTML with absolute URLs, then strip resources
+                    val result = multipartSyncClient.fetchTextOnly(listOf(bookmarkId))
+                    if (result is com.mydeck.app.io.rest.sync.MultipartSyncClient.Result.Success) {
+                        val pkg = result.packages.firstOrNull { it.bookmarkId == bookmarkId }
+                        if (pkg?.html != null) {
+                            contentPackageManager.updateHtml(bookmarkId, pkg.html)
+                        }
+                    }
+                    contentPackageManager.deleteResources(bookmarkId)
+                    Timber.i("Removed images for bookmark $bookmarkId (text retained)")
+                } else if (hasRes == false) {
+                    // Lazy-images → full: download full content package
+                    val fetchResult = loadContentPackageUseCase.executeForceRefresh(bookmarkId)
+                    if (fetchResult is LoadContentPackageUseCase.Result.Success) {
+                        Timber.i("Downloaded images for bookmark $bookmarkId")
+                    } else {
+                        Timber.w("Image download failed for $bookmarkId: $fetchResult")
+                    }
+                }
+            } catch (e: Exception) {
+                Timber.e(e, "Error toggling article images for $bookmarkId")
+            } finally {
+                _imageToggleLoading.value = false
             }
         }
     }
@@ -1360,7 +1419,9 @@ class BookmarkDetailViewModel @Inject constructor(
         val readProgress: Int,
         val debugInfo: String = "",
         val hasContent: Boolean,
-        val offlineBaseUrl: String? = null
+        val isContentDownloaded: Boolean = false,
+        val offlineBaseUrl: String? = null,
+        val hasResources: Boolean? = null
     ) {
         enum class Type {
             ARTICLE, PHOTO, VIDEO

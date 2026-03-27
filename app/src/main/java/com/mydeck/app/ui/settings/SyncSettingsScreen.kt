@@ -135,8 +135,11 @@ fun SyncSettingsScreen(
         onClickDateFrom = { viewModel.onShowDialog(SyncSettingsDialog.DateFromPicker) },
         onClickDateTo = { viewModel.onShowDialog(SyncSettingsDialog.DateToPicker) },
         onClickDateRangeDownload = { viewModel.onClickDateRangeDownload() },
+        onDownloadImagesChanged = { viewModel.onDownloadImagesChanged(it) },
+        onIncludeArchivedContentChanged = { viewModel.onIncludeArchivedContentChanged(it) },
         onWifiOnlyChanged = { viewModel.onWifiOnlyChanged(it) },
         onAllowBatterySaverChanged = { viewModel.onAllowBatterySaverChanged(it) },
+        onClearContentOnArchiveChanged = { viewModel.onClearContentOnArchiveChanged(it) },
         onClickClearOfflineContent = { viewModel.onClickClearOfflineContent() }
     )
 }
@@ -155,8 +158,11 @@ fun SyncSettingsView(
     onClickDateFrom: () -> Unit,
     onClickDateTo: () -> Unit,
     onClickDateRangeDownload: () -> Unit,
+    onDownloadImagesChanged: (Boolean) -> Unit,
+    onIncludeArchivedContentChanged: (Boolean) -> Unit,
     onWifiOnlyChanged: (Boolean) -> Unit,
     onAllowBatterySaverChanged: (Boolean) -> Unit,
+    onClearContentOnArchiveChanged: (Boolean) -> Unit,
     onClickClearOfflineContent: () -> Unit = {},
 ) {
     Scaffold(
@@ -187,9 +193,9 @@ fun SyncSettingsView(
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            // --- Section 1: Bookmark Sync ---
+            // --- Section 1: Schedule ---
             Text(
-                text = stringResource(R.string.sync_bookmark_section_title),
+                text = stringResource(R.string.sync_schedule_section_title),
                 style = MaterialTheme.typography.titleMedium
             )
 
@@ -206,21 +212,12 @@ fun SyncSettingsView(
                 )
             }
 
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-
-            // --- Section 2: Content Sync (with Constraints) ---
-            Text(
-                text = stringResource(R.string.sync_content_section_title),
-                style = MaterialTheme.typography.titleMedium
-            )
-
             Column(
                 modifier = Modifier.padding(horizontal = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                // Content Sync Mode
                 Text(
-                    text = "Content Sync Mode",
+                    text = stringResource(R.string.sync_content_section_title),
                     style = MaterialTheme.typography.titleSmall,
                     color = MaterialTheme.colorScheme.primary
                 )
@@ -237,8 +234,74 @@ fun SyncSettingsView(
                     onClickDateTo = onClickDateTo,
                     onClickDateRangeDownload = onClickDateRangeDownload
                 )
+            }
 
-                // Constraints heading
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+
+            // --- Section 2: Content ---
+            Text(
+                text = stringResource(R.string.sync_content_policy_section_title),
+                style = MaterialTheme.typography.titleMedium
+            )
+
+            // Content sync status line
+            settingsUiState.contentSyncStatusRes?.let { statusRes ->
+                Text(
+                    text = stringResource(statusRes),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (statusRes == R.string.sync_content_status_up_to_date || statusRes == R.string.sync_content_status_manual)
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    else
+                        MaterialTheme.colorScheme.error,
+                    modifier = Modifier.padding(horizontal = 16.dp)
+                )
+            }
+
+            Column(
+                modifier = Modifier.padding(horizontal = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                // Download images toggle
+                ListItem(
+                    headlineContent = {
+                        Text(text = stringResource(R.string.sync_download_images))
+                    },
+                    supportingContent = {
+                        Text(
+                            text = stringResource(R.string.sync_download_images_desc),
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    },
+                    trailingContent = {
+                        Switch(
+                            checked = settingsUiState.downloadImages,
+                            onCheckedChange = onDownloadImagesChanged
+                        )
+                    }
+                )
+
+                // Include archived content toggle
+                ListItem(
+                    headlineContent = {
+                        Text(text = stringResource(R.string.sync_include_archived))
+                    },
+                    supportingContent = {
+                        Text(
+                            text = stringResource(R.string.sync_include_archived_desc),
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    },
+                    trailingContent = {
+                        Switch(
+                            checked = settingsUiState.includeArchivedContent,
+                            onCheckedChange = onIncludeArchivedContentChanged
+                        )
+                    }
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Constraints sub-heading
                 Text(
                     text = stringResource(R.string.sync_constraints_section_title),
                     style = MaterialTheme.typography.titleSmall,
@@ -255,26 +318,65 @@ fun SyncSettingsView(
 
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
 
-            // --- Section 3: Sync Status ---
+            // --- Section 3: Storage ---
+            Text(
+                text = stringResource(R.string.sync_storage_heading),
+                style = MaterialTheme.typography.titleMedium
+            )
+
+            Column(
+                modifier = Modifier.padding(horizontal = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    text = stringResource(R.string.sync_storage_usage, settingsUiState.syncStatus.offlineStorageSize ?: "…"),
+                    style = MaterialTheme.typography.bodySmall
+                )
+
+                Spacer(modifier = Modifier.height(4.dp))
+
+                Text(
+                    text = stringResource(R.string.sync_storage_cleanup_heading),
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.primary
+                )
+
+                // Auto-clear on archive toggle
+                ListItem(
+                    headlineContent = {
+                        Text(text = stringResource(R.string.sync_clear_on_archive))
+                    },
+                    supportingContent = {
+                        Text(
+                            text = stringResource(R.string.sync_clear_on_archive_desc),
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    },
+                    trailingContent = {
+                        Switch(
+                            checked = settingsUiState.clearContentOnArchive,
+                            onCheckedChange = onClearContentOnArchiveChanged
+                        )
+                    }
+                )
+
+                OutlinedButton(
+                    onClick = onClickClearOfflineContent,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(stringResource(R.string.sync_storage_clear))
+                }
+            }
+
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+
+            // --- Section 4: Status ---
             Text(
                 text = stringResource(R.string.sync_status_section_title),
                 style = MaterialTheme.typography.titleMedium
             )
 
             SyncStatusSection(syncStatus = settingsUiState.syncStatus)
-
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-
-            // --- Section 4: Storage ---
-            Text(
-                text = stringResource(R.string.sync_storage_heading),
-                style = MaterialTheme.typography.titleMedium
-            )
-
-            StorageSection(
-                offlineStorageSize = settingsUiState.syncStatus.offlineStorageSize,
-                onClickClearOfflineContent = onClickClearOfflineContent
-            )
 
             Spacer(modifier = Modifier.height(48.dp))
         }
@@ -649,29 +751,6 @@ private fun SyncStatusSection(syncStatus: SyncStatus) {
     }
 }
 
-// --- Section 5: Storage ---
-@Composable
-private fun StorageSection(
-    offlineStorageSize: String?,
-    onClickClearOfflineContent: () -> Unit
-) {
-    Column(
-        modifier = Modifier.padding(horizontal = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        Text(
-            text = stringResource(R.string.sync_storage_usage, offlineStorageSize ?: "…"),
-            style = MaterialTheme.typography.bodySmall
-        )
-
-        OutlinedButton(
-            onClick = onClickClearOfflineContent,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text(stringResource(R.string.sync_storage_clear))
-        }
-    }
-}
 
 // --- Clear Offline Content Confirm Dialog ---
 @Composable
@@ -762,11 +841,11 @@ private fun ConstraintOverrideConfirmDialog(
 ) {
     AlertDialog(
         onDismissRequest = onCancel,
-        title = { Text("Download Content?") },
-        text = { Text("Content download is blocked by active constraints (Wi-Fi only and/or battery saver). Would you like to temporarily override these settings to complete this download?") },
+        title = { Text(stringResource(R.string.sync_constraint_override_title)) },
+        text = { Text(stringResource(R.string.sync_constraint_override_body, "")) },
         confirmButton = {
             Button(onClick = onConfirm) {
-                Text("Override & Download")
+                Text(stringResource(R.string.sync_constraint_override_confirm))
             }
         },
         dismissButton = {

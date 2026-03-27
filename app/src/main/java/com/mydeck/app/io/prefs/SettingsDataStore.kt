@@ -66,6 +66,12 @@ interface SettingsDataStore {
     suspend fun saveAllowBatterySaver(enabled: Boolean)
     suspend fun getDateRangeParams(): DateRangeParams?
     suspend fun saveDateRangeParams(params: DateRangeParams)
+    suspend fun isDownloadImagesEnabled(): Boolean
+    suspend fun saveDownloadImagesEnabled(enabled: Boolean)
+    suspend fun isClearContentOnArchiveEnabled(): Boolean
+    suspend fun saveClearContentOnArchiveEnabled(enabled: Boolean)
+    suspend fun isIncludeArchivedContentInSyncEnabled(): Boolean
+    suspend fun saveIncludeArchivedContentInSyncEnabled(enabled: Boolean)
 
     // Typography settings
     val typographySettingsFlow: StateFlow<TypographySettings>

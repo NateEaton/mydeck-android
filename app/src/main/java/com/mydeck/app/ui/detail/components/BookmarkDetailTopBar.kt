@@ -47,6 +47,7 @@ fun BookmarkDetailTopBar(
     onClickDeleteBookmark: (String) -> Unit,
     onArticleSearchActivate: () -> Unit,
     onClickOpenInBrowser: (String) -> Unit,
+    onRemoveDownloadedContent: (String) -> Unit = {},
     onContentModeChange: (ContentMode) -> Unit,
     scrollBehavior: TopAppBarScrollBehavior,
     scrollState: ScrollState? = null,
@@ -115,6 +116,7 @@ fun BookmarkDetailTopBar(
                     onShowDetails = onShowDetails,
                     onShowHighlights = onShowHighlights,
                     onClickOpenInBrowser = onClickOpenInBrowser,
+                    onRemoveDownloadedContent = onRemoveDownloadedContent,
                     contentMode = contentMode,
                     onContentModeChange = onContentModeChange
                 )

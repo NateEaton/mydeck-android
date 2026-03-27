@@ -68,6 +68,7 @@ class BookmarkDetailViewModelTest {
     private lateinit var readeckApi: ReadeckApi
     private lateinit var cachedAnnotationDao: CachedAnnotationDao
     private lateinit var connectivityMonitor: ConnectivityMonitor
+    private lateinit var multipartSyncClient: com.mydeck.app.io.rest.sync.MultipartSyncClient
     private lateinit var context: Context
     private lateinit var themeFlow: MutableStateFlow<String?>
     private lateinit var lightAppearanceFlow: MutableStateFlow<LightAppearance>
@@ -90,6 +91,7 @@ class BookmarkDetailViewModelTest {
         readeckApi = mockk(relaxed = true)
         cachedAnnotationDao = mockk(relaxed = true)
         connectivityMonitor = mockk(relaxed = true)
+        multipartSyncClient = mockk(relaxed = true)
         coEvery { cachedAnnotationDao.getAnnotationsForBookmark(any()) } returns emptyList()
         every { connectivityMonitor.isNetworkAvailable() } returns true
         context = mockk(relaxed = true)
@@ -145,6 +147,7 @@ class BookmarkDetailViewModelTest {
             contentPackageManager = contentPackageManager,
             cachedAnnotationDao = cachedAnnotationDao,
             connectivityMonitor = connectivityMonitor,
+            multipartSyncClient = multipartSyncClient,
             readeckApi = readeckApi,
             context = context,
             json = json,

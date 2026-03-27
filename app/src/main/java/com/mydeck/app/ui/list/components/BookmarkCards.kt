@@ -29,6 +29,7 @@ import androidx.compose.material.icons.filled.OpenInBrowser
 import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Unarchive
+import androidx.compose.material.icons.outlined.CloudOff
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material3.Card
@@ -78,7 +79,8 @@ fun BookmarkGridCard(
     onClickShareBookmark: (String, String) -> Unit,
     onClickLabel: (String) -> Unit,
     onClickOpenUrl: (String) -> Unit,
-    onClickOpenInBrowser: (String) -> Unit
+    onClickOpenInBrowser: (String) -> Unit,
+    onRemoveDownloadedContent: (String) -> Unit = {}
 ) {
     Card(
         modifier = Modifier
@@ -183,7 +185,8 @@ fun BookmarkGridCard(
                         onClickFavorite = onClickFavorite,
                         onClickShareBookmark = onClickShareBookmark,
                         onClickOpenUrl = onClickOpenUrl,
-                        onClickOpenInBrowser = onClickOpenInBrowser
+                        onClickOpenInBrowser = onClickOpenInBrowser,
+                        onRemoveDownloadedContent = onRemoveDownloadedContent
                     )
                 }
             }
@@ -201,7 +204,8 @@ fun BookmarkCompactCard(
     onClickShareBookmark: (String, String) -> Unit,
     onClickLabel: (String) -> Unit,
     onClickOpenUrl: (String) -> Unit,
-    onClickOpenInBrowser: (String) -> Unit
+    onClickOpenInBrowser: (String) -> Unit,
+    onRemoveDownloadedContent: (String) -> Unit = {}
 ) {
     Card(
         modifier = Modifier
@@ -270,7 +274,8 @@ fun BookmarkCompactCard(
                 onClickFavorite = onClickFavorite,
                 onClickShareBookmark = onClickShareBookmark,
                 onClickOpenUrl = onClickOpenUrl,
-                onClickOpenInBrowser = onClickOpenInBrowser
+                onClickOpenInBrowser = onClickOpenInBrowser,
+                onRemoveDownloadedContent = onRemoveDownloadedContent
             )
         }
     }
@@ -286,7 +291,8 @@ fun BookmarkMosaicCard(
     onClickShareBookmark: (String, String) -> Unit,
     onClickLabel: (String) -> Unit,
     onClickOpenUrl: (String) -> Unit,
-    onClickOpenInBrowser: (String) -> Unit
+    onClickOpenInBrowser: (String) -> Unit,
+    onRemoveDownloadedContent: (String) -> Unit = {}
 ) {
     // Mosaic can be similar to Grid but with different aspect ratios or sizing logic handled by the specific StaggeredGrid layout (if implemented).
     // For now, reusing Grid layout structure but allowing it to be used in a StaggeredGrid.
@@ -300,7 +306,8 @@ fun BookmarkMosaicCard(
          onClickShareBookmark = onClickShareBookmark,
          onClickLabel = onClickLabel,
          onClickOpenUrl = onClickOpenUrl,
-         onClickOpenInBrowser = onClickOpenInBrowser
+         onClickOpenInBrowser = onClickOpenInBrowser,
+         onRemoveDownloadedContent = onRemoveDownloadedContent
     )
 }
 
@@ -312,7 +319,8 @@ private fun BookmarkCardActions(
     onClickFavorite: (String, Boolean) -> Unit,
     onClickShareBookmark: (String, String) -> Unit,
     onClickOpenUrl: (String) -> Unit,
-    onClickOpenInBrowser: (String) -> Unit
+    onClickOpenInBrowser: (String) -> Unit,
+    onRemoveDownloadedContent: (String) -> Unit = {}
 ) {
     var expanded by remember { mutableStateOf(false) }
 
@@ -388,6 +396,18 @@ private fun BookmarkCardActions(
                     onClickOpenUrl(bookmark.url)
                 }
             )
+            if (bookmark.offlineState != BookmarkListItem.OfflineState.NOT_DOWNLOADED) {
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.sync_remove_downloaded_content)) },
+                    leadingIcon = {
+                        Icon(Icons.Outlined.CloudOff, contentDescription = null)
+                    },
+                    onClick = {
+                        expanded = false
+                        onRemoveDownloadedContent(bookmark.id)
+                    }
+                )
+            }
             DropdownMenuItem(
                 text = { Text(stringResource(R.string.action_delete)) },
                 leadingIcon = {

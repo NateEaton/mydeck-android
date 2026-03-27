@@ -2,7 +2,7 @@
 
 ## Status
 
-Draft — under discussion. Not yet approved for implementation.
+**IMPLEMENTED** on `feature/sync-multipart-v012` (2026-03-26). All features complete: global image download setting, per-article image toggle, remove downloaded content (detail + long-press), auto-clear on archive, sync scope filter, offline state indicators, and constraint feedback.
 
 ## Origin
 
@@ -99,7 +99,7 @@ always download their image (it's the entire content). Video bookmarks are uncha
 
 **Location:** Sync Settings screen, in the Content Sync section.
 
-**UI:** Toggle — "Download images" or similar. Default: on (preserves current behavior).
+**UI:** Toggle — "Download images" or similar. Default: off (minimizes initial storage footprint; images lazy-load in reader).
 
 **Behavior:**
 

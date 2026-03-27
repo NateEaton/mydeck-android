@@ -27,14 +27,17 @@ import androidx.compose.material.icons.filled.Publish
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Event
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Subject
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material.icons.outlined.Launch
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import coil3.request.crossfade
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -80,7 +83,11 @@ fun BookmarkDetailsDialog(
     onClickOpenInBrowser: (String) -> Unit = {},
     onRefreshContent: () -> Unit = {},
     canRefreshContent: Boolean = false,
-    onEditMetadata: () -> Unit = {}
+    onEditMetadata: () -> Unit = {},
+    onToggleArticleImages: () -> Unit = {},
+    hasResources: Boolean? = null,
+    isImageToggleEnabled: Boolean = false,
+    isImageToggleLoading: Boolean = false
 ) {
     var labels by remember { mutableStateOf(bookmark.labels.toMutableList()) }
 
@@ -221,6 +228,47 @@ fun BookmarkDetailsDialog(
                         icon = Icons.Filled.Subject,
                         value = stringResource(R.string.detail_words, count),
                         contentDescription = stringResource(R.string.detail_word_count)
+                    )
+                }
+            }
+
+            // Per-article image download toggle (only for downloaded content)
+            if (hasResources != null) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(enabled = isImageToggleEnabled && !isImageToggleLoading) {
+                            onToggleArticleImages()
+                        },
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    if (isImageToggleLoading) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(20.dp),
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        Icon(
+                            imageVector = if (hasResources) Icons.Filled.Image else Icons.Outlined.Image,
+                            contentDescription = stringResource(R.string.detail_images_toggle),
+                            modifier = Modifier.size(20.dp),
+                            tint = if (isImageToggleEnabled)
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            else
+                                MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
+                        )
+                    }
+                    Text(
+                        text = if (hasResources)
+                            stringResource(R.string.detail_images_downloaded)
+                        else
+                            stringResource(R.string.detail_images_from_network),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = if (isImageToggleEnabled)
+                            MaterialTheme.colorScheme.onSurface
+                        else
+                            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
                     )
                 }
             }

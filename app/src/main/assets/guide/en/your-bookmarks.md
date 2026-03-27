@@ -72,6 +72,7 @@ Long-pressing on a bookmark card opens a context menu dialog. The dialog header 
 - Download link
 - Share link
 - Open in browser
+- Remove downloaded content (only shown when the bookmark has downloaded content)
 
 **Thumbnail long-press** opens an image menu:
 - Copy image

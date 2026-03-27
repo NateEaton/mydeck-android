@@ -22,6 +22,7 @@ import com.mydeck.app.R
 import com.mydeck.app.domain.content.ContentPackageManager
 import com.mydeck.app.domain.model.AutoSyncTimeframe
 import com.mydeck.app.domain.sync.ContentSyncMode
+import com.mydeck.app.domain.sync.ContentSyncPolicyEvaluator
 import com.mydeck.app.domain.sync.DateRangeParams
 import com.mydeck.app.domain.sync.DateRangePreset
 import com.mydeck.app.domain.sync.toDateRange
@@ -54,6 +55,7 @@ class SyncSettingsViewModel @Inject constructor(
     private val settingsDataStore: SettingsDataStore,
     private val fullSyncUseCase: FullSyncUseCase,
     private val contentPackageManager: ContentPackageManager,
+    private val contentSyncPolicyEvaluator: ContentSyncPolicyEvaluator,
     private val workManager: WorkManager,
     @ApplicationContext private val context: Context,
 ) : ViewModel() {
@@ -77,6 +79,11 @@ class SyncSettingsViewModel @Inject constructor(
     private val wifiOnly = MutableStateFlow(false)
     private val allowBatterySaver = MutableStateFlow(true)
 
+    // Content policy
+    private val downloadImages = MutableStateFlow(false)
+    private val includeArchivedContent = MutableStateFlow(false)
+    private val clearContentOnArchive = MutableStateFlow(false)
+
     // Dialog
     private val showDialog = MutableStateFlow<SyncSettingsDialog?>(null)
 
@@ -86,6 +93,12 @@ class SyncSettingsViewModel @Inject constructor(
     private var constraintBlockingDownload: String? = null  // Description of which constraint is blocking
     private var blockedByWifiConstraint = false  // Whether wifi constraint would block
     private var blockedByBatterySaverConstraint = false  // Whether battery saver constraint would block
+    private var constraintOverrideTrigger: ConstraintOverrideTrigger = ConstraintOverrideTrigger.DATE_RANGE
+
+    private enum class ConstraintOverrideTrigger { DATE_RANGE, SYNC_NOW }
+
+    // Content sync constraint status (computed)
+    private val contentSyncStatusRes = MutableStateFlow<Int?>(null)
 
     // Storage
     private val offlineStorageSize = MutableStateFlow<String?>(null)
@@ -134,6 +147,9 @@ class SyncSettingsViewModel @Inject constructor(
             val constraints = settingsDataStore.getContentSyncConstraints()
             wifiOnly.value = constraints.wifiOnly
             allowBatterySaver.value = constraints.allowOnBatterySaver
+            downloadImages.value = settingsDataStore.isDownloadImagesEnabled()
+            includeArchivedContent.value = settingsDataStore.isIncludeArchivedContentInSyncEnabled()
+            clearContentOnArchive.value = settingsDataStore.isClearContentOnArchiveEnabled()
             settingsDataStore.getDateRangeParams()?.let {
                 dateRangePreset.value = it.preset
                 dateRangeFrom.value = it.from
@@ -146,8 +162,9 @@ class SyncSettingsViewModel @Inject constructor(
                 lastContentSyncTimestamp.value = dateFormat.format(Date(it.toEpochMilliseconds()))
             }
 
-            // Calculate storage usage
+            // Calculate storage usage and constraint status
             refreshStorageSize()
+            refreshContentSyncStatus()
 
             // Perform settings migration for existing users
             performSettingsMigration()
@@ -258,6 +275,14 @@ class SyncSettingsViewModel @Inject constructor(
         state.copy(syncStatus = state.syncStatus.copy(lastContentSyncTimestamp = ts))
     }.combine(offlineStorageSize) { state, size ->
         state.copy(syncStatus = state.syncStatus.copy(offlineStorageSize = size))
+    }.combine(includeArchivedContent) { state, include ->
+        state.copy(includeArchivedContent = include)
+    }.combine(clearContentOnArchive) { state, clear ->
+        state.copy(clearContentOnArchive = clear)
+    }.combine(downloadImages) { state, images ->
+        state.copy(downloadImages = images)
+    }.combine(contentSyncStatusRes) { state, statusRes ->
+        state.copy(contentSyncStatusRes = statusRes)
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
@@ -282,6 +307,20 @@ class SyncSettingsViewModel @Inject constructor(
 
     fun onClickSyncBookmarksNow() {
         fullSyncUseCase.performForcedFullSync()
+
+        // After triggering the bookmark sync, check if content sync constraints would block
+        // and show the override dialog if the user has auto content sync enabled
+        viewModelScope.launch {
+            if (contentSyncMode.value != ContentSyncMode.AUTOMATIC) return@launch
+            val decision = contentSyncPolicyEvaluator.canFetchContent()
+            if (!decision.allowed && decision.blockedReason != "No network") {
+                constraintBlockingDownload = decision.blockedReason
+                blockedByWifiConstraint = decision.blockedReason == "Wi-Fi required"
+                blockedByBatterySaverConstraint = decision.blockedReason == "Battery saver active"
+                constraintOverrideTrigger = ConstraintOverrideTrigger.SYNC_NOW
+                showDialog.value = SyncSettingsDialog.ConstraintOverrideDialog
+            }
+        }
     }
 
     // --- Content Sync ---
@@ -290,7 +329,7 @@ class SyncSettingsViewModel @Inject constructor(
         viewModelScope.launch {
             settingsDataStore.saveContentSyncMode(mode)
             contentSyncMode.value = mode
-
+            refreshContentSyncStatus()
         }
     }
 
@@ -360,6 +399,7 @@ class SyncSettingsViewModel @Inject constructor(
             if (blockedByBatterySaverConstraint) blockingConstraints.add("battery saver active")
 
             constraintBlockingDownload = blockingConstraints.joinToString(" and ")
+            constraintOverrideTrigger = ConstraintOverrideTrigger.DATE_RANGE
             Timber.d("DateRangeDownload: Showing override dialog - $constraintBlockingDownload")
             showDialog.value = SyncSettingsDialog.ConstraintOverrideDialog
             return
@@ -392,22 +432,25 @@ class SyncSettingsViewModel @Inject constructor(
     }
 
     fun onConstraintOverrideConfirmed() {
-        val from = dateRangeFrom.value ?: return
-        val to = dateRangeTo.value ?: return
-
-        Timber.d("DateRangeDownload: Override confirmed - applying overrides: wifi=$blockedByWifiConstraint, battery=$blockedByBatterySaverConstraint")
-
-        // Override only the constraints that were actually blocking
-        // This way we don't unnecessarily weaken other constraints
-        performDateRangeDownload(
-            from = from,
-            to = to,
-            overrideWifiOnly = blockedByWifiConstraint,
-            overrideBatterySaver = blockedByBatterySaverConstraint
-        )
-
-        // Close dialog
         showDialog.value = null
+
+        when (constraintOverrideTrigger) {
+            ConstraintOverrideTrigger.DATE_RANGE -> {
+                val from = dateRangeFrom.value ?: return
+                val to = dateRangeTo.value ?: return
+                Timber.d("DateRangeDownload: Override confirmed - applying overrides: wifi=$blockedByWifiConstraint, battery=$blockedByBatterySaverConstraint")
+                performDateRangeDownload(
+                    from = from,
+                    to = to,
+                    overrideWifiOnly = blockedByWifiConstraint,
+                    overrideBatterySaver = blockedByBatterySaverConstraint
+                )
+            }
+            ConstraintOverrideTrigger.SYNC_NOW -> {
+                Timber.d("SyncNow: Override confirmed - enqueueing content sync without constraints")
+                enqueueContentSyncWithoutConstraints()
+            }
+        }
     }
 
     fun onConstraintOverrideCancelled() {
@@ -487,6 +530,20 @@ class SyncSettingsViewModel @Inject constructor(
         }
     }
 
+    private fun enqueueContentSyncWithoutConstraints() {
+        val constraints = Constraints.Builder()
+            .setRequiredNetworkType(NetworkType.CONNECTED)
+            .build()
+        val request = OneTimeWorkRequestBuilder<com.mydeck.app.worker.BatchArticleLoadWorker>()
+            .setConstraints(constraints)
+            .build()
+        workManager.enqueueUniqueWork(
+            com.mydeck.app.worker.BatchArticleLoadWorker.UNIQUE_WORK_NAME,
+            ExistingWorkPolicy.REPLACE,
+            request
+        )
+    }
+
     // --- Storage ---
 
     fun onClickClearOfflineContent() {
@@ -499,6 +556,24 @@ class SyncSettingsViewModel @Inject constructor(
             contentPackageManager.deleteAllContent()
             refreshStorageSize()
             Timber.i("All offline content cleared by user")
+        }
+    }
+
+    private suspend fun refreshContentSyncStatus() {
+        val mode = contentSyncMode.value
+        if (mode != ContentSyncMode.AUTOMATIC) {
+            contentSyncStatusRes.value = R.string.sync_content_status_manual
+            return
+        }
+        val decision = contentSyncPolicyEvaluator.canFetchContent()
+        contentSyncStatusRes.value = if (decision.allowed) {
+            R.string.sync_content_status_up_to_date
+        } else {
+            when (decision.blockedReason) {
+                "Wi-Fi required" -> R.string.sync_content_waiting_wifi
+                "Battery saver active" -> R.string.sync_content_waiting_battery
+                else -> null
+            }
         }
     }
 
@@ -516,12 +591,36 @@ class SyncSettingsViewModel @Inject constructor(
         }
     }
 
+    // --- Content Policy ---
+
+    fun onDownloadImagesChanged(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsDataStore.saveDownloadImagesEnabled(enabled)
+            downloadImages.value = enabled
+        }
+    }
+
+    fun onIncludeArchivedContentChanged(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsDataStore.saveIncludeArchivedContentInSyncEnabled(enabled)
+            includeArchivedContent.value = enabled
+        }
+    }
+
+    fun onClearContentOnArchiveChanged(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsDataStore.saveClearContentOnArchiveEnabled(enabled)
+            clearContentOnArchive.value = enabled
+        }
+    }
+
     // --- Constraints ---
 
     fun onWifiOnlyChanged(enabled: Boolean) {
         viewModelScope.launch {
             settingsDataStore.saveWifiOnly(enabled)
             wifiOnly.value = enabled
+            refreshContentSyncStatus()
         }
     }
 
@@ -529,6 +628,7 @@ class SyncSettingsViewModel @Inject constructor(
         viewModelScope.launch {
             settingsDataStore.saveAllowBatterySaver(enabled)
             allowBatterySaver.value = enabled
+            refreshContentSyncStatus()
         }
     }
 
@@ -607,6 +707,14 @@ data class SyncSettingsUiState(
     // Constraints
     val wifiOnly: Boolean = false,
     val allowBatterySaver: Boolean = true,
+
+    // Content policy
+    val downloadImages: Boolean = false,
+    val includeArchivedContent: Boolean = false,
+    val clearContentOnArchive: Boolean = false,
+
+    // Content sync status message (constraint feedback)
+    val contentSyncStatusRes: Int? = null,
 
     // Sync status
     val syncStatus: SyncStatus = SyncStatus(),

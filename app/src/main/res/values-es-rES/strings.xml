@@ -156,6 +156,7 @@ other{}
     <string name="auto_sync_notification_channel">Sincronización en segundo plano</string>
 
     <!-- Sync Settings - Phase 3 -->
+    <string name="sync_schedule_section_title">Schedule</string>
     <string name="sync_bookmark_section_title">Sincronización de marcadores</string>
     <string name="sync_bookmark_description">Los marcadores siempre se mantienen sincronizados.</string>
     <string name="sync_bookmark_frequency_label">Frecuencia de sincronización</string>
@@ -178,8 +179,23 @@ other{}
     <string name="sync_constraints_section_title">Restricciones</string>
     <string name="sync_wifi_only">Solo descargar en Wi-Fi</string>
     <string name="sync_allow_battery_saver">Permitir descarga en modo de ahorro de batería</string>
-    <string name="sync_status_section_title">Estado de sincronización</string>
-    <string name="sync_status_bookmarks_heading">Marcadores</string>
+    <string name="sync_content_policy_section_title">What to download</string>
+    <string name="sync_download_images">Download images</string>
+    <string name="sync_download_images_desc">Download images alongside article text. When off, images load from the network.</string>
+    <string name="sync_include_archived">Include archived content</string>
+    <string name="sync_include_archived_desc">When off, only My List downloads offline content during automatic or date-range sync. On-demand downloads are always available regardless of this setting.</string>
+    <string name="sync_clear_on_archive">Clear content when archiving</string>
+    <string name="sync_clear_on_archive_desc">Automatically remove downloaded text and images when a bookmark is archived.</string>
+    <string name="sync_remove_downloaded_content">Remove downloaded content</string>
+    <string name="sync_content_waiting_wifi">Content download waiting for Wi-Fi</string>
+    <string name="sync_content_waiting_battery">Content download paused (battery saver)</string>
+    <string name="sync_content_waiting_wifi_battery">Content download waiting for Wi-Fi and battery</string>
+    <string name="sync_content_status_up_to_date">Up to date</string>
+    <string name="sync_content_status_manual">Manual mode</string>
+    <string name="sync_constraint_override_title">Download Content?</string>
+    <string name="sync_constraint_override_body">Content download is blocked by active constraints (%s). Would you like to temporarily override these settings to complete this download?</string>
+    <string name="sync_constraint_override_confirm">Override &amp; Download</string>
+    <string name="sync_status_section_title">Sync Status</string>    <string name="sync_status_bookmarks_heading">Marcadores</string>
     <string name="sync_status_content_heading">Contenido</string>
     <string name="sync_status_total">Total de marcadores: %d</string>
     <string name="sync_status_unread">Mi lista: %d</string>
@@ -193,6 +209,7 @@ other{}
     <string name="sync_status_last_content_sync">Última sincronización de contenido: %1$s</string>
     <!-- Storage Management -->
     <string name="sync_storage_heading">Storage</string>
+    <string name="sync_storage_cleanup_heading">Cleanup</string>
     <string name="sync_storage_usage">Offline content: %s</string>
     <string name="sync_storage_clear">Clear All Offline Content</string>
     <string name="sync_storage_clear_confirm_title">Clear Offline Content?</string>
@@ -241,6 +258,9 @@ other{}
     <string name="detail_site">Sitio</string>
     <string name="detail_about">Acerca de %1$s</string>
     <string name="detail_words">%1$d palabras</string>
+    <string name="detail_images_toggle">Toggle image download</string>
+    <string name="detail_images_downloaded">Images downloaded</string>
+    <string name="detail_images_from_network">Images load from network</string>
     <string name="metadata_one_value_per_line">One value per line</string>
     <string name="metadata_text_direction_auto">Automatic</string>
     <string name="metadata_text_direction_ltr">Left to right</string>

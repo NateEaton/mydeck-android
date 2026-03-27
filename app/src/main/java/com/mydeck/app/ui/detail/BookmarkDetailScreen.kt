@@ -241,6 +241,7 @@ fun BookmarkDetailHost(
     val labelsWithCounts = viewModel.labelsWithCounts.collectAsState().value
     val galleryData = viewModel.galleryData.collectAsState().value
     val readerContextMenu = viewModel.readerContextMenu.collectAsState().value
+    val imageToggleLoading = viewModel.imageToggleLoading.collectAsState().value
     val readerWebView = remember { mutableStateOf<WebView?>(null) }
     var detailOverlay by remember { mutableStateOf(DetailOverlay.NONE) }
     var showTypographyPanel by remember { mutableStateOf(false) }
@@ -535,6 +536,7 @@ fun BookmarkDetailHost(
                     onClickShareBookmark = onClickShareBookmark,
                     onClickDeleteBookmark = onClickDeleteBookmark,
                     onClickOpenInBrowser = onClickOpenInBrowser,
+                    onRemoveDownloadedContent = { viewModel.onRemoveDownloadedContent(it) },
                     onArticleSearchActivate = onArticleSearchActivate,
                     uiState = uiState,
                     onClickOpenUrl = onClickOpenUrl,
@@ -659,7 +661,13 @@ fun BookmarkDetailHost(
                     canRefreshContent = uiState.bookmark.hasContent,
                     onEditMetadata = {
                         detailOverlay = DetailOverlay.METADATA_EDITOR
-                    }
+                    },
+                    onToggleArticleImages = {
+                        viewModel.onToggleArticleImages(uiState.bookmark.bookmarkId)
+                    },
+                    hasResources = uiState.bookmark.hasResources,
+                    isImageToggleEnabled = uiState.bookmark.isContentDownloaded,
+                    isImageToggleLoading = imageToggleLoading
                 )
             }
             if (detailOverlay == DetailOverlay.METADATA_EDITOR) {
@@ -748,6 +756,7 @@ fun BookmarkDetailScreen(
     onClickOpenUrl: (String) -> Unit,
     onClickShareBookmark: (String, String) -> Unit,
     onClickOpenInBrowser: (String) -> Unit = {},
+    onRemoveDownloadedContent: (String) -> Unit = {},
     onArticleSearchActivate: () -> Unit = {},
     onShowDetails: () -> Unit = {},
     onShowHighlights: () -> Unit = {},
@@ -908,6 +917,7 @@ fun BookmarkDetailScreen(
                         onClickDeleteBookmark = onClickDeleteBookmark,
                         onArticleSearchActivate = onArticleSearchActivate,
                         onClickOpenInBrowser = onClickOpenInBrowser,
+                        onRemoveDownloadedContent = onRemoveDownloadedContent,
                         onContentModeChange = onContentModeChange,
                         scrollBehavior = topBarScrollBehavior,
                         scrollState = scrollState,

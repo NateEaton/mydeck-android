@@ -32,6 +32,5 @@ class ContentSyncPolicyEvaluator @Inject constructor(
 
     suspend fun shouldAutoFetchContent(): Boolean {
         return settingsDataStore.getContentSyncMode() == ContentSyncMode.AUTOMATIC
-            && canFetchContent().allowed
     }
 }

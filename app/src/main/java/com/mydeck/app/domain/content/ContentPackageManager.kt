@@ -212,6 +212,14 @@ class ContentPackageManager @Inject constructor(
     }
 
     /**
+     * Check whether the content package for a bookmark includes downloaded resources (images).
+     * Returns null if no content package exists for this bookmark.
+     */
+    suspend fun hasResources(bookmarkId: String): Boolean? {
+        return contentPackageDao.getPackage(bookmarkId)?.hasResources
+    }
+
+    /**
      * Update only the HTML entry document for a bookmark's existing content package.
      * Used for lightweight annotation refresh without re-downloading resources.
      *
@@ -243,6 +251,51 @@ class ContentPackageManager @Inject constructor(
     fun getHtmlContent(bookmarkId: String): String? {
         val file = File(offlineContentDir, "$bookmarkId/index.html")
         return if (file.exists()) file.readText() else null
+    }
+
+    /**
+     * Delete all offline content for a single bookmark: files, DB metadata,
+     * cached annotations, and reset contentState to NOT_ATTEMPTED.
+     */
+    suspend fun deletePackage(bookmarkId: String) {
+        val dir = File(offlineContentDir, bookmarkId)
+        if (dir.exists()) {
+            dir.deleteRecursively()
+        }
+        contentPackageDao.deleteResources(bookmarkId)
+        contentPackageDao.deletePackage(bookmarkId)
+        cachedAnnotationDao.deleteAnnotationsForBookmark(bookmarkId)
+        bookmarkDao.updateContentState(bookmarkId, BookmarkEntity.ContentState.NOT_ATTEMPTED.value, null)
+        Timber.d("Deleted content package for $bookmarkId")
+    }
+
+    /**
+     * Delete only the resource files (images, etc.) for a bookmark while
+     * keeping the HTML entry document. Updates the content_package row to
+     * set hasResources=false and clears the content_resource rows.
+     *
+     * Callers should re-fetch HTML with absolute image URLs BEFORE calling
+     * this method so the reader falls back to lazy-loading images rather than
+     * showing broken references.
+     */
+    suspend fun deleteResources(bookmarkId: String) {
+        val pkg = contentPackageDao.getPackage(bookmarkId) ?: return
+        val resources = contentPackageDao.getResources(bookmarkId)
+        if (resources.isEmpty()) return
+
+        val dir = File(offlineContentDir, bookmarkId)
+        for (resource in resources) {
+            val file = File(dir, resource.localRelativePath)
+            if (file.exists()) {
+                file.delete()
+            }
+        }
+        // Clean up empty subdirectories left after resource deletion
+        dir.walkBottomUp().filter { it.isDirectory && it != dir && it.listFiles().isNullOrEmpty() }.forEach { it.delete() }
+
+        contentPackageDao.deleteResources(bookmarkId)
+        contentPackageDao.insertPackage(pkg.copy(hasResources = false))
+        Timber.d("Deleted ${resources.size} resources for $bookmarkId (HTML retained)")
     }
 
     /**

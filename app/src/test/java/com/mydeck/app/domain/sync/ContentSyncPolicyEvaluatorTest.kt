@@ -127,19 +127,15 @@ class ContentSyncPolicyEvaluatorTest {
     }
 
     @Test
-    fun `shouldAutoFetchContent returns false when mode is AUTOMATIC but constraints block`() = runTest {
-        // Arrange
-        val constraints = ContentSyncConstraints(wifiOnly = true, allowOnBatterySaver = true)
+    fun `shouldAutoFetchContent returns true when mode is AUTOMATIC regardless of constraints`() = runTest {
+        // Arrange — constraints would block, but shouldAutoFetchContent only checks mode;
+        // WorkManager enforces Wi-Fi / battery constraints at enqueue time.
         coEvery { settingsDataStore.getContentSyncMode() } returns ContentSyncMode.AUTOMATIC
-        coEvery { settingsDataStore.getContentSyncConstraints() } returns constraints
-        every { connectivityMonitor.isOnWifi() } returns false // WiFi required but not connected
-        every { connectivityMonitor.isNetworkAvailable() } returns true
-        every { connectivityMonitor.isBatterySaverOn() } returns false
 
         // Act
         val result = evaluator.shouldAutoFetchContent()
 
         // Assert
-        assertFalse(result)
+        assertTrue(result)
     }
 }
