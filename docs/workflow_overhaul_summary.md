@@ -7,6 +7,7 @@ The user requested a review and modernization of the GitHub Workflows for the **
 2.  **Define Branching Patterns**: Support `feature/*`, `enhancement/*`, `fix/*`, and `chore/*` branches merging into `main`.
 3.  **Automate Quality Checks**: Run Lint and Unit Tests on every push.
 4.  **Create "Tester Builds"**: Provide a **Release-optimized** (fast) build that can be installed **side-by-side** with the production version (not overwriting it).
+5.  **Keep Debug Builds Local-First**: Avoid producing extra CI debug artifacts unless they materially help tester workflows.
 
 ---
 
@@ -31,9 +32,9 @@ We agreed on a strategy that provides high-performance testing artifacts while m
 *   **Merge Method**: **Squash and Merge** (to maintain linear, readable history on `main`).
 
 ### CI/CD Logic
-1.  **Dev-Push**: Every push triggers **Lint + Tests**.
-2.  **Pull Request to Main**: Every PR builds a **Release Snapshot** (minified, optimized). This is uploaded as a 7-day GitHub Action artifact for the tester.
-3.  **Merge to Main**: Updates a revolving **"MyDeck Snapshot"** release on GitHub with a side-by-side installable APK.
+1.  **Dev-Push**: Every development-branch push triggers **assemble + lint + unit tests** and also builds a **Release Snapshot** artifact for testers.
+2.  **Pull Request to Main**: Every PR builds the same **Release Snapshot** (minified, optimized). This is uploaded as a 7-day GitHub Actions artifact for the tester.
+3.  **Merge to Main**: A push on `main` reruns checks, rebuilds the snapshot, and updates a revolving **"MyDeck Continuous Snapshot"** release on GitHub with a side-by-side installable APK.
 4.  **Official Release**: Tag-triggered (`v*`) builds for the final production install.
 
 ---
@@ -48,12 +49,13 @@ Deleted redundant/legacy files to prevent trigger collisions:
 *   `.github/workflows/dev-release.yml`
 
 ### New Workflows Created
-1.  **`checks.yml`**: Runs `./gradlew :app:lintDebugAll` and `./gradlew :app:testDebugUnitTestAll` on all push events.
+1.  **`checks.yml`**: Runs `./gradlew :app:assembleDebugAll`, `./gradlew :app:lintDebugAll`, and `./gradlew :app:testDebugUnitTestAll` on supported branch pushes and PRs to `main`.
 2.  **`snapshot.yml`**: 
     *   Builds `:app:assembleGithubSnapshotRelease`.
     *   Uses **Release** build type for production performance.
     *   Uses the **Snapshot** flavor (package ID: `com.mydeck.app.snapshot`) for side-by-side installation.
-    *   Handles both PR artifacts and the continuous "Latest Snapshot" GitHub Release.
+    *   Uploads artifacts for development branches and PRs.
+    *   Publishes the continuous "Latest Snapshot" GitHub Release only from pushes to `main`.
 
 ### Documentation Updated
 *   **`docs/WORKFLOW.md`**: Fully rewritten to clearly document the new branch naming, release formulas, and tester build locations.

@@ -25,18 +25,22 @@ We use a **Main-First** (Trunk-based) workflow.
 We use GitHub Actions to automate testing and build delivery.
 
 ### Automated Checks (`checks.yml`)
-Runs on **every push** to any branch and on **every Pull Request**.
-*   **Tasks:** Runs Android Lint and Unit Tests.
-*   **Goal:** Immediate feedback on code quality and logic.
+Runs on pushes to `main`, `feature/**`, `enhancement/**`, `fix/**`, `chore/**`, `claude/**`, and `codex/**`, plus Pull Requests targeting `main`.
+*   **Tasks:** Runs `:app:assembleDebugAll`, `:app:lintDebugAll`, and `:app:testDebugUnitTestAll` in sequence.
+*   **Goal:** Catch compile, lint, and unit-test regressions early without waiting for release packaging.
 
 ### Tester Builds & Snapshots (`snapshot.yml`)
-To provide a production-like experience for functional testing without overwriting your daily-driver app.
+To provide a production-like, side-by-side installable APK for functional testing without overwriting your daily-driver app.
 
-1.  **Pull Requests to `main`**: Automatically builds a **Release Snapshot** (minified/optimized) and uploads it as a GitHub Action artifact.
+1.  **Development Branch Pushes**: Automatically builds a **Release Snapshot** (minified/optimized) and uploads it as a GitHub Actions artifact.
+    *   **Use case:** Share the latest branch build with a tester before opening or updating a PR.
+2.  **Pull Requests to `main`**: Automatically builds the same **Release Snapshot** and uploads it as a GitHub Actions artifact.
     *   **Side-by-Side:** Installs as `com.mydeck.app.snapshot`.
-    *   **Usage:** Download from the PR's "Actions" tab, unzip, and install.
-2.  **Pushes to `main`**: Automatically updates the **"MyDeck Snapshot"** release on GitHub with the latest merged code.
-3.  **Manual Trigger**: You can trigger a Snapshot build on *any* branch from the Actions tab.
+    *   **Behavior:** Uses the Release build type, so performance and shrinking are closer to production than a Debug APK.
+    *   **Usage:** Download from the workflow run's "Artifacts" section, unzip, and install.
+3.  **Pushes to `main`**: Automatically rebuilds the Release Snapshot and updates the revolving **"MyDeck Continuous Snapshot"** GitHub release with the latest merged code.
+    *   **Direct pushes to `main`:** Treated the same as a post-merge `main` update. The same checks and snapshot packaging still run.
+4.  **Manual Trigger**: You can trigger a Snapshot build on any branch from the Actions tab.
 
 ### Official Releases (`release.yml`)
 Runs when a tag starting with `v` is pushed (e.g., `v0.12.0`).

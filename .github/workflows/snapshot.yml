@@ -2,7 +2,14 @@ name: Snapshot Build
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
+      - feature/**
+      - enhancement/**
+      - fix/**
+      - chore/**
+      - claude/**
+      - codex/**
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -10,11 +17,15 @@ on:
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
 
+concurrency:
+  group: snapshot-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build-snapshot:
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: read
     steps:
       - name: Checkout Code
         uses: actions/checkout@v5
@@ -26,10 +37,13 @@ jobs:
           java-version: 17
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v4
+        uses: gradle/actions/setup-gradle@v5
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
 
       - name: Decode Keystore
         run: |
@@ -57,7 +71,7 @@ jobs:
           sha256sum $FILENAME > checksums.txt
           echo "ARTIFACT_FILENAME=$FILENAME" >> "$GITHUB_OUTPUT"
 
-      # Always upload artifact (for PRs and manual runs)
+      # Every run produces a tester-downloadable snapshot artifact.
       - name: Upload Snapshot Artifact
         uses: actions/upload-artifact@v4
         with:
@@ -67,9 +81,20 @@ jobs:
             checksums.txt
           retention-days: 7
 
-      # For pushes to main, update the revolving GitHub Release
+  publish-latest-snapshot:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: build-snapshot
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download Snapshot Artifact
+        uses: actions/download-artifact@v5
+        with:
+          name: tester-snapshot-release
+          path: ./artifacts
+
       - name: Update Latest Snapshot Release
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: joutvhu/create-tag@v1
         with:
           tag_name: latest-snapshot
@@ -80,7 +105,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Publish to GitHub Releases
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: ncipollo/release-action@v1.16.0
         with:
           allowUpdates: true
@@ -94,5 +118,5 @@ jobs:
           tag: latest-snapshot
           removeArtifacts: true
           omitDraftDuringUpdate: true
-          artifacts: "${{ steps.create_checksum.outputs.ARTIFACT_FILENAME }},checksums.txt"
+          artifacts: "./artifacts/*.apk,./artifacts/checksums.txt"
           token: ${{ secrets.GITHUB_TOKEN }}
