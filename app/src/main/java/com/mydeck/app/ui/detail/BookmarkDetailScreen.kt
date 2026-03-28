@@ -1628,13 +1628,7 @@ private fun ReaderLoadingOverlay(
     ) {
         if (contentAlreadyAvailable) {
             // Content is in the DB/filesystem, just waiting for WebView to render.
-            // No meaningful progress signal — use indeterminate.
-            LinearProgressIndicator(
-                modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .fillMaxWidth()
-                    .height(4.dp)
-            )
+            // No meaningful progress signal — the user requested to remove the indeterminate bar here.
         }
     }
 }

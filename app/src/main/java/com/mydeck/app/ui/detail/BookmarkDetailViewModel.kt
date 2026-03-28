@@ -261,6 +261,7 @@ class BookmarkDetailViewModel @Inject constructor(
                             !effectiveBookmark.hasArticle && !effectiveBookmark.embed.isNullOrBlank()
                         when (effectiveBookmark.contentState) {
                             ContentState.DOWNLOADED -> {
+                                _contentLoadState.value = ContentLoadState.Loaded
                                 // Check for annotation changes from other clients
                                 if (contentPackageManager.getContentDir(id) != null) {
                                     syncAnnotationsForContentPackage(id)
@@ -292,6 +293,7 @@ class BookmarkDetailViewModel @Inject constructor(
                         // Handle content availability
                         when (bookmark.contentState) {
                             ContentState.DOWNLOADED -> {
+                                _contentLoadState.value = ContentLoadState.Loaded
                                 if (contentPackageManager.getContentDir(id) != null) {
                                     // Content package on disk — check for annotation changes
                                     syncAnnotationsForContentPackage(id)

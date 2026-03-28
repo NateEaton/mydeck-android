@@ -45,7 +45,7 @@ This document tracks implementation progress for the managed offline reading red
 - Remove offline-content state/status badges from bookmark cards in list. (Completed)
 - Integrate the offline status explicitly into the bookmark details experience. (Completed)
 - Move the reading progress badge on the line with the site name in Compact layout. (Completed)
-- Improve bookmark open performance, especially repeat opens where cached/local content should feel instant (short-circuit loading chrome). (Next)
+- Improve bookmark open performance, especially repeat opens where cached/local content should feel instant (short-circuit loading chrome). (Completed)
 - Revisit the balance between multipart content and the legacy article endpoint so the architecture stays simple while still supporting:
   - network-first reading
   - text-only offline content
