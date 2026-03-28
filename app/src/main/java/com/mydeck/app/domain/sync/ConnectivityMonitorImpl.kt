@@ -47,6 +47,13 @@ class ConnectivityMonitorImpl @Inject constructor(
                 trySend(true)
             }
 
+            override fun onCapabilitiesChanged(
+                network: Network,
+                networkCapabilities: NetworkCapabilities
+            ) {
+                trySend(isNetworkAvailable())
+            }
+
             override fun onLost(network: Network) {
                 trySend(false)
             }

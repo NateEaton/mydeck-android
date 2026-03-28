@@ -127,14 +127,15 @@ class LoadBookmarksUseCase @Inject constructor(
     private suspend fun enqueueBatchArticleLoader() {
         try {
             val syncConstraints = settingsDataStore.getContentSyncConstraints()
+            val downloadImages = settingsDataStore.isDownloadImagesEnabled()
 
             val constraintsBuilder = Constraints.Builder()
-            if (syncConstraints.wifiOnly) {
+            if (downloadImages && syncConstraints.wifiOnly) {
                 constraintsBuilder.setRequiredNetworkType(NetworkType.UNMETERED)
             } else {
                 constraintsBuilder.setRequiredNetworkType(NetworkType.CONNECTED)
             }
-            if (!syncConstraints.allowOnBatterySaver) {
+            if (downloadImages && !syncConstraints.allowOnBatterySaver) {
                 constraintsBuilder.setRequiresBatteryNotLow(true)
             }
 
@@ -147,7 +148,9 @@ class LoadBookmarksUseCase @Inject constructor(
                 ExistingWorkPolicy.KEEP,
                 request
             )
-            Timber.d("Batch article loader enqueued (wifiOnly=${syncConstraints.wifiOnly}, batterySaver=${syncConstraints.allowOnBatterySaver})")
+            Timber.d(
+                "Batch article loader enqueued (downloadImages=$downloadImages, wifiOnly=${syncConstraints.wifiOnly}, batterySaver=${syncConstraints.allowOnBatterySaver})"
+            )
         } catch (e: Exception) {
             Timber.w(e, "Failed to enqueue batch article loader")
         }

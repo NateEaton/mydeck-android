@@ -665,6 +665,10 @@ fun BookmarkDetailHost(
                     onToggleArticleImages = {
                         viewModel.onToggleArticleImages(uiState.bookmark.bookmarkId)
                     },
+                    onRemoveDownloadedContent = {
+                        viewModel.onRemoveDownloadedContent(uiState.bookmark.bookmarkId)
+                        detailOverlay = DetailOverlay.NONE
+                    },
                     hasResources = uiState.bookmark.hasResources,
                     isImageToggleEnabled = uiState.bookmark.isContentDownloaded,
                     isImageToggleLoading = imageToggleLoading

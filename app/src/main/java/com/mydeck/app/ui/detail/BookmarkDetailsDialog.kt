@@ -31,6 +31,7 @@ import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Subject
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Public
+import androidx.compose.material.icons.outlined.CloudOff
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material.icons.outlined.Launch
@@ -85,6 +86,7 @@ fun BookmarkDetailsDialog(
     canRefreshContent: Boolean = false,
     onEditMetadata: () -> Unit = {},
     onToggleArticleImages: () -> Unit = {},
+    onRemoveDownloadedContent: () -> Unit = {},
     hasResources: Boolean? = null,
     isImageToggleEnabled: Boolean = false,
     isImageToggleLoading: Boolean = false
@@ -288,6 +290,42 @@ fun BookmarkDetailsDialog(
                     onLabelsUpdate(labels)
                 }
             )
+
+            // Offline Status Section
+            if (bookmark.isContentDownloaded) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.CloudOff,
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = stringResource(R.string.sync_content_automatic), // "Available offline"
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = if (bookmark.hasResources == true)
+                                stringResource(R.string.detail_images_downloaded)
+                            else
+                                stringResource(R.string.detail_images_from_network),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    TextButton(onClick = onRemoveDownloadedContent) {
+                        Text(stringResource(R.string.sync_storage_clear))
+                    }
+                }
+            }
 
             if (canRefreshContent) {
                 Card(

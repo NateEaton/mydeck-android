@@ -10,6 +10,7 @@ import com.mydeck.app.domain.model.TypographySettings
 import com.mydeck.app.domain.sync.ContentSyncConstraints
 import com.mydeck.app.domain.sync.ContentSyncMode
 import com.mydeck.app.domain.sync.DateRangeParams
+import com.mydeck.app.domain.sync.OfflineContentScope
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.datetime.Instant
 
@@ -19,6 +20,8 @@ interface SettingsDataStore {
     val urlFlow: StateFlow<String?>
     val initialSyncPerformedFlow: StateFlow<Boolean>
     val themeFlow: StateFlow<String?>
+    val lastSyncTimestampFlow: StateFlow<String?>
+    val lastContentSyncTimestampFlow: StateFlow<String?>
     fun saveToken(token: String)
     fun saveUrl(url: String)
     suspend fun saveLastBookmarkTimestamp(timestamp: Instant)
@@ -72,6 +75,12 @@ interface SettingsDataStore {
     suspend fun saveClearContentOnArchiveEnabled(enabled: Boolean)
     suspend fun isIncludeArchivedContentInSyncEnabled(): Boolean
     suspend fun saveIncludeArchivedContentInSyncEnabled(enabled: Boolean)
+    suspend fun isOfflineReadingEnabled(): Boolean
+    suspend fun saveOfflineReadingEnabled(enabled: Boolean)
+    suspend fun getOfflineContentScope(): OfflineContentScope
+    suspend fun saveOfflineContentScope(scope: OfflineContentScope)
+    suspend fun getOfflineImageStorageLimit(): com.mydeck.app.domain.sync.OfflineImageStorageLimit
+    suspend fun saveOfflineImageStorageLimit(limit: com.mydeck.app.domain.sync.OfflineImageStorageLimit)
 
     // Typography settings
     val typographySettingsFlow: StateFlow<TypographySettings>

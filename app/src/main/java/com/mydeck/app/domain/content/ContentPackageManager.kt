@@ -264,6 +264,7 @@ class ContentPackageManager @Inject constructor(
         }
         contentPackageDao.deleteResources(bookmarkId)
         contentPackageDao.deletePackage(bookmarkId)
+        bookmarkDao.deleteArticleContent(bookmarkId)
         cachedAnnotationDao.deleteAnnotationsForBookmark(bookmarkId)
         bookmarkDao.updateContentState(bookmarkId, BookmarkEntity.ContentState.NOT_ATTEMPTED.value, null)
         Timber.d("Deleted content package for $bookmarkId")
@@ -303,6 +304,7 @@ class ContentPackageManager @Inject constructor(
      */
     suspend fun deleteAllContent() {
         contentPackageDao.deleteAll()
+        bookmarkDao.deleteAllArticleContent()
         cachedAnnotationDao.deleteAll()
         offlineContentDir.listFiles()?.forEach { it.deleteRecursively() }
         bookmarkDao.resetAllContentState()

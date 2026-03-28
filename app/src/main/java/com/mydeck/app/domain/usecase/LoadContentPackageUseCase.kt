@@ -68,6 +68,21 @@ class LoadContentPackageUseCase @Inject constructor(
         )
     }
 
+    suspend fun executeTextOnlyOverwrite(bookmarkId: String): Result {
+        val bookmark = bookmarkRepository.getBookmarkById(bookmarkId)
+        if (bookmark.type is Bookmark.Type.Video || bookmark.type is Bookmark.Type.Picture) {
+            return Result.PermanentFailure("Cannot do text-only overwrite for media")
+        }
+        if (!connectivityMonitor.isNetworkAvailable()) {
+            return Result.TransientFailure("Offline")
+        }
+        return fetchAndCommit(
+            bookmarkId = bookmarkId,
+            bookmark = bookmark,
+            forceTextOnly = true
+        )
+    }
+
     suspend fun execute(
         bookmarkId: String,
         onProgress: ((Float) -> Unit)? = null
@@ -127,13 +142,14 @@ class LoadContentPackageUseCase @Inject constructor(
         bookmarkId: String,
         bookmark: Bookmark,
         onProgress: ((Float) -> Unit)? = null,
-        forceResources: Boolean = false
+        forceResources: Boolean = false,
+        forceTextOnly: Boolean = false
     ): Result {
         return try {
             onProgress?.invoke(0.15f)
             val downloadImages = settingsDataStore.isDownloadImagesEnabled()
             val shouldFetchResources =
-                forceResources || bookmark.type is Bookmark.Type.Picture || downloadImages
+                !forceTextOnly && (forceResources || bookmark.type is Bookmark.Type.Picture || downloadImages)
             val result = if (shouldFetchResources) {
                 multipartSyncClient.fetchContentPackages(listOf(bookmarkId))
             } else {

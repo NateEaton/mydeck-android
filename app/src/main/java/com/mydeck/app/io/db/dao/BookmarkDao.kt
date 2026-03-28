@@ -260,6 +260,9 @@ interface BookmarkDao {
     @Query("DELETE FROM article_content WHERE bookmarkId = :bookmarkId")
     suspend fun deleteArticleContent(bookmarkId: String)
 
+    @Query("DELETE FROM article_content")
+    suspend fun deleteAllArticleContent()
+
     @Transaction
     @Query("SELECT * FROM bookmarks")
     suspend fun getAllBookmarksWithContent(): List<BookmarkWithArticleContent>
@@ -680,6 +683,50 @@ interface BookmarkDao {
     suspend fun getBookmarkIdsEligibleForContentFetch(includeArchived: Boolean = true): List<String>
 
     @Query("""
+        SELECT b.id
+        FROM bookmarks b
+        INNER JOIN content_package cp ON cp.bookmarkId = b.id
+        WHERE b.isLocalDeleted = 0
+        AND b.type = 'article'
+        AND b.contentState IN (1, 2)
+        AND cp.hasResources = :hasResources
+        AND (:includeArchived = 1 OR b.isArchived = 0)
+        ORDER BY b.created DESC
+    """)
+    suspend fun getManagedArticleIdsForResourceMode(
+        includeArchived: Boolean,
+        hasResources: Boolean
+    ): List<String>
+
+    @Query("""
+        SELECT b.id
+        FROM bookmarks b
+        WHERE b.isLocalDeleted = 0
+        AND b.isArchived = 1
+        AND b.contentState IN (1, 2)
+        ORDER BY b.created DESC
+    """)
+    suspend fun getArchivedBookmarkIdsWithStoredContent(): List<String>
+
+    @Query("""
+        UPDATE bookmarks
+        SET contentState = 2,
+            contentFailureReason = 'Legacy article cache needs multipart refresh'
+        WHERE id IN (
+            SELECT b.id
+            FROM bookmarks b
+            INNER JOIN article_content ac ON ac.bookmarkId = b.id
+            LEFT JOIN content_package cp ON cp.bookmarkId = b.id
+            WHERE b.isLocalDeleted = 0
+            AND b.contentState = 1
+            AND cp.bookmarkId IS NULL
+            AND (b.hasArticle = 1 OR b.type = 'photo')
+            AND (:includeArchived = 1 OR b.isArchived = 0)
+        )
+    """)
+    suspend fun markLegacyCachedContentDirtyWithoutPackage(includeArchived: Boolean)
+
+    @Query("""
         SELECT b.id FROM bookmarks b
         WHERE b.isLocalDeleted = 0 AND b.contentState IN (0, 2)
         AND (b.hasArticle = 1 OR b.type = 'photo')
@@ -692,4 +739,16 @@ interface BookmarkDao {
         toEpoch: Long,
         includeArchived: Boolean = true
     ): List<String>
+
+    @Query("""
+        SELECT b.id
+        FROM bookmarks b
+        INNER JOIN content_package cp ON cp.bookmarkId = b.id
+        WHERE b.isLocalDeleted = 0
+        AND b.contentState = 1
+        AND cp.hasResources = 1
+        AND (:includeArchived = 1 OR b.isArchived = 0)
+        ORDER BY b.created ASC
+    """)
+    suspend fun getOldestBookmarkIdsWithResources(includeArchived: Boolean): List<String>
 }

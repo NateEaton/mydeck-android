@@ -258,13 +258,41 @@ fun BookmarkCompactCard(
                     overflow = TextOverflow.Ellipsis
                 )
                 Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = bookmark.siteName ?: bookmark.url,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    // Compact reading progress badge
+                    if (bookmark.readProgress > 0 && bookmark.readProgress < 100) {
+                        Box(
+                            modifier = Modifier
+                                .padding(end = 6.dp)
+                                .size(14.dp)
+                        ) {
+                            CircularProgressIndicator(
+                                progress = { bookmark.readProgress / 100f },
+                                modifier = Modifier.fillMaxSize(),
+                                color = MaterialTheme.colorScheme.primary,
+                                strokeWidth = 2.dp,
+                                trackColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                            )
+                        }
+                    } else if (bookmark.readProgress == 100) {
+                        Icon(
+                            imageVector = Icons.Outlined.Check,
+                            contentDescription = stringResource(R.string.action_is_read),
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier
+                                .padding(end = 4.dp)
+                                .size(16.dp)
+                        )
+                    }
+
+                    Text(
+                        text = bookmark.siteName ?: bookmark.url,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
             }
             
             BookmarkCardActions(
@@ -396,18 +424,7 @@ private fun BookmarkCardActions(
                     onClickOpenUrl(bookmark.url)
                 }
             )
-            if (bookmark.offlineState != BookmarkListItem.OfflineState.NOT_DOWNLOADED) {
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.sync_remove_downloaded_content)) },
-                    leadingIcon = {
-                        Icon(Icons.Outlined.CloudOff, contentDescription = null)
-                    },
-                    onClick = {
-                        expanded = false
-                        onRemoveDownloadedContent(bookmark.id)
-                    }
-                )
-            }
+
             DropdownMenuItem(
                 text = { Text(stringResource(R.string.action_delete)) },
                 leadingIcon = {
