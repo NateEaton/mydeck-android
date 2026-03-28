@@ -27,6 +27,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -133,15 +134,66 @@ private fun BookmarkShimmerBox(modifier: Modifier = Modifier) {
     )
 }
 
+private val ThumbnailStatusBadgeSize = 28.dp
+private val ThumbnailStatusIconSize = 18.dp
+private val ThumbnailStatusProgressSize = 20.dp
+private val CompactStatusRailWidth = 24.dp
+private val CompactStatusSlotSize = 20.dp
+private val CompactStatusIconSize = 18.dp
+private val CompactCardMinHeight = 96.dp
+private val MosaicOfflineBadgeBottomInset = 96.dp
+
+@Composable
+private fun ThumbnailReadingStatusIndicator(
+    readProgress: Int,
+    modifier: Modifier = Modifier
+) {
+    if (readProgress <= 0) return
+
+    Box(
+        modifier = modifier
+            .size(ThumbnailStatusBadgeSize)
+            .background(
+                color = Color.Gray.copy(alpha = 0.5f),
+                shape = CircleShape
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        if (readProgress == 100) {
+            Icon(
+                imageVector = Icons.Filled.Check,
+                contentDescription = stringResource(R.string.action_mark_read),
+                tint = Color.White,
+                modifier = Modifier.size(ThumbnailStatusIconSize)
+            )
+        } else {
+            Canvas(modifier = Modifier.size(ThumbnailStatusProgressSize)) {
+                val strokeWidth = 2.dp.toPx()
+                val diameter = size.minDimension - strokeWidth
+                val sweepAngle = (readProgress.coerceIn(0, 100) / 100f) * 360f
+                drawArc(
+                    color = Color.White,
+                    startAngle = -90f,
+                    sweepAngle = sweepAngle,
+                    useCenter = false,
+                    size = Size(diameter, diameter),
+                    style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
+                )
+            }
+        }
+    }
+}
+
 @Composable
 private fun OfflineStateIndicator(
     offlineState: BookmarkListItem.OfflineState,
-    badgeSize: Dp = 24.dp,
-    iconSize: Dp = 16.dp
+    modifier: Modifier = Modifier,
+    badgeSize: Dp = ThumbnailStatusBadgeSize,
+    iconSize: Dp = ThumbnailStatusIconSize
 ) {
     if (offlineState == BookmarkListItem.OfflineState.NOT_DOWNLOADED) return
     Box(
-        modifier = Modifier
+        modifier = modifier
             .size(badgeSize)
             .background(
                 color = Color.Gray.copy(alpha = 0.5f),
@@ -162,7 +214,11 @@ private fun OfflineStateIndicator(
 }
 
 @Composable
-private fun CompactReadingStatusIndicator(readProgress: Int) {
+private fun CompactReadingStatusIndicator(
+    readProgress: Int,
+    modifier: Modifier = Modifier,
+    iconSize: Dp = CompactStatusIconSize
+) {
     if (readProgress <= 0) return
     val iconTint = MaterialTheme.colorScheme.onSurfaceVariant
     if (readProgress == 100) {
@@ -170,7 +226,7 @@ private fun CompactReadingStatusIndicator(readProgress: Int) {
             imageVector = Icons.Filled.Check,
             contentDescription = null,
             tint = iconTint,
-            modifier = Modifier.size(18.dp)
+            modifier = modifier.size(iconSize)
         )
     } else {
         val progressColor = if (MaterialTheme.colorScheme.background.luminance() > 0.5f) {
@@ -178,29 +234,28 @@ private fun CompactReadingStatusIndicator(readProgress: Int) {
         } else {
             Color.LightGray
         }
-        Box(
-            modifier = Modifier.size(18.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            Canvas(modifier = Modifier.size(16.dp)) {
-                val strokeWidth = 2.dp.toPx()
-                val diameter = size.minDimension
-                val sweepAngle = (readProgress / 100f) * 360f
-                drawArc(
-                    color = progressColor,
-                    startAngle = -90f,
-                    sweepAngle = sweepAngle,
-                    useCenter = false,
-                    size = Size(diameter - strokeWidth, diameter - strokeWidth),
-                    style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
-                )
-            }
+        Canvas(modifier = modifier.size(iconSize)) {
+            val strokeWidth = 2.dp.toPx()
+            val diameter = size.minDimension - strokeWidth
+            val sweepAngle = (readProgress.coerceIn(0, 100) / 100f) * 360f
+            drawArc(
+                color = progressColor,
+                startAngle = -90f,
+                sweepAngle = sweepAngle,
+                useCenter = false,
+                size = Size(diameter, diameter),
+                style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
+            )
         }
     }
 }
 
 @Composable
-private fun CompactOfflineStateIndicator(offlineState: BookmarkListItem.OfflineState) {
+private fun CompactOfflineStateIndicator(
+    offlineState: BookmarkListItem.OfflineState,
+    modifier: Modifier = Modifier,
+    iconSize: Dp = CompactStatusIconSize
+) {
     if (offlineState == BookmarkListItem.OfflineState.NOT_DOWNLOADED) return
     Icon(
         imageVector = when (offlineState) {
@@ -209,8 +264,55 @@ private fun CompactOfflineStateIndicator(offlineState: BookmarkListItem.OfflineS
         },
         contentDescription = null,
         tint = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = Modifier.size(18.dp)
+        modifier = modifier.size(iconSize)
     )
+}
+
+@Composable
+private fun CompactStatusRail(
+    bookmark: BookmarkListItem,
+    faviconSize: Dp,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier
+            .width(CompactStatusRailWidth)
+            .fillMaxHeight(),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Box(
+            modifier = Modifier.size(faviconSize),
+            contentAlignment = Alignment.Center
+        ) {
+            AsyncImage(
+                model = ImageRequest.Builder(LocalContext.current)
+                    .data(bookmark.iconSrc)
+                    .crossfade(true)
+                    .build(),
+                contentDescription = "site icon",
+                contentScale = ContentScale.Fit,
+                modifier = Modifier.size(faviconSize),
+            )
+        }
+
+        Spacer(Modifier.weight(1f))
+
+        Box(
+            modifier = Modifier.size(CompactStatusSlotSize),
+            contentAlignment = Alignment.Center
+        ) {
+            CompactReadingStatusIndicator(readProgress = bookmark.readProgress)
+        }
+
+        Spacer(Modifier.weight(1f))
+
+        Box(
+            modifier = Modifier.size(CompactStatusSlotSize),
+            contentAlignment = Alignment.Center
+        ) {
+            CompactOfflineStateIndicator(offlineState = bookmark.offlineState)
+        }
+    }
 }
 
 val LocalIsWideLayout = compositionLocalOf { false }
@@ -292,41 +394,19 @@ fun BookmarkMosaicCard(
                     }
                 }
 
-                // Top-right indicators: read progress + offline state
-                Column(
+                ThumbnailReadingStatusIndicator(
+                    readProgress = bookmark.readProgress,
                     modifier = Modifier
                         .align(Alignment.TopEnd)
-                        .padding(top = 8.dp, end = 8.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    if (bookmark.readProgress > 0) {
-                        Box(
-                            modifier = Modifier
-                                .size(28.dp)
-                                .background(
-                                    color = Color.Gray.copy(alpha = 0.5f),
-                                    shape = CircleShape
-                                ),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            if (bookmark.readProgress == 100) {
-                                Icon(
-                                    imageVector = Icons.Filled.Check,
-                                    contentDescription = stringResource(R.string.action_mark_read),
-                                    tint = Color.White,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            } else {
-                                CircularProgressIndicator(
-                                    progress = bookmark.readProgress,
-                                    modifier = Modifier.size(24.dp)
-                                )
-                            }
-                        }
-                    }
-                    OfflineStateIndicator(bookmark.offlineState)
-                }
+                        .padding(top = 8.dp, end = 8.dp)
+                )
+                // Keep the offline badge low on the thumbnail, but above the bottom overlay actions.
+                OfflineStateIndicator(
+                    offlineState = bookmark.offlineState,
+                    modifier = Modifier
+                        .align(Alignment.BottomStart)
+                        .padding(start = 8.dp, bottom = MosaicOfflineBadgeBottomInset)
+                )
 
                 // Darker, taller gradient overlay for stronger contrast
                 Box(
@@ -665,51 +745,18 @@ private fun BookmarkGridCardMobilePortrait(
                         }
                     }
 
-                    // Top-right indicators: read progress + offline state
-                    Column(
+                    ThumbnailReadingStatusIndicator(
+                        readProgress = bookmark.readProgress,
                         modifier = Modifier
                             .align(Alignment.TopEnd)
-                            .padding(4.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        if (bookmark.readProgress > 0) {
-                            Box(
-                                modifier = Modifier
-                                    .size(28.dp)
-                                    .background(
-                                        color = Color.Gray.copy(alpha = 0.5f),
-                                        shape = CircleShape
-                                    ),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                if (bookmark.readProgress == 100) {
-                                    Icon(
-                                        imageVector = Icons.Filled.Check,
-                                        contentDescription = stringResource(R.string.action_mark_read),
-                                        tint = Color.White,
-                                        modifier = Modifier.size(16.dp)
-                                    )
-                                } else {
-                                    Canvas(modifier = Modifier.size(20.dp)) {
-                                        val progressColor = Color.White
-                                        val strokeWidth = 2.dp.toPx()
-                                        val diameter = size.minDimension
-                                        val sweepAngle = (bookmark.readProgress / 100f) * 360f
-                                        drawArc(
-                                            color = progressColor,
-                                            startAngle = -90f,
-                                            sweepAngle = sweepAngle,
-                                            useCenter = false,
-                                            size = Size(diameter - strokeWidth, diameter - strokeWidth),
-                                            style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                        OfflineStateIndicator(bookmark.offlineState)
-                    }
+                            .padding(4.dp)
+                    )
+                    OfflineStateIndicator(
+                        offlineState = bookmark.offlineState,
+                        modifier = Modifier
+                            .align(Alignment.BottomStart)
+                            .padding(4.dp)
+                    )
                 }
 
                 Column(
@@ -990,53 +1037,18 @@ private fun BookmarkGridCardNarrow(
                         )
                     }
                 }
-                // Top-right indicators: read progress + offline state
-                Column(
+                ThumbnailReadingStatusIndicator(
+                    readProgress = bookmark.readProgress,
                     modifier = Modifier
                         .align(Alignment.TopEnd)
-                        .padding(4.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    if (bookmark.readProgress > 0) {
-                        Box(
-                            modifier = Modifier
-                                .size(28.dp)
-                                .background(
-                                    color = Color.Gray.copy(alpha = 0.5f),
-                                    shape = CircleShape
-                                ),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            if (bookmark.readProgress == 100) {
-                                Icon(
-                                    imageVector = Icons.Filled.Check,
-                                    contentDescription = stringResource(R.string.action_mark_read),
-                                    tint = Color.White,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                            } else {
-                                Canvas(
-                                    modifier = Modifier.size(20.dp)
-                                ) {
-                                    val progressColor = Color.White
-                                    val strokeWidth = 2.dp.toPx()
-                                    val diameter = size.minDimension
-                                    val sweepAngle = (bookmark.readProgress / 100f) * 360f
-                                    drawArc(
-                                        color = progressColor,
-                                        startAngle = -90f,
-                                        sweepAngle = sweepAngle,
-                                        useCenter = false,
-                                        size = Size(diameter - strokeWidth, diameter - strokeWidth),
-                                        style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
-                                    )
-                                }
-                            }
-                        }
-                    }
-                    OfflineStateIndicator(bookmark.offlineState)
-                }
+                        .padding(4.dp)
+                )
+                OfflineStateIndicator(
+                    offlineState = bookmark.offlineState,
+                    modifier = Modifier
+                        .align(Alignment.BottomStart)
+                        .padding(4.dp)
+                )
             }
 
             // Content
@@ -1316,51 +1328,18 @@ private fun BookmarkGridCardWide(
                     }
                 }
 
-                // Top-right indicators: read progress + offline state
-                Column(
+                ThumbnailReadingStatusIndicator(
+                    readProgress = bookmark.readProgress,
                     modifier = Modifier
                         .align(Alignment.TopEnd)
-                        .padding(6.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    if (bookmark.readProgress > 0) {
-                        Box(
-                            modifier = Modifier
-                                .size(32.dp)
-                                .background(
-                                    color = Color.Gray.copy(alpha = 0.5f),
-                                    shape = CircleShape
-                                ),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            if (bookmark.readProgress == 100) {
-                                Icon(
-                                    imageVector = Icons.Filled.Check,
-                                    contentDescription = stringResource(R.string.action_mark_read),
-                                    tint = Color.White,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                            } else {
-                                Canvas(modifier = Modifier.size(22.dp)) {
-                                    val progressColor = Color.White
-                                    val strokeWidth = 2.dp.toPx()
-                                    val diameter = size.minDimension
-                                    val sweepAngle = (bookmark.readProgress / 100f) * 360f
-                                    drawArc(
-                                        color = progressColor,
-                                        startAngle = -90f,
-                                        sweepAngle = sweepAngle,
-                                        useCenter = false,
-                                        size = Size(diameter - strokeWidth, diameter - strokeWidth),
-                                        style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
-                                    )
-                                }
-                            }
-                        }
-                    }
-                    OfflineStateIndicator(bookmark.offlineState)
-                }
+                        .padding(6.dp)
+                )
+                OfflineStateIndicator(
+                    offlineState = bookmark.offlineState,
+                    modifier = Modifier
+                        .align(Alignment.BottomStart)
+                        .padding(6.dp)
+                )
             }
 
             // Content below image
@@ -1656,31 +1635,12 @@ private fun BookmarkCompactCardNarrow(
                 onLongClickLabel = stringResource(R.string.long_press_for_options)
             )
             .padding(horizontal = 16.dp, vertical = 8.dp)
+            .heightIn(min = CompactCardMinHeight)
     ) {
-        // Left column: favicon + reading status + download status
-        Column(
-            modifier = Modifier.width(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            // Favicon (always takes 24dp height to reserve space)
-            AsyncImage(
-                model = ImageRequest.Builder(LocalContext.current).data(bookmark.iconSrc)
-                    .crossfade(true).build(),
-                contentDescription = "site icon",
-                contentScale = ContentScale.Fit,
-                modifier = Modifier
-                    .padding(top = 2.dp)
-                    .width(24.dp)
-                    .height(24.dp),
-            )
-
-            // Reading status icon
-            CompactReadingStatusIndicator(readProgress = bookmark.readProgress)
-
-            // Download status icon
-            CompactOfflineStateIndicator(offlineState = bookmark.offlineState)
-        }
+        CompactStatusRail(
+            bookmark = bookmark,
+            faviconSize = 24.dp
+        )
 
         Spacer(Modifier.width(12.dp))
 
@@ -1896,30 +1856,12 @@ private fun BookmarkCompactCardWide(
                 onLongClickLabel = stringResource(R.string.long_press_for_options)
             )
             .padding(horizontal = 16.dp, vertical = 8.dp)
+            .heightIn(min = CompactCardMinHeight)
     ) {
-        // Left column: favicon + reading status + download status
-        Column(
-            modifier = Modifier.width(20.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(6.dp)
-        ) {
-            // Favicon (always takes 20dp height to reserve space)
-            AsyncImage(
-                model = ImageRequest.Builder(LocalContext.current).data(bookmark.iconSrc)
-                    .crossfade(true).build(),
-                contentDescription = "site icon",
-                contentScale = ContentScale.Fit,
-                modifier = Modifier
-                    .width(20.dp)
-                    .height(20.dp),
-            )
-
-            // Reading status icon
-            CompactReadingStatusIndicator(readProgress = bookmark.readProgress)
-
-            // Download status icon
-            CompactOfflineStateIndicator(offlineState = bookmark.offlineState)
-        }
+        CompactStatusRail(
+            bookmark = bookmark,
+            faviconSize = 20.dp
+        )
 
         Spacer(Modifier.width(8.dp))
 

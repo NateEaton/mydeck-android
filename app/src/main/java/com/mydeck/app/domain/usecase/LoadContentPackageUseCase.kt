@@ -48,7 +48,10 @@ class LoadContentPackageUseCase @Inject constructor(
      * Used for annotation-driven refresh where HTML needs updating even though the
      * bookmark's updated timestamp hasn't changed.
      */
-    suspend fun executeForceRefresh(bookmarkId: String): Result {
+    suspend fun executeForceRefresh(
+        bookmarkId: String,
+        forceResources: Boolean = false
+    ): Result {
         val bookmark = bookmarkRepository.getBookmarkById(bookmarkId)
 
         if (bookmark.type is Bookmark.Type.Video) {
@@ -58,7 +61,11 @@ class LoadContentPackageUseCase @Inject constructor(
             return Result.TransientFailure("Offline")
         }
 
-        return fetchAndCommit(bookmarkId, bookmark)
+        return fetchAndCommit(
+            bookmarkId = bookmarkId,
+            bookmark = bookmark,
+            forceResources = forceResources
+        )
     }
 
     suspend fun execute(
@@ -119,12 +126,15 @@ class LoadContentPackageUseCase @Inject constructor(
     private suspend fun fetchAndCommit(
         bookmarkId: String,
         bookmark: Bookmark,
-        onProgress: ((Float) -> Unit)? = null
+        onProgress: ((Float) -> Unit)? = null,
+        forceResources: Boolean = false
     ): Result {
         return try {
             onProgress?.invoke(0.15f)
             val downloadImages = settingsDataStore.isDownloadImagesEnabled()
-            val result = if (bookmark.type is Bookmark.Type.Picture || downloadImages) {
+            val shouldFetchResources =
+                forceResources || bookmark.type is Bookmark.Type.Picture || downloadImages
+            val result = if (shouldFetchResources) {
                 multipartSyncClient.fetchContentPackages(listOf(bookmarkId))
             } else {
                 multipartSyncClient.fetchTextOnly(listOf(bookmarkId))

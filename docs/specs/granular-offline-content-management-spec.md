@@ -4,6 +4,9 @@
 
 **IMPLEMENTED** on `feature/sync-multipart-v012` (2026-03-26). All features complete: global image download setting, per-article image toggle, remove downloaded content (detail + long-press), auto-clear on archive, sync scope filter, offline state indicators, and constraint feedback.
 
+Follow-up refinements proposed after tester review are tracked in
+`docs/specs/granular-offline-content-followup-spec.md`.
+
 ## Origin
 
 User feedback on the `feature/sync-multipart-v012` branch identified that the current offline

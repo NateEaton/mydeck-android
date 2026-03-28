@@ -29,7 +29,7 @@ The default layout. Each card has a **thumbnail** on the left and the title, sou
 
 ### Compact Layout
 
-A denser view that uses the site's **favicon** instead of a full thumbnail. Below the favicon, small icons show **reading progress** and **download status** (see below). Useful when you want to scan a long list quickly.
+A denser view that uses the site's **favicon** instead of a full thumbnail. A fixed status rail on the left shows the favicon at the top, **reading progress** in the middle, and **download status** near the bottom (see below). Useful when you want to scan a long list quickly.
 
 ### Mosaic Layout
 
@@ -47,7 +47,7 @@ All three layouts show the bookmark's reading status:
 - **Partial circle** — in progress; the arc angle represents how far through the article you've read
 - **Checkmark (✓)** — read (completed)
 
-In Grid and Mosaic layouts, these appear in the top-right corner of the thumbnail. In Compact layout, the reading status icon appears below the favicon.
+In Grid and Mosaic layouts, the reading status indicator appears in the top-right corner of the thumbnail. In Compact layout, it appears in the middle slot of the left status rail.
 
 Progress is tracked based on how far you scroll in the article — it reflects the farthest point you've reached, not your position when you close the bookmark.
 
@@ -61,7 +61,7 @@ All three layouts show whether a bookmark's content has been downloaded for offl
 - **Cloud outline** — text downloaded (without images)
 - **Cloud with checkmark** — fully downloaded (text and images)
 
-In Grid and Mosaic layouts, the download icon appears in the top-right corner of the thumbnail, below the reading progress. In Compact layout, it appears below the reading status icon.
+In Grid layout, the download icon appears near the lower-left edge of the thumbnail. In Mosaic layout, it appears in the lower-left area of the thumbnail above the title overlay. In Compact layout, it appears in the lower slot of the left status rail.
 
 ## Card Actions
 

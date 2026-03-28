@@ -597,7 +597,10 @@ class BookmarkDetailViewModel @Inject constructor(
                     Timber.i("Removed images for bookmark $bookmarkId (text retained)")
                 } else if (hasRes == false) {
                     // Lazy-images → full: download full content package
-                    val fetchResult = loadContentPackageUseCase.executeForceRefresh(bookmarkId)
+                    val fetchResult = loadContentPackageUseCase.executeForceRefresh(
+                        bookmarkId = bookmarkId,
+                        forceResources = true
+                    )
                     if (fetchResult is LoadContentPackageUseCase.Result.Success) {
                         Timber.i("Downloaded images for bookmark $bookmarkId")
                     } else {
