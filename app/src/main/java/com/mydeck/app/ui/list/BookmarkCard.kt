@@ -34,21 +34,21 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.CloudOff
-import androidx.compose.material.icons.automirrored.filled.OpenInNew
+import androidx.compose.material.icons.automirrored.filled.*
+import androidx.compose.material.icons.automirrored.outlined.*
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.CloudDone
-import androidx.compose.material.icons.filled.Movie
-import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.DownloadForOffline
 import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.ContentCopy
-import androidx.compose.material.icons.outlined.CloudQueue
+import androidx.compose.material.icons.outlined.DownloadForOffline
 import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.Inventory2
@@ -141,6 +141,7 @@ private val CompactStatusRailWidth = 32.dp
 private val CompactStatusSlotSize = 24.dp
 private val CompactStatusIconSize = 20.dp
 private val CompactCardMinHeight = 84.dp
+private val BookmarkDownloadIconSize = 14.dp
 private val MosaicOfflineBadgeBottomInset = 96.dp
 
 @Composable
@@ -203,8 +204,8 @@ private fun OfflineStateIndicator(
     ) {
         Icon(
             imageVector = when (offlineState) {
-                BookmarkListItem.OfflineState.DOWNLOADED_FULL -> Icons.Filled.CloudDone
-                else -> Icons.Outlined.CloudQueue
+                BookmarkListItem.OfflineState.DOWNLOADED_FULL -> Icons.Filled.DownloadForOffline
+                else -> Icons.Outlined.DownloadForOffline
             },
             contentDescription = null,
             tint = Color.White,
@@ -274,8 +275,8 @@ private fun CompactOfflineStateIndicator(
     if (offlineState == BookmarkListItem.OfflineState.NOT_DOWNLOADED) return
     Icon(
         imageVector = when (offlineState) {
-            BookmarkListItem.OfflineState.DOWNLOADED_FULL -> Icons.Filled.CloudDone
-            else -> Icons.Outlined.CloudQueue
+            BookmarkListItem.OfflineState.DOWNLOADED_FULL -> Icons.Filled.DownloadForOffline
+            else -> Icons.Outlined.DownloadForOffline
         },
         contentDescription = null,
         tint = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -433,14 +434,26 @@ fun BookmarkMosaicCard(
                         .padding(horizontal = 12.dp, vertical = 8.dp),
                     verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    // Top row: Title
-                    Text(
-                        text = bookmark.title,
-                        style = MaterialTheme.typography.titleMedium,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                        color = Color.White
-                    )
+                    // Top row: Title + Download status
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.Top
+                    ) {
+                        Text(
+                            text = bookmark.title,
+                            style = MaterialTheme.typography.titleMedium,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                            color = Color.White,
+                            modifier = Modifier.weight(1f)
+                        )
+                        Spacer(Modifier.width(4.dp))
+                        BookmarkDownloadStatusIndicator(
+                            offlineState = bookmark.offlineState,
+                            modifier = Modifier.padding(top = 2.dp),
+                            isMosaic = true
+                        )
+                    }
 
                     // Bottom row: Action icons
                     Row(
@@ -776,19 +789,18 @@ private fun BookmarkGridCardMobilePortrait(
                             text = bookmark.siteName,
                             style = MaterialTheme.typography.labelMedium,
                             maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.weight(1f)
+                            overflow = TextOverflow.Ellipsis
                         )
                         bookmark.readingTime?.let {
                             Text(
-                                text = " · ",
-                                style = MaterialTheme.typography.labelMedium
-                            )
-                            Text(
-                                text = "$it min",
+                                text = " · $it min",
                                 style = MaterialTheme.typography.labelMedium
                             )
                         }
+                        BookmarkDownloadStatusIndicator(
+                            offlineState = bookmark.offlineState,
+                            modifier = Modifier.padding(start = 4.dp)
+                        )
                     }
 
                     Spacer(modifier = Modifier.height(if (titleLineCount == 1) 8.dp else 6.dp))
@@ -1025,7 +1037,6 @@ private fun BookmarkGridCardNarrow(
                     .weight(1f)
                     .padding(8.dp)
             ) {
-                // Title
                 Text(
                     text = bookmark.title,
                     style = MaterialTheme.typography.titleMedium,
@@ -1053,19 +1064,18 @@ private fun BookmarkGridCardNarrow(
                         text = bookmark.siteName,
                         style = MaterialTheme.typography.labelMedium,
                         maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f)
+                        overflow = TextOverflow.Ellipsis
                     )
                     bookmark.readingTime?.let {
                         Text(
-                            text = " · ",
-                            style = MaterialTheme.typography.labelMedium
-                        )
-                        Text(
-                            text = "$it min",
+                            text = " · $it min",
                             style = MaterialTheme.typography.labelMedium
                         )
                     }
+                    BookmarkDownloadStatusIndicator(
+                        offlineState = bookmark.offlineState,
+                        modifier = Modifier.padding(start = 4.dp)
+                    )
                 }
 
                 // Labels row with tappable chips
@@ -1303,7 +1313,6 @@ private fun BookmarkGridCardWide(
             Column(
                 modifier = if (isInGrid) contentModifier.weight(1f) else contentModifier
             ) {
-                // Title
                 Text(
                     text = bookmark.title,
                     style = MaterialTheme.typography.titleMedium,
@@ -1331,19 +1340,18 @@ private fun BookmarkGridCardWide(
                         text = bookmark.siteName,
                         style = MaterialTheme.typography.labelMedium,
                         maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f)
+                        overflow = TextOverflow.Ellipsis
                     )
                     bookmark.readingTime?.let {
                         Text(
-                            text = " · ",
-                            style = MaterialTheme.typography.labelMedium
-                        )
-                        Text(
-                            text = "$it min",
+                            text = " · $it min",
                             style = MaterialTheme.typography.labelMedium
                         )
                     }
+                    BookmarkDownloadStatusIndicator(
+                        offlineState = bookmark.offlineState,
+                        modifier = Modifier.padding(start = 4.dp)
+                    )
                 }
 
                 // Labels row with tappable chips (single line, scrollable)
@@ -1489,7 +1497,26 @@ private fun BookmarkGridCardWide(
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun BookmarkDownloadStatusIndicator(
+    offlineState: BookmarkListItem.OfflineState,
+    modifier: Modifier = Modifier,
+    isMosaic: Boolean = false
+) {
+    if (offlineState == BookmarkListItem.OfflineState.NOT_DOWNLOADED) return
+    val isFull = offlineState == BookmarkListItem.OfflineState.DOWNLOADED_FULL
+    Icon(
+        imageVector = if (isFull) Icons.Filled.DownloadForOffline else Icons.Outlined.DownloadForOffline,
+        contentDescription = stringResource(if (isFull) R.string.notif_content_ready_title else R.string.action_download_title),
+        modifier = modifier.size(BookmarkDownloadIconSize),
+        tint = if (isMosaic) {
+            Color.White.copy(alpha = 0.6f)
+        } else {
+            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+        }
+    )
+}
+
 @Composable
 fun BookmarkCompactCard(
     bookmark: BookmarkListItem,
@@ -1596,7 +1623,6 @@ private fun BookmarkCompactCardNarrow(
 
         // Right column: title, site info, labels, actions
         Column(modifier = Modifier.weight(1f)) {
-            // Title
             Text(
                 text = bookmark.title,
                 style = MaterialTheme.typography.titleMedium,
@@ -1622,14 +1648,14 @@ private fun BookmarkCompactCardNarrow(
                 )
                 bookmark.readingTime?.let {
                     Text(
-                        text = " · ",
-                        style = MaterialTheme.typography.labelMedium
-                    )
-                    Text(
-                        text = "$it min",
+                        text = " · $it min",
                         style = MaterialTheme.typography.labelMedium
                     )
                 }
+                BookmarkDownloadStatusIndicator(
+                    offlineState = bookmark.offlineState,
+                    modifier = Modifier.padding(start = 4.dp)
+                )
             }
 
             // Labels row — all labels as tappable chips, single-line horizontal scroll
@@ -1821,7 +1847,6 @@ private fun BookmarkCompactCardWide(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Title
                 Text(
                     text = bookmark.title,
                     style = MaterialTheme.typography.titleMedium,
@@ -1899,6 +1924,10 @@ private fun BookmarkCompactCardWide(
                         style = MaterialTheme.typography.labelMedium
                     )
                 }
+                BookmarkDownloadStatusIndicator(
+                    offlineState = bookmark.offlineState,
+                    modifier = Modifier.padding(start = 4.dp)
+                )
 
                 // Labels inline after site name, single-line horizontal scroll
                 if (bookmark.labels.isNotEmpty()) {

@@ -379,6 +379,8 @@
     <string name="action_copy_image_url">Copy image URL</string>
     <string name="action_download_image">Download image</string>
     <string name="action_download_link">Download link</string>
+    <string name="action_download_title">Downloaded for offline reading</string>
+    <string name="notif_content_ready_title">Content ready offline</string>
     <string name="action_share_image">Share image</string>
     <string name="image_url_copied">Image URL copied</string>
     <string name="image_copied">Image copied</string>

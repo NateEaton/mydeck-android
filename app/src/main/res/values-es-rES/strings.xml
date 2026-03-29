@@ -388,6 +388,8 @@ other{}
     <string name="action_copy_image_url">Copiar URL de la imagen</string>
     <string name="action_download_image">Descargar imagen</string>
     <string name="action_download_link">Descargar enlace</string>
+    <string name="action_download_title">Downloaded for offline reading</string>
+    <string name="notif_content_ready_title">Content ready offline</string>
     <string name="action_share_image">Compartir imagen</string>
     <string name="image_url_copied">URL de la imagen copiada</string>
     <string name="image_copied">Imagen copiada</string>

@@ -404,6 +404,8 @@ other{}
     <string name="action_copy_image_url">Bild-URL kopieren</string>
     <string name="action_download_image">Bild herunterladen</string>
     <string name="action_download_link">Link herunterladen</string>
+    <string name="action_download_title">Downloaded for offline reading</string>
+    <string name="notif_content_ready_title">Content ready offline</string>
     <string name="action_share_image">Bild teilen</string>
     <string name="image_url_copied">Bild-URL kopiert</string>
     <string name="image_copied">Bild kopiert</string>
