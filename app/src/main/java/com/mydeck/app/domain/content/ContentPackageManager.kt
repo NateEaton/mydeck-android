@@ -3,6 +3,7 @@ package com.mydeck.app.domain.content
 import com.mydeck.app.io.db.dao.BookmarkDao
 import com.mydeck.app.io.db.dao.CachedAnnotationDao
 import com.mydeck.app.io.db.dao.ContentPackageDao
+import com.mydeck.app.io.db.model.ArticleContentEntity
 import com.mydeck.app.io.db.model.BookmarkEntity
 import com.mydeck.app.io.db.model.ContentPackageEntity
 import com.mydeck.app.io.db.model.ContentResourceEntity
@@ -192,6 +193,11 @@ class ContentPackageManager @Inject constructor(
             // Update content state
             bookmarkDao.updateContentState(bookmarkId, BookmarkEntity.ContentState.DOWNLOADED.value, null)
 
+            // Store HTML in Room for instant access via observeBookmarkWithArticleContent()
+            if (pkg.html != null) {
+                bookmarkDao.insertArticleContent(ArticleContentEntity(bookmarkId = bookmarkId, content = pkg.html))
+            }
+
             Timber.d("Package committed for $bookmarkId: kind=$packageKind, html=${pkg.html != null}, resources=${resourceEntities.size}")
             return true
         } catch (e: Exception) {
@@ -225,11 +231,13 @@ class ContentPackageManager @Inject constructor(
      *
      * @return true if the file was updated, false if the content directory doesn't exist
      */
-    fun updateHtml(bookmarkId: String, html: String): Boolean {
+    suspend fun updateHtml(bookmarkId: String, html: String): Boolean {
         val dir = File(offlineContentDir, bookmarkId)
         if (!dir.exists()) return false
         return try {
             File(dir, "index.html").writeText(html)
+            // Keep Room article_content in sync for instant reader display
+            bookmarkDao.insertArticleContent(ArticleContentEntity(bookmarkId = bookmarkId, content = html))
             true
         } catch (e: Exception) {
             Timber.e(e, "Failed to update HTML for $bookmarkId")

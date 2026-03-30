@@ -42,15 +42,19 @@ class MultipartSyncClient @Inject constructor(
     /**
      * Fetch HTML-only (no JSON metadata or resources) for the given bookmark IDs.
      * Used for lightweight annotation refresh where only the article HTML changed.
+     *
+     * @param hasResources When true, sends resourcePrefix="." so the server returns relative
+     *   image URLs (for bookmarks with downloaded images). When false, omits resourcePrefix
+     *   so the server returns absolute URLs (for text-only bookmarks where images load from network).
      */
-    suspend fun fetchHtmlOnly(bookmarkIds: List<String>): Result {
+    suspend fun fetchHtmlOnly(bookmarkIds: List<String>, hasResources: Boolean = true): Result {
         return fetchBatched(bookmarkIds, CONTENT_BATCH_SIZE) { batch ->
             SyncRequest(
                 id = batch,
                 withJson = false,
                 withHtml = true,
                 withResources = false,
-                resourcePrefix = "."
+                resourcePrefix = if (hasResources) "." else null
             )
         }
     }

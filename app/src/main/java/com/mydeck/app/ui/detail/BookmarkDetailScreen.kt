@@ -1240,7 +1240,7 @@ fun BookmarkDetailContent(
     var hasRestoredPosition by remember(hasArticleContent) { mutableStateOf(!needsRestore) }
     var isReaderContentReady by remember(
         uiState.bookmark.bookmarkId,
-        uiState.bookmark.articleContent,
+        uiState.bookmark.articleContent != null,
         uiState.bookmark.embed,
         contentMode
     ) {

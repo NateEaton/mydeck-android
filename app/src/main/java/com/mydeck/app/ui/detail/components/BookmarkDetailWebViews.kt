@@ -108,9 +108,11 @@ fun BookmarkDetailArticle(
     val readerThemePalette = remember(localContext, effectiveAppearance) {
         resolveReaderThemePalette(context = localContext, appearance = effectiveAppearance)
     }
+    // Key on articleContent presence (not the full string) so annotation-refresh HTML changes
+    // don't trigger a full WebView reload — those are handled via JS innerHTML replacement.
     val content = remember(
         uiState.bookmark.bookmarkId,
-        uiState.bookmark.articleContent,
+        uiState.bookmark.articleContent != null,
         uiState.bookmark.embed
     ) {
         mutableStateOf(uiState.bookmark.getContent(uiState.template, isSystemInDarkMode))
@@ -135,7 +137,7 @@ fun BookmarkDetailArticle(
     val latestThemePalette = rememberUpdatedState(readerThemePalette)
     val latestThemeScript = rememberUpdatedState(WebViewThemeBridge.applyTheme(readerThemePalette))
     val lastDeliveredAnnotationTap = remember { mutableStateOf<Pair<String, Long>?>(null) }
-    var hasReportedReady by remember(uiState.bookmark.bookmarkId, content.value) { mutableStateOf(false) }
+    var hasReportedReady by remember(uiState.bookmark.bookmarkId, uiState.bookmark.articleContent != null) { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
 
     fun applyTheme(webView: WebView) {
@@ -176,7 +178,7 @@ fun BookmarkDetailArticle(
 
     LaunchedEffect(
         uiState.bookmark.bookmarkId,
-        uiState.bookmark.articleContent,
+        uiState.bookmark.articleContent != null,
         uiState.bookmark.embed
     ) {
         content.value = uiState.bookmark.getContent(uiState.template, isSystemInDarkMode)

@@ -196,6 +196,10 @@ class BookmarkDetailViewModel @Inject constructor(
     private var annotationSyncJob: Job? = null
     private var contentRefreshJob: Job? = null
 
+    // Cached values to avoid DAO/filesystem queries on every combine emission
+    @Volatile private var cachedHasResources: Boolean? = null
+    @Volatile private var cachedHasOfflinePackage: Boolean? = null
+
     init {
         _bookmarkId.value?.let { initializeBookmark(it) }
     }
@@ -211,6 +215,8 @@ class BookmarkDetailViewModel @Inject constructor(
         initialReadProgress = 0
         bookmarkType = null
         isReadLocked = false
+        cachedHasResources = null
+        cachedHasOfflinePackage = null
         _contentLoadState.value = ContentLoadState.Idle
         _articleSearchState.value = ArticleSearchState()
         _annotationsState.value = AnnotationsState()
@@ -261,6 +267,8 @@ class BookmarkDetailViewModel @Inject constructor(
                             !effectiveBookmark.hasArticle && !effectiveBookmark.embed.isNullOrBlank()
                         when (effectiveBookmark.contentState) {
                             ContentState.DOWNLOADED -> {
+                                cachedHasResources = contentPackageManager.hasResources(id)
+                                cachedHasOfflinePackage = contentPackageManager.getContentDir(id) != null
                                 _contentLoadState.value = ContentLoadState.Loaded
                                 // Check for annotation changes from other clients
                                 if (contentPackageManager.getContentDir(id) != null) {
@@ -293,8 +301,10 @@ class BookmarkDetailViewModel @Inject constructor(
                         // Handle content availability
                         when (bookmark.contentState) {
                             ContentState.DOWNLOADED -> {
+                                cachedHasResources = contentPackageManager.hasResources(id)
+                                cachedHasOfflinePackage = contentPackageManager.getContentDir(id) != null
                                 _contentLoadState.value = ContentLoadState.Loaded
-                                if (contentPackageManager.getContentDir(id) != null) {
+                                if (cachedHasOfflinePackage == true) {
                                     // Content package on disk — check for annotation changes
                                     syncAnnotationsForContentPackage(id)
                                 } else {
@@ -386,26 +396,14 @@ class BookmarkDetailViewModel @Inject constructor(
                     Timber.e("Error loading template(s)")
                     UiState.Error
                 } else {
-                    // Check for local offline content package
-                    val localHtml = contentPackageManager.getHtmlContent(id)
-                    val effectiveArticleContent = localHtml ?: bookmark.articleContent
-                    val offlineBaseUrl = if (localHtml != null) {
+                    // Content comes from Room (both legacy and multipart paths).
+                    // Only check for offline content dir (cheap) to set the base URL
+                    // for WebViewAssetLoader image serving.
+                    val hasOfflinePackage = cachedHasOfflinePackage ?: (contentPackageManager.getContentDir(id) != null)
+                    val effectiveArticleContent = bookmark.articleContent
+                    val offlineBaseUrl = if (hasOfflinePackage) {
                         com.mydeck.app.domain.content.OfflineContentPathHandler.buildBaseUrl(id)
                     } else null
-
-                    val descNormalized = bookmark.description
-                        .replace(Regex("<[^>]*>"), "")
-                        .replace(Regex("\\s+"), " ")
-                        .trim()
-                    val effNormalized = effectiveArticleContent
-                        ?.replace(Regex("<[^>]*>"), "")
-                        ?.replace(Regex("\\s+"), " ")
-                        ?.trim()
-                    val hasUsefulBody = effNormalized != null && effNormalized.isNotEmpty() && effNormalized != descNormalized
-                    val isAbsoluteImage = bookmark.image.src.startsWith("http://") ||
-                        bookmark.image.src.startsWith("https://") ||
-                        bookmark.image.src.startsWith("data:") ||
-                        bookmark.image.src.startsWith("file://")
 
                     UiState.Success(
                         bookmark = Bookmark(
@@ -447,7 +445,7 @@ class BookmarkDetailViewModel @Inject constructor(
                             },
                             isContentDownloaded = bookmark.contentState == ContentState.DOWNLOADED || bookmark.contentState == ContentState.DIRTY,
                             offlineBaseUrl = offlineBaseUrl,
-                            hasResources = contentPackageManager.hasResources(id)
+                            hasResources = cachedHasResources ?: contentPackageManager.hasResources(id)
                         ),
                         updateBookmarkState = updateState,
                         template = template,
@@ -612,6 +610,8 @@ class BookmarkDetailViewModel @Inject constructor(
             } catch (e: Exception) {
                 Timber.e(e, "Error toggling article images for $bookmarkId")
             } finally {
+                cachedHasResources = contentPackageManager.hasResources(bookmarkId)
+                cachedHasOfflinePackage = contentPackageManager.getContentDir(bookmarkId) != null
                 _imageToggleLoading.value = false
                 _contentRefreshTrigger.value++
             }
@@ -636,7 +636,8 @@ class BookmarkDetailViewModel @Inject constructor(
      * Falls back to full multipart refresh if the lightweight path fails.
      */
     private suspend fun refreshAnnotationHtml(bookmarkId: String) {
-        val enrichedHtml = loadContentPackageUseCase.refreshHtmlForAnnotations(bookmarkId)
+        val hasResources = cachedHasResources ?: contentPackageManager.hasResources(bookmarkId) ?: false
+        val enrichedHtml = loadContentPackageUseCase.refreshHtmlForAnnotations(bookmarkId, hasResources)
         if (enrichedHtml != null) {
             cacheAnnotationSnapshot(bookmarkId)
             _annotationRefreshEvent.send(AnnotationRefreshEvent.HtmlRefresh(enrichedHtml))
@@ -655,7 +656,7 @@ class BookmarkDetailViewModel @Inject constructor(
      * Update annotation color attribute in the on-disk index.html.
      * Used for color changes where only the attribute value changes.
      */
-    private fun updateAnnotationColorOnDisk(bookmarkId: String, annotationIds: List<String>, color: String) {
+    private suspend fun updateAnnotationColorOnDisk(bookmarkId: String, annotationIds: List<String>, color: String) {
         var html = contentPackageManager.getHtmlContent(bookmarkId) ?: return
         for (id in annotationIds) {
             val escapedId = Regex.escape(id)
@@ -849,6 +850,10 @@ class BookmarkDetailViewModel @Inject constructor(
                         ContentLoadState.Failed(reason = pkgResult.reason, canRetry = true)
                     }
                 }
+            }
+            if (loadState == ContentLoadState.Loaded) {
+                cachedHasResources = contentPackageManager.hasResources(bookmarkId)
+                cachedHasOfflinePackage = contentPackageManager.getContentDir(bookmarkId) != null
             }
             _contentLoadState.value = loadState
         }
@@ -1744,6 +1749,9 @@ class BookmarkDetailViewModel @Inject constructor(
         data class ColorUpdate(val annotationIds: List<String>, val color: String) : AnnotationRefreshEvent()
         /** Replace .container innerHTML with fresh HTML. Used after create/delete. */
         data class HtmlRefresh(val containerHtml: String) : AnnotationRefreshEvent()
+    }
+
+    companion object {
     }
 
 }
