@@ -20,10 +20,10 @@ class OfflineContentPathHandler(
 
     override fun handle(path: String): WebResourceResponse? {
         // path is everything after the registered path prefix, e.g. "bookmarkId/image.jpeg"
+        
         val file = File(offlineContentDir, path)
 
         if (!file.exists() || !file.isFile) {
-            Timber.d("Offline content not found: $path")
             return null // Fall through to network
         }
 
@@ -36,6 +36,7 @@ class OfflineContentPathHandler(
         }
 
         val mimeType = guessMimeType(file.name)
+        
         return try {
             WebResourceResponse(mimeType, null, FileInputStream(file))
         } catch (e: Exception) {

@@ -18,6 +18,7 @@ import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toInstant
 import timber.log.Timber
+import java.io.File
 import javax.inject.Inject
 
 /**
@@ -311,7 +312,7 @@ class LoadContentPackageUseCase @Inject constructor(
             if (hasResources) {
                 html = rewriteToRelativeResourceUrls(bookmarkId, html)
             }
-
+            
             contentPackageManager.updateHtml(bookmarkId, html)
             Timber.d("Annotation refresh via legacy article completed for $bookmarkId")
             html
@@ -334,8 +335,10 @@ class LoadContentPackageUseCase @Inject constructor(
                     Timber.w("HTML-only refresh returned no HTML for $bookmarkId")
                     return null
                 }
+                
                 val enrichedPkg = enrichAnnotations(bookmarkId, pkg)
                 val enrichedHtml = enrichedPkg.html ?: pkg.html
+                
                 contentPackageManager.updateHtml(bookmarkId, enrichedHtml)
                 Timber.d("Annotation HTML refresh (multipart fallback) completed for $bookmarkId")
                 enrichedHtml
@@ -368,12 +371,17 @@ class LoadContentPackageUseCase @Inject constructor(
         val pattern = Regex(
             """(src|poster)=(["'])https?://[^"']*/${Regex.escape(bookmarkId)}/_resources/([^"']+)\2"""
         )
-        return pattern.replace(html) { match ->
+        
+        val rewrittenHtml = pattern.replace(html) { match ->
             val attr = match.groupValues[1]
             val quote = match.groupValues[2]
             val filename = match.groupValues[3]
-            """$attr=${quote}./_resources/$filename$quote"""
+            // Images are stored directly in content dir, not in _resources subdirectory
+            val newUrl = """$attr=${quote}./$filename$quote"""
+            newUrl
         }
+        
+        return rewrittenHtml
     }
 
     /**
@@ -497,4 +505,5 @@ class LoadContentPackageUseCase @Inject constructor(
         // Fallback: try LocalDateTime ISO then convert using system TZ
         return runCatching { LocalDateTime.parse(value).toInstant(TimeZone.currentSystemDefault()) }.getOrNull()
     }
-}
+    
+    }

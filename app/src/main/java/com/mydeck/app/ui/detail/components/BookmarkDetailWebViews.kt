@@ -573,28 +573,27 @@ fun BookmarkDetailArticle(
                     }
                 },
                 update = {
-                    if (content.value != null && it.tag as? String != content.value) {
-                        val baseUrl = when {
-                            uiState.bookmark.offlineBaseUrl != null -> uiState.bookmark.offlineBaseUrl
-                            uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.VIDEO ->
-                                extractEmbedBaseUrl(uiState.bookmark.embed) ?: uiState.bookmark.url
-                            else -> null
-                        }
-                        it.loadDataWithBaseURL(
-                            baseUrl,
-                            content.value!!,
-                            "text/html",
-                            "utf-8",
-                            null
-                        )
-                        it.tag = content.value
-                    }
-                    // Update reference and zoom
-                    webViewRef.value = it
-                    onWebViewChanged(it)
-                    it.settings.textZoom = uiState.typographySettings.fontSizePercent
-                    it.setBackgroundColor(android.graphics.Color.parseColor(readerThemePalette.bodyBackgroundColor))
+            if (content.value != null && it.tag as? String != content.value) {
+                val baseUrl = when {
+                    uiState.bookmark.offlineBaseUrl != null -> uiState.bookmark.offlineBaseUrl
+                    uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.VIDEO ->
+                        extractEmbedBaseUrl(uiState.bookmark.embed) ?: uiState.bookmark.url
+                    else -> null
                 }
+                it.loadDataWithBaseURL(
+                    baseUrl,
+                    content.value!!,
+                    "text/html",
+                    "utf-8",
+                    null
+                )
+                it.tag = content.value
+            }
+            webViewRef.value = it
+            onWebViewChanged(it)
+            it.settings.textZoom = uiState.typographySettings.fontSizePercent
+            it.setBackgroundColor(android.graphics.Color.parseColor(readerThemePalette.bodyBackgroundColor))
+        }
             )
         }
 
