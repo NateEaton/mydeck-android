@@ -163,6 +163,7 @@ import androidx.compose.runtime.LaunchedEffect
 
 private const val PendingDeleteFromDetailKey = "pending_delete_bookmark_id"
 private const val VideoFullscreenControlsAutoHideDelayMs = 3_000L
+private const val ReadPositionLogPrefix = "READPOS"
 
 private enum class DetailOverlay {
     NONE,
@@ -1237,7 +1238,7 @@ fun BookmarkDetailContent(
     }
     // Key on hasArticleContent so when content arrives after on-demand fetch,
     // the state resets and scroll position restore is triggered
-    var hasRestoredPosition by remember(hasArticleContent) { mutableStateOf(!needsRestore) }
+    var hasRestoredPosition by remember(uiState.bookmark.bookmarkId, hasArticleContent) { mutableStateOf(!needsRestore) }
     var isReaderContentReady by remember(
         uiState.bookmark.bookmarkId,
         uiState.bookmark.articleContent != null,
@@ -1249,7 +1250,16 @@ fun BookmarkDetailContent(
     var hasDisplayedReaderContent by remember(uiState.bookmark.bookmarkId, contentMode) {
         mutableStateOf(false)
     }
-    var lastReportedProgress by remember { mutableStateOf(-1) }
+    var lastReportedProgress by remember(uiState.bookmark.bookmarkId) {
+        mutableStateOf(initialReadProgress.coerceIn(0, 100))
+    }
+
+    LaunchedEffect(uiState.bookmark.bookmarkId, initialReadProgress, needsRestore) {
+        Timber.d(
+            "$ReadPositionLogPrefix: open bookmark=${uiState.bookmark.bookmarkId} " +
+                "initial=$initialReadProgress needsRestore=$needsRestore"
+        )
+    }
 
     LaunchedEffect(hasReaderContent) {
         if (!hasReaderContent) {
@@ -1275,18 +1285,60 @@ fun BookmarkDetailContent(
                 )
     val shouldHideReaderContent = !hasRestoredPosition || (!hasDisplayedReaderContent && showReaderLoadingOverlay)
 
-    // Restore scroll position when content is loaded (using initial progress, not reactive)
-    LaunchedEffect(scrollState.maxValue) {
-        if (!hasRestoredPosition && scrollState.maxValue > 0 && initialReadProgress > 0 && initialReadProgress <= 100) {
-            val targetPosition = (scrollState.maxValue * initialReadProgress / 100f).toInt()
-            scrollState.scrollTo(targetPosition)
-            hasRestoredPosition = true
+    // Restore scroll position only after reader content is ready and maxValue stabilizes.
+    LaunchedEffect(uiState.bookmark.bookmarkId, isReaderContentReady, initialReadProgress) {
+        if (!hasRestoredPosition && isReaderContentReady && initialReadProgress > 0 && initialReadProgress <= 100) {
+            Timber.d(
+                "$ReadPositionLogPrefix: restore-start bookmark=${uiState.bookmark.bookmarkId} " +
+                    "initial=$initialReadProgress currentMax=${scrollState.maxValue}"
+            )
+            var lastMax = -1
+            var stableMax = 0
+            var stableCount = 0
+
+            for (i in 0 until 40) {
+                delay(50)
+                val currentMax = scrollState.maxValue
+                if (currentMax <= 0) continue
+
+                val targetPosition = (currentMax * initialReadProgress / 100f).toInt()
+                if (scrollState.value != targetPosition) {
+                    scrollState.scrollTo(targetPosition)
+                }
+
+                if (currentMax == lastMax) {
+                    stableCount++
+                } else {
+                    stableCount = 0
+                    lastMax = currentMax
+                }
+
+                stableMax = currentMax
+                if (stableCount >= 4) break
+            }
+
+            if (stableMax > 0) {
+                val targetPosition = (stableMax * initialReadProgress / 100f).toInt()
+                hasRestoredPosition = true
+                Timber.d(
+                    "$ReadPositionLogPrefix: restore-applied bookmark=${uiState.bookmark.bookmarkId} " +
+                        "target=$targetPosition actual=${scrollState.value} stableMax=$stableMax"
+                )
+            } else {
+                Timber.d(
+                    "$ReadPositionLogPrefix: restore-skipped bookmark=${uiState.bookmark.bookmarkId} " +
+                    "reason=stableMax<=0 initial=$initialReadProgress"
+                )
+            }
         }
     }
 
     // Track scroll progress and report changes (only depends on scroll value, not bookmark updates)
     // Only report when progress actually changes to avoid spam
     LaunchedEffect(scrollState.value, scrollState.maxValue) {
+        if (needsRestore && !hasRestoredPosition) return@LaunchedEffect
+        if (hasReaderContent && !isReaderContentReady) return@LaunchedEffect
+
         val progress = if (scrollState.maxValue > 0) {
             ((scrollState.value.toFloat() / scrollState.maxValue.toFloat()) * 100).toInt().coerceIn(0, 100)
         } else {
@@ -1298,6 +1350,11 @@ fun BookmarkDetailContent(
         // Only report if progress changed
         if (progress != lastReportedProgress) {
             lastReportedProgress = progress
+            Timber.d(
+                "$ReadPositionLogPrefix: progress-report bookmark=${uiState.bookmark.bookmarkId} " +
+                    "progress=$progress value=${scrollState.value} max=${scrollState.maxValue} " +
+                    "restored=$hasRestoredPosition ready=$isReaderContentReady"
+            )
             onScrollProgressChanged(progress)
         }
     }
