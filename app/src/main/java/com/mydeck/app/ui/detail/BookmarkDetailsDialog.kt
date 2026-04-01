@@ -189,13 +189,12 @@ fun BookmarkDetailsDialog(
                 )
             }
 
-            val rootUrl = remember(bookmark.url) { bookmark.url.toRootUrl() }
             val displayUrl = remember(bookmark.url) { bookmark.url.toDomainName() }
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(vertical = 8.dp)
-                    .clickable { onClickOpenInBrowser(rootUrl) },
+                    .clickable { onClickOpenInBrowser(bookmark.url) },
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
@@ -650,20 +649,6 @@ fun BookmarkDetailsDialogPreview() {
         onLabelsUpdate = {},
         onEditMetadata = {}
     )
-}
-
-private fun String.toRootUrl(): String {
-    return try {
-        val uri = URI(this)
-        if (uri.scheme != null && uri.host != null) {
-            val portSuffix = if (uri.port != -1) ":${uri.port}" else ""
-            "${uri.scheme}://${uri.host}$portSuffix"
-        } else {
-            this
-        }
-    } catch (_: Exception) {
-        this
-    }
 }
 
 private fun String.toDomainName(): String {
