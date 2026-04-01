@@ -9,6 +9,7 @@ import android.content.ContextWrapper
 import android.content.Intent
 import android.icu.text.MessageFormat
 import android.net.Uri
+import android.os.SystemClock
 import android.widget.Toast
 import android.view.View
 import android.view.ViewGroup
@@ -1250,11 +1251,20 @@ fun BookmarkDetailContent(
     var hasDisplayedReaderContent by remember(uiState.bookmark.bookmarkId, contentMode) {
         mutableStateOf(false)
     }
+    var hasLoggedFirstVisible by remember(uiState.bookmark.bookmarkId, contentMode) {
+        mutableStateOf(false)
+    }
     var lastReportedProgress by remember(uiState.bookmark.bookmarkId) {
         mutableStateOf(initialReadProgress.coerceIn(0, 100))
     }
+    var openStartMs by remember(uiState.bookmark.bookmarkId) {
+        mutableStateOf(SystemClock.elapsedRealtime())
+    }
 
     LaunchedEffect(uiState.bookmark.bookmarkId, initialReadProgress, needsRestore) {
+        if (needsRestore || initialReadProgress <= 0) {
+            openStartMs = SystemClock.elapsedRealtime()
+        }
         Timber.d(
             "$ReadPositionLogPrefix: open bookmark=${uiState.bookmark.bookmarkId} " +
                 "initial=$initialReadProgress needsRestore=$needsRestore"
@@ -1285,9 +1295,21 @@ fun BookmarkDetailContent(
                 )
     val shouldHideReaderContent = !hasRestoredPosition || (!hasDisplayedReaderContent && showReaderLoadingOverlay)
 
+    LaunchedEffect(shouldHideReaderContent, hasReaderContent, hasRestoredPosition, isReaderContentReady) {
+        if (!shouldHideReaderContent && hasReaderContent && !hasLoggedFirstVisible) {
+            hasLoggedFirstVisible = true
+            Timber.d(
+                "$ReadPositionLogPrefix: first-visible bookmark=${uiState.bookmark.bookmarkId} " +
+                    "tOpenMs=${SystemClock.elapsedRealtime() - openStartMs} restored=$hasRestoredPosition " +
+                    "ready=$isReaderContentReady"
+            )
+        }
+    }
+
     // Restore scroll position only after reader content is ready and maxValue stabilizes.
     LaunchedEffect(uiState.bookmark.bookmarkId, isReaderContentReady, initialReadProgress) {
         if (!hasRestoredPosition && isReaderContentReady && initialReadProgress > 0 && initialReadProgress <= 100) {
+            val restoreStartMs = SystemClock.elapsedRealtime()
             Timber.d(
                 "$ReadPositionLogPrefix: restore-start bookmark=${uiState.bookmark.bookmarkId} " +
                     "initial=$initialReadProgress currentMax=${scrollState.maxValue}"
@@ -1295,8 +1317,11 @@ fun BookmarkDetailContent(
             var lastMax = -1
             var stableMax = 0
             var stableCount = 0
+            var lastLoggedMax = -1
+            var iterations = 0
 
             for (i in 0 until 40) {
+                iterations = i + 1
                 delay(50)
                 val currentMax = scrollState.maxValue
                 if (currentMax <= 0) continue
@@ -1314,6 +1339,14 @@ fun BookmarkDetailContent(
                 }
 
                 stableMax = currentMax
+                if (currentMax != lastLoggedMax || stableCount >= 4 || i == 39) {
+                    Timber.d(
+                        "$ReadPositionLogPrefix: restore-loop bookmark=${uiState.bookmark.bookmarkId} " +
+                            "iter=$iterations max=$currentMax stableCount=$stableCount " +
+                            "value=${scrollState.value} target=$targetPosition"
+                    )
+                    lastLoggedMax = currentMax
+                }
                 if (stableCount >= 4) break
             }
 
@@ -1322,12 +1355,15 @@ fun BookmarkDetailContent(
                 hasRestoredPosition = true
                 Timber.d(
                     "$ReadPositionLogPrefix: restore-applied bookmark=${uiState.bookmark.bookmarkId} " +
-                        "target=$targetPosition actual=${scrollState.value} stableMax=$stableMax"
+                        "target=$targetPosition actual=${scrollState.value} stableMax=$stableMax " +
+                        "iterations=$iterations tRestoreMs=${SystemClock.elapsedRealtime() - restoreStartMs} " +
+                        "tOpenMs=${SystemClock.elapsedRealtime() - openStartMs}"
                 )
             } else {
                 Timber.d(
                     "$ReadPositionLogPrefix: restore-skipped bookmark=${uiState.bookmark.bookmarkId} " +
-                    "reason=stableMax<=0 initial=$initialReadProgress"
+                    "reason=stableMax<=0 initial=$initialReadProgress iterations=$iterations " +
+                    "tRestoreMs=${SystemClock.elapsedRealtime() - restoreStartMs}"
                 )
             }
         }

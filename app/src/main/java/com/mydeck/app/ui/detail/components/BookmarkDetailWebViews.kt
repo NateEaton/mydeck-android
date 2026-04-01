@@ -72,6 +72,8 @@ import kotlinx.serialization.json.Json
 import timber.log.Timber
 import java.io.ByteArrayInputStream
 
+private const val ReadPositionLogPrefix = "READPOS"
+
 @Composable
 fun EmptyBookmarkDetailArticle(
     modifier: Modifier
@@ -188,9 +190,15 @@ fun BookmarkDetailArticle(
     LaunchedEffect(content.value) {
         if (content.value != null) {
             hasReportedReady = false
+            Timber.d(
+                "$ReadPositionLogPrefix: ready-reset bookmark=${uiState.bookmark.bookmarkId} source=content-changed"
+            )
             onContentReady(false)
         } else {
             onWebViewChanged(null)
+            Timber.d(
+                "$ReadPositionLogPrefix: ready-true bookmark=${uiState.bookmark.bookmarkId} source=no-content"
+            )
             onContentReady(true)
         }
     }
@@ -208,6 +216,9 @@ fun BookmarkDetailArticle(
             delay(3000)
             if (!hasReportedReady) {
                 hasReportedReady = true
+                Timber.d(
+                    "$ReadPositionLogPrefix: ready-true bookmark=${uiState.bookmark.bookmarkId} source=fallback3s"
+                )
                 onContentReady(true)
             }
         }
@@ -473,6 +484,9 @@ fun BookmarkDetailArticle(
                                 if (hasReportedReady) return
                                 if (webView == null) {
                                     hasReportedReady = true
+                                    Timber.d(
+                                        "$ReadPositionLogPrefix: ready-true bookmark=${uiState.bookmark.bookmarkId} source=page-finished-null-webview"
+                                    )
                                     onContentReady(true)
                                     return
                                 }
@@ -483,6 +497,9 @@ fun BookmarkDetailArticle(
                                             override fun onComplete(requestId: Long) {
                                                 if (!hasReportedReady) {
                                                     hasReportedReady = true
+                                                    Timber.d(
+                                                        "$ReadPositionLogPrefix: ready-true bookmark=${uiState.bookmark.bookmarkId} source=visual-state"
+                                                    )
                                                     onContentReady(true)
                                                 }
                                             }
@@ -490,6 +507,9 @@ fun BookmarkDetailArticle(
                                     )
                                 } else {
                                     hasReportedReady = true
+                                    Timber.d(
+                                        "$ReadPositionLogPrefix: ready-true bookmark=${uiState.bookmark.bookmarkId} source=page-finished-pre-m"
+                                    )
                                     onContentReady(true)
                                 }
                             }
@@ -511,6 +531,9 @@ fun BookmarkDetailArticle(
                                 view?.let { applyReaderEnhancements(it) }
                                 if (!hasReportedReady) {
                                     hasReportedReady = true
+                                    Timber.d(
+                                        "$ReadPositionLogPrefix: ready-true bookmark=${uiState.bookmark.bookmarkId} source=page-commit-visible"
+                                    )
                                     onContentReady(true)
                                 }
                             }
@@ -589,8 +612,10 @@ fun BookmarkDetailArticle(
                 )
                 it.tag = content.value
             }
-            webViewRef.value = it
-            onWebViewChanged(it)
+            if (webViewRef.value !== it) {
+                webViewRef.value = it
+                onWebViewChanged(it)
+            }
             it.settings.textZoom = uiState.typographySettings.fontSizePercent
             it.setBackgroundColor(android.graphics.Color.parseColor(readerThemePalette.bodyBackgroundColor))
         }
