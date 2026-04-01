@@ -32,17 +32,23 @@ contentPackageManager.deleteResources(bookmarkId)   // ← always runs
 ```
 
 **Required change:**
-Move `deleteResources()` inside the `pkg?.html != null` success branch. Only delete resources
-when the HTML was actually updated to absolute URLs. Add a warning log on the failure paths.
+Move `deleteResources()` inside the `pkg?.html != null` branch AND gate it on
+`updateHtml()` returning `true`. `updateHtml()` returns `Boolean` — it can fail on I/O
+error, in which case the old relative-URL HTML is still on disk. Deleting resources after
+a failed HTML write causes the same broken-images outcome as the original bug.
 
 ```kotlin
 val result = multipartSyncClient.fetchTextOnly(listOf(bookmarkId))
 if (result is com.mydeck.app.io.rest.sync.MultipartSyncClient.Result.Success) {
     val pkg = result.packages.firstOrNull { it.bookmarkId == bookmarkId }
     if (pkg?.html != null) {
-        contentPackageManager.updateHtml(bookmarkId, pkg.html)
-        contentPackageManager.deleteResources(bookmarkId)
-        Timber.i("Removed images for bookmark $bookmarkId (text retained)")
+        val updated = contentPackageManager.updateHtml(bookmarkId, pkg.html)
+        if (updated) {
+            contentPackageManager.deleteResources(bookmarkId)
+            Timber.i("Removed images for bookmark $bookmarkId (text retained)")
+        } else {
+            Timber.w("Image toggle-off aborted for $bookmarkId: HTML write failed")
+        }
     } else {
         Timber.w("Image toggle-off aborted for $bookmarkId: fetchTextOnly returned no HTML")
     }
@@ -115,10 +121,23 @@ any annotation is enriched and committed, partial results become permanent.
 path and returns fully attributed HTML, avoiding enrichment entirely. Only affects users on
 multipart-only paths with partial text-match failures.
 
-**Recommendation:** Log in the unit test spec (`branch-validation-tests.md`) and address as
-part of the Guardrail 1 implementation post-merge. The fix would be to change the early-exit
-check to only skip if ALL annotations present in the HTML are already enriched, rather than
-returning on the presence of any enriched tag.
+**Recommendation:** Add a TODO comment directly in `AnnotationHtmlEnricher.kt` at line 41
+(the early-exit guard) to make the limitation visible to anyone working in that file
+post-merge, in addition to the test spec entry in `branch-validation-tests.md`.
+
+Suggested comment to add immediately above the early-exit guard:
+```kotlin
+// TODO (post-merge): This early-exit fires if ANY annotation is already enriched,
+// permanently preventing re-enrichment of remaining bare tags if initial enrichment
+// was only partial. Fix: replace with a check for whether bare tags still exist
+// (BARE_ANNOTATION_PATTERN) rather than whether enriched tags exist.
+// Tracked in branch-validation-tests.md (partiallyEnrichedHtmlReEnriched test case).
+if (html.contains("data-annotation-id-value")) return html
+```
+
+The fix itself (changing the early-exit logic) is part of Guardrail 1 implementation
+in `branch-pre-merge-guardrails-impl.md` — the TODO bridges the gap if the guardrail
+work is deferred.
 
 ---
 
