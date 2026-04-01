@@ -12,10 +12,13 @@ Define targeted tests for the riskiest behavior introduced/solidified in the mul
 
 ### 1) AnnotationHtmlEnricher
 **Goal:** ensure attributes are restored correctly when multipart HTML lacks annotation attributes.
-- Matches single `<rd-annotation>` text and restores `data-id`, `data-color`, `data-note`.
+- Matches single `<rd-annotation>` text and restores `data-annotation-id-value`, `data-annotation-color`, and `title`/`data-annotation-note` (when note present).
 - Multiple annotations with same text (verify deterministic match strategy).
 - Missing annotation in API list leaves tag unchanged (no crash).
 - Annotation text with entities/whitespace normalization still matches.
+- Partial enrichment lock-in: HTML that already contains one enriched tag but still has bare tags
+  is NOT re-enrichable under the current early-exit guard (document expected behavior and flag
+  as a known limitation for Guardrail 1 post-merge work).
 
 **Suggested test file:**
 - `app/src/test/java/.../AnnotationHtmlEnricherTest.kt`
