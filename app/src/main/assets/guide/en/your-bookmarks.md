@@ -60,10 +60,10 @@ Progress is tracked based on how far you scroll in the article — it reflects t
 All three layouts show whether a bookmark's content has been downloaded for offline reading:
 
 - **No indicator** — content not yet downloaded
-- **Cloud outline** — text downloaded (without images)
-- **Cloud with checkmark** — fully downloaded (text and images)
+- **Outlined download icon** — text downloaded (without images)
+- **Filled download icon** — fully downloaded (text and images)
 
-In Grid layout, the download icon appears near the lower-left edge of the thumbnail. In Mosaic layout, it appears in the lower-left area of the thumbnail above the title overlay. In Compact layout, it appears in the lower slot of the left status rail.
+In **Grid** and **Compact** layouts, the download icon appears on the site-info row, next to the site name and reading time. In **Mosaic** layout, it appears on the title row near the top-right area of the card.
 
 ## Card Actions
 
