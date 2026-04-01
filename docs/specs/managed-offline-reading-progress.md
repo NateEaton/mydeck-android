@@ -30,7 +30,9 @@ This document tracks implementation progress for the managed offline reading red
   - Kept the clear-content action available without giving storage its own oversized section.
 - Constraints hide/show correctly based on the "Download images" toggle.
 
-- Implement strategy for automatically pruning image resources when storage exceeds the preset limit. (Completed: uses `BatchArticleLoadWorker` texts-only overwrite strategy sorting by `created` timestamp to preserve HTML references while deleting local images).
+- Implement strategy for automatically pruning image resources when storage exceeds the preset limit. (Completed: uses `BatchArticleLoadWorker` text-only overwrite strategy, pruning oldest items first while preserving HTML references.)
+- Resolved: multipart can fully replace legacy article persistence while preserving network-first and local-first performance.
+- Resolved: simplified sync-status set remains in the main settings UI; deeper diagnostics remain out of the primary UI for now.
 
 ## Confirmed Issues From Testing
 
@@ -53,8 +55,8 @@ This document tracks implementation progress for the managed offline reading red
 
 ### Storage Management
 
-- Add image-only storage budgeting/eviction behavior.
-- Ensure storage pressure removes images before text content.
+- Add image-only storage budgeting/eviction behavior. (Completed)
+- Ensure storage pressure removes images before text content. (Completed)
 - Decide whether storage controls remain simple presets or are fully automatic in v1.
 
 ### Future Enhancements

@@ -29,7 +29,7 @@ The default layout. Each card has a **thumbnail** on the left and the title, sou
 
 ### Compact Layout
 
-A denser view that uses the site's **favicon** instead of a full thumbnail. A fixed status rail on the left shows the favicon at the top, **reading progress** in the middle, and **download status** near the bottom (see below). Useful when you want to scan a long list quickly.
+A denser view that uses the site's **favicon** instead of a full thumbnail. A fixed status rail on the left shows the favicon at the top. 
 
 ### Mosaic Layout
 
@@ -39,6 +39,10 @@ Each card is a large tile with the thumbnail filling the entire card and the tit
 
 Tap the **layout icon** in the top bar to choose between Grid, Compact, and Mosaic. The icon updates to reflect your current choice.
 
+### Bookmark Types
+
+A **video icon** or **picture icon** appears in the top-left corner for video and picture bookmarks in Grid and Mosaic layouts.
+
 ## Reading Progress
 
 All three layouts show the bookmark's reading status:
@@ -47,11 +51,9 @@ All three layouts show the bookmark's reading status:
 - **Partial circle** — in progress; the arc angle represents how far through the article you've read
 - **Checkmark (✓)** — read (completed)
 
-In Grid and Mosaic layouts, the reading status indicator appears in the top-right corner of the thumbnail. In Compact layout, it appears in the middle slot of the left status rail.
+In Grid and Mosaic layouts, the reading status indicator appears in the top-right corner of the thumbnail. In Compact layout, it appears to the left of the site name.
 
 Progress is tracked based on how far you scroll in the article — it reflects the farthest point you've reached, not your position when you close the bookmark.
-
-A **video icon** or **picture icon** appears in the top-left corner for video and picture bookmarks in Grid and Mosaic layouts.
 
 ## Download Status
 
@@ -84,7 +86,6 @@ Long-pressing on a bookmark card opens a context menu dialog. The dialog header 
 - Download link
 - Share link
 - Open in browser
-- Remove downloaded content (only shown when the bookmark has downloaded content)
 
 **Thumbnail long-press** opens an image menu:
 - Copy image

@@ -23,7 +23,7 @@ For picture bookmarks, MyDeck shows the stored image at the top at full content 
 
 ### View Formats
 
-MyDeck supports two view formats for bookmarks: **extracted content view** (Article, Video, and Picture) and **web view**. The extracted content view displays content extracted by Readeck in a clean, distraction-free reading layout, while **web view** displays the bookmark in its original format in an in-app web viewer. The extracted content view is available offline (once the content is downloaded — see **Settings → Synchronization → Content Sync**), while **web view** requires an internet connection.
+MyDeck supports two view formats for bookmarks: **extracted content view** (Article, Video, and Picture) and **web view**. The extracted content view displays content extracted by Readeck in a clean, distraction-free reading layout, while **web view** displays the bookmark in its original format in an in-app web viewer. The extracted content view is available offline once the content is downloaded (see **Settings → Synchronization → Offline Reading**), while **web view** requires an internet connection.
 
 - **From Article, Video, or Picture view:** tap **⋮** → **View web page**
 - **From web view:** tap **⋮** → **View [bookmark type]** to return to the extracted content view

@@ -29,9 +29,11 @@ Offline reading is optional and off by default. When enabled, MyDeck automatical
 - **Enable offline reading** — turns on automatic offline content maintenance
 - **Keep offline for** — choose whether MyDeck keeps offline content for **My List** only or for **My List + Archived**
 - **Download images** — when enabled, images are stored locally with article text; when off, images load from the network while you read
+- **Image storage limit** — sets how much space downloaded images can use; older images are cleared first when the limit is reached
 - **Only download images on Wi-Fi** — appears when image downloads are enabled and prevents image downloads from using mobile data
 - **Allow image downloads on battery saver** — appears when image downloads are enabled; when off, image downloads pause while battery saver is active
 
+If you turn **Download images** on, MyDeck backfills images for already-cached text in the background.
 If you turn offline reading off again, MyDeck removes managed offline content immediately.
 
 ### Sync Status

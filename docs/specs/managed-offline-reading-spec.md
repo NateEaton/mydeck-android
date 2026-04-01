@@ -434,9 +434,12 @@ When image storage exceeds the configured cap:
 - Bookmark details show explicit offline content state.
 - Re-opening a cached bookmark is noticeably faster and less visually noisy than the current implementation.
 
-## Open Questions
+## Open Questions (Resolved)
 
-1. Can multipart fully replace legacy article persistence while preserving the desired
-   network-first feel and reader-open performance?
-2. How much sync-status detail belongs in the main screen versus a future diagnostics surface
-   once the simplified status set has shipped?
+1. **Can multipart fully replace legacy article persistence while preserving the desired
+   network-first feel and reader-open performance?**
+   - **Resolved (2026-04-01): Yes.** The current implementation uses multipart as the dominant
+     content path and has been optimized for network-first and local-first reader performance.
+2. **How much sync-status detail belongs in the main screen versus a future diagnostics surface?**
+   - **Resolved (2026-04-01):** The main settings screen keeps the simplified status set; deeper
+     diagnostics remain out of the primary UI unless future needs arise.
