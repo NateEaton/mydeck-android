@@ -190,6 +190,7 @@ fun BookmarkDetailsDialog(
             }
 
             val rootUrl = remember(bookmark.url) { bookmark.url.toRootUrl() }
+            val displayUrl = remember(bookmark.url) { bookmark.url.toDomainName() }
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -205,7 +206,7 @@ fun BookmarkDetailsDialog(
                     tint = MaterialTheme.colorScheme.primary
                 )
                 Text(
-                    text = rootUrl,
+                    text = displayUrl,
                     style = MaterialTheme.typography.bodyMedium.copy(
                         color = MaterialTheme.colorScheme.primary,
                         textDecoration = androidx.compose.ui.text.style.TextDecoration.Underline
@@ -660,6 +661,15 @@ private fun String.toRootUrl(): String {
         } else {
             this
         }
+    } catch (_: Exception) {
+        this
+    }
+}
+
+private fun String.toDomainName(): String {
+    return try {
+        val uri = URI(this)
+        uri.host ?: this
     } catch (_: Exception) {
         this
     }
