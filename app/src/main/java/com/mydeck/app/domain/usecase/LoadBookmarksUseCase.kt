@@ -145,7 +145,7 @@ class LoadBookmarksUseCase @Inject constructor(
 
             workManager.enqueueUniqueWork(
                 BatchArticleLoadWorker.UNIQUE_WORK_NAME,
-                ExistingWorkPolicy.KEEP,
+                ExistingWorkPolicy.REPLACE,
                 request
             )
             Timber.d(

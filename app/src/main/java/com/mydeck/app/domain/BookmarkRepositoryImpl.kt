@@ -425,8 +425,8 @@ class BookmarkRepositoryImpl @Inject constructor(
                 // If not yet loaded, poll in the background
                 if (bookmark.state == Bookmark.State.LOADING) {
                     pollForBookmarkReady(bookmarkId)
-                } else if (bookmark.hasArticle) {
-                    // Content available, enqueue download
+                } else if (bookmark.hasArticle && settingsDataStore.isOfflineReadingEnabled()) {
+                    // Content available — only enqueue download if offline reading is enabled
                     enqueueArticleDownload(bookmarkId)
                 }
             }
@@ -457,7 +457,7 @@ class BookmarkRepositoryImpl @Inject constructor(
                         when (bookmark.state) {
                             Bookmark.State.LOADED -> {
                                 Timber.d("Bookmark loaded after $attempts polls: $bookmarkId")
-                                if (bookmark.hasArticle) {
+                                if (bookmark.hasArticle && settingsDataStore.isOfflineReadingEnabled()) {
                                     enqueueArticleDownload(bookmarkId)
                                 }
                                 return@launch  // Done

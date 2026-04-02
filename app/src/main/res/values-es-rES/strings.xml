@@ -226,6 +226,8 @@ other{}
     <string name="sync_storage_heading">Storage</string>
     <string name="sync_storage_cleanup_heading">Cleanup</string>
     <string name="sync_storage_usage">Offline storage: %s</string>
+    <string name="sync_storage_usage_text">Text: %s</string>
+    <string name="sync_storage_usage_images">Images: %s</string>
     <string name="sync_storage_clear">Clear All Offline Content</string>
     <string name="sync_storage_clear_confirm_title">Clear Offline Content?</string>
     <string name="sync_storage_clear_confirm_body">This will delete all downloaded content packages. Bookmarks will not be deleted, but content will need to be re-downloaded for offline reading.</string>

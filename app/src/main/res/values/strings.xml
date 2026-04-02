@@ -361,6 +361,10 @@ other{}
     <string name="sync_download_images_desc">Download images alongside article text. When off, images load from the network.</string>
     <string name="sync_offline_image_limit">Image storage limit</string>
     <string name="sync_offline_image_limit_dialog_title">Image storage limit</string>
+    <!-- Test limits — remove before release -->
+    <string name="sync_offline_image_limit_5_mb">5 MB (test)</string>
+    <string name="sync_offline_image_limit_10_mb">10 MB (test)</string>
+    <string name="sync_offline_image_limit_20_mb">20 MB (test)</string>
     <string name="sync_offline_image_limit_100_mb">100 MB</string>
     <string name="sync_offline_image_limit_250_mb">250 MB</string>
     <string name="sync_offline_image_limit_500_mb">500 MB</string>
@@ -400,6 +404,8 @@ other{}
     <string name="sync_storage_heading">Storage</string>
     <string name="sync_storage_cleanup_heading">Cleanup</string>
     <string name="sync_storage_usage">Offline storage: %s</string>
+    <string name="sync_storage_usage_text">Text: %s</string>
+    <string name="sync_storage_usage_images">Images: %s</string>
     <string name="sync_storage_clear">Clear All Offline Content</string>
     <string name="sync_storage_clear_confirm_title">Clear Offline Content?</string>
     <string name="sync_storage_clear_confirm_body">This will delete all downloaded content packages. Bookmarks will not be deleted, but content will need to be re-downloaded for offline reading.</string>

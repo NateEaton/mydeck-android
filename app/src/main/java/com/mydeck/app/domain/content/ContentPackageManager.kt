@@ -352,6 +352,15 @@ class ContentPackageManager @Inject constructor(
     }
 
     /**
+     * Calculate total size of downloaded image resources in bytes, using the DB
+     * rather than a filesystem walk. This is the authoritative figure for storage
+     * cap enforcement — text HTML is excluded.
+     */
+    suspend fun calculateImageSize(): Long {
+        return bookmarkDao.getTotalImageResourceBytes()
+    }
+
+    /**
      * Generate a minimal wrapper HTML for picture bookmarks that don't have
      * a server-provided HTML part. References the local primary image.
      */

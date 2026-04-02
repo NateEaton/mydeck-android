@@ -144,8 +144,9 @@ fun SyncSettingsView(
     onAllowBatterySaverChanged: (Boolean) -> Unit,
     onClickClearOfflineContent: () -> Unit,
 ) {
-    val showClearOfflineContent = settingsUiState.offlineReadingEnabled ||
-        settingsUiState.syncStatus.offlineStorageSize?.let { it != "0 B" } == true
+    val hasOfflineContent = (settingsUiState.syncStatus.textStorageSize?.let { it != "0 B" } == true)
+        || (settingsUiState.syncStatus.imageStorageSize?.let { it != "0 B" } == true)
+    val showClearOfflineContent = settingsUiState.offlineReadingEnabled || hasOfflineContent
 
     Scaffold(
         modifier = modifier,
@@ -449,11 +450,20 @@ private fun SyncStatusSection(
             style = MaterialTheme.typography.bodySmall
         )
 
-        if (showOfflineDetails || syncStatus.offlineStorageSize?.let { it != "0 B" } == true) {
+        val hasStorageToShow = (syncStatus.textStorageSize?.let { it != "0 B" } == true)
+            || (syncStatus.imageStorageSize?.let { it != "0 B" } == true)
+        if (showOfflineDetails || hasStorageToShow) {
             Text(
                 text = stringResource(
-                    R.string.sync_storage_usage,
-                    syncStatus.offlineStorageSize ?: "0 B"
+                    R.string.sync_storage_usage_text,
+                    syncStatus.textStorageSize ?: "0 B"
+                ),
+                style = MaterialTheme.typography.bodySmall
+            )
+            Text(
+                text = stringResource(
+                    R.string.sync_storage_usage_images,
+                    syncStatus.imageStorageSize ?: "0 B"
                 ),
                 style = MaterialTheme.typography.bodySmall
             )

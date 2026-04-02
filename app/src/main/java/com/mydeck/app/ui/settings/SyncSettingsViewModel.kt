@@ -64,7 +64,8 @@ class SyncSettingsViewModel @Inject constructor(
     private val allowBatterySaver = MutableStateFlow(true)
     private val downloadImages = MutableStateFlow(false)
     private val showDialog = MutableStateFlow<SyncSettingsDialog?>(null)
-    private val offlineStorageSize = MutableStateFlow<String?>(null)
+    private val textStorageSize = MutableStateFlow<String?>(null)
+    private val imageStorageSize = MutableStateFlow<String?>(null)
 
     private val detailedSyncStatus = bookmarkDao.observeDetailedSyncStatus()
         .map { counts ->
@@ -228,8 +229,10 @@ class SyncSettingsViewModel @Inject constructor(
         state.copy(syncStatus = state.syncStatus.copy(lastBookmarkSyncTimestamp = ts))
     }.combine(lastContentSyncTimestampText) { state, ts ->
         state.copy(syncStatus = state.syncStatus.copy(lastContentSyncTimestamp = ts))
-    }.combine(offlineStorageSize) { state, size ->
-        state.copy(syncStatus = state.syncStatus.copy(offlineStorageSize = size))
+    }.combine(textStorageSize) { state, size ->
+        state.copy(syncStatus = state.syncStatus.copy(textStorageSize = size))
+    }.combine(imageStorageSize) { state, size ->
+        state.copy(syncStatus = state.syncStatus.copy(imageStorageSize = size))
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
@@ -369,23 +372,25 @@ class SyncSettingsViewModel @Inject constructor(
             includeArchived = includeArchived,
             hasResources = !enableImages
         )
-        if (ids.isEmpty()) {
-            return
-        }
+        if (ids.isEmpty()) return
 
-        val results = loadContentPackageUseCase.executeBatch(ids)
-        val failures = results.filterValues { it !is LoadContentPackageUseCase.Result.Success }
-
-        settingsDataStore.saveLastContentSyncTimestamp(kotlinx.datetime.Clock.System.now())
-
-        if (failures.isNotEmpty()) {
-            Timber.w(
-                "Managed offline image preference reconciliation had ${failures.size} non-success results"
-            )
+        if (enableImages) {
+            // Turning images on: mark affected text-only bookmarks as DIRTY so the worker
+            // picks them up. This ensures the storage cap and hysteresis logic are applied
+            // during the backfill rather than bypassing them with a direct inline batch fetch.
+            bookmarkDao.markContentDirty(ids, "Image download enabled — backfill required")
+            Timber.i("Marked ${ids.size} text-only bookmarks dirty for image backfill")
+            // Worker will be enqueued by the caller (restartManagedContentSyncIfNeeded)
         } else {
-            Timber.i(
-                "Managed offline image preference reconciled for ${ids.size} bookmarks (enableImages=$enableImages)"
-            )
+            // Turning images off: downgrade inline (this releases storage, no cap concern).
+            val results = loadContentPackageUseCase.executeBatch(ids)
+            val failures = results.filterValues { it !is LoadContentPackageUseCase.Result.Success }
+            settingsDataStore.saveLastContentSyncTimestamp(kotlinx.datetime.Clock.System.now())
+            if (failures.isNotEmpty()) {
+                Timber.w("Image-off reconciliation had ${failures.size} non-success results")
+            } else {
+                Timber.i("Image-off reconciliation complete for ${ids.size} bookmarks")
+            }
         }
     }
 
@@ -438,8 +443,13 @@ class SyncSettingsViewModel @Inject constructor(
     }
 
     private fun refreshStorageSize() {
-        val bytes = contentPackageManager.calculateTotalSize()
-        offlineStorageSize.value = formatFileSize(bytes)
+        val totalBytes = contentPackageManager.calculateTotalSize()
+        viewModelScope.launch {
+            val imageBytes = contentPackageManager.calculateImageSize()
+            val textBytes = (totalBytes - imageBytes).coerceAtLeast(0L)
+            imageStorageSize.value = formatFileSize(imageBytes)
+            textStorageSize.value = formatFileSize(textBytes)
+        }
     }
 
     private fun formatFileSize(bytes: Long): String {
@@ -521,7 +531,8 @@ data class SyncStatus(
     val permanentNoContent: Int = 0,
     val lastBookmarkSyncTimestamp: String? = null,
     val lastContentSyncTimestamp: String? = null,
-    val offlineStorageSize: String? = null
+    val textStorageSize: String? = null,
+    val imageStorageSize: String? = null
 )
 
 enum class SyncSettingsDialog {
@@ -556,6 +567,9 @@ fun AutoSyncTimeframe.toLabelResource(): Int {
 @StringRes
 fun com.mydeck.app.domain.sync.OfflineImageStorageLimit.toLabelResource(): Int {
     return when (this) {
+        com.mydeck.app.domain.sync.OfflineImageStorageLimit.MB_5 -> R.string.sync_offline_image_limit_5_mb
+        com.mydeck.app.domain.sync.OfflineImageStorageLimit.MB_10 -> R.string.sync_offline_image_limit_10_mb
+        com.mydeck.app.domain.sync.OfflineImageStorageLimit.MB_20 -> R.string.sync_offline_image_limit_20_mb
         com.mydeck.app.domain.sync.OfflineImageStorageLimit.MB_100 -> R.string.sync_offline_image_limit_100_mb
         com.mydeck.app.domain.sync.OfflineImageStorageLimit.MB_250 -> R.string.sync_offline_image_limit_250_mb
         com.mydeck.app.domain.sync.OfflineImageStorageLimit.MB_500 -> R.string.sync_offline_image_limit_500_mb

@@ -642,6 +642,24 @@ interface BookmarkDao {
     @Query("UPDATE bookmarks SET contentState = :state, contentFailureReason = :reason WHERE id = :id")
     suspend fun updateContentState(id: String, state: Int, reason: String?)
 
+    @Query("UPDATE bookmarks SET contentState = 2, contentFailureReason = :reason WHERE id IN (:ids)")
+    suspend fun markContentDirty(ids: List<String>, reason: String?)
+
+    /**
+     * Resets dirty bookmarks to DOWNLOADED state for those that already have a committed
+     * content package with HTML. Used when the image storage limit has been hit mid-run:
+     * bookmarks that were marked dirty for image backfill but won't receive images should
+     * be restored without re-downloading their existing text content.
+     */
+    @Query("""
+        UPDATE bookmarks
+        SET contentState = 1, contentFailureReason = NULL
+        WHERE id IN (:ids)
+        AND contentState = 2
+        AND id IN (SELECT bookmarkId FROM content_package WHERE hasHtml = 1)
+    """)
+    suspend fun restoreDownloadedStateIfHasContent(ids: List<String>)
+
     @Query("UPDATE bookmarks SET omitDescription = :omitDescription WHERE id = :id")
     suspend fun updateOmitDescription(id: String, omitDescription: Boolean?)
 
@@ -751,4 +769,7 @@ interface BookmarkDao {
         ORDER BY b.created ASC
     """)
     suspend fun getOldestBookmarkIdsWithResources(includeArchived: Boolean): List<String>
+
+    @Query("SELECT COALESCE(SUM(byteSize), 0) FROM content_resource WHERE mimeType LIKE 'image/%'")
+    suspend fun getTotalImageResourceBytes(): Long
 }
