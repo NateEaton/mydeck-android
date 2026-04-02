@@ -590,11 +590,19 @@ class BookmarkDetailViewModel @Inject constructor(
                     if (result is com.mydeck.app.io.rest.sync.MultipartSyncClient.Result.Success) {
                         val pkg = result.packages.firstOrNull { it.bookmarkId == bookmarkId }
                         if (pkg?.html != null) {
-                            contentPackageManager.updateHtml(bookmarkId, pkg.html)
+                            val updated = contentPackageManager.updateHtml(bookmarkId, pkg.html)
+                            if (updated) {
+                                contentPackageManager.deleteResources(bookmarkId)
+                                Timber.i("Removed images for bookmark $bookmarkId (text retained)")
+                            } else {
+                                Timber.w("Image toggle-off aborted for $bookmarkId: HTML write failed")
+                            }
+                        } else {
+                            Timber.w("Image toggle-off aborted for $bookmarkId: fetchTextOnly returned no HTML")
                         }
+                    } else {
+                        Timber.w("Image toggle-off aborted for $bookmarkId: fetchTextOnly failed ($result)")
                     }
-                    contentPackageManager.deleteResources(bookmarkId)
-                    Timber.i("Removed images for bookmark $bookmarkId (text retained)")
                 } else if (hasRes == false) {
                     // Lazy-images → full: download full content package
                     val fetchResult = loadContentPackageUseCase.executeForceRefresh(

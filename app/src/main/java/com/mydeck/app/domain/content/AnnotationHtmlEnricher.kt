@@ -22,6 +22,10 @@ object AnnotationHtmlEnricher {
     )
 
     private val HTML_TAG_PATTERN = Pattern.compile("<[^>]+>")
+    
+    // If fewer than this fraction of annotations are matched, abort enrichment
+    // and return the original HTML unchanged.
+    private const val MIN_MATCH_FRACTION = 0.5
 
     /**
      * Enrich bare `<rd-annotation>` tags in [html] with attributes from [annotations].
@@ -31,16 +35,16 @@ object AnnotationHtmlEnricher {
      *
      * @param html The article HTML that may contain bare `<rd-annotation>` tags
      * @param annotations Annotation data from the REST API
-     * @return The enriched HTML, or the original if no enrichment was needed
+     * @return The enriched HTML, the original HTML if enrichment quality was below threshold,
+     *   or the original if no enrichment was needed
      */
     fun enrich(html: String?, annotations: List<AnnotationDto>): String? {
         if (html == null) return null
         if (annotations.isEmpty()) return html
 
-        // Check if HTML already has enriched annotations (has data-annotation-id-value)
-        if (html.contains("data-annotation-id-value")) return html
-
-        // Check if there are any bare annotations to enrich
+        // Only skip if there are no bare (un-enriched) annotation tags remaining.
+        // Do NOT exit on the presence of enriched tags — the HTML may be partially
+        // enriched from a previous pass and still have bare tags that need enrichment.
         if (!BARE_ANNOTATION_PATTERN.matcher(html).find()) return html
 
         // Build lookup from stripped text → annotation
@@ -70,6 +74,16 @@ object AnnotationHtmlEnricher {
                 "Enriched ${matched.size}/${annotations.size} annotations in HTML " +
                     "(${annotations.size - matched.size} unmatched)"
             )
+        }
+
+        // Abort if match quality is below threshold — return original HTML unchanged
+        // rather than committing a poorly-enriched version.
+        if (annotations.isNotEmpty() && matched.size.toFloat() / annotations.size < MIN_MATCH_FRACTION) {
+            Timber.w(
+                "Annotation enrichment aborted: matched ${matched.size}/${annotations.size} " +
+                    "(below ${(MIN_MATCH_FRACTION * 100).toInt()}% threshold) — returning original HTML"
+            )
+            return html
         }
 
         return result.toString()

@@ -360,12 +360,16 @@ class LoadContentPackageUseCase @Inject constructor(
      * Legacy article HTML references images as absolute Readeck URLs:
      *   `https://server/bm/XX/{bookmarkId}/_resources/{filename}`
      *
-     * The offline content directory stores them at:
-     *   `offline_content/{bookmarkId}/_resources/{filename}`
+     * The offline content directory stores them flat at:
+     *   `offline_content/{bookmarkId}/{filename}`
      *
-     * Rewriting to `./_resources/{filename}` allows the WebView's offline base URL
+     * Rewriting to `./{filename}` allows the WebView's offline base URL
      * (`https://offline.mydeck.local/{bookmarkId}/`) to resolve them through the
      * OfflineContentPathHandler.
+     *
+     * Note: the legacy endpoint uses `_resources/{filename}` in its absolute URLs but
+     * the multipart sync endpoint sends flat filenames in the `path` header. This
+     * function bridges that inconsistency when refreshing HTML via the legacy endpoint.
      */
     private fun rewriteToRelativeResourceUrls(bookmarkId: String, html: String): String {
         val pattern = Regex(
