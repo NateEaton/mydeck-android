@@ -301,16 +301,8 @@ object WebViewAnnotationBridge {
                 'use strict';
 
                 var container = document.querySelector('.container');
-                if (!container) {
-                    console.log('${TAP_LOG_PREFIX} injectAnnotationInteractions: .container not found');
-                    return;
-                }
-                var allAnnotations = container.querySelectorAll('rd-annotation[id][data-annotation-id-value]');
-                console.log('${TAP_LOG_PREFIX} injectAnnotationInteractions: container found, annotations=' + allAnnotations.length);
+                if (!container) return;
                 var annotationBridge = window['${WebViewAnnotationTapBridge.BRIDGE_NAME}'];
-                if (!annotationBridge) {
-                    console.log('${TAP_LOG_PREFIX} injectAnnotationInteractions: bridge not available');
-                }
 
                 function getNodeTextLength(node) {
                     if (!node) return 0;

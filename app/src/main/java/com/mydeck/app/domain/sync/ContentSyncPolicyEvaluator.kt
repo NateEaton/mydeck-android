@@ -13,14 +13,6 @@ class ContentSyncPolicyEvaluator @Inject constructor(
     )
 
     suspend fun canFetchContent(): Decision {
-        if (!connectivityMonitor.isNetworkAvailable()) {
-            return Decision(false, "No network")
-        }
-
-        if (!settingsDataStore.isDownloadImagesEnabled()) {
-            return Decision(true)
-        }
-
         val constraints = settingsDataStore.getContentSyncConstraints()
 
         if (constraints.wifiOnly && !connectivityMonitor.isOnWifi()) {
@@ -31,10 +23,15 @@ class ContentSyncPolicyEvaluator @Inject constructor(
             return Decision(false, "Battery saver active")
         }
 
+        if (!connectivityMonitor.isNetworkAvailable()) {
+            return Decision(false, "No network")
+        }
+
         return Decision(true)
     }
 
     suspend fun shouldAutoFetchContent(): Boolean {
-        return settingsDataStore.isOfflineReadingEnabled()
+        return settingsDataStore.getContentSyncMode() == ContentSyncMode.AUTOMATIC
+            && canFetchContent().allowed
     }
 }

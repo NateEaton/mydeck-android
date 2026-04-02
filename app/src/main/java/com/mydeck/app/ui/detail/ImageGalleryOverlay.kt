@@ -52,7 +52,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.mydeck.app.R
-import com.mydeck.app.domain.content.OfflineContentPathHandler
 import com.mydeck.app.domain.model.GalleryImage
 import com.mydeck.app.domain.model.ImageGalleryData
 import kotlinx.coroutines.launch
@@ -64,8 +63,6 @@ fun ImageGalleryOverlay(
     onOpenLink: (String) -> Unit,
     onPageChanged: (Int) -> Unit = {},
 ) {
-    val context = androidx.compose.ui.platform.LocalContext.current
-    val offlineContentDir = remember { java.io.File(context.filesDir, "offline_content") }
     val pagerState = rememberPagerState(
         initialPage = galleryData.currentIndex,
         pageCount = { galleryData.images.size }
@@ -95,7 +92,7 @@ fun ImageGalleryOverlay(
         ) { page ->
             val image = galleryData.images[page]
             ZoomableImage(
-                imageUrl = resolveOfflineImageUrl(image.src, offlineContentDir),
+                imageUrl = image.src,
                 contentDescription = image.alt.takeIf { it.isNotBlank() },
                 onClick = { chromeVisible = !chromeVisible },
                 onZoomChanged = { zoom ->
@@ -264,10 +261,8 @@ private fun ThumbnailStrip(
     ) {
         items(images.size) { index ->
             val isSelected = index == currentIndex
-            val thumbnailContext = androidx.compose.ui.platform.LocalContext.current
-            val thumbnailDir = remember { java.io.File(thumbnailContext.filesDir, "offline_content") }
             AsyncImage(
-                model = resolveOfflineImageUrl(images[index].src, thumbnailDir),
+                model = images[index].src,
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
@@ -331,17 +326,4 @@ private fun GalleryTopBar(
             Box(modifier = Modifier.size(48.dp))
         }
     }
-}
-
-/**
- * Resolve an image URL that may point to the synthetic offline host
- * (https://offline.mydeck.local/<bookmarkId>/<path>) to a local file URI
- * so Coil can load it.
- */
-private fun resolveOfflineImageUrl(url: String, offlineContentDir: java.io.File): String {
-    val prefix = "https://${OfflineContentPathHandler.OFFLINE_HOST}/"
-    if (!url.startsWith(prefix)) return url
-    val relativePath = url.removePrefix(prefix)
-    val localFile = java.io.File(offlineContentDir, relativePath)
-    return if (localFile.exists()) android.net.Uri.fromFile(localFile).toString() else url
 }

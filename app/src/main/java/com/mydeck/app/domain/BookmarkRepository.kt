@@ -29,6 +29,7 @@ interface BookmarkRepository {
     suspend fun insertBookmarks(bookmarks: List<Bookmark>)
     suspend fun replaceServerErrorFlags(bookmarkIds: Set<String>)
     suspend fun getBookmarkById(id: String): Bookmark
+    suspend fun refreshBookmarkFromApi(id: String)
     fun observeBookmark(id: String): Flow<Bookmark?>
     suspend fun deleteAllBookmarks()
     suspend fun deleteBookmark(id: String): UpdateResult
@@ -80,7 +81,7 @@ interface BookmarkRepository {
     suspend fun renameLabel(oldLabel: String, newLabel: String): UpdateResult
     suspend fun deleteLabel(label: String): UpdateResult
     suspend fun fetchRawBookmarkJson(bookmarkId: String): String?
-    suspend fun refreshBookmarkMetadata(bookmarkId: String)
+    suspend fun fetchRawArticleHtml(bookmarkId: String): String?
     sealed class UpdateResult {
         data object Success: UpdateResult()
         data class Error(val errorMessage: String, val code: Int? = null, val ex: Exception? = null): UpdateResult()
@@ -90,7 +91,6 @@ interface BookmarkRepository {
         data class Success(
             val countDeleted: Int,
             val countUpdated: Int = 0,
-            val updatedIds: List<String> = emptyList(),
             val maxServerTime: kotlinx.datetime.Instant? = null
         ): SyncResult()
         data class Error(val errorMessage: String, val code: Int? = null, val ex: Exception? = null): SyncResult()

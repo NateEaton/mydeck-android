@@ -43,7 +43,7 @@ data class BookmarkDto(
     val readingTime: Int? = null,
     val published: Instant? = null,
     val embed: String? = null,
-    @SerialName("embed_domain")
+    @SerialName("embed_hostname")
     val embedHostname: String? = null,
     @SerialName("omit_description")
     val omitDescription: Boolean? = null,

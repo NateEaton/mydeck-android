@@ -33,13 +33,6 @@ fun DateRangePresetDropdown(
         onDismissRequest = { expanded.value = false }
     ) {
         DropdownMenuItem(
-            text = { Text(stringResource(R.string.sync_date_preset_all_time)) },
-            onClick = {
-                onPresetSelected(DateRangePreset.ALL_TIME)
-                expanded.value = false
-            }
-        )
-        DropdownMenuItem(
             text = { Text(stringResource(R.string.sync_date_preset_past_day)) },
             onClick = {
                 onPresetSelected(DateRangePreset.PAST_DAY)
@@ -80,7 +73,6 @@ fun DateRangePresetDropdown(
 @Composable
 private fun getPresetLabel(preset: DateRangePreset): String {
     return when (preset) {
-        DateRangePreset.ALL_TIME -> stringResource(R.string.sync_date_preset_all_time)
         DateRangePreset.PAST_DAY -> stringResource(R.string.sync_date_preset_past_day)
         DateRangePreset.PAST_WEEK -> stringResource(R.string.sync_date_preset_past_week)
         DateRangePreset.PAST_MONTH -> stringResource(R.string.sync_date_preset_past_month)

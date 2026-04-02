@@ -5,7 +5,6 @@ import kotlinx.datetime.DatePeriod
 import kotlinx.datetime.minus
 
 enum class DateRangePreset {
-    ALL_TIME,
     PAST_DAY,
     PAST_WEEK,
     PAST_MONTH,
@@ -26,7 +25,6 @@ fun DateRangePreset.toDateRange(today: LocalDate): Pair<LocalDate, LocalDate> {
         DateRangePreset.PAST_WEEK -> Pair(today.minus(DatePeriod(days = 7)), today)
         DateRangePreset.PAST_MONTH -> Pair(today.minus(DatePeriod(days = 30)), today)
         DateRangePreset.PAST_YEAR -> Pair(today.minus(DatePeriod(days = 365)), today)
-        DateRangePreset.ALL_TIME -> Pair(today.minus(DatePeriod(days = 365 * 20)), today)
         DateRangePreset.CUSTOM -> throw IllegalArgumentException("CUSTOM preset cannot be converted to a date range without explicit dates")
     }
 }

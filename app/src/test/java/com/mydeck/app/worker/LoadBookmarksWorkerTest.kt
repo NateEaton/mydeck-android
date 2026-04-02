@@ -75,10 +75,9 @@ class LoadBookmarksWorkerTest {
         coEvery { bookmarkRepository.performDeltaSync(any()) } returns BookmarkRepository.SyncResult.Success(
             countDeleted = 0,
             countUpdated = 1,
-            updatedIds = listOf("bk-1"),
             maxServerTime = pendingCursor
         )
-        coEvery { loadBookmarksUseCase.execute(updatedIds = any()) } returns LoadBookmarksUseCase.UseCaseResult.Error(
+        coEvery { loadBookmarksUseCase.execute() } returns LoadBookmarksUseCase.UseCaseResult.Error(
             RuntimeException("metadata load failed")
         )
 

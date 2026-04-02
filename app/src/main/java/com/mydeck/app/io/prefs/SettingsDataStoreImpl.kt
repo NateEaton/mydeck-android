@@ -19,7 +19,6 @@ import com.mydeck.app.domain.model.TypographySettings
 import com.mydeck.app.domain.sync.ContentSyncConstraints
 import com.mydeck.app.domain.sync.ContentSyncMode
 import com.mydeck.app.domain.sync.DateRangeParams
-import com.mydeck.app.domain.sync.OfflineContentScope
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -65,12 +64,6 @@ class SettingsDataStoreImpl @Inject constructor(@ApplicationContext private val 
     private val KEY_BOOKMARK_SHARE_FORMAT = stringPreferencesKey("bookmark_share_format")
     private val KEY_KEEP_SCREEN_ON_READING = booleanPreferencesKey("keep_screen_on_reading")
     private val KEY_FULLSCREEN_WHILE_READING = booleanPreferencesKey("fullscreen_while_reading")
-    private val KEY_DOWNLOAD_IMAGES = booleanPreferencesKey("content_sync_download_images")
-    private val KEY_CLEAR_CONTENT_ON_ARCHIVE = booleanPreferencesKey("clear_content_on_archive")
-    private val KEY_INCLUDE_ARCHIVED_CONTENT = booleanPreferencesKey("include_archived_content_in_sync")
-    private val KEY_OFFLINE_READING_ENABLED = booleanPreferencesKey("offline_reading_enabled")
-    private val KEY_OFFLINE_CONTENT_SCOPE = stringPreferencesKey("offline_content_scope")
-    private val KEY_OFFLINE_IMAGE_STORAGE_LIMIT = stringPreferencesKey("offline_image_storage_limit")
 
     private val KEY_TYPO_FONT_SIZE = intPreferencesKey("typography_font_size_percent")
     private val KEY_TYPO_FONT_FAMILY = stringPreferencesKey("typography_font_family")
@@ -334,10 +327,6 @@ class SettingsDataStoreImpl @Inject constructor(@ApplicationContext private val 
     override val initialSyncPerformedFlow =
         getBooleanFlow(encryptedSharedPreferences, KEY_INITIAL_SYNC_PERFORMED, false)
     override val themeFlow = getStringFlow(userPreferences, KEY_THEME.name, Theme.SYSTEM.name)
-    override val lastSyncTimestampFlow =
-        getStringFlow(encryptedSharedPreferences, KEY_LAST_SYNC_TIMESTAMP.name, null)
-    override val lastContentSyncTimestampFlow =
-        getStringFlow(encryptedSharedPreferences, KEY_LAST_CONTENT_SYNC_TIMESTAMP.name, null)
     @Deprecated("Migration-only. Use lightAppearanceFlow instead.")
     override val sepiaEnabledFlow = getBooleanFlow(userPreferences, KEY_SEPIA_ENABLED.name, false)
     override val lightAppearanceFlow = getEnumFlow(
@@ -531,96 +520,6 @@ class SettingsDataStoreImpl @Inject constructor(@ApplicationContext private val 
         userPreferences.edit {
             putString(KEY_DATE_RANGE_FROM.name, params.from.toString())
             putString(KEY_DATE_RANGE_TO.name, params.to.toString())
-        }
-    }
-
-    override suspend fun isDownloadImagesEnabled(): Boolean {
-        return userPreferences.getBoolean(KEY_DOWNLOAD_IMAGES.name, false)
-    }
-
-    override suspend fun saveDownloadImagesEnabled(enabled: Boolean) {
-        userPreferences.edit {
-            putBoolean(KEY_DOWNLOAD_IMAGES.name, enabled)
-        }
-    }
-
-    override suspend fun isClearContentOnArchiveEnabled(): Boolean {
-        return userPreferences.getBoolean(KEY_CLEAR_CONTENT_ON_ARCHIVE.name, false)
-    }
-
-    override suspend fun saveClearContentOnArchiveEnabled(enabled: Boolean) {
-        userPreferences.edit {
-            putBoolean(KEY_CLEAR_CONTENT_ON_ARCHIVE.name, enabled)
-        }
-    }
-
-    override suspend fun isIncludeArchivedContentInSyncEnabled(): Boolean {
-        return userPreferences.getBoolean(KEY_INCLUDE_ARCHIVED_CONTENT.name, false)
-    }
-
-    override suspend fun saveIncludeArchivedContentInSyncEnabled(enabled: Boolean) {
-        userPreferences.edit {
-            putBoolean(KEY_INCLUDE_ARCHIVED_CONTENT.name, enabled)
-        }
-    }
-
-    override suspend fun isOfflineReadingEnabled(): Boolean {
-        if (userPreferences.contains(KEY_OFFLINE_READING_ENABLED.name)) {
-            return userPreferences.getBoolean(KEY_OFFLINE_READING_ENABLED.name, false)
-        }
-
-        return getContentSyncMode() == ContentSyncMode.AUTOMATIC
-    }
-
-    override suspend fun saveOfflineReadingEnabled(enabled: Boolean) {
-        userPreferences.edit {
-            putBoolean(KEY_OFFLINE_READING_ENABLED.name, enabled)
-            putString(
-                KEY_CONTENT_SYNC_MODE.name,
-                if (enabled) ContentSyncMode.AUTOMATIC.name else ContentSyncMode.MANUAL.name
-            )
-        }
-    }
-
-    override suspend fun getOfflineContentScope(): OfflineContentScope {
-        val stored = userPreferences.getString(KEY_OFFLINE_CONTENT_SCOPE.name, null)
-        if (stored != null) {
-            return try {
-                OfflineContentScope.valueOf(stored)
-            } catch (_: IllegalArgumentException) {
-                OfflineContentScope.MY_LIST
-            }
-        }
-
-        return if (isIncludeArchivedContentInSyncEnabled()) {
-            OfflineContentScope.MY_LIST_AND_ARCHIVED
-        } else {
-            OfflineContentScope.MY_LIST
-        }
-    }
-
-    override suspend fun saveOfflineContentScope(scope: OfflineContentScope) {
-        userPreferences.edit {
-            putString(KEY_OFFLINE_CONTENT_SCOPE.name, scope.name)
-            putBoolean(KEY_INCLUDE_ARCHIVED_CONTENT.name, scope.includesArchived)
-        }
-    }
-
-    override suspend fun getOfflineImageStorageLimit(): com.mydeck.app.domain.sync.OfflineImageStorageLimit {
-        val stored = userPreferences.getString(KEY_OFFLINE_IMAGE_STORAGE_LIMIT.name, null)
-        if (stored != null) {
-            return try {
-                com.mydeck.app.domain.sync.OfflineImageStorageLimit.valueOf(stored)
-            } catch (_: IllegalArgumentException) {
-                com.mydeck.app.domain.sync.OfflineImageStorageLimit.MB_500
-            }
-        }
-        return com.mydeck.app.domain.sync.OfflineImageStorageLimit.MB_500
-    }
-
-    override suspend fun saveOfflineImageStorageLimit(limit: com.mydeck.app.domain.sync.OfflineImageStorageLimit) {
-        userPreferences.edit {
-            putString(KEY_OFFLINE_IMAGE_STORAGE_LIMIT.name, limit.name)
         }
     }
 

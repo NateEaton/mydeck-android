@@ -88,14 +88,10 @@ other{}
     <string name="notification_authentication_error_message">Comproba as túas credenciais.</string>
 
     <!-- Sync Settings - Phase 3 -->
-    <string name="sync_schedule_section_title">Schedule</string>
     <string name="sync_bookmark_section_title">Bookmark Sync</string>
-    <string name="sync_bookmark_description">Keeps your list in sync with changes from other devices</string>
+    <string name="sync_bookmark_description">Bookmarks are always kept in sync.</string>
     <string name="sync_bookmark_frequency_label">Sync frequency</string>
     <string name="log_view_share_error">Failed to create log archive</string>
-    <string name="log_view_save_to_downloads">Save to Downloads</string>
-    <string name="log_view_saved_to_downloads">Logs saved to Downloads</string>
-    <string name="log_view_save_error">Failed to save log archive</string>
     <string name="log_retention_title">Keep logs for</string>
     <string name="log_retention_1_day">1 day</string>
     <string name="log_retention_1_week">1 week</string>
@@ -105,57 +101,27 @@ other{}
     <string name="sync_settings_sync_bookmarks_now">Sync Bookmarks Now</string>
     <string name="sync_settings_sync_bookmarks_now_description">Check for deleted bookmarks and sync all changes immediately</string>
     <string name="sync_settings_sync_running">Syncing…</string>
-    <string name="sync_content_section_title">Content Downloads</string>
+    <string name="sync_content_section_title">Content Sync</string>
     <string name="sync_content_automatic">Automatic</string>
-    <string name="sync_content_automatic_desc">Content downloads during each bookmark sync.</string>
-    <string name="sync_content_on_demand">On demand</string>
-    <string name="sync_content_on_demand_desc">Content loads when you open a bookmark.</string>
+    <string name="sync_content_automatic_desc">Content is downloaded during bookmark sync</string>
     <string name="sync_content_manual">Manual</string>
     <string name="sync_content_manual_desc">Content is downloaded only when you open a bookmark</string>
     <string name="sync_content_date_range">Date Range</string>
     <string name="sync_content_date_range_desc">Download content for bookmarks added in a date range</string>
     <string name="sync_content_date_from">From</string>
     <string name="sync_content_date_to">To</string>
-    <string name="sync_content_download_button">Start Download</string>
+    <string name="sync_content_download_button">Download</string>
     <string name="sync_content_downloading">Downloading…</string>
-    <string name="sync_content_download_for_offline">Download for offline reading</string>
-    <string name="sync_date_preset_all_time">All time</string>
     <string name="sync_date_preset_past_day">Past day</string>
     <string name="sync_date_preset_past_week">Past week</string>
     <string name="sync_date_preset_past_month">Past month</string>
     <string name="sync_date_preset_past_year">Past year</string>
     <string name="sync_date_preset_custom">Custom date range</string>
-    <string name="sync_constraints_section_title">Download constraints</string>
-    <string name="sync_wifi_only">Only download images on Wi-Fi</string>
-    <string name="sync_allow_battery_saver">Allow image downloads on battery saver</string>
-    <string name="sync_content_policy_section_title">What to download</string>
-    <string name="sync_offline_section_title">Offline Reading</string>
-    <string name="sync_offline_section_desc">Control whether MyDeck automatically keeps bookmarks available for offline reading.</string>
-    <string name="sync_offline_enable">Enable offline reading</string>
-    <string name="sync_offline_enable_desc">Automatically keep eligible bookmarks available offline.</string>
-    <string name="sync_offline_scope">Keep offline for</string>
-    <string name="sync_offline_scope_desc">Choose which bookmarks MyDeck keeps available for offline reading.</string>
-    <string name="sync_offline_scope_dialog_title">Keep offline for</string>
-    <string name="sync_offline_scope_my_list">My List</string>
-    <string name="sync_offline_scope_my_list_and_archived">My List + Archived</string>
-    <string name="sync_scope_selected">Selected</string>
-    <string name="sync_download_images">Download images</string>
-    <string name="sync_download_images_desc">Download images alongside article text. When off, images load from the network.</string>
-    <string name="sync_include_archived">Include archived content</string>
-    <string name="sync_include_archived_desc">When off, only My List downloads offline content during automatic or date-range sync. On-demand downloads are always available regardless of this setting.</string>
-    <string name="sync_clear_on_archive">Clear content when archiving</string>
-    <string name="sync_clear_on_archive_desc">Automatically remove downloaded text and images when a bookmark is archived.</string>
-    <string name="sync_remove_downloaded_content">Remove downloaded content</string>
-    <string name="sync_content_waiting_wifi">Content download waiting for Wi-Fi</string>
-    <string name="sync_content_waiting_battery">Content download paused (battery saver)</string>
-    <string name="sync_content_waiting_wifi_battery">Content download waiting for Wi-Fi and battery</string>
-    <string name="sync_content_status_downloading_images">Downloading images</string>
-    <string name="sync_content_status_up_to_date">Up to date</string>
-    <string name="sync_content_status_manual">Manual mode</string>
-    <string name="sync_constraint_override_title">Download Content?</string>
-    <string name="sync_constraint_override_body">Content download is blocked by active constraints (%s). Would you like to temporarily override these settings to complete this download?</string>
-    <string name="sync_constraint_override_confirm">Override &amp; Download</string>
-    <string name="sync_status_section_title">Sync Status</string>    <string name="sync_status_bookmarks_heading">Bookmarks</string>
+    <string name="sync_constraints_section_title">Constraints</string>
+    <string name="sync_wifi_only">Only download on Wi-Fi</string>
+    <string name="sync_allow_battery_saver">Allow download on battery saver</string>
+    <string name="sync_status_section_title">Sync Status</string>
+    <string name="sync_status_bookmarks_heading">Bookmarks</string>
     <string name="sync_status_content_heading">Content</string>
     <string name="sync_status_total">Total bookmarks: %d</string>
     <string name="sync_status_unread">My List: %d</string>
@@ -167,14 +133,6 @@ other{}
     <string name="sync_status_no_content">No article content: %d</string>
     <string name="sync_status_last_sync">Last sync: %1$s</string>
     <string name="sync_status_last_content_sync">Last content sync: %1$s</string>
-    <!-- Storage Management -->
-    <string name="sync_storage_heading">Storage</string>
-    <string name="sync_storage_cleanup_heading">Cleanup</string>
-    <string name="sync_storage_usage">Offline storage: %s</string>
-    <string name="sync_storage_clear">Clear All Offline Content</string>
-    <string name="sync_storage_clear_confirm_title">Clear Offline Content?</string>
-    <string name="sync_storage_clear_confirm_body">This will delete all downloaded content packages. Bookmarks will not be deleted, but content will need to be re-downloaded for offline reading.</string>
-    <string name="sync_storage_clear_confirm">Clear</string>
     <string name="offline_tooltip">Offline – unable to reach server</string>
     <string name="background_sync_rationale_title">Background Downloads</string>
     <string name="background_sync_rationale_body">Content downloads may continue while the app is in the background. This allows your bookmarks to be ready for offline reading.</string>
@@ -218,9 +176,6 @@ other{}
     <string name="detail_site">Site</string>
     <string name="detail_about">About %1$s</string>
     <string name="detail_words">%1$d words</string>
-    <string name="detail_images_toggle">Toggle image download</string>
-    <string name="detail_images_downloaded">Images downloaded</string>
-    <string name="detail_images_from_network">Images load from network</string>
     <string name="metadata_one_value_per_line">One value per line</string>
     <string name="metadata_text_direction_auto">Automatic</string>
     <string name="metadata_text_direction_ltr">Left to right</string>
@@ -350,8 +305,6 @@ other{}
     <string name="action_copy_image_url">Copy image URL</string>
     <string name="action_download_image">Download image</string>
     <string name="action_download_link">Download link</string>
-    <string name="action_download_title">Downloaded for offline reading</string>
-    <string name="notif_content_ready_title">Content ready offline</string>
     <string name="action_share_image">Share image</string>
     <string name="image_url_copied">Image URL copied</string>
     <string name="image_copied">Image copied</string>
@@ -406,16 +359,4 @@ other{}
     <string name="about_system_info_server_error">Could not load server information</string>
     <string name="about_system_info_server_unavailable">No server information available</string>
     <string name="auto_sync_timeframe_15_minutes">Every 15 minutes</string>
-    <string name="highlight_offline_unavailable">Highlights can\'t be changed while offline</string>
-    <string name="video_embed_offline">Video unavailable while offline</string>
-
-    <!-- Missing translations -->
-    <string name="sync_content_status_downloading_text">Downloading text</string>
-    <string name="sync_offline_image_limit">Image storage limit</string>
-    <string name="sync_offline_image_limit_dialog_title">Image storage limit</string>
-    <string name="sync_offline_image_limit_100_mb">100 MB</string>
-    <string name="sync_offline_image_limit_250_mb">250 MB</string>
-    <string name="sync_offline_image_limit_500_mb">500 MB</string>
-    <string name="sync_offline_image_limit_1_gb">1 GB</string>
-    <string name="sync_offline_image_limit_unlimited">Unlimited</string>
 </resources>

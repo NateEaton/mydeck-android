@@ -2,10 +2,15 @@ package com.mydeck.app.worker
 
 import android.content.Context
 import androidx.hilt.work.HiltWorker
+import androidx.work.Constraints
 import androidx.work.CoroutineWorker
+import androidx.work.ExistingWorkPolicy
+import androidx.work.NetworkType
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import com.mydeck.app.domain.sync.ContentSyncPolicyEvaluator
-import com.mydeck.app.domain.usecase.LoadContentPackageUseCase
+import com.mydeck.app.domain.usecase.LoadArticleUseCase
 import com.mydeck.app.io.db.dao.BookmarkDao
 import com.mydeck.app.io.prefs.SettingsDataStore
 import dagger.assisted.Assisted
@@ -22,19 +27,17 @@ class BatchArticleLoadWorker @AssistedInject constructor(
     @Assisted appContext: Context,
     @Assisted workerParams: WorkerParameters,
     private val bookmarkDao: BookmarkDao,
-    private val loadContentPackageUseCase: LoadContentPackageUseCase,
+    private val loadArticleUseCase: LoadArticleUseCase,
     private val policyEvaluator: ContentSyncPolicyEvaluator,
-    private val settingsDataStore: SettingsDataStore,
-    private val contentPackageManager: com.mydeck.app.domain.content.ContentPackageManager
+    private val settingsDataStore: SettingsDataStore
 ) : CoroutineWorker(appContext, workerParams) {
 
     override suspend fun doWork(): Result {
         Timber.d("BatchArticleLoadWorker starting")
 
         try {
-            val includeArchived = settingsDataStore.getOfflineContentScope().includesArchived
-            val pendingBookmarkIds = bookmarkDao.getBookmarkIdsEligibleForContentFetch(includeArchived)
-            Timber.i("Found ${pendingBookmarkIds.size} bookmarks without content (includeArchived=$includeArchived)")
+            val pendingBookmarkIds = bookmarkDao.getBookmarkIdsEligibleForContentFetch()
+            Timber.i("Found ${pendingBookmarkIds.size} bookmarks without content")
 
             if (pendingBookmarkIds.isEmpty()) {
                 return Result.success()
@@ -51,15 +54,12 @@ class BatchArticleLoadWorker @AssistedInject constructor(
                 Timber.d("Processing batch ${index + 1}, size=${batch.size}")
 
                 coroutineScope {
-                    // Use multipart batching (up to 10 IDs per request)
-                    val perIdResults = loadContentPackageUseCase.executeBatch(batch)
-                    // Stage 4: no background legacy fallback. Transient failures stay DIRTY for retry.
-                    perIdResults.entries.map { (id, res) ->
+                    batch.map { id ->
                         async {
-                            if (res is LoadContentPackageUseCase.Result.TransientFailure) {
-                                Timber.d("Multipart content fetch transient failure for $id: ${res.reason}")
-                            } else if (res is LoadContentPackageUseCase.Result.PermanentFailure) {
-                                Timber.d("Multipart content fetch permanent failure for $id: ${res.reason}")
+                            try {
+                                loadArticleUseCase.execute(id)
+                            } catch (e: Exception) {
+                                Timber.w(e, "Failed to load article $id")
                             }
                         }
                     }.awaitAll()
@@ -69,9 +69,6 @@ class BatchArticleLoadWorker @AssistedInject constructor(
                 if (index < batches.size - 1) {
                     delay(BATCH_DELAY_MS)
                 }
-
-                // Check and enforce storage limit after batch completes
-                enforceImageStorageLimit()
             }
 
             // Record the content sync timestamp
@@ -85,40 +82,25 @@ class BatchArticleLoadWorker @AssistedInject constructor(
         }
     }
 
-    private suspend fun enforceImageStorageLimit() {
-        // Enforce only if we are online enough to reload text
-        if (!policyEvaluator.canFetchContent().allowed) return
-        
-        val limit = settingsDataStore.getOfflineImageStorageLimit()
-        if (limit == com.mydeck.app.domain.sync.OfflineImageStorageLimit.UNLIMITED) return
-        
-        var currentSize = contentPackageManager.calculateTotalSize()
-        if (currentSize <= limit.bytes) return
-        
-        Timber.i("Storage limit exceeded (current: $currentSize, limit: ${limit.bytes}), starting prune...")
-        val includeArchived = settingsDataStore.getOfflineContentScope().includesArchived
-        val evictionCandidates = bookmarkDao.getOldestBookmarkIdsWithResources(includeArchived)
-        
-        for (id in evictionCandidates) {
-            if (currentSize <= limit.bytes) break
-            
-            Timber.d("Pruning images for old bookmark $id to free space")
-            // Fetch text-only version to overwrite resources but preserve HTML references cleanly
-            val result = loadContentPackageUseCase.executeTextOnlyOverwrite(id)
-            if (result is LoadContentPackageUseCase.Result.TransientFailure || result is LoadContentPackageUseCase.Result.PermanentFailure) {
-                Timber.w("Failed to text-only prune bookmark $id, skipping to next candidate")
-            } else {
-                // calculate updated size
-                currentSize = contentPackageManager.calculateTotalSize()
-            }
-        }
-        
-        Timber.i("Finished pruning. New size: $currentSize")
-    }
-
     companion object {
         const val UNIQUE_WORK_NAME = "batch_article_load"
-        private const val BATCH_SIZE = 10
+        private const val BATCH_SIZE = 5
         private const val BATCH_DELAY_MS = 500L
+
+        fun enqueue(context: Context) {
+            val constraints = Constraints.Builder()
+                .setRequiredNetworkType(NetworkType.CONNECTED)
+                .build()
+
+            val request = OneTimeWorkRequestBuilder<BatchArticleLoadWorker>()
+                .setConstraints(constraints)
+                .build()
+
+            WorkManager.getInstance(context).enqueueUniqueWork(
+                UNIQUE_WORK_NAME,
+                ExistingWorkPolicy.KEEP,  // Don't restart if already running
+                request
+            )
+        }
     }
 }

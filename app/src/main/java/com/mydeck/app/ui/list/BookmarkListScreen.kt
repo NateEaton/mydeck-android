@@ -257,9 +257,6 @@ fun BookmarkListScreen(
     val onClickOpenInBrowser: (String) -> Unit = { url ->
         viewModel.onClickOpenInBrowser(url)
     }
-    val onRemoveDownloadedContent: (String) -> Unit = { bookmarkId ->
-        viewModel.onRemoveDownloadedContent(bookmarkId)
-    }
 
     val clipboardManager = LocalClipboardManager.current
 
@@ -386,16 +383,6 @@ fun BookmarkListScreen(
                 dismissPendingDeleteSnackbar()
                 stageDeleteWithSnackbar(bookmarkId)
             }
-        }
-    }
-
-    // Constraint feedback snackbar (fires once after app-open sync if content sync is blocked)
-    LaunchedEffect(Unit) {
-        viewModel.constraintSnackbarEvent.collect { messageRes ->
-            snackbarHostState.showSnackbar(
-                message = context.getString(messageRes),
-                duration = SnackbarDuration.Short
-            )
         }
     }
 
@@ -711,7 +698,6 @@ fun BookmarkListScreen(
                         onClickDownloadLink = onClickDownloadLink,
                         onClickDownloadImage = onClickDownloadImage,
                         onClickShareImage = onClickShareImage,
-                        onRemoveDownloadedContent = onRemoveDownloadedContent,
                         onUserInteraction = dismissPendingDeleteSnackbar,
                     )
                 }
@@ -869,26 +855,6 @@ fun BookmarkListScreen(
             }
         )
     }
-
-    // Constraint override dialog for user-initiated refresh
-    val showConstraintDialog by viewModel.showConstraintOverrideDialog.collectAsState()
-    if (showConstraintDialog) {
-        AlertDialog(
-            onDismissRequest = { viewModel.onConstraintOverrideCancelled() },
-            title = { Text(stringResource(R.string.sync_constraint_override_title)) },
-            text = { Text(stringResource(R.string.sync_constraint_override_body, "")) },
-            confirmButton = {
-                Button(onClick = { viewModel.onConstraintOverrideConfirmed() }) {
-                    Text(stringResource(R.string.sync_constraint_override_confirm))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { viewModel.onConstraintOverrideCancelled() }) {
-                    Text(stringResource(R.string.cancel))
-                }
-            }
-        )
-    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -991,7 +957,6 @@ fun BookmarkListView(
     onClickDownloadLink: (String, String) -> Unit = { _, _ -> },
     onClickDownloadImage: (String) -> Unit = {},
     onClickShareImage: (String) -> Unit = {},
-    onRemoveDownloadedContent: (String) -> Unit = {},
     onUserInteraction: () -> Unit = {},
 ) {
     val configuration = LocalConfiguration.current
@@ -1052,7 +1017,6 @@ fun BookmarkListView(
                             onClickDownloadLink = if (isPendingDeletion) noop2s else onClickDownloadLink,
                             onClickDownloadImage = if (isPendingDeletion) noop else onClickDownloadImage,
                             onClickShareImage = if (isPendingDeletion) noop else onClickShareImage,
-                            onRemoveDownloadedContent = if (isPendingDeletion) noop else onRemoveDownloadedContent,
                             isInGrid = true,
                         )
                         LayoutMode.COMPACT -> BookmarkCompactCard(
@@ -1072,7 +1036,6 @@ fun BookmarkListView(
                             onClickDownloadLink = if (isPendingDeletion) noop2s else onClickDownloadLink,
                             onClickDownloadImage = if (isPendingDeletion) noop else onClickDownloadImage,
                             onClickShareImage = if (isPendingDeletion) noop else onClickShareImage,
-                            onRemoveDownloadedContent = if (isPendingDeletion) noop else onRemoveDownloadedContent,
                         )
                         LayoutMode.MOSAIC -> BookmarkMosaicCard(
                             bookmark = bookmark,
@@ -1090,8 +1053,7 @@ fun BookmarkListView(
                             onClickCopyImage = if (isPendingDeletion) noop else onClickCopyImage,
                             onClickDownloadLink = if (isPendingDeletion) noop2s else onClickDownloadLink,
                             onClickDownloadImage = if (isPendingDeletion) noop else onClickDownloadImage,
-                            onClickShareImage = if (isPendingDeletion) noop else onClickShareImage,
-                            onRemoveDownloadedContent = if (isPendingDeletion) noop else onRemoveDownloadedContent,
+                            onClickShareImage = if (isPendingDeletion) noop else onClickShareImage
                         )
                     }
                     }
@@ -1142,7 +1104,6 @@ fun BookmarkListView(
                             onClickDownloadLink = if (isPendingDeletion) noop2s else onClickDownloadLink,
                             onClickDownloadImage = if (isPendingDeletion) noop else onClickDownloadImage,
                             onClickShareImage = if (isPendingDeletion) noop else onClickShareImage,
-                            onRemoveDownloadedContent = if (isPendingDeletion) noop else onRemoveDownloadedContent,
                             useMobilePortraitLayout = useMobilePortraitGridLayout,
                         )
                         LayoutMode.COMPACT -> BookmarkCompactCard(
@@ -1161,8 +1122,7 @@ fun BookmarkListView(
                             onClickCopyImage = if (isPendingDeletion) noop else onClickCopyImage,
                             onClickDownloadLink = if (isPendingDeletion) noop2s else onClickDownloadLink,
                             onClickDownloadImage = if (isPendingDeletion) noop else onClickDownloadImage,
-                            onClickShareImage = if (isPendingDeletion) noop else onClickShareImage,
-                            onRemoveDownloadedContent = if (isPendingDeletion) noop else onRemoveDownloadedContent,
+                            onClickShareImage = if (isPendingDeletion) noop else onClickShareImage
                         )
                         LayoutMode.MOSAIC -> BookmarkMosaicCard(
                             bookmark = bookmark,
@@ -1180,8 +1140,7 @@ fun BookmarkListView(
                             onClickCopyImage = if (isPendingDeletion) noop else onClickCopyImage,
                             onClickDownloadLink = if (isPendingDeletion) noop2s else onClickDownloadLink,
                             onClickDownloadImage = if (isPendingDeletion) noop else onClickDownloadImage,
-                            onClickShareImage = if (isPendingDeletion) noop else onClickShareImage,
-                            onRemoveDownloadedContent = if (isPendingDeletion) noop else onRemoveDownloadedContent,
+                            onClickShareImage = if (isPendingDeletion) noop else onClickShareImage
                         )
                     }
                     }

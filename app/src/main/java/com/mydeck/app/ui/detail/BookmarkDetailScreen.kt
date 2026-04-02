@@ -9,7 +9,6 @@ import android.content.ContextWrapper
 import android.content.Intent
 import android.icu.text.MessageFormat
 import android.net.Uri
-import android.os.SystemClock
 import android.widget.Toast
 import android.view.View
 import android.view.ViewGroup
@@ -68,6 +67,7 @@ import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.ui.layout.layout
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.PointerEventPass
@@ -79,7 +79,6 @@ import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -134,7 +133,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.Constraints
 import com.mydeck.app.ui.theme.Dimens
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -158,13 +156,9 @@ import kotlinx.coroutines.withContext
 import coil3.imageLoader
 import com.mydeck.app.ui.detail.components.*
 import timber.log.Timber
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
-import androidx.compose.runtime.LaunchedEffect
 
 private const val PendingDeleteFromDetailKey = "pending_delete_bookmark_id"
 private const val VideoFullscreenControlsAutoHideDelayMs = 3_000L
-private const val ReadPositionLogPrefix = "READPOS"
 
 private enum class DetailOverlay {
     NONE,
@@ -243,7 +237,6 @@ fun BookmarkDetailHost(
     val labelsWithCounts = viewModel.labelsWithCounts.collectAsState().value
     val galleryData = viewModel.galleryData.collectAsState().value
     val readerContextMenu = viewModel.readerContextMenu.collectAsState().value
-    val imageToggleLoading = viewModel.imageToggleLoading.collectAsState().value
     val readerWebView = remember { mutableStateOf<WebView?>(null) }
     var detailOverlay by remember { mutableStateOf(DetailOverlay.NONE) }
     var showTypographyPanel by remember { mutableStateOf(false) }
@@ -432,47 +425,6 @@ fun BookmarkDetailHost(
         }
     }
 
-    // In-place annotation updates via JS (avoids full WebView reload)
-    LaunchedEffect(Unit) {
-        viewModel.annotationRefreshEvent.collect { event ->
-            val webView = readerWebView.value ?: return@collect
-            when (event) {
-                is BookmarkDetailViewModel.AnnotationRefreshEvent.ColorUpdate -> {
-                    val js = buildString {
-                        for (id in event.annotationIds) {
-                            val escapedId = id.replace("'", "\\'")
-                            append("document.querySelectorAll('rd-annotation[data-annotation-id-value=\"")
-                            append(escapedId)
-                            append("\"]').forEach(function(el){el.setAttribute('data-annotation-color','")
-                            append(event.color.replace("'", "\\'"))
-                            append("');});")
-                        }
-                    }
-                    webView.evaluateJavascript(js, null)
-                }
-                is BookmarkDetailViewModel.AnnotationRefreshEvent.HtmlRefresh -> {
-                    val base64Html = android.util.Base64.encodeToString(
-                        event.containerHtml.toByteArray(Charsets.UTF_8),
-                        android.util.Base64.NO_WRAP
-                    )
-                    webView.evaluateJavascript(
-                        "document.querySelector('.container').innerHTML=decodeURIComponent(escape(atob('$base64Html')));",
-                        null
-                    )
-                    // Re-inject interaction listeners for the new DOM elements
-                    webView.evaluateJavascript(
-                        WebViewImageBridge.injectImageInterceptor(),
-                        null
-                    )
-                    webView.evaluateJavascript(
-                        WebViewAnnotationBridge.injectAnnotationInteractions(),
-                        null
-                    )
-                }
-            }
-        }
-    }
-
     val keepScreenOn by viewModel.keepScreenOnWhileReading.collectAsState()
     val fullscreenWhileReading by viewModel.fullscreenWhileReading.collectAsState()
     val view = LocalView.current
@@ -538,7 +490,6 @@ fun BookmarkDetailHost(
                     onClickShareBookmark = onClickShareBookmark,
                     onClickDeleteBookmark = onClickDeleteBookmark,
                     onClickOpenInBrowser = onClickOpenInBrowser,
-                    onRemoveDownloadedContent = { viewModel.onRemoveDownloadedContent(it) },
                     onArticleSearchActivate = onArticleSearchActivate,
                     uiState = uiState,
                     onClickOpenUrl = onClickOpenUrl,
@@ -598,7 +549,6 @@ fun BookmarkDetailHost(
                         onPageChanged = { page -> viewModel.onGalleryPageChanged(page) },
                     )
                 }
-
             }
 
             // Reader context menu
@@ -663,17 +613,7 @@ fun BookmarkDetailHost(
                     canRefreshContent = uiState.bookmark.hasContent,
                     onEditMetadata = {
                         detailOverlay = DetailOverlay.METADATA_EDITOR
-                    },
-                    onToggleArticleImages = {
-                        viewModel.onToggleArticleImages(uiState.bookmark.bookmarkId)
-                    },
-                    onRemoveDownloadedContent = {
-                        viewModel.onRemoveDownloadedContent(uiState.bookmark.bookmarkId)
-                        detailOverlay = DetailOverlay.NONE
-                    },
-                    hasResources = uiState.bookmark.hasResources,
-                    isImageToggleEnabled = uiState.bookmark.isContentDownloaded,
-                    isImageToggleLoading = imageToggleLoading
+                    }
                 )
             }
             if (detailOverlay == DetailOverlay.METADATA_EDITOR) {
@@ -708,7 +648,6 @@ fun BookmarkDetailHost(
                     isLoading = annotationsState.isLoading,
                     onDismiss = { viewModel.hideAnnotationsSheet() },
                     onAnnotationClick = { annotationId ->
-                        viewModel.hideAnnotationsSheet()
                         viewModel.scrollToAnnotation(annotationId)
                     }
                 )
@@ -762,7 +701,6 @@ fun BookmarkDetailScreen(
     onClickOpenUrl: (String) -> Unit,
     onClickShareBookmark: (String, String) -> Unit,
     onClickOpenInBrowser: (String) -> Unit = {},
-    onRemoveDownloadedContent: (String) -> Unit = {},
     onArticleSearchActivate: () -> Unit = {},
     onShowDetails: () -> Unit = {},
     onShowHighlights: () -> Unit = {},
@@ -923,7 +861,6 @@ fun BookmarkDetailScreen(
                         onClickDeleteBookmark = onClickDeleteBookmark,
                         onArticleSearchActivate = onArticleSearchActivate,
                         onClickOpenInBrowser = onClickOpenInBrowser,
-                        onRemoveDownloadedContent = onRemoveDownloadedContent,
                         onContentModeChange = onContentModeChange,
                         scrollBehavior = topBarScrollBehavior,
                         scrollState = scrollState,
@@ -1231,18 +1168,12 @@ fun BookmarkDetailContent(
     val isArticle = uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.ARTICLE
     val needsRestore = isArticle && hasArticleContent && initialReadProgress > 0 && initialReadProgress <= 100
     val hasReaderContent = uiState.bookmark.hasContent && contentMode == ContentMode.READER
-    // Track whether content was already available when this screen first composed.
-    // If false, content was fetched on-demand and the parent's determinate progress bar
-    // handles the loading indicator — the overlay should not show an indeterminate bar.
-    val contentWasInitiallyAvailable by remember(uiState.bookmark.bookmarkId, contentMode) {
-        mutableStateOf(uiState.bookmark.hasContent)
-    }
     // Key on hasArticleContent so when content arrives after on-demand fetch,
     // the state resets and scroll position restore is triggered
-    var hasRestoredPosition by remember(uiState.bookmark.bookmarkId, hasArticleContent) { mutableStateOf(!needsRestore) }
+    var hasRestoredPosition by remember(hasArticleContent) { mutableStateOf(!needsRestore) }
     var isReaderContentReady by remember(
         uiState.bookmark.bookmarkId,
-        uiState.bookmark.articleContent != null,
+        uiState.bookmark.articleContent,
         uiState.bookmark.embed,
         contentMode
     ) {
@@ -1251,25 +1182,7 @@ fun BookmarkDetailContent(
     var hasDisplayedReaderContent by remember(uiState.bookmark.bookmarkId, contentMode) {
         mutableStateOf(false)
     }
-    var hasLoggedFirstVisible by remember(uiState.bookmark.bookmarkId, contentMode) {
-        mutableStateOf(false)
-    }
-    var lastReportedProgress by remember(uiState.bookmark.bookmarkId) {
-        mutableStateOf(initialReadProgress.coerceIn(0, 100))
-    }
-    var openStartMs by remember(uiState.bookmark.bookmarkId) {
-        mutableStateOf(SystemClock.elapsedRealtime())
-    }
-
-    LaunchedEffect(uiState.bookmark.bookmarkId, initialReadProgress, needsRestore) {
-        if (needsRestore || initialReadProgress <= 0) {
-            openStartMs = SystemClock.elapsedRealtime()
-        }
-        Timber.d(
-            "$ReadPositionLogPrefix: open bookmark=${uiState.bookmark.bookmarkId} " +
-                "initial=$initialReadProgress needsRestore=$needsRestore"
-        )
-    }
+    var lastReportedProgress by remember { mutableStateOf(-1) }
 
     LaunchedEffect(hasReaderContent) {
         if (!hasReaderContent) {
@@ -1295,86 +1208,18 @@ fun BookmarkDetailContent(
                 )
     val shouldHideReaderContent = !hasRestoredPosition || (!hasDisplayedReaderContent && showReaderLoadingOverlay)
 
-    LaunchedEffect(shouldHideReaderContent, hasReaderContent, hasRestoredPosition, isReaderContentReady) {
-        if (!shouldHideReaderContent && hasReaderContent && !hasLoggedFirstVisible) {
-            hasLoggedFirstVisible = true
-            Timber.d(
-                "$ReadPositionLogPrefix: first-visible bookmark=${uiState.bookmark.bookmarkId} " +
-                    "tOpenMs=${SystemClock.elapsedRealtime() - openStartMs} restored=$hasRestoredPosition " +
-                    "ready=$isReaderContentReady"
-            )
-        }
-    }
-
-    // Restore scroll position only after reader content is ready and maxValue stabilizes.
-    LaunchedEffect(uiState.bookmark.bookmarkId, isReaderContentReady, initialReadProgress) {
-        if (!hasRestoredPosition && isReaderContentReady && initialReadProgress > 0 && initialReadProgress <= 100) {
-            val restoreStartMs = SystemClock.elapsedRealtime()
-            Timber.d(
-                "$ReadPositionLogPrefix: restore-start bookmark=${uiState.bookmark.bookmarkId} " +
-                    "initial=$initialReadProgress currentMax=${scrollState.maxValue}"
-            )
-            var lastMax = -1
-            var stableMax = 0
-            var stableCount = 0
-            var lastLoggedMax = -1
-            var iterations = 0
-
-            for (i in 0 until 40) {
-                iterations = i + 1
-                delay(50)
-                val currentMax = scrollState.maxValue
-                if (currentMax <= 0) continue
-
-                val targetPosition = (currentMax * initialReadProgress / 100f).toInt()
-                if (scrollState.value != targetPosition) {
-                    scrollState.scrollTo(targetPosition)
-                }
-
-                if (currentMax == lastMax) {
-                    stableCount++
-                } else {
-                    stableCount = 0
-                    lastMax = currentMax
-                }
-
-                stableMax = currentMax
-                if (currentMax != lastLoggedMax || stableCount >= 4 || i == 39) {
-                    Timber.d(
-                        "$ReadPositionLogPrefix: restore-loop bookmark=${uiState.bookmark.bookmarkId} " +
-                            "iter=$iterations max=$currentMax stableCount=$stableCount " +
-                            "value=${scrollState.value} target=$targetPosition"
-                    )
-                    lastLoggedMax = currentMax
-                }
-                if (stableCount >= 4) break
-            }
-
-            if (stableMax > 0) {
-                val targetPosition = (stableMax * initialReadProgress / 100f).toInt()
-                hasRestoredPosition = true
-                Timber.d(
-                    "$ReadPositionLogPrefix: restore-applied bookmark=${uiState.bookmark.bookmarkId} " +
-                        "target=$targetPosition actual=${scrollState.value} stableMax=$stableMax " +
-                        "iterations=$iterations tRestoreMs=${SystemClock.elapsedRealtime() - restoreStartMs} " +
-                        "tOpenMs=${SystemClock.elapsedRealtime() - openStartMs}"
-                )
-            } else {
-                Timber.d(
-                    "$ReadPositionLogPrefix: restore-skipped bookmark=${uiState.bookmark.bookmarkId} " +
-                    "reason=stableMax<=0 initial=$initialReadProgress iterations=$iterations " +
-                    "tRestoreMs=${SystemClock.elapsedRealtime() - restoreStartMs}"
-                )
-            }
+    // Restore scroll position when content is loaded (using initial progress, not reactive)
+    LaunchedEffect(scrollState.maxValue) {
+        if (!hasRestoredPosition && scrollState.maxValue > 0 && initialReadProgress > 0 && initialReadProgress <= 100) {
+            val targetPosition = (scrollState.maxValue * initialReadProgress / 100f).toInt()
+            scrollState.scrollTo(targetPosition)
+            hasRestoredPosition = true
         }
     }
 
     // Track scroll progress and report changes (only depends on scroll value, not bookmark updates)
     // Only report when progress actually changes to avoid spam
     LaunchedEffect(scrollState.value, scrollState.maxValue) {
-        if (needsRestore && !hasRestoredPosition) return@LaunchedEffect
-        if (hasReaderContent && !isReaderContentReady) return@LaunchedEffect
-
         val progress = if (scrollState.maxValue > 0) {
             ((scrollState.value.toFloat() / scrollState.maxValue.toFloat()) * 100).toInt().coerceIn(0, 100)
         } else {
@@ -1386,11 +1231,6 @@ fun BookmarkDetailContent(
         // Only report if progress changed
         if (progress != lastReportedProgress) {
             lastReportedProgress = progress
-            Timber.d(
-                "$ReadPositionLogPrefix: progress-report bookmark=${uiState.bookmark.bookmarkId} " +
-                    "progress=$progress value=${scrollState.value} max=${scrollState.maxValue} " +
-                    "restored=$hasRestoredPosition ready=$isReaderContentReady"
-            )
             onScrollProgressChanged(progress)
         }
     }
@@ -1556,10 +1396,7 @@ fun BookmarkDetailContent(
                 label = "reader_loading_crossfade"
             ) { isLoading ->
                 if (isLoading) {
-                    ReaderLoadingOverlay(
-                        contentAlreadyAvailable = contentWasInitiallyAvailable,
-                        modifier = Modifier.fillMaxSize()
-                    )
+                    ReaderLoadingOverlay(modifier = Modifier.fillMaxSize())
                 }
             }
 
@@ -1570,37 +1407,6 @@ fun BookmarkDetailContent(
                     .fillMaxHeight(),
                 scrollState = scrollState
             )
-
-            // Determinate progress bar for on-demand content loading.
-            // Drawn last in the Scaffold content Box so it sits just below the
-            // top app bar and renders on top of the loading overlay.
-            val progressTarget = when (contentLoadState) {
-                is ContentLoadState.Loading -> contentLoadState.progress.coerceIn(0f, 0.95f)
-                ContentLoadState.Idle -> 0f
-                else -> 1f
-            }
-            val animatedProgress by animateFloatAsState(
-                targetValue = progressTarget,
-                animationSpec = tween(durationMillis = if (progressTarget >= 1f) 250 else 350),
-                label = "contentLoadProgress"
-            )
-            var showProgress by remember(uiState.bookmark.bookmarkId) { mutableStateOf(false) }
-            LaunchedEffect(contentLoadState, progressTarget) {
-                if (progressTarget > 0f) showProgress = true
-                if (progressTarget >= 1f) {
-                    delay(250)
-                    showProgress = false
-                }
-            }
-            if (showProgress && animatedProgress < 1f) {
-                LinearProgressIndicator(
-                    progress = { animatedProgress },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(4.dp)
-                        .align(Alignment.TopStart)
-                )
-            }
         }
     }
     }
@@ -1711,17 +1517,26 @@ private fun ReaderContextMenu(
 }
 
 @Composable
-private fun ReaderLoadingOverlay(
-    contentAlreadyAvailable: Boolean,
-    modifier: Modifier = Modifier
-) {
+private fun ReaderLoadingOverlay(modifier: Modifier = Modifier) {
     Box(
-        modifier = modifier
-            .background(MaterialTheme.colorScheme.background)
+        modifier = modifier,
+        contentAlignment = Alignment.Center
     ) {
-        if (contentAlreadyAvailable) {
-            // Content is in the DB/filesystem, just waiting for WebView to render.
-            // No meaningful progress signal — the user requested to remove the indeterminate bar here.
+        Surface(
+            shape = MaterialTheme.shapes.extraLarge,
+            tonalElevation = 4.dp,
+            shadowElevation = 1.dp
+        ) {
+            Column(
+                modifier = Modifier.padding(horizontal = 24.dp, vertical = 20.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(32.dp),
+                    strokeWidth = 3.dp
+                )
+            }
         }
     }
 }

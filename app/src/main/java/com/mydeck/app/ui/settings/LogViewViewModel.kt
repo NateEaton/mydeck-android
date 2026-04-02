@@ -1,11 +1,7 @@
 package com.mydeck.app.ui.settings
 
-import android.content.ContentValues
 import android.content.Context
 import android.net.Uri
-import android.os.Build
-import android.os.Environment
-import android.provider.MediaStore
 import androidx.annotation.StringRes
 import androidx.core.content.FileProvider
 import androidx.lifecycle.ViewModel
@@ -87,46 +83,6 @@ class LogViewViewModel @Inject constructor(
         }
     }
 
-    fun onSaveToDownloads() {
-        logAppInfo()
-        viewModelScope.launch {
-            val zipFile = createLogFilesZip(context)
-            if (zipFile == null) {
-                _navigationEvent.update { NavigationEvent.SaveError }
-                return@launch
-            }
-            try {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    val contentValues = ContentValues().apply {
-                        put(MediaStore.Downloads.DISPLAY_NAME, zipFile.name)
-                        put(MediaStore.Downloads.MIME_TYPE, "application/zip")
-                        put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
-                    }
-                    val resolver = context.contentResolver
-                    val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, contentValues)
-                    if (uri != null) {
-                        resolver.openOutputStream(uri)?.use { out ->
-                            zipFile.inputStream().use { input -> input.copyTo(out) }
-                        }
-                        _navigationEvent.update { NavigationEvent.SavedToDownloads }
-                    } else {
-                        _navigationEvent.update { NavigationEvent.SaveError }
-                    }
-                } else {
-                    // Pre-Q: copy directly to public Downloads directory
-                    @Suppress("DEPRECATION")
-                    val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
-                    val destFile = java.io.File(downloadsDir, zipFile.name)
-                    zipFile.copyTo(destFile, overwrite = true)
-                    _navigationEvent.update { NavigationEvent.SavedToDownloads }
-                }
-            } catch (e: Exception) {
-                Timber.w(e, "Failed to save logs to Downloads")
-                _navigationEvent.update { NavigationEvent.SaveError }
-            }
-        }
-    }
-
     fun onClearLogs() {
         viewModelScope.launch {
             clearLogFiles()
@@ -171,8 +127,6 @@ class LogViewViewModel @Inject constructor(
         data object NavigateBack : NavigationEvent()
         data class ShowShareDialog(val uri: Uri, val isZip: Boolean = false) : NavigationEvent()
         data object ShareError : NavigationEvent()
-        data object SavedToDownloads : NavigationEvent()
-        data object SaveError : NavigationEvent()
         data object LogsCleared : NavigationEvent()
     }
 

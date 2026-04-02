@@ -106,8 +106,6 @@ class BookmarkRepositoryImplTest {
             readeckApi = readeckApi,
             json = json,
             syncScheduler = syncScheduler,
-            contentPackageManager = mockk(relaxed = true),
-            settingsDataStore = mockk(relaxed = true),
             applicationScope = testScope,
             dispatcher = testDispatcher
         )
@@ -268,119 +266,6 @@ class BookmarkRepositoryImplTest {
     }
 
     @Test
-    fun `performFullSync persists bookmark metadata from paging response`() = runTest {
-        // Arrange: single page of 3 bookmarks
-        val bookmarkList = listOf(
-            bookmarkDto.copy(id = "bk-1", title = "First"),
-            bookmarkDto.copy(id = "bk-2", title = "Second"),
-            bookmarkDto.copy(id = "bk-3", title = "Third")
-        )
-
-        coEvery {
-            readeckApi.getBookmarks(limit = any(), offset = 0, updatedSince = null, ReadeckApi.SortOrder(ReadeckApi.Sort.Created), hasErrors = null)
-        } returns Response.success(bookmarkList, Headers.headersOf(
-            ReadeckApi.Header.TOTAL_COUNT, "3",
-            ReadeckApi.Header.TOTAL_PAGES, "1",
-            ReadeckApi.Header.CURRENT_PAGE, "1"
-        ))
-        coEvery { bookmarkDao.removeDeletedBookmars() } returns 0
-
-        // Act
-        val result = bookmarkRepositoryImpl.performFullSync()
-
-        // Assert: metadata was persisted via upsertBookmarksMetadataOnly
-        assertTrue(result is BookmarkRepository.SyncResult.Success)
-        assertEquals(3, (result as BookmarkRepository.SyncResult.Success).countUpdated)
-        coVerify(exactly = 1) {
-            bookmarkDao.upsertBookmarksMetadataOnly(match { it.size == 3 })
-        }
-    }
-
-    @Test
-    fun `performFullSync returns inserted count in SyncResult`() = runTest {
-        // Arrange: 2 pages
-        val page1 = List(50) { bookmarkDto.copy(id = "p1-$it") }
-        val page2 = List(25) { bookmarkDto.copy(id = "p2-$it") }
-
-        coEvery {
-            readeckApi.getBookmarks(limit = 50, offset = 0, updatedSince = null, ReadeckApi.SortOrder(ReadeckApi.Sort.Created), hasErrors = null)
-        } returns Response.success(page1, Headers.headersOf(
-            ReadeckApi.Header.TOTAL_COUNT, "75",
-            ReadeckApi.Header.TOTAL_PAGES, "2",
-            ReadeckApi.Header.CURRENT_PAGE, "1"
-        ))
-        coEvery {
-            readeckApi.getBookmarks(limit = 50, offset = 50, updatedSince = null, ReadeckApi.SortOrder(ReadeckApi.Sort.Created), hasErrors = null)
-        } returns Response.success(page2, Headers.headersOf(
-            ReadeckApi.Header.TOTAL_COUNT, "75",
-            ReadeckApi.Header.TOTAL_PAGES, "2",
-            ReadeckApi.Header.CURRENT_PAGE, "2"
-        ))
-        coEvery { bookmarkDao.removeDeletedBookmars() } returns 5
-
-        // Act
-        val result = bookmarkRepositoryImpl.performFullSync()
-
-        // Assert
-        val success = result as BookmarkRepository.SyncResult.Success
-        assertEquals(75, success.countUpdated)
-        assertEquals(5, success.countDeleted)
-        // Verify metadata was persisted for each page
-        coVerify(exactly = 1) { bookmarkDao.upsertBookmarksMetadataOnly(match { it.size == 50 }) }
-        coVerify(exactly = 1) { bookmarkDao.upsertBookmarksMetadataOnly(match { it.size == 25 }) }
-    }
-
-    @Test
-    fun `insertBookmarks preserves existing embed when incoming embed is null`() = runTest {
-        val existingEmbed = "<iframe src=\"https://www.youtube.com/embed/abc\"></iframe>"
-        val existingHostname = "www.youtube.com"
-        val existingBookmark = bookmarkDto.copy(type = "video")
-            .toDomain()
-            .copy(embed = existingEmbed, embedHostname = existingHostname)
-            .toEntity()
-            .bookmark
-
-        coEvery { bookmarkDao.getBookmarksByIds(listOf("1")) } returns listOf(existingBookmark)
-
-        // Incoming bookmark has null embed (e.g. from list endpoint)
-        val incoming = bookmarkDto.copy(type = "video").toDomain()
-            .copy(embed = null, embedHostname = null)
-
-        bookmarkRepositoryImpl.insertBookmarks(listOf(incoming))
-
-        coVerify {
-            bookmarkDao.upsertBookmarksMetadataOnly(match { bookmarks ->
-                val bk = bookmarks.single()
-                bk.embed == existingEmbed && bk.embedHostname == existingHostname
-            })
-        }
-    }
-
-    @Test
-    fun `insertBookmarks overwrites embed when incoming embed is non-null`() = runTest {
-        val existingBookmark = bookmarkDto.copy(type = "video")
-            .toDomain()
-            .copy(embed = "<iframe>old</iframe>", embedHostname = "old.example.com")
-            .toEntity()
-            .bookmark
-
-        coEvery { bookmarkDao.getBookmarksByIds(listOf("1")) } returns listOf(existingBookmark)
-
-        val newEmbed = "<iframe>new</iframe>"
-        val incoming = bookmarkDto.copy(type = "video").toDomain()
-            .copy(embed = newEmbed, embedHostname = "new.example.com")
-
-        bookmarkRepositoryImpl.insertBookmarks(listOf(incoming))
-
-        coVerify {
-            bookmarkDao.upsertBookmarksMetadataOnly(match { bookmarks ->
-                val bk = bookmarks.single()
-                bk.embed == newEmbed && bk.embedHostname == "new.example.com"
-            })
-        }
-    }
-
-    @Test
     fun `performFullSync API error`() = runTest {
         // Arrange
         coEvery { readeckApi.getBookmarks(limit = any(), offset = any(), updatedSince = any(), sortOrder = ReadeckApi.SortOrder(ReadeckApi.Sort.Created), hasErrors = any()) } returns Response.error(500, "Error".toResponseBody())
@@ -493,6 +378,23 @@ class BookmarkRepositoryImplTest {
     }
 
     @Test
+    fun `refreshBookmarkFromApi successful`() = runTest {
+        // Arrange
+        val bookmarkId = "test-bookmark-id"
+        val updatedBookmark = bookmarkDto.copy(title = "Updated Title")
+        val response = Response.success(updatedBookmark)
+        
+        coEvery { readeckApi.getBookmarkById(bookmarkId) } returns response
+        
+        // Act
+        bookmarkRepositoryImpl.refreshBookmarkFromApi(bookmarkId)
+        
+        // Assert
+        coVerify { readeckApi.getBookmarkById(bookmarkId) }
+        coVerify { bookmarkDao.upsertBookmarksMetadataOnly(any()) }
+    }
+
+    @Test
     fun `insertBookmarks uses content-aware path when article content is present`() = runTest {
         val bookmark = bookmarkDto.toDomain().copy(
             articleContent = "<article>Synced content</article>",
@@ -542,10 +444,7 @@ class BookmarkRepositoryImplTest {
     }
 
     @Test
-    fun `insertBookmarks metadata-only preserves omitDescription even when description changes`() = runTest {
-        // The list endpoint omits omit_description, so incoming is always null.
-        // We must preserve the existing value regardless of description changes.
-        // Only a content package fetch (non-null incoming) or local metadata edit can change it.
+    fun `insertBookmarks metadata-only clears omitDescription when description changes`() = runTest {
         val existingBookmark = bookmarkDto.toDomain()
             .copy(description = "Original description", omitDescription = true)
             .toEntity()
@@ -559,7 +458,7 @@ class BookmarkRepositoryImplTest {
         coVerify(exactly = 1) {
             bookmarkDao.upsertBookmarksMetadataOnly(
                 match { bookmarks ->
-                    bookmarks.singleOrNull()?.omitDescription == true
+                    bookmarks.singleOrNull()?.omitDescription == null
                 }
             )
         }

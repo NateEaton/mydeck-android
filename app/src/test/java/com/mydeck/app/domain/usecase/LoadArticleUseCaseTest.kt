@@ -133,11 +133,44 @@ class LoadArticleUseCaseTest {
     }
 
     @Test
-    fun `execute preserves omitDescription without detail fetch`() {
+    fun `execute fetches omitDescription from bookmark detail after article download`() {
+        val bookmark = sampleBookmark.copy(
+            articleContent = null,
+            contentState = Bookmark.ContentState.DIRTY
+        )
+        val articleContent = "<section><p>Fresh article</p></section>"
+        val bookmarkDetail = sampleBookmarkDetailDto(omitDescription = true)
+
+        coEvery { bookmarkRepository.getBookmarkById("123") } returns bookmark
+        every { connectivityMonitor.isNetworkAvailable() } returns true
+        coEvery { readeckApi.getArticle("123") } returns Response.success(articleContent)
+        coEvery { readeckApi.getBookmarkById("123") } returns Response.success(bookmarkDetail)
+        coEvery { readeckApi.getAnnotations("123") } returns Response.success(emptyList())
+        coEvery { bookmarkRepository.insertBookmarks(any()) } just Runs
+        coEvery { settingsDataStore.saveCachedAnnotationSnapshot("123", any()) } just Runs
+
+        val result = runBlocking {
+            loadArticleUseCase.execute("123")
+        }
+
+        assertTrue(result is LoadArticleUseCase.Result.Success)
+        coVerify(exactly = 1) { readeckApi.getBookmarkById("123") }
+        coVerify {
+            bookmarkRepository.insertBookmarks(
+                match { bookmarks ->
+                    bookmarks.singleOrNull()?.articleContent == articleContent &&
+                        bookmarks.singleOrNull()?.omitDescription == true
+                }
+            )
+        }
+    }
+
+    @Test
+    fun `execute skips bookmark detail fetch when omitDescription is already known`() {
         val bookmark = sampleBookmark.copy(
             articleContent = null,
             contentState = Bookmark.ContentState.DIRTY,
-            omitDescription = true
+            omitDescription = false
         )
         val articleContent = "<section><p>Fresh article</p></section>"
 
@@ -157,7 +190,7 @@ class LoadArticleUseCaseTest {
         coVerify {
             bookmarkRepository.insertBookmarks(
                 match { bookmarks ->
-                    bookmarks.singleOrNull()?.omitDescription == true
+                    bookmarks.singleOrNull()?.omitDescription == false
                 }
             )
         }

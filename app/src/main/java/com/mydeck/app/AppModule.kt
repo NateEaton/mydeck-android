@@ -61,7 +61,6 @@ abstract class AppModule {
             return Json {
                 ignoreUnknownKeys = true // Handle unknown keys gracefully
                 isLenient = true // Allow lenient parsing
-                encodeDefaults = true // Always emit fields even when value == default
             }
         }
     }

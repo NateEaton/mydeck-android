@@ -16,7 +16,6 @@ import com.mydeck.app.R
 import com.mydeck.app.domain.BookmarkRepository
 import com.mydeck.app.domain.BookmarkRepository.SyncResult
 import com.mydeck.app.domain.usecase.LoadBookmarksUseCase
-import com.mydeck.app.domain.usecase.FreshnessMarkerUseCase
 import com.mydeck.app.io.prefs.SettingsDataStore
 import kotlinx.datetime.Clock
 import timber.log.Timber
@@ -29,7 +28,6 @@ class FullSyncWorker @AssistedInject constructor(
     val bookmarkRepository: BookmarkRepository,
     val settingsDataStore: SettingsDataStore,
     val loadBookmarksUseCase: LoadBookmarksUseCase,
-    val freshnessMarkerUseCase: FreshnessMarkerUseCase,
 ) : CoroutineWorker(appContext, workerParams) {
     override suspend fun doWork(): Result {
         try {
@@ -89,49 +87,27 @@ class FullSyncWorker @AssistedInject constructor(
                 val syncTime = syncSuccess.maxServerTime ?: Clock.System.now()
                 settingsDataStore.saveLastSyncTimestamp(syncTime)
                 Timber.d("Skipping bookmark reload; delta sync reported no metadata updates")
-                loadBookmarksUseCase.enqueueContentSyncIfNeeded()
                 return Result.success(
                     Data.Builder().putInt(OUTPUT_DATA_COUNT, syncSuccess.countDeleted).build()
                 )
             }
 
-            // Step 2: Fetch updated/new bookmarks
-            val workResult = if (needsFullSync) {
-                // Full sync already persisted metadata in performFullSync(); just save cursor and finish
-                val syncTime = Clock.System.now()
-                settingsDataStore.saveLastSyncTimestamp(syncTime)
-                Timber.d("Full sync path: metadata already persisted (${syncSuccess.countUpdated} bookmarks)")
-                loadBookmarksUseCase.enqueueContentSyncIfNeeded()
-                Result.success(
-                    Data.Builder().putInt(OUTPUT_DATA_COUNT, syncSuccess.countDeleted).build()
-                )
-            } else {
-                // Delta path: fetch metadata for updated IDs via multipart POST
-                val updatedIds = syncSuccess.updatedIds
-                Timber.d("Fetching updated bookmarks via multipart [count=${updatedIds.size}]")
-                val loadResult = loadBookmarksUseCase.execute(updatedIds = updatedIds)
+            // Step 2: Fetch updated/new bookmarks (this also triggers article content loading)
+            Timber.d("Fetching updated bookmarks")
+            val loadResult = loadBookmarksUseCase.execute()
 
-                when (loadResult) {
-                    is LoadBookmarksUseCase.UseCaseResult.Error -> {
-                        Timber.e(loadResult.exception, "Failed to load updated bookmarks")
-                        Result.failure()
-                    }
-                    is LoadBookmarksUseCase.UseCaseResult.Success -> {
-                        // Prefer server event time from delta sync to avoid clock skew issues
-                        val syncTime = syncSuccess.maxServerTime ?: Clock.System.now()
-                        settingsDataStore.saveLastSyncTimestamp(syncTime)
-                        // Mark existing DOWNLOADED packages DIRTY when server updated > stored sourceUpdated
-                        try {
-                            if (updatedIds.isNotEmpty()) {
-                                freshnessMarkerUseCase.markDirtyForBookmarks(updatedIds)
-                            }
-                        } catch (e: Exception) {
-                            Timber.w(e, "Freshness marking failed after metadata sync")
-                        }
-                        Result.success(
-                            Data.Builder().putInt(OUTPUT_DATA_COUNT, syncSuccess.countDeleted).build()
-                        )
-                    }
+            val workResult = when (loadResult) {
+                is LoadBookmarksUseCase.UseCaseResult.Error -> {
+                    Timber.e(loadResult.exception, "Failed to load updated bookmarks")
+                    Result.failure()
+                }
+                is LoadBookmarksUseCase.UseCaseResult.Success -> {
+                    // Prefer server event time from delta sync to avoid clock skew issues
+                    val syncTime = syncSuccess.maxServerTime ?: Clock.System.now()
+                    settingsDataStore.saveLastSyncTimestamp(syncTime)
+                    Result.success(
+                        Data.Builder().putInt(OUTPUT_DATA_COUNT, syncSuccess.countDeleted).build()
+                    )
                 }
             }
             return workResult

@@ -7,28 +7,21 @@ import androidx.room.withTransaction
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.mydeck.app.io.db.dao.BookmarkDao
-import com.mydeck.app.io.db.dao.ContentPackageDao
 import com.mydeck.app.io.db.model.ArticleContentEntity
 import com.mydeck.app.io.db.model.BookmarkEntity
-import com.mydeck.app.io.db.model.ContentPackageEntity
-import com.mydeck.app.io.db.model.ContentResourceEntity
 import com.mydeck.app.io.db.model.RemoteBookmarkIdEntity
 import com.mydeck.app.io.db.model.PendingActionEntity
-import com.mydeck.app.io.db.dao.CachedAnnotationDao
 import com.mydeck.app.io.db.dao.PendingActionDao
-import com.mydeck.app.io.db.model.CachedAnnotationEntity
 
 @Database(
-    entities = [BookmarkEntity::class, ArticleContentEntity::class, ContentPackageEntity::class, ContentResourceEntity::class, RemoteBookmarkIdEntity::class, PendingActionEntity::class, CachedAnnotationEntity::class],
-    version = 12,
+    entities = [BookmarkEntity::class, ArticleContentEntity::class, RemoteBookmarkIdEntity::class, PendingActionEntity::class],
+    version = 10,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
 abstract class MyDeckDatabase : RoomDatabase() {
     abstract fun getBookmarkDao(): BookmarkDao
     abstract fun getPendingActionDao(): PendingActionDao
-    abstract fun getContentPackageDao(): ContentPackageDao
-    abstract fun getCachedAnnotationDao(): CachedAnnotationDao
 
     open suspend fun <R> performTransaction(block: suspend () -> R): R = withTransaction(block)
 
@@ -152,86 +145,6 @@ abstract class MyDeckDatabase : RoomDatabase() {
         val MIGRATION_9_10 = object : Migration(9, 10) {
             override fun migrate(database: SupportSQLiteDatabase) {
                 database.execSQL("ALTER TABLE bookmarks ADD COLUMN hasServerErrors INTEGER NOT NULL DEFAULT 0")
-            }
-        }
-
-        val MIGRATION_10_11 = object : Migration(10, 11) {
-            override fun migrate(database: SupportSQLiteDatabase) {
-                // Drop article_content table (clean break for v0.12.0 offline packages)
-                database.execSQL("DROP TABLE IF EXISTS `article_content`")
-
-                // Recreate article_content as empty (Room still references it in schema)
-                database.execSQL(
-                    """
-                    CREATE TABLE IF NOT EXISTS `article_content` (
-                        `bookmarkId` TEXT NOT NULL,
-                        `content` TEXT NOT NULL,
-                        PRIMARY KEY(`bookmarkId`),
-                        FOREIGN KEY(`bookmarkId`) REFERENCES `bookmarks`(`id`) ON DELETE CASCADE
-                    )
-                    """
-                )
-
-                // Create content_package table
-                database.execSQL(
-                    """
-                    CREATE TABLE IF NOT EXISTS `content_package` (
-                        `bookmarkId` TEXT NOT NULL,
-                        `packageKind` TEXT NOT NULL,
-                        `hasHtml` INTEGER NOT NULL,
-                        `hasResources` INTEGER NOT NULL,
-                        `sourceUpdated` TEXT NOT NULL,
-                        `lastRefreshed` INTEGER NOT NULL,
-                        `localBasePath` TEXT NOT NULL,
-                        PRIMARY KEY(`bookmarkId`),
-                        FOREIGN KEY(`bookmarkId`) REFERENCES `bookmarks`(`id`) ON DELETE CASCADE
-                    )
-                    """
-                )
-
-                // Create content_resource table
-                database.execSQL(
-                    """
-                    CREATE TABLE IF NOT EXISTS `content_resource` (
-                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-                        `bookmarkId` TEXT NOT NULL,
-                        `path` TEXT NOT NULL,
-                        `mimeType` TEXT NOT NULL,
-                        `group` TEXT,
-                        `localRelativePath` TEXT NOT NULL,
-                        `byteSize` INTEGER NOT NULL,
-                        FOREIGN KEY(`bookmarkId`) REFERENCES `bookmarks`(`id`) ON DELETE CASCADE
-                    )
-                    """
-                )
-                database.execSQL(
-                    "CREATE INDEX IF NOT EXISTS `index_content_resource_bookmarkId` ON `content_resource` (`bookmarkId`)"
-                )
-
-                // Reset all content state to NOT_ATTEMPTED since article_content was wiped
-                database.execSQL("UPDATE bookmarks SET contentState = 0, contentFailureReason = NULL")
-            }
-        }
-
-        val MIGRATION_11_12 = object : Migration(11, 12) {
-            override fun migrate(database: SupportSQLiteDatabase) {
-                database.execSQL(
-                    """
-                    CREATE TABLE IF NOT EXISTS `cached_annotation` (
-                        `id` TEXT NOT NULL,
-                        `bookmarkId` TEXT NOT NULL,
-                        `text` TEXT NOT NULL,
-                        `color` TEXT NOT NULL,
-                        `note` TEXT,
-                        `created` TEXT NOT NULL,
-                        PRIMARY KEY(`id`),
-                        FOREIGN KEY(`bookmarkId`) REFERENCES `bookmarks`(`id`) ON DELETE CASCADE
-                    )
-                    """
-                )
-                database.execSQL(
-                    "CREATE INDEX IF NOT EXISTS `index_cached_annotation_bookmarkId` ON `cached_annotation` (`bookmarkId`)"
-                )
             }
         }
     }

@@ -151,21 +151,6 @@
           margin-bottom: 2.5rem;
         }
 
-        figure {
-          margin: 0;
-          margin-bottom: 2.5rem;
-        }
-
-        figure img {
-          margin-bottom: 0.8rem;
-        }
-
-        figcaption, .picture-caption {
-          font-size: 0.9em;
-          color: var(--body-color);
-          opacity: 0.8;
-        }
-
         iframe {
           max-width: 100%;
           width: 100%;
@@ -317,10 +302,8 @@
             cursor: pointer;
             transition: box-shadow 180ms ease, outline-color 180ms ease;
         }
-        rd-annotation[data-annotation-note]::after {
-            content: " \270E";
-            font-size: 0.75em;
-            opacity: 0.6;
+        rd-annotation[data-annotation-note] {
+            display: none;
         }
         rd-annotation.mydeck-annotation-active {
             outline: 2px solid var(--annotation-active-outline-color);
