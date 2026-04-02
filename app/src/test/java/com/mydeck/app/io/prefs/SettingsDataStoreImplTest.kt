@@ -179,4 +179,58 @@ class SettingsDataStoreImplTest {
             dataStore.bookmarkShareFormatFlow.value
         )
     }
+
+    @Test
+    fun `downloadImages defaults to false`() = runTest {
+        val dataStore = SettingsDataStoreImpl(context)
+
+        assertFalse(dataStore.isDownloadImagesEnabled())
+    }
+
+    @Test
+    fun `downloadImages round-trips saved value`() = runTest {
+        val dataStore = SettingsDataStoreImpl(context)
+
+        dataStore.saveDownloadImagesEnabled(false)
+        assertFalse(dataStore.isDownloadImagesEnabled())
+
+        dataStore.saveDownloadImagesEnabled(true)
+        assertTrue(dataStore.isDownloadImagesEnabled())
+    }
+
+    @Test
+    fun `clearContentOnArchive defaults to false`() = runTest {
+        val dataStore = SettingsDataStoreImpl(context)
+
+        assertFalse(dataStore.isClearContentOnArchiveEnabled())
+    }
+
+    @Test
+    fun `clearContentOnArchive round-trips saved value`() = runTest {
+        val dataStore = SettingsDataStoreImpl(context)
+
+        dataStore.saveClearContentOnArchiveEnabled(true)
+        assertTrue(dataStore.isClearContentOnArchiveEnabled())
+
+        dataStore.saveClearContentOnArchiveEnabled(false)
+        assertFalse(dataStore.isClearContentOnArchiveEnabled())
+    }
+
+    @Test
+    fun `includeArchivedContentInSync defaults to false`() = runTest {
+        val dataStore = SettingsDataStoreImpl(context)
+
+        assertFalse(dataStore.isIncludeArchivedContentInSyncEnabled())
+    }
+
+    @Test
+    fun `includeArchivedContentInSync round-trips saved value`() = runTest {
+        val dataStore = SettingsDataStoreImpl(context)
+
+        dataStore.saveIncludeArchivedContentInSyncEnabled(true)
+        assertTrue(dataStore.isIncludeArchivedContentInSyncEnabled())
+
+        dataStore.saveIncludeArchivedContentInSyncEnabled(false)
+        assertFalse(dataStore.isIncludeArchivedContentInSyncEnabled())
+    }
 }

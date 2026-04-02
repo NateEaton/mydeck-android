@@ -10,7 +10,9 @@ data class AnnotationDto(
     val end_selector: String,
     val end_offset: Int,
     val created: String,
-    val text: String
+    val text: String,
+    val color: String = "yellow",
+    val note: String = ""
 )
 
 @Serializable

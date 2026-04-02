@@ -10,6 +10,8 @@ import com.mydeck.app.io.rest.model.BookmarkDto
 import com.mydeck.app.io.rest.model.ImageResource
 import com.mydeck.app.io.rest.model.Resource
 import com.mydeck.app.io.rest.model.Resources
+import com.mydeck.app.io.rest.sync.BookmarkSyncPackage
+import com.mydeck.app.io.rest.sync.MultipartSyncClient
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
@@ -25,6 +27,7 @@ class LoadBookmarksUseCaseTest {
 
     private lateinit var bookmarkRepository: BookmarkRepository
     private lateinit var readeckApi: ReadeckApi
+    private lateinit var multipartSyncClient: MultipartSyncClient
     private lateinit var settingsDataStore: SettingsDataStore
     private lateinit var policyEvaluator: ContentSyncPolicyEvaluator
     private lateinit var workManager: WorkManager
@@ -34,6 +37,7 @@ class LoadBookmarksUseCaseTest {
     fun setUp() {
         bookmarkRepository = mockk(relaxed = true)
         readeckApi = mockk()
+        multipartSyncClient = mockk(relaxed = true)
         settingsDataStore = mockk(relaxed = true)
         policyEvaluator = mockk(relaxed = true)
         workManager = mockk(relaxed = true)
@@ -41,6 +45,7 @@ class LoadBookmarksUseCaseTest {
         loadBookmarksUseCase = LoadBookmarksUseCase(
             bookmarkRepository,
             readeckApi,
+            multipartSyncClient,
             settingsDataStore,
             policyEvaluator,
             workManager
@@ -49,41 +54,35 @@ class LoadBookmarksUseCaseTest {
 
     @Test
     fun `execute successful load`() = runBlocking {
-        // Mock API response
-        val bookmarkDtoList = listOf(bookmark2)
-        val response: Response<List<BookmarkDto>> = Response.success(
-            bookmarkDtoList,
+        val pkg = BookmarkSyncPackage(bookmarkId = "2", json = bookmark2)
+        coEvery { multipartSyncClient.fetchMetadata(listOf("2")) } returns MultipartSyncClient.Result.Success(listOf(pkg))
+        coEvery { bookmarkRepository.insertBookmarks(any()) } returns Unit
+        coEvery { settingsDataStore.getLastBookmarkTimestamp() } returns null
+        coEvery { settingsDataStore.saveLastBookmarkTimestamp(any()) } returns Unit
+        coEvery { readeckApi.getBookmarks(any(), any(), any(), any(), any()) } returns Response.success(
+            emptyList(),
             Headers.headersOf(
-                ReadeckApi.Header.TOTAL_COUNT,
-                "1",
-                ReadeckApi.Header.TOTAL_PAGES,
-                "1",
-                ReadeckApi.Header.CURRENT_PAGE,
-                "1"
+                ReadeckApi.Header.TOTAL_PAGES, "1",
+                ReadeckApi.Header.CURRENT_PAGE, "1"
             )
         )
-        coEvery { readeckApi.getBookmarks(any(), any(), any(), any(), any()) } returns response
-
-        // Mock SettingsDataStore
-        coEvery { settingsDataStore.getLastBookmarkTimestamp() } returns null
 
         // Execute the use case
-        val result = loadBookmarksUseCase.execute(10, 0)
+        val result = loadBookmarksUseCase.execute(updatedIds = listOf("2"), pageSize = 10, initialOffset = 0)
 
         println("result=$result")
         // Verify the result
         assertTrue(result is LoadBookmarksUseCase.UseCaseResult.Success<*>)
-        coVerify { bookmarkRepository.replaceServerErrorFlags(setOf("2")) }
+        coVerify { multipartSyncClient.fetchMetadata(listOf("2")) }
+        coVerify { bookmarkRepository.insertBookmarks(match { it.size == 1 && it.first().id == "2" }) }
     }
 
     @Test
     fun `execute api error`() = runBlocking {
-        // Mock API response to return an error
-        val response: Response<List<BookmarkDto>> = Response.error(500, mockk(relaxed = true))
-        coEvery { readeckApi.getBookmarks(any(), any(), any(), any(), any()) } returns response
+        coEvery { multipartSyncClient.fetchMetadata(any()) } returns MultipartSyncClient.Result.Error("boom", 500)
 
         // Execute the use case
-        val result = loadBookmarksUseCase.execute(10, 0)
+        val result = loadBookmarksUseCase.execute(updatedIds = listOf("2"), pageSize = 10, initialOffset = 0)
 
         // Verify the result
         assertTrue(result is LoadBookmarksUseCase.UseCaseResult.Error)
@@ -92,19 +91,10 @@ class LoadBookmarksUseCaseTest {
 
     @Test
     fun `execute exception thrown`() = runBlocking {
-        // Mock API to throw an exception
-        coEvery {
-            readeckApi.getBookmarks(
-                any(),
-                any(),
-                any(),
-                any(),
-                any(),
-            )
-        } throws RuntimeException("Test Exception")
+        coEvery { multipartSyncClient.fetchMetadata(any()) } throws RuntimeException("Test Exception")
 
         // Execute the use case
-        val result = loadBookmarksUseCase.execute(10, 0)
+        val result = loadBookmarksUseCase.execute(updatedIds = listOf("2"), pageSize = 10, initialOffset = 0)
 
         // Verify the result
         assertTrue(result is LoadBookmarksUseCase.UseCaseResult.Error)
@@ -112,74 +102,43 @@ class LoadBookmarksUseCaseTest {
     }
 
     @Test
-    fun `execute saves last bookmark timestamp`() = runBlocking {
-        // Mock API response
-        val response: Response<List<BookmarkDto>> = Response.success(
-            sampleBookmarks,
-            Headers.headersOf(
-                ReadeckApi.Header.TOTAL_COUNT,
-                "1",
-                ReadeckApi.Header.TOTAL_PAGES,
-                "1",
-                ReadeckApi.Header.CURRENT_PAGE,
-                "1"
-            )
-        )
-        coEvery { readeckApi.getBookmarks(any(), any(), any(), any(), any()) } returns response
+    fun `execute with null updatedIds returns success without fetching`() = runBlocking {
+        val result = loadBookmarksUseCase.execute(updatedIds = null)
 
-        // Mock SettingsDataStore
-        coEvery { settingsDataStore.getLastBookmarkTimestamp() } returns null
-
-        // Execute the use case
-        loadBookmarksUseCase.execute(10, 0)
-
-        // Verify that the timestamp is saved
-        coVerify {
-            settingsDataStore.saveLastBookmarkTimestamp(
-                Instant.fromEpochSeconds(bookmark2.updated.epochSeconds)
-            )
-        }
-        coVerify { bookmarkRepository.insertBookmarks(sampleBookmarks.map { it.toDomain() }) }
-        coVerify { bookmarkRepository.replaceServerErrorFlags(setOf("2", "1")) }
+        assertTrue(result is LoadBookmarksUseCase.UseCaseResult.Success<*>)
+        coVerify(exactly = 0) { multipartSyncClient.fetchMetadata(any()) }
+        coVerify(exactly = 0) { bookmarkRepository.insertBookmarks(any()) }
     }
 
     @Test
-    fun `execute truncates stored cursor before requesting updates`() = runBlocking {
-        val response: Response<List<BookmarkDto>> = Response.success(
+    fun `execute with empty updatedIds returns success without fetching`() = runBlocking {
+        val result = loadBookmarksUseCase.execute(updatedIds = emptyList())
+
+        assertTrue(result is LoadBookmarksUseCase.UseCaseResult.Success<*>)
+        coVerify(exactly = 0) { multipartSyncClient.fetchMetadata(any()) }
+        coVerify(exactly = 0) { bookmarkRepository.insertBookmarks(any()) }
+    }
+
+    @Test
+    fun `execute saves last bookmark timestamp`() = runBlocking {
+        val pkg2 = BookmarkSyncPackage(bookmarkId = "2", json = bookmark2)
+        val pkg1 = BookmarkSyncPackage(bookmarkId = "1", json = bookmark1)
+        coEvery { multipartSyncClient.fetchMetadata(listOf("2", "1")) } returns MultipartSyncClient.Result.Success(listOf(pkg2, pkg1))
+        coEvery { settingsDataStore.getLastBookmarkTimestamp() } returns null
+        coEvery { settingsDataStore.saveLastBookmarkTimestamp(any()) } returns Unit
+        coEvery { bookmarkRepository.insertBookmarks(any()) } returns Unit
+        coEvery { readeckApi.getBookmarks(any(), any(), any(), any(), any()) } returns Response.success(
             emptyList(),
             Headers.headersOf(
-                ReadeckApi.Header.TOTAL_COUNT,
-                "0",
-                ReadeckApi.Header.TOTAL_PAGES,
-                "1",
-                ReadeckApi.Header.CURRENT_PAGE,
-                "1"
+                ReadeckApi.Header.TOTAL_PAGES, "1",
+                ReadeckApi.Header.CURRENT_PAGE, "1"
             )
         )
-        val storedCursor = Instant.parse("2026-03-12T19:46:28.351123456Z")
-        coEvery { readeckApi.getBookmarks(any(), any(), any(), any(), any()) } returns response
-        coEvery { settingsDataStore.getLastBookmarkTimestamp() } returns storedCursor
 
-        loadBookmarksUseCase.execute(10, 0)
+        loadBookmarksUseCase.execute(updatedIds = listOf("2", "1"), pageSize = 10, initialOffset = 0)
 
-        coVerify {
-            readeckApi.getBookmarks(
-                10,
-                0,
-                Instant.fromEpochSeconds(storedCursor.epochSeconds),
-                ReadeckApi.SortOrder(ReadeckApi.Sort.Created),
-                null
-            )
-        }
-        coVerify {
-            readeckApi.getBookmarks(
-                10,
-                0,
-                null,
-                ReadeckApi.SortOrder(ReadeckApi.Sort.Created),
-                true
-            )
-        }
+        coVerify { settingsDataStore.saveLastBookmarkTimestamp(Instant.fromEpochSeconds(bookmark2.updated.epochSeconds)) }
+        coVerify { bookmarkRepository.insertBookmarks(match { it.size == 2 }) }
     }
 
     val bookmark2 = BookmarkDto(

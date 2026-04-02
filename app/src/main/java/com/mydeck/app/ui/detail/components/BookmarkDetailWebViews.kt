@@ -11,7 +11,11 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.ViewConfiguration
 import android.webkit.ConsoleMessage
+import android.webkit.WebResourceRequest
+import android.webkit.WebResourceResponse
 import android.webkit.WebView
+import androidx.webkit.WebViewAssetLoader
+import com.mydeck.app.domain.content.OfflineContentPathHandler
 import com.mydeck.app.domain.model.ImageGalleryData
 import com.mydeck.app.domain.model.SelectionData
 import com.mydeck.app.ui.detail.WebViewAnnotationBridge
@@ -66,6 +70,9 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import timber.log.Timber
+import java.io.ByteArrayInputStream
+
+private const val ReadPositionLogPrefix = "READPOS"
 
 @Composable
 fun EmptyBookmarkDetailArticle(
@@ -103,14 +110,28 @@ fun BookmarkDetailArticle(
     val readerThemePalette = remember(localContext, effectiveAppearance) {
         resolveReaderThemePalette(context = localContext, appearance = effectiveAppearance)
     }
+    // Key on articleContent presence (not the full string) so annotation-refresh HTML changes
+    // don't trigger a full WebView reload — those are handled via JS innerHTML replacement.
     val content = remember(
         uiState.bookmark.bookmarkId,
-        uiState.bookmark.articleContent,
+        uiState.bookmark.articleContent != null,
         uiState.bookmark.embed
     ) {
         mutableStateOf(uiState.bookmark.getContent(uiState.template, isSystemInDarkMode))
     }
     val webViewRef = remember { mutableStateOf<WebView?>(null) }
+    val offlineAssetLoader = remember(uiState.bookmark.offlineBaseUrl) {
+        if (uiState.bookmark.offlineBaseUrl != null) {
+            val offlineDir = java.io.File(localContext.filesDir, "offline_content")
+            WebViewAssetLoader.Builder()
+                .setDomain(OfflineContentPathHandler.OFFLINE_HOST)
+                .addPathHandler(
+                    OfflineContentPathHandler.OFFLINE_PATH_PREFIX,
+                    OfflineContentPathHandler(offlineDir)
+                )
+                .build()
+        } else null
+    }
     val json = remember { Json { ignoreUnknownKeys = true } }
     val latestSelectionHandler = rememberUpdatedState(onTextSelectionCaptured)
     val latestAnnotationClickHandler = rememberUpdatedState(onAnnotationClicked)
@@ -118,7 +139,7 @@ fun BookmarkDetailArticle(
     val latestThemePalette = rememberUpdatedState(readerThemePalette)
     val latestThemeScript = rememberUpdatedState(WebViewThemeBridge.applyTheme(readerThemePalette))
     val lastDeliveredAnnotationTap = remember { mutableStateOf<Pair<String, Long>?>(null) }
-    var hasReportedReady by remember(uiState.bookmark.bookmarkId, content.value) { mutableStateOf(false) }
+    var hasReportedReady by remember(uiState.bookmark.bookmarkId, uiState.bookmark.articleContent != null) { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
 
     fun applyTheme(webView: WebView) {
@@ -159,7 +180,7 @@ fun BookmarkDetailArticle(
 
     LaunchedEffect(
         uiState.bookmark.bookmarkId,
-        uiState.bookmark.articleContent,
+        uiState.bookmark.articleContent != null,
         uiState.bookmark.embed
     ) {
         content.value = uiState.bookmark.getContent(uiState.template, isSystemInDarkMode)
@@ -169,9 +190,15 @@ fun BookmarkDetailArticle(
     LaunchedEffect(content.value) {
         if (content.value != null) {
             hasReportedReady = false
+            Timber.d(
+                "$ReadPositionLogPrefix: ready-reset bookmark=${uiState.bookmark.bookmarkId} source=content-changed"
+            )
             onContentReady(false)
         } else {
             onWebViewChanged(null)
+            Timber.d(
+                "$ReadPositionLogPrefix: ready-true bookmark=${uiState.bookmark.bookmarkId} source=no-content"
+            )
             onContentReady(true)
         }
     }
@@ -189,6 +216,9 @@ fun BookmarkDetailArticle(
             delay(3000)
             if (!hasReportedReady) {
                 hasReportedReady = true
+                Timber.d(
+                    "$ReadPositionLogPrefix: ready-true bookmark=${uiState.bookmark.bookmarkId} source=fallback3s"
+                )
                 onContentReady(true)
             }
         }
@@ -391,6 +421,54 @@ fun BookmarkDetailArticle(
                         // Intercept link clicks and open in Chrome Custom Tabs
                         // Apply typography after page finishes loading
                         webViewClient = object : android.webkit.WebViewClient() {
+                            override fun shouldInterceptRequest(
+                                view: WebView?,
+                                request: WebResourceRequest?
+                            ): WebResourceResponse? {
+                                val url = request?.url ?: return null
+                                // If offline, substitute a lightweight placeholder for common video embed hosts
+                                try {
+                                    val cm = view?.context?.getSystemService(android.content.Context.CONNECTIVITY_SERVICE) as? android.net.ConnectivityManager
+                                    val network = cm?.activeNetwork
+                                    val isOffline = network == null || cm.getNetworkCapabilities(network)
+                                        ?.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_VALIDATED) != true
+                                    if (isOffline && isVideo) {
+                                        val host = url.host?.lowercase() ?: ""
+                                        val embedBaseUrl = extractEmbedBaseUrl(uiState.bookmark.embed)
+                                        val embedHost = embedBaseUrl?.let { Uri.parse(it).host?.lowercase() }
+                                        val isEmbedHost = embedHost != null && host.contains(embedHost)
+                                        val isKnownVideoHost = host.contains("youtube.com") || host.contains("youtube-nocookie.com") || host.contains("youtu.be") || host.contains("vimeo.com")
+                                        if (isEmbedHost || isKnownVideoHost) {
+                                            val offlineHtml = """
+                                                <!DOCTYPE html>
+                                                <html>
+                                                  <head>
+                                                    <meta name='viewport' content='width=device-width, initial-scale=1.0'/>
+                                                    <style>
+                                                      body { margin:0; padding:0; font-family: sans-serif; background: transparent; }
+                                                      .placeholder { display:flex; align-items:center; justify-content:center; text-align:center; padding: 24px; color: #888888; }
+                                                    </style>
+                                                  </head>
+                                                  <body>
+                                                    <div class='placeholder'>${view?.context?.getString(com.mydeck.app.R.string.video_embed_offline)}</div>
+                                                  </body>
+                                                </html>
+                                            """.trimIndent()
+                                            return WebResourceResponse(
+                                                "text/html",
+                                                "utf-8",
+                                                ByteArrayInputStream(offlineHtml.toByteArray(Charsets.UTF_8))
+                                            )
+                                        }
+                                    }
+                                } catch (_: Exception) { /* ignore and fall through */ }
+                                offlineAssetLoader?.let { loader ->
+                                    val response = loader.shouldInterceptRequest(url)
+                                    if (response != null) return response
+                                }
+                                return super.shouldInterceptRequest(view, request)
+                            }
+
                             private fun applyReaderEnhancements(webView: WebView) {
                                 val typographyJs =
                                     WebViewTypographyBridge.applyTypography(latestTypographySettings.value)
@@ -406,6 +484,9 @@ fun BookmarkDetailArticle(
                                 if (hasReportedReady) return
                                 if (webView == null) {
                                     hasReportedReady = true
+                                    Timber.d(
+                                        "$ReadPositionLogPrefix: ready-true bookmark=${uiState.bookmark.bookmarkId} source=page-finished-null-webview"
+                                    )
                                     onContentReady(true)
                                     return
                                 }
@@ -416,6 +497,9 @@ fun BookmarkDetailArticle(
                                             override fun onComplete(requestId: Long) {
                                                 if (!hasReportedReady) {
                                                     hasReportedReady = true
+                                                    Timber.d(
+                                                        "$ReadPositionLogPrefix: ready-true bookmark=${uiState.bookmark.bookmarkId} source=visual-state"
+                                                    )
                                                     onContentReady(true)
                                                 }
                                             }
@@ -423,6 +507,9 @@ fun BookmarkDetailArticle(
                                     )
                                 } else {
                                     hasReportedReady = true
+                                    Timber.d(
+                                        "$ReadPositionLogPrefix: ready-true bookmark=${uiState.bookmark.bookmarkId} source=page-finished-pre-m"
+                                    )
                                     onContentReady(true)
                                 }
                             }
@@ -444,6 +531,9 @@ fun BookmarkDetailArticle(
                                 view?.let { applyReaderEnhancements(it) }
                                 if (!hasReportedReady) {
                                     hasReportedReady = true
+                                    Timber.d(
+                                        "$ReadPositionLogPrefix: ready-true bookmark=${uiState.bookmark.bookmarkId} source=page-commit-visible"
+                                    )
                                     onContentReady(true)
                                 }
                             }
@@ -506,27 +596,29 @@ fun BookmarkDetailArticle(
                     }
                 },
                 update = {
-                    if (content.value != null && it.tag as? String != content.value) {
-                        val baseUrl = if (uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.VIDEO) {
-                            extractEmbedBaseUrl(uiState.bookmark.embed) ?: uiState.bookmark.url
-                        } else {
-                            null
-                        }
-                        it.loadDataWithBaseURL(
-                            baseUrl,
-                            content.value!!,
-                            "text/html",
-                            "utf-8",
-                            null
-                        )
-                        it.tag = content.value
-                    }
-                    // Update reference and zoom
-                    webViewRef.value = it
-                    onWebViewChanged(it)
-                    it.settings.textZoom = uiState.typographySettings.fontSizePercent
-                    it.setBackgroundColor(android.graphics.Color.parseColor(readerThemePalette.bodyBackgroundColor))
+            if (content.value != null && it.tag as? String != content.value) {
+                val baseUrl = when {
+                    uiState.bookmark.offlineBaseUrl != null -> uiState.bookmark.offlineBaseUrl
+                    uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.VIDEO ->
+                        extractEmbedBaseUrl(uiState.bookmark.embed) ?: uiState.bookmark.url
+                    else -> null
                 }
+                it.loadDataWithBaseURL(
+                    baseUrl,
+                    content.value!!,
+                    "text/html",
+                    "utf-8",
+                    null
+                )
+                it.tag = content.value
+            }
+            if (webViewRef.value !== it) {
+                webViewRef.value = it
+                onWebViewChanged(it)
+            }
+            it.settings.textZoom = uiState.typographySettings.fontSizePercent
+            it.setBackgroundColor(android.graphics.Color.parseColor(readerThemePalette.bodyBackgroundColor))
+        }
             )
         }
 

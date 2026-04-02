@@ -28,6 +28,7 @@ class ContentSyncPolicyEvaluatorTest {
     fun `canFetchContent returns Decision(allowed=false) when wifiOnly is true but not on WiFi`() = runTest {
         // Arrange
         val constraints = ContentSyncConstraints(wifiOnly = true, allowOnBatterySaver = true)
+        coEvery { settingsDataStore.isDownloadImagesEnabled() } returns true
         coEvery { settingsDataStore.getContentSyncConstraints() } returns constraints
         every { connectivityMonitor.isOnWifi() } returns false
         every { connectivityMonitor.isNetworkAvailable() } returns true
@@ -45,6 +46,7 @@ class ContentSyncPolicyEvaluatorTest {
     fun `canFetchContent returns Decision(allowed=false) when battery saver is on and not allowed`() = runTest {
         // Arrange
         val constraints = ContentSyncConstraints(wifiOnly = false, allowOnBatterySaver = false)
+        coEvery { settingsDataStore.isDownloadImagesEnabled() } returns true
         coEvery { settingsDataStore.getContentSyncConstraints() } returns constraints
         every { connectivityMonitor.isOnWifi() } returns true
         every { connectivityMonitor.isNetworkAvailable() } returns true
@@ -62,6 +64,7 @@ class ContentSyncPolicyEvaluatorTest {
     fun `canFetchContent returns Decision(allowed=false) when no network available`() = runTest {
         // Arrange
         val constraints = ContentSyncConstraints(wifiOnly = false, allowOnBatterySaver = true)
+        coEvery { settingsDataStore.isDownloadImagesEnabled() } returns true
         coEvery { settingsDataStore.getContentSyncConstraints() } returns constraints
         every { connectivityMonitor.isOnWifi() } returns true
         every { connectivityMonitor.isNetworkAvailable() } returns false
@@ -79,6 +82,7 @@ class ContentSyncPolicyEvaluatorTest {
     fun `canFetchContent returns Decision(allowed=true) when all constraints satisfied`() = runTest {
         // Arrange
         val constraints = ContentSyncConstraints(wifiOnly = true, allowOnBatterySaver = false)
+        coEvery { settingsDataStore.isDownloadImagesEnabled() } returns true
         coEvery { settingsDataStore.getContentSyncConstraints() } returns constraints
         every { connectivityMonitor.isOnWifi() } returns true
         every { connectivityMonitor.isNetworkAvailable() } returns true
@@ -93,14 +97,26 @@ class ContentSyncPolicyEvaluatorTest {
     }
 
     @Test
-    fun `shouldAutoFetchContent returns false when mode is MANUAL`() = runTest {
+    fun `canFetchContent ignores wifi and battery constraints when image downloads are disabled`() = runTest {
         // Arrange
-        val constraints = ContentSyncConstraints(wifiOnly = false, allowOnBatterySaver = true)
-        coEvery { settingsDataStore.getContentSyncMode() } returns ContentSyncMode.MANUAL
+        val constraints = ContentSyncConstraints(wifiOnly = true, allowOnBatterySaver = false)
+        coEvery { settingsDataStore.isDownloadImagesEnabled() } returns false
         coEvery { settingsDataStore.getContentSyncConstraints() } returns constraints
-        every { connectivityMonitor.isOnWifi() } returns true
+        every { connectivityMonitor.isOnWifi() } returns false
         every { connectivityMonitor.isNetworkAvailable() } returns true
-        every { connectivityMonitor.isBatterySaverOn() } returns false
+        every { connectivityMonitor.isBatterySaverOn() } returns true
+
+        // Act
+        val decision = evaluator.canFetchContent()
+
+        // Assert
+        assertTrue(decision.allowed)
+        assertEquals(null, decision.blockedReason)
+    }
+
+    @Test
+    fun `shouldAutoFetchContent returns false when offline reading is disabled`() = runTest {
+        coEvery { settingsDataStore.isOfflineReadingEnabled() } returns false
 
         // Act
         val result = evaluator.shouldAutoFetchContent()
@@ -110,14 +126,8 @@ class ContentSyncPolicyEvaluatorTest {
     }
 
     @Test
-    fun `shouldAutoFetchContent returns true when mode is AUTOMATIC and constraints allow`() = runTest {
-        // Arrange
-        val constraints = ContentSyncConstraints(wifiOnly = false, allowOnBatterySaver = true)
-        coEvery { settingsDataStore.getContentSyncMode() } returns ContentSyncMode.AUTOMATIC
-        coEvery { settingsDataStore.getContentSyncConstraints() } returns constraints
-        every { connectivityMonitor.isOnWifi() } returns true
-        every { connectivityMonitor.isNetworkAvailable() } returns true
-        every { connectivityMonitor.isBatterySaverOn() } returns false
+    fun `shouldAutoFetchContent returns true when offline reading is enabled`() = runTest {
+        coEvery { settingsDataStore.isOfflineReadingEnabled() } returns true
 
         // Act
         val result = evaluator.shouldAutoFetchContent()
@@ -127,19 +137,15 @@ class ContentSyncPolicyEvaluatorTest {
     }
 
     @Test
-    fun `shouldAutoFetchContent returns false when mode is AUTOMATIC but constraints block`() = runTest {
-        // Arrange
-        val constraints = ContentSyncConstraints(wifiOnly = true, allowOnBatterySaver = true)
-        coEvery { settingsDataStore.getContentSyncMode() } returns ContentSyncMode.AUTOMATIC
-        coEvery { settingsDataStore.getContentSyncConstraints() } returns constraints
-        every { connectivityMonitor.isOnWifi() } returns false // WiFi required but not connected
-        every { connectivityMonitor.isNetworkAvailable() } returns true
-        every { connectivityMonitor.isBatterySaverOn() } returns false
+    fun `shouldAutoFetchContent ignores connectivity constraints when offline reading is enabled`() = runTest {
+        // Constraints and connectivity are evaluated elsewhere; this helper only checks whether
+        // managed offline reading is enabled.
+        coEvery { settingsDataStore.isOfflineReadingEnabled() } returns true
 
         // Act
         val result = evaluator.shouldAutoFetchContent()
 
         // Assert
-        assertFalse(result)
+        assertTrue(result)
     }
 }

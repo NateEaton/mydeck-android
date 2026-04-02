@@ -55,6 +55,8 @@ class BookmarkRepositoryImpl @Inject constructor(
     private val readeckApi: ReadeckApi,
     private val json: Json,
     private val syncScheduler: com.mydeck.app.domain.sync.SyncScheduler,
+    private val contentPackageManager: com.mydeck.app.domain.content.ContentPackageManager,
+    private val settingsDataStore: com.mydeck.app.io.prefs.SettingsDataStore,
     @ApplicationScope
     private val applicationScope: CoroutineScope,
     @IoDispatcher
@@ -141,7 +143,8 @@ class BookmarkRepositoryImpl @Inject constructor(
                     readingTime = listItem.readingTime,
                     created = listItem.created.toLocalDateTime(kotlinx.datetime.TimeZone.currentSystemDefault()),
                     wordCount = listItem.wordCount,
-                    published = listItem.published?.toLocalDateTime(kotlinx.datetime.TimeZone.currentSystemDefault())
+                    published = listItem.published?.toLocalDateTime(kotlinx.datetime.TimeZone.currentSystemDefault()),
+                    offlineState = deriveOfflineState(listItem.contentState, listItem.hasResources)
                 )
             }
         }
@@ -202,7 +205,8 @@ class BookmarkRepositoryImpl @Inject constructor(
                     readingTime = listItem.readingTime,
                     created = listItem.created.toLocalDateTime(kotlinx.datetime.TimeZone.currentSystemDefault()),
                     wordCount = listItem.wordCount,
-                    published = listItem.published?.toLocalDateTime(kotlinx.datetime.TimeZone.currentSystemDefault())
+                    published = listItem.published?.toLocalDateTime(kotlinx.datetime.TimeZone.currentSystemDefault()),
+                    offlineState = deriveOfflineState(listItem.contentState, listItem.hasResources)
                 )
             }
         }
@@ -279,9 +283,21 @@ class BookmarkRepositoryImpl @Inject constructor(
                     readingTime = listItem.readingTime,
                     created = listItem.created.toLocalDateTime(kotlinx.datetime.TimeZone.currentSystemDefault()),
                     wordCount = listItem.wordCount,
-                    published = listItem.published?.toLocalDateTime(kotlinx.datetime.TimeZone.currentSystemDefault())
+                    published = listItem.published?.toLocalDateTime(kotlinx.datetime.TimeZone.currentSystemDefault()),
+                    offlineState = deriveOfflineState(listItem.contentState, listItem.hasResources)
                 )
             }
+        }
+    }
+
+    private fun deriveOfflineState(
+        contentState: BookmarkEntity.ContentState,
+        hasResources: Boolean?
+    ): BookmarkListItem.OfflineState {
+        return when {
+            contentState != BookmarkEntity.ContentState.DOWNLOADED -> BookmarkListItem.OfflineState.NOT_DOWNLOADED
+            hasResources == true -> BookmarkListItem.OfflineState.DOWNLOADED_FULL
+            else -> BookmarkListItem.OfflineState.DOWNLOADED_TEXT_ONLY
         }
     }
 
@@ -339,7 +355,11 @@ class BookmarkRepositoryImpl @Inject constructor(
                     omitDescription = resolvePersistedOmitDescription(
                         existingBookmark = existingBookmark,
                         incomingBookmark = mergedBookmark
-                    )
+                    ),
+                    // Preserve embed fields when incoming data doesn't include them
+                    // (e.g. POST /bookmarks/sync may omit embed from its JSON)
+                    embed = mergedBookmark.bookmark.embed ?: existingBookmark?.embed,
+                    embedHostname = mergedBookmark.bookmark.embedHostname ?: existingBookmark?.embedHostname
                 )
             )
         }
@@ -367,21 +387,6 @@ class BookmarkRepositoryImpl @Inject constructor(
 
     override suspend fun getBookmarkById(id: String): Bookmark {
         return bookmarkDao.getBookmarkById(id).toDomain()
-    }
-
-    override suspend fun refreshBookmarkFromApi(id: String) {
-        withContext(dispatcher) {
-            try {
-                val response = readeckApi.getBookmarkById(id)
-                if (response.isSuccessful && response.body() != null) {
-                    val bookmark = response.body()!!.toDomain()
-                    insertBookmarks(listOf(bookmark))
-                    Timber.d("Refreshed bookmark from API: $id")
-                }
-            } catch (e: Exception) {
-                Timber.w(e, "Failed to refresh bookmark from API: $id")
-            }
-        }
     }
 
     override fun observeBookmark(id: String): Flow<Bookmark?> {
@@ -492,6 +497,20 @@ class BookmarkRepositoryImpl @Inject constructor(
                 isArchived?.let {
                     bookmarkDao.updateIsArchived(bookmarkId, it)
                     upsertPendingAction(bookmarkId, ActionType.TOGGLE_ARCHIVE, TogglePayload(it))
+                    if (it) {
+                        applicationScope.launch {
+                            try {
+                                val offlineReadingEnabled = settingsDataStore.isOfflineReadingEnabled()
+                                val scopeIncludesArchived = settingsDataStore.getOfflineContentScope().includesArchived
+                                if (offlineReadingEnabled && !scopeIncludesArchived) {
+                                    contentPackageManager.deletePackage(bookmarkId)
+                                    Timber.d("Purged managed offline content on archive for $bookmarkId")
+                                }
+                            } catch (e: Exception) {
+                                Timber.w(e, "Failed to purge managed offline content on archive for $bookmarkId")
+                            }
+                        }
+                    }
                 }
                 isRead?.let {
                     bookmarkDao.updateReadProgress(bookmarkId, if (it) 100 else 0)
@@ -613,22 +632,12 @@ class BookmarkRepositoryImpl @Inject constructor(
         existingBookmark: BookmarkEntity?,
         incomingBookmark: com.mydeck.app.io.db.model.BookmarkWithArticleContent
     ): Boolean? {
-        if (incomingBookmark.articleContent != null) {
-            return incomingBookmark.bookmark.omitDescription
-                ?: existingBookmark?.omitDescription?.takeIf {
-                    existingBookmark.description == incomingBookmark.bookmark.description
-                }
-        }
-
-        if (existingBookmark == null) {
-            return null
-        }
-
-        if (existingBookmark.description != incomingBookmark.bookmark.description) {
-            return null
-        }
-
-        return existingBookmark.omitDescription
+        // If the incoming data has an explicit value, use it (server said so)
+        incomingBookmark.bookmark.omitDescription?.let { return it }
+        // If the incoming data has no value (e.g. list endpoint omits omit_description),
+        // always preserve the existing value. Only the server or a content package
+        // fetch can authoritatively set/clear this field.
+        return existingBookmark?.omitDescription
     }
 
     override suspend fun updateLabels(
@@ -695,6 +704,8 @@ class BookmarkRepositoryImpl @Inject constructor(
             var offset = 0
             var hasMore = true
 
+            var totalInserted = 0
+
             while (hasMore) {
                 val response = readeckApi.getBookmarks(limit = pageSize, offset = offset, updatedSince = null, ReadeckApi.SortOrder(ReadeckApi.Sort.Created))
 
@@ -722,6 +733,20 @@ class BookmarkRepositoryImpl @Inject constructor(
                     val remoteBookmarkIdEntities = remoteBookmarks.map { RemoteBookmarkIdEntity(it.id) }
                     bookmarkDao.insertRemoteBookmarkIds(remoteBookmarkIdEntities)
 
+                    // Persist bookmark metadata from the response we already have
+                    val bookmarks = remoteBookmarks.mapNotNull { dto ->
+                        try {
+                            dto.toDomain()
+                        } catch (e: Exception) {
+                            Timber.w(e, "Failed to map bookmark ${dto.id} during full sync, skipping")
+                            null
+                        }
+                    }
+                    if (bookmarks.isNotEmpty()) {
+                        insertBookmarks(bookmarks)
+                        totalInserted += bookmarks.size
+                    }
+
                     if (currentPage < totalPages) {
                         offset += pageSize
                     } else {
@@ -744,7 +769,8 @@ class BookmarkRepositoryImpl @Inject constructor(
 
             bookmarkDao.clearRemoteBookmarkIds() // Clean up the temporary table
 
-            BookmarkRepository.SyncResult.Success(countDeleted = deleted)
+            Timber.i("Full sync complete: inserted $totalInserted bookmarks, deleted $deleted")
+            BookmarkRepository.SyncResult.Success(countDeleted = deleted, countUpdated = totalInserted)
         } catch (e: Exception) {
             Timber.e(e, "Full sync failed")
             BookmarkRepository.SyncResult.NetworkError(errorMessage = "Network error during full sync", ex = e)
@@ -775,7 +801,10 @@ class BookmarkRepositoryImpl @Inject constructor(
             val deletedIds = syncStatuses
                 .filter { it.type == "delete" }
                 .map { it.id }
-            val updatedCount = syncStatuses.count { it.type == "update" }
+            val updatedIds = syncStatuses
+                .filter { it.type == "update" }
+                .map { it.id }
+            val updatedCount = updatedIds.size
 
             // Delete locally removed bookmarks
             deletedIds.forEach { id ->
@@ -793,6 +822,7 @@ class BookmarkRepositoryImpl @Inject constructor(
             BookmarkRepository.SyncResult.Success(
                 countDeleted = deletedIds.size,
                 countUpdated = updatedCount,
+                updatedIds = updatedIds,
                 maxServerTime = maxServerTime
             )
         } catch (e: IOException) {
@@ -1001,6 +1031,24 @@ class BookmarkRepositoryImpl @Inject constructor(
             }
         }
 
+    override suspend fun refreshBookmarkMetadata(bookmarkId: String) = withContext(dispatcher) {
+        try {
+            val response = readeckApi.getBookmarkById(bookmarkId)
+            if (response.isSuccessful) {
+                val dto = response.body()
+                if (dto != null) {
+                    val bookmark = dto.toDomain()
+                    insertBookmarks(listOf(bookmark))
+                    Timber.d("Refreshed bookmark metadata for $bookmarkId")
+                }
+            } else {
+                Timber.w("Failed to refresh bookmark metadata: ${response.code()}")
+            }
+        } catch (e: Exception) {
+            Timber.w(e, "Error refreshing bookmark metadata for $bookmarkId")
+        }
+    }
+
     override suspend fun fetchRawBookmarkJson(bookmarkId: String): String? =
         withContext(dispatcher) {
             try {
@@ -1014,22 +1062,6 @@ class BookmarkRepositoryImpl @Inject constructor(
                 }
             } catch (e: Exception) {
                 Timber.e(e, "Error fetching raw bookmark JSON")
-                null
-            }
-        }
-
-    override suspend fun fetchRawArticleHtml(bookmarkId: String): String? =
-        withContext(dispatcher) {
-            try {
-                val response = readeckApi.getArticle(bookmarkId)
-                if (response.isSuccessful) {
-                    response.body()
-                } else {
-                    Timber.w("Failed to fetch article HTML from API: ${response.code()}")
-                    null
-                }
-            } catch (e: Exception) {
-                Timber.e(e, "Error fetching raw article HTML")
                 null
             }
         }

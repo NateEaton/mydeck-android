@@ -5,7 +5,7 @@ import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.mydeck.app.domain.sync.ContentSyncPolicyEvaluator
-import com.mydeck.app.domain.usecase.LoadArticleUseCase
+import com.mydeck.app.domain.usecase.LoadContentPackageUseCase
 import com.mydeck.app.io.db.dao.BookmarkDao
 import com.mydeck.app.io.prefs.SettingsDataStore
 import dagger.assisted.Assisted
@@ -18,7 +18,7 @@ class DateRangeContentSyncWorker @AssistedInject constructor(
     @Assisted appContext: Context,
     @Assisted workerParams: WorkerParameters,
     private val bookmarkDao: BookmarkDao,
-    private val loadArticleUseCase: LoadArticleUseCase,
+    private val loadContentPackageUseCase: LoadContentPackageUseCase,
     private val policyEvaluator: ContentSyncPolicyEvaluator,
     private val settingsDataStore: SettingsDataStore
 ) : CoroutineWorker(appContext, workerParams) {
@@ -35,22 +35,31 @@ class DateRangeContentSyncWorker @AssistedInject constructor(
 
         Timber.d("DateRangeContentSyncWorker starting [from=$fromEpoch, to=$toEpoch, override=$isOverride]")
 
+        val includeArchived = settingsDataStore.isIncludeArchivedContentInSyncEnabled()
         val eligibleIds = bookmarkDao.getBookmarkIdsForDateRangeContentFetch(
-            fromEpoch = fromEpoch, toEpoch = toEpoch
+            fromEpoch = fromEpoch, toEpoch = toEpoch, includeArchived = includeArchived
         )
 
         Timber.i("Found ${eligibleIds.size} bookmarks eligible for date range content fetch")
 
-        for (id in eligibleIds) {
-            // If this is an override request, skip the constraint check
+        // Process in batches to leverage multipart efficiency
+        val batches = eligibleIds.chunked(10)
+        for (batch in batches) {
             if (!isOverride && !policyEvaluator.canFetchContent().allowed) {
                 Timber.i("Constraints no longer met, stopping date range sync")
                 return Result.success()
             }
             try {
-                loadArticleUseCase.execute(id)
+                val perIdResults = loadContentPackageUseCase.executeBatch(batch)
+                perIdResults.forEach { (id, res) ->
+                    if (res is LoadContentPackageUseCase.Result.TransientFailure) {
+                        Timber.d("Multipart content fetch transient failure for $id: ${res.reason}")
+                    } else if (res is LoadContentPackageUseCase.Result.PermanentFailure) {
+                        Timber.d("Multipart content fetch permanent failure for $id: ${res.reason}")
+                    }
+                }
             } catch (e: Exception) {
-                Timber.w(e, "Failed to load article $id in date range sync")
+                Timber.w(e, "Batch failed in date range sync; continuing with next batch")
             }
         }
 

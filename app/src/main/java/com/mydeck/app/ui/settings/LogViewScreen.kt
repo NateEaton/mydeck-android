@@ -4,6 +4,7 @@ import android.content.Intent
 import android.widget.Toast
 import androidx.annotation.StringRes
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -22,6 +23,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.ArrowDropDown
@@ -74,6 +76,8 @@ fun LogViewScreen(navController: NavHostController) {
     val shareTitleText = stringResource(R.string.log_view_share_title)
     val shareErrorText = stringResource(R.string.log_view_share_error)
     val logsClearedText = stringResource(R.string.log_view_logs_cleared)
+    val savedToDownloadsText = stringResource(R.string.log_view_saved_to_downloads)
+    val saveErrorText = stringResource(R.string.log_view_save_error)
 
     LaunchedEffect(key1 = navigationEvent.value) {
         navigationEvent.value?.let { event ->
@@ -98,6 +102,18 @@ fun LogViewScreen(navController: NavHostController) {
                     }
                 }
 
+                LogViewViewModel.NavigationEvent.SavedToDownloads -> {
+                    scope.launch {
+                        Toast.makeText(context, savedToDownloadsText, Toast.LENGTH_SHORT).show()
+                    }
+                }
+
+                LogViewViewModel.NavigationEvent.SaveError -> {
+                    scope.launch {
+                        Toast.makeText(context, saveErrorText, Toast.LENGTH_SHORT).show()
+                    }
+                }
+
                 LogViewViewModel.NavigationEvent.LogsCleared -> {
                     scope.launch {
                         Toast.makeText(context, logsClearedText, Toast.LENGTH_SHORT).show()
@@ -115,6 +131,7 @@ fun LogViewScreen(navController: NavHostController) {
         onClickBack = { viewModel.onClickBack() },
         onClickLogRetention = { viewModel.onClickLogRetention() },
         onShareLogs = { viewModel.onShareLogs() },
+        onSaveToDownloads = { viewModel.onSaveToDownloads() },
         onRefresh = { viewModel.onRefresh() },
         onClearLogs = { viewModel.onClearLogs() },
         onSelectLogFile = { viewModel.onSelectLogFile(it) }
@@ -138,6 +155,7 @@ fun LogViewScreenView(
     onClickBack: () -> Unit,
     onClickLogRetention: () -> Unit,
     onShareLogs: () -> Unit,
+    onSaveToDownloads: () -> Unit,
     onRefresh: () -> Unit,
     onClearLogs: () -> Unit,
     onSelectLogFile: (java.io.File) -> Unit
@@ -161,6 +179,12 @@ fun LogViewScreenView(
                         Icon(
                             imageVector = Icons.Filled.CalendarMonth,
                             contentDescription = stringResource(id = R.string.log_retention_title)
+                        )
+                    }
+                    IconButton(onClick = onSaveToDownloads) {
+                        Icon(
+                            imageVector = Icons.Filled.Download,
+                            contentDescription = stringResource(id = R.string.log_view_save_to_downloads)
                         )
                     }
                     IconButton(onClick = onShareLogs) {
@@ -204,12 +228,14 @@ fun LogViewScreenView(
                             .weight(1f)
                             .fillMaxWidth()
                     ) {
-                        Column(
-                            modifier = Modifier
-                                .padding(16.dp)
-                                .verticalScroll(scrollState)
-                        ) {
-                            Text(text = uiState.logContent)
+                        SelectionContainer {
+                            Column(
+                                modifier = Modifier
+                                    .padding(16.dp)
+                                    .verticalScroll(scrollState)
+                            ) {
+                                Text(text = uiState.logContent)
+                            }
                         }
                         VerticalScrollbar(
                             modifier = Modifier
@@ -400,6 +426,7 @@ fun LogViewScreenPreview() {
         onClickBack = {},
         onClickLogRetention = {},
         onShareLogs = {},
+        onSaveToDownloads = {},
         onRefresh = {},
         onClearLogs = {},
         onSelectLogFile = {}

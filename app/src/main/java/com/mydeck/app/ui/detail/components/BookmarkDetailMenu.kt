@@ -49,6 +49,7 @@ fun BookmarkDetailMenu(
     onShowDetails: () -> Unit = {},
     onShowHighlights: () -> Unit = {},
     onClickOpenInBrowser: (String) -> Unit = {},
+    onRemoveDownloadedContent: (String) -> Unit = {},
     contentMode: ContentMode = ContentMode.READER,
     onContentModeChange: (ContentMode) -> Unit = {}
 ) {

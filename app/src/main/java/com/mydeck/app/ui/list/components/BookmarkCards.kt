@@ -29,6 +29,7 @@ import androidx.compose.material.icons.filled.OpenInBrowser
 import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Unarchive
+import androidx.compose.material.icons.outlined.CloudOff
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material3.Card
@@ -78,7 +79,8 @@ fun BookmarkGridCard(
     onClickShareBookmark: (String, String) -> Unit,
     onClickLabel: (String) -> Unit,
     onClickOpenUrl: (String) -> Unit,
-    onClickOpenInBrowser: (String) -> Unit
+    onClickOpenInBrowser: (String) -> Unit,
+    onRemoveDownloadedContent: (String) -> Unit = {}
 ) {
     Card(
         modifier = Modifier
@@ -183,7 +185,8 @@ fun BookmarkGridCard(
                         onClickFavorite = onClickFavorite,
                         onClickShareBookmark = onClickShareBookmark,
                         onClickOpenUrl = onClickOpenUrl,
-                        onClickOpenInBrowser = onClickOpenInBrowser
+                        onClickOpenInBrowser = onClickOpenInBrowser,
+                        onRemoveDownloadedContent = onRemoveDownloadedContent
                     )
                 }
             }
@@ -201,7 +204,8 @@ fun BookmarkCompactCard(
     onClickShareBookmark: (String, String) -> Unit,
     onClickLabel: (String) -> Unit,
     onClickOpenUrl: (String) -> Unit,
-    onClickOpenInBrowser: (String) -> Unit
+    onClickOpenInBrowser: (String) -> Unit,
+    onRemoveDownloadedContent: (String) -> Unit = {}
 ) {
     Card(
         modifier = Modifier
@@ -254,13 +258,41 @@ fun BookmarkCompactCard(
                     overflow = TextOverflow.Ellipsis
                 )
                 Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = bookmark.siteName ?: bookmark.url,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    // Compact reading progress badge
+                    if (bookmark.readProgress > 0 && bookmark.readProgress < 100) {
+                        Box(
+                            modifier = Modifier
+                                .padding(end = 6.dp)
+                                .size(14.dp)
+                        ) {
+                            CircularProgressIndicator(
+                                progress = { bookmark.readProgress / 100f },
+                                modifier = Modifier.fillMaxSize(),
+                                color = MaterialTheme.colorScheme.primary,
+                                strokeWidth = 2.dp,
+                                trackColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                            )
+                        }
+                    } else if (bookmark.readProgress == 100) {
+                        Icon(
+                            imageVector = Icons.Outlined.Check,
+                            contentDescription = stringResource(R.string.action_is_read),
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier
+                                .padding(end = 4.dp)
+                                .size(16.dp)
+                        )
+                    }
+
+                    Text(
+                        text = bookmark.siteName ?: bookmark.url,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
             }
             
             BookmarkCardActions(
@@ -270,7 +302,8 @@ fun BookmarkCompactCard(
                 onClickFavorite = onClickFavorite,
                 onClickShareBookmark = onClickShareBookmark,
                 onClickOpenUrl = onClickOpenUrl,
-                onClickOpenInBrowser = onClickOpenInBrowser
+                onClickOpenInBrowser = onClickOpenInBrowser,
+                onRemoveDownloadedContent = onRemoveDownloadedContent
             )
         }
     }
@@ -286,7 +319,8 @@ fun BookmarkMosaicCard(
     onClickShareBookmark: (String, String) -> Unit,
     onClickLabel: (String) -> Unit,
     onClickOpenUrl: (String) -> Unit,
-    onClickOpenInBrowser: (String) -> Unit
+    onClickOpenInBrowser: (String) -> Unit,
+    onRemoveDownloadedContent: (String) -> Unit = {}
 ) {
     // Mosaic can be similar to Grid but with different aspect ratios or sizing logic handled by the specific StaggeredGrid layout (if implemented).
     // For now, reusing Grid layout structure but allowing it to be used in a StaggeredGrid.
@@ -300,7 +334,8 @@ fun BookmarkMosaicCard(
          onClickShareBookmark = onClickShareBookmark,
          onClickLabel = onClickLabel,
          onClickOpenUrl = onClickOpenUrl,
-         onClickOpenInBrowser = onClickOpenInBrowser
+         onClickOpenInBrowser = onClickOpenInBrowser,
+         onRemoveDownloadedContent = onRemoveDownloadedContent
     )
 }
 
@@ -312,7 +347,8 @@ private fun BookmarkCardActions(
     onClickFavorite: (String, Boolean) -> Unit,
     onClickShareBookmark: (String, String) -> Unit,
     onClickOpenUrl: (String) -> Unit,
-    onClickOpenInBrowser: (String) -> Unit
+    onClickOpenInBrowser: (String) -> Unit,
+    onRemoveDownloadedContent: (String) -> Unit = {}
 ) {
     var expanded by remember { mutableStateOf(false) }
 
@@ -388,6 +424,7 @@ private fun BookmarkCardActions(
                     onClickOpenUrl(bookmark.url)
                 }
             )
+
             DropdownMenuItem(
                 text = { Text(stringResource(R.string.action_delete)) },
                 leadingIcon = {

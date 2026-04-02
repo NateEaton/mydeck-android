@@ -2,9 +2,14 @@
 
 This document provides guidelines for AI-assisted development on the MyDeck Android project.
 
-## Usage Efficiency
+## Usage Efficiency & Token Conservation
 
-**Do not run tasks in parallel.** Always execute steps sequentially, one at a time. Usage efficiency is more important than speed — do not use background agents, parallel tool calls, or concurrent subagents to accelerate work.
+**Strict Anti-Bloat Protocol:**
+1. **Sequential Only:** Never run tasks in parallel. Execute steps one at a time.
+2. **Scout Before Reading:** Before reading a file, use `grep` or `ls -R` to confirm it contains relevant logic.
+3. **File Size Limit:** Do not `cat` or read any file over 30KB without explicit permission. Summarize large files using `grep` or `sed` to extract only relevant functions.
+4. **Research Mode Constraint:** In "Plan" or "Research" mode, do not read more than 3 files per turn. Present a summary of findings after every 3 files and wait for user direction.
+5. **Memory Management:** If a session involves reading more than 10 files, recommend a "Summary & Reset" where you provide a concise report of findings and ask the user to start a fresh chat to clear the context.
 
 ## Localization Requirements
 
