@@ -307,6 +307,31 @@ The following are explicitly removed as part of implementing this architecture:
 
 ---
 
+## Settings Screen UI Requirements
+
+### Material You Compliance
+
+The sync settings screen must be updated to be fully Material You compliant as part of
+this implementation. The existing **Bookmark Sync** section already uses correct Material
+You styling and serves as the reference. All new and existing sections below it must be
+brought to the same standard: consistent typography scale, proper use of
+`ListItem`/`SwitchPreference`/`DropdownMenuBox` Material 3 components, correct surface
+tiers and container colors, and appropriate use of `contentColor`/`containerColor` tokens.
+No custom-styled controls that deviate from the Material 3 component set should remain
+after this work.
+
+### User Guide
+
+The `app/src/main/assets/guide/en/settings.md` user guide must be updated to reflect all
+changes to sync and offline reading settings introduced by this spec. The update should
+cover: the offline reading toggle and what enabling/disabling it does, the three management
+policies and how to choose between them, the one-time date-range download action, the
+archive scope options, and the "Remove downloaded content" action in the bookmark detail
+menu. Changes to bookmark card icons (outline vs. filled) should be documented in
+`your-bookmarks.md`.
+
+---
+
 ## Settings Layout
 
 ```

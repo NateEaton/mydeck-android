@@ -259,7 +259,15 @@ slice; the data layer is in place after Slice 7.
 - Settings screen collapses substantially when offline reading is off.
 - Sync status section updates per spec (different fields shown when offline on vs. off).
 - String resources for all new UI labels added to all language files.
-- Update user guide (`settings.md`) to reflect the new layout.
+- **Material You compliance:** Bring the full settings screen to Material You parity.
+  The existing Bookmark Sync section is already correct and serves as the reference.
+  All sections below it must use consistent Material 3 components (`ListItem`,
+  `SwitchPreference`, `DropdownMenuBox`, etc.) with correct surface tiers, container
+  colors, and content color tokens. No custom-styled controls should remain.
+- **User guide:** Update `app/src/main/assets/guide/en/settings.md` to document the
+  offline reading toggle, the three management policies, the one-time date-range download
+  action, and the archive scope options. Update `your-bookmarks.md` to document the
+  updated bookmark card icons (outline = text cached, filled = fully available offline).
 
 **Files touched:** Sync settings Composable(s), `SyncSettingsViewModel.kt`,
 string resource files (all languages), `app/src/main/assets/guide/en/settings.md`.
