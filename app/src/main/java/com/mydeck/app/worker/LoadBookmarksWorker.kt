@@ -100,7 +100,32 @@ class LoadBookmarksWorker @AssistedInject constructor(
                     }
                     deltaUpdatedIds = result.updatedIds
                 }
-                else -> Timber.w("Delta sync failed during pull-to-refresh, continuing with incremental load")
+                else -> Timber.w("Delta sync failed during pull-to-refresh, falling back to full sync")
+            }
+        }
+
+        // If delta sync failed or no cursor was available, deltaUpdatedIds is null.
+        // Fall back to a full sync rather than silently returning success with stale data.
+        if (deltaUpdatedIds == null) {
+            Timber.w("No delta IDs available (delta failed or no cursor) — performing full sync fallback")
+            return when (val result = bookmarkRepository.performFullSync()) {
+                is BookmarkRepository.SyncResult.Success -> {
+                    Timber.i("Full sync fallback: updated ${result.countUpdated}, deleted ${result.countDeleted}")
+                    settingsDataStore.saveLastSyncTimestamp(Clock.System.now())
+                    if (!settingsDataStore.isInitialSyncPerformed()) {
+                        settingsDataStore.setInitialSyncPerformed(true)
+                    }
+                    loadBookmarksUseCase.enqueueContentSyncIfNeeded()
+                    Result.success()
+                }
+                is BookmarkRepository.SyncResult.NetworkError -> {
+                    Timber.e(result.ex, "Network error during full sync fallback")
+                    Result.retry()
+                }
+                is BookmarkRepository.SyncResult.Error -> {
+                    Timber.e("Full sync fallback failed: ${result.errorMessage}")
+                    Result.failure()
+                }
             }
         }
 

@@ -79,9 +79,15 @@ class ContentPackageManager @Inject constructor(
             }
 
             // Move resource temp files into staging dir
+            val stagingCanonical = stagingDir.canonicalPath
             val resourceEntities = mutableListOf<ContentResourceEntity>()
             for (resource in pkg.resources) {
                 val targetFile = File(stagingDir, resource.path)
+                // Guard against path traversal: reject any path that resolves outside stagingDir
+                if (!targetFile.canonicalPath.startsWith(stagingCanonical + File.separator)) {
+                    Timber.w("Skipping resource with unsafe path '${resource.path}' for $bookmarkId")
+                    continue
+                }
                 targetFile.parentFile?.mkdirs()
                 moveOrCopy(resource.tempFile, targetFile)
                 resourceEntities.add(
