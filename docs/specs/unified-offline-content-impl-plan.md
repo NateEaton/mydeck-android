@@ -73,28 +73,41 @@ additions.
 
 ---
 
-## Slice 3: Remove Per-Article Image Toggle
+## Slice 3: Remove Per-Bookmark Content Management UI and Dead Code
 
-**Goal:** Remove the cycling image toggle from `BookmarkDetailDialog` and all backing
-logic. This is a removal slice; no new behavior is added.
+**Goal:** Remove the per-article image toggle and fully clean up the incomplete removal
+of the per-bookmark "Remove downloaded content" action. Content lifecycle is the system's
+responsibility; no per-bookmark download or removal actions belong in the UI. This is a
+removal slice; no new behavior is added.
 
 **Scope:**
-- Remove the image toggle row from `BookmarkDetailDialog` metadata section.
-- Remove the backing ViewModel action and state that drove the toggle.
-- Remove the `downloadImagesWithArticles` preference key from `SettingsDataStore`.
-- Remove any settings migration or default value for `downloadImagesWithArticles`.
+- Remove the image toggle row from `BookmarkDetailDialog` metadata section and its
+  backing ViewModel action and state.
+- Remove the `downloadImagesWithArticles` preference key from `SettingsDataStore` and
+  any associated migration or default value.
+- Remove `BookmarkDetailViewModel.onRemoveDownloadedContent()` and
+  `BookmarkListViewModel.onRemoveDownloadedContent()` — these are dead ViewModel methods
+  left over from an incomplete removal on the branch.
+- Remove the `onRemoveDownloadedContent` callback parameter and all propagation through
+  the composable chain: `BookmarkDetailScreen`, `BookmarkDetailTopBar`,
+  `BookmarkDetailMenu`, `BookmarkCard`, `BookmarkCards`, `BookmarkListScreen`,
+  `BookmarkDetailsDialog`.
+- Remove any string resources associated with the "Remove downloaded content" menu item
+  label from all language files.
 - Do NOT remove `ContentPackageManager.deleteResources()` yet — that is Slice 4.
-  Just remove the call sites that were driven by the per-article toggle.
-- Verify that "Remove downloaded content" in the overflow menu still works correctly
-  (it calls `deleteContentForBookmark`, not `deleteResources` — confirm and retain).
+- Do NOT remove `ContentPackageManager.deletePackage()` — it is still needed by the
+  policy pruning worker and archive auto-clear.
 
-**Files touched:** `BookmarkDetailDialog.kt` (or equivalent Composable),
-`BookmarkDetailViewModel.kt`, `SettingsDataStore.kt`, possibly `SyncSettingsViewModel.kt`.
+**Files touched:** `BookmarkDetailDialog.kt`, `BookmarkDetailViewModel.kt`,
+`BookmarkListViewModel.kt`, `BookmarkDetailScreen.kt`, `BookmarkDetailTopBar.kt`,
+`BookmarkDetailMenu.kt`, `BookmarkCard.kt`, `BookmarkCards.kt`, `BookmarkListScreen.kt`,
+`SettingsDataStore.kt`, string resource files (all languages).
 
 **Depends on:** Slice 1.
 
-**Recommended model: Haiku.** Pure removal. The toggle is self-contained and its call
-sites are limited.
+**Recommended model: Haiku.** Pure removal across many files, but each change is
+mechanical — delete parameter declarations, remove propagation, remove method bodies.
+No logic decisions required.
 
 ---
 
@@ -339,22 +352,20 @@ is that the purge does not race with an in-progress download worker.
 ## Slice 11: Bookmark Detail Dialog Offline Status
 
 **Goal:** Update the Bookmark Detail dialog to show explicit offline status text per
-spec, and confirm the "Remove downloaded content" overflow menu item works correctly
-for both `hasResources=true` and `hasResources=false` packages.
+spec. No per-bookmark content action is added — status display is purely informational.
 
 **Scope:**
 - Replace icon-only offline indicator in the detail dialog with explicit status text:
   "Offline content: Not kept / Text cached / Available / Refresh pending."
-- Confirm `deleteContentForBookmark()` is called (not `deleteResources()`) by the
-  overflow menu item — both `hasResources` states should be fully purged by this action.
-- The overflow menu item should be visible whenever `contentState == DOWNLOADED`,
-  regardless of `hasResources` value.
+- Confirm no per-bookmark content removal action exists in the dialog or its overflow
+  menu after Slice 3. The detail overflow menu retains only actions unrelated to content
+  lifecycle management (e.g. share, open in browser, edit metadata, delete bookmark).
 - Add/update string resources for all status labels in all language files.
 - Update user guide (`your-bookmarks.md`) if the detail dialog section describes
   offline state.
 
-**Files touched:** Bookmark detail dialog Composable(s), `BookmarkDetailViewModel.kt`,
-string resources (all languages), `app/src/main/assets/guide/en/your-bookmarks.md`.
+**Files touched:** Bookmark detail dialog Composable(s), string resources (all languages),
+`app/src/main/assets/guide/en/your-bookmarks.md`.
 
 **Depends on:** Slice 3 (image toggle removed), Slice 10 (lifecycle stable).
 
