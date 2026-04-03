@@ -5,7 +5,6 @@ import com.mydeck.app.domain.content.ContentPackageManager
 import com.mydeck.app.domain.sync.ConnectivityMonitor
 import com.mydeck.app.io.db.dao.BookmarkDao
 import com.mydeck.app.io.db.dao.ContentPackageDao
-import com.mydeck.app.io.prefs.SettingsDataStore
 import com.mydeck.app.io.rest.ReadeckApi
 import com.mydeck.app.io.rest.sync.BookmarkSyncPackage
 import com.mydeck.app.io.rest.sync.MultipartSyncClient
@@ -38,8 +37,7 @@ class LoadContentPackageUseCaseTest {
             contentPackageDao = mockk(relaxed = true),
             bookmarkDao = mockk(relaxed = true),
             connectivityMonitor = mockk(relaxed = true),
-            readeckApi = readeckApi,
-            settingsDataStore = mockk(relaxed = true)
+            readeckApi = readeckApi
         )
     }
 

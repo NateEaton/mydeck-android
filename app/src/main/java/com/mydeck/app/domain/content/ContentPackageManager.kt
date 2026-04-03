@@ -41,10 +41,6 @@ class ContentPackageManager @Inject constructor(
     private val bookmarkDao: BookmarkDao,
     private val offlineContentDir: File
 ) {
-    companion object {
-        private val RELATIVE_RESOURCE_URL_PATTERN = Regex("""(src|poster)=["']\./""")
-    }
-
     /**
      * Commit a successfully parsed content package to local storage.
      *
@@ -302,50 +298,6 @@ class ContentPackageManager @Inject constructor(
     }
 
     /**
-     * Delete only the resource files (images, etc.) for a bookmark while
-     * keeping the HTML entry document. Updates the content_package row to
-     * set hasResources=false and clears the content_resource rows.
-     *
-     * Safety: if the current HTML contains relative resource URLs (`./filename`),
-     * deletion is aborted and a warning is logged. Callers must ensure HTML has
-     * been updated to use absolute URLs before calling this method.
-     *
-     * For the safe image-eviction path that handles HTML refresh before deletion, 
-     * see [LoadContentPackageUseCase.executeTextOnlyOverwrite].
-     */
-    suspend fun deleteResources(bookmarkId: String) {
-        val pkg = contentPackageDao.getPackage(bookmarkId) ?: return
-        val resources = contentPackageDao.getResources(bookmarkId)
-        if (resources.isEmpty()) return
-
-        // Safety check: abort if HTML still contains relative resource URLs.
-        // Relative URLs (./<filename>) only resolve when local files exist — deleting
-        // resources while they are still referenced will cause broken images offline.
-        val currentHtml = getHtmlContent(bookmarkId)
-        if (currentHtml != null && containsRelativeResourceUrls(currentHtml)) {
-            Timber.w(
-                "deleteResources aborted for $bookmarkId: HTML still contains relative " +
-                    "resource URLs. Re-fetch HTML with absolute URLs before deleting resources."
-            )
-            return
-        }
-
-        val dir = File(offlineContentDir, bookmarkId)
-        for (resource in resources) {
-            val file = File(dir, resource.localRelativePath)
-            if (file.exists()) {
-                file.delete()
-            }
-        }
-        // Clean up empty subdirectories left after resource deletion
-        dir.walkBottomUp().filter { it.isDirectory && it != dir && it.listFiles().isNullOrEmpty() }.forEach { it.delete() }
-
-        contentPackageDao.deleteResources(bookmarkId)
-        contentPackageDao.insertPackage(pkg.copy(hasResources = false))
-        Timber.d("Deleted ${resources.size} resources for $bookmarkId (HTML retained)")
-    }
-
-    /**
      * Delete all offline content.
      */
     suspend fun deleteAllContent() {
@@ -397,15 +349,5 @@ class ContentPackageManager @Inject constructor(
             src.copyTo(dst, overwrite = true)
             src.delete()
         }
-    }
-
-    /**
-     * Returns true if the HTML contains relative resource URL patterns that would break
-     * if local resource files were deleted. Relative URLs follow the pattern `./filename`
-     * (as produced by the offline asset loader convention).
-     */
-    private fun containsRelativeResourceUrls(html: String): Boolean {
-        // Match src="./..." or poster="./..." — the offline-relative URL pattern
-        return RELATIVE_RESOURCE_URL_PATTERN.containsMatchIn(html)
     }
 }

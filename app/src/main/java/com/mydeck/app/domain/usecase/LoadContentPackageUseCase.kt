@@ -10,7 +10,6 @@ import com.mydeck.app.domain.sync.ConnectivityMonitor
 import com.mydeck.app.io.db.dao.BookmarkDao
 import com.mydeck.app.io.db.dao.ContentPackageDao
 import com.mydeck.app.io.db.model.BookmarkEntity
-import com.mydeck.app.io.prefs.SettingsDataStore
 import com.mydeck.app.io.rest.ReadeckApi
 import com.mydeck.app.io.rest.sync.MultipartSyncClient
 import kotlinx.datetime.Instant
@@ -34,8 +33,7 @@ class LoadContentPackageUseCase @Inject constructor(
     private val contentPackageDao: ContentPackageDao,
     private val bookmarkDao: BookmarkDao,
     private val connectivityMonitor: ConnectivityMonitor,
-    private val readeckApi: ReadeckApi,
-    private val settingsDataStore: SettingsDataStore
+    private val readeckApi: ReadeckApi
 ) {
     sealed class Result {
         data object Success : Result()
@@ -49,10 +47,7 @@ class LoadContentPackageUseCase @Inject constructor(
      * Used for annotation-driven refresh where HTML needs updating even though the
      * bookmark's updated timestamp hasn't changed.
      */
-    suspend fun executeForceRefresh(
-        bookmarkId: String,
-        forceResources: Boolean = false
-    ): Result {
+    suspend fun executeForceRefresh(bookmarkId: String): Result {
         val bookmark = bookmarkRepository.getBookmarkById(bookmarkId)
 
         if (bookmark.type is Bookmark.Type.Video) {
@@ -62,26 +57,7 @@ class LoadContentPackageUseCase @Inject constructor(
             return Result.TransientFailure("Offline")
         }
 
-        return fetchAndCommit(
-            bookmarkId = bookmarkId,
-            bookmark = bookmark,
-            forceResources = forceResources
-        )
-    }
-
-    suspend fun executeTextOnlyOverwrite(bookmarkId: String): Result {
-        val bookmark = bookmarkRepository.getBookmarkById(bookmarkId)
-        if (bookmark.type is Bookmark.Type.Video || bookmark.type is Bookmark.Type.Picture) {
-            return Result.PermanentFailure("Cannot do text-only overwrite for media")
-        }
-        if (!connectivityMonitor.isNetworkAvailable()) {
-            return Result.TransientFailure("Offline")
-        }
-        return fetchAndCommit(
-            bookmarkId = bookmarkId,
-            bookmark = bookmark,
-            forceTextOnly = true
-        )
+        return fetchAndCommit(bookmarkId = bookmarkId, bookmark = bookmark)
     }
 
     suspend fun execute(
@@ -142,18 +118,11 @@ class LoadContentPackageUseCase @Inject constructor(
     private suspend fun fetchAndCommit(
         bookmarkId: String,
         bookmark: Bookmark,
-        onProgress: ((Float) -> Unit)? = null,
-        forceResources: Boolean = false,
-        forceTextOnly: Boolean = false
+        onProgress: ((Float) -> Unit)? = null
     ): Result {
         return try {
             onProgress?.invoke(0.15f)
-            val shouldFetchResources = !forceTextOnly && (forceResources || true)
-            val result = if (shouldFetchResources) {
-                multipartSyncClient.fetchContentPackages(listOf(bookmarkId))
-            } else {
-                multipartSyncClient.fetchTextOnly(listOf(bookmarkId))
-            }
+            val result = multipartSyncClient.fetchContentPackages(listOf(bookmarkId))
             onProgress?.invoke(0.5f) // Network fetch + multipart parse complete
             when (result) {
                 is MultipartSyncClient.Result.Success -> {
