@@ -11,7 +11,9 @@ import com.mydeck.app.domain.model.ReaderAppearanceSelection
 import com.mydeck.app.domain.model.SelectionData
 import com.mydeck.app.domain.model.Theme
 import com.mydeck.app.domain.content.ContentPackageManager
+import com.mydeck.app.domain.sync.ContentSyncConstraints
 import com.mydeck.app.domain.sync.ConnectivityMonitor
+import com.mydeck.app.domain.sync.OfflineContentScope
 import com.mydeck.app.domain.usecase.LoadArticleUseCase
 import com.mydeck.app.io.db.dao.CachedAnnotationDao
 import com.mydeck.app.domain.usecase.LoadContentPackageUseCase
@@ -114,6 +116,14 @@ class BookmarkDetailViewModelTest {
         every { settingsDataStore.keepScreenOnWhileReadingFlow } returns MutableStateFlow(true)
         every { settingsDataStore.fullscreenWhileReadingFlow } returns MutableStateFlow(false)
         coEvery { settingsDataStore.getBookmarkShareFormat() } returns BookmarkShareFormat.URL_ONLY
+        coEvery { settingsDataStore.isOfflineReadingEnabled() } returns false
+        coEvery { settingsDataStore.getOfflineContentScope() } returns OfflineContentScope.MY_LIST_AND_ARCHIVED
+        coEvery {
+            settingsDataStore.getContentSyncConstraints()
+        } returns ContentSyncConstraints(
+            wifiOnly = false,
+            allowOnBatterySaver = true
+        )
         coEvery { settingsDataStore.getTheme() } coAnswers {
             Theme.valueOf(themeFlow.value ?: Theme.SYSTEM.name)
         }
@@ -1005,6 +1015,73 @@ class BookmarkDetailViewModelTest {
         coVerify { readeckApi.deleteAnnotation("123", "annotation-1") }
         coVerify { readeckApi.deleteAnnotation("123", "annotation-2") }
         coVerify { loadContentPackageUseCase.refreshHtmlForAnnotations("123") }
+    }
+
+    @Test
+    fun `saveAnnotationEdit refreshes cached article html for text-only content`() = runTest {
+        val selectionData = SelectionData(
+            text = "Selected text",
+            startSelector = "/section[1]/p[1]",
+            startOffset = 5,
+            endSelector = "/section[1]/p[1]",
+            endOffset = 18
+        )
+        val createdAnnotation = AnnotationDto(
+            id = "annotation-1",
+            start_selector = selectionData.startSelector,
+            start_offset = selectionData.startOffset,
+            end_selector = selectionData.endSelector,
+            end_offset = selectionData.endOffset,
+            color = "red",
+            created = "2026-03-09T10:00:00Z",
+            text = selectionData.text
+        )
+
+        coEvery {
+            readeckApi.createAnnotation("123", any())
+        } returns Response.success(createdAnnotation)
+        coEvery { contentPackageManager.hasResources("123") } returns false
+        coEvery { loadArticleUseCase.refreshHtmlForAnnotations("123") } returns "<p>refreshed</p>"
+        coEvery { readeckApi.getAnnotations("123") } returns Response.success(emptyList())
+        viewModel = createViewModel()
+        advanceUntilIdle()
+
+        viewModel.showCreateAnnotationSheet(selectionData)
+        viewModel.onAnnotationEditColorSelected("red")
+        viewModel.saveAnnotationEdit()
+        advanceUntilIdle()
+
+        coVerify { loadArticleUseCase.refreshHtmlForAnnotations("123") }
+        coVerify(exactly = 0) { loadContentPackageUseCase.refreshHtmlForAnnotations("123") }
+        coVerify(exactly = 0) { loadContentPackageUseCase.executeForceRefresh("123") }
+    }
+
+    @Test
+    fun `init does not enqueue priority package for archived bookmark outside offline scope`() = runTest {
+        val archivedBookmark = sampleBookmark.copy(
+            contentState = Bookmark.ContentState.NOT_ATTEMPTED,
+            hasArticle = true,
+            articleContent = null,
+            isArchived = true
+        )
+        every { bookmarkRepository.observeBookmark("123") } returns MutableStateFlow(archivedBookmark)
+        coEvery { bookmarkRepository.getBookmarkById("123") } returns archivedBookmark
+        coEvery { loadContentPackageUseCase.execute("123", any()) } returns LoadContentPackageUseCase.Result.PermanentFailure("not available")
+        coEvery { loadArticleUseCase.execute("123", markDirtyAfterSuccess = true) } returns LoadArticleUseCase.Result.Success
+        coEvery { contentPackageManager.hasResources("123") } returns false
+        coEvery { settingsDataStore.isOfflineReadingEnabled() } returns true
+        coEvery { settingsDataStore.getOfflineContentScope() } returns OfflineContentScope.MY_LIST
+
+        viewModel = createViewModel()
+        advanceUntilIdle()
+
+        io.mockk.verify(exactly = 0) {
+            workManager.enqueueUniqueWork(
+                any<String>(),
+                any<androidx.work.ExistingWorkPolicy>(),
+                any<androidx.work.OneTimeWorkRequest>()
+            )
+        }
     }
 
     @Test

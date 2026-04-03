@@ -573,23 +573,24 @@ class BookmarkDetailViewModel @Inject constructor(
 
     /**
      * Lightweight HTML-only refresh after annotation create/delete.
-     * Fetches updated HTML via the legacy article endpoint, rewrites image URLs to
-     * relative paths, writes to disk, and emits a JS innerHTML replacement event.
-     * Only applicable for full offline packages (hasResources=true); text-cached
-     * bookmarks fall through to the full force-refresh fallback.
-     * Falls back to full multipart refresh if the lightweight path fails.
+     * Full packages refresh through the content-package path, which rewrites image URLs
+     * to relative paths and updates the on-disk package HTML. Text-cached bookmarks
+     * refresh through the legacy article path so they remain text caches instead of
+     * being promoted into managed offline packages.
+     *
+     * Only full offline packages fall back to a multipart force refresh.
      */
     private suspend fun refreshAnnotationHtml(bookmarkId: String) {
         val hasResources = cachedHasResources ?: contentPackageManager.hasResources(bookmarkId) ?: false
         val enrichedHtml = if (hasResources) {
             loadContentPackageUseCase.refreshHtmlForAnnotations(bookmarkId)
         } else {
-            null
+            loadArticleUseCase.refreshHtmlForAnnotations(bookmarkId)
         }
         if (enrichedHtml != null) {
             cacheAnnotationSnapshot(bookmarkId)
             _annotationRefreshEvent.send(AnnotationRefreshEvent.HtmlRefresh(enrichedHtml))
-        } else {
+        } else if (hasResources) {
             // Fallback: full multipart refresh (will cause WebView reload)
             val result = loadContentPackageUseCase.executeForceRefresh(bookmarkId)
             if (result is LoadContentPackageUseCase.Result.Success) {
@@ -597,6 +598,8 @@ class BookmarkDetailViewModel @Inject constructor(
             } else {
                 throw IllegalStateException("Content refresh failed: $result")
             }
+        } else {
+            throw IllegalStateException("Article refresh failed")
         }
     }
 
@@ -812,6 +815,17 @@ class BookmarkDetailViewModel @Inject constructor(
 
     private suspend fun enqueuePriorityPackageDownload(bookmarkId: String) {
         try {
+            if (!settingsDataStore.isOfflineReadingEnabled()) {
+                return
+            }
+            val includeArchived = settingsDataStore.getOfflineContentScope().includesArchived
+            if (!includeArchived) {
+                val bookmark = bookmarkRepository.getBookmarkById(bookmarkId)
+                if (bookmark.isArchived) {
+                    Timber.d("Skipping priority package download for archived bookmark outside offline scope: $bookmarkId")
+                    return
+                }
+            }
             val syncConstraints = settingsDataStore.getContentSyncConstraints()
             val constraintsBuilder = Constraints.Builder()
             if (syncConstraints.wifiOnly) {

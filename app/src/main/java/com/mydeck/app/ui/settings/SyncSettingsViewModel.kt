@@ -270,7 +270,7 @@ class SyncSettingsViewModel @Inject constructor(
                 Timber.i("Managed offline reading enabled (includeArchived=$includeArchived)")
             } else {
                 workManager.cancelUniqueWork(BatchArticleLoadWorker.UNIQUE_WORK_NAME)
-                contentPackageManager.deleteAllContent()
+                purgeManagedOfflineContent()
                 refreshStorageSize()
                 Timber.i("Managed offline reading disabled and offline content purged")
             }
@@ -325,7 +325,7 @@ class SyncSettingsViewModel @Inject constructor(
     fun onConfirmClearOfflineContent() {
         showDialog.value = null
         viewModelScope.launch {
-            contentPackageManager.deleteAllContent()
+            purgeManagedOfflineContent()
             refreshStorageSize()
             Timber.i("All offline content cleared by user")
         }
@@ -374,12 +374,19 @@ class SyncSettingsViewModel @Inject constructor(
     }
 
     private suspend fun purgeArchivedOfflineContent() {
-        val archivedIds = bookmarkDao.getArchivedBookmarkIdsWithStoredContent()
+        val archivedIds = bookmarkDao.getArchivedBookmarkIdsWithOfflinePackage()
         archivedIds.forEach { bookmarkId ->
             contentPackageManager.deletePackage(bookmarkId)
         }
         if (archivedIds.isNotEmpty()) {
             Timber.i("Purged offline content for ${archivedIds.size} archived bookmarks")
+        }
+    }
+
+    private suspend fun purgeManagedOfflineContent() {
+        val offlinePackageIds = bookmarkDao.getBookmarkIdsWithOfflinePackages()
+        offlinePackageIds.forEach { bookmarkId ->
+            contentPackageManager.deletePackage(bookmarkId)
         }
     }
 

@@ -19,6 +19,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.datetime.LocalDateTime
 import kotlinx.serialization.json.Json
 import org.junit.Before
+import org.junit.Assert.assertEquals
 import org.junit.Test
 import org.junit.Assert.assertTrue
 import retrofit2.Response
@@ -158,6 +159,34 @@ class LoadArticleUseCaseTest {
             bookmarkRepository.insertBookmarks(
                 match { bookmarks ->
                     bookmarks.singleOrNull()?.omitDescription == true
+                }
+            )
+        }
+    }
+
+    @Test
+    fun `refreshHtmlForAnnotations refreshes cached article without promoting to package`() = runBlocking {
+        val bookmark = sampleBookmark.copy(
+            articleContent = "<section><p>Old article</p></section>",
+            contentState = Bookmark.ContentState.DOWNLOADED
+        )
+        val refreshedArticleContent = "<section><p>Fresh article</p></section>"
+
+        coEvery { bookmarkRepository.getBookmarkById("123") } returns bookmark
+        every { connectivityMonitor.isNetworkAvailable() } returns true
+        coEvery { readeckApi.getArticle("123") } returns Response.success(refreshedArticleContent)
+        coEvery { readeckApi.getAnnotations("123") } returns Response.success(emptyList())
+        coEvery { bookmarkRepository.insertBookmarks(any()) } just Runs
+        coEvery { settingsDataStore.saveCachedAnnotationSnapshot("123", any()) } just Runs
+
+        val result = loadArticleUseCase.refreshHtmlForAnnotations("123")
+
+        assertEquals(refreshedArticleContent, result)
+        coVerify {
+            bookmarkRepository.insertBookmarks(
+                match { bookmarks ->
+                    bookmarks.singleOrNull()?.articleContent == refreshedArticleContent &&
+                        bookmarks.singleOrNull()?.contentState == Bookmark.ContentState.DOWNLOADED
                 }
             )
         }

@@ -668,7 +668,14 @@ interface BookmarkDao {
             (SELECT COUNT(*) FROM bookmarks WHERE readProgress < 100 AND state = 0 AND isLocalDeleted = 0) AS unread,
             (SELECT COUNT(*) FROM bookmarks WHERE isArchived = 1 AND state = 0 AND isLocalDeleted = 0) AS archived,
             (SELECT COUNT(*) FROM bookmarks WHERE isMarked = 1 AND state = 0 AND isLocalDeleted = 0) AS favorites,
-            (SELECT COUNT(*) FROM bookmarks WHERE contentState = 1 AND isLocalDeleted = 0) AS contentDownloaded,
+            (
+                SELECT COUNT(*)
+                FROM bookmarks b
+                INNER JOIN content_package cp ON cp.bookmarkId = b.id
+                WHERE b.contentState = 1
+                AND b.isLocalDeleted = 0
+                AND cp.hasResources = 1
+            ) AS contentDownloaded,
             (SELECT COUNT(*) FROM bookmarks WHERE contentState = 0 AND hasArticle = 1 AND isLocalDeleted = 0) AS contentAvailable,
             (SELECT COUNT(*) FROM bookmarks WHERE contentState = 2 AND isLocalDeleted = 0) AS contentDirty,
             (SELECT COUNT(*) FROM bookmarks WHERE contentState = 3 AND isLocalDeleted = 0) AS permanentNoContent
@@ -704,12 +711,13 @@ interface BookmarkDao {
     @Query("""
         SELECT b.id
         FROM bookmarks b
+        INNER JOIN content_package cp ON cp.bookmarkId = b.id
         WHERE b.isLocalDeleted = 0
         AND b.isArchived = 1
-        AND b.contentState IN (1, 2)
+        AND cp.hasResources = 1
         ORDER BY b.created DESC
     """)
-    suspend fun getArchivedBookmarkIdsWithStoredContent(): List<String>
+    suspend fun getArchivedBookmarkIdsWithOfflinePackage(): List<String>
 
     @Query("""
         UPDATE bookmarks
@@ -754,6 +762,16 @@ interface BookmarkDao {
         ORDER BY b.created ASC
     """)
     suspend fun getOldestBookmarkIdsWithResources(includeArchived: Boolean): List<String>
+
+    @Query("""
+        SELECT b.id
+        FROM bookmarks b
+        INNER JOIN content_package cp ON cp.bookmarkId = b.id
+        WHERE b.isLocalDeleted = 0
+        AND cp.hasResources = 1
+        ORDER BY b.created ASC
+    """)
+    suspend fun getBookmarkIdsWithOfflinePackages(): List<String>
 
     @Query("SELECT COALESCE(SUM(byteSize), 0) FROM content_resource WHERE mimeType LIKE 'image/%'")
     suspend fun getTotalImageResourceBytes(): Long

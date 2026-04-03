@@ -87,6 +87,45 @@ class LoadArticleUseCase @Inject constructor(
         }
     }
 
+    /**
+     * Refresh cached article HTML after an annotation change.
+     *
+     * This is the text-cache counterpart to content-package HTML refresh: it always uses
+     * the legacy article endpoint and preserves the bookmark as a text-cached article
+     * rather than promoting it into a full offline package.
+     *
+     * @return The refreshed HTML body, or null if the refresh failed
+     */
+    suspend fun refreshHtmlForAnnotations(bookmarkId: String): String? {
+        val bookmark = bookmarkRepository.getBookmarkById(bookmarkId)
+
+        if (bookmark.contentState == ContentState.PERMANENT_NO_CONTENT || !bookmark.hasArticle) {
+            return null
+        }
+        if (!connectivityMonitor.isNetworkAvailable()) {
+            return null
+        }
+
+        return try {
+            val response = readeckApi.getArticle(bookmarkId)
+            if (response.isSuccessful && response.body() != null) {
+                val content = response.body()!!
+                storeDownloadedArticle(bookmark = bookmark, articleContent = content)
+                Timber.d("Refreshed cached article HTML after annotation change for $bookmarkId")
+                content
+            } else {
+                Timber.w("Cached article annotation refresh failed for $bookmarkId: HTTP ${response.code()}")
+                null
+            }
+        } catch (e: IOException) {
+            Timber.w(e, "Cached article annotation refresh network error for $bookmarkId")
+            null
+        } catch (e: Exception) {
+            Timber.w(e, "Cached article annotation refresh failed for $bookmarkId")
+            null
+        }
+    }
+
     suspend fun refreshCachedArticleIfAnnotationsChanged(bookmarkId: String) {
         val bookmark = bookmarkRepository.getBookmarkById(bookmarkId)
         val cachedArticleContent = bookmarkDao.getArticleContent(bookmarkId)

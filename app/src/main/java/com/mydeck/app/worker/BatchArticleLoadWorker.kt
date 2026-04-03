@@ -35,6 +35,11 @@ class BatchArticleLoadWorker @AssistedInject constructor(
 ) : CoroutineWorker(appContext, workerParams) {
 
     override suspend fun doWork(): Result {
+        if (!settingsDataStore.isOfflineReadingEnabled()) {
+            Timber.i("BatchArticleLoadWorker: offline reading disabled, skipping work")
+            return Result.success()
+        }
+
         // Priority single-bookmark path: skip the batch DAO query and isRunning guard.
         val priorityBookmarkId = inputData.getString(KEY_PRIORITY_BOOKMARK_ID)
         if (priorityBookmarkId != null) {
@@ -106,6 +111,14 @@ class BatchArticleLoadWorker @AssistedInject constructor(
     private suspend fun processPriorityBookmark(bookmarkId: String): Result {
         return try {
             Timber.d("BatchArticleLoadWorker: priority download starting for $bookmarkId")
+            if (!settingsDataStore.isOfflineReadingEnabled()) {
+                Timber.i("Priority content fetch skipped because offline reading is disabled for $bookmarkId")
+                return Result.success()
+            }
+            if (!settingsDataStore.getOfflineContentScope().includesArchived && bookmarkDao.getIsArchived(bookmarkId)) {
+                Timber.i("Priority content fetch skipped for archived bookmark outside offline scope: $bookmarkId")
+                return Result.success()
+            }
             if (!policyEvaluator.canFetchContent().allowed) {
                 Timber.i("Priority content fetch blocked by constraints for $bookmarkId")
                 return Result.success()

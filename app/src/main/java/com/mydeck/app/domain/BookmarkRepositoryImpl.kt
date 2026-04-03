@@ -500,9 +500,14 @@ class BookmarkRepositoryImpl @Inject constructor(
                     if (it) {
                         applicationScope.launch {
                             try {
-                                val offlineReadingEnabled = settingsDataStore.isOfflineReadingEnabled()
-                                val scopeIncludesArchived = settingsDataStore.getOfflineContentScope().includesArchived
-                                if (offlineReadingEnabled && !scopeIncludesArchived) {
+                                val clearContentOnArchive = settingsDataStore.isClearContentOnArchiveEnabled()
+                                if (clearContentOnArchive) {
+                                    contentPackageManager.deletePackage(bookmarkId)
+                                    Timber.d("Purged managed offline content on archive for $bookmarkId")
+                                } else if (settingsDataStore.isOfflineReadingEnabled() &&
+                                    !settingsDataStore.getOfflineContentScope().includesArchived &&
+                                    contentPackageManager.hasResources(bookmarkId) == true
+                                ) {
                                     contentPackageManager.deletePackage(bookmarkId)
                                     Timber.d("Purged managed offline content on archive for $bookmarkId")
                                 }

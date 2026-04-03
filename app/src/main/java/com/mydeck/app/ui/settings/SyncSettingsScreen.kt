@@ -142,8 +142,7 @@ fun SyncSettingsView(
     onAllowBatterySaverChanged: (Boolean) -> Unit,
     onClickClearOfflineContent: () -> Unit,
 ) {
-    val hasOfflineContent = (settingsUiState.syncStatus.textStorageSize?.let { it != "0 B" } == true)
-        || (settingsUiState.syncStatus.imageStorageSize?.let { it != "0 B" } == true)
+    val hasOfflineContent = settingsUiState.syncStatus.contentDownloaded > 0
     val showClearOfflineContent = settingsUiState.offlineReadingEnabled || hasOfflineContent
 
     Scaffold(
