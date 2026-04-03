@@ -27,21 +27,22 @@ The top of the screen focuses on keeping your bookmark list current.
 Offline reading is optional and off by default. When enabled, MyDeck automatically keeps eligible bookmarks available for offline reading in the background.
 
 - **Enable offline reading** — turns on automatic offline content maintenance
-- **Keep offline for** — choose whether MyDeck keeps offline content for **My List** only or for **My List + Archived**
-- **Download images** — when enabled, images are stored locally with article text; when off, images load from the network while you read
-- **Image storage limit** — sets how much space downloaded images can use; older images are cleared first when the limit is reached
-- **Only download images on Wi-Fi** — appears when image downloads are enabled and prevents image downloads from using mobile data
-- **Allow image downloads on battery saver** — appears when image downloads are enabled; when off, image downloads pause while battery saver is active
+- **Storage limit** — keep full offline packages until they reach the selected storage target
+- **Newest N bookmarks** — keep the newest saved bookmarks fully available offline, up to the selected count
+- **Added within last** — keep bookmarks that were added within the selected rolling time window fully available offline
+- **Maximum storage cap** — appears for **Newest N bookmarks** and **Added within last**; it limits how much space those policies can use
+- **Include archived bookmarks** — when off, automatic offline maintenance applies only to **My List**
+- **Clear offline content when archiving** — removes managed offline packages when you archive a bookmark
+- **Wi-Fi only** — prevents automatic offline downloads from using mobile data
+- **Allow on battery saver** — when off, automatic offline downloads pause while battery saver is active
+- **Download content for date range…** — this button is reserved for one-time offline downloads for a specific date range
 
-If you turn **Download images** on, MyDeck backfills images for already-cached text in the background.
-If you turn offline reading off again, MyDeck removes managed offline content immediately.
+If you turn offline reading off again, MyDeck removes managed offline packages immediately but keeps any on-demand text caches you created by opening bookmarks.
 
 ### Sync Status
 
-The **Sync Status** section always shows when bookmark sync last ran. It also shows how much offline storage is currently in use. When offline reading is enabled, it additionally shows a summary of bookmark and offline-content totals.
+The **Sync Status** section always shows when bookmark sync last ran and when the next scheduled bookmark sync is due. When offline reading is enabled, it also shows bookmark totals, how many bookmarks are fully available offline, how much offline storage is in use, and when offline content maintenance last ran.
 
-- **Bookmarks** — total count, My List, Archived, Favorites
-- **Offline content** — how many bookmarks currently have stored content and how many are eligible for offline maintenance
 - **Clear All Offline Content** — removes locally stored offline content without deleting the bookmarks themselves
 
 ## User Interface

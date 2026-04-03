@@ -6,7 +6,6 @@ import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -27,6 +26,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -47,7 +47,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import com.mydeck.app.R
 import com.mydeck.app.domain.model.AutoSyncTimeframe
-import com.mydeck.app.domain.sync.OfflineContentScope
+import com.mydeck.app.domain.sync.OfflineImageStorageLimit
+import com.mydeck.app.domain.sync.OfflinePolicy
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -79,23 +80,51 @@ fun SyncSettingsScreen(
             )
         }
 
-        SyncSettingsDialog.OfflineContentScopeDialog -> {
-            OfflineContentScopeDialog(
-                selectedScope = settingsUiState.offlineContentScope,
+        SyncSettingsDialog.OfflineStorageLimitDialog -> {
+            StorageLimitDialog(
+                titleRes = R.string.sync_offline_storage_limit_dialog_title,
+                selectedLimit = settingsUiState.offlinePolicyStorageLimit,
                 onDismissRequest = { viewModel.onDismissDialog() },
-                onScopeSelected = { scope ->
-                    viewModel.onOfflineContentScopeSelected(scope)
+                onLimitSelected = { limit ->
+                    viewModel.onOfflinePolicyStorageLimitSelected(limit)
                     viewModel.onDismissDialog()
                 }
             )
         }
 
-        SyncSettingsDialog.OfflineImageStorageLimitDialog -> {
-            OfflineImageStorageLimitDialog(
-                selectedLimit = settingsUiState.offlineImageStorageLimit,
+        SyncSettingsDialog.OfflineNewestNDialog -> {
+            IntSelectionDialog(
+                titleRes = R.string.sync_offline_policy_newest_n,
+                options = offlineNewestNOptions(),
+                selectedValue = settingsUiState.offlinePolicyNewestN,
+                onDismissRequest = { viewModel.onDismissDialog() },
+                onOptionSelected = { newestN ->
+                    viewModel.onOfflinePolicyNewestNSelected(newestN)
+                    viewModel.onDismissDialog()
+                }
+            )
+        }
+
+        SyncSettingsDialog.OfflineDateRangeWindowDialog -> {
+            DurationSelectionDialog(
+                titleRes = R.string.sync_offline_policy_date_range,
+                options = offlineDateRangeWindowOptions(),
+                selectedValue = settingsUiState.offlinePolicyDateRangeWindow,
+                onDismissRequest = { viewModel.onDismissDialog() },
+                onOptionSelected = { window ->
+                    viewModel.onOfflinePolicyDateRangeWindowSelected(window)
+                    viewModel.onDismissDialog()
+                }
+            )
+        }
+
+        SyncSettingsDialog.OfflineMaxStorageCapDialog -> {
+            StorageLimitDialog(
+                titleRes = R.string.sync_offline_max_storage_cap,
+                selectedLimit = settingsUiState.offlineMaxStorageCap,
                 onDismissRequest = { viewModel.onDismissDialog() },
                 onLimitSelected = { limit ->
-                    viewModel.onOfflineImageStorageLimitSelected(limit)
+                    viewModel.onOfflineMaxStorageCapSelected(limit)
                     viewModel.onDismissDialog()
                 }
             )
@@ -118,8 +147,13 @@ fun SyncSettingsScreen(
         onClickBookmarkSyncFrequency = { viewModel.onClickBookmarkSyncFrequency() },
         onClickSyncBookmarksNow = { viewModel.onClickSyncBookmarksNow() },
         onOfflineReadingChanged = { viewModel.onOfflineReadingChanged(it) },
-        onClickOfflineContentScope = { viewModel.onClickOfflineContentScope() },
-        onClickOfflineImageStorageLimit = { viewModel.onClickOfflineImageStorageLimit() },
+        onOfflinePolicySelected = { viewModel.onOfflinePolicySelected(it) },
+        onClickOfflinePolicyStorageLimit = { viewModel.onClickOfflinePolicyStorageLimit() },
+        onClickOfflinePolicyNewestN = { viewModel.onClickOfflinePolicyNewestN() },
+        onClickOfflinePolicyDateRangeWindow = { viewModel.onClickOfflinePolicyDateRangeWindow() },
+        onClickOfflineMaxStorageCap = { viewModel.onClickOfflineMaxStorageCap() },
+        onIncludeArchivedChanged = { viewModel.onIncludeArchivedChanged(it) },
+        onClearContentOnArchiveChanged = { viewModel.onClearContentOnArchiveChanged(it) },
         onWifiOnlyChanged = { viewModel.onWifiOnlyChanged(it) },
         onAllowBatterySaverChanged = { viewModel.onAllowBatterySaverChanged(it) },
         onClickClearOfflineContent = { viewModel.onClickClearOfflineContent() }
@@ -136,14 +170,18 @@ fun SyncSettingsView(
     onClickBookmarkSyncFrequency: () -> Unit,
     onClickSyncBookmarksNow: () -> Unit,
     onOfflineReadingChanged: (Boolean) -> Unit,
-    onClickOfflineContentScope: () -> Unit,
-    onClickOfflineImageStorageLimit: () -> Unit,
+    onOfflinePolicySelected: (OfflinePolicy) -> Unit,
+    onClickOfflinePolicyStorageLimit: () -> Unit,
+    onClickOfflinePolicyNewestN: () -> Unit,
+    onClickOfflinePolicyDateRangeWindow: () -> Unit,
+    onClickOfflineMaxStorageCap: () -> Unit,
+    onIncludeArchivedChanged: (Boolean) -> Unit,
+    onClearContentOnArchiveChanged: (Boolean) -> Unit,
     onWifiOnlyChanged: (Boolean) -> Unit,
     onAllowBatterySaverChanged: (Boolean) -> Unit,
     onClickClearOfflineContent: () -> Unit,
 ) {
-    val hasOfflineContent = settingsUiState.syncStatus.contentDownloaded > 0
-    val showClearOfflineContent = settingsUiState.offlineReadingEnabled || hasOfflineContent
+    val hasOfflineContent = settingsUiState.syncStatus.fullOfflineAvailable > 0
 
     Scaffold(
         modifier = modifier,
@@ -186,8 +224,13 @@ fun SyncSettingsView(
             OfflineReadingSection(
                 uiState = settingsUiState,
                 onOfflineReadingChanged = onOfflineReadingChanged,
-                onClickOfflineContentScope = onClickOfflineContentScope,
-                onClickOfflineImageStorageLimit = onClickOfflineImageStorageLimit,
+                onOfflinePolicySelected = onOfflinePolicySelected,
+                onClickOfflinePolicyStorageLimit = onClickOfflinePolicyStorageLimit,
+                onClickOfflinePolicyNewestN = onClickOfflinePolicyNewestN,
+                onClickOfflinePolicyDateRangeWindow = onClickOfflinePolicyDateRangeWindow,
+                onClickOfflineMaxStorageCap = onClickOfflineMaxStorageCap,
+                onIncludeArchivedChanged = onIncludeArchivedChanged,
+                onClearContentOnArchiveChanged = onClearContentOnArchiveChanged,
                 onWifiOnlyChanged = onWifiOnlyChanged,
                 onAllowBatterySaverChanged = onAllowBatterySaverChanged
             )
@@ -196,10 +239,11 @@ fun SyncSettingsView(
 
             SyncStatusSection(
                 syncStatus = settingsUiState.syncStatus,
+                nextRun = settingsUiState.nextAutoSyncRun,
                 showOfflineDetails = settingsUiState.offlineReadingEnabled
             )
 
-            if (showClearOfflineContent) {
+            if (settingsUiState.offlineReadingEnabled || hasOfflineContent) {
                 OutlinedButton(
                     onClick = onClickClearOfflineContent,
                     modifier = Modifier.fillMaxWidth()
@@ -291,8 +335,13 @@ private fun BookmarkSyncSection(
 private fun OfflineReadingSection(
     uiState: SyncSettingsUiState,
     onOfflineReadingChanged: (Boolean) -> Unit,
-    onClickOfflineContentScope: () -> Unit,
-    onClickOfflineImageStorageLimit: () -> Unit,
+    onOfflinePolicySelected: (OfflinePolicy) -> Unit,
+    onClickOfflinePolicyStorageLimit: () -> Unit,
+    onClickOfflinePolicyNewestN: () -> Unit,
+    onClickOfflinePolicyDateRangeWindow: () -> Unit,
+    onClickOfflineMaxStorageCap: () -> Unit,
+    onIncludeArchivedChanged: (Boolean) -> Unit,
+    onClearContentOnArchiveChanged: (Boolean) -> Unit,
     onWifiOnlyChanged: (Boolean) -> Unit,
     onAllowBatterySaverChanged: (Boolean) -> Unit
 ) {
@@ -339,138 +388,187 @@ private fun OfflineReadingSection(
                     )
                 }
 
-                ListItem(
-                    modifier = Modifier.clickable(onClick = onClickOfflineContentScope),
-                    headlineContent = {
-                        Text(text = stringResource(R.string.sync_offline_scope))
-                    },
-                    supportingContent = {
-                        Text(
-                            text = stringResource(R.string.sync_offline_scope_desc),
-                            style = MaterialTheme.typography.bodySmall
-                        )
-                    },
-                    trailingContent = {
-                        Text(
-                            text = stringResource(uiState.offlineContentScope.toLabelResource()),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.primary
-                        )
+                Text(
+                    text = stringResource(R.string.sync_offline_keep_offline),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                )
+
+                OfflinePolicyRow(
+                    selected = uiState.offlinePolicy == OfflinePolicy.STORAGE_LIMIT,
+                    title = stringResource(R.string.sync_offline_policy_storage_limit),
+                    value = stringResource(uiState.offlinePolicyStorageLimit.toLabelResource()),
+                    onClick = {
+                        onOfflinePolicySelected(OfflinePolicy.STORAGE_LIMIT)
+                        onClickOfflinePolicyStorageLimit()
                     }
                 )
 
-                ListItem(
-                    modifier = Modifier.clickable(onClick = onClickOfflineImageStorageLimit),
-                    headlineContent = {
-                        Text(text = stringResource(R.string.sync_offline_image_limit))
-                    },
-                    trailingContent = {
-                        Text(
-                            text = stringResource(uiState.offlineImageStorageLimit.toLabelResource()),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.primary
-                        )
+                OfflinePolicyRow(
+                    selected = uiState.offlinePolicy == OfflinePolicy.NEWEST_N,
+                    title = stringResource(R.string.sync_offline_policy_newest_n),
+                    value = uiState.offlinePolicyNewestN.toString(),
+                    onClick = {
+                        onOfflinePolicySelected(OfflinePolicy.NEWEST_N)
+                        onClickOfflinePolicyNewestN()
                     }
                 )
 
-                ListItem(
-                    headlineContent = {
-                        Text(text = stringResource(R.string.sync_wifi_only))
-                    },
-                    trailingContent = {
-                        Switch(
-                            checked = uiState.wifiOnly,
-                            onCheckedChange = onWifiOnlyChanged
-                        )
+                OfflinePolicyRow(
+                    selected = uiState.offlinePolicy == OfflinePolicy.DATE_RANGE,
+                    title = stringResource(R.string.sync_offline_policy_date_range),
+                    value = stringResource(uiState.offlinePolicyDateRangeWindow.toLabelResource()),
+                    onClick = {
+                        onOfflinePolicySelected(OfflinePolicy.DATE_RANGE)
+                        onClickOfflinePolicyDateRangeWindow()
                     }
                 )
 
-                        ListItem(
-                    headlineContent = {
-                        Text(text = stringResource(R.string.sync_allow_battery_saver))
-                    },
-                    trailingContent = {
-                        Switch(
-                            checked = uiState.allowBatterySaver,
-                            onCheckedChange = onAllowBatterySaverChanged
-                        )
-                    }
+                AnimatedVisibility(
+                    visible = uiState.offlinePolicy != OfflinePolicy.STORAGE_LIMIT,
+                    enter = expandVertically(),
+                    exit = shrinkVertically()
+                ) {
+                    ListItem(
+                        modifier = Modifier.clickable(onClick = onClickOfflineMaxStorageCap),
+                        headlineContent = {
+                            Text(text = stringResource(R.string.sync_offline_max_storage_cap))
+                        },
+                        supportingContent = {
+                            Text(stringResource(R.string.sync_offline_max_storage_cap_desc))
+                        },
+                        trailingContent = {
+                            Text(
+                                text = stringResource(uiState.offlineMaxStorageCap.toLabelResource()),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    )
+                }
+
+                TogglePreferenceRow(
+                    title = stringResource(R.string.sync_include_archived_bookmarks),
+                    checked = uiState.includeArchivedBookmarks,
+                    onCheckedChange = onIncludeArchivedChanged
                 )
+                TogglePreferenceRow(
+                    title = stringResource(R.string.sync_clear_on_archive),
+                    checked = uiState.clearContentOnArchive,
+                    onCheckedChange = onClearContentOnArchiveChanged
+                )
+                TogglePreferenceRow(
+                    title = stringResource(R.string.sync_wifi_only),
+                    checked = uiState.wifiOnly,
+                    onCheckedChange = onWifiOnlyChanged
+                )
+                TogglePreferenceRow(
+                    title = stringResource(R.string.sync_allow_battery_saver),
+                    checked = uiState.allowBatterySaver,
+                    onCheckedChange = onAllowBatterySaverChanged
+                )
+
+                OutlinedButton(
+                    onClick = {},
+                    enabled = false,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                ) {
+                    Text(stringResource(R.string.sync_offline_download_date_range))
+                }
             }
         }
     }
+}
+
+@Composable
+private fun OfflinePolicyRow(
+    selected: Boolean,
+    title: String,
+    value: String,
+    onClick: () -> Unit
+) {
+    ListItem(
+        modifier = Modifier.clickable(onClick = onClick),
+        headlineContent = { Text(title) },
+        supportingContent = { Text(value) },
+        leadingContent = {
+            RadioButton(
+                selected = selected,
+                onClick = null
+            )
+        }
+    )
+}
+
+@Composable
+private fun TogglePreferenceRow(
+    title: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit
+) {
+    ListItem(
+        headlineContent = { Text(title) },
+        trailingContent = {
+            Switch(
+                checked = checked,
+                onCheckedChange = onCheckedChange
+            )
+        }
+    )
 }
 
 @Composable
 private fun SyncStatusSection(
     syncStatus: SyncStatus,
+    nextRun: String?,
     showOfflineDetails: Boolean
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         SectionHeader(title = stringResource(R.string.sync_status_section_title))
 
-        syncStatus.lastBookmarkSyncTimestamp?.let { ts ->
-            Text(
-                text = stringResource(R.string.sync_status_last_sync, ts),
-                style = MaterialTheme.typography.bodySmall
-            )
-        } ?: Text(
-            text = stringResource(R.string.sync_status_never),
-            style = MaterialTheme.typography.bodySmall
+        StatusRow(
+            title = stringResource(R.string.sync_status_last_bookmark_sync),
+            value = syncStatus.lastBookmarkSyncTimestamp
+                ?: stringResource(R.string.sync_status_never_short)
+        )
+        StatusRow(
+            title = stringResource(R.string.sync_status_next_bookmark_sync),
+            value = nextRun ?: stringResource(R.string.auto_sync_next_run_null)
         )
 
-        val hasStorageToShow = (syncStatus.textStorageSize?.let { it != "0 B" } == true)
-            || (syncStatus.imageStorageSize?.let { it != "0 B" } == true)
-        if (showOfflineDetails || hasStorageToShow) {
-            Text(
-                text = stringResource(
-                    R.string.sync_storage_usage_text,
-                    syncStatus.textStorageSize ?: "0 B"
-                ),
-                style = MaterialTheme.typography.bodySmall
-            )
-            Text(
-                text = stringResource(
-                    R.string.sync_storage_usage_images,
-                    syncStatus.imageStorageSize ?: "0 B"
-                ),
-                style = MaterialTheme.typography.bodySmall
-            )
-        }
-
-        if (showOfflineDetails) {
-            Spacer(modifier = Modifier.height(4.dp))
-
-            Text(
-                text = stringResource(R.string.sync_status_total, syncStatus.totalBookmarks),
-                style = MaterialTheme.typography.bodySmall
-            )
-            Text(
-                text = stringResource(R.string.sync_status_unread, syncStatus.unread),
-                style = MaterialTheme.typography.bodySmall
-            )
-            Text(
-                text = stringResource(R.string.sync_status_archived, syncStatus.archived),
-                style = MaterialTheme.typography.bodySmall
-            )
-            Text(
-                text = stringResource(R.string.sync_status_favorites, syncStatus.favorites),
-                style = MaterialTheme.typography.bodySmall
-            )
-            Text(
-                text = stringResource(R.string.sync_status_content_downloaded, syncStatus.contentDownloaded),
-                style = MaterialTheme.typography.bodySmall
-            )
-            Text(
-                text = stringResource(R.string.sync_status_content_available, syncStatus.contentAvailable),
-                style = MaterialTheme.typography.bodySmall
-            )
-
-            syncStatus.lastContentSyncTimestamp?.let { ts ->
-                Text(
-                    text = stringResource(R.string.sync_status_last_content_sync, ts),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+        AnimatedVisibility(
+            visible = showOfflineDetails,
+            enter = expandVertically(),
+            exit = shrinkVertically()
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                StatusRow(
+                    title = stringResource(R.string.sync_status_total),
+                    value = syncStatus.totalBookmarks.toString()
+                )
+                StatusRow(
+                    title = stringResource(R.string.sync_status_my_list),
+                    value = syncStatus.myListBookmarks.toString()
+                )
+                StatusRow(
+                    title = stringResource(R.string.sync_status_archived),
+                    value = syncStatus.archivedBookmarks.toString()
+                )
+                StatusRow(
+                    title = stringResource(R.string.sync_status_full_offline_available),
+                    value = syncStatus.fullOfflineAvailable.toString()
+                )
+                StatusRow(
+                    title = stringResource(R.string.sync_status_offline_storage_used),
+                    value = syncStatus.offlineStorageSize ?: "0 B"
+                )
+                StatusRow(
+                    title = stringResource(R.string.sync_status_last_offline_maintenance),
+                    value = syncStatus.lastOfflineMaintenanceTimestamp
+                        ?: stringResource(R.string.sync_status_never_short)
                 )
             }
         }
@@ -478,25 +576,67 @@ private fun SyncStatusSection(
 }
 
 @Composable
-private fun OfflineContentScopeDialog(
-    selectedScope: OfflineContentScope,
+private fun StatusRow(
+    title: String,
+    value: String
+) {
+    ListItem(
+        headlineContent = { Text(title) },
+        supportingContent = { Text(value) }
+    )
+}
+
+@Composable
+private fun StorageLimitDialog(
+    titleRes: Int,
+    selectedLimit: OfflineImageStorageLimit,
     onDismissRequest: () -> Unit,
-    onScopeSelected: (OfflineContentScope) -> Unit
+    onLimitSelected: (OfflineImageStorageLimit) -> Unit
 ) {
     AlertDialog(
         onDismissRequest = onDismissRequest,
-        title = { Text(stringResource(R.string.sync_offline_scope_dialog_title)) },
+        title = { Text(stringResource(titleRes)) },
         text = {
             Column {
-                OfflineScopeOption(
-                    label = stringResource(R.string.sync_offline_scope_my_list),
-                    selected = selectedScope == OfflineContentScope.MY_LIST,
-                    onClick = { onScopeSelected(OfflineContentScope.MY_LIST) }
+                OfflineSelectionOption(
+                    label = stringResource(R.string.sync_offline_image_limit_5_mb),
+                    selected = selectedLimit == OfflineImageStorageLimit.MB_5,
+                    onClick = { onLimitSelected(OfflineImageStorageLimit.MB_5) }
                 )
-                OfflineScopeOption(
-                    label = stringResource(R.string.sync_offline_scope_my_list_and_archived),
-                    selected = selectedScope == OfflineContentScope.MY_LIST_AND_ARCHIVED,
-                    onClick = { onScopeSelected(OfflineContentScope.MY_LIST_AND_ARCHIVED) }
+                OfflineSelectionOption(
+                    label = stringResource(R.string.sync_offline_image_limit_10_mb),
+                    selected = selectedLimit == OfflineImageStorageLimit.MB_10,
+                    onClick = { onLimitSelected(OfflineImageStorageLimit.MB_10) }
+                )
+                OfflineSelectionOption(
+                    label = stringResource(R.string.sync_offline_image_limit_20_mb),
+                    selected = selectedLimit == OfflineImageStorageLimit.MB_20,
+                    onClick = { onLimitSelected(OfflineImageStorageLimit.MB_20) }
+                )
+                OfflineSelectionOption(
+                    label = stringResource(R.string.sync_offline_image_limit_100_mb),
+                    selected = selectedLimit == OfflineImageStorageLimit.MB_100,
+                    onClick = { onLimitSelected(OfflineImageStorageLimit.MB_100) }
+                )
+                OfflineSelectionOption(
+                    label = stringResource(R.string.sync_offline_image_limit_250_mb),
+                    selected = selectedLimit == OfflineImageStorageLimit.MB_250,
+                    onClick = { onLimitSelected(OfflineImageStorageLimit.MB_250) }
+                )
+                OfflineSelectionOption(
+                    label = stringResource(R.string.sync_offline_image_limit_500_mb),
+                    selected = selectedLimit == OfflineImageStorageLimit.MB_500,
+                    onClick = { onLimitSelected(OfflineImageStorageLimit.MB_500) }
+                )
+                OfflineSelectionOption(
+                    label = stringResource(R.string.sync_offline_image_limit_1_gb),
+                    selected = selectedLimit == OfflineImageStorageLimit.GB_1,
+                    onClick = { onLimitSelected(OfflineImageStorageLimit.GB_1) }
+                )
+                OfflineSelectionOption(
+                    label = stringResource(R.string.sync_offline_image_limit_unlimited),
+                    selected = selectedLimit == OfflineImageStorageLimit.UNLIMITED,
+                    onClick = { onLimitSelected(OfflineImageStorageLimit.UNLIMITED) }
                 )
             }
         },
@@ -510,21 +650,23 @@ private fun OfflineContentScopeDialog(
 }
 
 @Composable
-private fun OfflineImageStorageLimitDialog(
-    selectedLimit: com.mydeck.app.domain.sync.OfflineImageStorageLimit,
+private fun IntSelectionDialog(
+    titleRes: Int,
+    options: List<IntSelectionOption>,
+    selectedValue: Int,
     onDismissRequest: () -> Unit,
-    onLimitSelected: (com.mydeck.app.domain.sync.OfflineImageStorageLimit) -> Unit
+    onOptionSelected: (Int) -> Unit
 ) {
     AlertDialog(
         onDismissRequest = onDismissRequest,
-        title = { Text(stringResource(R.string.sync_offline_image_limit_dialog_title)) },
+        title = { Text(stringResource(titleRes)) },
         text = {
             Column {
-                com.mydeck.app.domain.sync.OfflineImageStorageLimit.entries.forEach { limit ->
-                    OfflineScopeOption(
-                        label = stringResource(limit.toLabelResource()),
-                        selected = limit == selectedLimit,
-                        onClick = { onLimitSelected(limit) }
+                options.forEach { option ->
+                    OfflineSelectionOption(
+                        label = stringResource(option.label),
+                        selected = option.value == selectedValue,
+                        onClick = { onOptionSelected(option.value) }
                     )
                 }
             }
@@ -539,21 +681,52 @@ private fun OfflineImageStorageLimitDialog(
 }
 
 @Composable
-private fun OfflineScopeOption(
+private fun DurationSelectionDialog(
+    titleRes: Int,
+    options: List<DurationSelectionOption>,
+    selectedValue: kotlin.time.Duration,
+    onDismissRequest: () -> Unit,
+    onOptionSelected: (kotlin.time.Duration) -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismissRequest,
+        title = { Text(stringResource(titleRes)) },
+        text = {
+            Column {
+                options.forEach { option ->
+                    OfflineSelectionOption(
+                        label = stringResource(option.label),
+                        selected = option.value == selectedValue,
+                        onClick = { onOptionSelected(option.value) }
+                    )
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = {
+            TextButton(onClick = onDismissRequest) {
+                Text(stringResource(R.string.cancel))
+            }
+        }
+    )
+}
+
+@Composable
+private fun OfflineSelectionOption(
     label: String,
     selected: Boolean,
     onClick: () -> Unit
 ) {
     TextButton(onClick = onClick, modifier = Modifier.fillMaxWidth()) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Text(text = label)
-            if (selected) {
-                Text(text = stringResource(R.string.sync_scope_selected))
+        ListItem(
+            headlineContent = { Text(text = label) },
+            leadingContent = {
+                RadioButton(
+                    selected = selected,
+                    onClick = null
+                )
             }
-        }
+        )
     }
 }
 
@@ -579,10 +752,14 @@ private fun ClearOfflineContentConfirmDialog(
     )
 }
 
-private fun OfflineContentScope.toLabelResource(): Int {
-    return when (this) {
-        OfflineContentScope.MY_LIST -> R.string.sync_offline_scope_my_list
-        OfflineContentScope.MY_LIST_AND_ARCHIVED -> R.string.sync_offline_scope_my_list_and_archived
+private fun kotlin.time.Duration.toLabelResource(): Int {
+    return when (this.inWholeDays) {
+        7L -> R.string.sync_offline_date_range_1_week
+        30L -> R.string.sync_offline_date_range_1_month
+        90L -> R.string.sync_offline_date_range_3_months
+        180L -> R.string.sync_offline_date_range_6_months
+        365L -> R.string.sync_offline_date_range_1_year
+        else -> R.string.sync_offline_date_range_3_months
     }
 }
 

@@ -342,8 +342,8 @@ other{}
     <string name="sync_date_preset_past_year">Past year</string>
     <string name="sync_date_preset_custom">Custom date range</string>
     <string name="sync_constraints_section_title">Download constraints</string>
-    <string name="sync_wifi_only">Only download images on Wi-Fi</string>
-    <string name="sync_allow_battery_saver">Allow image downloads on battery saver</string>
+    <string name="sync_wifi_only">Wi-Fi only</string>
+    <string name="sync_allow_battery_saver">Allow on battery saver</string>
 
     <!-- Content Download Policy -->
     <string name="sync_content_policy_section_title">What to download</string>
@@ -359,8 +359,16 @@ other{}
     <string name="sync_scope_selected">Selected</string>
     <string name="sync_download_images">Download images</string>
     <string name="sync_download_images_desc">Download images alongside article text. When off, images load from the network.</string>
-    <string name="sync_offline_image_limit">Image storage limit</string>
-    <string name="sync_offline_image_limit_dialog_title">Image storage limit</string>
+    <string name="sync_offline_keep_offline">Keep offline</string>
+    <string name="sync_offline_policy_storage_limit">Storage limit</string>
+    <string name="sync_offline_policy_newest_n">Newest N bookmarks</string>
+    <string name="sync_offline_policy_date_range">Added within last</string>
+    <string name="sync_offline_storage_limit_dialog_title">Storage limit</string>
+    <string name="sync_offline_max_storage_cap">Maximum storage cap</string>
+    <string name="sync_offline_max_storage_cap_desc">Shown for Newest N and Added within last policies.</string>
+    <string name="sync_offline_download_date_range">Download content for date range…</string>
+    <string name="sync_offline_image_limit">Storage limit</string>
+    <string name="sync_offline_image_limit_dialog_title">Storage limit</string>
     <!-- Test limits — remove before release -->
     <string name="sync_offline_image_limit_5_mb">5 MB (test)</string>
     <string name="sync_offline_image_limit_10_mb">10 MB (test)</string>
@@ -370,9 +378,19 @@ other{}
     <string name="sync_offline_image_limit_500_mb">500 MB</string>
     <string name="sync_offline_image_limit_1_gb">1 GB</string>
     <string name="sync_offline_image_limit_unlimited">Unlimited</string>
+    <string name="sync_offline_newest_n_25">25</string>
+    <string name="sync_offline_newest_n_50">50</string>
+    <string name="sync_offline_newest_n_100">100</string>
+    <string name="sync_offline_newest_n_200">200</string>
+    <string name="sync_offline_date_range_1_week">1 week</string>
+    <string name="sync_offline_date_range_1_month">1 month</string>
+    <string name="sync_offline_date_range_3_months">3 months</string>
+    <string name="sync_offline_date_range_6_months">6 months</string>
+    <string name="sync_offline_date_range_1_year">1 year</string>
     <string name="sync_include_archived">Include archived content</string>
+    <string name="sync_include_archived_bookmarks">Include archived bookmarks</string>
     <string name="sync_include_archived_desc">When off, only My List downloads offline content during automatic or date-range sync. On-demand downloads are always available regardless of this setting.</string>
-    <string name="sync_clear_on_archive">Clear content when archiving</string>
+    <string name="sync_clear_on_archive">Clear offline content when archiving</string>
     <string name="sync_clear_on_archive_desc">Automatically remove downloaded text and images when a bookmark is archived.</string>
     <string name="sync_content_waiting_wifi">Content download waiting for Wi-Fi</string>
     <string name="sync_content_waiting_battery">Content download paused (battery saver)</string>
@@ -390,14 +408,20 @@ other{}
     <string name="sync_status_bookmarks_heading">Bookmarks</string>
     <string name="sync_status_content_heading">Content</string>
     <string name="sync_status_last_content_sync">Last content sync: %1$s</string>
-    <string name="sync_status_total">Total bookmarks: %d</string>
-    <string name="sync_status_unread">My List: %d</string>
-    <string name="sync_status_archived">Archived: %d</string>
+    <string name="sync_status_last_bookmark_sync">Last bookmark sync</string>
+    <string name="sync_status_next_bookmark_sync">Next scheduled sync</string>
+    <string name="sync_status_never_short">Never</string>
+    <string name="sync_status_last_offline_maintenance">Last offline content maintenance</string>
+    <string name="sync_status_total">Total bookmarks</string>
+    <string name="sync_status_my_list">My List</string>
+    <string name="sync_status_archived">Archived</string>
     <string name="sync_status_favorites">Favorites: %d</string>
     <string name="sync_status_content_downloaded">Content downloaded: %d</string>
     <string name="sync_status_content_available">Available to download: %d</string>
     <string name="sync_status_content_dirty">Download failed (retryable): %d</string>
     <string name="sync_status_no_content">No article content: %d</string>
+    <string name="sync_status_full_offline_available">Full offline available</string>
+    <string name="sync_status_offline_storage_used">Offline storage used</string>
 
     <!-- Storage Management -->
     <string name="sync_storage_heading">Storage</string>

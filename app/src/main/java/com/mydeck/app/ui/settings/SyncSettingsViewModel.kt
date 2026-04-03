@@ -12,6 +12,9 @@ import com.mydeck.app.domain.content.ContentPackageManager
 import com.mydeck.app.domain.model.AutoSyncTimeframe
 import com.mydeck.app.domain.sync.ConnectivityMonitor
 import com.mydeck.app.domain.sync.OfflineContentScope
+import com.mydeck.app.domain.sync.OfflineImageStorageLimit
+import com.mydeck.app.domain.sync.OfflinePolicy
+import com.mydeck.app.domain.sync.OfflinePolicyDefaults
 import com.mydeck.app.domain.sync.OfflinePolicyEvaluator
 import com.mydeck.app.domain.usecase.FullSyncUseCase
 import com.mydeck.app.domain.usecase.LoadBookmarksUseCase
@@ -34,6 +37,8 @@ import timber.log.Timber
 import java.text.DateFormat
 import java.util.Date
 import javax.inject.Inject
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.days
 
 @HiltViewModel
 class SyncSettingsViewModel @Inject constructor(
@@ -56,13 +61,17 @@ class SyncSettingsViewModel @Inject constructor(
 
     private val bookmarkSyncFrequency = MutableStateFlow(AutoSyncTimeframe.HOURS_01)
     private val offlineReadingEnabled = MutableStateFlow(false)
+    private val offlinePolicy = MutableStateFlow(OfflinePolicy.STORAGE_LIMIT)
+    private val offlinePolicyStorageLimit = MutableStateFlow(OfflineImageStorageLimit.MB_500)
+    private val offlinePolicyNewestN = MutableStateFlow(OfflinePolicyDefaults.NEWEST_N)
+    private val offlinePolicyDateRangeWindow = MutableStateFlow(OfflinePolicyDefaults.DATE_RANGE_WINDOW)
+    private val offlineMaxStorageCap = MutableStateFlow(OfflineImageStorageLimit.UNLIMITED)
     private val offlineContentScope = MutableStateFlow(OfflineContentScope.MY_LIST)
-    private val offlineImageStorageLimit = MutableStateFlow(com.mydeck.app.domain.sync.OfflineImageStorageLimit.MB_500)
+    private val clearContentOnArchive = MutableStateFlow(false)
     private val wifiOnly = MutableStateFlow(false)
     private val allowBatterySaver = MutableStateFlow(true)
     private val showDialog = MutableStateFlow<SyncSettingsDialog?>(null)
-    private val textStorageSize = MutableStateFlow<String?>(null)
-    private val imageStorageSize = MutableStateFlow<String?>(null)
+    private val offlineStorageSize = MutableStateFlow<String?>(null)
 
     private val detailedSyncStatus = bookmarkDao.observeDetailedSyncStatus()
         .map { counts ->
@@ -93,17 +102,13 @@ class SyncSettingsViewModel @Inject constructor(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
     private val contentSyncStatusRes = combine(
         offlineReadingEnabled,
-        wifiOnly,
-        allowBatterySaver,
         batchContentSyncWorkInfos,
         connectivityMonitor.observeConnectivity().onStart {
             emit(connectivityMonitor.isNetworkAvailable())
         }
     ) { args: Array<Any?> ->
         val offlineEnabled = args[0] as Boolean
-        val wifiEnabled = args[1] as Boolean
-        val batterySaverEnabled = args[2] as Boolean
-        val workInfos = args[3] as List<WorkInfo>
+        val workInfos = args[1] as List<WorkInfo>
         resolveContentSyncStatus(offlineEnabled, workInfos)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
@@ -113,8 +118,14 @@ class SyncSettingsViewModel @Inject constructor(
                 if (timeframe == AutoSyncTimeframe.MANUAL) AutoSyncTimeframe.HOURS_01 else timeframe
             }
             offlineReadingEnabled.value = settingsDataStore.isOfflineReadingEnabled()
+            offlinePolicy.value = settingsDataStore.getOfflinePolicy()
+            offlinePolicyStorageLimit.value =
+                settingsDataStore.getOfflinePolicyStorageLimit().toStorageLimit()
+            offlinePolicyNewestN.value = settingsDataStore.getOfflinePolicyNewestN()
+            offlinePolicyDateRangeWindow.value = settingsDataStore.getOfflinePolicyDateRangeWindow()
+            offlineMaxStorageCap.value = settingsDataStore.getOfflineMaxStorageCap().toStorageLimit()
             offlineContentScope.value = settingsDataStore.getOfflineContentScope()
-            offlineImageStorageLimit.value = settingsDataStore.getOfflineImageStorageLimit()
+            clearContentOnArchive.value = settingsDataStore.isClearContentOnArchiveEnabled()
 
             val constraints = settingsDataStore.getContentSyncConstraints()
             wifiOnly.value = constraints.wifiOnly
@@ -153,78 +164,55 @@ class SyncSettingsViewModel @Inject constructor(
         bookmarkSyncFrequency,
         showDialog,
         workInfoNext,
-        wifiOnly,
         bookmarkSyncRunning,
-        offlineReadingEnabled
+        offlineReadingEnabled,
+        offlinePolicy,
+        offlinePolicyStorageLimit,
+        offlinePolicyNewestN,
+        offlinePolicyDateRangeWindow,
+        offlineMaxStorageCap,
+        offlineContentScope,
+        clearContentOnArchive,
+        wifiOnly,
+        allowBatterySaver,
+        detailedSyncStatus,
+        contentSyncStatusRes,
+        lastSyncTimestampText,
+        lastContentSyncTimestampText,
+        offlineStorageSize
     ) { args: Array<Any?> ->
-        val frequency = args[0] as AutoSyncTimeframe
-        val dialog = args[1] as SyncSettingsDialog?
-        val next = args[2] as Long?
-        val wifi = args[3] as Boolean
-        val syncRunning = args[4] as Boolean
-        val offlineEnabled = args[5] as Boolean
-        SyncSettingsPartial1(
-            bookmarkSyncFrequency = frequency,
-            showDialog = dialog,
-            nextAutoSyncRun = next,
-            wifiOnly = wifi,
-            isBookmarkSyncRunning = syncRunning,
-            offlineReadingEnabled = offlineEnabled
-        )
-    }.combine(
-        combine(
-            allowBatterySaver,
-            offlineContentScope,
-            offlineImageStorageLimit,
-            detailedSyncStatus,
-            contentSyncStatusRes
-        ) { args: Array<Any?> ->
-            val battery = args[0] as Boolean
-            val scope = args[1] as OfflineContentScope
-            val limit = args[2] as com.mydeck.app.domain.sync.OfflineImageStorageLimit
-            val status = args[3] as BookmarkDao.DetailedSyncStatusCounts
-            val contentStatus = args[4] as Int?
-            SyncSettingsPartial2(
-                allowBatterySaver = battery,
-                offlineContentScope = scope,
-                offlineImageStorageLimit = limit,
-                detailedSyncStatus = status,
-                contentSyncStatusRes = contentStatus
-            )
-        }
-    ) { p1, p2 ->
-        val myListCount = (p2.detailedSyncStatus.total - p2.detailedSyncStatus.archived).coerceAtLeast(0)
+        val detailedSyncStatusCounts = args[14] as BookmarkDao.DetailedSyncStatusCounts
+        val totalBookmarks = detailedSyncStatusCounts.total
+        val archivedBookmarks = detailedSyncStatusCounts.archived
+        val myListBookmarks = (totalBookmarks - archivedBookmarks).coerceAtLeast(0)
+
         SyncSettingsUiState(
-            bookmarkSyncFrequency = p1.bookmarkSyncFrequency,
-            bookmarkSyncFrequencyOptions = getBookmarkSyncOptions(p1.bookmarkSyncFrequency),
-            nextAutoSyncRun = p1.nextAutoSyncRun?.let { dateFormat.format(Date(it)) },
-            isBookmarkSyncRunning = p1.isBookmarkSyncRunning,
-            offlineReadingEnabled = p1.offlineReadingEnabled,
-            offlineContentScope = p2.offlineContentScope,
-            offlineImageStorageLimit = p2.offlineImageStorageLimit,
-            wifiOnly = p1.wifiOnly,
-            allowBatterySaver = p2.allowBatterySaver,
-            contentSyncStatusRes = p2.contentSyncStatusRes,
+            bookmarkSyncFrequency = args[0] as AutoSyncTimeframe,
+            bookmarkSyncFrequencyOptions = getBookmarkSyncOptions(args[0] as AutoSyncTimeframe),
+            nextAutoSyncRun = (args[2] as Long?)?.let { dateFormat.format(Date(it)) },
+            isBookmarkSyncRunning = args[3] as Boolean,
+            offlineReadingEnabled = args[4] as Boolean,
+            offlinePolicy = args[5] as OfflinePolicy,
+            offlinePolicyStorageLimit = args[6] as OfflineImageStorageLimit,
+            offlinePolicyNewestN = args[7] as Int,
+            offlinePolicyDateRangeWindow = args[8] as Duration,
+            offlineMaxStorageCap = args[9] as OfflineImageStorageLimit,
+            includeArchivedBookmarks = (args[10] as OfflineContentScope).includesArchived,
+            clearContentOnArchive = args[11] as Boolean,
+            wifiOnly = args[12] as Boolean,
+            allowBatterySaver = args[13] as Boolean,
+            contentSyncStatusRes = args[15] as Int?,
             syncStatus = SyncStatus(
-                totalBookmarks = p2.detailedSyncStatus.total,
-                unread = myListCount,
-                archived = p2.detailedSyncStatus.archived,
-                favorites = p2.detailedSyncStatus.favorites,
-                contentDownloaded = p2.detailedSyncStatus.contentDownloaded,
-                contentAvailable = p2.detailedSyncStatus.contentAvailable,
-                contentDirty = p2.detailedSyncStatus.contentDirty,
-                permanentNoContent = p2.detailedSyncStatus.permanentNoContent
+                totalBookmarks = totalBookmarks,
+                myListBookmarks = myListBookmarks,
+                archivedBookmarks = archivedBookmarks,
+                fullOfflineAvailable = detailedSyncStatusCounts.contentDownloaded,
+                lastBookmarkSyncTimestamp = args[16] as String?,
+                lastOfflineMaintenanceTimestamp = args[17] as String?,
+                offlineStorageSize = args[18] as String?
             ),
-            showDialog = p1.showDialog
+            showDialog = args[1] as SyncSettingsDialog?
         )
-    }.combine(lastSyncTimestampText) { state, ts ->
-        state.copy(syncStatus = state.syncStatus.copy(lastBookmarkSyncTimestamp = ts))
-    }.combine(lastContentSyncTimestampText) { state, ts ->
-        state.copy(syncStatus = state.syncStatus.copy(lastContentSyncTimestamp = ts))
-    }.combine(textStorageSize) { state, size ->
-        state.copy(syncStatus = state.syncStatus.copy(textStorageSize = size))
-    }.combine(imageStorageSize) { state, size ->
-        state.copy(syncStatus = state.syncStatus.copy(imageStorageSize = size))
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
@@ -235,12 +223,20 @@ class SyncSettingsViewModel @Inject constructor(
         showDialog.value = SyncSettingsDialog.BookmarkSyncFrequencyDialog
     }
 
-    fun onClickOfflineContentScope() {
-        showDialog.value = SyncSettingsDialog.OfflineContentScopeDialog
+    fun onClickOfflinePolicyStorageLimit() {
+        showDialog.value = SyncSettingsDialog.OfflineStorageLimitDialog
     }
 
-    fun onClickOfflineImageStorageLimit() {
-        showDialog.value = SyncSettingsDialog.OfflineImageStorageLimitDialog
+    fun onClickOfflinePolicyNewestN() {
+        showDialog.value = SyncSettingsDialog.OfflineNewestNDialog
+    }
+
+    fun onClickOfflinePolicyDateRangeWindow() {
+        showDialog.value = SyncSettingsDialog.OfflineDateRangeWindowDialog
+    }
+
+    fun onClickOfflineMaxStorageCap() {
+        showDialog.value = SyncSettingsDialog.OfflineMaxStorageCapDialog
     }
 
     fun onBookmarkSyncFrequencySelected(selected: AutoSyncTimeframe) {
@@ -275,17 +271,63 @@ class SyncSettingsViewModel @Inject constructor(
         }
     }
 
-    fun onOfflineContentScopeSelected(scope: OfflineContentScope) {
+    fun onOfflinePolicySelected(policy: OfflinePolicy) {
         viewModelScope.launch {
+            settingsDataStore.saveOfflinePolicy(policy)
+            offlinePolicy.value = policy
+            restartManagedContentSyncIfNeeded()
+        }
+    }
+
+    fun onOfflinePolicyStorageLimitSelected(limit: OfflineImageStorageLimit) {
+        viewModelScope.launch {
+            settingsDataStore.saveOfflinePolicyStorageLimit(limit.bytes)
+            settingsDataStore.saveOfflineImageStorageLimit(limit)
+            offlinePolicyStorageLimit.value = limit
+            restartManagedContentSyncIfNeeded()
+        }
+    }
+
+    fun onOfflinePolicyNewestNSelected(newestN: Int) {
+        viewModelScope.launch {
+            settingsDataStore.saveOfflinePolicyNewestN(newestN)
+            offlinePolicyNewestN.value = newestN
+            restartManagedContentSyncIfNeeded()
+        }
+    }
+
+    fun onOfflinePolicyDateRangeWindowSelected(window: Duration) {
+        viewModelScope.launch {
+            settingsDataStore.saveOfflinePolicyDateRangeWindow(window)
+            offlinePolicyDateRangeWindow.value = window
+            restartManagedContentSyncIfNeeded()
+        }
+    }
+
+    fun onOfflineMaxStorageCapSelected(limit: OfflineImageStorageLimit) {
+        viewModelScope.launch {
+            settingsDataStore.saveOfflineMaxStorageCap(limit.bytes)
+            offlineMaxStorageCap.value = limit
+            restartManagedContentSyncIfNeeded()
+        }
+    }
+
+    fun onIncludeArchivedChanged(enabled: Boolean) {
+        viewModelScope.launch {
+            val scope = if (enabled) {
+                OfflineContentScope.MY_LIST_AND_ARCHIVED
+            } else {
+                OfflineContentScope.MY_LIST
+            }
             settingsDataStore.saveOfflineContentScope(scope)
             offlineContentScope.value = scope
 
-            if (!scope.includesArchived) {
+            if (!enabled) {
                 purgeArchivedOfflineContent()
             }
 
             if (offlineReadingEnabled.value) {
-                bookmarkDao.markLegacyCachedContentDirtyWithoutPackage(scope.includesArchived)
+                bookmarkDao.markLegacyCachedContentDirtyWithoutPackage(enabled)
                 restartManagedContentSyncIfNeeded()
             }
 
@@ -293,11 +335,10 @@ class SyncSettingsViewModel @Inject constructor(
         }
     }
 
-    fun onOfflineImageStorageLimitSelected(limit: com.mydeck.app.domain.sync.OfflineImageStorageLimit) {
+    fun onClearContentOnArchiveChanged(enabled: Boolean) {
         viewModelScope.launch {
-            settingsDataStore.saveOfflineImageStorageLimit(limit)
-            offlineImageStorageLimit.value = limit
-            restartManagedContentSyncIfNeeded()
+            settingsDataStore.saveClearContentOnArchiveEnabled(enabled)
+            clearContentOnArchive.value = enabled
         }
     }
 
@@ -398,10 +439,8 @@ class SyncSettingsViewModel @Inject constructor(
 
     private fun refreshStorageSize() {
         viewModelScope.launch {
-            val textBytes = contentPackageManager.calculateManagedOfflineTextSize()
-            val imageBytes = contentPackageManager.calculateImageSize()
-            imageStorageSize.value = formatFileSize(imageBytes)
-            textStorageSize.value = formatFileSize(textBytes)
+            val totalBytes = contentPackageManager.calculateManagedOfflineSize()
+            offlineStorageSize.value = formatFileSize(totalBytes)
         }
     }
 
@@ -432,23 +471,6 @@ class SyncSettingsViewModel @Inject constructor(
         }
     }
 
-    private data class SyncSettingsPartial1(
-        val bookmarkSyncFrequency: AutoSyncTimeframe,
-        val showDialog: SyncSettingsDialog?,
-        val nextAutoSyncRun: Long?,
-        val wifiOnly: Boolean,
-        val isBookmarkSyncRunning: Boolean,
-        val offlineReadingEnabled: Boolean
-    )
-
-    private data class SyncSettingsPartial2(
-        val allowBatterySaver: Boolean,
-        val offlineContentScope: OfflineContentScope,
-        val offlineImageStorageLimit: com.mydeck.app.domain.sync.OfflineImageStorageLimit,
-        val detailedSyncStatus: BookmarkDao.DetailedSyncStatusCounts,
-        val contentSyncStatusRes: Int?
-    )
-
     sealed class NavigationEvent {
         data object NavigateBack : NavigationEvent()
     }
@@ -461,8 +483,13 @@ data class SyncSettingsUiState(
     val nextAutoSyncRun: String? = null,
     val isBookmarkSyncRunning: Boolean = false,
     val offlineReadingEnabled: Boolean = false,
-    val offlineContentScope: OfflineContentScope = OfflineContentScope.MY_LIST,
-    val offlineImageStorageLimit: com.mydeck.app.domain.sync.OfflineImageStorageLimit = com.mydeck.app.domain.sync.OfflineImageStorageLimit.MB_500,
+    val offlinePolicy: OfflinePolicy = OfflinePolicy.STORAGE_LIMIT,
+    val offlinePolicyStorageLimit: OfflineImageStorageLimit = OfflineImageStorageLimit.MB_500,
+    val offlinePolicyNewestN: Int = OfflinePolicyDefaults.NEWEST_N,
+    val offlinePolicyDateRangeWindow: Duration = OfflinePolicyDefaults.DATE_RANGE_WINDOW,
+    val offlineMaxStorageCap: OfflineImageStorageLimit = OfflineImageStorageLimit.UNLIMITED,
+    val includeArchivedBookmarks: Boolean = false,
+    val clearContentOnArchive: Boolean = false,
     val wifiOnly: Boolean = false,
     val allowBatterySaver: Boolean = true,
     val contentSyncStatusRes: Int? = null,
@@ -473,23 +500,20 @@ data class SyncSettingsUiState(
 @Immutable
 data class SyncStatus(
     val totalBookmarks: Int = 0,
-    val unread: Int = 0,
-    val archived: Int = 0,
-    val favorites: Int = 0,
-    val contentDownloaded: Int = 0,
-    val contentAvailable: Int = 0,
-    val contentDirty: Int = 0,
-    val permanentNoContent: Int = 0,
+    val myListBookmarks: Int = 0,
+    val archivedBookmarks: Int = 0,
+    val fullOfflineAvailable: Int = 0,
     val lastBookmarkSyncTimestamp: String? = null,
-    val lastContentSyncTimestamp: String? = null,
-    val textStorageSize: String? = null,
-    val imageStorageSize: String? = null
+    val lastOfflineMaintenanceTimestamp: String? = null,
+    val offlineStorageSize: String? = null
 )
 
 enum class SyncSettingsDialog {
     BookmarkSyncFrequencyDialog,
-    OfflineContentScopeDialog,
-    OfflineImageStorageLimitDialog,
+    OfflineStorageLimitDialog,
+    OfflineNewestNDialog,
+    OfflineDateRangeWindowDialog,
+    OfflineMaxStorageCapDialog,
     ClearOfflineContentDialog
 }
 
@@ -499,6 +523,42 @@ data class AutoSyncTimeframeOption(
     val label: Int,
     val selected: Boolean
 )
+
+data class IntSelectionOption(
+    val value: Int,
+    @StringRes
+    val label: Int
+)
+
+data class DurationSelectionOption(
+    val value: Duration,
+    @StringRes
+    val label: Int
+)
+
+fun offlineNewestNOptions(): List<IntSelectionOption> {
+    return listOf(
+        IntSelectionOption(25, R.string.sync_offline_newest_n_25),
+        IntSelectionOption(50, R.string.sync_offline_newest_n_50),
+        IntSelectionOption(100, R.string.sync_offline_newest_n_100),
+        IntSelectionOption(200, R.string.sync_offline_newest_n_200)
+    )
+}
+
+fun offlineDateRangeWindowOptions(): List<DurationSelectionOption> {
+    return listOf(
+        DurationSelectionOption(7.days, R.string.sync_offline_date_range_1_week),
+        DurationSelectionOption(30.days, R.string.sync_offline_date_range_1_month),
+        DurationSelectionOption(90.days, R.string.sync_offline_date_range_3_months),
+        DurationSelectionOption(180.days, R.string.sync_offline_date_range_6_months),
+        DurationSelectionOption(365.days, R.string.sync_offline_date_range_1_year)
+    )
+}
+
+private fun Long.toStorageLimit(): OfflineImageStorageLimit {
+    return OfflineImageStorageLimit.entries.firstOrNull { it.bytes == this }
+        ?: OfflineImageStorageLimit.UNLIMITED
+}
 
 @StringRes
 fun AutoSyncTimeframe.toLabelResource(): Int {
@@ -516,15 +576,15 @@ fun AutoSyncTimeframe.toLabelResource(): Int {
 }
 
 @StringRes
-fun com.mydeck.app.domain.sync.OfflineImageStorageLimit.toLabelResource(): Int {
+fun OfflineImageStorageLimit.toLabelResource(): Int {
     return when (this) {
-        com.mydeck.app.domain.sync.OfflineImageStorageLimit.MB_5 -> R.string.sync_offline_image_limit_5_mb
-        com.mydeck.app.domain.sync.OfflineImageStorageLimit.MB_10 -> R.string.sync_offline_image_limit_10_mb
-        com.mydeck.app.domain.sync.OfflineImageStorageLimit.MB_20 -> R.string.sync_offline_image_limit_20_mb
-        com.mydeck.app.domain.sync.OfflineImageStorageLimit.MB_100 -> R.string.sync_offline_image_limit_100_mb
-        com.mydeck.app.domain.sync.OfflineImageStorageLimit.MB_250 -> R.string.sync_offline_image_limit_250_mb
-        com.mydeck.app.domain.sync.OfflineImageStorageLimit.MB_500 -> R.string.sync_offline_image_limit_500_mb
-        com.mydeck.app.domain.sync.OfflineImageStorageLimit.GB_1 -> R.string.sync_offline_image_limit_1_gb
-        com.mydeck.app.domain.sync.OfflineImageStorageLimit.UNLIMITED -> R.string.sync_offline_image_limit_unlimited
+        OfflineImageStorageLimit.MB_5 -> R.string.sync_offline_image_limit_5_mb
+        OfflineImageStorageLimit.MB_10 -> R.string.sync_offline_image_limit_10_mb
+        OfflineImageStorageLimit.MB_20 -> R.string.sync_offline_image_limit_20_mb
+        OfflineImageStorageLimit.MB_100 -> R.string.sync_offline_image_limit_100_mb
+        OfflineImageStorageLimit.MB_250 -> R.string.sync_offline_image_limit_250_mb
+        OfflineImageStorageLimit.MB_500 -> R.string.sync_offline_image_limit_500_mb
+        OfflineImageStorageLimit.GB_1 -> R.string.sync_offline_image_limit_1_gb
+        OfflineImageStorageLimit.UNLIMITED -> R.string.sync_offline_image_limit_unlimited
     }
 }
