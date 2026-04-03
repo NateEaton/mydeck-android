@@ -1507,7 +1507,7 @@ private fun BookmarkDownloadStatusIndicator(
     val isFull = offlineState == BookmarkListItem.OfflineState.DOWNLOADED_FULL
     Icon(
         imageVector = if (isFull) Icons.Filled.DownloadForOffline else Icons.Outlined.DownloadForOffline,
-        contentDescription = stringResource(if (isFull) R.string.notif_content_ready_title else R.string.action_download_title),
+        contentDescription = stringResource(if (isFull) R.string.bookmark_card_available_offline else R.string.bookmark_card_text_available),
         modifier = modifier.size(BookmarkDownloadIconSize),
         tint = if (isMosaic) {
             Color.White.copy(alpha = 0.6f)

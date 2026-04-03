@@ -382,6 +382,8 @@
     <string name="action_download_link">Download link</string>
     <string name="action_download_title">Downloaded for offline reading</string>
     <string name="notif_content_ready_title">Content ready offline</string>
+    <string name="bookmark_card_text_available">Text available</string>
+    <string name="bookmark_card_available_offline">Available offline</string>
     <string name="action_share_image">Share image</string>
     <string name="image_url_copied">Image URL copied</string>
     <string name="image_copied">Image copied</string>
