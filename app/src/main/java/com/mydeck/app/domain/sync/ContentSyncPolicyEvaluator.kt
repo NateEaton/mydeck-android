@@ -17,10 +17,6 @@ class ContentSyncPolicyEvaluator @Inject constructor(
             return Decision(false, "No network")
         }
 
-        if (!settingsDataStore.isDownloadImagesEnabled()) {
-            return Decision(true)
-        }
-
         val constraints = settingsDataStore.getContentSyncConstraints()
 
         if (constraints.wifiOnly && !connectivityMonitor.isOnWifi()) {

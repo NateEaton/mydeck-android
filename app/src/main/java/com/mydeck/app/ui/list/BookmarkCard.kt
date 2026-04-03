@@ -336,7 +336,6 @@ fun BookmarkMosaicCard(
     onClickCopyImage: (String) -> Unit = {},
     onClickDownloadImage: (String) -> Unit = {},
     onClickShareImage: (String) -> Unit = {},
-    onRemoveDownloadedContent: (String) -> Unit = {},
     isWideLayout: Boolean = LocalIsWideLayout.current
 ) {
     var showBodyContextMenu by remember { mutableStateOf(false) }
@@ -592,7 +591,6 @@ fun BookmarkGridCard(
     onClickCopyImage: (String) -> Unit = {},
     onClickDownloadImage: (String) -> Unit = {},
     onClickShareImage: (String) -> Unit = {},
-    onRemoveDownloadedContent: (String) -> Unit = {},
     isWideLayout: Boolean = LocalIsWideLayout.current,
     isInGrid: Boolean = false,
     useMobilePortraitLayout: Boolean = false,
@@ -614,7 +612,6 @@ fun BookmarkGridCard(
             onClickCopyImage = onClickCopyImage,
             onClickDownloadImage = onClickDownloadImage,
             onClickShareImage = onClickShareImage,
-            onRemoveDownloadedContent = onRemoveDownloadedContent,
         )
     } else if (isWideLayout) {
         BookmarkGridCardWide(
@@ -633,7 +630,6 @@ fun BookmarkGridCard(
             onClickCopyImage = onClickCopyImage,
             onClickDownloadImage = onClickDownloadImage,
             onClickShareImage = onClickShareImage,
-            onRemoveDownloadedContent = onRemoveDownloadedContent,
             isInGrid = isInGrid,
         )
     } else {
@@ -653,7 +649,6 @@ fun BookmarkGridCard(
             onClickCopyImage = onClickCopyImage,
             onClickDownloadImage = onClickDownloadImage,
             onClickShareImage = onClickShareImage,
-            onRemoveDownloadedContent = onRemoveDownloadedContent,
         )
     }
 }
@@ -681,7 +676,6 @@ private fun BookmarkGridCardMobilePortrait(
     onClickCopyImage: (String) -> Unit = {},
     onClickDownloadImage: (String) -> Unit = {},
     onClickShareImage: (String) -> Unit = {},
-    onRemoveDownloadedContent: (String) -> Unit = {},
 ) {
     var showBodyContextMenu by remember { mutableStateOf(false) }
     var showImageContextMenu by remember { mutableStateOf(false) }
@@ -962,7 +956,6 @@ private fun BookmarkGridCardNarrow(
     onClickCopyImage: (String) -> Unit = {},
     onClickDownloadImage: (String) -> Unit = {},
     onClickShareImage: (String) -> Unit = {},
-    onRemoveDownloadedContent: (String) -> Unit = {},
 ) {
     var showBodyContextMenu by remember { mutableStateOf(false) }
     var showImageContextMenu by remember { mutableStateOf(false) }
@@ -1235,7 +1228,6 @@ private fun BookmarkGridCardWide(
     onClickCopyImage: (String) -> Unit = {},
     onClickDownloadImage: (String) -> Unit = {},
     onClickShareImage: (String) -> Unit = {},
-    onRemoveDownloadedContent: (String) -> Unit = {},
     isInGrid: Boolean = false,
 ) {
     var showBodyContextMenu by remember { mutableStateOf(false) }
@@ -1535,7 +1527,6 @@ fun BookmarkCompactCard(
     onClickCopyImage: (String) -> Unit = {},
     onClickDownloadImage: (String) -> Unit = {},
     onClickShareImage: (String) -> Unit = {},
-    onRemoveDownloadedContent: (String) -> Unit = {},
     isWideLayout: Boolean = LocalIsWideLayout.current
 ) {
     if (isWideLayout) {
@@ -1555,7 +1546,6 @@ fun BookmarkCompactCard(
             onClickCopyImage = onClickCopyImage,
             onClickDownloadImage = onClickDownloadImage,
             onClickShareImage = onClickShareImage,
-            onRemoveDownloadedContent = onRemoveDownloadedContent,
         )
     } else {
         BookmarkCompactCardNarrow(
@@ -1574,7 +1564,6 @@ fun BookmarkCompactCard(
             onClickCopyImage = onClickCopyImage,
             onClickDownloadImage = onClickDownloadImage,
             onClickShareImage = onClickShareImage,
-            onRemoveDownloadedContent = onRemoveDownloadedContent,
         )
     }
 }
@@ -1597,7 +1586,6 @@ private fun BookmarkCompactCardNarrow(
     onClickCopyImage: (String) -> Unit = {},
     onClickDownloadImage: (String) -> Unit = {},
     onClickShareImage: (String) -> Unit = {},
-    onRemoveDownloadedContent: (String) -> Unit = {},
 ) {
     var showBodyContextMenu by remember { mutableStateOf(false) }
     var showImageContextMenu by remember { mutableStateOf(false) }
@@ -1816,7 +1804,6 @@ private fun BookmarkCompactCardWide(
     onClickCopyImage: (String) -> Unit = {},
     onClickDownloadImage: (String) -> Unit = {},
     onClickShareImage: (String) -> Unit = {},
-    onRemoveDownloadedContent: (String) -> Unit = {},
 ) {
     var showBodyContextMenu by remember { mutableStateOf(false) }
     var showImageContextMenu by remember { mutableStateOf(false) }

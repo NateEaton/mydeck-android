@@ -28,7 +28,6 @@ class ContentSyncPolicyEvaluatorTest {
     fun `canFetchContent returns Decision(allowed=false) when wifiOnly is true but not on WiFi`() = runTest {
         // Arrange
         val constraints = ContentSyncConstraints(wifiOnly = true, allowOnBatterySaver = true)
-        coEvery { settingsDataStore.isDownloadImagesEnabled() } returns true
         coEvery { settingsDataStore.getContentSyncConstraints() } returns constraints
         every { connectivityMonitor.isOnWifi() } returns false
         every { connectivityMonitor.isNetworkAvailable() } returns true
@@ -46,7 +45,6 @@ class ContentSyncPolicyEvaluatorTest {
     fun `canFetchContent returns Decision(allowed=false) when battery saver is on and not allowed`() = runTest {
         // Arrange
         val constraints = ContentSyncConstraints(wifiOnly = false, allowOnBatterySaver = false)
-        coEvery { settingsDataStore.isDownloadImagesEnabled() } returns true
         coEvery { settingsDataStore.getContentSyncConstraints() } returns constraints
         every { connectivityMonitor.isOnWifi() } returns true
         every { connectivityMonitor.isNetworkAvailable() } returns true
@@ -64,7 +62,6 @@ class ContentSyncPolicyEvaluatorTest {
     fun `canFetchContent returns Decision(allowed=false) when no network available`() = runTest {
         // Arrange
         val constraints = ContentSyncConstraints(wifiOnly = false, allowOnBatterySaver = true)
-        coEvery { settingsDataStore.isDownloadImagesEnabled() } returns true
         coEvery { settingsDataStore.getContentSyncConstraints() } returns constraints
         every { connectivityMonitor.isOnWifi() } returns true
         every { connectivityMonitor.isNetworkAvailable() } returns false
@@ -82,29 +79,10 @@ class ContentSyncPolicyEvaluatorTest {
     fun `canFetchContent returns Decision(allowed=true) when all constraints satisfied`() = runTest {
         // Arrange
         val constraints = ContentSyncConstraints(wifiOnly = true, allowOnBatterySaver = false)
-        coEvery { settingsDataStore.isDownloadImagesEnabled() } returns true
         coEvery { settingsDataStore.getContentSyncConstraints() } returns constraints
         every { connectivityMonitor.isOnWifi() } returns true
         every { connectivityMonitor.isNetworkAvailable() } returns true
         every { connectivityMonitor.isBatterySaverOn() } returns false
-
-        // Act
-        val decision = evaluator.canFetchContent()
-
-        // Assert
-        assertTrue(decision.allowed)
-        assertEquals(null, decision.blockedReason)
-    }
-
-    @Test
-    fun `canFetchContent ignores wifi and battery constraints when image downloads are disabled`() = runTest {
-        // Arrange
-        val constraints = ContentSyncConstraints(wifiOnly = true, allowOnBatterySaver = false)
-        coEvery { settingsDataStore.isDownloadImagesEnabled() } returns false
-        coEvery { settingsDataStore.getContentSyncConstraints() } returns constraints
-        every { connectivityMonitor.isOnWifi() } returns false
-        every { connectivityMonitor.isNetworkAvailable() } returns true
-        every { connectivityMonitor.isBatterySaverOn() } returns true
 
         // Act
         val decision = evaluator.canFetchContent()

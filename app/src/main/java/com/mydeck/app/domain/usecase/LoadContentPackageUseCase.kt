@@ -148,9 +148,7 @@ class LoadContentPackageUseCase @Inject constructor(
     ): Result {
         return try {
             onProgress?.invoke(0.15f)
-            val downloadImages = settingsDataStore.isDownloadImagesEnabled()
-            val shouldFetchResources =
-                !forceTextOnly && (forceResources || bookmark.type is Bookmark.Type.Picture || downloadImages)
+            val shouldFetchResources = !forceTextOnly && (forceResources || true)
             val result = if (shouldFetchResources) {
                 multipartSyncClient.fetchContentPackages(listOf(bookmarkId))
             } else {
@@ -392,8 +390,7 @@ class LoadContentPackageUseCase @Inject constructor(
      * Batch download content packages for up to 10 IDs per request, committing those
      * that succeed and returning a per-ID result for worker fallback decisions.
      *
-     * When image downloads are disabled, picture bookmarks still receive full packages
-     * (images included) while article/video bookmarks receive text-only packages.
+     * All bookmarks receive full content packages (text + images).
      */
     suspend fun executeBatch(bookmarkIds: List<String>): Map<String, Result> {
         if (bookmarkIds.isEmpty()) return emptyMap()
@@ -405,15 +402,10 @@ class LoadContentPackageUseCase @Inject constructor(
             return map
         }
 
-        val downloadImages = settingsDataStore.isDownloadImagesEnabled()
-
-        // Pre-load bookmark types when routing depends on type (images disabled).
-        // When images are enabled, all bookmarks use fetchContentPackages() so type is irrelevant.
-        val cachedBookmarks: Map<String, Bookmark?> = if (!downloadImages) {
-            bookmarkIds.associateWith { id ->
-                try { bookmarkRepository.getBookmarkById(id) } catch (_: Exception) { null }
-            }
-        } else emptyMap()
+        // Pre-load bookmarks for use in processChunk (annotation enrichment, package kind, etc.).
+        val cachedBookmarks: Map<String, Bookmark?> = bookmarkIds.associateWith { id ->
+            try { bookmarkRepository.getBookmarkById(id) } catch (_: Exception) { null }
+        }
 
         // Processes a fetch result for a set of IDs, committing packages and recording outcomes.
         suspend fun processChunk(chunkIds: List<String>, fetchResult: MultipartSyncClient.Result) {
@@ -481,20 +473,7 @@ class LoadContentPackageUseCase @Inject constructor(
         val chunks = bookmarkIds.chunked(10)
         for (chunk in chunks) {
             try {
-                if (downloadImages) {
-                    // Images enabled: all bookmarks get full content packages
-                    processChunk(chunk, multipartSyncClient.fetchContentPackages(chunk))
-                } else {
-                    // Images disabled: pictures always get full packages; others get text-only
-                    val pictureIds = chunk.filter { id -> cachedBookmarks[id]?.type is Bookmark.Type.Picture }
-                    val otherIds = chunk.filter { id -> cachedBookmarks[id]?.type !is Bookmark.Type.Picture }
-                    if (pictureIds.isNotEmpty()) {
-                        processChunk(pictureIds, multipartSyncClient.fetchContentPackages(pictureIds))
-                    }
-                    if (otherIds.isNotEmpty()) {
-                        processChunk(otherIds, multipartSyncClient.fetchTextOnly(otherIds))
-                    }
-                }
+                processChunk(chunk, multipartSyncClient.fetchContentPackages(chunk))
             } catch (e: Exception) {
                 Timber.w(e, "Batch execute failed for ids=${chunk.size}")
                 markAll(chunk, "Unexpected error: ${e.message}")

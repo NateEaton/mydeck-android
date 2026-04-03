@@ -383,7 +383,7 @@ class BookmarkDetailViewModel @Inject constructor(
                 readerAppearanceSelection
             ) { bookmark, updateState, template, typographySettings, readerAppearanceSelection ->
                 ContentRefreshable(bookmark, updateState, template, typographySettings, readerAppearanceSelection)
-            }.combine(_contentRefreshTrigger) { data, _ ->
+            }.map { data ->
                 val bookmark = data.bookmark
                 val updateState = data.updateState
                 val template = data.template
@@ -551,77 +551,6 @@ class BookmarkDetailViewModel @Inject constructor(
                 Timber.d("Manually set read progress to $newProgress%")
             } catch (e: Exception) {
                 Timber.e(e, "Error updating read state: ${e.message}")
-            }
-        }
-    }
-
-    fun onRemoveDownloadedContent(bookmarkId: String) {
-        viewModelScope.launch {
-            try {
-                contentPackageManager.deletePackage(bookmarkId)
-                Timber.i("Removed downloaded content for bookmark $bookmarkId")
-            } catch (e: Exception) {
-                Timber.e(e, "Error removing downloaded content: ${e.message}")
-            }
-        }
-    }
-
-    // Per-article image download toggle state
-    private val _imageToggleLoading = MutableStateFlow(false)
-    val imageToggleLoading: StateFlow<Boolean> = _imageToggleLoading.asStateFlow()
-    private val _contentRefreshTrigger = MutableStateFlow(0)
-
-    /**
-     * Toggle per-article image download state.
-     * - hasResources=true → re-fetch HTML with absolute URLs, then delete resources
-     * - hasResources=false → download full content package (images included)
-     */
-    fun onToggleArticleImages(bookmarkId: String) {
-        if (_imageToggleLoading.value) return
-        if (!connectivityMonitor.isNetworkAvailable()) return
-
-        viewModelScope.launch {
-            _imageToggleLoading.value = true
-            try {
-                val hasRes = contentPackageManager.hasResources(bookmarkId)
-                if (hasRes == true) {
-                    // Full → lazy-images: re-fetch HTML with absolute URLs, then strip resources
-                    val result = multipartSyncClient.fetchTextOnly(listOf(bookmarkId))
-                    if (result is com.mydeck.app.io.rest.sync.MultipartSyncClient.Result.Success) {
-                        val pkg = result.packages.firstOrNull { it.bookmarkId == bookmarkId }
-                        if (pkg?.html != null) {
-                            val updated = contentPackageManager.updateHtml(bookmarkId, pkg.html)
-                            if (updated) {
-                                contentPackageManager.deleteResources(bookmarkId)
-                                Timber.i("Removed images for bookmark $bookmarkId (text retained)")
-                            } else {
-                                Timber.w("Image toggle-off aborted for $bookmarkId: HTML write failed")
-                            }
-                        } else {
-                            Timber.w("Image toggle-off aborted for $bookmarkId: fetchTextOnly returned no HTML")
-                        }
-                    } else {
-                        Timber.w("Image toggle-off aborted for $bookmarkId: fetchTextOnly failed ($result)")
-                    }
-                } else if (hasRes == false) {
-                    // Lazy-images → full: download full content package
-                    val fetchResult = loadContentPackageUseCase.executeForceRefresh(
-                        bookmarkId = bookmarkId,
-                        forceResources = true
-                    )
-                    if (fetchResult is LoadContentPackageUseCase.Result.Success) {
-                        Timber.i("Downloaded images for bookmark $bookmarkId")
-                    } else {
-                        Timber.w("Image download failed for $bookmarkId: $fetchResult")
-                    }
-                }
-            } catch (e: Exception) {
-                Timber.e(e, "Error toggling article images for $bookmarkId")
-            } finally {
-                cachedHasResources = contentPackageManager.hasResources(bookmarkId)
-                cachedHasOfflinePackage = contentPackageManager.getContentDir(bookmarkId) != null
-                _imageToggleLoading.value = false
-                _contentRefreshTrigger.value++
             }
         }
     }

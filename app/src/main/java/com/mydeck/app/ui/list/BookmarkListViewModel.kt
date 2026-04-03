@@ -534,17 +534,6 @@ class BookmarkListViewModel @Inject constructor(
         Timber.d("Delete bookmark cancelled")
     }
 
-    fun onRemoveDownloadedContent(bookmarkId: String) {
-        viewModelScope.launch {
-            try {
-                contentPackageManager.deletePackage(bookmarkId)
-                Timber.i("Removed downloaded content for bookmark $bookmarkId")
-            } catch (e: Exception) {
-                Timber.e(e, "Error removing downloaded content: ${e.message}")
-            }
-        }
-    }
-
     private fun removePendingDeletion(bookmarkId: String): Boolean {
         var removed = false
         _pendingDeletionBookmarkIds.update { pendingIds ->

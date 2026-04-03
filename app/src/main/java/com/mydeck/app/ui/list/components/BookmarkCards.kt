@@ -79,8 +79,7 @@ fun BookmarkGridCard(
     onClickShareBookmark: (String, String) -> Unit,
     onClickLabel: (String) -> Unit,
     onClickOpenUrl: (String) -> Unit,
-    onClickOpenInBrowser: (String) -> Unit,
-    onRemoveDownloadedContent: (String) -> Unit = {}
+    onClickOpenInBrowser: (String) -> Unit = {}
 ) {
     Card(
         modifier = Modifier
@@ -185,8 +184,7 @@ fun BookmarkGridCard(
                         onClickFavorite = onClickFavorite,
                         onClickShareBookmark = onClickShareBookmark,
                         onClickOpenUrl = onClickOpenUrl,
-                        onClickOpenInBrowser = onClickOpenInBrowser,
-                        onRemoveDownloadedContent = onRemoveDownloadedContent
+                        onClickOpenInBrowser = onClickOpenInBrowser
                     )
                 }
             }
@@ -204,8 +202,7 @@ fun BookmarkCompactCard(
     onClickShareBookmark: (String, String) -> Unit,
     onClickLabel: (String) -> Unit,
     onClickOpenUrl: (String) -> Unit,
-    onClickOpenInBrowser: (String) -> Unit,
-    onRemoveDownloadedContent: (String) -> Unit = {}
+    onClickOpenInBrowser: (String) -> Unit = {}
 ) {
     Card(
         modifier = Modifier
@@ -302,8 +299,7 @@ fun BookmarkCompactCard(
                 onClickFavorite = onClickFavorite,
                 onClickShareBookmark = onClickShareBookmark,
                 onClickOpenUrl = onClickOpenUrl,
-                onClickOpenInBrowser = onClickOpenInBrowser,
-                onRemoveDownloadedContent = onRemoveDownloadedContent
+                onClickOpenInBrowser = onClickOpenInBrowser
             )
         }
     }
@@ -319,8 +315,7 @@ fun BookmarkMosaicCard(
     onClickShareBookmark: (String, String) -> Unit,
     onClickLabel: (String) -> Unit,
     onClickOpenUrl: (String) -> Unit,
-    onClickOpenInBrowser: (String) -> Unit,
-    onRemoveDownloadedContent: (String) -> Unit = {}
+    onClickOpenInBrowser: (String) -> Unit = {}
 ) {
     // Mosaic can be similar to Grid but with different aspect ratios or sizing logic handled by the specific StaggeredGrid layout (if implemented).
     // For now, reusing Grid layout structure but allowing it to be used in a StaggeredGrid.
@@ -334,8 +329,7 @@ fun BookmarkMosaicCard(
          onClickShareBookmark = onClickShareBookmark,
          onClickLabel = onClickLabel,
          onClickOpenUrl = onClickOpenUrl,
-         onClickOpenInBrowser = onClickOpenInBrowser,
-         onRemoveDownloadedContent = onRemoveDownloadedContent
+         onClickOpenInBrowser = onClickOpenInBrowser
     )
 }
 

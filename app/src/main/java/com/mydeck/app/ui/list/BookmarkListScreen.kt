@@ -257,9 +257,6 @@ fun BookmarkListScreen(
     val onClickOpenInBrowser: (String) -> Unit = { url ->
         viewModel.onClickOpenInBrowser(url)
     }
-    val onRemoveDownloadedContent: (String) -> Unit = { bookmarkId ->
-        viewModel.onRemoveDownloadedContent(bookmarkId)
-    }
 
     val clipboardManager = LocalClipboardManager.current
 
@@ -711,7 +708,6 @@ fun BookmarkListScreen(
                         onClickDownloadLink = onClickDownloadLink,
                         onClickDownloadImage = onClickDownloadImage,
                         onClickShareImage = onClickShareImage,
-                        onRemoveDownloadedContent = onRemoveDownloadedContent,
                         onUserInteraction = dismissPendingDeleteSnackbar,
                     )
                 }
@@ -1052,7 +1048,6 @@ fun BookmarkListView(
                             onClickDownloadLink = if (isPendingDeletion) noop2s else onClickDownloadLink,
                             onClickDownloadImage = if (isPendingDeletion) noop else onClickDownloadImage,
                             onClickShareImage = if (isPendingDeletion) noop else onClickShareImage,
-                            onRemoveDownloadedContent = if (isPendingDeletion) noop else onRemoveDownloadedContent,
                             isInGrid = true,
                         )
                         LayoutMode.COMPACT -> BookmarkCompactCard(
@@ -1072,7 +1067,6 @@ fun BookmarkListView(
                             onClickDownloadLink = if (isPendingDeletion) noop2s else onClickDownloadLink,
                             onClickDownloadImage = if (isPendingDeletion) noop else onClickDownloadImage,
                             onClickShareImage = if (isPendingDeletion) noop else onClickShareImage,
-                            onRemoveDownloadedContent = if (isPendingDeletion) noop else onRemoveDownloadedContent,
                         )
                         LayoutMode.MOSAIC -> BookmarkMosaicCard(
                             bookmark = bookmark,
@@ -1091,7 +1085,6 @@ fun BookmarkListView(
                             onClickDownloadLink = if (isPendingDeletion) noop2s else onClickDownloadLink,
                             onClickDownloadImage = if (isPendingDeletion) noop else onClickDownloadImage,
                             onClickShareImage = if (isPendingDeletion) noop else onClickShareImage,
-                            onRemoveDownloadedContent = if (isPendingDeletion) noop else onRemoveDownloadedContent,
                         )
                     }
                     }
@@ -1142,7 +1135,6 @@ fun BookmarkListView(
                             onClickDownloadLink = if (isPendingDeletion) noop2s else onClickDownloadLink,
                             onClickDownloadImage = if (isPendingDeletion) noop else onClickDownloadImage,
                             onClickShareImage = if (isPendingDeletion) noop else onClickShareImage,
-                            onRemoveDownloadedContent = if (isPendingDeletion) noop else onRemoveDownloadedContent,
                             useMobilePortraitLayout = useMobilePortraitGridLayout,
                         )
                         LayoutMode.COMPACT -> BookmarkCompactCard(
@@ -1162,7 +1154,6 @@ fun BookmarkListView(
                             onClickDownloadLink = if (isPendingDeletion) noop2s else onClickDownloadLink,
                             onClickDownloadImage = if (isPendingDeletion) noop else onClickDownloadImage,
                             onClickShareImage = if (isPendingDeletion) noop else onClickShareImage,
-                            onRemoveDownloadedContent = if (isPendingDeletion) noop else onRemoveDownloadedContent,
                         )
                         LayoutMode.MOSAIC -> BookmarkMosaicCard(
                             bookmark = bookmark,
@@ -1181,7 +1172,6 @@ fun BookmarkListView(
                             onClickDownloadLink = if (isPendingDeletion) noop2s else onClickDownloadLink,
                             onClickDownloadImage = if (isPendingDeletion) noop else onClickDownloadImage,
                             onClickShareImage = if (isPendingDeletion) noop else onClickShareImage,
-                            onRemoveDownloadedContent = if (isPendingDeletion) noop else onRemoveDownloadedContent,
                         )
                     }
                     }

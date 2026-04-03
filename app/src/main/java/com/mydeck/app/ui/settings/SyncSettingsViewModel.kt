@@ -62,7 +62,6 @@ class SyncSettingsViewModel @Inject constructor(
     private val offlineImageStorageLimit = MutableStateFlow(com.mydeck.app.domain.sync.OfflineImageStorageLimit.MB_500)
     private val wifiOnly = MutableStateFlow(false)
     private val allowBatterySaver = MutableStateFlow(true)
-    private val downloadImages = MutableStateFlow(false)
     private val showDialog = MutableStateFlow<SyncSettingsDialog?>(null)
     private val textStorageSize = MutableStateFlow<String?>(null)
     private val imageStorageSize = MutableStateFlow<String?>(null)
@@ -96,7 +95,6 @@ class SyncSettingsViewModel @Inject constructor(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
     private val contentSyncStatusRes = combine(
         offlineReadingEnabled,
-        downloadImages,
         wifiOnly,
         allowBatterySaver,
         batchContentSyncWorkInfos,
@@ -105,9 +103,10 @@ class SyncSettingsViewModel @Inject constructor(
         }
     ) { args: Array<Any?> ->
         val offlineEnabled = args[0] as Boolean
-        val imagesEnabled = args[1] as Boolean
-        val workInfos = args[4] as List<WorkInfo>
-        resolveContentSyncStatus(offlineEnabled, imagesEnabled, workInfos)
+        val wifiEnabled = args[1] as Boolean
+        val batterySaverEnabled = args[2] as Boolean
+        val workInfos = args[3] as List<WorkInfo>
+        resolveContentSyncStatus(offlineEnabled, workInfos)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
     init {
@@ -122,7 +121,6 @@ class SyncSettingsViewModel @Inject constructor(
             val constraints = settingsDataStore.getContentSyncConstraints()
             wifiOnly.value = constraints.wifiOnly
             allowBatterySaver.value = constraints.allowOnBatterySaver
-            downloadImages.value = settingsDataStore.isDownloadImagesEnabled()
 
             refreshStorageSize()
             performSettingsMigration()
@@ -178,21 +176,18 @@ class SyncSettingsViewModel @Inject constructor(
     }.combine(
         combine(
             allowBatterySaver,
-            downloadImages,
             offlineContentScope,
             offlineImageStorageLimit,
             detailedSyncStatus,
             contentSyncStatusRes
         ) { args: Array<Any?> ->
             val battery = args[0] as Boolean
-            val images = args[1] as Boolean
-            val scope = args[2] as OfflineContentScope
-            val limit = args[3] as com.mydeck.app.domain.sync.OfflineImageStorageLimit
-            val status = args[4] as BookmarkDao.DetailedSyncStatusCounts
-            val contentStatus = args[5] as Int?
+            val scope = args[1] as OfflineContentScope
+            val limit = args[2] as com.mydeck.app.domain.sync.OfflineImageStorageLimit
+            val status = args[3] as BookmarkDao.DetailedSyncStatusCounts
+            val contentStatus = args[4] as Int?
             SyncSettingsPartial2(
                 allowBatterySaver = battery,
-                downloadImages = images,
                 offlineContentScope = scope,
                 offlineImageStorageLimit = limit,
                 detailedSyncStatus = status,
@@ -211,7 +206,6 @@ class SyncSettingsViewModel @Inject constructor(
             offlineImageStorageLimit = p2.offlineImageStorageLimit,
             wifiOnly = p1.wifiOnly,
             allowBatterySaver = p2.allowBatterySaver,
-            downloadImages = p2.downloadImages,
             contentSyncStatusRes = p2.contentSyncStatusRes,
             syncStatus = SyncStatus(
                 totalBookmarks = p2.detailedSyncStatus.total,
@@ -308,21 +302,6 @@ class SyncSettingsViewModel @Inject constructor(
         }
     }
 
-    fun onDownloadImagesChanged(enabled: Boolean) {
-        viewModelScope.launch {
-            settingsDataStore.saveDownloadImagesEnabled(enabled)
-            downloadImages.value = enabled
-
-            if (offlineReadingEnabled.value) {
-                reconcileImagePreferenceForManagedContent(
-                    includeArchived = offlineContentScope.value.includesArchived,
-                    enableImages = enabled
-                )
-                restartManagedContentSyncIfNeeded()
-            }
-        }
-    }
-
     fun onWifiOnlyChanged(enabled: Boolean) {
         viewModelScope.launch {
             settingsDataStore.saveWifiOnly(enabled)
@@ -414,7 +393,6 @@ class SyncSettingsViewModel @Inject constructor(
 
     private suspend fun resolveContentSyncStatus(
         offlineEnabled: Boolean,
-        imagesEnabled: Boolean,
         workInfos: List<WorkInfo>
     ): Int? {
         if (!offlineEnabled) {
@@ -436,7 +414,7 @@ class SyncSettingsViewModel @Inject constructor(
         }
 
         return if (hasActiveContentSync) {
-            if (imagesEnabled) R.string.sync_content_status_downloading_images else R.string.sync_content_status_downloading_text
+            R.string.sync_content_status_downloading_text
         } else {
             R.string.sync_content_status_up_to_date
         }
@@ -490,7 +468,6 @@ class SyncSettingsViewModel @Inject constructor(
 
     private data class SyncSettingsPartial2(
         val allowBatterySaver: Boolean,
-        val downloadImages: Boolean,
         val offlineContentScope: OfflineContentScope,
         val offlineImageStorageLimit: com.mydeck.app.domain.sync.OfflineImageStorageLimit,
         val detailedSyncStatus: BookmarkDao.DetailedSyncStatusCounts,
@@ -513,7 +490,6 @@ data class SyncSettingsUiState(
     val offlineImageStorageLimit: com.mydeck.app.domain.sync.OfflineImageStorageLimit = com.mydeck.app.domain.sync.OfflineImageStorageLimit.MB_500,
     val wifiOnly: Boolean = false,
     val allowBatterySaver: Boolean = true,
-    val downloadImages: Boolean = false,
     val contentSyncStatusRes: Int? = null,
     val syncStatus: SyncStatus = SyncStatus(),
     val showDialog: SyncSettingsDialog? = null

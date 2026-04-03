@@ -120,7 +120,6 @@ fun SyncSettingsScreen(
         onOfflineReadingChanged = { viewModel.onOfflineReadingChanged(it) },
         onClickOfflineContentScope = { viewModel.onClickOfflineContentScope() },
         onClickOfflineImageStorageLimit = { viewModel.onClickOfflineImageStorageLimit() },
-        onDownloadImagesChanged = { viewModel.onDownloadImagesChanged(it) },
         onWifiOnlyChanged = { viewModel.onWifiOnlyChanged(it) },
         onAllowBatterySaverChanged = { viewModel.onAllowBatterySaverChanged(it) },
         onClickClearOfflineContent = { viewModel.onClickClearOfflineContent() }
@@ -139,7 +138,6 @@ fun SyncSettingsView(
     onOfflineReadingChanged: (Boolean) -> Unit,
     onClickOfflineContentScope: () -> Unit,
     onClickOfflineImageStorageLimit: () -> Unit,
-    onDownloadImagesChanged: (Boolean) -> Unit,
     onWifiOnlyChanged: (Boolean) -> Unit,
     onAllowBatterySaverChanged: (Boolean) -> Unit,
     onClickClearOfflineContent: () -> Unit,
@@ -191,7 +189,6 @@ fun SyncSettingsView(
                 onOfflineReadingChanged = onOfflineReadingChanged,
                 onClickOfflineContentScope = onClickOfflineContentScope,
                 onClickOfflineImageStorageLimit = onClickOfflineImageStorageLimit,
-                onDownloadImagesChanged = onDownloadImagesChanged,
                 onWifiOnlyChanged = onWifiOnlyChanged,
                 onAllowBatterySaverChanged = onAllowBatterySaverChanged
             )
@@ -297,7 +294,6 @@ private fun OfflineReadingSection(
     onOfflineReadingChanged: (Boolean) -> Unit,
     onClickOfflineContentScope: () -> Unit,
     onClickOfflineImageStorageLimit: () -> Unit,
-    onDownloadImagesChanged: (Boolean) -> Unit,
     onWifiOnlyChanged: (Boolean) -> Unit,
     onAllowBatterySaverChanged: (Boolean) -> Unit
 ) {
@@ -365,68 +361,42 @@ private fun OfflineReadingSection(
                 )
 
                 ListItem(
+                    modifier = Modifier.clickable(onClick = onClickOfflineImageStorageLimit),
                     headlineContent = {
-                        Text(text = stringResource(R.string.sync_download_images))
-                    },
-                    supportingContent = {
-                        Text(
-                            text = stringResource(R.string.sync_download_images_desc),
-                            style = MaterialTheme.typography.bodySmall
-                        )
+                        Text(text = stringResource(R.string.sync_offline_image_limit))
                     },
                     trailingContent = {
-                        Switch(
-                            checked = uiState.downloadImages,
-                            onCheckedChange = onDownloadImagesChanged
+                        Text(
+                            text = stringResource(uiState.offlineImageStorageLimit.toLabelResource()),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.primary
                         )
                     }
                 )
 
-                AnimatedVisibility(
-                    visible = uiState.downloadImages,
-                    enter = expandVertically(),
-                    exit = shrinkVertically()
-                ) {
-                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        ListItem(
-                            modifier = Modifier.clickable(onClick = onClickOfflineImageStorageLimit),
-                            headlineContent = {
-                                Text(text = stringResource(R.string.sync_offline_image_limit))
-                            },
-                            trailingContent = {
-                                Text(
-                                    text = stringResource(uiState.offlineImageStorageLimit.toLabelResource()),
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.primary
-                                )
-                            }
-                        )
-
-                        ListItem(
-                            headlineContent = {
-                                Text(text = stringResource(R.string.sync_wifi_only))
-                            },
-                            trailingContent = {
-                                Switch(
-                                    checked = uiState.wifiOnly,
-                                    onCheckedChange = onWifiOnlyChanged
-                                )
-                            }
-                        )
-
-                        ListItem(
-                            headlineContent = {
-                                Text(text = stringResource(R.string.sync_allow_battery_saver))
-                            },
-                            trailingContent = {
-                                Switch(
-                                    checked = uiState.allowBatterySaver,
-                                    onCheckedChange = onAllowBatterySaverChanged
-                                )
-                            }
+                ListItem(
+                    headlineContent = {
+                        Text(text = stringResource(R.string.sync_wifi_only))
+                    },
+                    trailingContent = {
+                        Switch(
+                            checked = uiState.wifiOnly,
+                            onCheckedChange = onWifiOnlyChanged
                         )
                     }
-                }
+                )
+
+                        ListItem(
+                    headlineContent = {
+                        Text(text = stringResource(R.string.sync_allow_battery_saver))
+                    },
+                    trailingContent = {
+                        Switch(
+                            checked = uiState.allowBatterySaver,
+                            onCheckedChange = onAllowBatterySaverChanged
+                        )
+                    }
+                )
             }
         }
     }

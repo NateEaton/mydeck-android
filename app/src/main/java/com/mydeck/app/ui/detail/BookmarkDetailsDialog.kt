@@ -81,15 +81,10 @@ fun BookmarkDetailsDialog(
     onLabelsUpdate: (List<String>) -> Unit = {},
     existingLabels: List<String> = emptyList(),
     onExportDebugJson: () -> Unit = {},
-    onClickOpenInBrowser: (String) -> Unit = {},
     onRefreshContent: () -> Unit = {},
     canRefreshContent: Boolean = false,
     onEditMetadata: () -> Unit = {},
-    onToggleArticleImages: () -> Unit = {},
-    onRemoveDownloadedContent: () -> Unit = {},
-    hasResources: Boolean? = null,
-    isImageToggleEnabled: Boolean = false,
-    isImageToggleLoading: Boolean = false
+    onClickOpenInBrowser: (String) -> Unit = {}
 ) {
     var labels by remember { mutableStateOf(bookmark.labels.toMutableList()) }
 
@@ -230,47 +225,6 @@ fun BookmarkDetailsDialog(
                         icon = Icons.Filled.Subject,
                         value = stringResource(R.string.detail_words, count),
                         contentDescription = stringResource(R.string.detail_word_count)
-                    )
-                }
-            }
-
-            // Per-article image download toggle (only for downloaded content)
-            if (hasResources != null) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable(enabled = isImageToggleEnabled && !isImageToggleLoading) {
-                            onToggleArticleImages()
-                        },
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    if (isImageToggleLoading) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(20.dp),
-                            strokeWidth = 2.dp
-                        )
-                    } else {
-                        Icon(
-                            imageVector = if (hasResources) Icons.Filled.Image else Icons.Outlined.Image,
-                            contentDescription = stringResource(R.string.detail_images_toggle),
-                            modifier = Modifier.size(20.dp),
-                            tint = if (isImageToggleEnabled)
-                                MaterialTheme.colorScheme.onSurfaceVariant
-                            else
-                                MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
-                        )
-                    }
-                    Text(
-                        text = if (hasResources)
-                            stringResource(R.string.detail_images_downloaded)
-                        else
-                            stringResource(R.string.detail_images_from_network),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = if (isImageToggleEnabled)
-                            MaterialTheme.colorScheme.onSurface
-                        else
-                            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
                     )
                 }
             }
