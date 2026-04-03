@@ -51,6 +51,7 @@ import retrofit2.Response
 import java.text.DateFormat
 import java.util.Date
 import android.content.Context
+import androidx.work.WorkManager
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class BookmarkDetailViewModelTest {
@@ -69,6 +70,7 @@ class BookmarkDetailViewModelTest {
     private lateinit var cachedAnnotationDao: CachedAnnotationDao
     private lateinit var connectivityMonitor: ConnectivityMonitor
     private lateinit var multipartSyncClient: com.mydeck.app.io.rest.sync.MultipartSyncClient
+    private lateinit var workManager: WorkManager
     private lateinit var context: Context
     private lateinit var themeFlow: MutableStateFlow<String?>
     private lateinit var lightAppearanceFlow: MutableStateFlow<LightAppearance>
@@ -93,6 +95,7 @@ class BookmarkDetailViewModelTest {
         cachedAnnotationDao = mockk(relaxed = true)
         connectivityMonitor = mockk(relaxed = true)
         multipartSyncClient = mockk(relaxed = true)
+        workManager = mockk(relaxed = true)
         coEvery { cachedAnnotationDao.getAnnotationsForBookmark(any()) } returns emptyList()
         every { connectivityMonitor.isNetworkAvailable() } returns true
         context = mockk(relaxed = true)
@@ -150,6 +153,7 @@ class BookmarkDetailViewModelTest {
             connectivityMonitor = connectivityMonitor,
             multipartSyncClient = multipartSyncClient,
             readeckApi = readeckApi,
+            workManager = workManager,
             context = context,
             json = json,
             savedStateHandle = savedStateHandle

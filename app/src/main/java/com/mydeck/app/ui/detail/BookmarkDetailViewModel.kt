@@ -34,6 +34,10 @@ import com.mydeck.app.io.rest.model.UpdateAnnotationDto
 import com.mydeck.app.io.rest.model.toAnnotationCachePayload
 import com.mydeck.app.util.BookmarkDebugExporter
 import com.mydeck.app.util.formatBookmarkShareText
+import androidx.work.Constraints
+import androidx.work.NetworkType
+import androidx.work.WorkManager
+import com.mydeck.app.worker.BatchArticleLoadWorker
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
@@ -82,6 +86,7 @@ class BookmarkDetailViewModel @Inject constructor(
     private val connectivityMonitor: ConnectivityMonitor,
     private val multipartSyncClient: com.mydeck.app.io.rest.sync.MultipartSyncClient,
     private val readeckApi: ReadeckApi,
+    private val workManager: WorkManager,
     @ApplicationContext private val context: Context,
     private val json: Json,
     savedStateHandle: SavedStateHandle
@@ -797,13 +802,35 @@ class BookmarkDetailViewModel @Inject constructor(
             if (loadState == ContentLoadState.Loaded) {
                 cachedHasResources = contentPackageManager.hasResources(bookmarkId)
                 cachedHasOfflinePackage = contentPackageManager.getContentDir(bookmarkId) != null
+                if (cachedHasResources != true && settingsDataStore.isOfflineReadingEnabled()) {
+                    enqueuePriorityPackageDownload(bookmarkId)
+                }
             }
             _contentLoadState.value = loadState
         }
     }
 
-    fun retryContentFetch() {
-        _bookmarkId.value?.let { fetchContentOnDemand(it) }
+    private suspend fun enqueuePriorityPackageDownload(bookmarkId: String) {
+        try {
+            val syncConstraints = settingsDataStore.getContentSyncConstraints()
+            val constraintsBuilder = Constraints.Builder()
+            if (syncConstraints.wifiOnly) {
+                constraintsBuilder.setRequiredNetworkType(NetworkType.UNMETERED)
+            } else {
+                constraintsBuilder.setRequiredNetworkType(NetworkType.CONNECTED)
+            }
+            if (!syncConstraints.allowOnBatterySaver) {
+                constraintsBuilder.setRequiresBatteryNotLow(true)
+            }
+            BatchArticleLoadWorker.enqueuePriorityDownload(
+                workManager = workManager,
+                bookmarkId = bookmarkId,
+                constraints = constraintsBuilder.build()
+            )
+            Timber.d("Queued priority offline package for $bookmarkId")
+        } catch (e: Exception) {
+            Timber.w(e, "Failed to enqueue priority package download for $bookmarkId")
+        }
     }
 
     fun forceRefreshContent() {
