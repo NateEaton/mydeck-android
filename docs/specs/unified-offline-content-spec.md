@@ -302,6 +302,15 @@ The following are explicitly removed as part of implementing this architecture:
 - Adaptive batch sizing based on text-vs-image mode.
 - Per-article image toggle UI in `BookmarkDetailDialog` and its backing ViewModel logic.
 - `downloadImagesWithArticles` preference key.
+- Per-bookmark "Remove downloaded content" action: the UI element was removed from the
+  branch but the removal was incomplete. The following dead code must be fully cleaned up:
+  `BookmarkDetailViewModel.onRemoveDownloadedContent()`,
+  `BookmarkListViewModel.onRemoveDownloadedContent()`, the `onRemoveDownloadedContent`
+  callback parameter and its propagation through the full composable chain
+  (`BookmarkDetailScreen`, `BookmarkDetailTopBar`, `BookmarkDetailMenu`, `BookmarkCard`,
+  `BookmarkCards`, `BookmarkListScreen`, `BookmarkDetailsDialog`), and any associated
+  string resources. `ContentPackageManager.deletePackage()` itself is retained — it is
+  still called by the policy pruning worker and by archive auto-clear.
 - Bookmark-card offline state badges that distinguish text-only from full packages in a
   managed-offline context (replaced by the outline/filled icon distinction described above).
 
@@ -390,8 +399,10 @@ Replace any icon-only indicator with explicit status text:
 - `Offline content: Available` — DOWNLOADED, hasResources=true
 - `Offline content: Refresh pending` — DIRTY (either sub-state)
 
-The "Remove downloaded content" overflow menu item remains, visible when
-`contentState == DOWNLOADED` regardless of `hasResources` value.
+No per-bookmark content removal action is exposed in the detail dialog or its overflow
+menu. Content lifecycle is managed entirely by the system (policy-based background worker,
+archive auto-clear, global clear in settings). The status display above is purely
+informational.
 
 ---
 
