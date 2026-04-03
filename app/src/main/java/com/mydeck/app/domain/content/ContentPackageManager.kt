@@ -17,6 +17,20 @@ import javax.inject.Singleton
 /**
  * Manages local file storage for offline content packages.
  *
+ * ## Content State Architecture
+ * 
+ * This manager supports a unified offline content architecture where:
+ * 
+ * - **Full offline packages** (hasResources=true): Text + images downloaded and managed
+ *   by offline storage policies. These are "offline content" in the user-facing sense.
+ * - **On-demand text caches** (hasResources=false): Text cached when user opens an
+ *   article for fast re-open performance. Images lazy-load from network. These are
+ *   a performance optimization, NOT managed offline content.
+ * 
+ * The distinction between "text cached on-demand" and "full offline package" is
+ * expressed through ContentPackageEntity.hasResources. See BookmarkEntity.ContentState
+ * KDoc for the complete state matrix.
+ *
  * Handles staging, atomic commit, and cleanup of per-bookmark content directories
  * under files/offline_content/<bookmarkId>/.
  */

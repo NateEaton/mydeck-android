@@ -192,7 +192,6 @@
     <string name="sync_include_archived_desc">When off, only My List downloads offline content during automatic or date-range sync. On-demand downloads are always available regardless of this setting.</string>
     <string name="sync_clear_on_archive">Clear content when archiving</string>
     <string name="sync_clear_on_archive_desc">Automatically remove downloaded text and images when a bookmark is archived.</string>
-    <string name="sync_remove_downloaded_content">Remove downloaded content</string>
     <string name="sync_content_waiting_wifi">Content download waiting for Wi-Fi</string>
     <string name="sync_content_waiting_battery">Content download paused (battery saver)</string>
     <string name="sync_content_waiting_wifi_battery">Content download waiting for Wi-Fi and battery</string>
