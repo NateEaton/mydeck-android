@@ -568,13 +568,19 @@ class BookmarkDetailViewModel @Inject constructor(
 
     /**
      * Lightweight HTML-only refresh after annotation create/delete.
-     * Fetches updated HTML via multipart (no resources), enriches annotations,
-     * writes to disk, and emits a JS innerHTML replacement event.
+     * Fetches updated HTML via the legacy article endpoint, rewrites image URLs to
+     * relative paths, writes to disk, and emits a JS innerHTML replacement event.
+     * Only applicable for full offline packages (hasResources=true); text-cached
+     * bookmarks fall through to the full force-refresh fallback.
      * Falls back to full multipart refresh if the lightweight path fails.
      */
     private suspend fun refreshAnnotationHtml(bookmarkId: String) {
         val hasResources = cachedHasResources ?: contentPackageManager.hasResources(bookmarkId) ?: false
-        val enrichedHtml = loadContentPackageUseCase.refreshHtmlForAnnotations(bookmarkId, hasResources)
+        val enrichedHtml = if (hasResources) {
+            loadContentPackageUseCase.refreshHtmlForAnnotations(bookmarkId)
+        } else {
+            null
+        }
         if (enrichedHtml != null) {
             cacheAnnotationSnapshot(bookmarkId)
             _annotationRefreshEvent.send(AnnotationRefreshEvent.HtmlRefresh(enrichedHtml))

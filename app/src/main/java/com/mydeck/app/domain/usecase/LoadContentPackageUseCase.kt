@@ -253,39 +253,39 @@ class LoadContentPackageUseCase @Inject constructor(
     /**
      * Refresh article HTML for annotation changes.
      *
+     * Only call this for bookmarks with a full offline package (hasResources=true).
+     * Text-cached bookmarks (hasResources=false) must be handled by the caller via
+     * the legacy article path — calling this for them would rewrite absolute image
+     * URLs to relative paths that have no local files to back them.
+     *
      * Prefers the legacy `/bookmarks/{id}/article` endpoint which returns HTML with
      * fully enriched `<rd-annotation>` tags (correct positioning and attributes).
      * Falls back to the multipart HTML-only fetch + client-side enrichment if the
      * legacy endpoint is unavailable.
      *
-     * @param hasResources true if the bookmark has locally downloaded image resources.
-     *   Controls whether image URLs in the HTML should be relative (for offline asset
-     *   loader) or absolute (for network loading).
      * @return The refreshed HTML body, or null if the refresh failed
      */
-    suspend fun refreshHtmlForAnnotations(bookmarkId: String, hasResources: Boolean = true): String? {
+    suspend fun refreshHtmlForAnnotations(bookmarkId: String): String? {
         return try {
             // Legacy article endpoint returns HTML with fully enriched <rd-annotation> tags,
             // avoiding the brittle text-matching in AnnotationHtmlEnricher
             val response = readeckApi.getArticle(bookmarkId)
             if (!response.isSuccessful || response.body() == null) {
                 Timber.w("Legacy article fetch for annotation refresh failed for $bookmarkId: HTTP ${response.code()}")
-                return fallbackMultipartRefresh(bookmarkId, hasResources)
+                return fallbackMultipartRefresh(bookmarkId)
             }
             var html = response.body()!!
 
-            // Legacy HTML has absolute image URLs. When local resources exist, rewrite to
-            // relative URLs so the offline asset loader (OfflineContentPathHandler) can serve them.
-            if (hasResources) {
-                html = rewriteToRelativeResourceUrls(bookmarkId, html)
-            }
-            
+            // Legacy HTML has absolute image URLs — rewrite to relative so the offline
+            // asset loader (OfflineContentPathHandler) can serve them from local storage.
+            html = rewriteToRelativeResourceUrls(bookmarkId, html)
+
             contentPackageManager.updateHtml(bookmarkId, html)
             Timber.d("Annotation refresh via legacy article completed for $bookmarkId")
             html
         } catch (e: Exception) {
             Timber.w(e, "Legacy article refresh failed for $bookmarkId, falling back to multipart")
-            fallbackMultipartRefresh(bookmarkId, hasResources)
+            fallbackMultipartRefresh(bookmarkId)
         }
     }
 
@@ -293,8 +293,8 @@ class LoadContentPackageUseCase @Inject constructor(
      * Fallback annotation refresh using multipart HTML-only fetch + client-side enrichment.
      * Used when the legacy article endpoint is unavailable (e.g., offline after partial sync).
      */
-    private suspend fun fallbackMultipartRefresh(bookmarkId: String, hasResources: Boolean): String? {
-        val result = multipartSyncClient.fetchHtmlOnly(listOf(bookmarkId), hasResources)
+    private suspend fun fallbackMultipartRefresh(bookmarkId: String): String? {
+        val result = multipartSyncClient.fetchHtmlOnly(listOf(bookmarkId))
         return when (result) {
             is MultipartSyncClient.Result.Success -> {
                 val pkg = result.packages.firstOrNull { it.bookmarkId == bookmarkId }

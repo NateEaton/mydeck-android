@@ -47,10 +47,10 @@ class LoadContentPackageUseCaseTest {
         coEvery { readeckApi.getArticle("bm1") } returns Response.success(html)
         coEvery { contentPackageManager.updateHtml("bm1", html) } returns true
 
-        useCase.refreshHtmlForAnnotations("bm1", hasResources = false)
+        useCase.refreshHtmlForAnnotations("bm1")
 
         coVerify(exactly = 1) { contentPackageManager.updateHtml("bm1", html) }
-        coVerify(exactly = 0) { multipartSyncClient.fetchHtmlOnly(any(), any()) }
+        coVerify(exactly = 0) { multipartSyncClient.fetchHtmlOnly(any()) }
     }
 
     @Test
@@ -58,48 +58,37 @@ class LoadContentPackageUseCaseTest {
         val multipartHtml = "<p>Multipart content</p>"
         coEvery { readeckApi.getArticle("bm1") } returns Response.error(404, mockk(relaxed = true))
         coEvery {
-            multipartSyncClient.fetchHtmlOnly(listOf("bm1"), false)
+            multipartSyncClient.fetchHtmlOnly(listOf("bm1"))
         } returns MultipartSyncClient.Result.Success(
             listOf(BookmarkSyncPackage(bookmarkId = "bm1", html = multipartHtml))
         )
         coEvery { contentPackageManager.updateHtml("bm1", multipartHtml) } returns true
 
-        useCase.refreshHtmlForAnnotations("bm1", hasResources = false)
+        useCase.refreshHtmlForAnnotations("bm1")
 
         coVerify(exactly = 1) { contentPackageManager.updateHtml("bm1", multipartHtml) }
     }
 
     @Test
-    fun `urlRewriteAppliedWhenHasResources`() = runBlocking {
+    fun `urlRewriteApplied`() = runBlocking {
         val absoluteHtml = """<img src="https://server/bm/01/bookmark123/_resources/image.jpg">"""
         val relativeHtml = """<img src="./image.jpg">"""
         coEvery { readeckApi.getArticle("bookmark123") } returns Response.success(absoluteHtml)
         coEvery { contentPackageManager.updateHtml("bookmark123", relativeHtml) } returns true
 
-        useCase.refreshHtmlForAnnotations("bookmark123", hasResources = true)
+        useCase.refreshHtmlForAnnotations("bookmark123")
 
         coVerify(exactly = 1) { contentPackageManager.updateHtml("bookmark123", relativeHtml) }
-    }
-
-    @Test
-    fun `urlRewriteNotAppliedWhenNoResources`() = runBlocking {
-        val absoluteHtml = """<img src="https://server/bm/01/bookmark123/_resources/image.jpg">"""
-        coEvery { readeckApi.getArticle("bookmark123") } returns Response.success(absoluteHtml)
-        coEvery { contentPackageManager.updateHtml("bookmark123", absoluteHtml) } returns true
-
-        useCase.refreshHtmlForAnnotations("bookmark123", hasResources = false)
-
-        coVerify(exactly = 1) { contentPackageManager.updateHtml("bookmark123", absoluteHtml) }
     }
 
     @Test
     fun `refreshFailureDoesNotOverwriteHtml`() = runBlocking {
         coEvery { readeckApi.getArticle("bm1") } throws RuntimeException("network error")
         coEvery {
-            multipartSyncClient.fetchHtmlOnly(listOf("bm1"), true)
+            multipartSyncClient.fetchHtmlOnly(listOf("bm1"))
         } returns MultipartSyncClient.Result.Error("server error")
 
-        val result = useCase.refreshHtmlForAnnotations("bm1", hasResources = true)
+        val result = useCase.refreshHtmlForAnnotations("bm1")
 
         assertNull(result)
         coVerify(exactly = 0) { contentPackageManager.updateHtml(any(), any()) }
