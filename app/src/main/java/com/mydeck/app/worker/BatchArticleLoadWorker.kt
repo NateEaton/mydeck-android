@@ -10,7 +10,8 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
-import com.mydeck.app.domain.sync.ContentSyncPolicyEvaluator
+import com.mydeck.app.domain.content.ContentPackageManager
+import com.mydeck.app.domain.sync.OfflinePolicyEvaluator
 import com.mydeck.app.domain.usecase.LoadContentPackageUseCase
 import com.mydeck.app.io.db.dao.BookmarkDao
 import com.mydeck.app.io.prefs.SettingsDataStore
@@ -30,8 +31,9 @@ class BatchArticleLoadWorker @AssistedInject constructor(
     @Assisted workerParams: WorkerParameters,
     private val bookmarkDao: BookmarkDao,
     private val loadContentPackageUseCase: LoadContentPackageUseCase,
-    private val policyEvaluator: ContentSyncPolicyEvaluator,
-    private val settingsDataStore: SettingsDataStore
+    private val policyEvaluator: OfflinePolicyEvaluator,
+    private val settingsDataStore: SettingsDataStore,
+    private val contentPackageManager: ContentPackageManager
 ) : CoroutineWorker(appContext, workerParams) {
 
     override suspend fun doWork(): Result {
@@ -57,10 +59,20 @@ class BatchArticleLoadWorker @AssistedInject constructor(
             Timber.d("BatchArticleLoadWorker starting")
 
             val includeArchived = settingsDataStore.getOfflineContentScope().includesArchived
-            val pendingBookmarkIds = bookmarkDao.getBookmarkIdsEligibleForContentFetch(includeArchived)
-            Timber.i("Found ${pendingBookmarkIds.size} bookmarks without content (includeArchived=$includeArchived)")
+            pruneManagedContentIfNeeded(includeArchived)
+
+            val offlinePolicyBookmarks = bookmarkDao.getOfflinePolicyBookmarks(includeArchived)
+            val pendingBookmarkIds = policyEvaluator
+                .selectEligibleBookmarks(offlinePolicyBookmarks)
+                .filter { policyEvaluator.needsOfflinePackage(it) }
+                .map { it.id }
+
+            Timber.i(
+                "Found ${pendingBookmarkIds.size} offline policy candidates to fetch (includeArchived=$includeArchived)"
+            )
 
             if (pendingBookmarkIds.isEmpty()) {
+                settingsDataStore.saveLastContentSyncTimestamp(Clock.System.now())
                 return Result.success()
             }
 
@@ -95,6 +107,8 @@ class BatchArticleLoadWorker @AssistedInject constructor(
                 if (offset < pendingBookmarkIds.size) {
                     delay(BATCH_DELAY_MS)
                 }
+
+                pruneManagedContentIfNeeded(includeArchived)
             }
 
             settingsDataStore.saveLastContentSyncTimestamp(Clock.System.now())
@@ -124,11 +138,32 @@ class BatchArticleLoadWorker @AssistedInject constructor(
                 return Result.success()
             }
             loadContentPackageUseCase.executeBatch(listOf(bookmarkId))
+            settingsDataStore.saveLastContentSyncTimestamp(Clock.System.now())
             Timber.i("BatchArticleLoadWorker: priority download completed for $bookmarkId")
             Result.success()
         } catch (e: Exception) {
             Timber.e(e, "BatchArticleLoadWorker: priority download failed for $bookmarkId")
             Result.retry()
+        }
+    }
+
+    private suspend fun pruneManagedContentIfNeeded(includeArchived: Boolean) {
+        while (true) {
+            val downloadedBookmarks = bookmarkDao.getOfflinePolicyBookmarks(includeArchived)
+                .filter { it.hasOfflinePackage }
+            if (downloadedBookmarks.isEmpty()) {
+                return
+            }
+
+            val totalUsageBytes = contentPackageManager.calculateManagedOfflineSize()
+            if (!policyEvaluator.shouldPrune(downloadedBookmarks, totalUsageBytes)) {
+                return
+            }
+
+            val pruneId = policyEvaluator.selectForPruning(downloadedBookmarks, totalUsageBytes)
+                .firstOrNull() ?: return
+            contentPackageManager.deleteContentForBookmark(pruneId)
+            Timber.i("Pruned managed offline content for $pruneId")
         }
     }
 

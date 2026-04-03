@@ -662,6 +662,13 @@ interface BookmarkDao {
         val permanentNoContent: Int
     )
 
+    data class OfflinePolicyBookmark(
+        val id: String,
+        val created: Instant,
+        val contentState: BookmarkEntity.ContentState,
+        val hasOfflinePackage: Boolean
+    )
+
     @Query("""
         SELECT
             (SELECT COUNT(*) FROM bookmarks WHERE state = 0 AND isLocalDeleted = 0) AS total,
@@ -693,20 +700,22 @@ interface BookmarkDao {
     suspend fun getBookmarkIdsEligibleForContentFetch(includeArchived: Boolean = true): List<String>
 
     @Query("""
-        SELECT b.id
+        SELECT
+            b.id AS id,
+            b.created AS created,
+            b.contentState AS contentState,
+            CASE WHEN cp.bookmarkId IS NOT NULL THEN 1 ELSE 0 END AS hasOfflinePackage
         FROM bookmarks b
-        INNER JOIN content_package cp ON cp.bookmarkId = b.id
+        LEFT JOIN content_package cp
+            ON cp.bookmarkId = b.id
+            AND cp.hasResources = 1
         WHERE b.isLocalDeleted = 0
-        AND b.type = 'article'
-        AND b.contentState IN (1, 2)
-        AND cp.hasResources = :hasResources
+        AND (b.hasArticle = 1 OR b.type = 'photo')
+        AND b.contentState != 3
         AND (:includeArchived = 1 OR b.isArchived = 0)
         ORDER BY b.created DESC
     """)
-    suspend fun getManagedArticleIdsForResourceMode(
-        includeArchived: Boolean,
-        hasResources: Boolean
-    ): List<String>
+    suspend fun getOfflinePolicyBookmarks(includeArchived: Boolean): List<OfflinePolicyBookmark>
 
     @Query("""
         SELECT b.id
@@ -750,18 +759,6 @@ interface BookmarkDao {
         toEpoch: Long,
         includeArchived: Boolean = true
     ): List<String>
-
-    @Query("""
-        SELECT b.id
-        FROM bookmarks b
-        INNER JOIN content_package cp ON cp.bookmarkId = b.id
-        WHERE b.isLocalDeleted = 0
-        AND b.contentState = 1
-        AND cp.hasResources = 1
-        AND (:includeArchived = 1 OR b.isArchived = 0)
-        ORDER BY b.created ASC
-    """)
-    suspend fun getOldestBookmarkIdsWithResources(includeArchived: Boolean): List<String>
 
     @Query("""
         SELECT b.id

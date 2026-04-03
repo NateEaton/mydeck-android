@@ -747,59 +747,60 @@ class BookmarkDetailViewModel @Inject constructor(
                 }
             }
 
-            val pkgResult = loadContentPackageUseCase.execute(bookmarkId, setProgress)
-            tickerJob.cancel()
-
-            // Only fall back to legacy LoadArticleUseCase for Article type.
-            // For Picture and Video, the legacy GET /bookmarks/{id}/article endpoint
-            // is wrong: it marks hasArticle=false bookmarks as PERMANENT_NO_CONTENT,
-            // which permanently blocks the content package path from ever retrying.
             val isArticleType = bookmarkType is com.mydeck.app.domain.model.Bookmark.Type.Article
-
-            val loadState = when (pkgResult) {
-                is LoadContentPackageUseCase.Result.Success -> ContentLoadState.Loaded
-                is LoadContentPackageUseCase.Result.AlreadyDownloaded -> ContentLoadState.Loaded
-                is LoadContentPackageUseCase.Result.PermanentFailure -> {
-                    if (isArticleType) {
-                        setProgress(0.55f)
-                        val legacyResult = loadArticleUseCase.execute(
-                            bookmarkId,
-                            markDirtyAfterSuccess = true
-                        )
-                        when (legacyResult) {
-                            is LoadArticleUseCase.Result.Success -> ContentLoadState.Loaded
-                            is LoadArticleUseCase.Result.AlreadyDownloaded -> ContentLoadState.Loaded
-                            is LoadArticleUseCase.Result.TransientFailure -> ContentLoadState.Failed(
-                                reason = legacyResult.reason, canRetry = true
+            val loadState = if (isArticleType) {
+                setProgress(0.55f)
+                val articleResult = loadArticleUseCase.execute(
+                    bookmarkId,
+                    markDirtyAfterSuccess = false
+                )
+                tickerJob.cancel()
+                when (articleResult) {
+                    is LoadArticleUseCase.Result.Success -> ContentLoadState.Loaded
+                    is LoadArticleUseCase.Result.AlreadyDownloaded -> ContentLoadState.Loaded
+                    is LoadArticleUseCase.Result.TransientFailure -> {
+                        val pkgResult = loadContentPackageUseCase.execute(bookmarkId, setProgress)
+                        when (pkgResult) {
+                            is LoadContentPackageUseCase.Result.Success -> ContentLoadState.Loaded
+                            is LoadContentPackageUseCase.Result.AlreadyDownloaded -> ContentLoadState.Loaded
+                            is LoadContentPackageUseCase.Result.TransientFailure -> ContentLoadState.Failed(
+                                reason = articleResult.reason,
+                                canRetry = true
                             )
-                            is LoadArticleUseCase.Result.PermanentFailure -> ContentLoadState.Failed(
-                                reason = legacyResult.reason, canRetry = false
+                            is LoadContentPackageUseCase.Result.PermanentFailure -> ContentLoadState.Failed(
+                                reason = articleResult.reason,
+                                canRetry = true
                             )
                         }
-                    } else {
-                        ContentLoadState.Failed(reason = pkgResult.reason, canRetry = false)
+                    }
+                    is LoadArticleUseCase.Result.PermanentFailure -> {
+                        val pkgResult = loadContentPackageUseCase.execute(bookmarkId, setProgress)
+                        when (pkgResult) {
+                            is LoadContentPackageUseCase.Result.Success -> ContentLoadState.Loaded
+                            is LoadContentPackageUseCase.Result.AlreadyDownloaded -> ContentLoadState.Loaded
+                            is LoadContentPackageUseCase.Result.TransientFailure -> ContentLoadState.Failed(
+                                reason = articleResult.reason,
+                                canRetry = false
+                            )
+                            is LoadContentPackageUseCase.Result.PermanentFailure -> ContentLoadState.Failed(
+                                reason = articleResult.reason,
+                                canRetry = false
+                            )
+                        }
                     }
                 }
-                is LoadContentPackageUseCase.Result.TransientFailure -> {
-                    if (isArticleType) {
-                        setProgress(0.55f)
-                        val legacyResult = loadArticleUseCase.execute(
-                            bookmarkId,
-                            markDirtyAfterSuccess = true
-                        )
-                        when (legacyResult) {
-                            is LoadArticleUseCase.Result.Success -> ContentLoadState.Loaded
-                            is LoadArticleUseCase.Result.AlreadyDownloaded -> ContentLoadState.Loaded
-                            is LoadArticleUseCase.Result.TransientFailure -> ContentLoadState.Failed(
-                                reason = legacyResult.reason, canRetry = true
-                            )
-                            is LoadArticleUseCase.Result.PermanentFailure -> ContentLoadState.Failed(
-                                reason = legacyResult.reason, canRetry = false
-                            )
-                        }
-                    } else {
-                        ContentLoadState.Failed(reason = pkgResult.reason, canRetry = true)
-                    }
+            } else {
+                val pkgResult = loadContentPackageUseCase.execute(bookmarkId, setProgress)
+                tickerJob.cancel()
+                when (pkgResult) {
+                    is LoadContentPackageUseCase.Result.Success -> ContentLoadState.Loaded
+                    is LoadContentPackageUseCase.Result.AlreadyDownloaded -> ContentLoadState.Loaded
+                    is LoadContentPackageUseCase.Result.PermanentFailure -> ContentLoadState.Failed(
+                        reason = pkgResult.reason, canRetry = false
+                    )
+                    is LoadContentPackageUseCase.Result.TransientFailure -> ContentLoadState.Failed(
+                        reason = pkgResult.reason, canRetry = true
+                    )
                 }
             }
             if (loadState == ContentLoadState.Loaded) {

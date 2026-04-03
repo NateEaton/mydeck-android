@@ -284,6 +284,14 @@ class ContentPackageManager @Inject constructor(
      * Delete all offline content for a single bookmark: files, DB metadata,
      * cached annotations, and reset contentState to NOT_ATTEMPTED.
      */
+    suspend fun deleteContentForBookmark(bookmarkId: String) {
+        deletePackage(bookmarkId)
+    }
+
+    /**
+     * Delete all offline content for a single bookmark: files, DB metadata,
+     * cached annotations, and reset contentState to NOT_ATTEMPTED.
+     */
     suspend fun deletePackage(bookmarkId: String) {
         val dir = File(offlineContentDir, bookmarkId)
         if (dir.exists()) {
@@ -318,12 +326,33 @@ class ContentPackageManager @Inject constructor(
     }
 
     /**
+     * Calculate total size of managed offline packages only (hasResources=true).
+     */
+    suspend fun calculateManagedOfflineSize(): Long {
+        return bookmarkDao.getBookmarkIdsWithOfflinePackages()
+            .sumOf { bookmarkId ->
+                val dir = File(offlineContentDir, bookmarkId)
+                if (dir.exists()) {
+                    dir.walkTopDown()
+                        .filter { it.isFile }
+                        .sumOf { it.length() }
+                } else {
+                    0L
+                }
+            }
+    }
+
+    /**
      * Calculate total size of downloaded image resources in bytes, using the DB
      * rather than a filesystem walk. This is the authoritative figure for storage
      * cap enforcement — text HTML is excluded.
      */
     suspend fun calculateImageSize(): Long {
         return bookmarkDao.getTotalImageResourceBytes()
+    }
+
+    suspend fun calculateManagedOfflineTextSize(): Long {
+        return (calculateManagedOfflineSize() - calculateImageSize()).coerceAtLeast(0L)
     }
 
     /**

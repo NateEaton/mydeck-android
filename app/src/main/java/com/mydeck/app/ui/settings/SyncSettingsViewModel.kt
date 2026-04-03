@@ -11,11 +11,10 @@ import com.mydeck.app.R
 import com.mydeck.app.domain.content.ContentPackageManager
 import com.mydeck.app.domain.model.AutoSyncTimeframe
 import com.mydeck.app.domain.sync.ConnectivityMonitor
-import com.mydeck.app.domain.sync.ContentSyncPolicyEvaluator
 import com.mydeck.app.domain.sync.OfflineContentScope
+import com.mydeck.app.domain.sync.OfflinePolicyEvaluator
 import com.mydeck.app.domain.usecase.FullSyncUseCase
 import com.mydeck.app.domain.usecase.LoadBookmarksUseCase
-import com.mydeck.app.domain.usecase.LoadContentPackageUseCase
 import com.mydeck.app.io.db.dao.BookmarkDao
 import com.mydeck.app.io.prefs.SettingsDataStore
 import com.mydeck.app.worker.BatchArticleLoadWorker
@@ -42,9 +41,8 @@ class SyncSettingsViewModel @Inject constructor(
     private val settingsDataStore: SettingsDataStore,
     private val fullSyncUseCase: FullSyncUseCase,
     private val loadBookmarksUseCase: LoadBookmarksUseCase,
-    private val loadContentPackageUseCase: LoadContentPackageUseCase,
     private val contentPackageManager: ContentPackageManager,
-    private val contentSyncPolicyEvaluator: ContentSyncPolicyEvaluator,
+    private val contentSyncPolicyEvaluator: OfflinePolicyEvaluator,
     private val connectivityMonitor: ConnectivityMonitor,
     private val workManager: WorkManager,
     @ApplicationContext private val context: Context,
@@ -299,6 +297,7 @@ class SyncSettingsViewModel @Inject constructor(
         viewModelScope.launch {
             settingsDataStore.saveOfflineImageStorageLimit(limit)
             offlineImageStorageLimit.value = limit
+            restartManagedContentSyncIfNeeded()
         }
     }
 
@@ -343,40 +342,10 @@ class SyncSettingsViewModel @Inject constructor(
         _navigationEvent.update { NavigationEvent.NavigateBack }
     }
 
-    private suspend fun reconcileImagePreferenceForManagedContent(
-        includeArchived: Boolean,
-        enableImages: Boolean
-    ) {
-        val ids = bookmarkDao.getManagedArticleIdsForResourceMode(
-            includeArchived = includeArchived,
-            hasResources = !enableImages
-        )
-        if (ids.isEmpty()) return
-
-        if (enableImages) {
-            // Turning images on: mark affected text-only bookmarks as DIRTY so the worker
-            // picks them up. This ensures the storage cap and hysteresis logic are applied
-            // during the backfill rather than bypassing them with a direct inline batch fetch.
-            bookmarkDao.markContentDirty(ids, "Image download enabled — backfill required")
-            Timber.i("Marked ${ids.size} text-only bookmarks dirty for image backfill")
-            // Worker will be enqueued by the caller (restartManagedContentSyncIfNeeded)
-        } else {
-            // Turning images off: downgrade inline (this releases storage, no cap concern).
-            val results = loadContentPackageUseCase.executeBatch(ids)
-            val failures = results.filterValues { it !is LoadContentPackageUseCase.Result.Success }
-            settingsDataStore.saveLastContentSyncTimestamp(kotlinx.datetime.Clock.System.now())
-            if (failures.isNotEmpty()) {
-                Timber.w("Image-off reconciliation had ${failures.size} non-success results")
-            } else {
-                Timber.i("Image-off reconciliation complete for ${ids.size} bookmarks")
-            }
-        }
-    }
-
     private suspend fun purgeArchivedOfflineContent() {
         val archivedIds = bookmarkDao.getArchivedBookmarkIdsWithOfflinePackage()
         archivedIds.forEach { bookmarkId ->
-            contentPackageManager.deletePackage(bookmarkId)
+            contentPackageManager.deleteContentForBookmark(bookmarkId)
         }
         if (archivedIds.isNotEmpty()) {
             Timber.i("Purged offline content for ${archivedIds.size} archived bookmarks")
@@ -386,7 +355,7 @@ class SyncSettingsViewModel @Inject constructor(
     private suspend fun purgeManagedOfflineContent() {
         val offlinePackageIds = bookmarkDao.getBookmarkIdsWithOfflinePackages()
         offlinePackageIds.forEach { bookmarkId ->
-            contentPackageManager.deletePackage(bookmarkId)
+            contentPackageManager.deleteContentForBookmark(bookmarkId)
         }
     }
 
@@ -428,10 +397,9 @@ class SyncSettingsViewModel @Inject constructor(
     }
 
     private fun refreshStorageSize() {
-        val totalBytes = contentPackageManager.calculateTotalSize()
         viewModelScope.launch {
+            val textBytes = contentPackageManager.calculateManagedOfflineTextSize()
             val imageBytes = contentPackageManager.calculateImageSize()
-            val textBytes = (totalBytes - imageBytes).coerceAtLeast(0L)
             imageStorageSize.value = formatFileSize(imageBytes)
             textStorageSize.value = formatFileSize(textBytes)
         }

@@ -641,7 +641,7 @@ class BookmarkDetailViewModelTest {
     }
 
     @Test
-    fun `init calls loadArticleUseCase when contentState is NOT_ATTEMPTED and hasArticle is true`() = runTest {
+    fun `init uses text-only article fetch first for article bookmarks`() = runTest {
         // Arrange
         val bookmarkWithNotAttempted = sampleBookmark.copy(
             contentState = Bookmark.ContentState.NOT_ATTEMPTED,
@@ -650,15 +650,15 @@ class BookmarkDetailViewModelTest {
         )
         every { bookmarkRepository.observeBookmark("123") } returns MutableStateFlow(bookmarkWithNotAttempted)
         coEvery { bookmarkRepository.getBookmarkById("123") } returns bookmarkWithNotAttempted
-        coEvery { loadContentPackageUseCase.execute("123", any()) } returns LoadContentPackageUseCase.Result.PermanentFailure("not available")
-        coEvery { loadArticleUseCase.execute("123", markDirtyAfterSuccess = true) } returns LoadArticleUseCase.Result.Success
+        coEvery { loadArticleUseCase.execute("123", markDirtyAfterSuccess = false) } returns LoadArticleUseCase.Result.Success
 
         // Act
         viewModel = createViewModel()
         advanceUntilIdle()
 
         // Assert
-        coVerify { loadArticleUseCase.execute("123", markDirtyAfterSuccess = true) }
+        coVerify { loadArticleUseCase.execute("123", markDirtyAfterSuccess = false) }
+        coVerify(exactly = 0) { loadContentPackageUseCase.execute(any(), any()) }
     }
 
     @Test
@@ -813,8 +813,10 @@ class BookmarkDetailViewModelTest {
         )
         every { bookmarkRepository.observeBookmark("123") } returns MutableStateFlow(bookmarkWithNotAttempted)
         coEvery { bookmarkRepository.getBookmarkById("123") } returns bookmarkWithNotAttempted
-        coEvery { loadContentPackageUseCase.execute("123", any()) } returns LoadContentPackageUseCase.Result.PermanentFailure("not available")
-        coEvery { loadArticleUseCase.execute("123", markDirtyAfterSuccess = true) } returns LoadArticleUseCase.Result.PermanentFailure("Article extraction not supported for this site")
+        coEvery { loadArticleUseCase.execute("123", markDirtyAfterSuccess = false) } returns
+            LoadArticleUseCase.Result.PermanentFailure("Article extraction not supported for this site")
+        coEvery { loadContentPackageUseCase.execute("123", any()) } returns
+            LoadContentPackageUseCase.Result.PermanentFailure("not available")
 
         // Act
         viewModel = createViewModel()
@@ -1066,8 +1068,7 @@ class BookmarkDetailViewModelTest {
         )
         every { bookmarkRepository.observeBookmark("123") } returns MutableStateFlow(archivedBookmark)
         coEvery { bookmarkRepository.getBookmarkById("123") } returns archivedBookmark
-        coEvery { loadContentPackageUseCase.execute("123", any()) } returns LoadContentPackageUseCase.Result.PermanentFailure("not available")
-        coEvery { loadArticleUseCase.execute("123", markDirtyAfterSuccess = true) } returns LoadArticleUseCase.Result.Success
+        coEvery { loadArticleUseCase.execute("123", markDirtyAfterSuccess = false) } returns LoadArticleUseCase.Result.Success
         coEvery { contentPackageManager.hasResources("123") } returns false
         coEvery { settingsDataStore.isOfflineReadingEnabled() } returns true
         coEvery { settingsDataStore.getOfflineContentScope() } returns OfflineContentScope.MY_LIST
@@ -1076,6 +1077,37 @@ class BookmarkDetailViewModelTest {
         advanceUntilIdle()
 
         io.mockk.verify(exactly = 0) {
+            workManager.enqueueUniqueWork(
+                any<String>(),
+                any<androidx.work.ExistingWorkPolicy>(),
+                any<androidx.work.OneTimeWorkRequest>()
+            )
+        }
+    }
+
+    @Test
+    fun `init enqueues priority package after text-only article fetch when offline reading is enabled`() = runTest {
+        val bookmark = sampleBookmark.copy(
+            contentState = Bookmark.ContentState.NOT_ATTEMPTED,
+            hasArticle = true,
+            articleContent = null
+        )
+        every { bookmarkRepository.observeBookmark("123") } returns MutableStateFlow(bookmark)
+        coEvery { bookmarkRepository.getBookmarkById("123") } returns bookmark
+        coEvery { loadArticleUseCase.execute("123", markDirtyAfterSuccess = false) } returns
+            LoadArticleUseCase.Result.Success
+        coEvery { contentPackageManager.hasResources("123") } returns false
+        coEvery { settingsDataStore.isOfflineReadingEnabled() } returns true
+        coEvery { settingsDataStore.getOfflineContentScope() } returns OfflineContentScope.MY_LIST_AND_ARCHIVED
+        coEvery { settingsDataStore.getContentSyncConstraints() } returns
+            ContentSyncConstraints(wifiOnly = false, allowOnBatterySaver = true)
+
+        viewModel = createViewModel()
+        advanceUntilIdle()
+
+        coVerify { loadArticleUseCase.execute("123", markDirtyAfterSuccess = false) }
+        coVerify(exactly = 0) { loadContentPackageUseCase.execute(any(), any()) }
+        io.mockk.verify(exactly = 1) {
             workManager.enqueueUniqueWork(
                 any<String>(),
                 any<androidx.work.ExistingWorkPolicy>(),

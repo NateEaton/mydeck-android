@@ -3,7 +3,7 @@ package com.mydeck.app.domain.usecase
 import androidx.work.WorkManager
 import com.mydeck.app.domain.BookmarkRepository
 import com.mydeck.app.domain.mapper.toDomain
-import com.mydeck.app.domain.sync.ContentSyncPolicyEvaluator
+import com.mydeck.app.domain.sync.OfflinePolicyEvaluator
 import com.mydeck.app.io.prefs.SettingsDataStore
 import com.mydeck.app.io.rest.ReadeckApi
 import com.mydeck.app.io.rest.model.BookmarkDto
@@ -29,7 +29,7 @@ class LoadBookmarksUseCaseTest {
     private lateinit var readeckApi: ReadeckApi
     private lateinit var multipartSyncClient: MultipartSyncClient
     private lateinit var settingsDataStore: SettingsDataStore
-    private lateinit var policyEvaluator: ContentSyncPolicyEvaluator
+    private lateinit var policyEvaluator: OfflinePolicyEvaluator
     private lateinit var workManager: WorkManager
     private lateinit var loadBookmarksUseCase: LoadBookmarksUseCase
 

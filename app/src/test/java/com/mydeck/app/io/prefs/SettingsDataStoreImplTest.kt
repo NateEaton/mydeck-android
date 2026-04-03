@@ -8,6 +8,9 @@ import com.mydeck.app.domain.model.DarkAppearance
 import com.mydeck.app.domain.model.LightAppearance
 import com.mydeck.app.domain.model.TypographySettings
 import com.mydeck.app.domain.model.Theme
+import com.mydeck.app.domain.sync.OfflineContentScope
+import com.mydeck.app.domain.sync.OfflinePolicy
+import com.mydeck.app.domain.sync.OfflinePolicyDefaults
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.mockkObject
@@ -199,20 +202,54 @@ class SettingsDataStoreImplTest {
     }
 
     @Test
-    fun `includeArchivedContentInSync defaults to false`() = runTest {
+    fun `offline policy defaults to storage limit`() = runTest {
         val dataStore = SettingsDataStoreImpl(context)
 
-        assertFalse(dataStore.isIncludeArchivedContentInSyncEnabled())
+        assertEquals(OfflinePolicy.STORAGE_LIMIT, dataStore.getOfflinePolicy())
+        assertEquals(OfflinePolicyDefaults.STORAGE_LIMIT_BYTES, dataStore.getOfflinePolicyStorageLimit())
     }
 
     @Test
-    fun `includeArchivedContentInSync round-trips saved value`() = runTest {
+    fun `offline content scope falls back to legacy include archived key`() = runTest {
+        userPreferences.edit()
+            .putBoolean("include_archived_content_in_sync", true)
+            .commit()
+
         val dataStore = SettingsDataStoreImpl(context)
 
-        dataStore.saveIncludeArchivedContentInSyncEnabled(true)
-        assertTrue(dataStore.isIncludeArchivedContentInSyncEnabled())
+        assertEquals(OfflineContentScope.MY_LIST_AND_ARCHIVED, dataStore.getOfflineContentScope())
+    }
 
-        dataStore.saveIncludeArchivedContentInSyncEnabled(false)
-        assertFalse(dataStore.isIncludeArchivedContentInSyncEnabled())
+    @Test
+    fun `offline content scope round-trips saved value`() = runTest {
+        val dataStore = SettingsDataStoreImpl(context)
+
+        dataStore.saveOfflineContentScope(OfflineContentScope.MY_LIST_AND_ARCHIVED)
+        assertEquals(OfflineContentScope.MY_LIST_AND_ARCHIVED, dataStore.getOfflineContentScope())
+
+        dataStore.saveOfflineContentScope(OfflineContentScope.MY_LIST)
+        assertEquals(OfflineContentScope.MY_LIST, dataStore.getOfflineContentScope())
+    }
+
+    @Test
+    fun `offline reading enabled falls back to legacy content sync mode`() = runTest {
+        userPreferences.edit()
+            .putString("content_sync_mode", "AUTOMATIC")
+            .commit()
+
+        val dataStore = SettingsDataStoreImpl(context)
+
+        assertTrue(dataStore.isOfflineReadingEnabled())
+    }
+
+    @Test
+    fun `offline policy storage limit falls back to legacy image limit`() = runTest {
+        userPreferences.edit()
+            .putString("offline_image_storage_limit", "MB_250")
+            .commit()
+
+        val dataStore = SettingsDataStoreImpl(context)
+
+        assertEquals(250L * 1024 * 1024, dataStore.getOfflinePolicyStorageLimit())
     }
 }

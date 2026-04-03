@@ -7,7 +7,7 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import com.mydeck.app.domain.BookmarkRepository
 import com.mydeck.app.domain.mapper.toDomain
-import com.mydeck.app.domain.sync.ContentSyncPolicyEvaluator
+import com.mydeck.app.domain.sync.OfflinePolicyEvaluator
 import com.mydeck.app.io.prefs.SettingsDataStore
 import com.mydeck.app.io.rest.ReadeckApi
 import com.mydeck.app.io.rest.model.BookmarkDto
@@ -24,7 +24,7 @@ class LoadBookmarksUseCase @Inject constructor(
     private val readeckApi: ReadeckApi,
     private val multipartSyncClient: MultipartSyncClient,
     private val settingsDataStore: SettingsDataStore,
-    private val policyEvaluator: ContentSyncPolicyEvaluator,
+    private val policyEvaluator: OfflinePolicyEvaluator,
     private val workManager: WorkManager
 ) {
 

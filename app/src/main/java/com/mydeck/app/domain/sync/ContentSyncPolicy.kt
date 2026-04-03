@@ -1,11 +1,13 @@
 package com.mydeck.app.domain.sync
 
 import kotlinx.datetime.LocalDate
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.days
 
-enum class ContentSyncMode {
-    AUTOMATIC,   // Content fetched during bookmark sync
-    MANUAL,      // Content fetched only when user opens a bookmark
-    DATE_RANGE   // Content fetched for a user-specified date range on demand
+enum class OfflinePolicy {
+    STORAGE_LIMIT,
+    NEWEST_N,
+    DATE_RANGE
 }
 
 enum class OfflineContentScope(val includesArchived: Boolean) {
@@ -24,6 +26,13 @@ enum class OfflineImageStorageLimit(val bytes: Long) {
     MB_500(500L * 1024 * 1024),
     GB_1(1024L * 1024 * 1024),
     UNLIMITED(Long.MAX_VALUE)
+}
+
+object OfflinePolicyDefaults {
+    const val STORAGE_LIMIT_BYTES: Long = 500L * 1024 * 1024
+    const val NEWEST_N: Int = 100
+    val DATE_RANGE_WINDOW: Duration = 90.days
+    const val MAX_STORAGE_CAP_BYTES: Long = Long.MAX_VALUE
 }
 
 data class ContentSyncConstraints(

@@ -23,9 +23,8 @@ import com.mydeck.app.domain.model.FilterFormState
 import com.mydeck.app.domain.model.LayoutMode
 import com.mydeck.app.domain.model.SortOption
 import com.mydeck.app.domain.sync.ConnectivityMonitor
-import com.mydeck.app.domain.sync.ContentSyncMode
 import com.mydeck.app.domain.content.ContentPackageManager
-import com.mydeck.app.domain.sync.ContentSyncPolicyEvaluator
+import com.mydeck.app.domain.sync.OfflinePolicyEvaluator
 import com.mydeck.app.domain.usecase.FullSyncUseCase
 import com.mydeck.app.domain.usecase.UpdateBookmarkUseCase
 import com.mydeck.app.io.prefs.SettingsDataStore
@@ -66,7 +65,7 @@ class BookmarkListViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
     private val settingsDataStore: SettingsDataStore,
     private val savedStateHandle: SavedStateHandle,
-    private val contentSyncPolicyEvaluator: ContentSyncPolicyEvaluator,
+    private val contentSyncPolicyEvaluator: OfflinePolicyEvaluator,
     private val contentPackageManager: ContentPackageManager,
     connectivityMonitor: ConnectivityMonitor
 ) : ViewModel() {

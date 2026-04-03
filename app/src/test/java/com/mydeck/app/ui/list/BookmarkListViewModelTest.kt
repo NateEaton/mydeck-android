@@ -12,7 +12,7 @@ import com.mydeck.app.domain.model.BookmarkCounts
 import com.mydeck.app.domain.model.BookmarkListItem
 import com.mydeck.app.domain.sync.ConnectivityMonitor
 import com.mydeck.app.domain.content.ContentPackageManager
-import com.mydeck.app.domain.sync.ContentSyncPolicyEvaluator
+import com.mydeck.app.domain.sync.OfflinePolicyEvaluator
 import com.mydeck.app.domain.usecase.FullSyncUseCase
 import com.mydeck.app.domain.usecase.UpdateBookmarkUseCase
 import com.mydeck.app.io.prefs.SettingsDataStore
@@ -65,7 +65,7 @@ class BookmarkListViewModelTest {
     private lateinit var fullSyncUseCase: FullSyncUseCase
     private lateinit var workManager : WorkManager
     private lateinit var connectivityMonitor: ConnectivityMonitor
-    private lateinit var contentSyncPolicyEvaluator: ContentSyncPolicyEvaluator
+    private lateinit var contentSyncPolicyEvaluator: OfflinePolicyEvaluator
     private lateinit var contentPackageManager: ContentPackageManager
 
     private lateinit var workInfoFlow: MutableStateFlow<List<WorkInfo>>

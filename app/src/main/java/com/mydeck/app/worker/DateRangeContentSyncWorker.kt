@@ -4,7 +4,7 @@ import android.content.Context
 import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
-import com.mydeck.app.domain.sync.ContentSyncPolicyEvaluator
+import com.mydeck.app.domain.sync.OfflinePolicyEvaluator
 import com.mydeck.app.domain.usecase.LoadContentPackageUseCase
 import com.mydeck.app.io.db.dao.BookmarkDao
 import com.mydeck.app.io.prefs.SettingsDataStore
@@ -19,7 +19,7 @@ class DateRangeContentSyncWorker @AssistedInject constructor(
     @Assisted workerParams: WorkerParameters,
     private val bookmarkDao: BookmarkDao,
     private val loadContentPackageUseCase: LoadContentPackageUseCase,
-    private val policyEvaluator: ContentSyncPolicyEvaluator,
+    private val policyEvaluator: OfflinePolicyEvaluator,
     private val settingsDataStore: SettingsDataStore
 ) : CoroutineWorker(appContext, workerParams) {
 
@@ -35,7 +35,7 @@ class DateRangeContentSyncWorker @AssistedInject constructor(
 
         Timber.d("DateRangeContentSyncWorker starting [from=$fromEpoch, to=$toEpoch, override=$isOverride]")
 
-        val includeArchived = settingsDataStore.isIncludeArchivedContentInSyncEnabled()
+        val includeArchived = settingsDataStore.getOfflineContentScope().includesArchived
         val eligibleIds = bookmarkDao.getBookmarkIdsForDateRangeContentFetch(
             fromEpoch = fromEpoch, toEpoch = toEpoch, includeArchived = includeArchived
         )
