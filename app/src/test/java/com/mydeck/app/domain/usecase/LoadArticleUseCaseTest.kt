@@ -19,6 +19,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.datetime.LocalDateTime
 import kotlinx.serialization.json.Json
 import org.junit.Before
+import org.junit.Assert.assertEquals
 import org.junit.Test
 import org.junit.Assert.assertTrue
 import retrofit2.Response
@@ -133,44 +134,11 @@ class LoadArticleUseCaseTest {
     }
 
     @Test
-    fun `execute fetches omitDescription from bookmark detail after article download`() {
-        val bookmark = sampleBookmark.copy(
-            articleContent = null,
-            contentState = Bookmark.ContentState.DIRTY
-        )
-        val articleContent = "<section><p>Fresh article</p></section>"
-        val bookmarkDetail = sampleBookmarkDetailDto(omitDescription = true)
-
-        coEvery { bookmarkRepository.getBookmarkById("123") } returns bookmark
-        every { connectivityMonitor.isNetworkAvailable() } returns true
-        coEvery { readeckApi.getArticle("123") } returns Response.success(articleContent)
-        coEvery { readeckApi.getBookmarkById("123") } returns Response.success(bookmarkDetail)
-        coEvery { readeckApi.getAnnotations("123") } returns Response.success(emptyList())
-        coEvery { bookmarkRepository.insertBookmarks(any()) } just Runs
-        coEvery { settingsDataStore.saveCachedAnnotationSnapshot("123", any()) } just Runs
-
-        val result = runBlocking {
-            loadArticleUseCase.execute("123")
-        }
-
-        assertTrue(result is LoadArticleUseCase.Result.Success)
-        coVerify(exactly = 1) { readeckApi.getBookmarkById("123") }
-        coVerify {
-            bookmarkRepository.insertBookmarks(
-                match { bookmarks ->
-                    bookmarks.singleOrNull()?.articleContent == articleContent &&
-                        bookmarks.singleOrNull()?.omitDescription == true
-                }
-            )
-        }
-    }
-
-    @Test
-    fun `execute skips bookmark detail fetch when omitDescription is already known`() {
+    fun `execute preserves omitDescription without detail fetch`() {
         val bookmark = sampleBookmark.copy(
             articleContent = null,
             contentState = Bookmark.ContentState.DIRTY,
-            omitDescription = false
+            omitDescription = true
         )
         val articleContent = "<section><p>Fresh article</p></section>"
 
@@ -190,7 +158,35 @@ class LoadArticleUseCaseTest {
         coVerify {
             bookmarkRepository.insertBookmarks(
                 match { bookmarks ->
-                    bookmarks.singleOrNull()?.omitDescription == false
+                    bookmarks.singleOrNull()?.omitDescription == true
+                }
+            )
+        }
+    }
+
+    @Test
+    fun `refreshHtmlForAnnotations refreshes cached article without promoting to package`() = runBlocking {
+        val bookmark = sampleBookmark.copy(
+            articleContent = "<section><p>Old article</p></section>",
+            contentState = Bookmark.ContentState.DOWNLOADED
+        )
+        val refreshedArticleContent = "<section><p>Fresh article</p></section>"
+
+        coEvery { bookmarkRepository.getBookmarkById("123") } returns bookmark
+        every { connectivityMonitor.isNetworkAvailable() } returns true
+        coEvery { readeckApi.getArticle("123") } returns Response.success(refreshedArticleContent)
+        coEvery { readeckApi.getAnnotations("123") } returns Response.success(emptyList())
+        coEvery { bookmarkRepository.insertBookmarks(any()) } just Runs
+        coEvery { settingsDataStore.saveCachedAnnotationSnapshot("123", any()) } just Runs
+
+        val result = loadArticleUseCase.refreshHtmlForAnnotations("123")
+
+        assertEquals(refreshedArticleContent, result)
+        coVerify {
+            bookmarkRepository.insertBookmarks(
+                match { bookmarks ->
+                    bookmarks.singleOrNull()?.articleContent == refreshedArticleContent &&
+                        bookmarks.singleOrNull()?.contentState == Bookmark.ContentState.DOWNLOADED
                 }
             )
         }

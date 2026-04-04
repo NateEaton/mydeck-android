@@ -29,7 +29,7 @@ The default layout. Each card has a **thumbnail** on the left and the title, sou
 
 ### Compact Layout
 
-A denser view that uses the site's **favicon** instead of a full thumbnail. Reading progress is not shown in compact layout. Useful when you want to scan a long list quickly.
+A denser view that uses the site's **favicon** instead of a full thumbnail. A fixed status rail on the left shows the favicon at the top. 
 
 ### Mosaic Layout
 
@@ -39,17 +39,31 @@ Each card is a large tile with the thumbnail filling the entire card and the tit
 
 Tap the **layout icon** in the top bar to choose between Grid, Compact, and Mosaic. The icon updates to reflect your current choice.
 
+### Bookmark Types
+
+A **video icon** or **picture icon** appears in the top-left corner for video and picture bookmarks in Grid and Mosaic layouts.
+
 ## Reading Progress
 
-In Grid and Mosaic layouts, the top-right corner of each card's thumbnail shows the bookmark's reading status:
+All three layouts show the bookmark's reading status:
 
 - **No indicator** — not yet opened
 - **Partial circle** — in progress; the arc angle represents how far through the article you've read
 - **Checkmark (✓)** — read (completed)
 
+In Grid and Mosaic layouts, the reading status indicator appears in the top-right corner of the thumbnail. In Compact layout, it appears to the left of the site name.
+
 Progress is tracked based on how far you scroll in the article — it reflects the farthest point you've reached, not your position when you close the bookmark.
 
-A **video icon** or **picture icon** appears in the top-left corner for video and picture bookmarks respectively.
+## Download Status
+
+All three layouts show whether a bookmark's content has been downloaded for offline reading:
+
+- **No indicator** — content not yet downloaded
+- **Outlined download icon** — text has been cached on demand for reading
+- **Filled download icon** — the bookmark is fully available offline as a managed offline package
+
+In **Grid** and **Compact** layouts, the download icon appears on the site-info row, next to the site name and reading time. In **Mosaic** layout, it appears on the title row near the top-right area of the card.
 
 ## Card Actions
 

@@ -11,6 +11,8 @@ import com.mydeck.app.domain.model.BookmarkShareFormat
 import com.mydeck.app.domain.model.BookmarkCounts
 import com.mydeck.app.domain.model.BookmarkListItem
 import com.mydeck.app.domain.sync.ConnectivityMonitor
+import com.mydeck.app.domain.content.ContentPackageManager
+import com.mydeck.app.domain.sync.OfflinePolicyEvaluator
 import com.mydeck.app.domain.usecase.FullSyncUseCase
 import com.mydeck.app.domain.usecase.UpdateBookmarkUseCase
 import com.mydeck.app.io.prefs.SettingsDataStore
@@ -63,6 +65,8 @@ class BookmarkListViewModelTest {
     private lateinit var fullSyncUseCase: FullSyncUseCase
     private lateinit var workManager : WorkManager
     private lateinit var connectivityMonitor: ConnectivityMonitor
+    private lateinit var contentSyncPolicyEvaluator: OfflinePolicyEvaluator
+    private lateinit var contentPackageManager: ContentPackageManager
 
     private lateinit var workInfoFlow: MutableStateFlow<List<WorkInfo>>
     private lateinit var initialSyncPerformedFlow: MutableStateFlow<Boolean>
@@ -78,6 +82,9 @@ class BookmarkListViewModelTest {
         fullSyncUseCase = mockk()
         workManager = mockk()
         connectivityMonitor = mockk()
+        contentSyncPolicyEvaluator = mockk()
+        contentPackageManager = mockk()
+        coEvery { contentSyncPolicyEvaluator.shouldAutoFetchContent() } returns false
 
         workInfoFlow = MutableStateFlow(emptyList())
         initialSyncPerformedFlow = MutableStateFlow(false)
@@ -134,6 +141,8 @@ class BookmarkListViewModelTest {
             context,
             settingsDataStore,
             savedStateHandle,
+            contentSyncPolicyEvaluator,
+            contentPackageManager,
             connectivityMonitor
         )
         // Since we emit empty list by default from mock, and filter/query are empty/default,
@@ -158,6 +167,8 @@ class BookmarkListViewModelTest {
             context,
             settingsDataStore,
             savedStateHandle,
+            contentSyncPolicyEvaluator,
+            contentPackageManager,
             connectivityMonitor
         )
 
@@ -182,6 +193,8 @@ class BookmarkListViewModelTest {
             context,
             settingsDataStore,
             savedStateHandle,
+            contentSyncPolicyEvaluator,
+            contentPackageManager,
             connectivityMonitor
         )
         // Just verify that it doesn't throw an exception for now
@@ -201,6 +214,8 @@ class BookmarkListViewModelTest {
             context,
             settingsDataStore,
             savedStateHandle,
+            contentSyncPolicyEvaluator,
+            contentPackageManager,
             connectivityMonitor
         )
 
@@ -222,6 +237,8 @@ class BookmarkListViewModelTest {
             context,
             settingsDataStore,
             savedStateHandle,
+            contentSyncPolicyEvaluator,
+            contentPackageManager,
             connectivityMonitor
         )
 
@@ -243,6 +260,8 @@ class BookmarkListViewModelTest {
             context,
             settingsDataStore,
             savedStateHandle,
+            contentSyncPolicyEvaluator,
+            contentPackageManager,
             connectivityMonitor
         )
 
@@ -272,6 +291,8 @@ class BookmarkListViewModelTest {
             context,
             settingsDataStore,
             savedStateHandle,
+            contentSyncPolicyEvaluator,
+            contentPackageManager,
             connectivityMonitor
         )
         viewModel.onClickMyList()
@@ -293,6 +314,8 @@ class BookmarkListViewModelTest {
             context,
             settingsDataStore,
             savedStateHandle,
+            contentSyncPolicyEvaluator,
+            contentPackageManager,
             connectivityMonitor
         )
         viewModel.onClickArchive()
@@ -313,6 +336,8 @@ class BookmarkListViewModelTest {
             context,
             settingsDataStore,
             savedStateHandle,
+            contentSyncPolicyEvaluator,
+            contentPackageManager,
             connectivityMonitor
         )
         viewModel.onClickFavorite()
@@ -333,6 +358,8 @@ class BookmarkListViewModelTest {
             context,
             settingsDataStore,
             savedStateHandle,
+            contentSyncPolicyEvaluator,
+            contentPackageManager,
             connectivityMonitor
         )
         viewModel.onClickSettings()
@@ -353,6 +380,8 @@ class BookmarkListViewModelTest {
             context,
             settingsDataStore,
             savedStateHandle,
+            contentSyncPolicyEvaluator,
+            contentPackageManager,
             connectivityMonitor
         )
         val bookmarkId = "someBookmarkId"
@@ -420,6 +449,8 @@ class BookmarkListViewModelTest {
             context,
             settingsDataStore,
             savedStateHandle,
+            contentSyncPolicyEvaluator,
+            contentPackageManager,
             connectivityMonitor
         )
 
@@ -448,6 +479,8 @@ class BookmarkListViewModelTest {
             context,
             settingsDataStore,
             savedStateHandle,
+            contentSyncPolicyEvaluator,
+            contentPackageManager,
             connectivityMonitor
         )
         viewModel.openCreateBookmarkDialog()
@@ -465,6 +498,8 @@ class BookmarkListViewModelTest {
             context,
             settingsDataStore,
             savedStateHandle,
+            contentSyncPolicyEvaluator,
+            contentPackageManager,
             connectivityMonitor
         )
         viewModel.openCreateBookmarkDialog()
@@ -484,6 +519,8 @@ class BookmarkListViewModelTest {
                 context,
                 settingsDataStore,
                 savedStateHandle,
+                contentSyncPolicyEvaluator,
+                contentPackageManager,
                 connectivityMonitor
             )
             viewModel.openCreateBookmarkDialog()
@@ -511,6 +548,8 @@ class BookmarkListViewModelTest {
                 context,
                 settingsDataStore,
                 savedStateHandle,
+                contentSyncPolicyEvaluator,
+                contentPackageManager,
                 connectivityMonitor
             )
             viewModel.openCreateBookmarkDialog()
@@ -537,6 +576,8 @@ class BookmarkListViewModelTest {
             context,
             settingsDataStore,
             savedStateHandle,
+            contentSyncPolicyEvaluator,
+            contentPackageManager,
             connectivityMonitor
         )
         viewModel.openCreateBookmarkDialog()
@@ -561,6 +602,8 @@ class BookmarkListViewModelTest {
             context,
             settingsDataStore,
             savedStateHandle,
+            contentSyncPolicyEvaluator,
+            contentPackageManager,
             connectivityMonitor
         )
         viewModel.openCreateBookmarkDialog()
@@ -587,6 +630,8 @@ class BookmarkListViewModelTest {
             context,
             settingsDataStore,
             savedStateHandle,
+            contentSyncPolicyEvaluator,
+            contentPackageManager,
             connectivityMonitor
         )
         viewModel.openCreateBookmarkDialog()
@@ -616,6 +661,8 @@ class BookmarkListViewModelTest {
             context,
             settingsDataStore,
             savedStateHandle,
+            contentSyncPolicyEvaluator,
+            contentPackageManager,
             connectivityMonitor
         )
 
@@ -641,6 +688,8 @@ class BookmarkListViewModelTest {
                 context,
                 settingsDataStore,
                 savedStateHandle,
+                contentSyncPolicyEvaluator,
+                contentPackageManager,
                 connectivityMonitor
             )
 
@@ -678,6 +727,8 @@ class BookmarkListViewModelTest {
                 context,
                 settingsDataStore,
                 savedStateHandle,
+                contentSyncPolicyEvaluator,
+                contentPackageManager,
                 connectivityMonitor
             )
 
@@ -739,6 +790,8 @@ class BookmarkListViewModelTest {
                 context,
                 settingsDataStore,
                 savedStateHandle,
+                contentSyncPolicyEvaluator,
+                contentPackageManager,
                 connectivityMonitor
             )
 
@@ -800,6 +853,8 @@ class BookmarkListViewModelTest {
                 context,
                 settingsDataStore,
                 savedStateHandle,
+                contentSyncPolicyEvaluator,
+                contentPackageManager,
                 connectivityMonitor
             )
 
@@ -860,6 +915,8 @@ class BookmarkListViewModelTest {
                 context,
                 settingsDataStore,
                 savedStateHandle,
+                contentSyncPolicyEvaluator,
+                contentPackageManager,
                 connectivityMonitor
             )
 
@@ -921,6 +978,8 @@ class BookmarkListViewModelTest {
                 context,
                 settingsDataStore,
                 savedStateHandle,
+                contentSyncPolicyEvaluator,
+                contentPackageManager,
                 connectivityMonitor
             )
 
@@ -982,6 +1041,8 @@ class BookmarkListViewModelTest {
                 context,
                 settingsDataStore,
                 savedStateHandle,
+                contentSyncPolicyEvaluator,
+                contentPackageManager,
                 connectivityMonitor
             )
 
@@ -1043,6 +1104,8 @@ class BookmarkListViewModelTest {
                 context,
                 settingsDataStore,
                 savedStateHandle,
+                contentSyncPolicyEvaluator,
+                contentPackageManager,
                 connectivityMonitor
             )
 
@@ -1104,6 +1167,8 @@ class BookmarkListViewModelTest {
                 context,
                 settingsDataStore,
                 savedStateHandle,
+                contentSyncPolicyEvaluator,
+                contentPackageManager,
                 connectivityMonitor
             )
 
@@ -1165,6 +1230,8 @@ class BookmarkListViewModelTest {
                 context,
                 settingsDataStore,
                 savedStateHandle,
+                contentSyncPolicyEvaluator,
+                contentPackageManager,
                 connectivityMonitor
             )
 
@@ -1211,6 +1278,8 @@ class BookmarkListViewModelTest {
             context,
             settingsDataStore,
             savedStateHandle,
+            contentSyncPolicyEvaluator,
+            contentPackageManager,
             connectivityMonitor
         )
 
@@ -1234,6 +1303,8 @@ class BookmarkListViewModelTest {
             context,
             settingsDataStore,
             savedStateHandle,
+            contentSyncPolicyEvaluator,
+            contentPackageManager,
             connectivityMonitor
         )
 
@@ -1265,6 +1336,8 @@ class BookmarkListViewModelTest {
             context,
             settingsDataStore,
             savedStateHandle,
+            contentSyncPolicyEvaluator,
+            contentPackageManager,
             connectivityMonitor
         )
 
@@ -1290,6 +1363,8 @@ class BookmarkListViewModelTest {
             context,
             settingsDataStore,
             savedStateHandle,
+            contentSyncPolicyEvaluator,
+            contentPackageManager,
             connectivityMonitor
         )
 

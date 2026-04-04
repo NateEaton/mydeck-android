@@ -27,24 +27,28 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.OpenInNew
+import androidx.compose.material.icons.automirrored.filled.*
+import androidx.compose.material.icons.automirrored.outlined.*
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Movie
-import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.DownloadForOffline
 import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.ContentCopy
+import androidx.compose.material.icons.outlined.DownloadForOffline
 import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.Inventory2
@@ -130,6 +134,187 @@ private fun BookmarkShimmerBox(modifier: Modifier = Modifier) {
     )
 }
 
+private val ThumbnailStatusBadgeSize = 24.dp
+private val ThumbnailStatusIconSize = 14.dp
+private val ThumbnailStatusProgressSize = 16.dp
+private val CompactStatusRailWidth = 32.dp
+private val CompactStatusSlotSize = 24.dp
+private val CompactStatusIconSize = 20.dp
+private val CompactCardMinHeight = 84.dp
+private val BookmarkDownloadIconSize = 14.dp
+private val MosaicOfflineBadgeBottomInset = 96.dp
+
+@Composable
+private fun ThumbnailReadingStatusIndicator(
+    readProgress: Int,
+    modifier: Modifier = Modifier
+) {
+    if (readProgress <= 0) return
+
+    Box(
+        modifier = modifier
+            .size(ThumbnailStatusBadgeSize)
+            .background(
+                color = Color.Gray.copy(alpha = 0.5f),
+                shape = CircleShape
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        if (readProgress == 100) {
+            Icon(
+                imageVector = Icons.Filled.Check,
+                contentDescription = stringResource(R.string.action_mark_read),
+                tint = Color.White,
+                modifier = Modifier.size(ThumbnailStatusIconSize)
+            )
+        } else {
+            Canvas(modifier = Modifier.size(ThumbnailStatusProgressSize)) {
+                val strokeWidth = 2.dp.toPx()
+                val diameter = size.minDimension - strokeWidth
+                val sweepAngle = (readProgress.coerceIn(0, 100) / 100f) * 360f
+                drawArc(
+                    color = Color.White,
+                    startAngle = -90f,
+                    sweepAngle = sweepAngle,
+                    useCenter = false,
+                    size = Size(diameter, diameter),
+                    style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun OfflineStateIndicator(
+    offlineState: BookmarkListItem.OfflineState,
+    modifier: Modifier = Modifier,
+    badgeSize: Dp = ThumbnailStatusBadgeSize,
+    iconSize: Dp = ThumbnailStatusIconSize
+) {
+    if (offlineState == BookmarkListItem.OfflineState.NOT_DOWNLOADED) return
+    Box(
+        modifier = modifier
+            .size(badgeSize)
+            .background(
+                color = Color.Gray.copy(alpha = 0.5f),
+                shape = CircleShape
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(
+            imageVector = when (offlineState) {
+                BookmarkListItem.OfflineState.DOWNLOADED_FULL -> Icons.Filled.DownloadForOffline
+                else -> Icons.Outlined.DownloadForOffline
+            },
+            contentDescription = null,
+            tint = Color.White,
+            modifier = Modifier.size(iconSize)
+        )
+    }
+}
+
+@Composable
+private fun CompactReadingStatusIndicator(
+    readProgress: Int,
+    modifier: Modifier = Modifier,
+    iconSize: Dp = CompactStatusIconSize
+) {
+    if (readProgress <= 0) return
+    val primary = MaterialTheme.colorScheme.primary
+    if (readProgress == 100) {
+        Box(
+            modifier = modifier
+                .size(iconSize + 4.dp)
+                .background(
+                    color = primary.copy(alpha = 0.12f),
+                    shape = CircleShape
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Filled.Check,
+                contentDescription = null,
+                tint = primary,
+                modifier = Modifier.size(iconSize - 4.dp)
+            )
+        }
+    } else {
+        Box(
+            modifier = modifier
+                .size(iconSize + 4.dp)
+                .background(
+                    color = primary.copy(alpha = 0.12f),
+                    shape = CircleShape
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            Canvas(modifier = Modifier.size(iconSize - 4.dp)) {
+                val strokeWidth = 2.dp.toPx()
+                val diameter = size.minDimension - strokeWidth
+                val sweepAngle = (readProgress.coerceIn(0, 100) / 100f) * 360f
+                drawArc(
+                    color = primary,
+                    startAngle = -90f,
+                    sweepAngle = sweepAngle,
+                    useCenter = false,
+                    size = Size(diameter, diameter),
+                    style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun CompactOfflineStateIndicator(
+    offlineState: BookmarkListItem.OfflineState,
+    modifier: Modifier = Modifier,
+    iconSize: Dp = CompactStatusIconSize
+) {
+    if (offlineState == BookmarkListItem.OfflineState.NOT_DOWNLOADED) return
+    Icon(
+        imageVector = when (offlineState) {
+            BookmarkListItem.OfflineState.DOWNLOADED_FULL -> Icons.Filled.DownloadForOffline
+            else -> Icons.Outlined.DownloadForOffline
+        },
+        contentDescription = null,
+        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = modifier.size(iconSize)
+    )
+}
+
+@Composable
+private fun CompactStatusRail(
+    bookmark: BookmarkListItem,
+    faviconSize: Dp,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier
+            .width(CompactStatusRailWidth)
+            .fillMaxHeight(),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Box(
+            modifier = Modifier.size(faviconSize),
+            contentAlignment = Alignment.Center
+        ) {
+            AsyncImage(
+                model = ImageRequest.Builder(LocalContext.current)
+                    .data(bookmark.iconSrc)
+                    .crossfade(true)
+                    .build(),
+                contentDescription = "site icon",
+                contentScale = ContentScale.Fit,
+                modifier = Modifier.size(faviconSize),
+            )
+        }
+
+        Spacer(Modifier.weight(1f))
+    }
+}
+
 val LocalIsWideLayout = compositionLocalOf { false }
 
 @OptIn(ExperimentalLayoutApi::class, ExperimentalFoundationApi::class)
@@ -208,34 +393,12 @@ fun BookmarkMosaicCard(
                     }
                 }
 
-                // Show progress indicator based on read progress
-                if (bookmark.readProgress > 0) {
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.TopEnd)
-                            .padding(top = 8.dp, end = 8.dp)
-                            .size(28.dp)
-                            .background(
-                                color = Color.Gray.copy(alpha = 0.5f),
-                                shape = CircleShape
-                            ),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        if (bookmark.readProgress == 100) {
-                            Icon(
-                                imageVector = Icons.Filled.Check,
-                                contentDescription = stringResource(R.string.action_mark_read),
-                                tint = Color.White,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        } else {
-                            CircularProgressIndicator(
-                                progress = bookmark.readProgress,
-                                modifier = Modifier.size(24.dp)
-                            )
-                        }
-                    }
-                }
+                ThumbnailReadingStatusIndicator(
+                    readProgress = bookmark.readProgress,
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(top = 8.dp, end = 8.dp)
+                )
 
                 // Darker, taller gradient overlay for stronger contrast
                 Box(
@@ -270,14 +433,26 @@ fun BookmarkMosaicCard(
                         .padding(horizontal = 12.dp, vertical = 8.dp),
                     verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    // Top row: Title
-                    Text(
-                        text = bookmark.title,
-                        style = MaterialTheme.typography.titleMedium,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                        color = Color.White
-                    )
+                    // Top row: Title + Download status
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.Top
+                    ) {
+                        Text(
+                            text = bookmark.title,
+                            style = MaterialTheme.typography.titleMedium,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                            color = Color.White,
+                            modifier = Modifier.weight(1f)
+                        )
+                        Spacer(Modifier.width(4.dp))
+                        BookmarkDownloadStatusIndicator(
+                            offlineState = bookmark.offlineState,
+                            modifier = Modifier.padding(top = 2.dp),
+                            isMosaic = true
+                        )
+                    }
 
                     // Bottom row: Action icons
                     Row(
@@ -367,6 +542,7 @@ fun BookmarkMosaicCard(
                     text = stringResource(R.string.action_open_in_browser),
                     onClick = { showBodyContextMenu = false; onClickOpenInBrowserFromMenu(bookmark.url) },
                 )
+
             }
         }
         if (showImageContextMenu && bookmark.imageSrc.isNotBlank()) {
@@ -557,48 +733,17 @@ private fun BookmarkGridCardMobilePortrait(
                                 imageVector = if (bookmark.type is Bookmark.Type.Video) Icons.Filled.Movie else Icons.Filled.Image,
                                 contentDescription = null,
                                 tint = Color.White,
-                                modifier = Modifier.size(16.dp)
+                                modifier = Modifier.size(18.dp)
                             )
                         }
                     }
 
-                    if (bookmark.readProgress > 0) {
-                        Box(
-                            modifier = Modifier
-                                .size(28.dp)
-                                .align(Alignment.TopEnd)
-                                .padding(4.dp)
-                                .background(
-                                    color = Color.Gray.copy(alpha = 0.5f),
-                                    shape = CircleShape
-                                ),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            if (bookmark.readProgress == 100) {
-                                Icon(
-                                    imageVector = Icons.Filled.Check,
-                                    contentDescription = stringResource(R.string.action_mark_read),
-                                    tint = Color.White,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                            } else {
-                                Canvas(modifier = Modifier.size(20.dp)) {
-                                    val progressColor = Color.White
-                                    val strokeWidth = 2.dp.toPx()
-                                    val diameter = size.minDimension
-                                    val sweepAngle = (bookmark.readProgress / 100f) * 360f
-                                    drawArc(
-                                        color = progressColor,
-                                        startAngle = -90f,
-                                        sweepAngle = sweepAngle,
-                                        useCenter = false,
-                                        size = Size(diameter - strokeWidth, diameter - strokeWidth),
-                                        style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
-                                    )
-                                }
-                            }
-                        }
-                    }
+                    ThumbnailReadingStatusIndicator(
+                        readProgress = bookmark.readProgress,
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(4.dp)
+                    )
                 }
 
                 Column(
@@ -643,14 +788,15 @@ private fun BookmarkGridCardMobilePortrait(
                         )
                         bookmark.readingTime?.let {
                             Text(
-                                text = " · ",
-                                style = MaterialTheme.typography.labelMedium
-                            )
-                            Text(
-                                text = "$it min",
-                                style = MaterialTheme.typography.labelMedium
+                                text = " · $it min",
+                                style = MaterialTheme.typography.labelMedium,
+                                maxLines = 1
                             )
                         }
+                        BookmarkDownloadStatusIndicator(
+                            offlineState = bookmark.offlineState,
+                            modifier = Modifier.padding(start = 4.dp)
+                        )
                     }
 
                     Spacer(modifier = Modifier.height(if (titleLineCount == 1) 8.dp else 6.dp))
@@ -764,6 +910,7 @@ private fun BookmarkGridCardMobilePortrait(
                     text = stringResource(R.string.action_open_in_browser),
                     onClick = { showBodyContextMenu = false; onClickOpenInBrowserFromMenu(bookmark.url) },
                 )
+
             }
         }
         if (showImageContextMenu && bookmark.imageSrc.isNotBlank()) {
@@ -867,50 +1014,16 @@ private fun BookmarkGridCardNarrow(
                             imageVector = if (bookmark.type is Bookmark.Type.Video) Icons.Filled.Movie else Icons.Filled.Image,
                             contentDescription = null,
                             tint = Color.White,
-                            modifier = Modifier.size(16.dp)
+                            modifier = Modifier.size(18.dp)
                         )
                     }
                 }
-                // Read progress indicator
-                if (bookmark.readProgress > 0) {
-                    Box(
-                        modifier = Modifier
-                            .size(28.dp)
-                            .align(Alignment.TopEnd)
-                            .padding(4.dp)
-                            .background(
-                                color = Color.Gray.copy(alpha = 0.5f),
-                                shape = CircleShape
-                            ),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        if (bookmark.readProgress == 100) {
-                            Icon(
-                                imageVector = Icons.Filled.Check,
-                                contentDescription = stringResource(R.string.action_mark_read),
-                                tint = Color.White,
-                                modifier = Modifier.size(16.dp)
-                            )
-                        } else {
-                            Canvas(
-                                modifier = Modifier.size(20.dp)
-                            ) {
-                                val progressColor = Color.White
-                                val strokeWidth = 2.dp.toPx()
-                                val diameter = size.minDimension
-                                val sweepAngle = (bookmark.readProgress / 100f) * 360f
-                                drawArc(
-                                    color = progressColor,
-                                    startAngle = -90f,
-                                    sweepAngle = sweepAngle,
-                                    useCenter = false,
-                                    size = Size(diameter - strokeWidth, diameter - strokeWidth),
-                                    style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
-                                )
-                            }
-                        }
-                    }
-                }
+                ThumbnailReadingStatusIndicator(
+                    readProgress = bookmark.readProgress,
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(4.dp)
+                )
             }
 
             // Content
@@ -919,7 +1032,6 @@ private fun BookmarkGridCardNarrow(
                     .weight(1f)
                     .padding(8.dp)
             ) {
-                // Title
                 Text(
                     text = bookmark.title,
                     style = MaterialTheme.typography.titleMedium,
@@ -952,14 +1064,15 @@ private fun BookmarkGridCardNarrow(
                     )
                     bookmark.readingTime?.let {
                         Text(
-                            text = " · ",
-                            style = MaterialTheme.typography.labelMedium
-                        )
-                        Text(
-                            text = "$it min",
-                            style = MaterialTheme.typography.labelMedium
+                            text = " · $it min",
+                            style = MaterialTheme.typography.labelMedium,
+                            maxLines = 1
                         )
                     }
+                    BookmarkDownloadStatusIndicator(
+                        offlineState = bookmark.offlineState,
+                        modifier = Modifier.padding(start = 4.dp)
+                    )
                 }
 
                 // Labels row with tappable chips
@@ -1071,6 +1184,7 @@ private fun BookmarkGridCardNarrow(
                     text = stringResource(R.string.action_open_in_browser),
                     onClick = { showBodyContextMenu = false; onClickOpenInBrowserFromMenu(bookmark.url) },
                 )
+
             }
         }
         if (showImageContextMenu && bookmark.imageSrc.isNotBlank()) {
@@ -1182,44 +1296,12 @@ private fun BookmarkGridCardWide(
                     }
                 }
 
-                // Read progress indicator
-                if (bookmark.readProgress > 0) {
-                    Box(
-                        modifier = Modifier
-                            .size(32.dp)
-                            .align(Alignment.TopEnd)
-                            .padding(6.dp)
-                            .background(
-                                color = Color.Gray.copy(alpha = 0.5f),
-                                shape = CircleShape
-                            ),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        if (bookmark.readProgress == 100) {
-                            Icon(
-                                imageVector = Icons.Filled.Check,
-                                contentDescription = stringResource(R.string.action_mark_read),
-                                tint = Color.White,
-                                modifier = Modifier.size(18.dp)
-                            )
-                        } else {
-                            Canvas(modifier = Modifier.size(22.dp)) {
-                                val progressColor = Color.White
-                                val strokeWidth = 2.dp.toPx()
-                                val diameter = size.minDimension
-                                val sweepAngle = (bookmark.readProgress / 100f) * 360f
-                                drawArc(
-                                    color = progressColor,
-                                    startAngle = -90f,
-                                    sweepAngle = sweepAngle,
-                                    useCenter = false,
-                                    size = Size(diameter - strokeWidth, diameter - strokeWidth),
-                                    style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
-                                )
-                            }
-                        }
-                    }
-                }
+                ThumbnailReadingStatusIndicator(
+                    readProgress = bookmark.readProgress,
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(6.dp)
+                )
             }
 
             // Content below image
@@ -1227,7 +1309,6 @@ private fun BookmarkGridCardWide(
             Column(
                 modifier = if (isInGrid) contentModifier.weight(1f) else contentModifier
             ) {
-                // Title
                 Text(
                     text = bookmark.title,
                     style = MaterialTheme.typography.titleMedium,
@@ -1260,14 +1341,15 @@ private fun BookmarkGridCardWide(
                     )
                     bookmark.readingTime?.let {
                         Text(
-                            text = " · ",
-                            style = MaterialTheme.typography.labelMedium
-                        )
-                        Text(
-                            text = "$it min",
-                            style = MaterialTheme.typography.labelMedium
+                            text = " · $it min",
+                            style = MaterialTheme.typography.labelMedium,
+                            maxLines = 1
                         )
                     }
+                    BookmarkDownloadStatusIndicator(
+                        offlineState = bookmark.offlineState,
+                        modifier = Modifier.padding(start = 4.dp)
+                    )
                 }
 
                 // Labels row with tappable chips (single line, scrollable)
@@ -1383,6 +1465,7 @@ private fun BookmarkGridCardWide(
                     text = stringResource(R.string.action_open_in_browser),
                     onClick = { showBodyContextMenu = false; onClickOpenInBrowserFromMenu(bookmark.url) },
                 )
+
             }
         }
         if (showImageContextMenu && bookmark.imageSrc.isNotBlank()) {
@@ -1412,7 +1495,26 @@ private fun BookmarkGridCardWide(
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun BookmarkDownloadStatusIndicator(
+    offlineState: BookmarkListItem.OfflineState,
+    modifier: Modifier = Modifier,
+    isMosaic: Boolean = false
+) {
+    if (offlineState == BookmarkListItem.OfflineState.NOT_DOWNLOADED) return
+    val isFull = offlineState == BookmarkListItem.OfflineState.DOWNLOADED_FULL
+    Icon(
+        imageVector = if (isFull) Icons.Filled.DownloadForOffline else Icons.Outlined.DownloadForOffline,
+        contentDescription = stringResource(if (isFull) R.string.bookmark_card_available_offline else R.string.bookmark_card_text_available),
+        modifier = modifier.size(BookmarkDownloadIconSize),
+        tint = if (isMosaic) {
+            Color.White.copy(alpha = 0.6f)
+        } else {
+            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+        }
+    )
+}
+
 @Composable
 fun BookmarkCompactCard(
     bookmark: BookmarkListItem,
@@ -1495,7 +1597,7 @@ private fun BookmarkCompactCardNarrow(
     var showImageContextMenu by remember { mutableStateOf(false) }
 
     Box {
-    Column(
+    Row(
         modifier = Modifier
             .fillMaxWidth()
             .combinedClickable(
@@ -1504,124 +1606,86 @@ private fun BookmarkCompactCardNarrow(
                 onLongClickLabel = stringResource(R.string.long_press_for_options)
             )
             .padding(horizontal = 16.dp, vertical = 8.dp)
+            .heightIn(min = CompactCardMinHeight)
     ) {
-        // Title row with favicon aligned to top
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.Top
-        ) {
-            // Favicon
-            AsyncImage(
-                model = ImageRequest.Builder(LocalContext.current).data(bookmark.iconSrc)
-                    .crossfade(true).build(),
-                contentDescription = "site icon",
-                contentScale = ContentScale.Fit,
-                modifier = Modifier
-                    .padding(top = 2.dp)
-                    .width(24.dp)
-                    .height(24.dp),
-            )
+        CompactStatusRail(
+            bookmark = bookmark,
+            faviconSize = 28.dp
+        )
 
-            Spacer(Modifier.width(12.dp))
+        Spacer(Modifier.width(12.dp))
 
-            // Title
+        // Right column: title, site info, labels, actions
+        Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = bookmark.title,
-                style = MaterialTheme.typography.titleSmall,
+                style = MaterialTheme.typography.titleMedium,
                 maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f)
+                overflow = TextOverflow.Ellipsis
             )
-        }
 
-        // Site row with progress indicator
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(start = 36.dp, top = 4.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // Read progress indicator (theme-aware)
-            if (bookmark.readProgress > 0 && bookmark.readProgress < 100) {
-                val progressColor = if (MaterialTheme.colorScheme.background.luminance() > 0.5f) {
-                    Color.DarkGray // Light theme - dark icon
-                } else {
-                    Color.LightGray // Dark theme - light icon
+            // Site row
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 6.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                CompactReadingStatusIndicator(
+                    readProgress = bookmark.readProgress,
+                    modifier = Modifier.padding(end = 4.dp),
+                    iconSize = 17.dp
+                )
+                Text(
+                    text = bookmark.siteName,
+                    style = MaterialTheme.typography.labelMedium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f)
+                )
+                bookmark.readingTime?.let {
+                    Text(
+                        text = " · $it min",
+                        style = MaterialTheme.typography.labelMedium,
+                        maxLines = 1
+                    )
                 }
-                Box(
+                BookmarkDownloadStatusIndicator(
+                    offlineState = bookmark.offlineState,
+                    modifier = Modifier.padding(start = 4.dp)
+                )
+            }
+
+            // Labels row — all labels as tappable chips, single-line horizontal scroll
+            if (bookmark.labels.isNotEmpty()) {
+                LazyRow(
                     modifier = Modifier
-                        .size(20.dp)
-                        .background(
-                            color = Color.Gray.copy(alpha = 0.3f),
-                            shape = CircleShape
-                        ),
-                    contentAlignment = Alignment.Center
+                        .fillMaxWidth()
+                        .padding(top = 4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    Canvas(
-                        modifier = Modifier.size(14.dp)
-                    ) {
-                        val strokeWidth = 2.dp.toPx()
-                        val diameter = size.minDimension
-                        val sweepAngle = (bookmark.readProgress / 100f) * 360f
-                        drawArc(
-                            color = progressColor,
-                            startAngle = -90f,
-                            sweepAngle = sweepAngle,
-                            useCenter = false,
-                            size = Size(diameter - strokeWidth, diameter - strokeWidth),
-                            style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
+                    items(bookmark.labels) { label ->
+                        SuggestionChip(
+                            onClick = { onClickLabel(label) },
+                            label = {
+                                Text(
+                                    text = label,
+                                    style = MaterialTheme.typography.labelMedium,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            },
+                            modifier = Modifier.height(24.dp)
                         )
                     }
                 }
-                Spacer(Modifier.width(8.dp))
             }
 
-            Text(
-                text = bookmark.siteName,
-                style = MaterialTheme.typography.labelSmall
-            )
-            bookmark.readingTime?.let {
-                Text(
-                    text = " · ",
-                    style = MaterialTheme.typography.labelSmall
-                )
-                Text(
-                    text = "$it min",
-                    style = MaterialTheme.typography.labelSmall
-                )
-            }
-        }
-
-        // Labels row — all labels as tappable chips, single-line horizontal scroll
-        if (bookmark.labels.isNotEmpty()) {
-            LazyRow(
+            // Action buttons (same arrangement as Grid)
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(start = 36.dp, top = 4.dp),
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                items(bookmark.labels) { label ->
-                    SuggestionChip(
-                        onClick = { onClickLabel(label) },
-                        label = {
-                            Text(
-                                text = label,
-                                style = MaterialTheme.typography.labelSmall,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        },
-                        modifier = Modifier.height(24.dp)
-                    )
-                }
-            }
-        }
-
-        // Action buttons (same arrangement as Grid)
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(start = 36.dp, top = 4.dp),
+                    .padding(top = 6.dp),
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Row(horizontalArrangement = Arrangement.Start) {
@@ -1637,34 +1701,35 @@ private fun BookmarkCompactCardNarrow(
                 }
                 IconButton(
                     onClick = { onClickArchive(bookmark.id, !bookmark.isArchived) },
-                    modifier = Modifier.size(32.dp)
+                    modifier = Modifier.size(36.dp)
                 ) {
                     Icon(
                         imageVector = if (bookmark.isArchived) Icons.Filled.Inventory2 else Icons.Outlined.Inventory2,
                         contentDescription = stringResource(R.string.action_archive),
-                        modifier = Modifier.size(18.dp)
+                        modifier = Modifier.size(20.dp)
                     )
                 }
                 IconButton(
                     onClick = { onClickOpenUrl(bookmark.id) },
-                    modifier = Modifier.size(32.dp)
+                    modifier = Modifier.size(36.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Filled.Language,
                         contentDescription = stringResource(R.string.action_view_original),
-                        modifier = Modifier.size(18.dp)
+                        modifier = Modifier.size(20.dp)
                     )
                 }
             }
             IconButton(
                 onClick = { onClickDelete(bookmark.id) },
-                modifier = Modifier.size(32.dp)
+                modifier = Modifier.size(36.dp)
             ) {
                 Icon(
                     imageVector = Icons.Filled.Delete,
                     contentDescription = stringResource(R.string.action_delete),
-                    modifier = Modifier.size(18.dp)
+                    modifier = Modifier.size(20.dp)
                 )
+            }
             }
         }
     }
@@ -1701,6 +1766,7 @@ private fun BookmarkCompactCardNarrow(
                     text = stringResource(R.string.action_open_in_browser),
                     onClick = { showBodyContextMenu = false; onClickOpenInBrowserFromMenu(bookmark.url) },
                 )
+
             }
         }
         if (showImageContextMenu && bookmark.imageSrc.isNotBlank()) {
@@ -1753,7 +1819,7 @@ private fun BookmarkCompactCardWide(
     var showImageContextMenu by remember { mutableStateOf(false) }
 
     Box {
-    Column(
+    Row(
         modifier = Modifier
             .fillMaxWidth()
             .combinedClickable(
@@ -1762,152 +1828,127 @@ private fun BookmarkCompactCardWide(
                 onLongClickLabel = stringResource(R.string.long_press_for_options)
             )
             .padding(horizontal = 16.dp, vertical = 8.dp)
+            .heightIn(min = CompactCardMinHeight)
     ) {
-        // Title row: favicon + title + action icons all in one row
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // Favicon
-            AsyncImage(
-                model = ImageRequest.Builder(LocalContext.current).data(bookmark.iconSrc)
-                    .crossfade(true).build(),
-                contentDescription = "site icon",
-                contentScale = ContentScale.Fit,
-                modifier = Modifier
-                    .width(20.dp)
-                    .height(20.dp),
-            )
+        CompactStatusRail(
+            bookmark = bookmark,
+            faviconSize = 24.dp
+        )
 
-            Spacer(Modifier.width(8.dp))
+        Spacer(Modifier.width(8.dp))
 
-            // Title
-            Text(
-                text = bookmark.title,
-                style = MaterialTheme.typography.titleSmall,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f)
-            )
-
-            Spacer(Modifier.width(4.dp))
-
-            // Action icons in title row (right-aligned)
-            IconButton(
-                onClick = { onClickFavorite(bookmark.id, !bookmark.isMarked) },
-                modifier = Modifier.size(32.dp)
+        // Right column: title row with actions, site info row
+        Column(modifier = Modifier.weight(1f)) {
+            // Title + action icons row
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(
-                    imageVector = if (bookmark.isMarked) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
-                    contentDescription = stringResource(R.string.action_favorite),
-                    modifier = Modifier.size(18.dp)
-                )
-            }
-            IconButton(
-                onClick = { onClickArchive(bookmark.id, !bookmark.isArchived) },
-                modifier = Modifier.size(32.dp)
-            ) {
-                Icon(
-                    imageVector = if (bookmark.isArchived) Icons.Filled.Inventory2 else Icons.Outlined.Inventory2,
-                    contentDescription = stringResource(R.string.action_archive),
-                    modifier = Modifier.size(18.dp)
-                )
-            }
-            IconButton(
-                onClick = { onClickOpenUrl(bookmark.id) },
-                modifier = Modifier.size(32.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Filled.Language,
-                    contentDescription = stringResource(R.string.action_view_original),
-                    modifier = Modifier.size(18.dp)
-                )
-            }
-            IconButton(
-                onClick = { onClickDelete(bookmark.id) },
-                modifier = Modifier.size(32.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Filled.Delete,
-                    contentDescription = stringResource(R.string.action_delete),
-                    modifier = Modifier.size(18.dp)
-                )
-            }
-        }
-
-        // Site name + labels on same row
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(start = 28.dp, top = 2.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // Read progress indicator (theme-aware)
-            if (bookmark.readProgress > 0 && bookmark.readProgress < 100) {
-                val progressColor = if (MaterialTheme.colorScheme.background.luminance() > 0.5f) {
-                    Color.DarkGray
-                } else {
-                    Color.LightGray
-                }
-                Box(
-                    modifier = Modifier
-                        .size(16.dp)
-                        .background(
-                            color = Color.Gray.copy(alpha = 0.3f),
-                            shape = CircleShape
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Canvas(modifier = Modifier.size(12.dp)) {
-                        val strokeWidth = 1.5.dp.toPx()
-                        val diameter = size.minDimension
-                        val sweepAngle = (bookmark.readProgress / 100f) * 360f
-                        drawArc(
-                            color = progressColor,
-                            startAngle = -90f,
-                            sweepAngle = sweepAngle,
-                            useCenter = false,
-                            size = Size(diameter - strokeWidth, diameter - strokeWidth),
-                            style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
-                        )
-                    }
-                }
-                Spacer(Modifier.width(6.dp))
-            }
-
-            Text(
-                text = bookmark.siteName,
-                style = MaterialTheme.typography.labelSmall,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            bookmark.readingTime?.let {
                 Text(
-                    text = " · $it min",
-                    style = MaterialTheme.typography.labelSmall
+                    text = bookmark.title,
+                    style = MaterialTheme.typography.titleMedium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f)
                 )
+
+                Spacer(Modifier.width(4.dp))
+
+                // Action icons in title row (right-aligned)
+                IconButton(
+                    onClick = { onClickFavorite(bookmark.id, !bookmark.isMarked) },
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Icon(
+                        imageVector = if (bookmark.isMarked) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
+                        contentDescription = stringResource(R.string.action_favorite),
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+                IconButton(
+                    onClick = { onClickArchive(bookmark.id, !bookmark.isArchived) },
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Icon(
+                        imageVector = if (bookmark.isArchived) Icons.Filled.Inventory2 else Icons.Outlined.Inventory2,
+                        contentDescription = stringResource(R.string.action_archive),
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+                IconButton(
+                    onClick = { onClickOpenUrl(bookmark.id) },
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Language,
+                        contentDescription = stringResource(R.string.action_view_original),
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+                IconButton(
+                    onClick = { onClickDelete(bookmark.id) },
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Delete,
+                        contentDescription = stringResource(R.string.action_delete),
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
             }
 
-            // Labels inline after site name, single-line horizontal scroll
-            if (bookmark.labels.isNotEmpty()) {
-                Spacer(Modifier.width(6.dp))
-                LazyRow(
-                    modifier = Modifier.weight(1f),
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    items(bookmark.labels) { label ->
-                        SuggestionChip(
-                            onClick = { onClickLabel(label) },
-                            label = {
-                                Text(
-                                    text = label,
-                                    style = MaterialTheme.typography.labelSmall,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                            },
-                            modifier = Modifier.height(20.dp)
-                        )
+            // Site name + labels on same row
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 4.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                CompactReadingStatusIndicator(
+                    readProgress = bookmark.readProgress,
+                    modifier = Modifier.padding(end = 4.dp),
+                    iconSize = 17.dp
+                )
+                Text(
+                    text = bookmark.siteName,
+                    style = MaterialTheme.typography.labelMedium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f)
+                )
+                bookmark.readingTime?.let {
+                    Text(
+                        text = " · $it min",
+                        style = MaterialTheme.typography.labelMedium,
+                        maxLines = 1
+                    )
+                }
+                BookmarkDownloadStatusIndicator(
+                    offlineState = bookmark.offlineState,
+                    modifier = Modifier.padding(start = 4.dp)
+                )
+
+                // Labels inline after site name, single-line horizontal scroll
+                if (bookmark.labels.isNotEmpty()) {
+                    Spacer(Modifier.width(6.dp))
+                    LazyRow(
+                        modifier = Modifier.weight(1f),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        items(bookmark.labels) { label ->
+                            SuggestionChip(
+                                onClick = { onClickLabel(label) },
+                                label = {
+                                    Text(
+                                        text = label,
+                                        style = MaterialTheme.typography.labelMedium,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                },
+                                modifier = Modifier.height(24.dp)
+                            )
+                        }
                     }
                 }
             }
@@ -1946,6 +1987,7 @@ private fun BookmarkCompactCardWide(
                     text = stringResource(R.string.action_open_in_browser),
                     onClick = { showBodyContextMenu = false; onClickOpenInBrowserFromMenu(bookmark.url) },
                 )
+
             }
         }
         if (showImageContextMenu && bookmark.imageSrc.isNotBlank()) {

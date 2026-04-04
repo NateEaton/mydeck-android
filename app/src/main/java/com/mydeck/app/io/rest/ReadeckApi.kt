@@ -7,6 +7,7 @@ import com.mydeck.app.io.rest.model.CreateBookmarkDto
 import com.mydeck.app.io.rest.model.EditBookmarkDto
 import com.mydeck.app.io.rest.model.EditBookmarkErrorDto
 import com.mydeck.app.io.rest.model.EditBookmarkResponseDto
+import com.mydeck.app.io.rest.model.SyncRequest
 import com.mydeck.app.io.rest.model.OAuthClientRegistrationRequestDto
 import com.mydeck.app.io.rest.model.OAuthClientRegistrationResponseDto
 import com.mydeck.app.io.rest.model.OAuthDeviceAuthorizationRequestDto
@@ -20,6 +21,7 @@ import com.mydeck.app.io.rest.model.SyncStatusDto
 import com.mydeck.app.io.rest.model.UpdateAnnotationDto
 import com.mydeck.app.io.rest.model.UserProfileDto
 import kotlinx.datetime.Instant
+import okhttp3.ResponseBody
 import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.DELETE
@@ -46,6 +48,10 @@ interface ReadeckApi {
         @Query("since") since: String?  // ISO 8601 formatted timestamp
     ): Response<List<SyncStatusDto>>
 
+    @POST("bookmarks/sync")
+    suspend fun syncBookmarks(
+        @Body request: SyncRequest
+    ): Response<ResponseBody>
 
     @GET("info")
     suspend fun getInfo(): Response<ServerInfoDto>

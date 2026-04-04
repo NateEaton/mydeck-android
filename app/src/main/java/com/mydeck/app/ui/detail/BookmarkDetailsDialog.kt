@@ -27,14 +27,18 @@ import androidx.compose.material.icons.filled.Publish
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Event
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Subject
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Public
+
 import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material.icons.outlined.Launch
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import coil3.request.crossfade
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -77,10 +81,10 @@ fun BookmarkDetailsDialog(
     onLabelsUpdate: (List<String>) -> Unit = {},
     existingLabels: List<String> = emptyList(),
     onExportDebugJson: () -> Unit = {},
-    onClickOpenInBrowser: (String) -> Unit = {},
     onRefreshContent: () -> Unit = {},
     canRefreshContent: Boolean = false,
-    onEditMetadata: () -> Unit = {}
+    onEditMetadata: () -> Unit = {},
+    onClickOpenInBrowser: (String) -> Unit = {}
 ) {
     var labels by remember { mutableStateOf(bookmark.labels.toMutableList()) }
 
@@ -180,12 +184,12 @@ fun BookmarkDetailsDialog(
                 )
             }
 
-            val rootUrl = remember(bookmark.url) { bookmark.url.toRootUrl() }
+            val displayUrl = remember(bookmark.url) { bookmark.url.toDomainName() }
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(vertical = 8.dp)
-                    .clickable { onClickOpenInBrowser(rootUrl) },
+                    .clickable { onClickOpenInBrowser(bookmark.url) },
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
@@ -196,7 +200,7 @@ fun BookmarkDetailsDialog(
                     tint = MaterialTheme.colorScheme.primary
                 )
                 Text(
-                    text = rootUrl,
+                    text = displayUrl,
                     style = MaterialTheme.typography.bodyMedium.copy(
                         color = MaterialTheme.colorScheme.primary,
                         textDecoration = androidx.compose.ui.text.style.TextDecoration.Underline
@@ -240,6 +244,7 @@ fun BookmarkDetailsDialog(
                     onLabelsUpdate(labels)
                 }
             )
+
 
             if (canRefreshContent) {
                 Card(
@@ -600,15 +605,10 @@ fun BookmarkDetailsDialogPreview() {
     )
 }
 
-private fun String.toRootUrl(): String {
+private fun String.toDomainName(): String {
     return try {
         val uri = URI(this)
-        if (uri.scheme != null && uri.host != null) {
-            val portSuffix = if (uri.port != -1) ":${uri.port}" else ""
-            "${uri.scheme}://${uri.host}$portSuffix"
-        } else {
-            this
-        }
+        uri.host ?: this
     } catch (_: Exception) {
         this
     }

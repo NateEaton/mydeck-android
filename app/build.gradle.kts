@@ -85,6 +85,11 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            signingConfig = if (signingConfigs.getByName("release").storeFile != null) {
+                signingConfigs.getByName("release")
+            } else {
+                signingConfigs.getByName("debug")
+            }
         }
         debug {
             isMinifyEnabled = false
@@ -181,7 +186,8 @@ dependencies {
     implementation(libs.androidx.junit)
     implementation(libs.androidx.ui.test.junit4.android)
     implementation(libs.androidx.browser)
-    
+    implementation(libs.androidx.webkit)
+
     // hilt
     ksp(libs.dagger.hilt.android.compiler)
     ksp(libs.androidx.hilt.compiler)

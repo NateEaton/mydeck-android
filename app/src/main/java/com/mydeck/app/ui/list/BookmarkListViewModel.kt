@@ -5,6 +5,10 @@ import android.content.Intent
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.work.Constraints
+import androidx.work.ExistingWorkPolicy
+import androidx.work.NetworkType
+import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -19,9 +23,12 @@ import com.mydeck.app.domain.model.FilterFormState
 import com.mydeck.app.domain.model.LayoutMode
 import com.mydeck.app.domain.model.SortOption
 import com.mydeck.app.domain.sync.ConnectivityMonitor
+import com.mydeck.app.domain.content.ContentPackageManager
+import com.mydeck.app.domain.sync.OfflinePolicyEvaluator
 import com.mydeck.app.domain.usecase.FullSyncUseCase
 import com.mydeck.app.domain.usecase.UpdateBookmarkUseCase
 import com.mydeck.app.io.prefs.SettingsDataStore
+import com.mydeck.app.worker.BatchArticleLoadWorker
 import com.mydeck.app.util.extractUrlAndTitle
 import com.mydeck.app.util.formatBookmarkShareText
 import com.mydeck.app.util.isValidUrl
@@ -58,6 +65,8 @@ class BookmarkListViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
     private val settingsDataStore: SettingsDataStore,
     private val savedStateHandle: SavedStateHandle,
+    private val contentSyncPolicyEvaluator: OfflinePolicyEvaluator,
+    private val contentPackageManager: ContentPackageManager,
     connectivityMonitor: ConnectivityMonitor
 ) : ViewModel() {
 
@@ -92,6 +101,14 @@ class BookmarkListViewModel @Inject constructor(
     // Pending deletion IDs tracked per staged snackbar so rapid deletes keep item identity.
     private val _pendingDeletionBookmarkIds = MutableStateFlow<List<String>>(emptyList())
     val pendingDeletionBookmarkIds = _pendingDeletionBookmarkIds.asStateFlow()
+
+    // Constraint feedback: one-shot snackbar message when content sync is blocked
+    private val _constraintSnackbarEvent = Channel<Int>(Channel.BUFFERED)
+    val constraintSnackbarEvent: Flow<Int> = _constraintSnackbarEvent.receiveAsFlow()
+
+    // Constraint override dialog for user-initiated refresh
+    private val _showConstraintOverrideDialog = MutableStateFlow(false)
+    val showConstraintOverrideDialog = _showConstraintOverrideDialog.asStateFlow()
 
     init {
         viewModelScope.launch {
@@ -200,9 +217,15 @@ class BookmarkListViewModel @Inject constructor(
     init {
         viewModelScope.launch {
             var wasRunning = false
+            var hasCheckedConstraints = false
             loadBookmarksIsRunning.collectLatest { isRunning ->
                 if (!isRunning && wasRunning) {
                     _userRequestedRefresh.value = false
+                    // Check content sync constraints after app-open sync completes (once)
+                    if (!hasCheckedConstraints) {
+                        hasCheckedConstraints = true
+                        checkContentSyncConstraints()
+                    }
                 }
                 wasRunning = isRunning
             }
@@ -437,6 +460,51 @@ class BookmarkListViewModel @Inject constructor(
 
     fun onPullToRefresh() {
         loadBookmarks(LoadTrigger.USER_REFRESH)
+        // Check if content sync constraints would block after user-initiated refresh
+        viewModelScope.launch {
+            if (!contentSyncPolicyEvaluator.shouldAutoFetchContent()) return@launch
+            val decision = contentSyncPolicyEvaluator.canFetchContent()
+            if (!decision.allowed && decision.blockedReason != "No network") {
+                _showConstraintOverrideDialog.value = true
+            }
+        }
+    }
+
+    fun onConstraintOverrideConfirmed() {
+        _showConstraintOverrideDialog.value = false
+        // Enqueue content sync without user constraints (just network required)
+        val constraints = Constraints.Builder()
+            .setRequiredNetworkType(NetworkType.CONNECTED)
+            .build()
+        val request = OneTimeWorkRequestBuilder<BatchArticleLoadWorker>()
+            .setConstraints(constraints)
+            .build()
+        workManager.enqueueUniqueWork(
+            BatchArticleLoadWorker.UNIQUE_WORK_NAME,
+            ExistingWorkPolicy.REPLACE,
+            request
+        )
+    }
+
+    fun onConstraintOverrideCancelled() {
+        _showConstraintOverrideDialog.value = false
+    }
+
+    /**
+     * Check if auto content sync is on but constraints would block it,
+     * and emit a one-shot snackbar event if so.
+     */
+    private suspend fun checkContentSyncConstraints() {
+        if (!contentSyncPolicyEvaluator.shouldAutoFetchContent()) return
+        val decision = contentSyncPolicyEvaluator.canFetchContent()
+        if (decision.allowed) return
+
+        val messageRes = when (decision.blockedReason) {
+            "Wi-Fi required" -> R.string.sync_content_waiting_wifi
+            "Battery saver active" -> R.string.sync_content_waiting_battery
+            else -> return // Network unavailable — don't show constraint snackbar for that
+        }
+        _constraintSnackbarEvent.send(messageRes)
     }
 
     fun onDeleteBookmark(bookmarkId: String) {

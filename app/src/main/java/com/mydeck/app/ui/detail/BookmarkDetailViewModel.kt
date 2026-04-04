@@ -20,7 +20,11 @@ import com.mydeck.app.domain.model.SelectionData
 import com.mydeck.app.domain.model.Template
 import com.mydeck.app.domain.model.Theme
 import com.mydeck.app.domain.model.toEffectiveAppearance
+import com.mydeck.app.domain.content.ContentPackageManager
+import com.mydeck.app.domain.sync.ConnectivityMonitor
 import com.mydeck.app.domain.usecase.LoadArticleUseCase
+import com.mydeck.app.io.db.dao.CachedAnnotationDao
+import com.mydeck.app.domain.usecase.LoadContentPackageUseCase
 import com.mydeck.app.domain.usecase.UpdateBookmarkUseCase
 import com.mydeck.app.io.AssetLoader
 import com.mydeck.app.io.prefs.SettingsDataStore
@@ -30,6 +34,10 @@ import com.mydeck.app.io.rest.model.UpdateAnnotationDto
 import com.mydeck.app.io.rest.model.toAnnotationCachePayload
 import com.mydeck.app.util.BookmarkDebugExporter
 import com.mydeck.app.util.formatBookmarkShareText
+import androidx.work.Constraints
+import androidx.work.NetworkType
+import androidx.work.WorkManager
+import com.mydeck.app.worker.BatchArticleLoadWorker
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
@@ -72,7 +80,13 @@ class BookmarkDetailViewModel @Inject constructor(
     private val assetLoader: AssetLoader,
     private val settingsDataStore: SettingsDataStore,
     private val loadArticleUseCase: LoadArticleUseCase,
+    private val loadContentPackageUseCase: LoadContentPackageUseCase,
+    private val contentPackageManager: ContentPackageManager,
+    private val cachedAnnotationDao: CachedAnnotationDao,
+    private val connectivityMonitor: ConnectivityMonitor,
+    private val multipartSyncClient: com.mydeck.app.io.rest.sync.MultipartSyncClient,
     private val readeckApi: ReadeckApi,
+    private val workManager: WorkManager,
     @ApplicationContext private val context: Context,
     private val json: Json,
     savedStateHandle: SavedStateHandle
@@ -179,9 +193,17 @@ class BookmarkDetailViewModel @Inject constructor(
     private val _readerContextMenu = MutableStateFlow(ReaderContextMenuState())
     val readerContextMenu: StateFlow<ReaderContextMenuState> = _readerContextMenu.asStateFlow()
 
+    // Annotation refresh events for in-place WebView updates (no full reload)
+    private val _annotationRefreshEvent = Channel<AnnotationRefreshEvent>(Channel.BUFFERED)
+    val annotationRefreshEvent: Flow<AnnotationRefreshEvent> = _annotationRefreshEvent.receiveAsFlow()
+
     private var searchDebounceJob: Job? = null
     private var annotationSyncJob: Job? = null
     private var contentRefreshJob: Job? = null
+
+    // Cached values to avoid DAO/filesystem queries on every combine emission
+    @Volatile private var cachedHasResources: Boolean? = null
+    @Volatile private var cachedHasOfflinePackage: Boolean? = null
 
     init {
         _bookmarkId.value?.let { initializeBookmark(it) }
@@ -198,6 +220,8 @@ class BookmarkDetailViewModel @Inject constructor(
         initialReadProgress = 0
         bookmarkType = null
         isReadLocked = false
+        cachedHasResources = null
+        cachedHasOfflinePackage = null
         _contentLoadState.value = ContentLoadState.Idle
         _articleSearchState.value = ArticleSearchState()
         _annotationsState.value = AnnotationsState()
@@ -218,7 +242,6 @@ class BookmarkDetailViewModel @Inject constructor(
                 bookmarkType = bookmark.type
 
                 // For photos and videos, auto-mark as 100% when opened
-                // and refresh from API to ensure embed data is available
                 when (bookmark.type) {
                     is com.mydeck.app.domain.model.Bookmark.Type.Picture,
                     is com.mydeck.app.domain.model.Bookmark.Type.Video -> {
@@ -226,20 +249,52 @@ class BookmarkDetailViewModel @Inject constructor(
                             bookmarkRepository.updateReadProgress(id, 100)
                             currentScrollProgress = 100
                         }
-                        // Refresh from API to get embed and other fields
-                        // that may not have been present during initial sync
-                        bookmarkRepository.refreshBookmarkFromApi(id)
-                        // Fetch article content on demand if not yet downloaded
-                        // (videos and photos can have article content per the API spec)
-                        when (bookmark.contentState) {
-                            ContentState.DOWNLOADED -> { /* Content already available */ }
-                            ContentState.PERMANENT_NO_CONTENT -> {
-                                _contentLoadState.value = ContentLoadState.Failed(
-                                    reason = bookmark.contentFailureReason ?: "No content available",
-                                    canRetry = false
-                                )
+                        // Refresh metadata from API if embed is missing
+                        // (list endpoint used by full sync doesn't include embed).
+                        // Await the refresh before evaluating content state so that
+                        // hasEmbedFallback reflects the freshly-fetched embed. Without
+                        // this, a race between the async metadata refresh and the
+                        // content state check can permanently switch the UI to ORIGINAL
+                        // mode before the embed arrives.
+                        val effectiveBookmark = if (bookmark.type is com.mydeck.app.domain.model.Bookmark.Type.Video &&
+                            bookmark.embed.isNullOrBlank()) {
+                            bookmarkRepository.refreshBookmarkMetadata(id)
+                            bookmarkRepository.getBookmarkById(id)
+                        } else {
+                            bookmark
+                        }
+                        // Fetch article content on demand if not yet downloaded.
+                        // For videos that have an embed but no article content, skip —
+                        // the embed is the content, and fetchContentOnDemand would
+                        // incorrectly mark these PERMANENT_NO_CONTENT (blocking the
+                        // embed view on first open due to a race with metadata refresh).
+                        val hasEmbedFallback = effectiveBookmark.type is com.mydeck.app.domain.model.Bookmark.Type.Video &&
+                            !effectiveBookmark.hasArticle && !effectiveBookmark.embed.isNullOrBlank()
+                        when (effectiveBookmark.contentState) {
+                            ContentState.DOWNLOADED -> {
+                                cachedHasResources = contentPackageManager.hasResources(id)
+                                cachedHasOfflinePackage = contentPackageManager.getContentDir(id) != null
+                                _contentLoadState.value = ContentLoadState.Loaded
+                                // Check for annotation changes from other clients
+                                if (contentPackageManager.getContentDir(id) != null) {
+                                    syncAnnotationsForContentPackage(id)
+                                }
                             }
-                            else -> fetchContentOnDemand(id)
+                            ContentState.PERMANENT_NO_CONTENT -> {
+                                // For videos with embeds, PERMANENT_NO_CONTENT just means
+                                // no article text — the embed still works as the content.
+                                if (!hasEmbedFallback) {
+                                    _contentLoadState.value = ContentLoadState.Failed(
+                                        reason = effectiveBookmark.contentFailureReason ?: "No content available",
+                                        canRetry = false
+                                    )
+                                }
+                            }
+                            else -> {
+                                if (!hasEmbedFallback) {
+                                    fetchContentOnDemand(id)
+                                }
+                            }
                         }
                     }
                     is com.mydeck.app.domain.model.Bookmark.Type.Article -> {
@@ -251,7 +306,16 @@ class BookmarkDetailViewModel @Inject constructor(
                         // Handle content availability
                         when (bookmark.contentState) {
                             ContentState.DOWNLOADED -> {
-                                syncAnnotationsIfNeeded(id)
+                                cachedHasResources = contentPackageManager.hasResources(id)
+                                cachedHasOfflinePackage = contentPackageManager.getContentDir(id) != null
+                                _contentLoadState.value = ContentLoadState.Loaded
+                                if (cachedHasOfflinePackage == true) {
+                                    // Content package on disk — check for annotation changes
+                                    syncAnnotationsForContentPackage(id)
+                                } else {
+                                    // Legacy article path — content in Room
+                                    syncAnnotationsIfNeeded(id)
+                                }
                             }
                             ContentState.PERMANENT_NO_CONTENT -> {
                                 // Signal to UI that content is permanently unavailable
@@ -323,6 +387,13 @@ class BookmarkDetailViewModel @Inject constructor(
                 typographySettings,
                 readerAppearanceSelection
             ) { bookmark, updateState, template, typographySettings, readerAppearanceSelection ->
+                ContentRefreshable(bookmark, updateState, template, typographySettings, readerAppearanceSelection)
+            }.map { data ->
+                val bookmark = data.bookmark
+                val updateState = data.updateState
+                val template = data.template
+                val typographySettings = data.typographySettings
+                val readerAppearanceSelection = data.readerAppearanceSelection
                 if (bookmark == null) {
                     Timber.e("Error loading bookmark [bookmarkId=$id]")
                     UiState.Error
@@ -330,6 +401,15 @@ class BookmarkDetailViewModel @Inject constructor(
                     Timber.e("Error loading template(s)")
                     UiState.Error
                 } else {
+                    // Content comes from Room (both legacy and multipart paths).
+                    // Only check for offline content dir (cheap) to set the base URL
+                    // for WebViewAssetLoader image serving.
+                    val hasOfflinePackage = cachedHasOfflinePackage ?: (contentPackageManager.getContentDir(id) != null)
+                    val effectiveArticleContent = bookmark.articleContent
+                    val offlineBaseUrl = if (hasOfflinePackage) {
+                        com.mydeck.app.domain.content.OfflineContentPathHandler.buildBaseUrl(id)
+                    } else null
+
                     UiState.Success(
                         bookmark = Bookmark(
                             url = bookmark.url,
@@ -351,7 +431,7 @@ class BookmarkDetailViewModel @Inject constructor(
                                 is com.mydeck.app.domain.model.Bookmark.Type.Picture -> Bookmark.Type.PHOTO
                                 is com.mydeck.app.domain.model.Bookmark.Type.Video -> Bookmark.Type.VIDEO
                             },
-                            articleContent = bookmark.articleContent,
+                            articleContent = effectiveArticleContent,
                             embed = bookmark.embed,
                             lang = bookmark.lang,
                             textDirection = bookmark.textDirection,
@@ -363,10 +443,14 @@ class BookmarkDetailViewModel @Inject constructor(
                             readProgress = bookmark.readProgress,
                             debugInfo = buildDebugInfo(bookmark),
                             hasContent = when (bookmark.type) {
-                                is com.mydeck.app.domain.model.Bookmark.Type.Article -> !bookmark.articleContent.isNullOrBlank()
-                                is com.mydeck.app.domain.model.Bookmark.Type.Video -> !bookmark.articleContent.isNullOrBlank() || !bookmark.embed.isNullOrBlank()
-                                is com.mydeck.app.domain.model.Bookmark.Type.Picture -> true
-                            }
+                                is com.mydeck.app.domain.model.Bookmark.Type.Article -> !effectiveArticleContent.isNullOrBlank()
+                                is com.mydeck.app.domain.model.Bookmark.Type.Video -> !effectiveArticleContent.isNullOrBlank() || !bookmark.embed.isNullOrBlank()
+                                is com.mydeck.app.domain.model.Bookmark.Type.Picture ->
+                                    offlineBaseUrl != null
+                            },
+                            isContentDownloaded = bookmark.contentState == ContentState.DOWNLOADED || bookmark.contentState == ContentState.DIRTY,
+                            offlineBaseUrl = offlineBaseUrl,
+                            hasResources = cachedHasResources ?: contentPackageManager.hasResources(id)
                         ),
                         updateBookmarkState = updateState,
                         template = template,
@@ -487,23 +571,59 @@ class BookmarkDetailViewModel @Inject constructor(
         }
     }
 
-    private suspend fun refreshArticleContent(bookmarkId: String) {
-        val response = readeckApi.getArticle(bookmarkId)
-        if (!response.isSuccessful || response.body() == null) {
-            throw IllegalStateException("Failed to refresh article content: HTTP ${response.code()}")
+    /**
+     * Lightweight HTML-only refresh after annotation create/delete.
+     * Full packages refresh through the content-package path, which rewrites image URLs
+     * to relative paths and updates the on-disk package HTML. Text-cached bookmarks
+     * refresh through the legacy article path so they remain text caches instead of
+     * being promoted into managed offline packages.
+     *
+     * Only full offline packages fall back to a multipart force refresh.
+     */
+    private suspend fun refreshAnnotationHtml(bookmarkId: String) {
+        val hasResources = cachedHasResources ?: contentPackageManager.hasResources(bookmarkId) ?: false
+        val enrichedHtml = if (hasResources) {
+            loadContentPackageUseCase.refreshHtmlForAnnotations(bookmarkId)
+        } else {
+            loadArticleUseCase.refreshHtmlForAnnotations(bookmarkId)
         }
+        if (enrichedHtml != null) {
+            cacheAnnotationSnapshot(bookmarkId)
+            _annotationRefreshEvent.send(AnnotationRefreshEvent.HtmlRefresh(enrichedHtml))
+        } else if (hasResources) {
+            // Fallback: full multipart refresh (will cause WebView reload)
+            val result = loadContentPackageUseCase.executeForceRefresh(bookmarkId)
+            if (result is LoadContentPackageUseCase.Result.Success) {
+                cacheAnnotationSnapshot(bookmarkId)
+            } else {
+                throw IllegalStateException("Content refresh failed: $result")
+            }
+        } else {
+            throw IllegalStateException("Article refresh failed")
+        }
+    }
 
-        val bookmark = bookmarkRepository.getBookmarkById(bookmarkId)
-        bookmarkRepository.insertBookmarks(
-            listOf(
-                bookmark.copy(
-                    articleContent = response.body(),
-                    contentState = ContentState.DOWNLOADED,
-                    contentFailureReason = null
+    /**
+     * Update annotation color attribute in the on-disk index.html.
+     * Used for color changes where only the attribute value changes.
+     */
+    private suspend fun updateAnnotationColorOnDisk(bookmarkId: String, annotationIds: List<String>, color: String) {
+        var html = contentPackageManager.getHtmlContent(bookmarkId) ?: return
+        for (id in annotationIds) {
+            val escapedId = Regex.escape(id)
+            // Match entire <rd-annotation ...> opening tag containing this annotation ID,
+            // then replace the color attribute within it (handles any attribute order)
+            val tagRegex = Regex("""<rd-annotation\b([^>]*data-annotation-id-value="$escapedId"[^>]*)>""")
+            html = tagRegex.replace(html) { match ->
+                val attrs = match.groupValues[1]
+                val updatedAttrs = attrs.replace(
+                    Regex("""data-annotation-color="[^"]*""""),
+                    """data-annotation-color="$color""""
                 )
-            )
-        )
-        cacheAnnotationSnapshot(bookmarkId)
+                "<rd-annotation$updatedAttrs>"
+            }
+        }
+        contentPackageManager.updateHtml(bookmarkId, html)
     }
 
     fun onClickShareBookmark(title: String, url: String) {
@@ -599,26 +719,133 @@ class BookmarkDetailViewModel @Inject constructor(
     }
 
     private fun fetchContentOnDemand(bookmarkId: String) {
+        _contentLoadState.value = ContentLoadState.Loading(0f)
         viewModelScope.launch {
-            _contentLoadState.value = ContentLoadState.Loading
-            val result = loadArticleUseCase.execute(bookmarkId)
-            _contentLoadState.value = when (result) {
-                is LoadArticleUseCase.Result.Success -> ContentLoadState.Loaded
-                is LoadArticleUseCase.Result.AlreadyDownloaded -> ContentLoadState.Loaded
-                is LoadArticleUseCase.Result.TransientFailure -> ContentLoadState.Failed(
-                    reason = result.reason,
-                    canRetry = true
-                )
-                is LoadArticleUseCase.Result.PermanentFailure -> ContentLoadState.Failed(
-                    reason = result.reason,
-                    canRetry = false
-                )
+            // Track the current floor so the ticker and milestone callbacks
+            // both advance monotonically without jumping backwards.
+            var progressFloor = 0f
+            val setProgress: (Float) -> Unit = { value ->
+                val clamped = value.coerceAtLeast(progressFloor)
+                progressFloor = clamped
+                _contentLoadState.value = ContentLoadState.Loading(clamped)
             }
+
+            // The network fetch (0.10 → 0.55) is the slowest phase. Run a ticker
+            // that advances the bar in small increments so it keeps moving visually.
+            // When the fetch completes, the milestone callback jumps past the cap.
+            val tickerJob = launch {
+                val tickStart = 0.10f
+                val tickCap = 0.50f   // don't exceed this; leave room to jump to 0.55
+                val tickStep = 0.05f
+                val tickInterval = 300L // ms
+                var tick = tickStart
+                setProgress(tick)
+                while (tick < tickCap) {
+                    delay(tickInterval)
+                    tick = (tick + tickStep).coerceAtMost(tickCap)
+                    setProgress(tick)
+                }
+            }
+
+            val isArticleType = bookmarkType is com.mydeck.app.domain.model.Bookmark.Type.Article
+            val loadState = if (isArticleType) {
+                setProgress(0.55f)
+                val articleResult = loadArticleUseCase.execute(
+                    bookmarkId,
+                    markDirtyAfterSuccess = false
+                )
+                tickerJob.cancel()
+                when (articleResult) {
+                    is LoadArticleUseCase.Result.Success -> ContentLoadState.Loaded
+                    is LoadArticleUseCase.Result.AlreadyDownloaded -> ContentLoadState.Loaded
+                    is LoadArticleUseCase.Result.TransientFailure -> {
+                        val pkgResult = loadContentPackageUseCase.execute(bookmarkId, setProgress)
+                        when (pkgResult) {
+                            is LoadContentPackageUseCase.Result.Success -> ContentLoadState.Loaded
+                            is LoadContentPackageUseCase.Result.AlreadyDownloaded -> ContentLoadState.Loaded
+                            is LoadContentPackageUseCase.Result.TransientFailure -> ContentLoadState.Failed(
+                                reason = articleResult.reason,
+                                canRetry = true
+                            )
+                            is LoadContentPackageUseCase.Result.PermanentFailure -> ContentLoadState.Failed(
+                                reason = articleResult.reason,
+                                canRetry = true
+                            )
+                        }
+                    }
+                    is LoadArticleUseCase.Result.PermanentFailure -> {
+                        val pkgResult = loadContentPackageUseCase.execute(bookmarkId, setProgress)
+                        when (pkgResult) {
+                            is LoadContentPackageUseCase.Result.Success -> ContentLoadState.Loaded
+                            is LoadContentPackageUseCase.Result.AlreadyDownloaded -> ContentLoadState.Loaded
+                            is LoadContentPackageUseCase.Result.TransientFailure -> ContentLoadState.Failed(
+                                reason = articleResult.reason,
+                                canRetry = false
+                            )
+                            is LoadContentPackageUseCase.Result.PermanentFailure -> ContentLoadState.Failed(
+                                reason = articleResult.reason,
+                                canRetry = false
+                            )
+                        }
+                    }
+                }
+            } else {
+                val pkgResult = loadContentPackageUseCase.execute(bookmarkId, setProgress)
+                tickerJob.cancel()
+                when (pkgResult) {
+                    is LoadContentPackageUseCase.Result.Success -> ContentLoadState.Loaded
+                    is LoadContentPackageUseCase.Result.AlreadyDownloaded -> ContentLoadState.Loaded
+                    is LoadContentPackageUseCase.Result.PermanentFailure -> ContentLoadState.Failed(
+                        reason = pkgResult.reason, canRetry = false
+                    )
+                    is LoadContentPackageUseCase.Result.TransientFailure -> ContentLoadState.Failed(
+                        reason = pkgResult.reason, canRetry = true
+                    )
+                }
+            }
+            if (loadState == ContentLoadState.Loaded) {
+                cachedHasResources = contentPackageManager.hasResources(bookmarkId)
+                cachedHasOfflinePackage = contentPackageManager.getContentDir(bookmarkId) != null
+                if (cachedHasResources != true && settingsDataStore.isOfflineReadingEnabled()) {
+                    enqueuePriorityPackageDownload(bookmarkId)
+                }
+            }
+            _contentLoadState.value = loadState
         }
     }
 
-    fun retryContentFetch() {
-        _bookmarkId.value?.let { fetchContentOnDemand(it) }
+    private suspend fun enqueuePriorityPackageDownload(bookmarkId: String) {
+        try {
+            if (!settingsDataStore.isOfflineReadingEnabled()) {
+                return
+            }
+            val includeArchived = settingsDataStore.getOfflineContentScope().includesArchived
+            if (!includeArchived) {
+                val bookmark = bookmarkRepository.getBookmarkById(bookmarkId)
+                if (bookmark.isArchived) {
+                    Timber.d("Skipping priority package download for archived bookmark outside offline scope: $bookmarkId")
+                    return
+                }
+            }
+            val syncConstraints = settingsDataStore.getContentSyncConstraints()
+            val constraintsBuilder = Constraints.Builder()
+            if (syncConstraints.wifiOnly) {
+                constraintsBuilder.setRequiredNetworkType(NetworkType.UNMETERED)
+            } else {
+                constraintsBuilder.setRequiredNetworkType(NetworkType.CONNECTED)
+            }
+            if (!syncConstraints.allowOnBatterySaver) {
+                constraintsBuilder.setRequiresBatteryNotLow(true)
+            }
+            BatchArticleLoadWorker.enqueuePriorityDownload(
+                workManager = workManager,
+                bookmarkId = bookmarkId,
+                constraints = constraintsBuilder.build()
+            )
+            Timber.d("Queued priority offline package for $bookmarkId")
+        } catch (e: Exception) {
+            Timber.w(e, "Failed to enqueue priority package download for $bookmarkId")
+        }
     }
 
     fun forceRefreshContent() {
@@ -629,7 +856,13 @@ class BookmarkDetailViewModel @Inject constructor(
 
         val job = viewModelScope.launch {
             try {
-                refreshArticleContent(bookmarkId)
+                // Full content refresh (re-downloads entire multipart package)
+                val result = loadContentPackageUseCase.executeForceRefresh(bookmarkId)
+                if (result is LoadContentPackageUseCase.Result.Success) {
+                    cacheAnnotationSnapshot(bookmarkId)
+                } else {
+                    throw IllegalStateException("Content refresh failed: $result")
+                }
                 updateState.value = UpdateBookmarkState.Success(
                     context.getString(R.string.content_refresh_completed)
                 )
@@ -665,42 +898,70 @@ class BookmarkDetailViewModel @Inject constructor(
         viewModelScope.launch {
             _annotationsState.update { it.copy(isLoading = true) }
 
-            try {
-                val response = readeckApi.getAnnotations(bookmarkId)
-                if (response.isSuccessful) {
-                    val annotationDtos = response.body().orEmpty()
-                    val renderedById = renderedAnnotations.associateBy { it.id }
-                    val annotations = annotationDtos
-                        .map { dto ->
-                            val renderedAnnotation = renderedById[dto.id]
+            // 1. Load from local cache first (offline-capable)
+            val cachedEntities = try {
+                cachedAnnotationDao.getAnnotationsForBookmark(bookmarkId)
+            } catch (e: Exception) {
+                Timber.w(e, "Failed to load cached annotations for $bookmarkId")
+                emptyList()
+            }
+            val cachedById = cachedEntities.associateBy { it.id }
+            val renderedById = renderedAnnotations.associateBy { it.id }
+
+            // 2. If online, merge with API data; otherwise use local cache
+            if (connectivityMonitor.isNetworkAvailable()) {
+                try {
+                    val response = readeckApi.getAnnotations(bookmarkId)
+                    if (response.isSuccessful) {
+                        val annotationDtos = response.body().orEmpty()
+                        val annotations = annotationDtos.map { dto ->
+                            val cached = cachedById[dto.id]
+                            val rendered = renderedById[dto.id]
                             Annotation(
                                 id = dto.id,
                                 bookmarkId = bookmarkId,
                                 text = dto.text,
-                                color = renderedAnnotation?.color ?: "yellow",
-                                note = renderedAnnotation?.note,
+                                color = dto.color.takeIf { it.isNotBlank() }
+                                    ?: rendered?.color ?: cached?.color ?: "yellow",
+                                note = dto.note.takeIf { it.isNotBlank() }
+                                    ?: rendered?.note ?: cached?.note,
                                 created = dto.created
                             )
                         }
+                        _annotationsState.value = AnnotationsState(
+                            annotations = annotations,
+                            isLoading = false
+                        )
+                        return@launch
+                    } else {
+                        Timber.w("Failed to load annotations for $bookmarkId: HTTP ${response.code()}")
+                    }
+                } catch (e: Exception) {
+                    Timber.w(e, "Failed to load annotations from API for $bookmarkId")
+                }
+            }
 
-                    _annotationsState.value = AnnotationsState(
-                        annotations = annotations,
-                        isLoading = false
-                    )
-                } else {
-                    Timber.w("Failed to load annotations for $bookmarkId: HTTP ${response.code()}")
-                    _annotationsState.value = AnnotationsState(
-                        annotations = renderedAnnotations,
-                        isLoading = false
+            // 3. Offline or API failed: use cached or rendered annotations
+            val annotations = if (cachedEntities.isNotEmpty()) {
+                cachedEntities.map { entity ->
+                    val rendered = renderedById[entity.id]
+                    Annotation(
+                        id = entity.id,
+                        bookmarkId = bookmarkId,
+                        text = rendered?.text ?: entity.text,
+                        color = rendered?.color ?: entity.color,
+                        note = rendered?.note ?: entity.note,
+                        created = entity.created
                     )
                 }
-            } catch (e: Exception) {
-                Timber.w(e, "Failed to load annotations for $bookmarkId")
-                _annotationsState.value = AnnotationsState(
-                    annotations = renderedAnnotations,
-                    isLoading = false
-                )
+            } else {
+                renderedAnnotations
             }
+
+            _annotationsState.value = AnnotationsState(
+                annotations = annotations,
+                isLoading = false
+            )
         }
     }
 
@@ -717,6 +978,54 @@ class BookmarkDetailViewModel @Inject constructor(
             if (annotationSyncJob === job) {
                 annotationSyncJob = null
             }
+        }
+    }
+
+    /**
+     * Check for annotation changes from other clients for content-package bookmarks.
+     *
+     * Compares the current annotation list from the REST API against the cached snapshot.
+     * If annotations have changed, performs a lightweight HTML-only refresh and pushes
+     * the update to the WebView via JS — no full page reload.
+     */
+    private fun syncAnnotationsForContentPackage(bookmarkId: String) {
+        if (annotationSyncJob?.isActive == true) return
+
+        val job = viewModelScope.launch {
+            if (!connectivityMonitor.isNetworkAvailable()) return@launch
+
+            try {
+                val response = readeckApi.getAnnotations(bookmarkId)
+                if (!response.isSuccessful) return@launch
+
+                val annotations = response.body().orEmpty()
+                val currentSnapshot = annotations.toAnnotationCachePayload(json)
+                val cachedSnapshot = settingsDataStore.getCachedAnnotationSnapshot(bookmarkId)
+
+                val htmlContent = contentPackageManager.getHtmlContent(bookmarkId)
+                val htmlHasAnnotations = htmlContent?.contains("rd-annotation") == true
+
+                val shouldRefresh = when {
+                    cachedSnapshot == null ->
+                        annotations.isNotEmpty() || htmlHasAnnotations
+                    cachedSnapshot != currentSnapshot -> true
+                    else -> false
+                }
+
+                if (shouldRefresh) {
+                    Timber.d("Annotation change detected for $bookmarkId, refreshing HTML")
+                    refreshAnnotationHtml(bookmarkId)
+                } else if (cachedSnapshot == null && annotations.isEmpty()) {
+                    // No annotations exist anywhere — save empty snapshot to avoid re-checking
+                    settingsDataStore.saveCachedAnnotationSnapshot(bookmarkId, currentSnapshot)
+                }
+            } catch (e: Exception) {
+                Timber.w(e, "Content-package annotation sync failed for $bookmarkId")
+            }
+        }
+        annotationSyncJob = job
+        job.invokeOnCompletion {
+            if (annotationSyncJob === job) annotationSyncJob = null
         }
     }
 
@@ -912,6 +1221,11 @@ class BookmarkDetailViewModel @Inject constructor(
         color: String
     ) {
         val bookmarkId = _bookmarkId.value ?: return
+        if (!connectivityMonitor.isNetworkAvailable()) {
+            _annotationEditState.value = null
+            updateState.value = UpdateBookmarkState.Error(context.getString(R.string.highlight_offline_unavailable))
+            return
+        }
         _annotationEditState.update { it?.copy(isSaving = true) }
 
         viewModelScope.launch {
@@ -931,7 +1245,7 @@ class BookmarkDetailViewModel @Inject constructor(
                     throw IllegalStateException("HTTP ${response.code()}")
                 }
 
-                refreshArticleContent(bookmarkId)
+                refreshAnnotationHtml(bookmarkId)
                 _annotationEditState.value = null
             } catch (e: Exception) {
                 Timber.w(e, "Failed to create annotation for $bookmarkId")
@@ -947,6 +1261,11 @@ class BookmarkDetailViewModel @Inject constructor(
 
     fun updateAnnotationColors(annotationIds: List<String>, color: String) {
         val bookmarkId = _bookmarkId.value ?: return
+        if (!connectivityMonitor.isNetworkAvailable()) {
+            _annotationEditState.value = null
+            updateState.value = UpdateBookmarkState.Error(context.getString(R.string.highlight_offline_unavailable))
+            return
+        }
         _annotationEditState.update { it?.copy(isSaving = true) }
 
         viewModelScope.launch {
@@ -963,7 +1282,10 @@ class BookmarkDetailViewModel @Inject constructor(
                     }
                 }
 
-                refreshArticleContent(bookmarkId)
+                // Color change: instant JS update + disk persistence (no full HTML refresh)
+                _annotationRefreshEvent.send(AnnotationRefreshEvent.ColorUpdate(annotationIds, color))
+                updateAnnotationColorOnDisk(bookmarkId, annotationIds, color)
+                cacheAnnotationSnapshot(bookmarkId)
                 _annotationEditState.value = null
             } catch (e: Exception) {
                 Timber.w(e, "Failed to update annotations ${annotationIds.joinToString()} for $bookmarkId")
@@ -979,6 +1301,11 @@ class BookmarkDetailViewModel @Inject constructor(
 
     fun deleteAnnotations(annotationIds: List<String>) {
         val bookmarkId = _bookmarkId.value ?: return
+        if (!connectivityMonitor.isNetworkAvailable()) {
+            _annotationEditState.value = null
+            updateState.value = UpdateBookmarkState.Error(context.getString(R.string.highlight_offline_unavailable))
+            return
+        }
         _annotationEditState.update { it?.copy(isSaving = true) }
 
         viewModelScope.launch {
@@ -994,7 +1321,7 @@ class BookmarkDetailViewModel @Inject constructor(
                     }
                 }
 
-                refreshArticleContent(bookmarkId)
+                refreshAnnotationHtml(bookmarkId)
                 _annotationEditState.value = null
             } catch (e: Exception) {
                 Timber.w(e, "Failed to delete annotations ${annotationIds.joinToString()} for $bookmarkId")
@@ -1040,7 +1367,7 @@ class BookmarkDetailViewModel @Inject constructor(
 
     sealed class ContentLoadState {
         data object Idle : ContentLoadState()
-        data object Loading : ContentLoadState()
+        data class Loading(val progress: Float = 0f) : ContentLoadState()
         data object Loaded : ContentLoadState()
         data class Failed(val reason: String, val canRetry: Boolean) : ContentLoadState()
     }
@@ -1054,6 +1381,14 @@ class BookmarkDetailViewModel @Inject constructor(
         data class Ready(val uri: Uri, val fileName: String) : DebugExportEvent()
         data class Error(val message: String) : DebugExportEvent()
     }
+
+    private data class ContentRefreshable(
+        val bookmark: com.mydeck.app.domain.model.Bookmark?,
+        val updateState: UpdateBookmarkState?,
+        val template: Template?,
+        val typographySettings: com.mydeck.app.domain.model.TypographySettings,
+        val readerAppearanceSelection: ReaderAppearanceSelection
+    )
 
     sealed class UiState {
         data class Success(
@@ -1095,18 +1430,28 @@ class BookmarkDetailViewModel @Inject constructor(
         val labels: List<String>,
         val readProgress: Int,
         val debugInfo: String = "",
-        val hasContent: Boolean
+        val hasContent: Boolean,
+        val isContentDownloaded: Boolean = false,
+        val offlineBaseUrl: String? = null,
+        val hasResources: Boolean? = null
     ) {
         enum class Type {
             ARTICLE, PHOTO, VIDEO
         }
 
         fun shouldShowHeaderDescription(): Boolean {
+            if (offlineBaseUrl != null && (type == Type.PHOTO || type == Type.VIDEO)) return false
             return description.isNotBlank() && !(
-                type == Type.ARTICLE &&
-                    omitDescription == true &&
+                omitDescription == true &&
                     !articleContent.isNullOrBlank()
                 )
+        }
+
+        private fun normalizeText(s: String): String {
+            return s
+                .replace(Regex("<[^>]*>"), "")
+                .replace(Regex("\\s+"), " ")
+                .trim()
         }
 
         fun getContent(template: Template, isDark: Boolean): String? {
@@ -1122,13 +1467,25 @@ class BookmarkDetailViewModel @Inject constructor(
             }
             return when (type) {
                 Type.PHOTO -> {
-                    val textPart = articleContent ?: description.takeIf { it.isNotBlank() }?.let { "<p>$it</p>" } ?: ""
-                    val imagePart = """<img src="$imgSrc"/>"""
-                    htmlTemplate.replace("%s", imagePart + textPart)
+                    if (offlineBaseUrl != null && articleContent != null) {
+                        htmlTemplate.replace("%s", articleContent)
+                    } else {
+                        val articleNormalized = articleContent?.let { normalizeText(it) }
+                        val descNormalized = normalizeText(description)
+                        val textPart = if (articleContent != null && articleNormalized != descNormalized) articleContent else ""
+                        val imagePart = """<img src="$imgSrc"/>"""
+                        htmlTemplate.replace("%s", imagePart + textPart)
+                    }
                 }
 
                 Type.VIDEO -> {
-                    val textPart = articleContent ?: description.takeIf { it.isNotBlank() }?.let { "<p>$it</p>" } ?: ""
+                    val articleNormalized = articleContent?.let { normalizeText(it) }
+                    val descNormalized = normalizeText(description)
+                    val textPart = when {
+                        articleContent != null && articleNormalized != descNormalized -> articleContent
+                        !shouldShowHeaderDescription() && description.isNotBlank() -> "<p>$description</p>"
+                        else -> ""
+                    }
                     val embedPart = embed?.let { raw ->
                         if (raw.contains("<iframe")) {
                             """<div class="video-embed">$raw</div>"""
@@ -1190,6 +1547,7 @@ class BookmarkDetailViewModel @Inject constructor(
             appendLine("  Read Progress: ${bookmark.readProgress}%")
             appendLine("  Embed: ${bookmark.embed ?: "N/A"}")
             appendLine("  Embed Hostname: ${bookmark.embedHostname ?: "N/A"}")
+            appendLine("  Omit Description: ${bookmark.omitDescription ?: "N/A"}")
             appendLine("  Has Article (server): ${bookmark.hasArticle}")
             appendLine("  Content State: ${bookmark.contentState}")
             if (bookmark.contentFailureReason != null) {
@@ -1367,5 +1725,18 @@ class BookmarkDetailViewModel @Inject constructor(
         val linkText: String? = null,
         val linkType: String = "none",  // "none" | "image" | "page"
     )
+
+    /**
+     * Events for in-place WebView annotation updates that avoid full page reload.
+     */
+    sealed class AnnotationRefreshEvent {
+        /** Update annotation color attributes in the DOM via JS. No page reload needed. */
+        data class ColorUpdate(val annotationIds: List<String>, val color: String) : AnnotationRefreshEvent()
+        /** Replace .container innerHTML with fresh HTML. Used after create/delete. */
+        data class HtmlRefresh(val containerHtml: String) : AnnotationRefreshEvent()
+    }
+
+    companion object {
+    }
 
 }

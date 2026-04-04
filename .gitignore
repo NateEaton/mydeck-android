@@ -14,6 +14,7 @@ local.properties
 .attach_pid*
 app/backup-icons/
 .vscode/
+.claude/
 
 # Ignore transient files
 
@@ -34,3 +35,5 @@ Thumbs.db
 
 screenshots/
 app/githubRelease/
+
+_notes/
