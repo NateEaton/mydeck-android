@@ -24,10 +24,10 @@ concurrency:
 
 jobs:
   verify:
-    if: |
-      github.event_name == 'pull_request' || 
-      github.event_name == 'push' && 
-      !github.event.pull_request
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event_name == 'pull_request' ||
+      github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
