@@ -16,11 +16,6 @@ enum class OfflineContentScope(val includesArchived: Boolean) {
 }
 
 enum class OfflineImageStorageLimit(val bytes: Long) {
-    // Test limits — remove before release
-    MB_5(5L * 1024 * 1024),
-    MB_10(10L * 1024 * 1024),
-    MB_20(20L * 1024 * 1024),
-    // Production limits
     MB_100(100L * 1024 * 1024),
     MB_250(250L * 1024 * 1024),
     MB_500(500L * 1024 * 1024),

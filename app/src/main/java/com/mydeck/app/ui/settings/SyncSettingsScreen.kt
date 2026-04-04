@@ -400,53 +400,55 @@ private fun BookmarkSyncSection(
             description = stringResource(R.string.sync_bookmark_description)
         )
 
-        ListItem(
-            modifier = Modifier.clickable(onClick = onClickFrequency),
-            headlineContent = {
-                Text(text = stringResource(R.string.sync_bookmark_frequency_label))
-            },
-            supportingContent = {
-                Column(
-                    modifier = Modifier.padding(horizontal = 16.dp),
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
+        // Sync frequency and timestamps grouped tightly — no extra gap between the
+        // ListItem's internal padding and the supplementary sync time rows
+        Column {
+            ListItem(
+                modifier = Modifier.clickable(onClick = onClickFrequency),
+                headlineContent = {
+                    Text(text = stringResource(R.string.sync_bookmark_frequency_label))
+                },
+                trailingContent = {
                     Text(
-                        text = stringResource(
-                            R.string.sync_status_last_sync,
-                            lastBookmarkSyncTimestamp ?: stringResource(R.string.sync_status_never_short)
-                        ),
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                    Text(
-                        text = stringResource(
-                            R.string.sync_status_next_sync,
-                            nextRun ?: stringResource(R.string.auto_sync_next_run_null)
-                        ),
-                        style = MaterialTheme.typography.bodyMedium
+                        text = stringResource(frequency.toLabelResource()),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.primary
                     )
                 }
-            },
-            trailingContent = {
-                Text(
-                    text = stringResource(frequency.toLabelResource()),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.primary
-                )
-            }
-        )
-
-        // Bookmarks section
-        Column(
-            modifier = Modifier.padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp)
-        ) {
-            Text(
-                text = stringResource(R.string.sync_status_bookmarks_heading),
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onSurface
             )
             Column(
                 modifier = Modifier.padding(horizontal = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(2.dp)
+            ) {
+                Text(
+                    text = stringResource(
+                        R.string.sync_status_last_sync,
+                        lastBookmarkSyncTimestamp ?: stringResource(R.string.sync_status_never_short)
+                    ),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    text = stringResource(
+                        R.string.sync_status_next_sync,
+                        nextRun ?: stringResource(R.string.auto_sync_next_run_null)
+                    ),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+
+        // Bookmarks — same heading+stats pattern as Storage
+        Column {
+            Text(
+                text = stringResource(R.string.sync_status_bookmarks_heading),
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+            )
+            Column(
+                modifier = Modifier.padding(horizontal = 32.dp),
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 CompactStatRow(
@@ -544,7 +546,7 @@ private fun OfflineReadingSection(
                 Text(
                     text = stringResource(R.string.sync_offline_what_to_keep),
                     style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSurface,
+                    color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
                 )
 
@@ -624,7 +626,7 @@ private fun OfflineReadingSection(
                 Text(
                     text = stringResource(R.string.sync_offline_whether_to_download),
                     style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSurface,
+                    color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
                 )
 
@@ -646,7 +648,7 @@ private fun OfflineReadingSection(
                 Text(
                     text = stringResource(R.string.sync_storage_heading),
                     style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSurface,
+                    color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
                 )
 
@@ -754,21 +756,6 @@ private fun StorageLimitDialog(
         title = { Text(stringResource(titleRes)) },
         text = {
             Column {
-                OfflineSelectionOption(
-                    label = stringResource(R.string.sync_offline_image_limit_5_mb),
-                    selected = selectedLimit == OfflineImageStorageLimit.MB_5,
-                    onClick = { onLimitSelected(OfflineImageStorageLimit.MB_5) }
-                )
-                OfflineSelectionOption(
-                    label = stringResource(R.string.sync_offline_image_limit_10_mb),
-                    selected = selectedLimit == OfflineImageStorageLimit.MB_10,
-                    onClick = { onLimitSelected(OfflineImageStorageLimit.MB_10) }
-                )
-                OfflineSelectionOption(
-                    label = stringResource(R.string.sync_offline_image_limit_20_mb),
-                    selected = selectedLimit == OfflineImageStorageLimit.MB_20,
-                    onClick = { onLimitSelected(OfflineImageStorageLimit.MB_20) }
-                )
                 OfflineSelectionOption(
                     label = stringResource(R.string.sync_offline_image_limit_100_mb),
                     selected = selectedLimit == OfflineImageStorageLimit.MB_100,

@@ -548,7 +548,8 @@ fun offlineNewestNOptions(): List<IntSelectionOption> {
         IntSelectionOption(25, R.string.sync_offline_newest_n_25),
         IntSelectionOption(50, R.string.sync_offline_newest_n_50),
         IntSelectionOption(100, R.string.sync_offline_newest_n_100),
-        IntSelectionOption(200, R.string.sync_offline_newest_n_200)
+        IntSelectionOption(200, R.string.sync_offline_newest_n_200),
+        IntSelectionOption(500, R.string.sync_offline_newest_n_500)
     )
 }
 
@@ -585,9 +586,6 @@ fun AutoSyncTimeframe.toLabelResource(): Int {
 @StringRes
 fun OfflineImageStorageLimit.toLabelResource(): Int {
     return when (this) {
-        OfflineImageStorageLimit.MB_5 -> R.string.sync_offline_image_limit_5_mb
-        OfflineImageStorageLimit.MB_10 -> R.string.sync_offline_image_limit_10_mb
-        OfflineImageStorageLimit.MB_20 -> R.string.sync_offline_image_limit_20_mb
         OfflineImageStorageLimit.MB_100 -> R.string.sync_offline_image_limit_100_mb
         OfflineImageStorageLimit.MB_250 -> R.string.sync_offline_image_limit_250_mb
         OfflineImageStorageLimit.MB_500 -> R.string.sync_offline_image_limit_500_mb

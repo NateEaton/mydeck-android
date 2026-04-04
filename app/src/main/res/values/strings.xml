@@ -348,9 +348,9 @@ other{}
     <!-- Content Download Policy -->
     <string name="sync_content_policy_section_title">What to download</string>
     <string name="sync_offline_section_title">Offline Reading</string>
-    <string name="sync_offline_section_desc">Control whether MyDeck automatically keeps bookmarks available for offline reading.</string>
+    <string name="sync_offline_section_desc">Read bookmarks without an internet connection.</string>
     <string name="sync_offline_enable">Enable offline reading</string>
-    <string name="sync_offline_enable_desc">Automatically keep eligible bookmarks available offline.</string>
+    <string name="sync_offline_enable_desc">Downloads content automatically based on your settings below.</string>
     <string name="sync_offline_scope">Available offline</string>
     <string name="sync_offline_scope_desc">Choose which bookmarks MyDeck keeps available for offline reading.</string>
     <string name="sync_offline_scope_dialog_title">Available offline</string>
@@ -361,18 +361,15 @@ other{}
     <string name="sync_download_images_desc">Download images alongside article text. When off, images load from the network.</string>
     <string name="sync_offline_keep_offline">Keep offline</string>
     <string name="sync_offline_policy_storage_limit">Storage limit</string>
-    <string name="sync_offline_policy_newest_n">Newest N bookmarks</string>
+    <string name="sync_offline_policy_newest_n">Most recent</string>
     <string name="sync_offline_policy_date_range">Added within last</string>
     <string name="sync_offline_storage_limit_dialog_title">Storage limit</string>
     <string name="sync_offline_max_storage_cap">Maximum storage cap</string>
-    <string name="sync_offline_max_storage_cap_desc">Shown for Newest N and Added within last policies.</string>
+    <string name="sync_offline_max_storage_cap_desc">Applies to Most recent and Added within last options.</string>
     <string name="sync_offline_download_date_range">Download content for date range…</string>
     <string name="sync_offline_image_limit">Storage limit</string>
     <string name="sync_offline_image_limit_dialog_title">Storage limit</string>
     <!-- Test limits — remove before release -->
-    <string name="sync_offline_image_limit_5_mb">5 MB (test)</string>
-    <string name="sync_offline_image_limit_10_mb">10 MB (test)</string>
-    <string name="sync_offline_image_limit_20_mb">20 MB (test)</string>
     <string name="sync_offline_image_limit_100_mb">100 MB</string>
     <string name="sync_offline_image_limit_250_mb">250 MB</string>
     <string name="sync_offline_image_limit_500_mb">500 MB</string>
@@ -382,13 +379,14 @@ other{}
     <string name="sync_offline_newest_n_50">50</string>
     <string name="sync_offline_newest_n_100">100</string>
     <string name="sync_offline_newest_n_200">200</string>
+    <string name="sync_offline_newest_n_500">500</string>
     <string name="sync_offline_date_range_1_week">1 week</string>
     <string name="sync_offline_date_range_1_month">1 month</string>
     <string name="sync_offline_date_range_3_months">3 months</string>
     <string name="sync_offline_date_range_6_months">6 months</string>
     <string name="sync_offline_date_range_1_year">1 year</string>
     <string name="sync_include_archived">Include archived content</string>
-    <string name="sync_include_archived_bookmarks">Include archived bookmarks</string>
+    <string name="sync_include_archived_bookmarks">Include Archive</string>
     <string name="sync_include_archived_desc">When off, only My List downloads offline content during automatic or date-range sync. On-demand downloads are always available regardless of this setting.</string>
     <string name="sync_clear_on_archive">Clear offline content when archiving</string>
     <string name="sync_clear_on_archive_desc">Automatically remove downloaded text and images when a bookmark is archived.</string>

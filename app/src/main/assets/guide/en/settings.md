@@ -19,31 +19,39 @@ The **Synchronization Settings** screen controls how MyDeck keeps your bookmarks
 
 The top of the screen focuses on keeping your bookmark list current.
 
-- **Sync frequency** — choose how often MyDeck checks for bookmark changes in the background
+- **Sync frequency** — choose how often MyDeck checks for bookmark changes in the background; the time of the last sync and the next scheduled sync are shown below this control
 - **Sync Bookmarks Now** — immediately checks for new, updated, and deleted bookmarks
+
+Above the sync button, the **Bookmarks** counts show how many bookmarks are in your **My List**, **Archive**, and **Favorites** views.
 
 ### Offline Reading
 
-Offline reading is optional and off by default. When enabled, MyDeck automatically keeps eligible bookmarks available for offline reading in the background.
+Offline reading is optional and off by default. When enabled, MyDeck automatically downloads and keeps eligible bookmarks available so you can read them without internet access. A status indicator below the toggle shows whether content is actively syncing, up to date, or waiting on a connection or battery constraint.
 
-- **Enable offline reading** — turns on automatic offline content maintenance
-- **Storage limit** — keep full offline packages until they reach the selected storage target
-- **Newest N bookmarks** — keep the newest saved bookmarks fully available offline, up to the selected count
-- **Added within last** — keep bookmarks that were added within the selected rolling time window fully available offline
-- **Maximum storage cap** — appears for **Newest N bookmarks** and **Added within last**; it limits how much space those policies can use
-- **Include archived bookmarks** — when off, automatic offline maintenance applies only to **My List**
+#### What to keep offline
+
+Choose which bookmarks MyDeck keeps fully available offline:
+
+- **Storage limit** — keep saved content until it reaches the selected total storage size
+- **Most recent** — keep the most recently saved bookmarks fully available offline, up to the selected count
+- **Added within last** — keep bookmarks added within the selected rolling time window fully available offline
+- **Maximum storage cap** — appears with **Most recent** and **Added within last** to set an upper storage limit for those options
+- **Include Archive** — when off, automatic offline maintenance applies only to **My List**; when on, archived bookmarks remain eligible
+
+When **Include Archive** is off, archiving a bookmark removes it from offline eligibility, so its content is removed during the next maintenance run.
+
+#### Whether to download
+
 - **Wi-Fi only** — prevents automatic offline downloads from using mobile data
 - **Allow on battery saver** — when off, automatic offline downloads pause while battery saver is active
 
-When **Include archived bookmarks** is off, archiving a bookmark makes it ineligible for managed offline content, so that content is removed during normal maintenance.
+#### Storage
 
-If you turn offline reading off again, MyDeck removes managed offline packages immediately but keeps any on-demand text caches you created by opening bookmarks.
+Shows how many bookmarks are fully available offline, how much storage offline content is using, and when offline content maintenance last ran.
 
-### Sync Status
+- **Clear All Offline Content** — removes all locally stored offline content without deleting the bookmarks themselves
 
-The **Sync Status** section always shows when bookmark sync last ran and when the next scheduled bookmark sync is due. When offline reading is enabled, it also shows bookmark totals, how many bookmarks are fully available offline, how much offline storage is in use, and when offline content maintenance last ran.
-
-- **Clear All Offline Content** — removes locally stored offline content without deleting the bookmarks themselves
+If you turn offline reading off, MyDeck removes all automatically downloaded content immediately but keeps text that was loaded on demand when you opened bookmarks while browsing.
 
 ## User Interface
 
