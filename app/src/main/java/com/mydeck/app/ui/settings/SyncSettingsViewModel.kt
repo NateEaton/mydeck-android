@@ -71,6 +71,7 @@ class SyncSettingsViewModel @Inject constructor(
     private val allowBatterySaver = MutableStateFlow(true)
     private val showDialog = MutableStateFlow<SyncSettingsDialog?>(null)
     private val offlineStorageSize = MutableStateFlow<String?>(null)
+    private val isPurgingOfflineContent = MutableStateFlow(false)
 
     private val detailedSyncStatus = bookmarkDao.observeDetailedSyncStatus()
         .map { counts ->
@@ -176,7 +177,8 @@ class SyncSettingsViewModel @Inject constructor(
         contentSyncStatusRes,
         lastSyncTimestampText,
         lastContentSyncTimestampText,
-        offlineStorageSize
+        offlineStorageSize,
+        isPurgingOfflineContent
     ) { args: Array<Any?> ->
         val detailedSyncStatusCounts = args[13] as BookmarkDao.DetailedSyncStatusCounts
         val totalBookmarks = detailedSyncStatusCounts.total
@@ -207,7 +209,8 @@ class SyncSettingsViewModel @Inject constructor(
                 lastOfflineMaintenanceTimestamp = args[16] as String?,
                 offlineStorageSize = args[17] as String?
             ),
-            showDialog = args[1] as SyncSettingsDialog?
+            showDialog = args[1] as SyncSettingsDialog?,
+            isPurgingOfflineContent = args[18] as Boolean
         )
     }.stateIn(
         scope = viewModelScope,
@@ -250,6 +253,9 @@ class SyncSettingsViewModel @Inject constructor(
 
     fun onOfflineReadingChanged(enabled: Boolean) {
         viewModelScope.launch {
+            if (isPurgingOfflineContent.value) {
+                return@launch
+            }
             settingsDataStore.saveOfflineReadingEnabled(enabled)
             offlineReadingEnabled.value = enabled
 
@@ -259,10 +265,7 @@ class SyncSettingsViewModel @Inject constructor(
                 restartManagedContentSyncIfNeeded()
                 Timber.i("Managed offline reading enabled (includeArchived=$includeArchived)")
             } else {
-                workManager.cancelUniqueWork(BatchArticleLoadWorker.UNIQUE_WORK_NAME)
-                purgeManagedOfflineContent()
-                refreshStorageSize()
-                Timber.i("Managed offline reading disabled and offline content purged")
+                runManagedContentPurge("Managed offline reading disabled and offline content purged")
             }
         }
     }
@@ -354,9 +357,7 @@ class SyncSettingsViewModel @Inject constructor(
     fun onConfirmClearOfflineContent() {
         showDialog.value = null
         viewModelScope.launch {
-            purgeManagedOfflineContent()
-            refreshStorageSize()
-            Timber.i("All offline content cleared by user")
+            runManagedContentPurge("All offline content cleared by user")
         }
     }
 
@@ -389,11 +390,25 @@ class SyncSettingsViewModel @Inject constructor(
         }
     }
 
+    private suspend fun runManagedContentPurge(successLog: String) {
+        isPurgingOfflineContent.value = true
+        try {
+            workManager.cancelUniqueWork(BatchArticleLoadWorker.UNIQUE_WORK_NAME)
+            workManager.cancelAllWorkByTag(BatchArticleLoadWorker.WORK_TAG_OFFLINE_CONTENT)
+            purgeManagedOfflineContent()
+            refreshStorageSize()
+            Timber.i(successLog)
+        } finally {
+            isPurgingOfflineContent.value = false
+        }
+    }
+
     private suspend fun restartManagedContentSyncIfNeeded() {
         if (!offlineReadingEnabled.value) {
             return
         }
         workManager.cancelUniqueWork(BatchArticleLoadWorker.UNIQUE_WORK_NAME)
+        workManager.cancelAllWorkByTag(BatchArticleLoadWorker.WORK_TAG_OFFLINE_CONTENT)
         loadBookmarksUseCase.enqueueContentSyncIfNeeded()
     }
 
@@ -482,7 +497,8 @@ data class SyncSettingsUiState(
     val allowBatterySaver: Boolean = true,
     val contentSyncStatusRes: Int? = null,
     val syncStatus: SyncStatus = SyncStatus(),
-    val showDialog: SyncSettingsDialog? = null
+    val showDialog: SyncSettingsDialog? = null,
+    val isPurgingOfflineContent: Boolean = false
 )
 
 @Immutable

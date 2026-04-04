@@ -169,6 +169,7 @@ class BatchArticleLoadWorker @AssistedInject constructor(
 
     companion object {
         const val UNIQUE_WORK_NAME = "batch_article_load"
+        const val WORK_TAG_OFFLINE_CONTENT = "offline_content_work"
         const val KEY_PRIORITY_BOOKMARK_ID = "priority_bookmark_id"
         private const val PRIORITY_WORK_NAME_PREFIX = "content_priority_"
         private const val BATCH_SIZE = 10
@@ -190,6 +191,7 @@ class BatchArticleLoadWorker @AssistedInject constructor(
             val request = OneTimeWorkRequestBuilder<BatchArticleLoadWorker>()
                 .setInputData(workDataOf(KEY_PRIORITY_BOOKMARK_ID to bookmarkId))
                 .setConstraints(constraints)
+                .addTag(WORK_TAG_OFFLINE_CONTENT)
                 .build()
             workManager.enqueueUniqueWork(
                 "$PRIORITY_WORK_NAME_PREFIX$bookmarkId",

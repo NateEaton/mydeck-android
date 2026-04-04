@@ -140,6 +140,7 @@ class LoadBookmarksUseCase @Inject constructor(
 
             val request = OneTimeWorkRequestBuilder<BatchArticleLoadWorker>()
                 .setConstraints(constraintsBuilder.build())
+                .addTag(BatchArticleLoadWorker.WORK_TAG_OFFLINE_CONTENT)
                 .build()
 
             workManager.enqueueUniqueWork(

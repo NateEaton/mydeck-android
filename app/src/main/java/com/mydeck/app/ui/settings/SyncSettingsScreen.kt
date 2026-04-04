@@ -180,6 +180,7 @@ fun SyncSettingsView(
     onClickClearOfflineContent: () -> Unit,
 ) {
     val hasOfflineContent = settingsUiState.syncStatus.fullOfflineAvailable > 0
+    val controlsEnabled = !settingsUiState.isPurgingOfflineContent
 
     Scaffold(
         modifier = modifier,
@@ -222,6 +223,7 @@ fun SyncSettingsView(
             OfflineReadingSection(
                 uiState = settingsUiState,
                 onOfflineReadingChanged = onOfflineReadingChanged,
+                controlsEnabled = controlsEnabled,
                 onOfflinePolicySelected = onOfflinePolicySelected,
                 onClickOfflinePolicyStorageLimit = onClickOfflinePolicyStorageLimit,
                 onClickOfflinePolicyNewestN = onClickOfflinePolicyNewestN,
@@ -243,9 +245,20 @@ fun SyncSettingsView(
             if (settingsUiState.offlineReadingEnabled || hasOfflineContent) {
                 OutlinedButton(
                     onClick = onClickClearOfflineContent,
+                    enabled = controlsEnabled,
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text(stringResource(R.string.sync_storage_clear))
+                    if (settingsUiState.isPurgingOfflineContent) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(16.dp),
+                            strokeWidth = 2.dp,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        Spacer(Modifier.size(8.dp))
+                        Text(stringResource(R.string.sync_offline_purging))
+                    } else {
+                        Text(stringResource(R.string.sync_storage_clear))
+                    }
                 }
             }
 
@@ -332,6 +345,7 @@ private fun BookmarkSyncSection(
 private fun OfflineReadingSection(
     uiState: SyncSettingsUiState,
     onOfflineReadingChanged: (Boolean) -> Unit,
+    controlsEnabled: Boolean,
     onOfflinePolicySelected: (OfflinePolicy) -> Unit,
     onClickOfflinePolicyStorageLimit: () -> Unit,
     onClickOfflinePolicyNewestN: () -> Unit,
@@ -360,10 +374,20 @@ private fun OfflineReadingSection(
             trailingContent = {
                 Switch(
                     checked = uiState.offlineReadingEnabled,
-                    onCheckedChange = onOfflineReadingChanged
+                    onCheckedChange = onOfflineReadingChanged,
+                    enabled = controlsEnabled
                 )
             }
         )
+
+        if (uiState.isPurgingOfflineContent) {
+            Text(
+                text = stringResource(R.string.sync_offline_purging),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(horizontal = 16.dp)
+            )
+        }
 
         AnimatedVisibility(
             visible = uiState.offlineReadingEnabled,
@@ -395,6 +419,7 @@ private fun OfflineReadingSection(
                     selected = uiState.offlinePolicy == OfflinePolicy.STORAGE_LIMIT,
                     title = stringResource(R.string.sync_offline_policy_storage_limit),
                     value = stringResource(uiState.offlinePolicyStorageLimit.toLabelResource()),
+                    enabled = controlsEnabled,
                     onClick = {
                         onOfflinePolicySelected(OfflinePolicy.STORAGE_LIMIT)
                         onClickOfflinePolicyStorageLimit()
@@ -405,6 +430,7 @@ private fun OfflineReadingSection(
                     selected = uiState.offlinePolicy == OfflinePolicy.NEWEST_N,
                     title = stringResource(R.string.sync_offline_policy_newest_n),
                     value = uiState.offlinePolicyNewestN.toString(),
+                    enabled = controlsEnabled,
                     onClick = {
                         onOfflinePolicySelected(OfflinePolicy.NEWEST_N)
                         onClickOfflinePolicyNewestN()
@@ -415,6 +441,7 @@ private fun OfflineReadingSection(
                     selected = uiState.offlinePolicy == OfflinePolicy.DATE_RANGE,
                     title = stringResource(R.string.sync_offline_policy_date_range),
                     value = stringResource(uiState.offlinePolicyDateRangeWindow.toLabelResource()),
+                    enabled = controlsEnabled,
                     onClick = {
                         onOfflinePolicySelected(OfflinePolicy.DATE_RANGE)
                         onClickOfflinePolicyDateRangeWindow()
@@ -427,7 +454,10 @@ private fun OfflineReadingSection(
                     exit = shrinkVertically()
                 ) {
                     ListItem(
-                        modifier = Modifier.clickable(onClick = onClickOfflineMaxStorageCap),
+                        modifier = Modifier.clickable(
+                            enabled = controlsEnabled,
+                            onClick = onClickOfflineMaxStorageCap
+                        ),
                         headlineContent = {
                             Text(text = stringResource(R.string.sync_offline_max_storage_cap))
                         },
@@ -447,16 +477,19 @@ private fun OfflineReadingSection(
                 TogglePreferenceRow(
                     title = stringResource(R.string.sync_include_archived_bookmarks),
                     checked = uiState.includeArchivedBookmarks,
+                    enabled = controlsEnabled,
                     onCheckedChange = onIncludeArchivedChanged
                 )
                 TogglePreferenceRow(
                     title = stringResource(R.string.sync_wifi_only),
                     checked = uiState.wifiOnly,
+                    enabled = controlsEnabled,
                     onCheckedChange = onWifiOnlyChanged
                 )
                 TogglePreferenceRow(
                     title = stringResource(R.string.sync_allow_battery_saver),
                     checked = uiState.allowBatterySaver,
+                    enabled = controlsEnabled,
                     onCheckedChange = onAllowBatterySaverChanged
                 )
 
@@ -470,16 +503,18 @@ private fun OfflinePolicyRow(
     selected: Boolean,
     title: String,
     value: String,
+    enabled: Boolean,
     onClick: () -> Unit
 ) {
     ListItem(
-        modifier = Modifier.clickable(onClick = onClick),
+        modifier = Modifier.clickable(enabled = enabled, onClick = onClick),
         headlineContent = { Text(title) },
         supportingContent = { Text(value) },
         leadingContent = {
             RadioButton(
                 selected = selected,
-                onClick = null
+                onClick = null,
+                enabled = enabled
             )
         }
     )
@@ -489,6 +524,7 @@ private fun OfflinePolicyRow(
 private fun TogglePreferenceRow(
     title: String,
     checked: Boolean,
+    enabled: Boolean,
     onCheckedChange: (Boolean) -> Unit
 ) {
     ListItem(
@@ -496,7 +532,8 @@ private fun TogglePreferenceRow(
         trailingContent = {
             Switch(
                 checked = checked,
-                onCheckedChange = onCheckedChange
+                onCheckedChange = onCheckedChange,
+                enabled = enabled
             )
         }
     )
