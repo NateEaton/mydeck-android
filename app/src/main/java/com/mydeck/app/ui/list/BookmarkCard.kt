@@ -783,12 +783,14 @@ private fun BookmarkGridCardMobilePortrait(
                             text = bookmark.siteName,
                             style = MaterialTheme.typography.labelMedium,
                             maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f)
                         )
                         bookmark.readingTime?.let {
                             Text(
                                 text = " · $it min",
-                                style = MaterialTheme.typography.labelMedium
+                                style = MaterialTheme.typography.labelMedium,
+                                maxLines = 1
                             )
                         }
                         BookmarkDownloadStatusIndicator(
@@ -1057,12 +1059,14 @@ private fun BookmarkGridCardNarrow(
                         text = bookmark.siteName,
                         style = MaterialTheme.typography.labelMedium,
                         maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f)
                     )
                     bookmark.readingTime?.let {
                         Text(
                             text = " · $it min",
-                            style = MaterialTheme.typography.labelMedium
+                            style = MaterialTheme.typography.labelMedium,
+                            maxLines = 1
                         )
                     }
                     BookmarkDownloadStatusIndicator(
@@ -1332,12 +1336,14 @@ private fun BookmarkGridCardWide(
                         text = bookmark.siteName,
                         style = MaterialTheme.typography.labelMedium,
                         maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f)
                     )
                     bookmark.readingTime?.let {
                         Text(
                             text = " · $it min",
-                            style = MaterialTheme.typography.labelMedium
+                            style = MaterialTheme.typography.labelMedium,
+                            maxLines = 1
                         )
                     }
                     BookmarkDownloadStatusIndicator(
@@ -1632,12 +1638,16 @@ private fun BookmarkCompactCardNarrow(
                 )
                 Text(
                     text = bookmark.siteName,
-                    style = MaterialTheme.typography.labelMedium
+                    style = MaterialTheme.typography.labelMedium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f)
                 )
                 bookmark.readingTime?.let {
                     Text(
                         text = " · $it min",
-                        style = MaterialTheme.typography.labelMedium
+                        style = MaterialTheme.typography.labelMedium,
+                        maxLines = 1
                     )
                 }
                 BookmarkDownloadStatusIndicator(
@@ -1903,12 +1913,14 @@ private fun BookmarkCompactCardWide(
                     text = bookmark.siteName,
                     style = MaterialTheme.typography.labelMedium,
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f)
                 )
                 bookmark.readingTime?.let {
                     Text(
                         text = " · $it min",
-                        style = MaterialTheme.typography.labelMedium
+                        style = MaterialTheme.typography.labelMedium,
+                        maxLines = 1
                     )
                 }
                 BookmarkDownloadStatusIndicator(
