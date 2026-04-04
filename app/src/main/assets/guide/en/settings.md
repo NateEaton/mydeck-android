@@ -32,10 +32,10 @@ Offline reading is optional and off by default. When enabled, MyDeck automatical
 - **Added within last** — keep bookmarks that were added within the selected rolling time window fully available offline
 - **Maximum storage cap** — appears for **Newest N bookmarks** and **Added within last**; it limits how much space those policies can use
 - **Include archived bookmarks** — when off, automatic offline maintenance applies only to **My List**
-- **Clear offline content when archiving** — removes managed offline packages when you archive a bookmark
 - **Wi-Fi only** — prevents automatic offline downloads from using mobile data
 - **Allow on battery saver** — when off, automatic offline downloads pause while battery saver is active
-- **Download content for date range…** — this button is reserved for one-time offline downloads for a specific date range
+
+When **Include archived bookmarks** is off, archiving a bookmark makes it ineligible for managed offline content, so that content is removed during normal maintenance.
 
 If you turn offline reading off again, MyDeck removes managed offline packages immediately but keeps any on-demand text caches you created by opening bookmarks.
 

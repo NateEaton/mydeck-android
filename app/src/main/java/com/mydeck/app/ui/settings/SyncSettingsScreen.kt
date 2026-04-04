@@ -153,7 +153,6 @@ fun SyncSettingsScreen(
         onClickOfflinePolicyDateRangeWindow = { viewModel.onClickOfflinePolicyDateRangeWindow() },
         onClickOfflineMaxStorageCap = { viewModel.onClickOfflineMaxStorageCap() },
         onIncludeArchivedChanged = { viewModel.onIncludeArchivedChanged(it) },
-        onClearContentOnArchiveChanged = { viewModel.onClearContentOnArchiveChanged(it) },
         onWifiOnlyChanged = { viewModel.onWifiOnlyChanged(it) },
         onAllowBatterySaverChanged = { viewModel.onAllowBatterySaverChanged(it) },
         onClickClearOfflineContent = { viewModel.onClickClearOfflineContent() }
@@ -176,7 +175,6 @@ fun SyncSettingsView(
     onClickOfflinePolicyDateRangeWindow: () -> Unit,
     onClickOfflineMaxStorageCap: () -> Unit,
     onIncludeArchivedChanged: (Boolean) -> Unit,
-    onClearContentOnArchiveChanged: (Boolean) -> Unit,
     onWifiOnlyChanged: (Boolean) -> Unit,
     onAllowBatterySaverChanged: (Boolean) -> Unit,
     onClickClearOfflineContent: () -> Unit,
@@ -230,7 +228,6 @@ fun SyncSettingsView(
                 onClickOfflinePolicyDateRangeWindow = onClickOfflinePolicyDateRangeWindow,
                 onClickOfflineMaxStorageCap = onClickOfflineMaxStorageCap,
                 onIncludeArchivedChanged = onIncludeArchivedChanged,
-                onClearContentOnArchiveChanged = onClearContentOnArchiveChanged,
                 onWifiOnlyChanged = onWifiOnlyChanged,
                 onAllowBatterySaverChanged = onAllowBatterySaverChanged
             )
@@ -341,7 +338,6 @@ private fun OfflineReadingSection(
     onClickOfflinePolicyDateRangeWindow: () -> Unit,
     onClickOfflineMaxStorageCap: () -> Unit,
     onIncludeArchivedChanged: (Boolean) -> Unit,
-    onClearContentOnArchiveChanged: (Boolean) -> Unit,
     onWifiOnlyChanged: (Boolean) -> Unit,
     onAllowBatterySaverChanged: (Boolean) -> Unit
 ) {
@@ -454,11 +450,6 @@ private fun OfflineReadingSection(
                     onCheckedChange = onIncludeArchivedChanged
                 )
                 TogglePreferenceRow(
-                    title = stringResource(R.string.sync_clear_on_archive),
-                    checked = uiState.clearContentOnArchive,
-                    onCheckedChange = onClearContentOnArchiveChanged
-                )
-                TogglePreferenceRow(
                     title = stringResource(R.string.sync_wifi_only),
                     checked = uiState.wifiOnly,
                     onCheckedChange = onWifiOnlyChanged
@@ -469,15 +460,6 @@ private fun OfflineReadingSection(
                     onCheckedChange = onAllowBatterySaverChanged
                 )
 
-                OutlinedButton(
-                    onClick = {},
-                    enabled = false,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 8.dp)
-                ) {
-                    Text(stringResource(R.string.sync_offline_download_date_range))
-                }
             }
         }
     }

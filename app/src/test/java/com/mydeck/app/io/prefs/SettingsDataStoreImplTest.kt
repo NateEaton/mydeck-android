@@ -184,24 +184,6 @@ class SettingsDataStoreImplTest {
     }
 
     @Test
-    fun `clearContentOnArchive defaults to false`() = runTest {
-        val dataStore = SettingsDataStoreImpl(context)
-
-        assertFalse(dataStore.isClearContentOnArchiveEnabled())
-    }
-
-    @Test
-    fun `clearContentOnArchive round-trips saved value`() = runTest {
-        val dataStore = SettingsDataStoreImpl(context)
-
-        dataStore.saveClearContentOnArchiveEnabled(true)
-        assertTrue(dataStore.isClearContentOnArchiveEnabled())
-
-        dataStore.saveClearContentOnArchiveEnabled(false)
-        assertFalse(dataStore.isClearContentOnArchiveEnabled())
-    }
-
-    @Test
     fun `offline policy defaults to storage limit`() = runTest {
         val dataStore = SettingsDataStoreImpl(context)
 
@@ -232,14 +214,14 @@ class SettingsDataStoreImplTest {
     }
 
     @Test
-    fun `offline reading enabled falls back to legacy content sync mode`() = runTest {
+    fun `offline reading defaults to false even with legacy content sync mode`() = runTest {
         userPreferences.edit()
             .putString("content_sync_mode", "AUTOMATIC")
             .commit()
 
         val dataStore = SettingsDataStoreImpl(context)
 
-        assertTrue(dataStore.isOfflineReadingEnabled())
+        assertFalse(dataStore.isOfflineReadingEnabled())
     }
 
     @Test

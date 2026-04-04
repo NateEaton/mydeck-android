@@ -8,6 +8,7 @@ import com.mydeck.app.domain.model.Bookmark
 import com.mydeck.app.domain.model.BookmarkCounts
 import com.mydeck.app.domain.model.BookmarkListItem
 import com.mydeck.app.domain.model.BookmarkMetadataUpdate
+import com.mydeck.app.domain.sync.OfflineContentScope
 import com.mydeck.app.domain.usecase.LoadBookmarksUseCase
 import com.mydeck.app.io.db.dao.BookmarkDao
 import com.mydeck.app.io.db.dao.PendingActionDao
@@ -500,12 +501,8 @@ class BookmarkRepositoryImpl @Inject constructor(
                     if (it) {
                         applicationScope.launch {
                             try {
-                                val clearContentOnArchive = settingsDataStore.isClearContentOnArchiveEnabled()
-                                if (clearContentOnArchive) {
-                                    contentPackageManager.deletePackage(bookmarkId)
-                                    Timber.d("Purged managed offline content on archive for $bookmarkId")
-                                } else if (settingsDataStore.isOfflineReadingEnabled() &&
-                                    !settingsDataStore.getOfflineContentScope().includesArchived &&
+                                val scope = settingsDataStore.getOfflineContentScope()
+                                if (scope == OfflineContentScope.MY_LIST &&
                                     contentPackageManager.hasResources(bookmarkId) == true
                                 ) {
                                     contentPackageManager.deletePackage(bookmarkId)

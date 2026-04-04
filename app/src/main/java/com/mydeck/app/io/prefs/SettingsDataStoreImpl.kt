@@ -70,7 +70,6 @@ class SettingsDataStoreImpl @Inject constructor(@ApplicationContext private val 
     private val KEY_BOOKMARK_SHARE_FORMAT = stringPreferencesKey("bookmark_share_format")
     private val KEY_KEEP_SCREEN_ON_READING = booleanPreferencesKey("keep_screen_on_reading")
     private val KEY_FULLSCREEN_WHILE_READING = booleanPreferencesKey("fullscreen_while_reading")
-    private val KEY_CLEAR_CONTENT_ON_ARCHIVE = booleanPreferencesKey("clear_content_on_archive")
     private val KEY_INCLUDE_ARCHIVED_CONTENT = booleanPreferencesKey("include_archived_content_in_sync")
     private val KEY_OFFLINE_READING_ENABLED = booleanPreferencesKey("offline_reading_enabled")
     private val KEY_OFFLINE_POLICY = stringPreferencesKey("offline_policy")
@@ -530,22 +529,11 @@ class SettingsDataStoreImpl @Inject constructor(@ApplicationContext private val 
         }
     }
 
-    override suspend fun isClearContentOnArchiveEnabled(): Boolean {
-        return userPreferences.getBoolean(KEY_CLEAR_CONTENT_ON_ARCHIVE.name, false)
-    }
-
-    override suspend fun saveClearContentOnArchiveEnabled(enabled: Boolean) {
-        userPreferences.edit {
-            putBoolean(KEY_CLEAR_CONTENT_ON_ARCHIVE.name, enabled)
-        }
-    }
-
     override suspend fun isOfflineReadingEnabled(): Boolean {
         if (userPreferences.contains(KEY_OFFLINE_READING_ENABLED.name)) {
             return userPreferences.getBoolean(KEY_OFFLINE_READING_ENABLED.name, false)
         }
-
-        return legacyContentSyncMode() == LEGACY_CONTENT_SYNC_MODE_AUTOMATIC
+        return false
     }
 
     override suspend fun saveOfflineReadingEnabled(enabled: Boolean) {

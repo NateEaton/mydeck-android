@@ -29,9 +29,9 @@ enum class OfflineImageStorageLimit(val bytes: Long) {
 }
 
 object OfflinePolicyDefaults {
-    const val STORAGE_LIMIT_BYTES: Long = 500L * 1024 * 1024
+    const val STORAGE_LIMIT_BYTES: Long = 100L * 1024 * 1024
     const val NEWEST_N: Int = 100
-    val DATE_RANGE_WINDOW: Duration = 90.days
+    val DATE_RANGE_WINDOW: Duration = 30.days
     const val MAX_STORAGE_CAP_BYTES: Long = Long.MAX_VALUE
 }
 

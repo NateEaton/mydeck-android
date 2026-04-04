@@ -62,12 +62,11 @@ class SyncSettingsViewModel @Inject constructor(
     private val bookmarkSyncFrequency = MutableStateFlow(AutoSyncTimeframe.HOURS_01)
     private val offlineReadingEnabled = MutableStateFlow(false)
     private val offlinePolicy = MutableStateFlow(OfflinePolicy.STORAGE_LIMIT)
-    private val offlinePolicyStorageLimit = MutableStateFlow(OfflineImageStorageLimit.MB_500)
+    private val offlinePolicyStorageLimit = MutableStateFlow(OfflineImageStorageLimit.MB_100)
     private val offlinePolicyNewestN = MutableStateFlow(OfflinePolicyDefaults.NEWEST_N)
     private val offlinePolicyDateRangeWindow = MutableStateFlow(OfflinePolicyDefaults.DATE_RANGE_WINDOW)
     private val offlineMaxStorageCap = MutableStateFlow(OfflineImageStorageLimit.UNLIMITED)
     private val offlineContentScope = MutableStateFlow(OfflineContentScope.MY_LIST)
-    private val clearContentOnArchive = MutableStateFlow(false)
     private val wifiOnly = MutableStateFlow(false)
     private val allowBatterySaver = MutableStateFlow(true)
     private val showDialog = MutableStateFlow<SyncSettingsDialog?>(null)
@@ -125,7 +124,6 @@ class SyncSettingsViewModel @Inject constructor(
             offlinePolicyDateRangeWindow.value = settingsDataStore.getOfflinePolicyDateRangeWindow()
             offlineMaxStorageCap.value = settingsDataStore.getOfflineMaxStorageCap().toStorageLimit()
             offlineContentScope.value = settingsDataStore.getOfflineContentScope()
-            clearContentOnArchive.value = settingsDataStore.isClearContentOnArchiveEnabled()
 
             val constraints = settingsDataStore.getContentSyncConstraints()
             wifiOnly.value = constraints.wifiOnly
@@ -172,7 +170,6 @@ class SyncSettingsViewModel @Inject constructor(
         offlinePolicyDateRangeWindow,
         offlineMaxStorageCap,
         offlineContentScope,
-        clearContentOnArchive,
         wifiOnly,
         allowBatterySaver,
         detailedSyncStatus,
@@ -181,7 +178,7 @@ class SyncSettingsViewModel @Inject constructor(
         lastContentSyncTimestampText,
         offlineStorageSize
     ) { args: Array<Any?> ->
-        val detailedSyncStatusCounts = args[14] as BookmarkDao.DetailedSyncStatusCounts
+        val detailedSyncStatusCounts = args[13] as BookmarkDao.DetailedSyncStatusCounts
         val totalBookmarks = detailedSyncStatusCounts.total
         val archivedBookmarks = detailedSyncStatusCounts.archived
         val myListBookmarks = (totalBookmarks - archivedBookmarks).coerceAtLeast(0)
@@ -198,18 +195,17 @@ class SyncSettingsViewModel @Inject constructor(
             offlinePolicyDateRangeWindow = args[8] as Duration,
             offlineMaxStorageCap = args[9] as OfflineImageStorageLimit,
             includeArchivedBookmarks = (args[10] as OfflineContentScope).includesArchived,
-            clearContentOnArchive = args[11] as Boolean,
-            wifiOnly = args[12] as Boolean,
-            allowBatterySaver = args[13] as Boolean,
-            contentSyncStatusRes = args[15] as Int?,
+            wifiOnly = args[11] as Boolean,
+            allowBatterySaver = args[12] as Boolean,
+            contentSyncStatusRes = args[14] as Int?,
             syncStatus = SyncStatus(
                 totalBookmarks = totalBookmarks,
                 myListBookmarks = myListBookmarks,
                 archivedBookmarks = archivedBookmarks,
                 fullOfflineAvailable = detailedSyncStatusCounts.contentDownloaded,
-                lastBookmarkSyncTimestamp = args[16] as String?,
-                lastOfflineMaintenanceTimestamp = args[17] as String?,
-                offlineStorageSize = args[18] as String?
+                lastBookmarkSyncTimestamp = args[15] as String?,
+                lastOfflineMaintenanceTimestamp = args[16] as String?,
+                offlineStorageSize = args[17] as String?
             ),
             showDialog = args[1] as SyncSettingsDialog?
         )
@@ -332,13 +328,6 @@ class SyncSettingsViewModel @Inject constructor(
             }
 
             refreshStorageSize()
-        }
-    }
-
-    fun onClearContentOnArchiveChanged(enabled: Boolean) {
-        viewModelScope.launch {
-            settingsDataStore.saveClearContentOnArchiveEnabled(enabled)
-            clearContentOnArchive.value = enabled
         }
     }
 
@@ -484,12 +473,11 @@ data class SyncSettingsUiState(
     val isBookmarkSyncRunning: Boolean = false,
     val offlineReadingEnabled: Boolean = false,
     val offlinePolicy: OfflinePolicy = OfflinePolicy.STORAGE_LIMIT,
-    val offlinePolicyStorageLimit: OfflineImageStorageLimit = OfflineImageStorageLimit.MB_500,
+    val offlinePolicyStorageLimit: OfflineImageStorageLimit = OfflineImageStorageLimit.MB_100,
     val offlinePolicyNewestN: Int = OfflinePolicyDefaults.NEWEST_N,
     val offlinePolicyDateRangeWindow: Duration = OfflinePolicyDefaults.DATE_RANGE_WINDOW,
     val offlineMaxStorageCap: OfflineImageStorageLimit = OfflineImageStorageLimit.UNLIMITED,
     val includeArchivedBookmarks: Boolean = false,
-    val clearContentOnArchive: Boolean = false,
     val wifiOnly: Boolean = false,
     val allowBatterySaver: Boolean = true,
     val contentSyncStatusRes: Int? = null,

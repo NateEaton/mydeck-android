@@ -68,8 +68,6 @@ interface SettingsDataStore {
     suspend fun saveAllowBatterySaver(enabled: Boolean)
     suspend fun getDateRangeParams(): DateRangeParams?
     suspend fun saveDateRangeParams(params: DateRangeParams)
-    suspend fun isClearContentOnArchiveEnabled(): Boolean
-    suspend fun saveClearContentOnArchiveEnabled(enabled: Boolean)
     suspend fun isOfflineReadingEnabled(): Boolean
     suspend fun saveOfflineReadingEnabled(enabled: Boolean)
     suspend fun getOfflinePolicy(): OfflinePolicy

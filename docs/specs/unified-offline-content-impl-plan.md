@@ -215,7 +215,7 @@ Policies B and C, and the eligibility/pruning logic that each policy requires.
   - `offlinePolicyDateRangeWindow: Duration`
   - `offlineMaxStorageCap: Long`
 - Rename `includeArchivedContentInSync` → `includeArchivedInOfflineScope`.
-- Keep `clearContentOnArchive`, `wifiOnly`, `allowOnBatterySaver`.
+- Keep `wifiOnly`, `allowOnBatterySaver`.
 - Remove `downloadImagesWithArticles` (already removed in Slice 3),
   `contentSyncMode` enum.
 
@@ -266,9 +266,8 @@ slice; the data layer is in place after Slice 7.
   toggle, accordions/collapsible sections.
 - Add: offline reading master toggle; policy selector (radio group); storage limit
   picker; newest-N picker; date-range window picker; secondary storage cap picker
-  (conditional on policy); include archived toggle; clear-on-archive toggle;
-  Wi-Fi only and battery-saver toggles (retained); one-time manual date-range
-  download button (see Slice 9).
+  (conditional on policy); include archived toggle; Wi-Fi only and battery-saver
+  toggles (retained). The one-time manual date-range action is deferred.
 - Settings screen collapses substantially when offline reading is off.
 - Sync status section updates per spec (different fields shown when offline on vs. off).
 - String resources for all new UI labels added to all language files.
@@ -294,6 +293,9 @@ logic is straightforward read/write of preference keys.
 ---
 
 ## Slice 9: One-Time Manual Date-Range Download
+
+**Status:** Deferred for possible future implementation. Not part of the current
+delivery scope. The Slice 8 settings button placeholder is removed.
 
 **Goal:** Add a "Download content for date range" action that triggers a one-time
 batch download for bookmarks added within a user-specified from/to date range.
@@ -351,6 +353,9 @@ is that the purge does not race with an in-progress download worker.
 
 ## Slice 11: Bookmark Detail Dialog Offline Status
 
+**Status:** Deferred for possible future implementation. Not part of the current
+delivery scope.
+
 **Goal:** Update the Bookmark Detail dialog to show explicit offline status text per
 spec. No per-bookmark content action is added — status display is purely informational.
 
@@ -376,19 +381,22 @@ resource additions.
 
 ## Slice 12: Migration from Prior Settings
 
+**Status:** Skipped.
+
 **Goal:** Ensure users upgrading from `feature/sync-multipart-v012` or earlier get a
 sensible default state.
 
 **Scope:**
-- If prior `contentSyncMode == AUTOMATIC`: migrate to `offlineReadingEnabled = true`,
-  `offlinePolicy = STORAGE_LIMIT`, `offlinePolicyStorageLimit = 500 MB` (sensible default).
-- If prior `contentSyncMode != AUTOMATIC`: migrate to `offlineReadingEnabled = false`.
-- `includeArchivedContentInSync` value migrates to `includeArchivedInOfflineScope`.
-- Existing `DOWNLOADED + hasResources=true` packages require no migration; they are
-  valid full offline packages.
-- Existing `DOWNLOADED + hasResources=false` packages become on-demand text caches;
-  no migration required.
-- Log migration in a one-time DataStore preferences migration block.
+- Use fixed defaults with no legacy migration behavior:
+  - `offlineReadingEnabled = false`
+  - `offlinePolicy = STORAGE_LIMIT`
+  - `offlinePolicyStorageLimit = 100 MB`
+  - `offlinePolicyNewestN = 100`
+  - `offlinePolicyDateRangeWindow = 1 month`
+- Archive behavior is scope-driven only:
+  - `MY_LIST` scope implies archiving removes managed offline content
+  - `MY_LIST + ARCHIVED` scope implies archiving does not change eligibility
+- No separate `clearContentOnArchive` preference key.
 
 **Files touched:** `SettingsDataStore.kt` (migration logic), possibly a `MigrationHelper`
 class if the codebase has a pattern for this.
@@ -440,16 +448,15 @@ Slice 1 (semantics doc)
             └─ Slice 6 (on-demand → queue full package)
             └─ Slice 7 (policy engine)
                  └─ Slice 8 (settings UI)
-                      └─ Slice 9 (one-time date-range action)
                       └─ Slice 10 (enable/disable lifecycle)
-                           └─ Slice 11 (detail dialog status)
-                 └─ Slice 12 (settings migration)
+                          (slice 11 deferred)
+                 (slice 9 deferred; slice 12 skipped)
   Slice 13 (tests) — depends on 4, 5, 7; can run after each
 ```
 
 Slices 2 and 3 are independent of each other and can be done in parallel.
 Slices 5 and 6 are independent of each other after Slice 4.
-Slices 9, 10, and 12 are independent of each other after Slice 7/8.
+Slice 10 remains independent after Slice 7/8.
 Slice 13 work can begin after Slice 4 and continue incrementally through Slice 7.
 
 ---
