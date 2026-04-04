@@ -475,3 +475,153 @@ from/to range is most useful as a one-time backfill tool.
 ## Open Questions
 
 None unresolved at time of writing.
+
+---
+
+## Amendment: Sync Settings Screen Layout Redesign (2026-04-03)
+
+This amendment supersedes the **Settings Layout** and **Sync Status Display** sections.
+It also supersedes the content sync status indicator description in the **Settings Screen
+UI Requirements** section.
+
+### Rationale
+
+The three-section layout (Bookmark Sync / Offline Reading / Sync Status) as initially
+implemented created several UX problems:
+
+- Sync status timestamps and bookmark counts appear far below the controls they describe,
+  separated by a long settings section.
+- The content sync status indicator floats as unstyled text inside the Offline Reading
+  section with no visual container, making it easy to overlook.
+- The "Clear All Offline Content" button is orphaned below the Sync Status section,
+  disconnected from the section it belongs to.
+- Status rows use full `ListItem` components for simple key-value display, consuming
+  roughly 56–72 dp each for content that warrants ~24 dp.
+- The label "Downloading text" reflects the pre-unified-architecture concept of a
+  text-only tier; with the unified binary model, the correct label is "Syncing content".
+
+### New Screen Structure
+
+The three-section layout is replaced by two sections. The Sync Status section is
+dissolved; its data is redistributed into the sections that own it.
+
+---
+
+#### Section 1 — Bookmark Sync *(functionally unchanged; layout additions only)*
+
+```
+[SectionHeader] Bookmark Sync
+                Keeps your list in sync with changes from other devices
+
+[ListItem]  Sync frequency                                   [value ▸]
+
+[FilledButton, full-width]  Sync Bookmarks Now
+                            ↳ while running: [spinner] Syncing…
+
+[Compact status block — Column, bodySmall, onSurfaceVariant]
+  Last bookmark sync:    [formatted timestamp or "Never"]
+  Next scheduled sync:   [formatted timestamp or "Not scheduled"]
+```
+
+The compact status block replaces the "Last bookmark sync" and "Next scheduled sync"
+rows that previously appeared in the Sync Status section. It sits immediately below the
+Sync Bookmarks Now button with no divider.
+
+---
+
+#### Section 2 — Offline Reading
+
+```
+[SectionHeader] Offline Reading
+                Automatically keep bookmarks available without a connection
+
+[ListItem]  Enable offline reading                           [Switch]
+            Automatically download eligible bookmarks
+
+[AnimatedVisibility — expands when enabled:]
+
+  ┌─ Status indicator ──────────────────────────────────────────────────────────┐
+  │  Surface(color=surfaceVariant, shape=RoundedCornerShape(8.dp),              │
+  │          padding=12.dp horizontal / 10.dp vertical)                         │
+  │                                                                              │
+  │  [leading icon 16dp]  [status text, bodySmall]                              │
+  │                                                                              │
+  │  Possible states:                                                            │
+  │  • "Syncing content"         CircularProgressIndicator, color=primary       │
+  │  • "Up to date"              Icons.Filled.Check, color=onSurfaceVariant     │
+  │  • "Waiting for Wi-Fi"       Icons.Filled.WifiOff, color=error              │
+  │  • "Paused — battery saver"  Icons.Filled.BatteryAlert, color=error        │
+  │  • "Clearing offline content…" CircularProgressIndicator, color=primary    │
+  └──────────────────────────────────────────────────────────────────────────────┘
+
+  [labelLarge, onSurfaceVariant, 8dp top padding]  What to keep offline
+
+  [ListItem + RadioButton]  Storage limit                     [value ▸]
+  [ListItem + RadioButton]  Newest N bookmarks                [value ▸]
+  [ListItem + RadioButton]  Added within last                 [value ▸]
+
+  [AnimatedVisibility — shown when policy ≠ STORAGE_LIMIT:]
+    [ListItem]  Maximum storage cap                           [value ▸]
+                Caps total storage across all bookmarks
+
+  [labelLarge, onSurfaceVariant, 8dp top padding]  Download options
+
+  [ListItem + Switch]  Include archived bookmarks
+  [ListItem + Switch]  Wi-Fi only
+  [ListItem + Switch]  Allow on battery saver
+
+  [labelLarge, onSurfaceVariant, 8dp top padding]  Storage
+
+  [CompactStatRow]  Available offline    [N bookmarks]
+  [CompactStatRow]  Storage used         [formatted size]
+  [CompactStatRow]  Last maintenance     [formatted timestamp or "Never"]
+
+  [OutlinedButton, full-width, 8dp top padding]  Clear All Offline Content
+    ↳ disabled while purging; purging state shown in the status indicator above
+```
+
+The status indicator is the single location where content sync state — active download,
+idle, blocked, and clearing — is communicated. It replaces both the floating
+`contentSyncStatusRes` text and the separate "Clearing offline content…" text that
+previously appeared below the enable toggle.
+
+---
+
+### CompactStatRow Component
+
+The `StatusRow` composable (which wraps a full `ListItem`) is replaced by `CompactStatRow`:
+a single `Row` with the label as `bodyMedium` text flush-left and the value as `bodyMedium`
+text in `MaterialTheme.colorScheme.onSurfaceVariant` flush-right, `fillMaxWidth()`,
+no minimum height, no leading icon. Rendered in a
+`Column(verticalArrangement = Arrangement.spacedBy(4.dp))`.
+
+---
+
+### Sync Status Data Redistribution
+
+| Field | Old location | New location |
+|---|---|---|
+| Last bookmark sync timestamp | Sync Status section | Bookmark Sync compact status block |
+| Next scheduled sync | Sync Status section | Bookmark Sync compact status block |
+| Full offline available (count) | Sync Status section | Offline Reading → Storage subsection |
+| Offline storage used | Sync Status section | Offline Reading → Storage subsection |
+| Last offline maintenance | Sync Status section | Offline Reading → Storage subsection |
+| Total bookmarks | Sync Status section | **Removed from settings screen** |
+| My List count | Sync Status section | **Removed from settings screen** |
+| Archived count | Sync Status section | **Removed from settings screen** |
+
+The bookmark counts (total, my list, archived) are low-value and not actionable in this
+context. They are removed from the settings screen display. The fields remain available
+in `SyncStatus` for potential future use.
+
+---
+
+### String Resource Changes
+
+| Key | Change |
+|---|---|
+| `sync_content_status_downloading_text` | Value changes to `"Syncing content"` (key may optionally be renamed to `sync_content_status_syncing`) |
+| `sync_content_status_clearing` | **New** — value `"Clearing offline content…"` |
+
+All new or changed string keys must be added/updated across all 10 language files using
+the English text as a placeholder.

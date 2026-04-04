@@ -53,7 +53,7 @@ class SyncSettingsViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
 ) : ViewModel() {
     private val dateFormat = DateFormat.getDateTimeInstance(
-        DateFormat.MEDIUM, DateFormat.MEDIUM
+        DateFormat.MEDIUM, DateFormat.SHORT
     )
 
     private val _navigationEvent = MutableStateFlow<NavigationEvent?>(null)
@@ -184,6 +184,7 @@ class SyncSettingsViewModel @Inject constructor(
         val totalBookmarks = detailedSyncStatusCounts.total
         val archivedBookmarks = detailedSyncStatusCounts.archived
         val myListBookmarks = (totalBookmarks - archivedBookmarks).coerceAtLeast(0)
+        val favorites = detailedSyncStatusCounts.favorites
 
         SyncSettingsUiState(
             bookmarkSyncFrequency = args[0] as AutoSyncTimeframe,
@@ -204,6 +205,7 @@ class SyncSettingsViewModel @Inject constructor(
                 totalBookmarks = totalBookmarks,
                 myListBookmarks = myListBookmarks,
                 archivedBookmarks = archivedBookmarks,
+                favorites = favorites,
                 fullOfflineAvailable = detailedSyncStatusCounts.contentDownloaded,
                 lastBookmarkSyncTimestamp = args[15] as String?,
                 lastOfflineMaintenanceTimestamp = args[16] as String?,
@@ -506,6 +508,7 @@ data class SyncStatus(
     val totalBookmarks: Int = 0,
     val myListBookmarks: Int = 0,
     val archivedBookmarks: Int = 0,
+    val favorites: Int = 0,
     val fullOfflineAvailable: Int = 0,
     val lastBookmarkSyncTimestamp: String? = null,
     val lastOfflineMaintenanceTimestamp: String? = null,

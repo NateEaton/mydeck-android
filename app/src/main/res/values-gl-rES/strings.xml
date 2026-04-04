@@ -413,7 +413,8 @@ other{}
     <string name="video_embed_offline">Video unavailable while offline</string>
 
     <!-- Missing translations -->
-    <string name="sync_content_status_downloading_text">Downloading text</string>
+    <string name="sync_content_status_downloading_text">Syncing content</string>
+    <string name="sync_content_status_clearing">Clearing offline content…</string>
     <string name="sync_offline_image_limit">Image storage limit</string>
     <string name="sync_offline_image_limit_dialog_title">Image storage limit</string>
     <string name="sync_offline_image_limit_100_mb">100 MB</string>
@@ -449,4 +450,10 @@ other{}
     <string name="sync_offline_image_limit_5_mb">5 MB (test)</string>
     <string name="sync_offline_image_limit_10_mb">10 MB (test)</string>
     <string name="sync_offline_image_limit_20_mb">20 MB (test)</string>
+    <string name="sync_offline_what_to_keep">What to keep offline</string>
+    <string name="sync_offline_whether_to_download">Whether to download</string>
+    <string name="sync_status_available_offline">Available offline</string>
+    <string name="sync_status_last_content_sync_label">Last content sync</string>
+    <string name="sync_status_next_sync">Next sync: %1$s</string>
+    <string name="sync_status_favorites_label">Favorites</string>
 </resources>

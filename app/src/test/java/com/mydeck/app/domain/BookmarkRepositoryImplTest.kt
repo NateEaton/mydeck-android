@@ -9,6 +9,7 @@ import com.mydeck.app.domain.sync.SyncScheduler
 import com.mydeck.app.io.db.MyDeckDatabase
 import com.mydeck.app.io.db.dao.BookmarkDao
 import com.mydeck.app.io.db.dao.PendingActionDao
+import com.mydeck.app.io.prefs.SettingsDataStore
 import com.mydeck.app.io.db.model.ActionType
 import com.mydeck.app.io.db.model.PendingActionEntity
 import com.mydeck.app.worker.ActionSyncWorker
@@ -53,6 +54,7 @@ class BookmarkRepositoryImplTest {
     private lateinit var readeckApi: ReadeckApi
     private lateinit var json: Json
     private lateinit var syncScheduler: SyncScheduler
+    private lateinit var settingsDataStore: SettingsDataStore
     private val testDispatcher = UnconfinedTestDispatcher()
     private val testScope = TestScope(testDispatcher)
     private lateinit var bookmarkRepositoryImpl: BookmarkRepositoryImpl
@@ -66,6 +68,7 @@ class BookmarkRepositoryImplTest {
         readeckApi = mockk<ReadeckApi>()
         json = Json { ignoreUnknownKeys = true }
         syncScheduler = mockk<SyncScheduler>(relaxed = true)
+        settingsDataStore = mockk<SettingsDataStore>(relaxed = true)
         
         // Mock performTransaction catch-all
         // Mock performTransaction for different return types
@@ -107,7 +110,7 @@ class BookmarkRepositoryImplTest {
             json = json,
             syncScheduler = syncScheduler,
             contentPackageManager = mockk(relaxed = true),
-            settingsDataStore = mockk(relaxed = true),
+            settingsDataStore = settingsDataStore,
             applicationScope = testScope,
             dispatcher = testDispatcher
         )
@@ -467,6 +470,8 @@ class BookmarkRepositoryImplTest {
         val url = "https://example.com"
         val labels = listOf("test", "bookmark")
         val bookmarkId = "new-bookmark-id"
+        
+        coEvery { settingsDataStore.isOfflineReadingEnabled() } returns true
         
         val createBookmarkDto = CreateBookmarkDto(labels = labels, title = title, url = url)
         val headers = Headers.Builder()

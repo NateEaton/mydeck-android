@@ -396,9 +396,10 @@ other{}
     <string name="sync_content_waiting_battery">Content download paused (battery saver)</string>
     <string name="sync_content_waiting_wifi_battery">Content download waiting for Wi-Fi and battery</string>
     <string name="sync_content_status_downloading_images">Downloading images</string>
-    <string name="sync_content_status_downloading_text">Downloading text</string>
+    <string name="sync_content_status_downloading_text">Syncing content</string>
     <string name="sync_content_status_up_to_date">Up to date</string>
     <string name="sync_content_status_manual">Manual mode</string>
+    <string name="sync_content_status_clearing">Clearing offline content…</string>
     <string name="sync_constraint_override_title">Download Content?</string>
     <string name="sync_constraint_override_body">Content download is blocked by active constraints (%s). Would you like to temporarily override these settings to complete this download?</string>
     <string name="sync_constraint_override_confirm">Override &amp; Download</string>
@@ -422,6 +423,14 @@ other{}
     <string name="sync_status_no_content">No article content: %d</string>
     <string name="sync_status_full_offline_available">Full offline available</string>
     <string name="sync_status_offline_storage_used">Offline storage used</string>
+
+    <!-- Offline section sub-headings and compact stat labels -->
+    <string name="sync_offline_what_to_keep">What to keep offline</string>
+    <string name="sync_offline_whether_to_download">Whether to download</string>
+    <string name="sync_status_available_offline">Available offline</string>
+    <string name="sync_status_last_content_sync_label">Last content sync</string>
+    <string name="sync_status_next_sync">Next sync: %1$s</string>
+    <string name="sync_status_favorites_label">Favorites</string>
 
     <!-- Storage Management -->
     <string name="sync_storage_heading">Storage</string>

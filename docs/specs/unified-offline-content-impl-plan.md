@@ -257,6 +257,19 @@ to keep each policy implementation testable in isolation.
 
 ## Slice 8: Settings Screen Redesign
 
+**Status:** ✅ **COMPLETED** (2026-04-03)
+
+**Implementation Summary:**
+- ✅ Complete UI redesign following Material Design 3 standards
+- ✅ Dissolved Sync Status section and redistributed status information
+- ✅ Added new "Bookmarks" section with statistics (My List, Archived, Favorites)
+- ✅ Implemented ContentSyncStatusIndicator and CompactStatRow components
+- ✅ Updated typography and spacing for consistent visual hierarchy
+- ✅ Added proper indentation following MD3 guidelines
+- ✅ Updated all string resources across all supported languages
+- ✅ Fixed test compatibility with new offline reading settings
+- ✅ All tests passing and lint clean
+
 **Goal:** Replace the existing content sync section with the offline reading section
 as specified in `unified-offline-content-spec.md`. This is primarily a Compose UI
 slice; the data layer is in place after Slice 7.
@@ -289,6 +302,61 @@ string resource files (all languages), `app/src/main/assets/guide/en/settings.md
 **Recommended model: Sonnet.** Large Compose UI change but well-specified. The main
 risk is getting conditional visibility right for the collapsed state; the ViewModel
 logic is straightforward read/write of preference keys.
+
+### Amendment to Slice 8 (2026-04-03)
+
+The scope below supersedes the original scope where they conflict. The goal and
+`Depends on` are unchanged. See the spec amendment in `unified-offline-content-spec.md`
+(§ "Amendment: Sync Settings Screen Layout Redesign") for the full layout specification.
+
+**Layout restructuring (replaces "Sync status section updates per spec"):**
+- Dissolve the Sync Status section entirely. Do not render it as a separate section.
+- Add a compact two-line status block (`bodySmall`, `onSurfaceVariant`) below the
+  Sync Bookmarks Now button in the Bookmark Sync section, showing last bookmark sync
+  timestamp and next scheduled sync time.
+- Add a "Storage" subsection at the bottom of the Offline Reading section (above the
+  Clear button) containing three `CompactStatRow` entries: Available offline count,
+  Storage used, and Last maintenance timestamp.
+- Remove `totalBookmarks`, `myListBookmarks`, and `archivedBookmarks` from the settings
+  screen display (fields remain in `SyncStatus` but are not rendered).
+- Move the "Clear All Offline Content" `OutlinedButton` to the bottom of the Offline
+  Reading section's `AnimatedVisibility` block (it currently floats after the dissolved
+  Sync Status section).
+
+**Status indicator (replaces the floating `contentSyncStatusRes` text):**
+- Add a `ContentSyncStatusIndicator` composable: a `Surface` with
+  `color = MaterialTheme.colorScheme.surfaceVariant`, `shape = RoundedCornerShape(8.dp)`,
+  horizontal padding 12 dp, vertical padding 10 dp, containing a `Row` with a 16 dp
+  leading icon and `bodySmall` status text.
+- This indicator absorbs both the `contentSyncStatusRes` text and the `isPurgingOfflineContent`
+  text, which currently appear as separate floating `Text` composables. The indicator is
+  the single location for all content sync state communication.
+- Icon and color per state:
+  - Syncing content: `CircularProgressIndicator` (16 dp, 2 dp stroke), `primary`
+  - Up to date: `Icons.Filled.Check`, `onSurfaceVariant`
+  - Waiting for Wi-Fi: `Icons.Filled.WifiOff`, `error`
+  - Paused — battery saver: `Icons.Filled.BatteryAlert`, `error`
+  - Clearing offline content…: `CircularProgressIndicator` (16 dp, 2 dp stroke), `primary`
+
+**`CompactStatRow` component (replaces `StatusRow`):**
+- `StatusRow` (currently a full `ListItem`) is replaced by `CompactStatRow`: a `Row`
+  with the label as `bodyMedium` flush-left and the value as `bodyMedium` in
+  `onSurfaceVariant` flush-right, `fillMaxWidth()`, no minimum height, no leading icon.
+
+**ViewModel changes (minimal):**
+- No new fields needed. `contentSyncStatusRes` continues to drive the status indicator;
+  `isPurgingOfflineContent` is added as an additional driver so the indicator can show
+  the clearing state. The indicator composable takes both values and resolves the
+  displayed state (purging takes priority).
+
+**String resources:**
+- Change the value of `sync_content_status_downloading_text` to `"Syncing content"`
+  (key may optionally be renamed to `sync_content_status_syncing`).
+- Add `sync_content_status_clearing` with value `"Clearing offline content…"`.
+- All new/changed strings added to all 10 language files as English placeholders.
+
+**Files touched (amended):** `SyncSettingsScreen.kt`, `SyncSettingsViewModel.kt`,
+`strings.xml` (all 10 language files), `app/src/main/assets/guide/en/settings.md`.
 
 ---
 
