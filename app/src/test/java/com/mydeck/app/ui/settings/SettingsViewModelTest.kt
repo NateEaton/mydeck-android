@@ -1,8 +1,11 @@
 package com.mydeck.app.ui.settings
 
+import android.content.Context
 import com.mydeck.app.domain.UserRepository
 import com.mydeck.app.domain.model.AuthenticationDetails
+import com.mydeck.app.io.prefs.SettingsDataStore
 import io.mockk.coEvery
+import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -24,12 +27,16 @@ class SettingsViewModelTest {
 
     private val testDispatcher = StandardTestDispatcher()
     private lateinit var userRepository: UserRepository
+    private lateinit var settingsDataStore: SettingsDataStore
+    private lateinit var context: Context
     private lateinit var viewModel: SettingsViewModel
 
     @Before
     fun setup() {
         Dispatchers.setMain(testDispatcher)
         userRepository = mockk()
+        settingsDataStore = mockk()
+        context = mockk()
         coEvery { userRepository.observeAuthenticationDetails() } returns MutableStateFlow(
             AuthenticationDetails(
                 url = "http://test",
@@ -37,7 +44,10 @@ class SettingsViewModelTest {
                 token = "token"
             )
         )
-        viewModel = SettingsViewModel(userRepository)
+        every { settingsDataStore.offlineReadingEnabledFlow } returns MutableStateFlow(false)
+        every { settingsDataStore.themeFlow } returns MutableStateFlow(null)
+        every { context.getString(any()) } returns ""
+        viewModel = SettingsViewModel(userRepository, settingsDataStore, context)
     }
 
     @After
