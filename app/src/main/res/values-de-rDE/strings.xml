@@ -84,6 +84,13 @@ other{}
     <string name="log_retention_description">Logs older than the selected period are automatically deleted when the app starts.</string>
     <string name="settings_sync">Synchronisierung</string>
     <string name="settings_sync_subtitle">Synchronisierungseinstellungen</string>
+    <string name="settings_sync_subtitle_offline_enabled">Offline reading enabled</string>
+    <string name="settings_sync_subtitle_offline_disabled">Offline reading disabled</string>
+    <string name="settings_ui">Benutzeroberfläche</string>
+    <string name="settings_ui_subtitle">Erscheinungsbild</string>
+    <string name="settings_ui_subtitle_light">Light</string>
+    <string name="settings_ui_subtitle_dark">Dark</string>
+    <string name="settings_ui_subtitle_system">System</string>
 
     <!-- Bookmark Card Actions -->
     <string name="action_favorite">Favorit</string>

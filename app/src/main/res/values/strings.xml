@@ -93,8 +93,13 @@ other{}
     <string name="log_retention_description">Logs older than the selected period are automatically deleted when the app starts.</string>
     <string name="settings_sync">Synchronization</string>
     <string name="settings_sync_subtitle">Synchronization Settings</string>
+    <string name="settings_sync_subtitle_offline_enabled">Offline reading enabled</string>
+    <string name="settings_sync_subtitle_offline_disabled">Offline reading disabled</string>
     <string name="settings_ui">User Interface</string>
     <string name="settings_ui_subtitle">Appearance</string>
+    <string name="settings_ui_subtitle_light">Light</string>
+    <string name="settings_ui_subtitle_dark">Dark</string>
+    <string name="settings_ui_subtitle_system">System</string>
     <string name="ui_settings_topbar_title">User Interface Settings</string>
     <string name="ui_settings_theme_title">Theme</string>
     <string name="theme_system">System</string>

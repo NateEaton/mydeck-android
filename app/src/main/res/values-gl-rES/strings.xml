@@ -102,6 +102,15 @@ other{}
     <string name="log_retention_1_month">1 month</string>
     <string name="log_retention_3_months">3 months</string>
     <string name="log_retention_description">Logs older than the selected period are automatically deleted when the app starts.</string>
+    <string name="settings_sync">Synchronization</string>
+    <string name="settings_sync_subtitle">Synchronization Settings</string>
+    <string name="settings_sync_subtitle_offline_enabled">Offline reading enabled</string>
+    <string name="settings_sync_subtitle_offline_disabled">Offline reading disabled</string>
+    <string name="settings_ui">User Interface</string>
+    <string name="settings_ui_subtitle">Appearance</string>
+    <string name="settings_ui_subtitle_light">Light</string>
+    <string name="settings_ui_subtitle_dark">Dark</string>
+    <string name="settings_ui_subtitle_system">System</string>
     <string name="sync_settings_sync_bookmarks_now">Sync Bookmarks Now</string>
     <string name="sync_settings_sync_bookmarks_now_description">Check for deleted bookmarks and sync all changes immediately</string>
     <string name="sync_settings_sync_running">Syncing…</string>

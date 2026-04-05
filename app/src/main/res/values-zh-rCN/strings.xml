@@ -79,8 +79,13 @@
     <string name="log_view_no_log_file_found">未找到日志文件</string>
     <string name="settings_sync">同步</string>
     <string name="settings_sync_subtitle">同步设置</string>
+    <string name="settings_sync_subtitle_offline_enabled">Offline reading enabled</string>
+    <string name="settings_sync_subtitle_offline_disabled">Offline reading disabled</string>
     <string name="settings_ui">用户界面</string>
     <string name="settings_ui_subtitle">外观</string>
+    <string name="settings_ui_subtitle_light">Light</string>
+    <string name="settings_ui_subtitle_dark">Dark</string>
+    <string name="settings_ui_subtitle_system">System</string>
     <string name="notification_authentication_error_title">需要验证</string>
     <string name="ui_settings_topbar_title">用户界面设置</string>
     <string name="ui_settings_theme_title">主题</string>

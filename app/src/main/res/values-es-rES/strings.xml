@@ -134,7 +134,11 @@ other{}
     <string name="sync_settings_sync_running">Sincronizando…</string>
     <string name="settings_sync">Sincronización</string>
     <string name="settings_sync_subtitle">Opciones de sincronización</string>
-    <string name="settings_sync_full_sync_heading">Sincronización en segundo plano</string>
+    <string name="settings_sync_subtitle_offline_enabled">Lectura sin conexión habilitada</string>
+    <string name="settings_sync_subtitle_offline_disabled">Lectura sin conexión deshabilitada</string>
+    <string name="settings_ui_subtitle_light">Claro</string>
+    <string name="settings_ui_subtitle_dark">Oscuro</string>
+    <string name="settings_ui_subtitle_system">Sistema</string>
     <string name="settings_sync_auto_full_sync_title">Sincronización en segundo plano</string>
     <string name="settings_sync_auto_full_button">Sincronizar ahora</string>
     <string name="settings_sync_support_text">Para mantener la lista de tus marcadores actualizada, la aplicación verifica ocasionalmente y borra marcadores que hayas borrado en el servidor de Readeck. Como este proceso requiere descargar toda la información de los marcadores, corre automáticamente en segundo plano. Esto ayuda a que la aplicación refleje los marcadores actuales de Readeck sin que tengas que borrarlos manualmente.</string>
