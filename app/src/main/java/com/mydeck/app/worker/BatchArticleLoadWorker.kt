@@ -12,6 +12,7 @@ import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import com.mydeck.app.domain.content.ContentPackageManager
 import com.mydeck.app.domain.sync.OfflinePolicyEvaluator
+import com.mydeck.app.domain.sync.OfflinePolicyEvaluator.Companion.avgArticleBytes
 import com.mydeck.app.domain.usecase.LoadContentPackageUseCase
 import com.mydeck.app.io.db.dao.BookmarkDao
 import com.mydeck.app.io.prefs.SettingsDataStore
@@ -59,37 +60,77 @@ class BatchArticleLoadWorker @AssistedInject constructor(
             Timber.d("BatchArticleLoadWorker starting")
 
             val includeArchived = settingsDataStore.getOfflineContentScope().includesArchived
+
             pruneManagedContentIfNeeded(includeArchived)
 
-            val offlinePolicyBookmarks = bookmarkDao.getOfflinePolicyBookmarks(includeArchived)
-            val pendingBookmarkIds = policyEvaluator
-                .selectEligibleBookmarks(offlinePolicyBookmarks)
-                .filter { policyEvaluator.needsOfflinePackage(it) }
-                .map { it.id }
-
-            Timber.i(
-                "Found ${pendingBookmarkIds.size} offline policy candidates to fetch (includeArchived=$includeArchived)"
-            )
-
-            if (pendingBookmarkIds.isEmpty()) {
-                settingsDataStore.saveLastContentSyncTimestamp(Clock.System.now())
-                return Result.success()
-            }
-
             var batchIndex = 0
-            var offset = 0
-            while (offset < pendingBookmarkIds.size) {
+            var previousUsage = -1L
+            while (true) {
                 // Check constraints before each batch
                 if (!policyEvaluator.canFetchContent().allowed) {
                     Timber.i("Content fetch blocked by constraints, stopping batch")
-                    return Result.success()
+                    break
                 }
 
-                val batch = pendingBookmarkIds.subList(offset, minOf(offset + BATCH_SIZE, pendingBookmarkIds.size))
-                offset += batch.size
+                // Re-evaluate eligible bookmarks each iteration so we pick up
+                // changes from previous batches.
+                val offlinePolicyBookmarks = bookmarkDao.getOfflinePolicyBookmarks(includeArchived)
+                val downloadedCount = offlinePolicyBookmarks.count { it.hasOfflinePackage }
+
+                // Hysteresis download-threshold check: stop when usage reaches
+                // the download threshold of the one-sided hysteresis band.
+                val usageBeforeBatch = contentPackageManager.calculateManagedOfflineSize()
+
+                // Stalled-progress guard: if a full batch cycle produced no
+                // storage change (e.g. a zero-byte article keeps re-appearing)
+                // stop to avoid spinning forever.
+                if (usageBeforeBatch == previousUsage && previousUsage >= 0) {
+                    Timber.i(
+                        "Stalled: no storage change after batch $batchIndex " +
+                            "(usage=${usageBeforeBatch / 1024}KB), stopping batch loop"
+                    )
+                    break
+                }
+                previousUsage = usageBeforeBatch
+
+                if (policyEvaluator.shouldStopDownloading(usageBeforeBatch, downloadedCount)) {
+                    val avg = avgArticleBytes(usageBeforeBatch, downloadedCount)
+                    Timber.i(
+                        "Download threshold reached (usage=${usageBeforeBatch / 1024}KB, " +
+                            "avg=${avg / 1024}KB), stopping batch loop"
+                    )
+                    break
+                }
+
+                val pendingBookmarkIds = policyEvaluator
+                    .selectEligibleBookmarks(offlinePolicyBookmarks)
+                    .filter { policyEvaluator.needsOfflinePackage(it) }
+                    .map { it.id }
+
+                if (pendingBookmarkIds.isEmpty()) {
+                    Timber.i("No more eligible bookmarks to fetch")
+                    break
+                }
+
+                if (batchIndex == 0) {
+                    Timber.i(
+                        "Found ${pendingBookmarkIds.size} offline policy candidates to fetch (includeArchived=$includeArchived)"
+                    )
+                }
+
+                // Adaptive batch size: fit as many articles as headroom allows.
+                val headroom = policyEvaluator.downloadHeadroomBytes(usageBeforeBatch, downloadedCount)
+                val avg = avgArticleBytes(usageBeforeBatch, downloadedCount)
+                val batchSize = adaptiveBatchSize(headroom, avg, pendingBookmarkIds.size)
+
+                val batch = pendingBookmarkIds.take(batchSize)
                 batchIndex++
 
-                Timber.d("Processing batch $batchIndex, size=${batch.size}")
+                Timber.d(
+                    "Processing batch $batchIndex, size=${batch.size} " +
+                        "(headroom=${headroom / 1024}KB, avg=${avg / 1024}KB, " +
+                        "pending=${pendingBookmarkIds.size})"
+                )
 
                 coroutineScope {
                     val perIdResults = loadContentPackageUseCase.executeBatch(batch)
@@ -104,11 +145,9 @@ class BatchArticleLoadWorker @AssistedInject constructor(
                     }.awaitAll()
                 }
 
-                if (offset < pendingBookmarkIds.size) {
-                    delay(BATCH_DELAY_MS)
-                }
-
                 pruneManagedContentIfNeeded(includeArchived)
+
+                delay(BATCH_DELAY_MS)
             }
 
             settingsDataStore.saveLastContentSyncTimestamp(Clock.System.now())
@@ -147,16 +186,41 @@ class BatchArticleLoadWorker @AssistedInject constructor(
         }
     }
 
+    /**
+     * Prune managed offline content using one-sided hysteresis thresholds.
+     *
+     * Entry condition  : [OfflinePolicyEvaluator.shouldPrune] — usage above
+     *                     hard ceiling (`target`).
+     * Continue condition: [OfflinePolicyEvaluator.isPrunedEnough] — keep
+     *                     removing until usage is at or below the soft ceiling
+     *                     (`target − avg`).
+     */
     private suspend fun pruneManagedContentIfNeeded(includeArchived: Boolean) {
+        // --- Entry check ---
+        val initialBookmarks = bookmarkDao.getOfflinePolicyBookmarks(includeArchived)
+            .filter { it.hasOfflinePackage }
+        if (initialBookmarks.isEmpty()) return
+
+        val initialUsage = contentPackageManager.calculateManagedOfflineSize()
+        if (!policyEvaluator.shouldPrune(initialBookmarks, initialUsage)) return
+
+        Timber.i(
+            "Prune cycle starting (usage=${initialUsage / 1024}KB, " +
+                "downloaded=${initialBookmarks.size})"
+        )
+
+        // --- Prune loop: remove one at a time until soft ceiling ---
         while (true) {
             val downloadedBookmarks = bookmarkDao.getOfflinePolicyBookmarks(includeArchived)
                 .filter { it.hasOfflinePackage }
-            if (downloadedBookmarks.isEmpty()) {
-                return
-            }
+            if (downloadedBookmarks.isEmpty()) return
 
             val totalUsageBytes = contentPackageManager.calculateManagedOfflineSize()
-            if (!policyEvaluator.shouldPrune(downloadedBookmarks, totalUsageBytes)) {
+            if (policyEvaluator.isPrunedEnough(downloadedBookmarks, totalUsageBytes)) {
+                Timber.i(
+                    "Prune cycle complete (usage=${totalUsageBytes / 1024}KB, " +
+                        "downloaded=${downloadedBookmarks.size})"
+                )
                 return
             }
 
@@ -172,8 +236,23 @@ class BatchArticleLoadWorker @AssistedInject constructor(
         const val WORK_TAG_OFFLINE_CONTENT = "offline_content_work"
         const val KEY_PRIORITY_BOOKMARK_ID = "priority_bookmark_id"
         private const val PRIORITY_WORK_NAME_PREFIX = "content_priority_"
-        private const val BATCH_SIZE = 10
         private const val BATCH_DELAY_MS = 500L
+
+        internal const val MAX_BATCH_SIZE = 10
+
+        /**
+         * How many articles we can likely fit in the remaining headroom.
+         * Returns at least 1 and at most [MAX_BATCH_SIZE].
+         */
+        internal fun adaptiveBatchSize(
+            headroomBytes: Long,
+            avgArticleBytes: Long,
+            pendingCount: Int
+        ): Int {
+            if (avgArticleBytes <= 0) return 1
+            val fits = (headroomBytes / avgArticleBytes).toInt()
+            return fits.coerceIn(1, MAX_BATCH_SIZE).coerceAtMost(pendingCount)
+        }
 
         // In-flight guard — prevents concurrent batch instances from running simultaneously
         private val isRunning = AtomicBoolean(false)

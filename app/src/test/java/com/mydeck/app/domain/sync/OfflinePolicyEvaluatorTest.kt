@@ -318,33 +318,33 @@ class OfflinePolicyEvaluatorTest {
     }
 
     @Test
-    fun `shouldPrune storage limit returns false when usage at limit`() = runTest {
+    fun `shouldPrune storage limit returns false at target`() = runTest {
         coEvery { settingsDataStore.getOfflinePolicy() } returns OfflinePolicy.STORAGE_LIMIT
-        coEvery { settingsDataStore.getOfflinePolicyStorageLimit() } returns 1000L
+        coEvery { settingsDataStore.getOfflinePolicyStorageLimit() } returns 100_000_000L
 
-        val shouldPrune = evaluator.shouldPrune(
-            downloadedBookmarks = listOf(
-                bookmark(id = "1", created = "2026-01-01T00:00:00Z", hasOfflinePackage = true)
-            ),
-            totalUsageBytes = 1000L
-        )
+        // 50 bookmarks, 100MB usage: hardCeiling=target=100MB
+        // 100MB is NOT > 100MB → false (at limit, don't prune)
+        val bookmarks = (1..50).map {
+            bookmark("$it", "2026-01-${(it % 28 + 1).toString().padStart(2, '0')}T00:00:00Z",
+                hasOfflinePackage = true)
+        }
 
-        assertFalse(shouldPrune)
+        assertFalse(evaluator.shouldPrune(bookmarks, 100_000_000L))
     }
 
     @Test
-    fun `shouldPrune storage limit returns true when usage exceeds limit by one byte`() = runTest {
+    fun `shouldPrune storage limit returns true above target`() = runTest {
         coEvery { settingsDataStore.getOfflinePolicy() } returns OfflinePolicy.STORAGE_LIMIT
-        coEvery { settingsDataStore.getOfflinePolicyStorageLimit() } returns 1000L
+        coEvery { settingsDataStore.getOfflinePolicyStorageLimit() } returns 100_000_000L
 
-        val shouldPrune = evaluator.shouldPrune(
-            downloadedBookmarks = listOf(
-                bookmark(id = "1", created = "2026-01-01T00:00:00Z", hasOfflinePackage = true)
-            ),
-            totalUsageBytes = 1001L
-        )
+        // 50 bookmarks, 100MB+1 byte: hardCeiling=target=100MB
+        // 100_000_001 > 100_000_000 → true
+        val bookmarks = (1..50).map {
+            bookmark("$it", "2026-01-${(it % 28 + 1).toString().padStart(2, '0')}T00:00:00Z",
+                hasOfflinePackage = true)
+        }
 
-        assertTrue(shouldPrune)
+        assertTrue(evaluator.shouldPrune(bookmarks, 100_000_001L))
     }
 
     // --- shouldPrune: NEWEST_N policy ---
@@ -591,6 +591,160 @@ class OfflinePolicyEvaluatorTest {
         )
 
         assertTrue(pruneIds.isEmpty())
+    }
+
+    // --- isPrunedEnough ---
+
+    @Test
+    fun `isPrunedEnough returns true when empty`() = runTest {
+        assertTrue(evaluator.isPrunedEnough(emptyList(), 999_999_999L))
+    }
+
+    @Test
+    fun `isPrunedEnough storage limit returns true at soft ceiling`() = runTest {
+        coEvery { settingsDataStore.getOfflinePolicy() } returns OfflinePolicy.STORAGE_LIMIT
+        coEvery { settingsDataStore.getOfflinePolicyStorageLimit() } returns 100_000_000L
+
+        // 50 bookmarks, 97MB: avg=1.94MB, softCeiling=100-1.94=98.06MB
+        // 97MB <= 98.06MB → true
+        val bookmarks = (1..50).map {
+            bookmark("$it", "2026-01-${(it % 28 + 1).toString().padStart(2, '0')}T00:00:00Z",
+                hasOfflinePackage = true)
+        }
+
+        assertTrue(evaluator.isPrunedEnough(bookmarks, 97_000_000L))
+    }
+
+    @Test
+    fun `isPrunedEnough storage limit returns false above soft ceiling`() = runTest {
+        coEvery { settingsDataStore.getOfflinePolicy() } returns OfflinePolicy.STORAGE_LIMIT
+        coEvery { settingsDataStore.getOfflinePolicyStorageLimit() } returns 100_000_000L
+
+        // 50 bookmarks, 99MB: avg=1.98MB, softCeiling=100-1.98=98.02MB
+        // 99MB <= 98.02MB? No → false
+        val bookmarks = (1..50).map {
+            bookmark("$it", "2026-01-${(it % 28 + 1).toString().padStart(2, '0')}T00:00:00Z",
+                hasOfflinePackage = true)
+        }
+
+        assertFalse(evaluator.isPrunedEnough(bookmarks, 99_000_000L))
+    }
+
+    @Test
+    fun `isPrunedEnough newest N delegates to inverted shouldPrune`() = runTest {
+        coEvery { settingsDataStore.getOfflinePolicy() } returns OfflinePolicy.NEWEST_N
+        coEvery { settingsDataStore.getOfflinePolicyNewestN() } returns 2
+
+        // 3 downloaded > N=2 → shouldPrune=true → isPrunedEnough=false
+        val bookmarks = listOf(
+            bookmark("1", "2026-01-01T00:00:00Z", hasOfflinePackage = true),
+            bookmark("2", "2026-02-01T00:00:00Z", hasOfflinePackage = true),
+            bookmark("3", "2026-03-01T00:00:00Z", hasOfflinePackage = true)
+        )
+
+        assertFalse(evaluator.isPrunedEnough(bookmarks, 100L))
+    }
+
+    // --- shouldStopDownloading ---
+
+    @Test
+    fun `shouldStopDownloading storage limit returns false below download threshold`() = runTest {
+        coEvery { settingsDataStore.getOfflinePolicy() } returns OfflinePolicy.STORAGE_LIMIT
+        coEvery { settingsDataStore.getOfflinePolicyStorageLimit() } returns 100_000_000L
+
+        // 50 downloaded, 90MB usage: avg=1.8MB, threshold=100-7.2=92.8MB
+        // 90MB >= 92.8MB? No → false (keep downloading)
+        assertFalse(evaluator.shouldStopDownloading(90_000_000L, 50))
+    }
+
+    @Test
+    fun `shouldStopDownloading storage limit returns true at download threshold`() = runTest {
+        coEvery { settingsDataStore.getOfflinePolicy() } returns OfflinePolicy.STORAGE_LIMIT
+        coEvery { settingsDataStore.getOfflinePolicyStorageLimit() } returns 100_000_000L
+
+        // 50 downloaded, 93MB usage: avg=1.86MB, threshold=100-7.44=92.56MB
+        // 93MB >= 92.56MB? Yes → true (stop downloading)
+        assertTrue(evaluator.shouldStopDownloading(93_000_000L, 50))
+    }
+
+    @Test
+    fun `shouldStopDownloading uses default avg when nothing downloaded`() = runTest {
+        coEvery { settingsDataStore.getOfflinePolicy() } returns OfflinePolicy.STORAGE_LIMIT
+        coEvery { settingsDataStore.getOfflinePolicyStorageLimit() } returns 100_000_000L
+
+        // 0 downloaded → default avg=2MB, threshold=100-8=92MB
+        assertFalse(evaluator.shouldStopDownloading(91_000_000L, 0))
+        assertTrue(evaluator.shouldStopDownloading(92_000_000L, 0))
+    }
+
+    @Test
+    fun `shouldStopDownloading uses secondary cap for newest N`() = runTest {
+        coEvery { settingsDataStore.getOfflinePolicy() } returns OfflinePolicy.NEWEST_N
+        coEvery { settingsDataStore.getOfflineMaxStorageCap() } returns 500L
+
+        assertTrue(evaluator.shouldStopDownloading(500L, 10))
+        assertFalse(evaluator.shouldStopDownloading(499L, 10))
+    }
+
+    @Test
+    fun `shouldStopDownloading uses secondary cap for date range`() = runTest {
+        coEvery { settingsDataStore.getOfflinePolicy() } returns OfflinePolicy.DATE_RANGE
+        coEvery { settingsDataStore.getOfflineMaxStorageCap() } returns 500L
+
+        assertTrue(evaluator.shouldStopDownloading(500L, 10))
+        assertFalse(evaluator.shouldStopDownloading(499L, 10))
+    }
+
+    // --- downloadHeadroomBytes ---
+
+    @Test
+    fun `downloadHeadroomBytes returns headroom to download threshold`() = runTest {
+        coEvery { settingsDataStore.getOfflinePolicy() } returns OfflinePolicy.STORAGE_LIMIT
+        coEvery { settingsDataStore.getOfflinePolicyStorageLimit() } returns 100_000_000L
+
+        // 50 downloaded, 80MB: avg=1.6MB, threshold=100-6.4=93.6MB, headroom=13.6MB
+        assertEquals(13_600_000L, evaluator.downloadHeadroomBytes(80_000_000L, 50))
+    }
+
+    @Test
+    fun `downloadHeadroomBytes returns zero past threshold`() = runTest {
+        coEvery { settingsDataStore.getOfflinePolicy() } returns OfflinePolicy.STORAGE_LIMIT
+        coEvery { settingsDataStore.getOfflinePolicyStorageLimit() } returns 100_000_000L
+
+        // 50 downloaded, 93MB: avg=1.86MB, threshold=100-7.44=92.56MB, past it → 0
+        assertEquals(0L, evaluator.downloadHeadroomBytes(93_000_000L, 50))
+    }
+
+    @Test
+    fun `downloadHeadroomBytes uses secondary cap for newest N`() = runTest {
+        coEvery { settingsDataStore.getOfflinePolicy() } returns OfflinePolicy.NEWEST_N
+        coEvery { settingsDataStore.getOfflineMaxStorageCap() } returns 500L
+
+        assertEquals(200L, evaluator.downloadHeadroomBytes(300L, 10))
+    }
+
+    // --- avgArticleBytes ---
+
+    @Test
+    fun `avgArticleBytes returns default when no articles`() {
+        assertEquals(
+            OfflinePolicyEvaluator.DEFAULT_AVG_ARTICLE_BYTES,
+            OfflinePolicyEvaluator.avgArticleBytes(0L, 0)
+        )
+    }
+
+    @Test
+    fun `avgArticleBytes computes raw average`() {
+        // 100MB across 50 articles = 2MB each
+        assertEquals(2_000_000L, OfflinePolicyEvaluator.avgArticleBytes(100_000_000L, 50))
+    }
+
+    @Test
+    fun `avgArticleBytes returns default for negative usage`() {
+        assertEquals(
+            OfflinePolicyEvaluator.DEFAULT_AVG_ARTICLE_BYTES,
+            OfflinePolicyEvaluator.avgArticleBytes(-1L, 5)
+        )
     }
 
     private fun bookmark(
