@@ -41,13 +41,12 @@ These items improve quality but are not blockers for release.
 ### Code Quality
 
 - [ ] **Unused `ImageResourceDTO.kt`** — `app/src/main/java/com/mydeck/app/io/rest/model/ImageResourceDTO.kt` is referenced only by `ResourcesDTO` (as `image: ImageResourceDTO? = null`). The active code path uses a separate `ImageResource` class defined in `BookmarkDto`. Verify whether `ResourcesDTO` itself is still used anywhere; if not, delete both.
-- [ ] **Dead `BookmarkCounts.unread` field** — The DAO computes `unread_count` via `WHERE readProgress < 100 AND state = 0 AND isLocalDeleted = 0` ([BookmarkDao.kt:369](app/src/main/java/com/mydeck/app/io/db/dao/BookmarkDao.kt#L369), [:656](app/src/main/java/com/mydeck/app/io/db/dao/BookmarkDao.kt#L656)) and exposes it on `BookmarkCounts` / `DetailedSyncStatusCounts`, but no references exist on `bookmarkCounts.unread` in `BookmarkListScreen` or the list ViewModel's UiState. Either surface it in the UI or drop the field and the column from the DAO queries.
+- [ ] **Dead `BookmarkCounts.unread` field — remove** — The DAO computes `unread_count` via `WHERE readProgress < 100 AND state = 0 AND isLocalDeleted = 0` ([BookmarkDao.kt:369](app/src/main/java/com/mydeck/app/io/db/dao/BookmarkDao.kt#L369), [:656](app/src/main/java/com/mydeck/app/io/db/dao/BookmarkDao.kt#L656)) and exposes it on `BookmarkCounts` / `DetailedSyncStatusCounts`, but no consumer references it. Decision (2026-04-04): remove. The query is semantically correct (MyDeck's Read/Unread toggles write `readProgress = 100/0`, so `readProgress < 100` *is* the canonical "unread"), but the simplified sync status dialog intentionally dropped per-view counts and the filter bottom sheet uses finer progress buckets (Unviewed / In progress / Completed) without count decorations. Field is vestigial. See [docs/specs/pre-release-cleanup-impl-plan.md](specs/pre-release-cleanup-impl-plan.md) Slice 6.
 - [ ] **Update deprecated `LibrariesContainer` API** — [OpenSourceLibrariesScreen.kt:57](app/src/main/java/com/mydeck/app/ui/settings/OpenSourceLibrariesScreen.kt#L57) still calls `LibrariesContainer(modifier = ...)` directly. Migrate to the `rememberLibraries()` + `Libs` composable pattern.
 - [ ] **`CustomExceptionHandler` Timber-failure fallback** — Primary crash logging already goes through `Timber.e(throwable, "CRASH: ...")` ([MyDeckApplication.kt:80-95](app/src/main/java/com/mydeck/app/MyDeckApplication.kt#L80-L95)); the `e.printStackTrace()` call lives only in the inner catch that fires if Timber itself throws. Replace that fallback with `android.util.Log.w(...)` so even the logging-failure path uses Logcat rather than stderr.
 
 ### Process
 
-- [ ] **OAuth migration branch merge** — Awaiting Stefan's testing confirmation before merging `feature/OAuth-migration` into main.
 - [ ] **Full code review pass** — Systematic review of all changes since fork from ReadeckApp for naming, style, and correctness.
 
 ---

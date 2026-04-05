@@ -87,17 +87,19 @@ Phase 1's only user-observable change is **Slice 1** (BookmarkListScreen state c
 - **Verify:** `./gradlew :app:assembleDebugAll :app:testDebugUnitTestAll`. Grep confirms `import androidx.work.WorkManager` appears only in `WorkManagerSyncScheduler` and `MyDeckApplication` (for `WorkManager.initialize`).
 - **Why Sonnet:** Cross-file refactor with an interface change and a subtle decision about whether the Repository's old private path should merge with the existing `scheduleArticleDownload`. Needs judgment on semantic equivalence.
 
-### Slice 6 — Resolve dead `BookmarkCounts.unread` field
-**Model: Sonnet** (with user decision up-front)
+### Slice 6 — Remove dead `BookmarkCounts.unread` field
+**Model: Haiku**
 
-- **Goal:** Either expose the field in the UI or remove it from the data model + DAO queries.
-- **Files:** [BookmarkDao.kt:369, :656](../../app/src/main/java/com/mydeck/app/io/db/dao/BookmarkDao.kt#L369), [BookmarkCounts.kt](../../app/src/main/java/com/mydeck/app/domain/model/BookmarkCounts.kt), `DetailedSyncStatusCounts` (same DAO file), and the list ViewModel / Screen if surfacing it.
+- **Goal:** Delete the unused `unread` count field and its DAO query expression.
+- **Context (decision made 2026-04-04):** The query `readProgress < 100 AND state = 0 AND isLocalDeleted = 0` is semantically correct for MyDeck's data model — Read/Unread toggles in the reader view literally write `readProgress = 100` or `readProgress = 0`, so `readProgress < 100` *is* the canonical definition of "unread." The name and the query are aligned. What's wrong is that no consumer exists: the simplified sync status dialog intentionally dropped per-view counts, the filter bottom sheet uses finer progress buckets (Unviewed / In progress / Completed) with no count decorations, and the list ViewModel's UiState never references `bookmarkCounts.unread`. The field is vestigial from an earlier sync status layout and should be removed rather than repaired.
+- **Files:** [BookmarkDao.kt:369, :656](../../app/src/main/java/com/mydeck/app/io/db/dao/BookmarkDao.kt#L369), [BookmarkCounts.kt](../../app/src/main/java/com/mydeck/app/domain/model/BookmarkCounts.kt), `DetailedSyncStatusCounts` (same DAO file), and any call sites the compiler flags.
 - **Approach:**
-  1. **Decision point (BLOCK on user):** "Surface `unread` count somewhere (where?) or remove the field?" Do not proceed without a direction.
-  2. **If remove:** drop `unread` from both `BookmarkCounts` and `DetailedSyncStatusCounts`, update DAO queries to stop computing `unread_count`, update any sync status reporting that references it.
-  3. **If surface:** decide where (drawer item badge? filter chip label? sync status section?), add UI, wire from ViewModel. Larger scope.
-- **Verify:** `./gradlew :app:assembleDebugAll :app:testDebugUnitTestAll`.
-- **Why Sonnet:** Coordinated multi-file edits either way; but the shape of the work depends on a decision the agent cannot make alone.
+  1. Remove the `unread_count` expression from both DAO `SELECT` projections (lines 369 and 656 per scout).
+  2. Remove the `unread` property from `BookmarkCounts` and `DetailedSyncStatusCounts`.
+  3. Follow compile errors — delete any remaining references in sync-status mappers, ViewModels, or tests.
+  4. Grep for `BookmarkCounts.unread`, `DetailedSyncStatusCounts.unread`, and bare `.unread` on the two types to confirm full removal.
+- **Verify:** `./gradlew :app:assembleDebugAll :app:testDebugUnitTestAll :app:lintDebugAll`.
+- **Why Haiku:** Pure mechanical dead-code removal after the design decision was made. No judgment required beyond following the compiler.
 
 ### Phase 2 functional test checklist
 
@@ -119,9 +121,10 @@ Phase 2 touches user-observable behavior in navigation and background sync. Afte
 3. **Action sync** — Favorite a bookmark → watch pending-actions count (if visible in Sync Settings debug info) go up then back to zero → verify the server reflects the change. This exercises `scheduleActionSync` which was already abstracted but worth a smoke check given the surrounding refactor.
 4. **Airplane mode → back online** — Toggle airplane mode on, favorite/archive a few items (queueing pending actions), toggle airplane mode off, confirm the queue drains and all three action types sync.
 
-**Slice 6 — Dead `unread` field resolution:**
-- **If remove path taken:** Open any screen that shows bookmark counts (drawer, Sync Settings, filter chips) → verify counts still render correctly → nothing broken visually.
-- **If surface path taken:** Navigate to the newly-added UI location → verify the unread count displays and updates when a bookmark's read progress crosses 100%.
+**Slice 6 — Dead `unread` field removal:**
+- **Sync Settings dialog** — Open Sync Settings, open the sync status dialog. Verify All / MyList / Archive counts render correctly and no placeholder/empty row appeared in their place. No visible change is the expected outcome.
+- **Drawer and filter surfaces** — Open the navigation drawer and the filter bottom sheet. Verify no count display is broken and no stray reference to "unread" appears. Again, zero visible change expected — this is a dead-code removal.
+- **Compile guard** — `./gradlew :app:assembleDebugAll` must be clean; any reference the compiler flags has to be dealt with during the slice itself, not punted to test time.
 
 ---
 
@@ -197,11 +200,11 @@ Phase 4 is a single-screen visual change. After `./gradlew :app:assembleDebugAll
 | 3 | Remove unused `ImageResourceDTO` | **Haiku** | 1 |
 | 4 | Nav event pattern migration (7 VMs) | **Sonnet** | 2 |
 | 5 | Unify WorkManager scheduling behind `SyncScheduler` | **Sonnet** | 2 |
-| 6 | Resolve dead `BookmarkCounts.unread` field | **Sonnet** (user decision first) | 2 |
+| 6 | Remove dead `BookmarkCounts.unread` field | **Haiku** | 2 |
 | 7 | BookmarkRepositoryImpl test expansion | **Sonnet** | 3 |
 | 8 | `LibrariesContainer` → `rememberLibraries` | **Sonnet** | 4 |
 
-**Model-class rationale:** Haiku handles single-file, well-scoped, mechanical changes where the correct edit is unambiguous. Sonnet handles multi-file refactors, pattern-matching migrations, test writing, and changes with a small judgment call. No slice here needs Opus — none involve cross-cutting architectural decisions with subtle tradeoffs; Phase 2 comes closest but the direction is already decided. Reserve Opus for if Slice 6's decision expands into a broader sync-status data model rework.
+**Model-class rationale:** Haiku handles single-file, well-scoped, mechanical changes where the correct edit is unambiguous (Slices 1-3, 6). Sonnet handles multi-file refactors, pattern-matching migrations, test writing, and changes with a small judgment call (Slices 4, 5, 7, 8). No slice here needs Opus — none involve cross-cutting architectural decisions with subtle tradeoffs; Phase 2 comes closest but the direction is already decided.
 
 ---
 
@@ -209,5 +212,4 @@ Phase 4 is a single-screen visual change. After `./gradlew :app:assembleDebugAll
 
 Items intentionally not planned here:
 - **CI feature-branch trigger behavior** — The `verify` job's current gating (PR / main / `workflow_dispatch` only, not feature branch pushes) is by design. Local workflow already runs full test + snapshot gradle tasks before material commits; duplicating that on every feature branch push creates noise when iterating on long-lived refactor branches.
-- **OAuth migration branch merge** — Process item awaiting external confirmation.
 - **Full code review pass** — Manual process, not a coding slice.
