@@ -63,6 +63,7 @@ interface SettingsDataStore {
     fun getLogRetentionDaysFlow(): StateFlow<Int>
 
     // Offline reading policy
+    val offlineReadingEnabledFlow: StateFlow<Boolean>
     suspend fun getContentSyncConstraints(): ContentSyncConstraints
     suspend fun saveWifiOnly(enabled: Boolean)
     suspend fun saveAllowBatterySaver(enabled: Boolean)

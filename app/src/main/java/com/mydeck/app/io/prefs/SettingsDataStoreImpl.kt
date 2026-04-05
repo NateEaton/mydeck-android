@@ -345,6 +345,7 @@ class SettingsDataStoreImpl @Inject constructor(@ApplicationContext private val 
     override val initialSyncPerformedFlow =
         getBooleanFlow(encryptedSharedPreferences, KEY_INITIAL_SYNC_PERFORMED, false)
     override val themeFlow = getStringFlow(userPreferences, KEY_THEME.name, Theme.SYSTEM.name)
+    override val offlineReadingEnabledFlow = getBooleanFlow(userPreferences, KEY_OFFLINE_READING_ENABLED.name, false)
     override val lastSyncTimestampFlow =
         getStringFlow(encryptedSharedPreferences, KEY_LAST_SYNC_TIMESTAMP.name, null)
     override val lastContentSyncTimestampFlow =

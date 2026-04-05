@@ -75,7 +75,7 @@ other{}
     <string name="log_view_title">Logs</string>
     <string name="log_view_send_logs">Send Logs</string>
     <string name="settings_logs">Logs</string>
-    <string name="settings_logs_subtitle">View and Send Logfiles</string>
+    <string name="settings_logs_subtitle">View &amp; Send</string>
     <string name="log_view_share_title">Send Logs</string>
     <string name="log_view_no_log_file_found">No log file found</string>
     <string name="log_view_share_error">Failed to create log archive</string>

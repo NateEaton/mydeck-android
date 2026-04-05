@@ -4,10 +4,12 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import com.mydeck.app.domain.UserRepository
+import com.mydeck.app.domain.model.Theme
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
@@ -15,11 +17,30 @@ import javax.inject.Inject
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
-    userRepository: UserRepository
+    userRepository: UserRepository,
+    private val settingsDataStore: com.mydeck.app.io.prefs.SettingsDataStore
 ) : ViewModel() {
     private val _navigationEvent = MutableStateFlow<NavigationEvent?>(null)
     val navigationEvent: StateFlow<NavigationEvent?> = _navigationEvent.asStateFlow()
-    val uiState: StateFlow<SettingsUiState> = userRepository.observeAuthenticationDetails().map { SettingsUiState(username = it?.username) }.stateIn(
+    val uiState: StateFlow<SettingsUiState> = combine(
+        userRepository.observeAuthenticationDetails(),
+        settingsDataStore.offlineReadingEnabledFlow,
+        settingsDataStore.themeFlow
+    ) { authDetails, offlineReadingEnabled, theme ->
+        val syncSubtitle = if (offlineReadingEnabled) "Offline reading enabled" else "Offline reading disabled"
+        val uiSubtitle = when (theme) {
+            Theme.LIGHT.name -> "Light"
+            Theme.DARK.name -> "Dark"
+            Theme.SYSTEM.name -> "System"
+            else -> "System"
+        }
+        SettingsUiState(
+            username = authDetails?.username,
+            syncSubtitle = syncSubtitle,
+            uiSubtitle = uiSubtitle,
+            logsSubtitle = "View & Send"
+        )
+    }.stateIn(
         viewModelScope,
         SharingStarted.WhileSubscribed(5000),
         SettingsUiState(username = null)
@@ -66,4 +87,7 @@ class SettingsViewModel @Inject constructor(
 
 data class SettingsUiState(
     val username: String?,
+    val syncSubtitle: String = "Synchronization Settings",
+    val uiSubtitle: String = "Appearance",
+    val logsSubtitle: String = "View & Send"
 )
