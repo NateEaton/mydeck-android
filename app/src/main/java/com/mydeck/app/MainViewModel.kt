@@ -8,6 +8,7 @@ import com.mydeck.app.domain.model.LightAppearance
 import com.mydeck.app.domain.model.Theme
 import com.mydeck.app.io.prefs.SettingsDataStore
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import javax.inject.Inject
@@ -16,6 +17,14 @@ import javax.inject.Inject
 class MainViewModel @Inject constructor(
     val settingsDataStore: SettingsDataStore
 ): ViewModel() {
+    val isReady: StateFlow<Boolean> = settingsDataStore.themeFlow
+        .map { true }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.Eagerly,
+            initialValue = false
+        )
+
     val theme = settingsDataStore.themeFlow.map {
         it?.let {
             try { Theme.valueOf(it) } catch (_: IllegalArgumentException) { Theme.LIGHT }
