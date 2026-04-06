@@ -460,10 +460,10 @@
     <string name="sync_offline_keep_offline">Keep offline</string>
     <string name="sync_offline_policy_storage_limit">Storage limit</string>
     <string name="sync_offline_policy_newest_n">Most recent</string>
-    <string name="sync_offline_policy_date_range">Added within last</string>
+    <string name="sync_offline_policy_date_range">Time span</string>
     <string name="sync_offline_storage_limit_dialog_title">Storage limit</string>
     <string name="sync_offline_max_storage_cap">Maximum storage cap</string>
-    <string name="sync_offline_max_storage_cap_desc">Applies to Most recent and Added within last options.</string>
+    <string name="sync_offline_max_storage_cap_desc">Applies to Most recent and Time span options.</string>
     <string name="sync_offline_download_date_range">Download content for date range…</string>
     <string name="sync_offline_newest_n_25">25</string>
     <string name="sync_offline_newest_n_50">50</string>

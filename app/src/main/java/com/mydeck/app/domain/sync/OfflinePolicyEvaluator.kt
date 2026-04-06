@@ -59,7 +59,8 @@ class OfflinePolicyEvaluator @Inject constructor(
             }
 
             OfflinePolicy.DATE_RANGE -> {
-                val cutoff = now - settingsDataStore.getOfflinePolicyDateRangeWindow()
+                val anchor = bookmarks.maxByOrNull { it.created }?.created ?: now
+                val cutoff = anchor - settingsDataStore.getOfflinePolicyDateRangeWindow()
                 bookmarks
                     .filter { it.created >= cutoff }
                     .sortedByDescending { it.created }
@@ -102,7 +103,8 @@ class OfflinePolicyEvaluator @Inject constructor(
             }
 
             OfflinePolicy.DATE_RANGE -> {
-                val cutoff = now - settingsDataStore.getOfflinePolicyDateRangeWindow()
+                val anchor = downloadedBookmarks.maxByOrNull { it.created }?.created ?: now
+                val cutoff = anchor - settingsDataStore.getOfflinePolicyDateRangeWindow()
                 isSecondaryCapExceeded(totalUsageBytes) ||
                     downloadedBookmarks.any { it.created < cutoff }
             }
@@ -158,7 +160,8 @@ class OfflinePolicyEvaluator @Inject constructor(
                 if (isSecondaryCapExceeded(totalUsageBytes)) {
                     oldestFirst.map { it.id }
                 } else {
-                    val cutoff = now - settingsDataStore.getOfflinePolicyDateRangeWindow()
+                    val anchor = downloadedBookmarks.maxByOrNull { it.created }?.created ?: now
+                    val cutoff = anchor - settingsDataStore.getOfflinePolicyDateRangeWindow()
                     oldestFirst.filter { it.created < cutoff }.map { it.id }
                 }
             }

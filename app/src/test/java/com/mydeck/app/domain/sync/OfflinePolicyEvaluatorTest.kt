@@ -250,15 +250,20 @@ class OfflinePolicyEvaluatorTest {
         coEvery { settingsDataStore.getOfflinePolicy() } returns OfflinePolicy.DATE_RANGE
         coEvery { settingsDataStore.getOfflinePolicyDateRangeWindow() } returns 30.days
 
-        val now = Instant.parse("2026-04-01T00:00:00Z")
-        val exactlyCutoff = now - 30.days
+        // Anchor = newest bookmark (Mar 25). Cutoff = Mar 25 - 30d = Feb 23.
+        // Feb 23 >= Feb 23 → included.
+        val anchor = Instant.parse("2026-03-25T00:00:00Z")
+        val exactlyCutoff = anchor - 30.days
 
         val eligible = evaluator.selectEligibleBookmarks(
-            listOf(bookmark(id = "1", created = exactlyCutoff.toString())),
-            now = now
+            listOf(
+                bookmark(id = "1", created = exactlyCutoff.toString()),
+                bookmark(id = "2", created = anchor.toString())
+            ),
+            now = Instant.parse("2026-04-01T00:00:00Z")
         )
 
-        assertEquals(listOf("1"), eligible.map { it.id })
+        assertEquals(listOf("2", "1"), eligible.map { it.id })
     }
 
     @Test
@@ -266,15 +271,41 @@ class OfflinePolicyEvaluatorTest {
         coEvery { settingsDataStore.getOfflinePolicy() } returns OfflinePolicy.DATE_RANGE
         coEvery { settingsDataStore.getOfflinePolicyDateRangeWindow() } returns 30.days
 
-        val now = Instant.parse("2026-04-01T00:00:00Z")
-        val justBeforeCutoff = now - 30.days - 1.seconds
+        // Anchor = newest bookmark (Mar 25). Cutoff = Feb 23.
+        // One second before Feb 23 → excluded.
+        val anchor = Instant.parse("2026-03-25T00:00:00Z")
+        val justBeforeCutoff = anchor - 30.days - 1.seconds
 
         val eligible = evaluator.selectEligibleBookmarks(
-            listOf(bookmark(id = "1", created = justBeforeCutoff.toString())),
-            now = now
+            listOf(
+                bookmark(id = "1", created = justBeforeCutoff.toString()),
+                bookmark(id = "2", created = anchor.toString())
+            ),
+            now = Instant.parse("2026-04-01T00:00:00Z")
         )
 
-        assertTrue(eligible.isEmpty())
+        assertEquals(listOf("2"), eligible.map { it.id })
+    }
+
+    @Test
+    fun `selectEligibleBookmarks date range keeps content during idle period`() = runTest {
+        coEvery { settingsDataStore.getOfflinePolicy() } returns OfflinePolicy.DATE_RANGE
+        coEvery { settingsDataStore.getOfflinePolicyDateRangeWindow() } returns 90.days
+
+        // User hasn't added bookmarks since Nov 30. "Now" is Apr 1 (4 months later).
+        // Old logic: cutoff = Apr 1 - 90d = Jan 1 → only Nov 30 survives? No, none survive.
+        // New logic: anchor = Nov 30 (newest), cutoff = Nov 30 - 90d = Sep 1.
+        //   All three bookmarks (Sep 15, Oct 20, Nov 30) are >= Sep 1 → all kept.
+        val eligible = evaluator.selectEligibleBookmarks(
+            listOf(
+                bookmark(id = "1", created = "2025-09-15T00:00:00Z"),
+                bookmark(id = "2", created = "2025-10-20T00:00:00Z"),
+                bookmark(id = "3", created = "2025-11-30T00:00:00Z")
+            ),
+            now = Instant.parse("2026-04-01T00:00:00Z")
+        )
+
+        assertEquals(listOf("3", "2", "1"), eligible.map { it.id })
     }
 
     // --- isEligible ---
@@ -441,6 +472,26 @@ class OfflinePolicyEvaluatorTest {
             downloadedBookmarks = listOf(
                 bookmark(id = "1", created = "2026-03-20T00:00:00Z", hasOfflinePackage = true),
                 bookmark(id = "2", created = "2026-03-25T00:00:00Z", hasOfflinePackage = true)
+            ),
+            totalUsageBytes = 100L,
+            now = Instant.parse("2026-04-01T00:00:00Z")
+        )
+
+        assertFalse(shouldPrune)
+    }
+
+    @Test
+    fun `shouldPrune date range returns false during idle period when all within span`() = runTest {
+        coEvery { settingsDataStore.getOfflinePolicy() } returns OfflinePolicy.DATE_RANGE
+        coEvery { settingsDataStore.getOfflinePolicyDateRangeWindow() } returns 90.days
+
+        // Bookmarks from Sep-Nov 2025, now is Apr 2026 (4+ months later).
+        // Anchor = Nov 30, cutoff = Sep 1. All bookmarks >= Sep 1 → no prune.
+        val shouldPrune = evaluator.shouldPrune(
+            downloadedBookmarks = listOf(
+                bookmark(id = "1", created = "2025-09-15T00:00:00Z", hasOfflinePackage = true),
+                bookmark(id = "2", created = "2025-10-20T00:00:00Z", hasOfflinePackage = true),
+                bookmark(id = "3", created = "2025-11-30T00:00:00Z", hasOfflinePackage = true)
             ),
             totalUsageBytes = 100L,
             now = Instant.parse("2026-04-01T00:00:00Z")

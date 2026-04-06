@@ -34,8 +34,8 @@ Choose which bookmarks MyDeck keeps fully available offline:
 
 - **Storage limit** — keep saved content until it reaches the selected total storage size
 - **Most recent** — keep the most recently saved bookmarks fully available offline, up to the selected count
-- **Added within last** — keep bookmarks added within the selected rolling time window fully available offline
-- **Maximum storage cap** — appears with **Most recent** and **Added within last** to set an upper storage limit for those options
+- **Time span** — keep a selected duration's worth of bookmarks fully available offline, measured back from your most recently added bookmark (so content stays available even during long idle periods)
+- **Maximum storage cap** — appears with **Most recent** and **Time span** to set an upper storage limit for those options
 - **Include Archive** — when off, automatic offline maintenance applies only to **My List**; when on, archived bookmarks remain eligible
 
 When **Include Archive** is off, archiving a bookmark removes it from offline eligibility, so its content is removed during the next maintenance run.
