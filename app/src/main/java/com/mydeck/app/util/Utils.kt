@@ -5,6 +5,10 @@ import android.content.Intent
 import androidx.core.net.toUri
 import androidx.browser.customtabs.CustomTabsIntent
 import com.mydeck.app.domain.model.SharedText
+import kotlinx.datetime.Instant
+import kotlinx.datetime.LocalDateTime
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toInstant
 import java.net.URI
 
 fun String?.isValidUrl(allowHttp: Boolean = true): Boolean {
@@ -96,6 +100,18 @@ private fun findFirstUrlInLine(line: String): String? {
 private val URL_REGEX = """(https?://[^\s]+)""".toRegex()
 
 const val MAX_TITLE_LENGTH = 500
+
+/**
+ * Parse an ISO-8601 timestamp string leniently.
+ * Tries [Instant.parse] first; falls back to [LocalDateTime.parse] converted via system TZ.
+ * Returns null if neither succeeds.
+ */
+fun parseInstantLenient(value: String): Instant? {
+    runCatching { return Instant.parse(value) }
+    return runCatching {
+        LocalDateTime.parse(value).toInstant(TimeZone.currentSystemDefault())
+    }.getOrNull()
+}
 
 fun openUrlInCustomTab(context: Context, url: String) {
     if(url.isValidUrl()) {

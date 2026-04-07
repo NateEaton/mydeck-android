@@ -8,10 +8,12 @@ import com.mydeck.app.domain.model.LightAppearance
 import com.mydeck.app.domain.model.Theme
 import com.mydeck.app.domain.model.TypographySettings
 import com.mydeck.app.domain.sync.ContentSyncConstraints
-import com.mydeck.app.domain.sync.ContentSyncMode
 import com.mydeck.app.domain.sync.DateRangeParams
+import com.mydeck.app.domain.sync.OfflineContentScope
+import com.mydeck.app.domain.sync.OfflinePolicy
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.datetime.Instant
+import kotlin.time.Duration
 
 interface SettingsDataStore {
     val tokenFlow: StateFlow<String?>
@@ -19,6 +21,8 @@ interface SettingsDataStore {
     val urlFlow: StateFlow<String?>
     val initialSyncPerformedFlow: StateFlow<Boolean>
     val themeFlow: StateFlow<String?>
+    val lastSyncTimestampFlow: StateFlow<String?>
+    val lastContentSyncTimestampFlow: StateFlow<String?>
     fun saveToken(token: String)
     fun saveUrl(url: String)
     suspend fun saveLastBookmarkTimestamp(timestamp: Instant)
@@ -58,14 +62,29 @@ interface SettingsDataStore {
     suspend fun getLogRetentionDays(): Int
     fun getLogRetentionDaysFlow(): StateFlow<Int>
 
-    // Content sync policy
-    suspend fun getContentSyncMode(): ContentSyncMode
-    suspend fun saveContentSyncMode(mode: ContentSyncMode)
+    // Offline reading policy
+    val offlineReadingEnabledFlow: StateFlow<Boolean>
     suspend fun getContentSyncConstraints(): ContentSyncConstraints
     suspend fun saveWifiOnly(enabled: Boolean)
     suspend fun saveAllowBatterySaver(enabled: Boolean)
     suspend fun getDateRangeParams(): DateRangeParams?
     suspend fun saveDateRangeParams(params: DateRangeParams)
+    suspend fun isOfflineReadingEnabled(): Boolean
+    suspend fun saveOfflineReadingEnabled(enabled: Boolean)
+    suspend fun getOfflinePolicy(): OfflinePolicy
+    suspend fun saveOfflinePolicy(policy: OfflinePolicy)
+    suspend fun getOfflinePolicyStorageLimit(): Long
+    suspend fun saveOfflinePolicyStorageLimit(limitBytes: Long)
+    suspend fun getOfflinePolicyNewestN(): Int
+    suspend fun saveOfflinePolicyNewestN(newestN: Int)
+    suspend fun getOfflinePolicyDateRangeWindow(): Duration
+    suspend fun saveOfflinePolicyDateRangeWindow(window: Duration)
+    suspend fun getOfflineMaxStorageCap(): Long
+    suspend fun saveOfflineMaxStorageCap(limitBytes: Long)
+    suspend fun getOfflineContentScope(): OfflineContentScope
+    suspend fun saveOfflineContentScope(scope: OfflineContentScope)
+    suspend fun getOfflineImageStorageLimit(): com.mydeck.app.domain.sync.OfflineImageStorageLimit
+    suspend fun saveOfflineImageStorageLimit(limit: com.mydeck.app.domain.sync.OfflineImageStorageLimit)
 
     // Typography settings
     val typographySettingsFlow: StateFlow<TypographySettings>

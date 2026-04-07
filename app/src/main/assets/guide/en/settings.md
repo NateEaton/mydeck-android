@@ -15,35 +15,45 @@ The **Account** option in the drawer shows your username. Tapping it opens the *
 
 The **Synchronization Settings** screen controls how MyDeck keeps your bookmarks and their content in sync with the Readeck server.
 
-MyDeck automatically syncs your bookmark list when you first sign in and each time the app is opened. The periodic sync is for detecting if bookmarks were deleted on the server so they can be removed from the app.
-
 ### Bookmark Sync
 
-- **Sync frequency** — how often MyDeck syncs in the background. Tap to choose an interval (e.g., every hour).
-- **Next synchronization** — shows when the next automatic sync is scheduled.
-- **Sync Bookmarks Now** — immediately checks for new, updated, and deleted bookmarks.
+The top of the screen focuses on keeping your bookmark list current.
 
-### Content Sync
+- **Sync frequency** — choose how often MyDeck checks for bookmark changes in the background; the time of the last sync and the next scheduled sync are shown below this control
+- **Sync Bookmarks Now** — immediately checks for new, updated, and deleted bookmarks
 
-Controls when the full article content for bookmarks is downloaded.
+Above the sync button, the **Bookmarks** counts show how many bookmarks are in your **My List**, **Archive**, and **Favorites** views.
 
-**Content Sync Mode:**
-- **Automatic** — content is downloaded automatically during each bookmark sync
-- **Manual (on demand)** — content is downloaded only when you open a bookmark; this is the default when the app is installed. 
-- **Manual (date range)** — you can trigger a batch download for bookmarks added within a date range (Date Range — choose from Past day, Past week, Past month, Past year, or Custom date range, then tap **Download**)
+### Offline Reading
 
-**Constraints:**
-- **Only download on Wi-Fi** — prevents content from downloading over mobile data
-- **Allow download on battery saver** — when off, content sync pauses when battery saver is active
+Offline reading is optional and off by default. When enabled, MyDeck automatically downloads and keeps eligible bookmarks available so you can read them without internet access. A status indicator below the toggle shows whether content is actively syncing, up to date, or waiting on a connection or battery constraint.
 
-If you try to sync content while a constraint is active (for example, downloading over mobile data when Wi-Fi-only is enabled), a warning dialog will give you the option to override the constraint.
+#### What to keep offline
 
-### Sync Status
+Choose which bookmarks MyDeck keeps fully available offline:
 
-Shows a summary of what's been synced:
+- **Storage limit** — keep saved content until it reaches the selected total storage size
+- **Most recent** — keep the most recently saved bookmarks fully available offline, up to the selected count
+- **Last** — keep a selected duration's worth of bookmarks fully available offline, measured back from the current time
+- **Maximum storage cap** — appears with **Most recent** and **Last** to set an upper storage limit for those options
+- **Include Archive** — when off, automatic offline maintenance applies only to **My List**; when on, archived bookmarks remain eligible
 
-- **Bookmarks** — total count, My List, Archived, Favorites
-- **Content** — how many bookmarks have downloaded content, how many are available to download, and any that failed
+For **Most recent**, the selected count is always based on the raw newest bookmarks in scope. If some of those bookmarks have no extractable article content, they are counted as skipped rather than replaced by older bookmarks.
+
+When **Include Archive** is off, archiving a bookmark removes it from offline eligibility, so its content is removed during the next maintenance run.
+
+#### Whether to download
+
+- **Wi-Fi only** — prevents automatic offline downloads from using mobile data
+- **Allow on battery saver** — when off, automatic offline downloads pause while battery saver is active
+
+#### Storage
+
+Shows how many bookmarks are fully available offline, how much storage offline content is using, and when offline content maintenance last ran.
+
+- **Clear All Offline Content** — removes all locally stored offline content without deleting the bookmarks themselves
+
+If you turn offline reading off, MyDeck removes all automatically downloaded content immediately but keeps text that was loaded on demand when you opened bookmarks while browsing.
 
 ## User Interface
 

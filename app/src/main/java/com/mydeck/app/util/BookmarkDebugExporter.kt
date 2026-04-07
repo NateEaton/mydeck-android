@@ -34,7 +34,7 @@ class BookmarkDebugExporter(
 
             // Fetch fresh data from API
             val rawApiJson = bookmarkRepository.fetchRawBookmarkJson(bookmarkId)
-            val rawArticleHtml = bookmarkRepository.fetchRawArticleHtml(bookmarkId)
+            val rawArticleHtml = null // Legacy article endpoint removed (Stage 4)
 
             // Build the comprehensive JSON
             val debugJson = buildDebugJson(
@@ -102,6 +102,7 @@ class BookmarkDebugExporter(
                 put("isMarked", bookmark.isMarked)
                 put("isArchived", bookmark.isArchived)
                 put("isDeleted", bookmark.isDeleted)
+                put("omitDescription", bookmark.omitDescription?.toString() ?: "null")
             }
 
             putJsonObject("bookmarkMetadata") {

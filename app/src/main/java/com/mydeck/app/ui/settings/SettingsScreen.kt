@@ -135,7 +135,7 @@ fun SettingScreenView(
             SettingItem(
                 icon = Icons.Filled.Sync,
                 title = stringResource(R.string.settings_sync),
-                subtitle = stringResource(R.string.settings_sync_subtitle),
+                subtitle = settingsUiState.syncSubtitle,
                 onClick = onClickSync,
                 testTag = SettingsScreenTestTags.SETTINGS_ITEM_SYNC
             )
@@ -143,7 +143,7 @@ fun SettingScreenView(
             SettingItem(
                 icon = Icons.Filled.Visibility,
                 title = stringResource(R.string.settings_ui),
-                subtitle = stringResource(R.string.settings_ui_subtitle),
+                subtitle = settingsUiState.uiSubtitle,
                 onClick = onClickUi,
                 testTag = SettingsScreenTestTags.SETTINGS_ITEM_UI
             )
@@ -151,7 +151,7 @@ fun SettingScreenView(
             SettingItem(
                 icon = Icons.Filled.Info,
                 title = stringResource(R.string.settings_logs),
-                subtitle = stringResource(R.string.settings_logs_subtitle),
+                subtitle = settingsUiState.logsSubtitle,
                 onClick = onClickLogs,
                 testTag = SettingsScreenTestTags.SETTINGS_ITEM_LOGS
             )

@@ -81,10 +81,16 @@ android {
             )
             buildConfigField("boolean", "ALLOW_INSECURE_HTTP", allowInsecureHttpRelease.toString())
             buildConfigField("boolean", "ALLOW_USER_CA_CERTIFICATES", allowUserCaRelease.toString())
+            buildConfigField("boolean", "SHOW_CARD_INDEX_OVERLAY", "false")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            signingConfig = if (signingConfigs.getByName("release").storeFile != null) {
+                signingConfigs.getByName("release")
+            } else {
+                signingConfigs.getByName("debug")
+            }
         }
         debug {
             isMinifyEnabled = false
@@ -96,6 +102,7 @@ android {
             )
             buildConfigField("boolean", "ALLOW_INSECURE_HTTP", "true")
             buildConfigField("boolean", "ALLOW_USER_CA_CERTIFICATES", "true")
+            buildConfigField("boolean", "SHOW_CARD_INDEX_OVERLAY", "false")
         }
     }
 
@@ -170,6 +177,7 @@ android {
 dependencies {
     coreLibraryDesugaring(libs.desugar.jdk.libs)
     implementation(libs.androidx.core.ktx)
+    implementation(libs.androidx.core.splashscreen)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
     implementation(platform(libs.androidx.compose.bom))
@@ -181,7 +189,8 @@ dependencies {
     implementation(libs.androidx.junit)
     implementation(libs.androidx.ui.test.junit4.android)
     implementation(libs.androidx.browser)
-    
+    implementation(libs.androidx.webkit)
+
     // hilt
     ksp(libs.dagger.hilt.android.compiler)
     ksp(libs.androidx.hilt.compiler)

@@ -260,6 +260,9 @@ interface BookmarkDao {
     @Query("DELETE FROM article_content WHERE bookmarkId = :bookmarkId")
     suspend fun deleteArticleContent(bookmarkId: String)
 
+    @Query("DELETE FROM article_content")
+    suspend fun deleteAllArticleContent()
+
     @Transaction
     @Query("SELECT * FROM bookmarks")
     suspend fun getAllBookmarksWithContent(): List<BookmarkWithArticleContent>
@@ -280,59 +283,63 @@ interface BookmarkDao {
         val args = mutableListOf<Any>()
         val sqlQuery = buildString {
             append("""SELECT
-            id,
-            href,
-            url,
-            title,
-            siteName,
-            isMarked,
-            isArchived,
-            readProgress,
-            icon_src AS iconSrc,
-            image_src AS imageSrc,
-            labels,
-            thumbnail_src AS thumbnailSrc,
-            type,
-            readingTime,
-            created,
-            wordCount,
-            published
+            b.id,
+            b.href,
+            b.url,
+            b.title,
+            b.siteName,
+            b.isMarked,
+            b.isArchived,
+            b.readProgress,
+            b.icon_src AS iconSrc,
+            b.image_src AS imageSrc,
+            b.labels,
+            b.thumbnail_src AS thumbnailSrc,
+            b.type,
+            b.readingTime,
+            b.created,
+            b.wordCount,
+            b.published,
+            b.contentState,
+            cp.hasResources
             """)
 
-            append(" FROM bookmarks WHERE isLocalDeleted = 0")
+            append(" FROM bookmarks b")
+            append(" LEFT JOIN content_package cp ON cp.bookmarkId = b.id")
+            append(" WHERE b.isLocalDeleted = 0")
 
             state?.let {
-                append(" AND state = ?")
+                append(" AND b.state = ?")
                 args.add(it.value)
             }
 
             type?.let {
-                append(" AND type = ?")
+                append(" AND b.type = ?")
                 args.add(it.value)
             }
 
             if (isUnread == true) {
-                append(" AND readProgress < 100")
+                append(" AND b.readProgress < 100")
             } else if (isUnread == false) {
-                append(" AND readProgress = 100")
+                append(" AND b.readProgress = 100")
             }
 
             isArchived?.let {
-                append(" AND isArchived = ?")
+                append(" AND b.isArchived = ?")
                 args.add(it)
             }
 
             isFavorite?.let {
-                append(" AND isMarked = ?")
+                append(" AND b.isMarked = ?")
                 args.add(it)
             }
 
             label?.let {
-                append(" AND labels LIKE ? COLLATE BINARY")
-                args.add("%\"$it\"%")
+                append(" AND INSTR(b.labels, ?) > 0")
+                args.add("\"$it\"")
             }
 
-            append(" ORDER BY $orderBy")
+            append(" ORDER BY b.$orderBy")
         }.let { SimpleSQLiteQuery(it, args.toTypedArray()) }
         Timber.d("query=${sqlQuery.sql}")
         return getBookmarkListItemsByFiltersDynamic(sqlQuery)
@@ -444,14 +451,17 @@ interface BookmarkDao {
     ): Flow<List<BookmarkListItemEntity>> {
         val args = mutableListOf<Any>()
         val sqlQuery = buildString {
-            append("""SELECT id, href, url, title, siteName, isMarked, isArchived,
-            readProgress, icon_src AS iconSrc, image_src AS imageSrc,
-            labels, thumbnail_src AS thumbnailSrc, type,
-            readingTime, created, wordCount, published
-            FROM bookmarks WHERE isLocalDeleted = 0""")
+            append("""SELECT b.id, b.href, b.url, b.title, b.siteName, b.isMarked, b.isArchived,
+            b.readProgress, b.icon_src AS iconSrc, b.image_src AS imageSrc,
+            b.labels, b.thumbnail_src AS thumbnailSrc, b.type,
+            b.readingTime, b.created, b.wordCount, b.published,
+            b.contentState, cp.hasResources
+            FROM bookmarks b
+            LEFT JOIN content_package cp ON cp.bookmarkId = b.id
+            WHERE b.isLocalDeleted = 0""")
 
             if (searchQuery.isNotBlank()) {
-                append(" AND (title LIKE ? COLLATE NOCASE OR labels LIKE ? COLLATE NOCASE OR siteName LIKE ? COLLATE NOCASE)")
+                append(" AND (b.title LIKE ? COLLATE NOCASE OR b.labels LIKE ? COLLATE NOCASE OR b.siteName LIKE ? COLLATE NOCASE)")
                 val pattern = "%$searchQuery%"
                 args.add(pattern)
                 args.add(pattern)
@@ -459,37 +469,37 @@ interface BookmarkDao {
             }
 
             state?.let {
-                append(" AND state = ?")
+                append(" AND b.state = ?")
                 args.add(it.value)
             }
 
             type?.let {
-                append(" AND type = ?")
+                append(" AND b.type = ?")
                 args.add(it.value)
             }
 
             if (isUnread == true) {
-                append(" AND readProgress < 100")
+                append(" AND b.readProgress < 100")
             } else if (isUnread == false) {
-                append(" AND readProgress = 100")
+                append(" AND b.readProgress = 100")
             }
 
             isArchived?.let {
-                append(" AND isArchived = ?")
+                append(" AND b.isArchived = ?")
                 args.add(it)
             }
 
             isFavorite?.let {
-                append(" AND isMarked = ?")
+                append(" AND b.isMarked = ?")
                 args.add(it)
             }
 
             label?.let {
-                append(" AND labels LIKE ? COLLATE BINARY")
-                args.add("%\"$it\"%")
+                append(" AND INSTR(b.labels, ?) > 0")
+                args.add("\"$it\"")
             }
 
-            append(" ORDER BY $orderBy")
+            append(" ORDER BY b.$orderBy")
         }.let { SimpleSQLiteQuery(it, args.toTypedArray()) }
         Timber.d("searchQuery=${sqlQuery.sql}")
         return getBookmarkListItemsByFiltersDynamic(sqlQuery)
@@ -514,14 +524,17 @@ interface BookmarkDao {
     ): Flow<List<BookmarkListItemEntity>> {
         val args = mutableListOf<Any>()
         val sqlQuery = buildString {
-            append("""SELECT id, href, url, title, siteName, isMarked, isArchived,
-            readProgress, icon_src AS iconSrc, image_src AS imageSrc,
-            labels, thumbnail_src AS thumbnailSrc, type,
-            readingTime, created, wordCount, published
-            FROM bookmarks WHERE isLocalDeleted = 0""")
+            append("""SELECT b.id, b.href, b.url, b.title, b.siteName, b.isMarked, b.isArchived,
+            b.readProgress, b.icon_src AS iconSrc, b.image_src AS imageSrc,
+            b.labels, b.thumbnail_src AS thumbnailSrc, b.type,
+            b.readingTime, b.created, b.wordCount, b.published,
+            b.contentState, cp.hasResources
+            FROM bookmarks b
+            LEFT JOIN content_package cp ON cp.bookmarkId = b.id
+            WHERE b.isLocalDeleted = 0""")
 
             if (!searchQuery.isNullOrBlank()) {
-                append(" AND (title LIKE ? COLLATE NOCASE OR labels LIKE ? COLLATE NOCASE OR siteName LIKE ? COLLATE NOCASE OR authors LIKE ? COLLATE NOCASE)")
+                append(" AND (b.title LIKE ? COLLATE NOCASE OR b.labels LIKE ? COLLATE NOCASE OR b.siteName LIKE ? COLLATE NOCASE OR b.authors LIKE ? COLLATE NOCASE)")
                 val pattern = "%$searchQuery%"
                 args.add(pattern)
                 args.add(pattern)
@@ -530,89 +543,89 @@ interface BookmarkDao {
             }
 
             if (!title.isNullOrBlank()) {
-                append(" AND title LIKE ? COLLATE NOCASE")
+                append(" AND b.title LIKE ? COLLATE NOCASE")
                 args.add("%$title%")
             }
 
             if (!author.isNullOrBlank()) {
-                append(" AND authors LIKE ? COLLATE NOCASE")
+                append(" AND b.authors LIKE ? COLLATE NOCASE")
                 args.add("%$author%")
             }
 
             if (!site.isNullOrBlank()) {
-                append(" AND siteName LIKE ? COLLATE NOCASE")
+                append(" AND b.siteName LIKE ? COLLATE NOCASE")
                 args.add("%$site%")
             }
 
             if (types.isNotEmpty()) {
                 val placeholders = types.joinToString(", ") { "?" }
-                append(" AND type IN ($placeholders)")
+                append(" AND b.type IN ($placeholders)")
                 types.forEach { args.add(it.value) }
             }
 
             if (progressFilters.isNotEmpty()) {
                 val conditions = mutableListOf<String>()
-                if (0 in progressFilters) conditions.add("readProgress = 0") // UNVIEWED
-                if (1 in progressFilters) conditions.add("(readProgress > 0 AND readProgress < 100)") // IN_PROGRESS
-                if (2 in progressFilters) conditions.add("readProgress = 100") // COMPLETED
+                if (0 in progressFilters) conditions.add("b.readProgress = 0") // UNVIEWED
+                if (1 in progressFilters) conditions.add("(b.readProgress > 0 AND b.readProgress < 100)") // IN_PROGRESS
+                if (2 in progressFilters) conditions.add("b.readProgress = 100") // COMPLETED
                 if (conditions.isNotEmpty()) {
                     append(" AND (${conditions.joinToString(" OR ")})")
                 }
             }
 
             isArchived?.let {
-                append(" AND isArchived = ?")
+                append(" AND b.isArchived = ?")
                 args.add(it)
             }
 
             isFavorite?.let {
-                append(" AND isMarked = ?")
+                append(" AND b.isMarked = ?")
                 args.add(it)
             }
 
             label?.let {
-                append(" AND labels LIKE ? COLLATE BINARY")
-                args.add("%\"$it\"%")
+                append(" AND INSTR(b.labels, ?) > 0")
+                args.add("\"$it\"")
             }
 
             fromDate?.let {
-                append(" AND published >= ?")
+                append(" AND b.published >= ?")
                 args.add(it)
             }
 
             toDate?.let {
-                append(" AND published <= ?")
+                append(" AND b.published <= ?")
                 args.add(it)
             }
 
             // isLoaded: true = DOWNLOADED (contentState=1), false = NOT_ATTEMPTED (contentState=0)
             isLoaded?.let {
                 if (it) {
-                    append(" AND contentState = 1")
+                    append(" AND b.contentState = 1")
                 } else {
-                    append(" AND contentState = 0")
+                    append(" AND b.contentState = 0")
                 }
             }
 
             // withLabels: true = has labels, false = no labels
             withLabels?.let {
                 if (it) {
-                    append(" AND labels != '[]' AND labels != '' AND labels IS NOT NULL")
+                    append(" AND b.labels != '[]' AND b.labels != '' AND b.labels IS NOT NULL")
                 } else {
-                    append(" AND (labels = '[]' OR labels = '' OR labels IS NULL)")
+                    append(" AND (b.labels = '[]' OR b.labels = '' OR b.labels IS NULL)")
                 }
             }
 
             // withErrors: true = state=ERROR(1) or the server has flagged the bookmark with errors
             withErrors?.let {
                 if (it) {
-                    append(" AND (state = 1 OR hasServerErrors = 1)")
+                    append(" AND (b.state = 1 OR b.hasServerErrors = 1)")
                 } else {
-                    append(" AND state != 1 AND hasServerErrors = 0")
+                    append(" AND b.state != 1 AND b.hasServerErrors = 0")
                 }
             }
 
-            append(" ORDER BY $orderBy")
+            append(" ORDER BY b.$orderBy")
         }.let { SimpleSQLiteQuery(it, args.toTypedArray()) }
         Timber.d("filteredQuery=${sqlQuery.sql}")
         return getBookmarkListItemsByFiltersDynamic(sqlQuery)
@@ -629,6 +642,15 @@ interface BookmarkDao {
     @Query("UPDATE bookmarks SET contentState = :state, contentFailureReason = :reason WHERE id = :id")
     suspend fun updateContentState(id: String, state: Int, reason: String?)
 
+    @Query("UPDATE bookmarks SET contentState = 2, contentFailureReason = :reason WHERE id IN (:ids)")
+    suspend fun markContentDirty(ids: List<String>, reason: String?)
+
+    @Query("UPDATE bookmarks SET omitDescription = :omitDescription WHERE id = :id")
+    suspend fun updateOmitDescription(id: String, omitDescription: Boolean?)
+
+    @Query("UPDATE bookmarks SET contentState = 0, contentFailureReason = NULL")
+    suspend fun resetAllContentState()
+
     data class DetailedSyncStatusCounts(
         val total: Int,
         val unread: Int,
@@ -638,6 +660,13 @@ interface BookmarkDao {
         val contentAvailable: Int,
         val contentDirty: Int,
         val permanentNoContent: Int
+    )
+
+    data class OfflinePolicyBookmark(
+        val id: String,
+        val created: Instant,
+        val contentState: BookmarkEntity.ContentState,
+        val hasOfflinePackage: Boolean
     )
 
     @Query("""
@@ -657,17 +686,161 @@ interface BookmarkDao {
     @Query("""
         SELECT b.id FROM bookmarks b
         WHERE b.isLocalDeleted = 0 AND b.contentState IN (0, 2)
-        AND b.hasArticle = 1
+        AND (b.hasArticle = 1 OR b.type = 'photo')
+        AND (:includeArchived = 1 OR b.isArchived = 0)
         ORDER BY b.created DESC
     """)
-    suspend fun getBookmarkIdsEligibleForContentFetch(): List<String>
+    suspend fun getBookmarkIdsEligibleForContentFetch(includeArchived: Boolean = true): List<String>
+
+    @Query("""
+        SELECT
+            b.id AS id,
+            b.created AS created,
+            b.contentState AS contentState,
+            CASE WHEN cp.bookmarkId IS NOT NULL AND cp.hasResources = 1 THEN 1 ELSE 0 END AS hasOfflinePackage
+        FROM bookmarks b
+        LEFT JOIN content_package cp ON cp.bookmarkId = b.id
+        WHERE b.isLocalDeleted = 0
+        AND (b.hasArticle = 1 OR b.type = 'photo')
+        AND b.contentState != 3
+        AND (:includeArchived = 1 OR b.isArchived = 0)
+        ORDER BY b.created DESC
+    """)
+    suspend fun getOfflinePolicyBookmarks(includeArchived: Boolean): List<OfflinePolicyBookmark>
+
+    @Query("""
+        SELECT COUNT(*) FROM bookmarks
+        WHERE contentState = 3
+        AND isLocalDeleted = 0
+        AND id IN (
+            SELECT id FROM bookmarks
+            WHERE isLocalDeleted = 0
+            AND (:includeArchived = 1 OR isArchived = 0)
+            ORDER BY created DESC
+            LIMIT :n
+        )
+    """)
+    suspend fun countPermanentNoContentInNewestN(n: Int, includeArchived: Boolean): Int
+
+    @Query("""
+        SELECT b.id FROM bookmarks b
+        WHERE b.isLocalDeleted = 0
+        AND b.contentState IN (0, 2)
+        AND (b.hasArticle = 1 OR b.type = 'photo')
+        AND b.id IN (
+            SELECT id FROM bookmarks
+            WHERE isLocalDeleted = 0
+            AND (:includeArchived = 1 OR isArchived = 0)
+            ORDER BY created DESC
+            LIMIT :n
+        )
+        ORDER BY b.created DESC
+    """)
+    suspend fun getBookmarkIdsEligibleForNewestNContentFetch(
+        n: Int,
+        includeArchived: Boolean
+    ): List<String>
+
+    @Query("""
+        SELECT b.id FROM bookmarks b
+        WHERE b.isLocalDeleted = 0
+        AND b.contentState = 1
+        AND (:includeArchived = 1 OR b.isArchived = 0)
+        AND b.id NOT IN (
+            SELECT id FROM bookmarks
+            WHERE isLocalDeleted = 0
+            AND (:includeArchived = 1 OR isArchived = 0)
+            ORDER BY created DESC
+            LIMIT :n
+        )
+        ORDER BY b.created ASC
+    """)
+    suspend fun getDownloadedBookmarkIdsOutsideNewestN(
+        n: Int,
+        includeArchived: Boolean
+    ): List<String>
+
+    @Query("""
+        SELECT COUNT(*) FROM bookmarks
+        WHERE isLocalDeleted = 0
+        AND contentState = 3
+        AND created >= :fromEpoch
+        AND (:includeArchived = 1 OR isArchived = 0)
+    """)
+    suspend fun countPermanentNoContentInDateRange(fromEpoch: Long, includeArchived: Boolean): Int
+
+    @Query("""
+        SELECT MIN(created) FROM bookmarks
+        WHERE contentState = 1
+        AND isLocalDeleted = 0
+        AND (:includeArchived = 1 OR isArchived = 0)
+    """)
+    suspend fun getOldestDownloadedBookmarkEpoch(includeArchived: Boolean): Long?
+
+    @Query("""
+        UPDATE bookmarks
+        SET contentState = 3,
+            contentFailureReason = 'No extractable content'
+        WHERE isLocalDeleted = 0
+        AND contentState = 0
+        AND hasArticle = 0
+        AND type != 'photo'
+    """)
+    suspend fun markNoContentBookmarksPermanent(): Int
+
+    @Query("""
+        SELECT b.id
+        FROM bookmarks b
+        INNER JOIN content_package cp ON cp.bookmarkId = b.id
+        WHERE b.isLocalDeleted = 0
+        AND b.isArchived = 1
+        AND cp.hasResources = 1
+        ORDER BY b.created DESC
+    """)
+    suspend fun getArchivedBookmarkIdsWithOfflinePackage(): List<String>
+
+    @Query("""
+        UPDATE bookmarks
+        SET contentState = 2,
+            contentFailureReason = 'Legacy article cache needs multipart refresh'
+        WHERE id IN (
+            SELECT b.id
+            FROM bookmarks b
+            INNER JOIN article_content ac ON ac.bookmarkId = b.id
+            LEFT JOIN content_package cp ON cp.bookmarkId = b.id
+            WHERE b.isLocalDeleted = 0
+            AND b.contentState = 1
+            AND cp.bookmarkId IS NULL
+            AND (b.hasArticle = 1 OR b.type = 'photo')
+            AND (:includeArchived = 1 OR b.isArchived = 0)
+        )
+    """)
+    suspend fun markLegacyCachedContentDirtyWithoutPackage(includeArchived: Boolean)
 
     @Query("""
         SELECT b.id FROM bookmarks b
         WHERE b.isLocalDeleted = 0 AND b.contentState IN (0, 2)
-        AND b.hasArticle = 1
+        AND (b.hasArticle = 1 OR b.type = 'photo')
+        AND (:includeArchived = 1 OR b.isArchived = 0)
         AND b.created >= :fromEpoch AND b.created <= :toEpoch
         ORDER BY b.created DESC
     """)
-    suspend fun getBookmarkIdsForDateRangeContentFetch(fromEpoch: Long, toEpoch: Long): List<String>
+    suspend fun getBookmarkIdsForDateRangeContentFetch(
+        fromEpoch: Long,
+        toEpoch: Long,
+        includeArchived: Boolean = true
+    ): List<String>
+
+    @Query("""
+        SELECT b.id
+        FROM bookmarks b
+        INNER JOIN content_package cp ON cp.bookmarkId = b.id
+        WHERE b.isLocalDeleted = 0
+        AND cp.hasResources = 1
+        ORDER BY b.created ASC
+    """)
+    suspend fun getBookmarkIdsWithOfflinePackages(): List<String>
+
+    @Query("SELECT COALESCE(SUM(byteSize), 0) FROM content_resource WHERE mimeType LIKE 'image/%'")
+    suspend fun getTotalImageResourceBytes(): Long
 }

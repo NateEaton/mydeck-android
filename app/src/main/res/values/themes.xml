@@ -3,6 +3,12 @@
 
     <style name="Theme.MyDeck" parent="android:Theme.Material.Light.NoActionBar" />
 
+    <style name="Theme.MyDeck.Starting" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@android:color/white</item>
+        <item name="windowSplashScreenAnimatedIcon">@mipmap/ic_launcher</item>
+        <item name="postSplashScreenTheme">@style/Theme.MyDeck</item>
+    </style>
+
     <style name="Theme.MyDeck.Translucent" parent="android:Theme.Material.Light.NoActionBar">
         <item name="android:windowIsTranslucent">true</item>
         <item name="android:windowBackground">@android:color/transparent</item>

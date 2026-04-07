@@ -76,6 +76,19 @@ data class BookmarkEntity(
         ERROR(1),
         LOADING(2)
     }
+    /**
+     * Content availability state for a bookmark.
+     * 
+     * The distinction between text-cached and full offline packages is expressed
+     * through the combination of ContentState.DOWNLOADED and ContentPackageEntity.hasResources:
+     * 
+     * - NOT_ATTEMPTED: No local content exists
+     * - DOWNLOADED + hasResources=false: Text cached on-demand; images lazy-load from network
+     * - DOWNLOADED + hasResources=true: Full offline package (text + images); managed offline
+     * - DIRTY + hasResources=false: Stale text cache; needs refresh
+     * - DIRTY + hasResources=true: Stale full package; needs refresh
+     * - PERMANENT_NO_CONTENT: Server has confirmed no extractable content for this bookmark
+     */
     enum class ContentState(val value: Int) {
         NOT_ATTEMPTED(0),
         DOWNLOADED(1),

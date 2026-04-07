@@ -5,6 +5,7 @@ import android.content.SharedPreferences
 import androidx.core.content.edit
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import com.mydeck.app.BuildConfig
 import com.mydeck.app.domain.model.AutoSyncTimeframe
@@ -17,8 +18,11 @@ import com.mydeck.app.domain.model.TextWidth
 import com.mydeck.app.domain.model.Theme
 import com.mydeck.app.domain.model.TypographySettings
 import com.mydeck.app.domain.sync.ContentSyncConstraints
-import com.mydeck.app.domain.sync.ContentSyncMode
 import com.mydeck.app.domain.sync.DateRangeParams
+import com.mydeck.app.domain.sync.OfflineContentScope
+import com.mydeck.app.domain.sync.OfflineImageStorageLimit
+import com.mydeck.app.domain.sync.OfflinePolicy
+import com.mydeck.app.domain.sync.OfflinePolicyDefaults
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -28,6 +32,8 @@ import kotlinx.datetime.LocalDate
 import timber.log.Timber
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
 
 @Singleton
 class SettingsDataStoreImpl @Inject constructor(@ApplicationContext private val context: Context) :
@@ -64,6 +70,18 @@ class SettingsDataStoreImpl @Inject constructor(@ApplicationContext private val 
     private val KEY_BOOKMARK_SHARE_FORMAT = stringPreferencesKey("bookmark_share_format")
     private val KEY_KEEP_SCREEN_ON_READING = booleanPreferencesKey("keep_screen_on_reading")
     private val KEY_FULLSCREEN_WHILE_READING = booleanPreferencesKey("fullscreen_while_reading")
+    private val KEY_INCLUDE_ARCHIVED_CONTENT = booleanPreferencesKey("include_archived_content_in_sync")
+    private val KEY_OFFLINE_READING_ENABLED = booleanPreferencesKey("offline_reading_enabled")
+    private val KEY_OFFLINE_POLICY = stringPreferencesKey("offline_policy")
+    private val KEY_OFFLINE_POLICY_STORAGE_LIMIT = longPreferencesKey("offline_policy_storage_limit")
+    private val KEY_OFFLINE_POLICY_NEWEST_N = intPreferencesKey("offline_policy_newest_n")
+    private val KEY_OFFLINE_POLICY_DATE_RANGE_WINDOW_MS =
+        longPreferencesKey("offline_policy_date_range_window_ms")
+    private val KEY_OFFLINE_MAX_STORAGE_CAP = longPreferencesKey("offline_max_storage_cap")
+    private val KEY_OFFLINE_CONTENT_SCOPE = stringPreferencesKey("offline_content_scope")
+    private val KEY_INCLUDE_ARCHIVED_IN_OFFLINE_SCOPE =
+        booleanPreferencesKey("include_archived_in_offline_scope")
+    private val KEY_OFFLINE_IMAGE_STORAGE_LIMIT = stringPreferencesKey("offline_image_storage_limit")
 
     private val KEY_TYPO_FONT_SIZE = intPreferencesKey("typography_font_size_percent")
     private val KEY_TYPO_FONT_FAMILY = stringPreferencesKey("typography_font_family")
@@ -327,6 +345,11 @@ class SettingsDataStoreImpl @Inject constructor(@ApplicationContext private val 
     override val initialSyncPerformedFlow =
         getBooleanFlow(encryptedSharedPreferences, KEY_INITIAL_SYNC_PERFORMED, false)
     override val themeFlow = getStringFlow(userPreferences, KEY_THEME.name, Theme.SYSTEM.name)
+    override val offlineReadingEnabledFlow = getBooleanFlow(userPreferences, KEY_OFFLINE_READING_ENABLED.name, false)
+    override val lastSyncTimestampFlow =
+        getStringFlow(encryptedSharedPreferences, KEY_LAST_SYNC_TIMESTAMP.name, null)
+    override val lastContentSyncTimestampFlow =
+        getStringFlow(encryptedSharedPreferences, KEY_LAST_CONTENT_SYNC_TIMESTAMP.name, null)
     @Deprecated("Migration-only. Use lightAppearanceFlow instead.")
     override val sepiaEnabledFlow = getBooleanFlow(userPreferences, KEY_SEPIA_ENABLED.name, false)
     override val lightAppearanceFlow = getEnumFlow(
@@ -467,22 +490,6 @@ class SettingsDataStoreImpl @Inject constructor(@ApplicationContext private val 
     override fun getLogRetentionDaysFlow(): StateFlow<Int> =
         getIntFlow(userPreferences, KEY_LOG_RETENTION_DAYS.name, defaultLogRetentionDays())
 
-    override suspend fun getContentSyncMode(): ContentSyncMode {
-        return userPreferences.getString(KEY_CONTENT_SYNC_MODE.name, ContentSyncMode.MANUAL.name)?.let {
-            try {
-                ContentSyncMode.valueOf(it)
-            } catch (_: Exception) {
-                ContentSyncMode.MANUAL
-            }
-        } ?: ContentSyncMode.MANUAL
-    }
-
-    override suspend fun saveContentSyncMode(mode: ContentSyncMode) {
-        userPreferences.edit {
-            putString(KEY_CONTENT_SYNC_MODE.name, mode.name)
-        }
-    }
-
     override suspend fun getContentSyncConstraints(): ContentSyncConstraints {
         return ContentSyncConstraints(
             wifiOnly = userPreferences.getBoolean(KEY_WIFI_ONLY.name, true),
@@ -523,12 +530,172 @@ class SettingsDataStoreImpl @Inject constructor(@ApplicationContext private val 
         }
     }
 
+    override suspend fun isOfflineReadingEnabled(): Boolean {
+        if (userPreferences.contains(KEY_OFFLINE_READING_ENABLED.name)) {
+            return userPreferences.getBoolean(KEY_OFFLINE_READING_ENABLED.name, false)
+        }
+        return false
+    }
+
+    override suspend fun saveOfflineReadingEnabled(enabled: Boolean) {
+        userPreferences.edit {
+            putBoolean(KEY_OFFLINE_READING_ENABLED.name, enabled)
+            putString(
+                KEY_CONTENT_SYNC_MODE.name,
+                if (enabled) LEGACY_CONTENT_SYNC_MODE_AUTOMATIC else LEGACY_CONTENT_SYNC_MODE_MANUAL
+            )
+        }
+    }
+
+    override suspend fun getOfflinePolicy(): OfflinePolicy {
+        return userPreferences.getString(KEY_OFFLINE_POLICY.name, OfflinePolicy.STORAGE_LIMIT.name)?.let {
+            try {
+                OfflinePolicy.valueOf(it)
+            } catch (_: IllegalArgumentException) {
+                OfflinePolicy.STORAGE_LIMIT
+            }
+        } ?: OfflinePolicy.STORAGE_LIMIT
+    }
+
+    override suspend fun saveOfflinePolicy(policy: OfflinePolicy) {
+        userPreferences.edit {
+            putString(KEY_OFFLINE_POLICY.name, policy.name)
+        }
+    }
+
+    override suspend fun getOfflinePolicyStorageLimit(): Long {
+        if (userPreferences.contains(KEY_OFFLINE_POLICY_STORAGE_LIMIT.name)) {
+            return userPreferences.getLong(
+                KEY_OFFLINE_POLICY_STORAGE_LIMIT.name,
+                OfflinePolicyDefaults.STORAGE_LIMIT_BYTES
+            )
+        }
+
+        return legacyOfflineImageStorageLimit()?.bytes ?: OfflinePolicyDefaults.STORAGE_LIMIT_BYTES
+    }
+
+    override suspend fun saveOfflinePolicyStorageLimit(limitBytes: Long) {
+        userPreferences.edit {
+            putLong(KEY_OFFLINE_POLICY_STORAGE_LIMIT.name, limitBytes)
+            OfflineImageStorageLimit.entries.firstOrNull { it.bytes == limitBytes }?.let { matchedLimit ->
+                putString(KEY_OFFLINE_IMAGE_STORAGE_LIMIT.name, matchedLimit.name)
+            } ?: remove(KEY_OFFLINE_IMAGE_STORAGE_LIMIT.name)
+        }
+    }
+
+    override suspend fun getOfflinePolicyNewestN(): Int {
+        return userPreferences.getInt(
+            KEY_OFFLINE_POLICY_NEWEST_N.name,
+            OfflinePolicyDefaults.NEWEST_N
+        ).coerceAtLeast(1)
+    }
+
+    override suspend fun saveOfflinePolicyNewestN(newestN: Int) {
+        userPreferences.edit {
+            putInt(KEY_OFFLINE_POLICY_NEWEST_N.name, newestN.coerceAtLeast(1))
+        }
+    }
+
+    override suspend fun getOfflinePolicyDateRangeWindow(): Duration {
+        return if (userPreferences.contains(KEY_OFFLINE_POLICY_DATE_RANGE_WINDOW_MS.name)) {
+            userPreferences.getLong(
+                KEY_OFFLINE_POLICY_DATE_RANGE_WINDOW_MS.name,
+                OfflinePolicyDefaults.DATE_RANGE_WINDOW.inWholeMilliseconds
+            ).milliseconds
+        } else {
+            OfflinePolicyDefaults.DATE_RANGE_WINDOW
+        }
+    }
+
+    override suspend fun saveOfflinePolicyDateRangeWindow(window: Duration) {
+        userPreferences.edit {
+            putLong(
+                KEY_OFFLINE_POLICY_DATE_RANGE_WINDOW_MS.name,
+                window.inWholeMilliseconds
+            )
+        }
+    }
+
+    override suspend fun getOfflineMaxStorageCap(): Long {
+        return userPreferences.getLong(
+            KEY_OFFLINE_MAX_STORAGE_CAP.name,
+            OfflinePolicyDefaults.MAX_STORAGE_CAP_BYTES
+        )
+    }
+
+    override suspend fun saveOfflineMaxStorageCap(limitBytes: Long) {
+        userPreferences.edit {
+            putLong(KEY_OFFLINE_MAX_STORAGE_CAP.name, limitBytes)
+        }
+    }
+
+    override suspend fun getOfflineContentScope(): OfflineContentScope {
+        val stored = userPreferences.getString(KEY_OFFLINE_CONTENT_SCOPE.name, null)
+        if (stored != null) {
+            return try {
+                OfflineContentScope.valueOf(stored)
+            } catch (_: IllegalArgumentException) {
+                OfflineContentScope.MY_LIST
+            }
+        }
+
+        val includeArchived = when {
+            userPreferences.contains(KEY_INCLUDE_ARCHIVED_IN_OFFLINE_SCOPE.name) ->
+                userPreferences.getBoolean(KEY_INCLUDE_ARCHIVED_IN_OFFLINE_SCOPE.name, false)
+            userPreferences.contains(KEY_INCLUDE_ARCHIVED_CONTENT.name) ->
+                userPreferences.getBoolean(KEY_INCLUDE_ARCHIVED_CONTENT.name, false)
+            else -> false
+        }
+
+        return if (includeArchived) {
+            OfflineContentScope.MY_LIST_AND_ARCHIVED
+        } else {
+            OfflineContentScope.MY_LIST
+        }
+    }
+
+    override suspend fun saveOfflineContentScope(scope: OfflineContentScope) {
+        userPreferences.edit {
+            putString(KEY_OFFLINE_CONTENT_SCOPE.name, scope.name)
+            putBoolean(KEY_INCLUDE_ARCHIVED_IN_OFFLINE_SCOPE.name, scope.includesArchived)
+            putBoolean(KEY_INCLUDE_ARCHIVED_CONTENT.name, scope.includesArchived)
+        }
+    }
+
+    override suspend fun getOfflineImageStorageLimit(): OfflineImageStorageLimit {
+        legacyOfflineImageStorageLimit()?.let { return it }
+
+        val bytes = getOfflinePolicyStorageLimit()
+        return OfflineImageStorageLimit.entries.firstOrNull { it.bytes == bytes }
+            ?: OfflineImageStorageLimit.MB_500
+    }
+
+    override suspend fun saveOfflineImageStorageLimit(limit: OfflineImageStorageLimit) {
+        userPreferences.edit {
+            putString(KEY_OFFLINE_IMAGE_STORAGE_LIMIT.name, limit.name)
+            putLong(KEY_OFFLINE_POLICY_STORAGE_LIMIT.name, limit.bytes)
+        }
+    }
+
     private fun defaultLogRetentionDays(): Int {
         return if (isDebugBuild()) 7 else 30
     }
 
     private fun isDebugBuild(): Boolean {
         return BuildConfig.DEBUG || BuildConfig.BUILD_TYPE.contains("debug", ignoreCase = true)
+    }
+
+    private fun legacyContentSyncMode(): String? {
+        return userPreferences.getString(KEY_CONTENT_SYNC_MODE.name, null)
+    }
+
+    private fun legacyOfflineImageStorageLimit(): OfflineImageStorageLimit? {
+        val stored = userPreferences.getString(KEY_OFFLINE_IMAGE_STORAGE_LIMIT.name, null) ?: return null
+        return try {
+            OfflineImageStorageLimit.valueOf(stored)
+        } catch (_: IllegalArgumentException) {
+            null
+        }
     }
 
     private val _typographySettingsFlow = MutableStateFlow(readTypographySettings())
@@ -729,5 +896,7 @@ class SettingsDataStoreImpl @Inject constructor(@ApplicationContext private val 
     companion object {
         private const val USER_PREFERENCES_FILE_NAME = "user_preferences"
         private const val KEY_UI_PREFS_MIGRATED = "ui_prefs_migrated"
+        private const val LEGACY_CONTENT_SYNC_MODE_AUTOMATIC = "AUTOMATIC"
+        private const val LEGACY_CONTENT_SYNC_MODE_MANUAL = "MANUAL"
     }
 }

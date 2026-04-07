@@ -10,7 +10,13 @@ import com.mydeck.app.domain.model.LightAppearance
 import com.mydeck.app.domain.model.ReaderAppearanceSelection
 import com.mydeck.app.domain.model.SelectionData
 import com.mydeck.app.domain.model.Theme
+import com.mydeck.app.domain.content.ContentPackageManager
+import com.mydeck.app.domain.sync.ContentSyncConstraints
+import com.mydeck.app.domain.sync.ConnectivityMonitor
+import com.mydeck.app.domain.sync.OfflineContentScope
 import com.mydeck.app.domain.usecase.LoadArticleUseCase
+import com.mydeck.app.io.db.dao.CachedAnnotationDao
+import com.mydeck.app.domain.usecase.LoadContentPackageUseCase
 import com.mydeck.app.domain.usecase.UpdateBookmarkUseCase
 import com.mydeck.app.io.AssetLoader
 import com.mydeck.app.io.prefs.SettingsDataStore
@@ -47,6 +53,7 @@ import retrofit2.Response
 import java.text.DateFormat
 import java.util.Date
 import android.content.Context
+import androidx.work.WorkManager
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class BookmarkDetailViewModelTest {
@@ -59,7 +66,13 @@ class BookmarkDetailViewModelTest {
     private lateinit var updateBookmarkUseCase: UpdateBookmarkUseCase
     private lateinit var settingsDataStore: SettingsDataStore
     private lateinit var loadArticleUseCase: LoadArticleUseCase
+    private lateinit var loadContentPackageUseCase: LoadContentPackageUseCase
+    private lateinit var contentPackageManager: ContentPackageManager
     private lateinit var readeckApi: ReadeckApi
+    private lateinit var cachedAnnotationDao: CachedAnnotationDao
+    private lateinit var connectivityMonitor: ConnectivityMonitor
+    private lateinit var multipartSyncClient: com.mydeck.app.io.rest.sync.MultipartSyncClient
+    private lateinit var workManager: WorkManager
     private lateinit var context: Context
     private lateinit var themeFlow: MutableStateFlow<String?>
     private lateinit var lightAppearanceFlow: MutableStateFlow<LightAppearance>
@@ -75,12 +88,22 @@ class BookmarkDetailViewModelTest {
         updateBookmarkUseCase = mockk()
         settingsDataStore = mockk()
         loadArticleUseCase = mockk(relaxed = true)
+        loadContentPackageUseCase = mockk(relaxed = true)
+        contentPackageManager = mockk(relaxed = true)
+        every { contentPackageManager.getContentDir(any()) } returns null
+        coEvery { contentPackageManager.hasResources(any()) } returns true
+        coEvery { loadContentPackageUseCase.execute(any(), any()) } returns LoadContentPackageUseCase.Result.TransientFailure("Not available")
         readeckApi = mockk(relaxed = true)
+        cachedAnnotationDao = mockk(relaxed = true)
+        connectivityMonitor = mockk(relaxed = true)
+        multipartSyncClient = mockk(relaxed = true)
+        workManager = mockk(relaxed = true)
+        coEvery { cachedAnnotationDao.getAnnotationsForBookmark(any()) } returns emptyList()
+        every { connectivityMonitor.isNetworkAvailable() } returns true
         context = mockk(relaxed = true)
         every { context.packageName } returns "com.mydeck.app"
         every { bookmarkRepository.observeBookmark(any()) } returns MutableStateFlow(sampleBookmark)
         coEvery { bookmarkRepository.getBookmarkById(any()) } returns sampleBookmark
-        coEvery { bookmarkRepository.refreshBookmarkFromApi(any()) } returns Unit
         every { assetLoader.loadAsset(match { it.startsWith("html_template_") }) } returns htmlTemplate
         every { savedStateHandle.get<String>("bookmarkId") } returns "123"
         themeFlow = MutableStateFlow(Theme.LIGHT.name)
@@ -93,6 +116,14 @@ class BookmarkDetailViewModelTest {
         every { settingsDataStore.keepScreenOnWhileReadingFlow } returns MutableStateFlow(true)
         every { settingsDataStore.fullscreenWhileReadingFlow } returns MutableStateFlow(false)
         coEvery { settingsDataStore.getBookmarkShareFormat() } returns BookmarkShareFormat.URL_ONLY
+        coEvery { settingsDataStore.isOfflineReadingEnabled() } returns false
+        coEvery { settingsDataStore.getOfflineContentScope() } returns OfflineContentScope.MY_LIST_AND_ARCHIVED
+        coEvery {
+            settingsDataStore.getContentSyncConstraints()
+        } returns ContentSyncConstraints(
+            wifiOnly = false,
+            allowOnBatterySaver = true
+        )
         coEvery { settingsDataStore.getTheme() } coAnswers {
             Theme.valueOf(themeFlow.value ?: Theme.SYSTEM.name)
         }
@@ -126,7 +157,13 @@ class BookmarkDetailViewModelTest {
             assetLoader = assetLoader,
             settingsDataStore = settingsDataStore,
             loadArticleUseCase = loadArticleUseCase,
+            loadContentPackageUseCase = loadContentPackageUseCase,
+            contentPackageManager = contentPackageManager,
+            cachedAnnotationDao = cachedAnnotationDao,
+            connectivityMonitor = connectivityMonitor,
+            multipartSyncClient = multipartSyncClient,
             readeckApi = readeckApi,
+            workManager = workManager,
             context = context,
             json = json,
             savedStateHandle = savedStateHandle
@@ -604,7 +641,7 @@ class BookmarkDetailViewModelTest {
     }
 
     @Test
-    fun `init calls loadArticleUseCase when contentState is NOT_ATTEMPTED and hasArticle is true`() = runTest {
+    fun `init uses text-only article fetch first for article bookmarks`() = runTest {
         // Arrange
         val bookmarkWithNotAttempted = sampleBookmark.copy(
             contentState = Bookmark.ContentState.NOT_ATTEMPTED,
@@ -613,15 +650,15 @@ class BookmarkDetailViewModelTest {
         )
         every { bookmarkRepository.observeBookmark("123") } returns MutableStateFlow(bookmarkWithNotAttempted)
         coEvery { bookmarkRepository.getBookmarkById("123") } returns bookmarkWithNotAttempted
-        coEvery { bookmarkRepository.refreshBookmarkFromApi(any()) } returns Unit
-        coEvery { loadArticleUseCase.execute("123") } returns LoadArticleUseCase.Result.Success
+        coEvery { loadArticleUseCase.execute("123", markDirtyAfterSuccess = false) } returns LoadArticleUseCase.Result.Success
 
         // Act
         viewModel = createViewModel()
         advanceUntilIdle()
 
         // Assert
-        coVerify { loadArticleUseCase.execute("123") }
+        coVerify { loadArticleUseCase.execute("123", markDirtyAfterSuccess = false) }
+        coVerify(exactly = 0) { loadContentPackageUseCase.execute(any(), any()) }
     }
 
     @Test
@@ -634,7 +671,6 @@ class BookmarkDetailViewModelTest {
         )
         every { bookmarkRepository.observeBookmark("123") } returns MutableStateFlow(bookmarkWithDownloaded)
         coEvery { bookmarkRepository.getBookmarkById("123") } returns bookmarkWithDownloaded
-        coEvery { bookmarkRepository.refreshBookmarkFromApi(any()) } returns Unit
         coEvery { loadArticleUseCase.refreshCachedArticleIfAnnotationsChanged("123") } just Runs
         advanceUntilIdle()
         clearMocks(loadArticleUseCase, answers = false, recordedCalls = true)
@@ -644,7 +680,7 @@ class BookmarkDetailViewModelTest {
         advanceUntilIdle()
 
         // Assert
-        coVerify(exactly = 0) { loadArticleUseCase.execute(any()) }
+        coVerify(exactly = 0) { loadArticleUseCase.execute(any(), any()) }
         coVerify(exactly = 1) { loadArticleUseCase.refreshCachedArticleIfAnnotationsChanged("123") }
     }
 
@@ -673,7 +709,8 @@ class BookmarkDetailViewModelTest {
                     end_selector = "/p[1]",
                     end_offset = 5,
                     created = "2024-01-20T12:00:00Z",
-                    text = "API text"
+                    text = "API text",
+                    color = "red"
                 ),
                 AnnotationDto(
                     id = "remote-only",
@@ -725,7 +762,6 @@ class BookmarkDetailViewModelTest {
         )
         every { bookmarkRepository.observeBookmark("123") } returns MutableStateFlow(bookmarkWithNoContent)
         coEvery { bookmarkRepository.getBookmarkById("123") } returns bookmarkWithNoContent
-        coEvery { bookmarkRepository.refreshBookmarkFromApi(any()) } returns Unit
 
         // Act
         viewModel = createViewModel()
@@ -737,7 +773,7 @@ class BookmarkDetailViewModelTest {
         val failedState = state as BookmarkDetailViewModel.ContentLoadState.Failed
         assertEquals("Source blocked content extraction", failedState.reason)
         assertEquals(false, failedState.canRetry)
-        coVerify(exactly = 0) { loadArticleUseCase.execute(any()) }
+        coVerify(exactly = 0) { loadArticleUseCase.execute(any(), any()) }
     }
 
     @Test
@@ -754,7 +790,7 @@ class BookmarkDetailViewModelTest {
         )
         every { bookmarkRepository.observeBookmark("123") } returns MutableStateFlow(videoBookmarkWithNoContent)
         coEvery { bookmarkRepository.getBookmarkById("123") } returns videoBookmarkWithNoContent
-        coEvery { bookmarkRepository.refreshBookmarkFromApi(any()) } returns Unit
+        coEvery { bookmarkRepository.refreshBookmarkMetadata("123") } just io.mockk.Runs
 
         viewModel = createViewModel()
         advanceUntilIdle()
@@ -764,7 +800,7 @@ class BookmarkDetailViewModelTest {
         val failedState = state as BookmarkDetailViewModel.ContentLoadState.Failed
         assertEquals("No video reader payload available", failedState.reason)
         assertEquals(false, failedState.canRetry)
-        coVerify(exactly = 0) { loadArticleUseCase.execute(any()) }
+        coVerify(exactly = 0) { loadArticleUseCase.execute(any(), any()) }
     }
 
     @Test
@@ -777,8 +813,10 @@ class BookmarkDetailViewModelTest {
         )
         every { bookmarkRepository.observeBookmark("123") } returns MutableStateFlow(bookmarkWithNotAttempted)
         coEvery { bookmarkRepository.getBookmarkById("123") } returns bookmarkWithNotAttempted
-        coEvery { bookmarkRepository.refreshBookmarkFromApi(any()) } returns Unit
-        coEvery { loadArticleUseCase.execute("123") } returns LoadArticleUseCase.Result.PermanentFailure("Article extraction not supported for this site")
+        coEvery { loadArticleUseCase.execute("123", markDirtyAfterSuccess = false) } returns
+            LoadArticleUseCase.Result.PermanentFailure("Article extraction not supported for this site")
+        coEvery { loadContentPackageUseCase.execute("123", any()) } returns
+            LoadContentPackageUseCase.Result.PermanentFailure("not available")
 
         // Act
         viewModel = createViewModel()
@@ -893,9 +931,9 @@ class BookmarkDetailViewModelTest {
         coEvery {
             readeckApi.createAnnotation("123", any())
         } returns Response.success(createdAnnotation)
-        coEvery { readeckApi.getArticle("123") } returns Response.success("<p>Updated article</p>")
-        coEvery { bookmarkRepository.getBookmarkById("123") } returns sampleBookmark
-        coEvery { bookmarkRepository.insertBookmarks(any()) } just Runs
+        coEvery { contentPackageManager.hasResources("123") } returns true
+        coEvery { loadContentPackageUseCase.refreshHtmlForAnnotations("123") } returns "<p>refreshed</p>"
+        coEvery { readeckApi.getAnnotations("123") } returns Response.success(emptyList())
 
         viewModel.showCreateAnnotationSheet(selectionData)
         viewModel.onAnnotationEditColorSelected("red")
@@ -904,14 +942,7 @@ class BookmarkDetailViewModelTest {
 
         assertNull(viewModel.annotationEditState.value)
         coVerify { readeckApi.createAnnotation("123", any()) }
-        coVerify { readeckApi.getArticle("123") }
-        coVerify {
-            bookmarkRepository.insertBookmarks(
-                match { bookmarks ->
-                    bookmarks.single().articleContent == "<p>Updated article</p>"
-                }
-            )
-        }
+        coVerify { loadContentPackageUseCase.refreshHtmlForAnnotations("123") }
     }
 
     @Test
@@ -945,9 +976,7 @@ class BookmarkDetailViewModelTest {
 
         coEvery { readeckApi.updateAnnotation("123", "annotation-1", any()) } returns Response.success(Unit)
         coEvery { readeckApi.updateAnnotation("123", "annotation-2", any()) } returns Response.success(Unit)
-        coEvery { readeckApi.getArticle("123") } returns Response.success("<p>Updated article</p>")
-        coEvery { bookmarkRepository.getBookmarkById("123") } returns sampleBookmark
-        coEvery { bookmarkRepository.insertBookmarks(any()) } just Runs
+        coEvery { readeckApi.getAnnotations("123") } returns Response.success(emptyList())
 
         viewModel.showCreateAnnotationSheet(selectionData, existingAnnotations)
         viewModel.onAnnotationEditColorSelected("red")
@@ -958,7 +987,9 @@ class BookmarkDetailViewModelTest {
         coVerify { readeckApi.updateAnnotation("123", "annotation-1", any()) }
         coVerify { readeckApi.updateAnnotation("123", "annotation-2", any()) }
         coVerify(exactly = 0) { readeckApi.createAnnotation(any(), any()) }
-        coVerify { readeckApi.getArticle("123") }
+        // Color changes use JS-only path, no full content refresh
+        coVerify(exactly = 0) { loadContentPackageUseCase.executeForceRefresh("123") }
+        coVerify { readeckApi.getAnnotations("123") }
     }
 
     @Test
@@ -974,9 +1005,9 @@ class BookmarkDetailViewModelTest {
 
         coEvery { readeckApi.deleteAnnotation("123", "annotation-1") } returns Response.success(Unit)
         coEvery { readeckApi.deleteAnnotation("123", "annotation-2") } returns Response.success(Unit)
-        coEvery { readeckApi.getArticle("123") } returns Response.success("<p>Updated article</p>")
-        coEvery { bookmarkRepository.getBookmarkById("123") } returns sampleBookmark
-        coEvery { bookmarkRepository.insertBookmarks(any()) } just Runs
+        coEvery { contentPackageManager.hasResources("123") } returns true
+        coEvery { loadContentPackageUseCase.refreshHtmlForAnnotations("123") } returns "<p>refreshed</p>"
+        coEvery { readeckApi.getAnnotations("123") } returns Response.success(emptyList())
 
         viewModel.showCreateAnnotationSheet(selectionData)
         viewModel.deleteCurrentAnnotation()
@@ -985,26 +1016,116 @@ class BookmarkDetailViewModelTest {
         assertNull(viewModel.annotationEditState.value)
         coVerify { readeckApi.deleteAnnotation("123", "annotation-1") }
         coVerify { readeckApi.deleteAnnotation("123", "annotation-2") }
-        coVerify { readeckApi.getArticle("123") }
+        coVerify { loadContentPackageUseCase.refreshHtmlForAnnotations("123") }
+    }
+
+    @Test
+    fun `saveAnnotationEdit refreshes cached article html for text-only content`() = runTest {
+        val selectionData = SelectionData(
+            text = "Selected text",
+            startSelector = "/section[1]/p[1]",
+            startOffset = 5,
+            endSelector = "/section[1]/p[1]",
+            endOffset = 18
+        )
+        val createdAnnotation = AnnotationDto(
+            id = "annotation-1",
+            start_selector = selectionData.startSelector,
+            start_offset = selectionData.startOffset,
+            end_selector = selectionData.endSelector,
+            end_offset = selectionData.endOffset,
+            color = "red",
+            created = "2026-03-09T10:00:00Z",
+            text = selectionData.text
+        )
+
+        coEvery {
+            readeckApi.createAnnotation("123", any())
+        } returns Response.success(createdAnnotation)
+        coEvery { contentPackageManager.hasResources("123") } returns false
+        coEvery { loadArticleUseCase.refreshHtmlForAnnotations("123") } returns "<p>refreshed</p>"
+        coEvery { readeckApi.getAnnotations("123") } returns Response.success(emptyList())
+        viewModel = createViewModel()
+        advanceUntilIdle()
+
+        viewModel.showCreateAnnotationSheet(selectionData)
+        viewModel.onAnnotationEditColorSelected("red")
+        viewModel.saveAnnotationEdit()
+        advanceUntilIdle()
+
+        coVerify { loadArticleUseCase.refreshHtmlForAnnotations("123") }
+        coVerify(exactly = 0) { loadContentPackageUseCase.refreshHtmlForAnnotations("123") }
+        coVerify(exactly = 0) { loadContentPackageUseCase.executeForceRefresh("123") }
+    }
+
+    @Test
+    fun `init does not enqueue priority package for archived bookmark outside offline scope`() = runTest {
+        val archivedBookmark = sampleBookmark.copy(
+            contentState = Bookmark.ContentState.NOT_ATTEMPTED,
+            hasArticle = true,
+            articleContent = null,
+            isArchived = true
+        )
+        every { bookmarkRepository.observeBookmark("123") } returns MutableStateFlow(archivedBookmark)
+        coEvery { bookmarkRepository.getBookmarkById("123") } returns archivedBookmark
+        coEvery { loadArticleUseCase.execute("123", markDirtyAfterSuccess = false) } returns LoadArticleUseCase.Result.Success
+        coEvery { contentPackageManager.hasResources("123") } returns false
+        coEvery { settingsDataStore.isOfflineReadingEnabled() } returns true
+        coEvery { settingsDataStore.getOfflineContentScope() } returns OfflineContentScope.MY_LIST
+
+        viewModel = createViewModel()
+        advanceUntilIdle()
+
+        io.mockk.verify(exactly = 0) {
+            workManager.enqueueUniqueWork(
+                any<String>(),
+                any<androidx.work.ExistingWorkPolicy>(),
+                any<androidx.work.OneTimeWorkRequest>()
+            )
+        }
+    }
+
+    @Test
+    fun `init enqueues priority package after text-only article fetch when offline reading is enabled`() = runTest {
+        val bookmark = sampleBookmark.copy(
+            contentState = Bookmark.ContentState.NOT_ATTEMPTED,
+            hasArticle = true,
+            articleContent = null
+        )
+        every { bookmarkRepository.observeBookmark("123") } returns MutableStateFlow(bookmark)
+        coEvery { bookmarkRepository.getBookmarkById("123") } returns bookmark
+        coEvery { loadArticleUseCase.execute("123", markDirtyAfterSuccess = false) } returns
+            LoadArticleUseCase.Result.Success
+        coEvery { contentPackageManager.hasResources("123") } returns false
+        coEvery { settingsDataStore.isOfflineReadingEnabled() } returns true
+        coEvery { settingsDataStore.getOfflineContentScope() } returns OfflineContentScope.MY_LIST_AND_ARCHIVED
+        coEvery { settingsDataStore.getContentSyncConstraints() } returns
+            ContentSyncConstraints(wifiOnly = false, allowOnBatterySaver = true)
+
+        viewModel = createViewModel()
+        advanceUntilIdle()
+
+        coVerify { loadArticleUseCase.execute("123", markDirtyAfterSuccess = false) }
+        coVerify(exactly = 0) { loadContentPackageUseCase.execute(any(), any()) }
+        io.mockk.verify(exactly = 1) {
+            workManager.enqueueUniqueWork(
+                any<String>(),
+                any<androidx.work.ExistingWorkPolicy>(),
+                any<androidx.work.OneTimeWorkRequest>()
+            )
+        }
     }
 
     @Test
     fun `forceRefreshContent refreshes downloaded article content`() = runTest {
-        coEvery { readeckApi.getArticle("123") } returns Response.success("<p>Fresh article</p>")
-        coEvery { bookmarkRepository.getBookmarkById("123") } returns sampleBookmark
-        coEvery { bookmarkRepository.insertBookmarks(any()) } just Runs
+        coEvery { loadContentPackageUseCase.executeForceRefresh("123") } returns LoadContentPackageUseCase.Result.Success
+        coEvery { readeckApi.getAnnotations("123") } returns Response.success(emptyList())
 
         viewModel.forceRefreshContent()
         advanceUntilIdle()
 
-        coVerify { readeckApi.getArticle("123") }
-        coVerify {
-            bookmarkRepository.insertBookmarks(
-                match { bookmarks ->
-                    bookmarks.single().articleContent == "<p>Fresh article</p>"
-                }
-            )
-        }
+        coVerify { loadContentPackageUseCase.executeForceRefresh("123") }
+        coVerify { readeckApi.getAnnotations("123") }
     }
 
     @Test

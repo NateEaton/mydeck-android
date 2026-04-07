@@ -20,5 +20,12 @@ data class BookmarkListItem(
     val readingTime: Int?,
     val created: LocalDateTime,
     val wordCount: Int?,
-    val published: LocalDateTime?
-)
+    val published: LocalDateTime?,
+    val offlineState: OfflineState = OfflineState.NOT_DOWNLOADED
+) {
+    enum class OfflineState {
+        NOT_DOWNLOADED,
+        DOWNLOADED_TEXT_ONLY,
+        DOWNLOADED_FULL
+    }
+}

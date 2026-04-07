@@ -22,7 +22,7 @@
             android:configChanges="screenLayout|orientation|screenSize|keyboard|keyboardHidden|smallestScreenSize"
             android:exported="true"
             android:label="@string/app_name"
-            android:theme="@style/Theme.MyDeck">
+            android:theme="@style/Theme.MyDeck.Starting">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
