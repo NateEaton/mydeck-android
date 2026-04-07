@@ -26,6 +26,9 @@ fun DateRangePreset.toDateRange(today: LocalDate): Pair<LocalDate, LocalDate> {
         DateRangePreset.PAST_WEEK -> Pair(today.minus(DatePeriod(days = 7)), today)
         DateRangePreset.PAST_MONTH -> Pair(today.minus(DatePeriod(days = 30)), today)
         DateRangePreset.PAST_YEAR -> Pair(today.minus(DatePeriod(days = 365)), today)
+        // ALL_TIME is a programmatic sentinel used internally (e.g. date-range content sync worker).
+        // It is not exposed in any user-facing picker. 20 years is intentionally larger than any
+        // realistic bookmark history to act as an effective "no lower bound".
         DateRangePreset.ALL_TIME -> Pair(today.minus(DatePeriod(days = 365 * 20)), today)
         DateRangePreset.CUSTOM -> throw IllegalArgumentException("CUSTOM preset cannot be converted to a date range without explicit dates")
     }

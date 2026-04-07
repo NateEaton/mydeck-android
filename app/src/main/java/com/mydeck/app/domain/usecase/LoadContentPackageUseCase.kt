@@ -12,8 +12,8 @@ import com.mydeck.app.io.db.dao.ContentPackageDao
 import com.mydeck.app.io.db.model.BookmarkEntity
 import com.mydeck.app.io.rest.ReadeckApi
 import com.mydeck.app.io.rest.sync.MultipartSyncClient
+import com.mydeck.app.util.parseInstantLenient
 import kotlinx.datetime.Instant
-import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toInstant
 import timber.log.Timber
@@ -456,11 +456,4 @@ class LoadContentPackageUseCase @Inject constructor(
         return results
     }
 
-    private fun parseInstantLenient(value: String): Instant? {
-        // Try ISO Instant first
-        runCatching { return Instant.parse(value) }
-        // Fallback: try LocalDateTime ISO then convert using system TZ
-        return runCatching { LocalDateTime.parse(value).toInstant(TimeZone.currentSystemDefault()) }.getOrNull()
-    }
-    
     }

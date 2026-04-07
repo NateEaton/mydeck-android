@@ -59,6 +59,7 @@ import androidx.compose.foundation.ScrollState
 import com.mydeck.app.R
 import com.mydeck.app.ui.detail.BookmarkDetailViewModel
 import com.mydeck.app.ui.detail.VideoFullscreenDismissSource
+import com.mydeck.app.BuildConfig
 import com.mydeck.app.ui.detail.WebViewSearchBridge
 import com.mydeck.app.ui.detail.WebViewThemeBridge
 import com.mydeck.app.ui.detail.WebViewTypographyBridge
@@ -73,6 +74,10 @@ import timber.log.Timber
 import java.io.ByteArrayInputStream
 
 private const val ReadPositionLogPrefix = "READPOS"
+
+private inline fun logReadPos(message: () -> String) {
+    if (BuildConfig.DEBUG) Timber.d(message())
+}
 
 @Composable
 fun EmptyBookmarkDetailArticle(
@@ -190,15 +195,11 @@ fun BookmarkDetailArticle(
     LaunchedEffect(content.value) {
         if (content.value != null) {
             hasReportedReady = false
-            Timber.d(
-                "$ReadPositionLogPrefix: ready-reset bookmark=${uiState.bookmark.bookmarkId} source=content-changed"
-            )
+            logReadPos { "$ReadPositionLogPrefix: ready-reset bookmark=${uiState.bookmark.bookmarkId} source=content-changed" }
             onContentReady(false)
         } else {
             onWebViewChanged(null)
-            Timber.d(
-                "$ReadPositionLogPrefix: ready-true bookmark=${uiState.bookmark.bookmarkId} source=no-content"
-            )
+            logReadPos { "$ReadPositionLogPrefix: ready-true bookmark=${uiState.bookmark.bookmarkId} source=no-content" }
             onContentReady(true)
         }
     }
@@ -216,9 +217,7 @@ fun BookmarkDetailArticle(
             delay(3000)
             if (!hasReportedReady) {
                 hasReportedReady = true
-                Timber.d(
-                    "$ReadPositionLogPrefix: ready-true bookmark=${uiState.bookmark.bookmarkId} source=fallback3s"
-                )
+                logReadPos { "$ReadPositionLogPrefix: ready-true bookmark=${uiState.bookmark.bookmarkId} source=fallback3s" }
                 onContentReady(true)
             }
         }
@@ -484,9 +483,7 @@ fun BookmarkDetailArticle(
                                 if (hasReportedReady) return
                                 if (webView == null) {
                                     hasReportedReady = true
-                                    Timber.d(
-                                        "$ReadPositionLogPrefix: ready-true bookmark=${uiState.bookmark.bookmarkId} source=page-finished-null-webview"
-                                    )
+                                    logReadPos { "$ReadPositionLogPrefix: ready-true bookmark=${uiState.bookmark.bookmarkId} source=page-finished-null-webview" }
                                     onContentReady(true)
                                     return
                                 }
@@ -497,9 +494,7 @@ fun BookmarkDetailArticle(
                                             override fun onComplete(requestId: Long) {
                                                 if (!hasReportedReady) {
                                                     hasReportedReady = true
-                                                    Timber.d(
-                                                        "$ReadPositionLogPrefix: ready-true bookmark=${uiState.bookmark.bookmarkId} source=visual-state"
-                                                    )
+                                                    logReadPos { "$ReadPositionLogPrefix: ready-true bookmark=${uiState.bookmark.bookmarkId} source=visual-state" }
                                                     onContentReady(true)
                                                 }
                                             }
@@ -507,9 +502,7 @@ fun BookmarkDetailArticle(
                                     )
                                 } else {
                                     hasReportedReady = true
-                                    Timber.d(
-                                        "$ReadPositionLogPrefix: ready-true bookmark=${uiState.bookmark.bookmarkId} source=page-finished-pre-m"
-                                    )
+                                    logReadPos { "$ReadPositionLogPrefix: ready-true bookmark=${uiState.bookmark.bookmarkId} source=page-finished-pre-m" }
                                     onContentReady(true)
                                 }
                             }
@@ -531,9 +524,7 @@ fun BookmarkDetailArticle(
                                 view?.let { applyReaderEnhancements(it) }
                                 if (!hasReportedReady) {
                                     hasReportedReady = true
-                                    Timber.d(
-                                        "$ReadPositionLogPrefix: ready-true bookmark=${uiState.bookmark.bookmarkId} source=page-commit-visible"
-                                    )
+                                    logReadPos { "$ReadPositionLogPrefix: ready-true bookmark=${uiState.bookmark.bookmarkId} source=page-commit-visible" }
                                     onContentReady(true)
                                 }
                             }

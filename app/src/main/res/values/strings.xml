@@ -405,7 +405,7 @@ other{}
     <string name="sync_content_status_manual">Manual mode</string>
     <string name="sync_content_status_clearing">Clearing offline content…</string>
     <string name="sync_constraint_override_title">Download Content?</string>
-    <string name="sync_constraint_override_body">Content download is blocked by active constraints (%s). Would you like to temporarily override these settings to complete this download?</string>
+    <string name="sync_constraint_override_body">Content download is paused by your sync constraints (Wi-Fi only or battery saver). Download now anyway?</string>
     <string name="sync_constraint_override_confirm">Override &amp; Download</string>
 
     <!-- Sync Status - Phase 3 -->

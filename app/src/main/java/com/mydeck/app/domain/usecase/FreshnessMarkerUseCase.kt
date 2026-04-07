@@ -3,10 +3,7 @@ package com.mydeck.app.domain.usecase
 import com.mydeck.app.io.db.dao.BookmarkDao
 import com.mydeck.app.io.db.dao.ContentPackageDao
 import com.mydeck.app.io.db.model.BookmarkEntity
-import kotlinx.datetime.Instant
-import kotlinx.datetime.LocalDateTime
-import kotlinx.datetime.TimeZone
-import kotlinx.datetime.toInstant
+import com.mydeck.app.util.parseInstantLenient
 import timber.log.Timber
 import javax.inject.Inject
 
@@ -43,8 +40,4 @@ class FreshnessMarkerUseCase @Inject constructor(
         }
     }
 
-    private fun parseInstantLenient(value: String): Instant? {
-        runCatching { return Instant.parse(value) }
-        return runCatching { LocalDateTime.parse(value).toInstant(TimeZone.currentSystemDefault()) }.getOrNull()
-    }
 }

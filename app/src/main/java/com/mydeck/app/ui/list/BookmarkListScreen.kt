@@ -876,7 +876,7 @@ fun BookmarkListScreen(
         AlertDialog(
             onDismissRequest = { viewModel.onConstraintOverrideCancelled() },
             title = { Text(stringResource(R.string.sync_constraint_override_title)) },
-            text = { Text(stringResource(R.string.sync_constraint_override_body, "")) },
+            text = { Text(stringResource(R.string.sync_constraint_override_body)) },
             confirmButton = {
                 Button(onClick = { viewModel.onConstraintOverrideConfirmed() }) {
                     Text(stringResource(R.string.sync_constraint_override_confirm))

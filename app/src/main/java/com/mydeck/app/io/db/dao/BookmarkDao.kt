@@ -697,8 +697,9 @@ interface BookmarkDao {
             b.id AS id,
             b.created AS created,
             b.contentState AS contentState,
-            CASE WHEN b.contentState = 1 THEN 1 ELSE 0 END AS hasOfflinePackage
+            CASE WHEN cp.bookmarkId IS NOT NULL AND cp.hasResources = 1 THEN 1 ELSE 0 END AS hasOfflinePackage
         FROM bookmarks b
+        LEFT JOIN content_package cp ON cp.bookmarkId = b.id
         WHERE b.isLocalDeleted = 0
         AND (b.hasArticle = 1 OR b.type = 'photo')
         AND b.contentState != 3

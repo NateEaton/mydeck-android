@@ -191,7 +191,7 @@ other{}
     <string name="sync_content_status_up_to_date">Up to date</string>
     <string name="sync_content_status_manual">Manual mode</string>
     <string name="sync_constraint_override_title">Download Content?</string>
-    <string name="sync_constraint_override_body">Content download is blocked by active constraints (%s). Would you like to temporarily override these settings to complete this download?</string>
+    <string name="sync_constraint_override_body">Content download is paused by your sync constraints (Wi-Fi only or battery saver). Download now anyway?</string>
     <string name="sync_constraint_override_confirm">Override &amp; Download</string>
     <string name="sync_status_section_title">Sync Status</string>    <string name="sync_status_bookmarks_heading">Bookmarks</string>
     <string name="sync_status_content_heading">Content</string>
