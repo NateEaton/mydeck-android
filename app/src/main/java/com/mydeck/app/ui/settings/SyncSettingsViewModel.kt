@@ -468,9 +468,12 @@ class SyncSettingsViewModel @Inject constructor(
 
             val includeArchived = offlineContentScope.value.includesArchived
             skippedNoContentCount.value = when (offlinePolicy.value) {
-                OfflinePolicy.NEWEST_N -> bookmarkDao.countPermanentNoContentInNewestN(
-                    offlinePolicyNewestN.value, includeArchived
-                )
+                OfflinePolicy.NEWEST_N -> {
+                    bookmarkDao.countPermanentNoContentInNewestN(
+                        offlinePolicyNewestN.value,
+                        includeArchived
+                    )
+                }
                 OfflinePolicy.DATE_RANGE -> {
                     val fromEpoch = System.currentTimeMillis() - offlinePolicyDateRangeWindow.value.inWholeMilliseconds
                     bookmarkDao.countPermanentNoContentInDateRange(fromEpoch, includeArchived)

@@ -11,6 +11,7 @@ import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import com.mydeck.app.domain.content.ContentPackageManager
+import com.mydeck.app.domain.sync.OfflinePolicy
 import com.mydeck.app.domain.sync.OfflinePolicyEvaluator
 import com.mydeck.app.domain.sync.OfflinePolicyEvaluator.Companion.avgArticleBytes
 import com.mydeck.app.domain.usecase.LoadContentPackageUseCase
@@ -91,9 +92,22 @@ class BatchArticleLoadWorker @AssistedInject constructor(
                 }
 
                 val pendingBookmarkIds = policyEvaluator
-                    .selectEligibleBookmarks(offlinePolicyBookmarks)
-                    .filter { policyEvaluator.needsOfflinePackage(it) }
-                    .map { it.id }
+                    .let {
+                        when (settingsDataStore.getOfflinePolicy()) {
+                            OfflinePolicy.NEWEST_N -> {
+                                bookmarkDao.getBookmarkIdsEligibleForNewestNContentFetch(
+                                    settingsDataStore.getOfflinePolicyNewestN(),
+                                    includeArchived
+                                )
+                            }
+
+                            else -> {
+                                it.selectEligibleBookmarks(offlinePolicyBookmarks)
+                                    .filter { bookmark -> it.needsOfflinePackage(bookmark) }
+                                    .map { bookmark -> bookmark.id }
+                            }
+                        }
+                    }
 
                 if (pendingBookmarkIds.isEmpty()) {
                     Timber.i("No more eligible bookmarks to fetch")
@@ -198,6 +212,28 @@ class BatchArticleLoadWorker @AssistedInject constructor(
      *                     (`target − avg`).
      */
     private suspend fun pruneManagedContentIfNeeded(includeArchived: Boolean) {
+        if (settingsDataStore.getOfflinePolicy() == OfflinePolicy.NEWEST_N) {
+            val newestN = settingsDataStore.getOfflinePolicyNewestN()
+            val outsideWindow = bookmarkDao.getDownloadedBookmarkIdsOutsideNewestN(newestN, includeArchived)
+            if (outsideWindow.isNotEmpty()) {
+                Timber.i(
+                    "Prune cycle starting for NEWEST_N window overflow " +
+                        "(outsideWindow=${outsideWindow.size}, newestN=$newestN)"
+                )
+                outsideWindow.forEach { pruneId ->
+                    contentPackageManager.deleteContentForBookmark(pruneId)
+                    Timber.i("Pruned managed offline content for $pruneId")
+                }
+                val remainingOutsideWindow =
+                    bookmarkDao.getDownloadedBookmarkIdsOutsideNewestN(newestN, includeArchived).size
+                val usageAfterWindowPrune = contentPackageManager.calculateManagedOfflineSize()
+                Timber.i(
+                    "Prune cycle complete for NEWEST_N window overflow " +
+                        "(remainingOutsideWindow=$remainingOutsideWindow, usage=${usageAfterWindowPrune / 1024}KB)"
+                )
+            }
+        }
+
         // --- Entry check ---
         val initialBookmarks = bookmarkDao.getOfflinePolicyBookmarks(includeArchived)
             .filter { it.hasOfflinePackage }

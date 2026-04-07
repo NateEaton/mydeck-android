@@ -6,6 +6,7 @@ import androidx.work.ListenableWorker
 import androidx.work.WorkerParameters
 import com.mydeck.app.domain.content.ContentPackageManager
 import com.mydeck.app.domain.sync.OfflineContentScope
+import com.mydeck.app.domain.sync.OfflinePolicy
 import com.mydeck.app.domain.sync.OfflinePolicyEvaluator
 import com.mydeck.app.domain.usecase.LoadContentPackageUseCase
 import com.mydeck.app.io.db.dao.BookmarkDao
@@ -42,6 +43,7 @@ class BatchArticleLoadWorkerTest {
         // Common defaults
         coEvery { settingsDataStore.isOfflineReadingEnabled() } returns true
         coEvery { settingsDataStore.getOfflineContentScope() } returns OfflineContentScope.MY_LIST
+        coEvery { settingsDataStore.getOfflinePolicy() } returns OfflinePolicy.STORAGE_LIMIT
         coEvery { settingsDataStore.saveLastContentSyncTimestamp(any()) } returns Unit
         coEvery { policyEvaluator.canFetchContent() } returns OfflinePolicyEvaluator.Decision(true)
         coEvery { bookmarkDao.markNoContentBookmarksPermanent() } returns 0

@@ -722,6 +722,44 @@ interface BookmarkDao {
     suspend fun countPermanentNoContentInNewestN(n: Int, includeArchived: Boolean): Int
 
     @Query("""
+        SELECT b.id FROM bookmarks b
+        WHERE b.isLocalDeleted = 0
+        AND b.contentState IN (0, 2)
+        AND (b.hasArticle = 1 OR b.type = 'photo')
+        AND b.id IN (
+            SELECT id FROM bookmarks
+            WHERE isLocalDeleted = 0
+            AND (:includeArchived = 1 OR isArchived = 0)
+            ORDER BY created DESC
+            LIMIT :n
+        )
+        ORDER BY b.created DESC
+    """)
+    suspend fun getBookmarkIdsEligibleForNewestNContentFetch(
+        n: Int,
+        includeArchived: Boolean
+    ): List<String>
+
+    @Query("""
+        SELECT b.id FROM bookmarks b
+        WHERE b.isLocalDeleted = 0
+        AND b.contentState = 1
+        AND (:includeArchived = 1 OR b.isArchived = 0)
+        AND b.id NOT IN (
+            SELECT id FROM bookmarks
+            WHERE isLocalDeleted = 0
+            AND (:includeArchived = 1 OR isArchived = 0)
+            ORDER BY created DESC
+            LIMIT :n
+        )
+        ORDER BY b.created ASC
+    """)
+    suspend fun getDownloadedBookmarkIdsOutsideNewestN(
+        n: Int,
+        includeArchived: Boolean
+    ): List<String>
+
+    @Query("""
         SELECT COUNT(*) FROM bookmarks
         WHERE isLocalDeleted = 0
         AND contentState = 3
