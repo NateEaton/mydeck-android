@@ -44,6 +44,7 @@ class BatchArticleLoadWorkerTest {
         coEvery { settingsDataStore.getOfflineContentScope() } returns OfflineContentScope.MY_LIST
         coEvery { settingsDataStore.saveLastContentSyncTimestamp(any()) } returns Unit
         coEvery { policyEvaluator.canFetchContent() } returns OfflinePolicyEvaluator.Decision(true)
+        coEvery { bookmarkDao.markNoContentBookmarksPermanent() } returns 0
     }
 
     private fun createWorker(inputData: Data = Data.EMPTY): BatchArticleLoadWorker {
@@ -355,14 +356,13 @@ class BatchArticleLoadWorkerTest {
     // --- Stalled-progress regression test ---
 
     @Test
-    fun `doWork stops when batch produces no storage change`() = runTest {
-        // Simulate: a 0-byte article keeps re-appearing in the pending list.
-        // After processing it, usage doesn't change → stalled-progress guard fires.
+    fun `doWork stops when pending count unchanged after retries`() = runTest {
+        // Simulate: a bookmark keeps re-appearing in the pending list without progress.
+        // After MAX_STALLED_RETRIES consecutive same-count iterations, the guard fires.
         val policyBookmarks = listOf(
-            policyBookmark("zero-bytes", "2026-03-01T00:00:00Z", hasOfflinePackage = false)
+            policyBookmark("stuck", "2026-03-01T00:00:00Z", hasOfflinePackage = false)
         )
 
-        // Usage stays constant at 90MB across all iterations
         coEvery { contentPackageManager.calculateManagedOfflineSize() } returns 90_000_000L
         coEvery { policyEvaluator.shouldStopDownloading(90_000_000L, any()) } returns false
         coEvery { policyEvaluator.downloadHeadroomBytes(90_000_000L, any()) } returns 2_800_000L
@@ -377,8 +377,8 @@ class BatchArticleLoadWorkerTest {
         val result = createWorker().doWork()
 
         assertEquals(ListenableWorker.Result.success(), result)
-        // First batch executes, second iteration detects stall and breaks
-        coVerify(exactly = 1) { loadContentPackageUseCase.executeBatch(any()) }
+        // 1 initial batch + 2 retries = 3 batches; stall fires on 4th check before batch
+        coVerify(exactly = 3) { loadContentPackageUseCase.executeBatch(any()) }
     }
 
     // --- Thrashing regression test ---

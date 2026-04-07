@@ -81,6 +81,7 @@ android {
             )
             buildConfigField("boolean", "ALLOW_INSECURE_HTTP", allowInsecureHttpRelease.toString())
             buildConfigField("boolean", "ALLOW_USER_CA_CERTIFICATES", allowUserCaRelease.toString())
+            buildConfigField("boolean", "SHOW_CARD_INDEX_OVERLAY", "false")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -101,6 +102,7 @@ android {
             )
             buildConfigField("boolean", "ALLOW_INSECURE_HTTP", "true")
             buildConfigField("boolean", "ALLOW_USER_CA_CERTIFICATES", "true")
+            buildConfigField("boolean", "SHOW_CARD_INDEX_OVERLAY", "true")
         }
     }
 

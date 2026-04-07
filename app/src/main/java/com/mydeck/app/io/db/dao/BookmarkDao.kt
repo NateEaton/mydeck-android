@@ -675,14 +675,7 @@ interface BookmarkDao {
             (SELECT COUNT(*) FROM bookmarks WHERE readProgress < 100 AND state = 0 AND isLocalDeleted = 0) AS unread,
             (SELECT COUNT(*) FROM bookmarks WHERE isArchived = 1 AND state = 0 AND isLocalDeleted = 0) AS archived,
             (SELECT COUNT(*) FROM bookmarks WHERE isMarked = 1 AND state = 0 AND isLocalDeleted = 0) AS favorites,
-            (
-                SELECT COUNT(*)
-                FROM bookmarks b
-                INNER JOIN content_package cp ON cp.bookmarkId = b.id
-                WHERE b.contentState = 1
-                AND b.isLocalDeleted = 0
-                AND cp.hasResources = 1
-            ) AS contentDownloaded,
+            (SELECT COUNT(*) FROM bookmarks WHERE contentState = 1 AND isLocalDeleted = 0) AS contentDownloaded,
             (SELECT COUNT(*) FROM bookmarks WHERE contentState = 0 AND hasArticle = 1 AND isLocalDeleted = 0) AS contentAvailable,
             (SELECT COUNT(*) FROM bookmarks WHERE contentState = 2 AND isLocalDeleted = 0) AS contentDirty,
             (SELECT COUNT(*) FROM bookmarks WHERE contentState = 3 AND isLocalDeleted = 0) AS permanentNoContent
@@ -704,11 +697,8 @@ interface BookmarkDao {
             b.id AS id,
             b.created AS created,
             b.contentState AS contentState,
-            CASE WHEN cp.bookmarkId IS NOT NULL THEN 1 ELSE 0 END AS hasOfflinePackage
+            CASE WHEN b.contentState = 1 THEN 1 ELSE 0 END AS hasOfflinePackage
         FROM bookmarks b
-        LEFT JOIN content_package cp
-            ON cp.bookmarkId = b.id
-            AND cp.hasResources = 1
         WHERE b.isLocalDeleted = 0
         AND (b.hasArticle = 1 OR b.type = 'photo')
         AND b.contentState != 3
@@ -716,6 +706,48 @@ interface BookmarkDao {
         ORDER BY b.created DESC
     """)
     suspend fun getOfflinePolicyBookmarks(includeArchived: Boolean): List<OfflinePolicyBookmark>
+
+    @Query("""
+        SELECT COUNT(*) FROM bookmarks
+        WHERE contentState = 3
+        AND isLocalDeleted = 0
+        AND id IN (
+            SELECT id FROM bookmarks
+            WHERE isLocalDeleted = 0
+            AND (:includeArchived = 1 OR isArchived = 0)
+            ORDER BY created DESC
+            LIMIT :n
+        )
+    """)
+    suspend fun countPermanentNoContentInNewestN(n: Int, includeArchived: Boolean): Int
+
+    @Query("""
+        SELECT COUNT(*) FROM bookmarks
+        WHERE isLocalDeleted = 0
+        AND contentState = 3
+        AND created >= :fromEpoch
+        AND (:includeArchived = 1 OR isArchived = 0)
+    """)
+    suspend fun countPermanentNoContentInDateRange(fromEpoch: Long, includeArchived: Boolean): Int
+
+    @Query("""
+        SELECT MIN(created) FROM bookmarks
+        WHERE contentState = 1
+        AND isLocalDeleted = 0
+        AND (:includeArchived = 1 OR isArchived = 0)
+    """)
+    suspend fun getOldestDownloadedBookmarkEpoch(includeArchived: Boolean): Long?
+
+    @Query("""
+        UPDATE bookmarks
+        SET contentState = 3,
+            contentFailureReason = 'No extractable content'
+        WHERE isLocalDeleted = 0
+        AND contentState = 0
+        AND hasArticle = 0
+        AND type != 'photo'
+    """)
+    suspend fun markNoContentBookmarksPermanent(): Int
 
     @Query("""
         SELECT b.id

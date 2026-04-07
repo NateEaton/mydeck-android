@@ -72,6 +72,8 @@ class SyncSettingsViewModel @Inject constructor(
     private val showDialog = MutableStateFlow<SyncSettingsDialog?>(null)
     private val offlineStorageSize = MutableStateFlow<String?>(null)
     private val isPurgingOfflineContent = MutableStateFlow(false)
+    private val policyDirty = MutableStateFlow(false)
+    private val skippedNoContentCount = MutableStateFlow(0)
 
     private val detailedSyncStatus = bookmarkDao.observeDetailedSyncStatus()
         .map { counts ->
@@ -178,7 +180,9 @@ class SyncSettingsViewModel @Inject constructor(
         lastSyncTimestampText,
         lastContentSyncTimestampText,
         offlineStorageSize,
-        isPurgingOfflineContent
+        isPurgingOfflineContent,
+        policyDirty,
+        skippedNoContentCount
     ) { args: Array<Any?> ->
         val detailedSyncStatusCounts = args[13] as BookmarkDao.DetailedSyncStatusCounts
         val totalBookmarks = detailedSyncStatusCounts.total
@@ -207,12 +211,14 @@ class SyncSettingsViewModel @Inject constructor(
                 archivedBookmarks = archivedBookmarks,
                 favorites = favorites,
                 fullOfflineAvailable = detailedSyncStatusCounts.contentDownloaded,
+                skippedNoContent = args[20] as Int,
                 lastBookmarkSyncTimestamp = args[15] as String?,
                 lastOfflineMaintenanceTimestamp = args[16] as String?,
                 offlineStorageSize = args[17] as String?
             ),
             showDialog = args[1] as SyncSettingsDialog?,
-            isPurgingOfflineContent = args[18] as Boolean
+            isPurgingOfflineContent = args[18] as Boolean,
+            isPolicyDirty = args[19] as Boolean
         )
     }.stateIn(
         scope = viewModelScope,
@@ -262,77 +268,89 @@ class SyncSettingsViewModel @Inject constructor(
             offlineReadingEnabled.value = enabled
 
             if (enabled) {
-                val includeArchived = offlineContentScope.value.includesArchived
-                bookmarkDao.markLegacyCachedContentDirtyWithoutPackage(includeArchived)
-                restartManagedContentSyncIfNeeded()
-                Timber.i("Managed offline reading enabled (includeArchived=$includeArchived)")
+                policyDirty.value = true
+                Timber.i("Managed offline reading enabled — awaiting Apply")
             } else {
+                policyDirty.value = false
                 runManagedContentPurge("Managed offline reading disabled and offline content purged")
             }
         }
     }
 
     fun onOfflinePolicySelected(policy: OfflinePolicy) {
-        viewModelScope.launch {
-            settingsDataStore.saveOfflinePolicy(policy)
-            offlinePolicy.value = policy
-            restartManagedContentSyncIfNeeded()
-        }
+        offlinePolicy.value = policy
+        policyDirty.value = true
     }
 
     fun onOfflinePolicyStorageLimitSelected(limit: OfflineImageStorageLimit) {
-        viewModelScope.launch {
-            settingsDataStore.saveOfflinePolicyStorageLimit(limit.bytes)
-            settingsDataStore.saveOfflineImageStorageLimit(limit)
-            offlinePolicyStorageLimit.value = limit
-            restartManagedContentSyncIfNeeded()
-        }
+        offlinePolicyStorageLimit.value = limit
+        policyDirty.value = true
     }
 
     fun onOfflinePolicyNewestNSelected(newestN: Int) {
-        viewModelScope.launch {
-            settingsDataStore.saveOfflinePolicyNewestN(newestN)
-            offlinePolicyNewestN.value = newestN
-            restartManagedContentSyncIfNeeded()
-        }
+        offlinePolicyNewestN.value = newestN
+        policyDirty.value = true
     }
 
     fun onOfflinePolicyDateRangeWindowSelected(window: Duration) {
-        viewModelScope.launch {
-            settingsDataStore.saveOfflinePolicyDateRangeWindow(window)
-            offlinePolicyDateRangeWindow.value = window
-            restartManagedContentSyncIfNeeded()
-        }
+        offlinePolicyDateRangeWindow.value = window
+        policyDirty.value = true
     }
 
     fun onOfflineMaxStorageCapSelected(limit: OfflineImageStorageLimit) {
-        viewModelScope.launch {
-            settingsDataStore.saveOfflineMaxStorageCap(limit.bytes)
-            offlineMaxStorageCap.value = limit
-            restartManagedContentSyncIfNeeded()
-        }
+        offlineMaxStorageCap.value = limit
+        policyDirty.value = true
     }
 
     fun onIncludeArchivedChanged(enabled: Boolean) {
-        viewModelScope.launch {
-            val scope = if (enabled) {
-                OfflineContentScope.MY_LIST_AND_ARCHIVED
-            } else {
-                OfflineContentScope.MY_LIST
-            }
-            settingsDataStore.saveOfflineContentScope(scope)
-            offlineContentScope.value = scope
+        val scope = if (enabled) {
+            OfflineContentScope.MY_LIST_AND_ARCHIVED
+        } else {
+            OfflineContentScope.MY_LIST
+        }
+        offlineContentScope.value = scope
+        policyDirty.value = true
+    }
 
-            if (!enabled) {
+    fun onApplyPolicySettings() {
+        viewModelScope.launch {
+            // Persist all policy settings
+            settingsDataStore.saveOfflinePolicy(offlinePolicy.value)
+            settingsDataStore.saveOfflinePolicyStorageLimit(offlinePolicyStorageLimit.value.bytes)
+            settingsDataStore.saveOfflineImageStorageLimit(offlinePolicyStorageLimit.value)
+            settingsDataStore.saveOfflinePolicyNewestN(offlinePolicyNewestN.value)
+            settingsDataStore.saveOfflinePolicyDateRangeWindow(offlinePolicyDateRangeWindow.value)
+            settingsDataStore.saveOfflineMaxStorageCap(offlineMaxStorageCap.value.bytes)
+            settingsDataStore.saveOfflineContentScope(offlineContentScope.value)
+
+            policyDirty.value = false
+
+            if (!offlineReadingEnabled.value) return@launch
+
+            // Purge archived content if scope was narrowed
+            if (!offlineContentScope.value.includesArchived) {
                 purgeArchivedOfflineContent()
             }
 
-            if (offlineReadingEnabled.value) {
-                bookmarkDao.markLegacyCachedContentDirtyWithoutPackage(enabled)
-                restartManagedContentSyncIfNeeded()
-            }
-
+            bookmarkDao.markLegacyCachedContentDirtyWithoutPackage(
+                offlineContentScope.value.includesArchived
+            )
+            restartManagedContentSyncIfNeeded()
             refreshStorageSize()
+        }
+    }
+
+    fun onCancelPolicySettings() {
+        viewModelScope.launch {
+            // Revert local state to persisted values
+            offlinePolicy.value = settingsDataStore.getOfflinePolicy()
+            offlinePolicyStorageLimit.value =
+                settingsDataStore.getOfflinePolicyStorageLimit().toStorageLimit()
+            offlinePolicyNewestN.value = settingsDataStore.getOfflinePolicyNewestN()
+            offlinePolicyDateRangeWindow.value = settingsDataStore.getOfflinePolicyDateRangeWindow()
+            offlineMaxStorageCap.value = settingsDataStore.getOfflineMaxStorageCap().toStorageLimit()
+            offlineContentScope.value = settingsDataStore.getOfflineContentScope()
+            policyDirty.value = false
         }
     }
 
@@ -447,6 +465,23 @@ class SyncSettingsViewModel @Inject constructor(
         viewModelScope.launch {
             val totalBytes = contentPackageManager.calculateManagedOfflineSize()
             offlineStorageSize.value = formatFileSize(totalBytes)
+
+            val includeArchived = offlineContentScope.value.includesArchived
+            skippedNoContentCount.value = when (offlinePolicy.value) {
+                OfflinePolicy.NEWEST_N -> bookmarkDao.countPermanentNoContentInNewestN(
+                    offlinePolicyNewestN.value, includeArchived
+                )
+                OfflinePolicy.DATE_RANGE -> {
+                    val fromEpoch = System.currentTimeMillis() - offlinePolicyDateRangeWindow.value.inWholeMilliseconds
+                    bookmarkDao.countPermanentNoContentInDateRange(fromEpoch, includeArchived)
+                }
+                OfflinePolicy.STORAGE_LIMIT -> {
+                    val oldest = bookmarkDao.getOldestDownloadedBookmarkEpoch(includeArchived)
+                    if (oldest != null) {
+                        bookmarkDao.countPermanentNoContentInDateRange(oldest, includeArchived)
+                    } else 0
+                }
+            }
         }
     }
 
@@ -454,7 +489,7 @@ class SyncSettingsViewModel @Inject constructor(
         return when {
             bytes < 1024 -> "$bytes B"
             bytes < 1024 * 1024 -> "%.1f KB".format(bytes / 1024.0)
-            bytes < 1024 * 1024 * 1024 -> "%.1f MB".format(bytes / (1024.0 * 1024))
+            bytes < 1000L * 1024 * 1024 -> "%.1f MB".format(bytes / (1024.0 * 1024))
             else -> "%.2f GB".format(bytes / (1024.0 * 1024 * 1024))
         }
     }
@@ -500,7 +535,8 @@ data class SyncSettingsUiState(
     val contentSyncStatusRes: Int? = null,
     val syncStatus: SyncStatus = SyncStatus(),
     val showDialog: SyncSettingsDialog? = null,
-    val isPurgingOfflineContent: Boolean = false
+    val isPurgingOfflineContent: Boolean = false,
+    val isPolicyDirty: Boolean = false
 )
 
 @Immutable
@@ -510,6 +546,7 @@ data class SyncStatus(
     val archivedBookmarks: Int = 0,
     val favorites: Int = 0,
     val fullOfflineAvailable: Int = 0,
+    val skippedNoContent: Int = 0,
     val lastBookmarkSyncTimestamp: String? = null,
     val lastOfflineMaintenanceTimestamp: String? = null,
     val offlineStorageSize: String? = null

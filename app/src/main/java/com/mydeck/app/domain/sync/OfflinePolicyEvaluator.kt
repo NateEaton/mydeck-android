@@ -59,8 +59,7 @@ class OfflinePolicyEvaluator @Inject constructor(
             }
 
             OfflinePolicy.DATE_RANGE -> {
-                val anchor = bookmarks.maxByOrNull { it.created }?.created ?: now
-                val cutoff = anchor - settingsDataStore.getOfflinePolicyDateRangeWindow()
+                val cutoff = now - settingsDataStore.getOfflinePolicyDateRangeWindow()
                 bookmarks
                     .filter { it.created >= cutoff }
                     .sortedByDescending { it.created }
@@ -69,8 +68,7 @@ class OfflinePolicyEvaluator @Inject constructor(
     }
 
     fun needsOfflinePackage(bookmark: BookmarkDao.OfflinePolicyBookmark): Boolean {
-        return bookmark.contentState != com.mydeck.app.io.db.model.BookmarkEntity.ContentState.DOWNLOADED ||
-            !bookmark.hasOfflinePackage
+        return bookmark.contentState != com.mydeck.app.io.db.model.BookmarkEntity.ContentState.DOWNLOADED
     }
 
     /**
@@ -103,8 +101,7 @@ class OfflinePolicyEvaluator @Inject constructor(
             }
 
             OfflinePolicy.DATE_RANGE -> {
-                val anchor = downloadedBookmarks.maxByOrNull { it.created }?.created ?: now
-                val cutoff = anchor - settingsDataStore.getOfflinePolicyDateRangeWindow()
+                val cutoff = now - settingsDataStore.getOfflinePolicyDateRangeWindow()
                 isSecondaryCapExceeded(totalUsageBytes) ||
                     downloadedBookmarks.any { it.created < cutoff }
             }
@@ -160,8 +157,7 @@ class OfflinePolicyEvaluator @Inject constructor(
                 if (isSecondaryCapExceeded(totalUsageBytes)) {
                     oldestFirst.map { it.id }
                 } else {
-                    val anchor = downloadedBookmarks.maxByOrNull { it.created }?.created ?: now
-                    val cutoff = anchor - settingsDataStore.getOfflinePolicyDateRangeWindow()
+                    val cutoff = now - settingsDataStore.getOfflinePolicyDateRangeWindow()
                     oldestFirst.filter { it.created < cutoff }.map { it.id }
                 }
             }

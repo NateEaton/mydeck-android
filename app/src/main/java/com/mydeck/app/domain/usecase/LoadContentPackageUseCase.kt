@@ -384,7 +384,12 @@ class LoadContentPackageUseCase @Inject constructor(
                     for (id in chunkIds) {
                         val pkg = pkgsById[id]
                         if (pkg == null) {
-                            results[id] = Result.TransientFailure("No package returned for id")
+                            bookmarkDao.updateContentState(
+                                id,
+                                BookmarkEntity.ContentState.PERMANENT_NO_CONTENT.value,
+                                "Server returned no content for this bookmark"
+                            )
+                            results[id] = Result.PermanentFailure("Server returned no content")
                             continue
                         }
 

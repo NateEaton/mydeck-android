@@ -74,6 +74,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.toArgb
@@ -83,10 +84,14 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.graphics.luminance
+import com.mydeck.app.BuildConfig
 import coil3.ColorImage
 import coil3.asImage
 import coil3.compose.AsyncImage
@@ -336,7 +341,8 @@ fun BookmarkMosaicCard(
     onClickCopyImage: (String) -> Unit = {},
     onClickDownloadImage: (String) -> Unit = {},
     onClickShareImage: (String) -> Unit = {},
-    isWideLayout: Boolean = LocalIsWideLayout.current
+    isWideLayout: Boolean = LocalIsWideLayout.current,
+    index: Int? = null
 ) {
     var showBodyContextMenu by remember { mutableStateOf(false) }
     var showImageContextMenu by remember { mutableStateOf(false) }
@@ -509,6 +515,27 @@ fun BookmarkMosaicCard(
                     }
                 }
             }
+
+        if (showCardIndexOverlay && index != null) {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = index.toString(),
+                    fontSize = 44.sp,
+                    fontWeight = FontWeight.Black,
+                    color = Color.White,
+                    style = androidx.compose.ui.text.TextStyle(
+                        shadow = Shadow(
+                            color = Color.Black,
+                            offset = Offset(2f, 2f),
+                            blurRadius = 6f
+                        )
+                    )
+                )
+            }
+        }
         }
         if (showBodyContextMenu) {
             LongPressContextMenuDialog(
@@ -594,6 +621,7 @@ fun BookmarkGridCard(
     isWideLayout: Boolean = LocalIsWideLayout.current,
     isInGrid: Boolean = false,
     useMobilePortraitLayout: Boolean = false,
+    index: Int? = null,
 ) {
     if (useMobilePortraitLayout) {
         BookmarkGridCardMobilePortrait(
@@ -612,6 +640,7 @@ fun BookmarkGridCard(
             onClickCopyImage = onClickCopyImage,
             onClickDownloadImage = onClickDownloadImage,
             onClickShareImage = onClickShareImage,
+            index = index,
         )
     } else if (isWideLayout) {
         BookmarkGridCardWide(
@@ -631,6 +660,7 @@ fun BookmarkGridCard(
             onClickDownloadImage = onClickDownloadImage,
             onClickShareImage = onClickShareImage,
             isInGrid = isInGrid,
+            index = index,
         )
     } else {
         BookmarkGridCardNarrow(
@@ -649,6 +679,7 @@ fun BookmarkGridCard(
             onClickCopyImage = onClickCopyImage,
             onClickDownloadImage = onClickDownloadImage,
             onClickShareImage = onClickShareImage,
+            index = index,
         )
     }
 }
@@ -657,6 +688,14 @@ private val MobilePortraitGridCardHeight = 168.dp
 private const val MobilePortraitThumbnailWeight = 0.25f
 private val MobilePortraitLabelRowHeight = 32.dp
 private val BookmarkCardBorderAlpha = 0.4f
+
+private val showCardIndexOverlay: Boolean by lazy {
+    runCatching {
+        BuildConfig::class.java
+            .getField("SHOW_CARD_INDEX_OVERLAY")
+            .getBoolean(null)
+    }.getOrDefault(false)
+}
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -676,6 +715,7 @@ private fun BookmarkGridCardMobilePortrait(
     onClickCopyImage: (String) -> Unit = {},
     onClickDownloadImage: (String) -> Unit = {},
     onClickShareImage: (String) -> Unit = {},
+    index: Int? = null,
 ) {
     var showBodyContextMenu by remember { mutableStateOf(false) }
     var showImageContextMenu by remember { mutableStateOf(false) }
@@ -878,6 +918,27 @@ private fun BookmarkGridCardMobilePortrait(
             }
         }
 
+        if (showCardIndexOverlay && index != null) {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = index.toString(),
+                    fontSize = 44.sp,
+                    fontWeight = FontWeight.Black,
+                    color = Color.White,
+                    style = androidx.compose.ui.text.TextStyle(
+                        shadow = Shadow(
+                            color = Color.Black,
+                            offset = Offset(2f, 2f),
+                            blurRadius = 6f
+                        )
+                    )
+                )
+            }
+        }
+
         if (showBodyContextMenu) {
             LongPressContextMenuDialog(
                 headerImageUrl = bookmark.iconSrc,
@@ -954,6 +1015,7 @@ private fun BookmarkGridCardNarrow(
     onClickCopyLinkText: (String) -> Unit = {},
     onClickDownloadLink: (String, String) -> Unit = { _, _ -> },
     onClickShareLink: (String, String) -> Unit = { _, _ -> },
+    index: Int? = null,
     onClickOpenInBrowserFromMenu: (String) -> Unit = {},
     onClickCopyImage: (String) -> Unit = {},
     onClickDownloadImage: (String) -> Unit = {},
@@ -1151,6 +1213,27 @@ private fun BookmarkGridCardNarrow(
                 }
             }
         }
+
+        if (showCardIndexOverlay && index != null) {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = index.toString(),
+                    fontSize = 44.sp,
+                    fontWeight = FontWeight.Black,
+                    color = Color.White,
+                    style = androidx.compose.ui.text.TextStyle(
+                        shadow = Shadow(
+                            color = Color.Black,
+                            offset = Offset(2f, 2f),
+                            blurRadius = 6f
+                        )
+                    )
+                )
+            }
+        }
         }
         if (showBodyContextMenu) {
             LongPressContextMenuDialog(
@@ -1233,6 +1316,7 @@ private fun BookmarkGridCardWide(
     onClickDownloadImage: (String) -> Unit = {},
     onClickShareImage: (String) -> Unit = {},
     isInGrid: Boolean = false,
+    index: Int? = null,
 ) {
     var showBodyContextMenu by remember { mutableStateOf(false) }
     var showImageContextMenu by remember { mutableStateOf(false) }
@@ -1432,6 +1516,27 @@ private fun BookmarkGridCardWide(
                 }
             }
         }
+
+        if (showCardIndexOverlay && index != null) {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = index.toString(),
+                    fontSize = 44.sp,
+                    fontWeight = FontWeight.Black,
+                    color = Color.White,
+                    style = androidx.compose.ui.text.TextStyle(
+                        shadow = Shadow(
+                            color = Color.Black,
+                            offset = Offset(2f, 2f),
+                            blurRadius = 6f
+                        )
+                    )
+                )
+            }
+        }
         }
         if (showBodyContextMenu) {
             LongPressContextMenuDialog(
@@ -1533,7 +1638,8 @@ fun BookmarkCompactCard(
     onClickCopyImage: (String) -> Unit = {},
     onClickDownloadImage: (String) -> Unit = {},
     onClickShareImage: (String) -> Unit = {},
-    isWideLayout: Boolean = LocalIsWideLayout.current
+    isWideLayout: Boolean = LocalIsWideLayout.current,
+    index: Int? = null
 ) {
     if (isWideLayout) {
         BookmarkCompactCardWide(
@@ -1552,6 +1658,7 @@ fun BookmarkCompactCard(
             onClickCopyImage = onClickCopyImage,
             onClickDownloadImage = onClickDownloadImage,
             onClickShareImage = onClickShareImage,
+            index = index,
         )
     } else {
         BookmarkCompactCardNarrow(
@@ -1570,6 +1677,7 @@ fun BookmarkCompactCard(
             onClickCopyImage = onClickCopyImage,
             onClickDownloadImage = onClickDownloadImage,
             onClickShareImage = onClickShareImage,
+            index = index,
         )
     }
 }
@@ -1592,6 +1700,7 @@ private fun BookmarkCompactCardNarrow(
     onClickCopyImage: (String) -> Unit = {},
     onClickDownloadImage: (String) -> Unit = {},
     onClickShareImage: (String) -> Unit = {},
+    index: Int? = null
 ) {
     var showBodyContextMenu by remember { mutableStateOf(false) }
     var showImageContextMenu by remember { mutableStateOf(false) }
@@ -1814,6 +1923,7 @@ private fun BookmarkCompactCardWide(
     onClickCopyImage: (String) -> Unit = {},
     onClickDownloadImage: (String) -> Unit = {},
     onClickShareImage: (String) -> Unit = {},
+    index: Int? = null
 ) {
     var showBodyContextMenu by remember { mutableStateOf(false) }
     var showImageContextMenu by remember { mutableStateOf(false) }

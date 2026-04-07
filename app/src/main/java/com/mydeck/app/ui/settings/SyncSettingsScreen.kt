@@ -163,6 +163,8 @@ fun SyncSettingsScreen(
         onClickOfflinePolicyDateRangeWindow = { viewModel.onClickOfflinePolicyDateRangeWindow() },
         onClickOfflineMaxStorageCap = { viewModel.onClickOfflineMaxStorageCap() },
         onIncludeArchivedChanged = { viewModel.onIncludeArchivedChanged(it) },
+        onApplyPolicySettings = { viewModel.onApplyPolicySettings() },
+        onCancelPolicySettings = { viewModel.onCancelPolicySettings() },
         onWifiOnlyChanged = { viewModel.onWifiOnlyChanged(it) },
         onAllowBatterySaverChanged = { viewModel.onAllowBatterySaverChanged(it) },
         onClickClearOfflineContent = { viewModel.onClickClearOfflineContent() }
@@ -185,6 +187,8 @@ fun SyncSettingsView(
     onClickOfflinePolicyDateRangeWindow: () -> Unit,
     onClickOfflineMaxStorageCap: () -> Unit,
     onIncludeArchivedChanged: (Boolean) -> Unit,
+    onApplyPolicySettings: () -> Unit,
+    onCancelPolicySettings: () -> Unit,
     onWifiOnlyChanged: (Boolean) -> Unit,
     onAllowBatterySaverChanged: (Boolean) -> Unit,
     onClickClearOfflineContent: () -> Unit,
@@ -241,6 +245,8 @@ fun SyncSettingsView(
                 onClickOfflinePolicyDateRangeWindow = onClickOfflinePolicyDateRangeWindow,
                 onClickOfflineMaxStorageCap = onClickOfflineMaxStorageCap,
                 onIncludeArchivedChanged = onIncludeArchivedChanged,
+                onApplyPolicySettings = onApplyPolicySettings,
+                onCancelPolicySettings = onCancelPolicySettings,
                 onWifiOnlyChanged = onWifiOnlyChanged,
                 onAllowBatterySaverChanged = onAllowBatterySaverChanged,
                 onClickClearOfflineContent = onClickClearOfflineContent
@@ -502,6 +508,8 @@ private fun OfflineReadingSection(
     onClickOfflinePolicyDateRangeWindow: () -> Unit,
     onClickOfflineMaxStorageCap: () -> Unit,
     onIncludeArchivedChanged: (Boolean) -> Unit,
+    onApplyPolicySettings: () -> Unit,
+    onCancelPolicySettings: () -> Unit,
     onWifiOnlyChanged: (Boolean) -> Unit,
     onAllowBatterySaverChanged: (Boolean) -> Unit,
     onClickClearOfflineContent: () -> Unit
@@ -553,78 +561,111 @@ private fun OfflineReadingSection(
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
                 )
 
-                // Policy options with reduced spacing
-                Column(
-                    modifier = Modifier.padding(horizontal = 32.dp),
-                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                // Policy card with Apply button
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    border = androidx.compose.foundation.BorderStroke(
+                        1.dp,
+                        MaterialTheme.colorScheme.outlineVariant
+                    )
                 ) {
-                    OfflinePolicyRow(
-                        selected = uiState.offlinePolicy == OfflinePolicy.STORAGE_LIMIT,
-                        title = stringResource(R.string.sync_offline_policy_storage_limit),
-                        value = stringResource(uiState.offlinePolicyStorageLimit.toLabelResource()),
-                        enabled = controlsEnabled,
-                        onClick = {
-                            onOfflinePolicySelected(OfflinePolicy.STORAGE_LIMIT)
-                            onClickOfflinePolicyStorageLimit()
-                        }
-                    )
-
-                    OfflinePolicyRow(
-                        selected = uiState.offlinePolicy == OfflinePolicy.NEWEST_N,
-                        title = stringResource(R.string.sync_offline_policy_newest_n),
-                        value = uiState.offlinePolicyNewestN.toString(),
-                        enabled = controlsEnabled,
-                        onClick = {
-                            onOfflinePolicySelected(OfflinePolicy.NEWEST_N)
-                            onClickOfflinePolicyNewestN()
-                        }
-                    )
-
-                    OfflinePolicyRow(
-                        selected = uiState.offlinePolicy == OfflinePolicy.DATE_RANGE,
-                        title = stringResource(R.string.sync_offline_policy_date_range),
-                        value = stringResource(uiState.offlinePolicyDateRangeWindow.toLabelResource()),
-                        enabled = controlsEnabled,
-                        onClick = {
-                            onOfflinePolicySelected(OfflinePolicy.DATE_RANGE)
-                            onClickOfflinePolicyDateRangeWindow()
-                        }
-                    )
-
-                    // Maximum storage cap - indented with policies
-                    AnimatedVisibility(
-                        visible = uiState.offlinePolicy != OfflinePolicy.STORAGE_LIMIT,
-                        enter = expandVertically(),
-                        exit = shrinkVertically()
+                    Column(
+                        modifier = Modifier.padding(vertical = 8.dp),
+                        verticalArrangement = Arrangement.spacedBy(2.dp)
                     ) {
-                        ListItem(
-                            modifier = Modifier.clickable(
-                                enabled = controlsEnabled,
-                                onClick = onClickOfflineMaxStorageCap
-                            ),
-                            headlineContent = {
-                                Text(text = stringResource(R.string.sync_offline_max_storage_cap))
-                            },
-                            trailingContent = {
-                                Text(
-                                    text = stringResource(uiState.offlineMaxStorageCap.toLabelResource()),
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.primary
-                                )
-                            }
+                        OfflinePolicyRow(
+                            selected = uiState.offlinePolicy == OfflinePolicy.STORAGE_LIMIT,
+                            title = stringResource(R.string.sync_offline_policy_storage_limit),
+                            value = stringResource(uiState.offlinePolicyStorageLimit.toLabelResource()),
+                            enabled = controlsEnabled,
+                            onRadioClick = { onOfflinePolicySelected(OfflinePolicy.STORAGE_LIMIT) },
+                            onValueClick = onClickOfflinePolicyStorageLimit,
+                            isValueClickable = uiState.offlinePolicy == OfflinePolicy.STORAGE_LIMIT
                         )
+
+                        OfflinePolicyRow(
+                            selected = uiState.offlinePolicy == OfflinePolicy.NEWEST_N,
+                            title = stringResource(R.string.sync_offline_policy_newest_n),
+                            value = uiState.offlinePolicyNewestN.toString(),
+                            enabled = controlsEnabled,
+                            onRadioClick = { onOfflinePolicySelected(OfflinePolicy.NEWEST_N) },
+                            onValueClick = onClickOfflinePolicyNewestN,
+                            isValueClickable = uiState.offlinePolicy == OfflinePolicy.NEWEST_N
+                        )
+
+                        OfflinePolicyRow(
+                            selected = uiState.offlinePolicy == OfflinePolicy.DATE_RANGE,
+                            title = stringResource(R.string.sync_offline_policy_date_range),
+                            value = stringResource(uiState.offlinePolicyDateRangeWindow.toLabelResource()),
+                            enabled = controlsEnabled,
+                            onRadioClick = { onOfflinePolicySelected(OfflinePolicy.DATE_RANGE) },
+                            onValueClick = onClickOfflinePolicyDateRangeWindow,
+                            isValueClickable = uiState.offlinePolicy == OfflinePolicy.DATE_RANGE,
+                            subtitle = if (uiState.offlinePolicy == OfflinePolicy.DATE_RANGE) {
+                                val fromDate = remember(uiState.offlinePolicyDateRangeWindow) {
+                                    val millis = System.currentTimeMillis() - uiState.offlinePolicyDateRangeWindow.inWholeMilliseconds
+                                    java.text.DateFormat.getDateInstance(java.text.DateFormat.MEDIUM).format(java.util.Date(millis))
+                                }
+                                stringResource(R.string.sync_offline_date_range_since, fromDate)
+                            } else null
+                        )
+
+                        // Maximum storage cap
+                        AnimatedVisibility(
+                            visible = uiState.offlinePolicy != OfflinePolicy.STORAGE_LIMIT,
+                            enter = expandVertically(),
+                            exit = shrinkVertically()
+                        ) {
+                            ListItem(
+                                modifier = Modifier.clickable(
+                                    enabled = controlsEnabled,
+                                    onClick = onClickOfflineMaxStorageCap
+                                ),
+                                headlineContent = {
+                                    Text(text = stringResource(R.string.sync_offline_max_storage_cap))
+                                },
+                                trailingContent = {
+                                    Text(
+                                        text = stringResource(uiState.offlineMaxStorageCap.toLabelResource()),
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                }
+                            )
+                        }
+
+                        // Include archived
+                        TogglePreferenceRow(
+                            title = stringResource(R.string.sync_include_archived_bookmarks),
+                            checked = uiState.includeArchivedBookmarks,
+                            enabled = controlsEnabled,
+                            onCheckedChange = onIncludeArchivedChanged
+                        )
+
+                        // Apply / Cancel buttons
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 4.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End)
+                        ) {
+                            AnimatedVisibility(visible = uiState.isPolicyDirty) {
+                                TextButton(onClick = onCancelPolicySettings) {
+                                    Text(stringResource(android.R.string.cancel))
+                                }
+                            }
+                            Button(
+                                onClick = onApplyPolicySettings,
+                                enabled = controlsEnabled && uiState.isPolicyDirty
+                            ) {
+                                Text(stringResource(R.string.sync_offline_apply))
+                            }
+                        }
                     }
                 }
-
-                // Include archived bookmarks as part of "What to keep offline"
-                Spacer(modifier = Modifier.height(4.dp))
-                TogglePreferenceRow(
-                    modifier = Modifier.padding(horizontal = 32.dp),
-                    title = stringResource(R.string.sync_include_archived_bookmarks),
-                    checked = uiState.includeArchivedBookmarks,
-                    enabled = controlsEnabled,
-                    onCheckedChange = onIncludeArchivedChanged
-                )
 
                 Text(
                     text = stringResource(R.string.sync_offline_whether_to_download),
@@ -663,6 +704,12 @@ private fun OfflineReadingSection(
                         label = stringResource(R.string.sync_status_available_offline),
                         value = uiState.syncStatus.fullOfflineAvailable.toString()
                     )
+                    if (uiState.syncStatus.skippedNoContent > 0) {
+                        CompactStatRow(
+                            label = stringResource(R.string.sync_status_skipped_no_content),
+                            value = uiState.syncStatus.skippedNoContent.toString()
+                        )
+                    }
                     CompactStatRow(
                         label = stringResource(R.string.sync_status_offline_storage_used),
                         value = uiState.syncStatus.offlineStorageSize ?: "0 B"
@@ -704,17 +751,32 @@ private fun OfflinePolicyRow(
     title: String,
     value: String,
     enabled: Boolean,
-    onClick: () -> Unit
+    onRadioClick: () -> Unit,
+    onValueClick: () -> Unit,
+    isValueClickable: Boolean,
+    subtitle: String? = null
 ) {
     ListItem(
-        modifier = Modifier.clickable(enabled = enabled, onClick = onClick),
+        modifier = Modifier.selectable(
+            selected = selected,
+            enabled = enabled,
+            role = Role.RadioButton,
+            onClick = onRadioClick
+        ),
         headlineContent = { Text(title) },
+        supportingContent = subtitle?.let {
+            { Text(it, style = MaterialTheme.typography.bodySmall) }
+        },
         trailingContent = {
-            Text(
-                text = value,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.primary
-            )
+            TextButton(
+                onClick = onValueClick,
+                enabled = enabled && isValueClickable
+            ) {
+                Text(
+                    text = value,
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
         },
         leadingContent = {
             RadioButton(

@@ -108,28 +108,25 @@ class OfflinePolicyEvaluatorTest {
     // --- needsOfflinePackage ---
 
     @Test
-    fun `needsOfflinePackage returns true when content not downloaded`() {
+    fun `needsOfflinePackage returns true when content not attempted`() {
         val bk = bookmark(id = "1", created = "2026-01-01T00:00:00Z",
-            contentState = BookmarkEntity.ContentState.NOT_ATTEMPTED,
-            hasOfflinePackage = false)
+            contentState = BookmarkEntity.ContentState.NOT_ATTEMPTED)
 
         assertTrue(evaluator.needsOfflinePackage(bk))
     }
 
     @Test
-    fun `needsOfflinePackage returns true when downloaded but no offline package`() {
+    fun `needsOfflinePackage returns true when content dirty`() {
         val bk = bookmark(id = "1", created = "2026-01-01T00:00:00Z",
-            contentState = BookmarkEntity.ContentState.DOWNLOADED,
-            hasOfflinePackage = false)
+            contentState = BookmarkEntity.ContentState.DIRTY)
 
         assertTrue(evaluator.needsOfflinePackage(bk))
     }
 
     @Test
-    fun `needsOfflinePackage returns false when downloaded with offline package`() {
+    fun `needsOfflinePackage returns false when content downloaded`() {
         val bk = bookmark(id = "1", created = "2026-01-01T00:00:00Z",
-            contentState = BookmarkEntity.ContentState.DOWNLOADED,
-            hasOfflinePackage = true)
+            contentState = BookmarkEntity.ContentState.DOWNLOADED)
 
         assertFalse(evaluator.needsOfflinePackage(bk))
     }
@@ -250,17 +247,17 @@ class OfflinePolicyEvaluatorTest {
         coEvery { settingsDataStore.getOfflinePolicy() } returns OfflinePolicy.DATE_RANGE
         coEvery { settingsDataStore.getOfflinePolicyDateRangeWindow() } returns 30.days
 
-        // Anchor = newest bookmark (Mar 25). Cutoff = Mar 25 - 30d = Feb 23.
-        // Feb 23 >= Feb 23 → included.
-        val anchor = Instant.parse("2026-03-25T00:00:00Z")
-        val exactlyCutoff = anchor - 30.days
+        // Now = Apr 1. Cutoff = Apr 1 - 30d = Mar 2.
+        // Mar 2 >= Mar 2 → included.
+        val now = Instant.parse("2026-04-01T00:00:00Z")
+        val exactlyCutoff = now - 30.days
 
         val eligible = evaluator.selectEligibleBookmarks(
             listOf(
                 bookmark(id = "1", created = exactlyCutoff.toString()),
-                bookmark(id = "2", created = anchor.toString())
+                bookmark(id = "2", created = "2026-03-25T00:00:00Z")
             ),
-            now = Instant.parse("2026-04-01T00:00:00Z")
+            now = now
         )
 
         assertEquals(listOf("2", "1"), eligible.map { it.id })
@@ -271,31 +268,30 @@ class OfflinePolicyEvaluatorTest {
         coEvery { settingsDataStore.getOfflinePolicy() } returns OfflinePolicy.DATE_RANGE
         coEvery { settingsDataStore.getOfflinePolicyDateRangeWindow() } returns 30.days
 
-        // Anchor = newest bookmark (Mar 25). Cutoff = Feb 23.
-        // One second before Feb 23 → excluded.
-        val anchor = Instant.parse("2026-03-25T00:00:00Z")
-        val justBeforeCutoff = anchor - 30.days - 1.seconds
+        // Now = Apr 1. Cutoff = Mar 2.
+        // One second before Mar 2 → excluded.
+        val now = Instant.parse("2026-04-01T00:00:00Z")
+        val justBeforeCutoff = now - 30.days - 1.seconds
 
         val eligible = evaluator.selectEligibleBookmarks(
             listOf(
                 bookmark(id = "1", created = justBeforeCutoff.toString()),
-                bookmark(id = "2", created = anchor.toString())
+                bookmark(id = "2", created = "2026-03-25T00:00:00Z")
             ),
-            now = Instant.parse("2026-04-01T00:00:00Z")
+            now = now
         )
 
         assertEquals(listOf("2"), eligible.map { it.id })
     }
 
     @Test
-    fun `selectEligibleBookmarks date range keeps content during idle period`() = runTest {
+    fun `selectEligibleBookmarks date range excludes old bookmarks during idle period`() = runTest {
         coEvery { settingsDataStore.getOfflinePolicy() } returns OfflinePolicy.DATE_RANGE
         coEvery { settingsDataStore.getOfflinePolicyDateRangeWindow() } returns 90.days
 
         // User hasn't added bookmarks since Nov 30. "Now" is Apr 1 (4 months later).
-        // Old logic: cutoff = Apr 1 - 90d = Jan 1 → only Nov 30 survives? No, none survive.
-        // New logic: anchor = Nov 30 (newest), cutoff = Nov 30 - 90d = Sep 1.
-        //   All three bookmarks (Sep 15, Oct 20, Nov 30) are >= Sep 1 → all kept.
+        // Wall-clock cutoff = Apr 1 - 90d = Jan 1.
+        // All bookmarks (Sep 15, Oct 20, Nov 30) are before Jan 1 → none eligible.
         val eligible = evaluator.selectEligibleBookmarks(
             listOf(
                 bookmark(id = "1", created = "2025-09-15T00:00:00Z"),
@@ -305,7 +301,7 @@ class OfflinePolicyEvaluatorTest {
             now = Instant.parse("2026-04-01T00:00:00Z")
         )
 
-        assertEquals(listOf("3", "2", "1"), eligible.map { it.id })
+        assertEquals(emptyList<String>(), eligible.map { it.id })
     }
 
     // --- isEligible ---
@@ -481,12 +477,12 @@ class OfflinePolicyEvaluatorTest {
     }
 
     @Test
-    fun `shouldPrune date range returns false during idle period when all within span`() = runTest {
+    fun `shouldPrune date range returns true during idle period when bookmarks outside wall-clock window`() = runTest {
         coEvery { settingsDataStore.getOfflinePolicy() } returns OfflinePolicy.DATE_RANGE
         coEvery { settingsDataStore.getOfflinePolicyDateRangeWindow() } returns 90.days
 
         // Bookmarks from Sep-Nov 2025, now is Apr 2026 (4+ months later).
-        // Anchor = Nov 30, cutoff = Sep 1. All bookmarks >= Sep 1 → no prune.
+        // Wall-clock cutoff = Apr 1 - 90d = Jan 1. All bookmarks < Jan 1 → prune.
         val shouldPrune = evaluator.shouldPrune(
             downloadedBookmarks = listOf(
                 bookmark(id = "1", created = "2025-09-15T00:00:00Z", hasOfflinePackage = true),
@@ -497,7 +493,7 @@ class OfflinePolicyEvaluatorTest {
             now = Instant.parse("2026-04-01T00:00:00Z")
         )
 
-        assertFalse(shouldPrune)
+        assertTrue(shouldPrune)
     }
 
     @Test

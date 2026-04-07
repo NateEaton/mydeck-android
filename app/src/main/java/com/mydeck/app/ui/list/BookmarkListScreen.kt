@@ -115,9 +115,11 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.withContext
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.ui.tooling.preview.Preview
@@ -418,8 +420,10 @@ fun BookmarkListScreen(
         DrawerPreset.VIDEOS -> stringResource(id = R.string.videos)
         DrawerPreset.PICTURES -> stringResource(id = R.string.pictures)
     }
+    val bookmarkCount = (uiState as? BookmarkListViewModel.UiState.Success)?.bookmarks?.size
     val currentViewTitle = if (!isLabelMode && filterFormState.value.differsFromPreset(drawerPreset.value)) {
-        stringResource(id = R.string.filtered_list)
+        val base = stringResource(id = R.string.filtered_list)
+        if (bookmarkCount != null) "$base ($bookmarkCount)" else base
     } else {
         currentPresetTitle
     }
@@ -1022,7 +1026,7 @@ fun BookmarkListView(
                 verticalArrangement = Arrangement.spacedBy(spacing),
                 contentPadding = PaddingValues(horizontal = spacing),
             ) {
-                items(bookmarks) { bookmark ->
+                itemsIndexed(bookmarks) { index, bookmark ->
                     val isPendingDeletion = bookmark.id in pendingDeletionBookmarkIds
                     val confirmDelete: (String) -> Unit = { _ -> onUserInteraction() }
                     val noop: (String) -> Unit = {}
@@ -1049,6 +1053,7 @@ fun BookmarkListView(
                             onClickDownloadImage = if (isPendingDeletion) noop else onClickDownloadImage,
                             onClickShareImage = if (isPendingDeletion) noop else onClickShareImage,
                             isInGrid = true,
+                            index = index + 1,
                         )
                         LayoutMode.COMPACT -> BookmarkCompactCard(
                             bookmark = bookmark,
@@ -1067,6 +1072,7 @@ fun BookmarkListView(
                             onClickDownloadLink = if (isPendingDeletion) noop2s else onClickDownloadLink,
                             onClickDownloadImage = if (isPendingDeletion) noop else onClickDownloadImage,
                             onClickShareImage = if (isPendingDeletion) noop else onClickShareImage,
+                            index = index + 1,
                         )
                         LayoutMode.MOSAIC -> BookmarkMosaicCard(
                             bookmark = bookmark,
@@ -1085,6 +1091,7 @@ fun BookmarkListView(
                             onClickDownloadLink = if (isPendingDeletion) noop2s else onClickDownloadLink,
                             onClickDownloadImage = if (isPendingDeletion) noop else onClickDownloadImage,
                             onClickShareImage = if (isPendingDeletion) noop else onClickShareImage,
+                            index = index + 1,
                         )
                     }
                     }
@@ -1109,7 +1116,7 @@ fun BookmarkListView(
         }
         Box(modifier = modifier) {
             LazyColumn(state = lazyListState, modifier = Modifier.fillMaxSize()) {
-                items(bookmarks) { bookmark ->
+                itemsIndexed(bookmarks) { index, bookmark ->
                     val isPendingDeletion = bookmark.id in pendingDeletionBookmarkIds
                     val confirmDelete: (String) -> Unit = { _ -> onUserInteraction() }
                     val noop: (String) -> Unit = {}
@@ -1136,6 +1143,7 @@ fun BookmarkListView(
                             onClickDownloadImage = if (isPendingDeletion) noop else onClickDownloadImage,
                             onClickShareImage = if (isPendingDeletion) noop else onClickShareImage,
                             useMobilePortraitLayout = useMobilePortraitGridLayout,
+                            index = index + 1,
                         )
                         LayoutMode.COMPACT -> BookmarkCompactCard(
                             bookmark = bookmark,
@@ -1154,6 +1162,7 @@ fun BookmarkListView(
                             onClickDownloadLink = if (isPendingDeletion) noop2s else onClickDownloadLink,
                             onClickDownloadImage = if (isPendingDeletion) noop else onClickDownloadImage,
                             onClickShareImage = if (isPendingDeletion) noop else onClickShareImage,
+                            index = index + 1,
                         )
                         LayoutMode.MOSAIC -> BookmarkMosaicCard(
                             bookmark = bookmark,
@@ -1172,6 +1181,7 @@ fun BookmarkListView(
                             onClickDownloadLink = if (isPendingDeletion) noop2s else onClickDownloadLink,
                             onClickDownloadImage = if (isPendingDeletion) noop else onClickDownloadImage,
                             onClickShareImage = if (isPendingDeletion) noop else onClickShareImage,
+                            index = index + 1,
                         )
                     }
                     }

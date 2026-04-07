@@ -367,10 +367,11 @@ other{}
     <string name="sync_offline_keep_offline">Keep offline</string>
     <string name="sync_offline_policy_storage_limit">Storage limit</string>
     <string name="sync_offline_policy_newest_n">Most recent</string>
-    <string name="sync_offline_policy_date_range">Time span</string>
+    <string name="sync_offline_policy_date_range">Last</string>
+    <string name="sync_offline_date_range_since">Since %1$s</string>
     <string name="sync_offline_storage_limit_dialog_title">Storage limit</string>
     <string name="sync_offline_max_storage_cap">Maximum storage cap</string>
-    <string name="sync_offline_max_storage_cap_desc">Applies to Most recent and Time span options.</string>
+    <string name="sync_offline_max_storage_cap_desc">Applies to Most recent and Last options.</string>
     <string name="sync_offline_download_date_range">Download content for date range…</string>
     <string name="sync_offline_image_limit">Storage limit</string>
     <string name="sync_offline_image_limit_dialog_title">Storage limit</string>
@@ -441,6 +442,8 @@ other{}
     <string name="sync_storage_usage">Offline storage: %s</string>
     <string name="sync_storage_usage_text">Text: %s</string>
     <string name="sync_storage_usage_images">Images: %s</string>
+    <string name="sync_offline_apply">Apply</string>
+    <string name="sync_status_skipped_no_content">Skipped (no content)</string>
     <string name="sync_storage_clear">Clear All Offline Content</string>
     <string name="sync_offline_purging">Clearing offline content…</string>
     <string name="sync_storage_clear_confirm_title">Clear Offline Content?</string>

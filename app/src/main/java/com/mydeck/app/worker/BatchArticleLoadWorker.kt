@@ -24,7 +24,6 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.datetime.Clock
 import timber.log.Timber
-import java.util.concurrent.atomic.AtomicBoolean
 
 @HiltWorker
 class BatchArticleLoadWorker @AssistedInject constructor(
@@ -43,17 +42,10 @@ class BatchArticleLoadWorker @AssistedInject constructor(
             return Result.success()
         }
 
-        // Priority single-bookmark path: skip the batch DAO query and isRunning guard.
+        // Priority single-bookmark path: skip the normal batch logic.
         val priorityBookmarkId = inputData.getString(KEY_PRIORITY_BOOKMARK_ID)
         if (priorityBookmarkId != null) {
             return processPriorityBookmark(priorityBookmarkId)
-        }
-
-        // Guard against concurrent instances (e.g. from WorkManager retries overlapping
-        // with a new enqueue triggered by a subsequent metadata sync).
-        if (!isRunning.compareAndSet(false, true)) {
-            Timber.w("BatchArticleLoadWorker: another instance is already running, bailing out")
-            return Result.success()
         }
 
         try {
@@ -61,10 +53,18 @@ class BatchArticleLoadWorker @AssistedInject constructor(
 
             val includeArchived = settingsDataStore.getOfflineContentScope().includesArchived
 
+            // Mark bookmarks that have no extractable content (e.g. search results)
+            // as PERMANENT_NO_CONTENT so they appear in the skipped stats.
+            val markedNoContent = bookmarkDao.markNoContentBookmarksPermanent()
+            if (markedNoContent > 0) {
+                Timber.i("Marked $markedNoContent bookmarks as permanent-no-content (no extractable article)")
+            }
+
             pruneManagedContentIfNeeded(includeArchived)
 
             var batchIndex = 0
-            var previousUsage = -1L
+            var previousPendingCount = -1
+            var stalledRetries = 0
             while (true) {
                 // Check constraints before each batch
                 if (!policyEvaluator.canFetchContent().allowed) {
@@ -80,18 +80,6 @@ class BatchArticleLoadWorker @AssistedInject constructor(
                 // Hysteresis download-threshold check: stop when usage reaches
                 // the download threshold of the one-sided hysteresis band.
                 val usageBeforeBatch = contentPackageManager.calculateManagedOfflineSize()
-
-                // Stalled-progress guard: if a full batch cycle produced no
-                // storage change (e.g. a zero-byte article keeps re-appearing)
-                // stop to avoid spinning forever.
-                if (usageBeforeBatch == previousUsage && previousUsage >= 0) {
-                    Timber.i(
-                        "Stalled: no storage change after batch $batchIndex " +
-                            "(usage=${usageBeforeBatch / 1024}KB), stopping batch loop"
-                    )
-                    break
-                }
-                previousUsage = usageBeforeBatch
 
                 if (policyEvaluator.shouldStopDownloading(usageBeforeBatch, downloadedCount)) {
                     val avg = avgArticleBytes(usageBeforeBatch, downloadedCount)
@@ -111,6 +99,22 @@ class BatchArticleLoadWorker @AssistedInject constructor(
                     Timber.i("No more eligible bookmarks to fetch")
                     break
                 }
+
+                // Stalled-progress guard: if the pending count hasn't decreased
+                // after several consecutive batches, no real progress is being made.
+                if (pendingBookmarkIds.size == previousPendingCount) {
+                    stalledRetries++
+                    if (stalledRetries >= MAX_STALLED_RETRIES) {
+                        Timber.i(
+                            "Stalled: pending count unchanged at ${pendingBookmarkIds.size} " +
+                                "after $stalledRetries retries (batch $batchIndex), stopping batch loop"
+                        )
+                        break
+                    }
+                } else {
+                    stalledRetries = 0
+                }
+                previousPendingCount = pendingBookmarkIds.size
 
                 if (batchIndex == 0) {
                     Timber.i(
@@ -156,8 +160,6 @@ class BatchArticleLoadWorker @AssistedInject constructor(
         } catch (e: Exception) {
             Timber.e(e, "BatchArticleLoadWorker failed")
             return Result.retry()
-        } finally {
-            isRunning.set(false)
         }
     }
 
@@ -237,6 +239,7 @@ class BatchArticleLoadWorker @AssistedInject constructor(
         const val KEY_PRIORITY_BOOKMARK_ID = "priority_bookmark_id"
         private const val PRIORITY_WORK_NAME_PREFIX = "content_priority_"
         private const val BATCH_DELAY_MS = 500L
+        private const val MAX_STALLED_RETRIES = 3
 
         internal const val MAX_BATCH_SIZE = 10
 
@@ -253,9 +256,6 @@ class BatchArticleLoadWorker @AssistedInject constructor(
             val fits = (headroomBytes / avgArticleBytes).toInt()
             return fits.coerceIn(1, MAX_BATCH_SIZE).coerceAtMost(pendingCount)
         }
-
-        // In-flight guard — prevents concurrent batch instances from running simultaneously
-        private val isRunning = AtomicBoolean(false)
 
         /**
          * Enqueue a one-off full-package download for a single bookmark, bypassing the
