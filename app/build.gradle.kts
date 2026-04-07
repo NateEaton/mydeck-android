@@ -102,7 +102,7 @@ android {
             )
             buildConfigField("boolean", "ALLOW_INSECURE_HTTP", "true")
             buildConfigField("boolean", "ALLOW_USER_CA_CERTIFICATES", "true")
-            buildConfigField("boolean", "SHOW_CARD_INDEX_OVERLAY", "true")
+            buildConfigField("boolean", "SHOW_CARD_INDEX_OVERLAY", "false")
         }
     }
 
