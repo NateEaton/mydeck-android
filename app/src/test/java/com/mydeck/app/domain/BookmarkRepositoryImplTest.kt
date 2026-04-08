@@ -19,6 +19,8 @@ import com.mydeck.app.io.rest.model.CreateBookmarkDto
 import com.mydeck.app.io.rest.model.EditBookmarkDto
 import com.mydeck.app.io.rest.model.EditBookmarkErrorDto
 import com.mydeck.app.io.rest.model.EditBookmarkResponseDto
+import com.mydeck.app.io.db.model.BookmarkCountsEntity
+import com.mydeck.app.io.db.model.BookmarkWithArticleContent
 import com.mydeck.app.io.rest.model.ImageResource
 import com.mydeck.app.io.rest.model.Resource
 import com.mydeck.app.io.rest.model.Resources
@@ -27,6 +29,8 @@ import com.mydeck.app.io.rest.model.SyncStatusDto
 import io.mockk.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
@@ -38,6 +42,8 @@ import okhttp3.Headers
 import okhttp3.ResponseBody.Companion.toResponseBody
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -669,6 +675,336 @@ class BookmarkRepositoryImplTest {
         assertTrue(result is BookmarkRepository.UpdateResult.NetworkError)
         coVerify(exactly = 0) { readeckApi.editBookmark("456", any()) }
         coVerify(exactly = 0) { pendingActionDao.delete(action1) }
+    }
+
+    // ── Label operations ──────────────────────────────────────────────────────
+
+    @Test
+    fun `renameLabel updates labels on affected bookmarks and schedules sync`() = runTest {
+        val bookmarkWithLabel = bookmarkDto.copy(id = "bk-1")
+            .toDomain().copy(labels = listOf("work", "home")).toEntity()
+        coEvery { bookmarkDao.getAllBookmarksWithContent() } returns listOf(bookmarkWithLabel)
+
+        val result = bookmarkRepositoryImpl.renameLabel("work", "office")
+
+        assertTrue(result is BookmarkRepository.UpdateResult.Success)
+        coVerify { bookmarkDao.updateLabels("bk-1", match { it.contains("office") && !it.contains("work") }) }
+        coVerify { pendingActionDao.insert(any()) }
+        verify { syncScheduler.scheduleActionSync() }
+    }
+
+    @Test
+    fun `renameLabel skips bookmarks without the old label`() = runTest {
+        val bookmarkWithoutLabel = bookmarkDto.copy(id = "bk-2")
+            .toDomain().copy(labels = listOf("home")).toEntity()
+        coEvery { bookmarkDao.getAllBookmarksWithContent() } returns listOf(bookmarkWithoutLabel)
+
+        val result = bookmarkRepositoryImpl.renameLabel("work", "office")
+
+        assertTrue(result is BookmarkRepository.UpdateResult.Success)
+        coVerify(exactly = 0) { bookmarkDao.updateLabels(any(), any()) }
+    }
+
+    @Test
+    fun `renameLabel returns error on exception`() = runTest {
+        coEvery { bookmarkDao.getAllBookmarksWithContent() } throws RuntimeException("DB failure")
+
+        val result = bookmarkRepositoryImpl.renameLabel("a", "b")
+
+        assertTrue(result is BookmarkRepository.UpdateResult.Error)
+    }
+
+    @Test
+    fun `deleteLabel removes label from affected bookmarks and schedules sync`() = runTest {
+        val bookmarkWithLabel = bookmarkDto.copy(id = "bk-1")
+            .toDomain().copy(labels = listOf("work", "home")).toEntity()
+        coEvery { bookmarkDao.getAllBookmarksWithContent() } returns listOf(bookmarkWithLabel)
+
+        val result = bookmarkRepositoryImpl.deleteLabel("work")
+
+        assertTrue(result is BookmarkRepository.UpdateResult.Success)
+        coVerify { bookmarkDao.updateLabels("bk-1", match { !it.contains("work") && it.contains("home") }) }
+        coVerify { pendingActionDao.insert(any()) }
+        verify { syncScheduler.scheduleActionSync() }
+    }
+
+    @Test
+    fun `deleteLabel returns error on exception`() = runTest {
+        coEvery { bookmarkDao.getAllBookmarksWithContent() } throws RuntimeException("DB failure")
+
+        val result = bookmarkRepositoryImpl.deleteLabel("work")
+
+        assertTrue(result is BookmarkRepository.UpdateResult.Error)
+    }
+
+    // ── Single-bookmark operations ────────────────────────────────────────────
+
+    @Test
+    fun `getBookmarkById returns domain model when found`() = runTest {
+        val entity = bookmarkDto.toDomain().toEntity().bookmark
+        coEvery { bookmarkDao.getBookmarkById("1") } returns entity
+
+        val result = bookmarkRepositoryImpl.getBookmarkById("1")
+
+        assertEquals("1", result.id)
+        assertEquals("Sample Article", result.title)
+    }
+
+    @Test
+    fun `getBookmarkById propagates exception when not found`() = runTest {
+        coEvery { bookmarkDao.getBookmarkById("missing") } throws NoSuchElementException("not found")
+
+        var threw = false
+        try {
+            bookmarkRepositoryImpl.getBookmarkById("missing")
+        } catch (e: NoSuchElementException) {
+            threw = true
+        }
+        assertTrue(threw)
+    }
+
+    @Test
+    fun `updateTitle persists title and queues pending action`() = runTest {
+        val bookmarkId = "1"
+
+        val result = bookmarkRepositoryImpl.updateTitle(bookmarkId, "New Title")
+
+        assertTrue(result is BookmarkRepository.UpdateResult.Success)
+        coVerify { bookmarkDao.updateTitle(bookmarkId, "New Title") }
+        coVerify { pendingActionDao.insert(match { it.actionType == ActionType.UPDATE_TITLE }) }
+        verify { syncScheduler.scheduleActionSync() }
+    }
+
+    @Test
+    fun `updateTitle coalesces with existing pending action`() = runTest {
+        val bookmarkId = "1"
+        val existing = PendingActionEntity(
+            id = 7,
+            bookmarkId = bookmarkId,
+            actionType = ActionType.UPDATE_TITLE,
+            payload = "{\"title\":\"Old\"}",
+            createdAt = Clock.System.now()
+        )
+        coEvery { pendingActionDao.find(bookmarkId, ActionType.UPDATE_TITLE) } returns existing
+
+        bookmarkRepositoryImpl.updateTitle(bookmarkId, "Newer Title")
+
+        coVerify { pendingActionDao.updateAction(7, any(), any()) }
+        coVerify(exactly = 0) { pendingActionDao.insert(any()) }
+    }
+
+    @Test
+    fun `refreshBookmarkMetadata inserts updated bookmark on success`() = runTest {
+        coEvery { readeckApi.getBookmarkById("1") } returns Response.success(bookmarkDto)
+
+        bookmarkRepositoryImpl.refreshBookmarkMetadata("1")
+
+        coVerify { bookmarkDao.upsertBookmarksMetadataOnly(match { it.any { e -> e.id == "1" } }) }
+    }
+
+    @Test
+    fun `refreshBookmarkMetadata does nothing on API error`() = runTest {
+        coEvery { readeckApi.getBookmarkById("1") } returns Response.error(404, "".toResponseBody())
+
+        bookmarkRepositoryImpl.refreshBookmarkMetadata("1")
+
+        coVerify(exactly = 0) { bookmarkDao.upsertBookmarksMetadataOnly(any()) }
+        coVerify(exactly = 0) { bookmarkDao.insertBookmarksWithArticleContent(any()) }
+    }
+
+    @Test
+    fun `fetchRawBookmarkJson returns JSON string on success`() = runTest {
+        coEvery { readeckApi.getBookmarkById("1") } returns Response.success(bookmarkDto)
+
+        val result = bookmarkRepositoryImpl.fetchRawBookmarkJson("1")
+
+        assertNotNull(result)
+        assertTrue(result!!.contains("\"id\""))
+    }
+
+    @Test
+    fun `fetchRawBookmarkJson returns null on API error`() = runTest {
+        coEvery { readeckApi.getBookmarkById("1") } returns Response.error(500, "".toResponseBody())
+
+        val result = bookmarkRepositoryImpl.fetchRawBookmarkJson("1")
+
+        assertNull(result)
+    }
+
+    @Test
+    fun `fetchRawBookmarkJson returns null on network exception`() = runTest {
+        coEvery { readeckApi.getBookmarkById("1") } throws IOException("timeout")
+
+        val result = bookmarkRepositoryImpl.fetchRawBookmarkJson("1")
+
+        assertNull(result)
+    }
+
+    // ── Bulk operations ───────────────────────────────────────────────────────
+
+    @Test
+    fun `deleteAllBookmarks delegates to bookmarkDao`() = runTest {
+        coEvery { bookmarkDao.deleteAllBookmarks() } just runs
+
+        bookmarkRepositoryImpl.deleteAllBookmarks()
+
+        coVerify { bookmarkDao.deleteAllBookmarks() }
+    }
+
+    @Test
+    fun `replaceServerErrorFlags delegates id set to DAO`() = runTest {
+        val ids = setOf("bk-1", "bk-2")
+
+        bookmarkRepositoryImpl.replaceServerErrorFlags(ids)
+
+        coVerify { bookmarkDao.replaceServerErrorFlags(match { it.toSet() == ids }) }
+    }
+
+    // ── Observer / Flow smoke tests ───────────────────────────────────────────
+
+    @Test
+    fun `observeBookmarks emits mapped domain list on DAO emission`() = runTest {
+        val entity = bookmarkDto.toDomain().toEntity().bookmark
+        every { bookmarkDao.getBookmarksByFilters(any(), any(), any(), any(), any(), any()) } returns flowOf(listOf(entity))
+
+        val emission = bookmarkRepositoryImpl.observeBookmarks().first()
+
+        assertEquals(1, emission.size)
+        assertEquals("1", emission[0].id)
+    }
+
+    @Test
+    fun `observeBookmark emits mapped domain model on DAO emission`() = runTest {
+        val withContent = bookmarkDto.toDomain().toEntity()
+        every { bookmarkDao.observeBookmarkWithArticleContent("1") } returns flowOf(withContent)
+
+        val emission = bookmarkRepositoryImpl.observeBookmark("1").first()
+
+        assertNotNull(emission)
+        assertEquals("1", emission!!.id)
+    }
+
+    @Test
+    fun `observeBookmark emits null when DAO emits null`() = runTest {
+        every { bookmarkDao.observeBookmarkWithArticleContent("gone") } returns flowOf(null)
+
+        val emission = bookmarkRepositoryImpl.observeBookmark("gone").first()
+
+        assertNull(emission)
+    }
+
+    @Test
+    fun `observeAllBookmarkCounts emits mapped counts on DAO emission`() = runTest {
+        val entity = BookmarkCountsEntity(
+            archived = 3, favorite = 5, article = 10, video = 2, picture = 1, total = 16
+        )
+        every { bookmarkDao.observeAllBookmarkCounts() } returns flowOf(entity)
+
+        val emission = bookmarkRepositoryImpl.observeAllBookmarkCounts().first()
+
+        assertEquals(3, emission.archived)
+        assertEquals(5, emission.favorite)
+        assertEquals(16, emission.total)
+    }
+
+    @Test
+    fun `observeAllBookmarkCounts emits empty counts when DAO emits null`() = runTest {
+        every { bookmarkDao.observeAllBookmarkCounts() } returns flowOf(null)
+
+        val emission = bookmarkRepositoryImpl.observeAllBookmarkCounts().first()
+
+        assertEquals(0, emission.total)
+    }
+
+    @Test
+    fun `observeAllLabelsWithCounts parses JSON label strings and counts occurrences`() = runTest {
+        // Two bookmarks: one tagged ["work","home"], one tagged ["work"]
+        every { bookmarkDao.observeAllLabels() } returns flowOf(listOf("[\"work\",\"home\"]", "[\"work\"]"))
+
+        val emission = bookmarkRepositoryImpl.observeAllLabelsWithCounts().first()
+
+        assertEquals(2, emission["work"])
+        assertEquals(1, emission["home"])
+    }
+
+    @Test
+    fun `observePendingActionCount delegates to pendingActionDao`() = runTest {
+        every { pendingActionDao.getCountFlow() } returns flowOf(7)
+
+        val emission = bookmarkRepositoryImpl.observePendingActionCount().first()
+
+        assertEquals(7, emission)
+    }
+
+    // ── syncPendingActions paths ──────────────────────────────────────────────
+
+    @Test
+    fun `syncPendingActions success path processes all actions and returns Success`() = runTest {
+        val action1 = PendingActionEntity(1, "bk-1", ActionType.TOGGLE_FAVORITE, "{\"value\":true}", Clock.System.now())
+        val action2 = PendingActionEntity(2, "bk-2", ActionType.TOGGLE_ARCHIVE, "{\"value\":false}", Clock.System.now())
+        coEvery { pendingActionDao.getAllActionsSorted() } returns listOf(action1, action2)
+        coEvery { readeckApi.editBookmark("bk-1", any()) } returns Response.success(editBookmarkResponseDto)
+        coEvery { readeckApi.editBookmark("bk-2", any()) } returns Response.success(editBookmarkResponseDto)
+
+        val result = bookmarkRepositoryImpl.syncPendingActions()
+
+        assertTrue(result is BookmarkRepository.UpdateResult.Success)
+        coVerify { pendingActionDao.delete(action1) }
+        coVerify { pendingActionDao.delete(action2) }
+    }
+
+    @Test
+    fun `syncPendingActions drops action on 400 error and continues`() = runTest {
+        val action1 = PendingActionEntity(1, "bk-1", ActionType.TOGGLE_FAVORITE, "{\"value\":true}", Clock.System.now())
+        val action2 = PendingActionEntity(2, "bk-2", ActionType.TOGGLE_ARCHIVE, "{\"value\":false}", Clock.System.now())
+        coEvery { pendingActionDao.getAllActionsSorted() } returns listOf(action1, action2)
+        coEvery { readeckApi.editBookmark("bk-1", any()) } returns Response.error(400, "Bad request".toResponseBody())
+        coEvery { readeckApi.editBookmark("bk-2", any()) } returns Response.success(editBookmarkResponseDto)
+
+        val result = bookmarkRepositoryImpl.syncPendingActions()
+
+        assertTrue(result is BookmarkRepository.UpdateResult.Success)
+        // 400 is a permanent error — action is dropped, not retried
+        coVerify { pendingActionDao.delete(action1) }
+        coVerify { pendingActionDao.delete(action2) }
+        // bookmark is NOT hard-deleted for 400 (only for 404)
+        coVerify(exactly = 0) { bookmarkDao.hardDeleteBookmark(any()) }
+    }
+
+    @Test
+    fun `syncPendingActions drops action on 422 error and continues`() = runTest {
+        val action = PendingActionEntity(1, "bk-1", ActionType.UPDATE_TITLE, "{\"title\":\"Bad\"}", Clock.System.now())
+        coEvery { pendingActionDao.getAllActionsSorted() } returns listOf(action)
+        coEvery { readeckApi.editBookmark("bk-1", any()) } returns Response.error(422, "Unprocessable".toResponseBody())
+
+        val result = bookmarkRepositoryImpl.syncPendingActions()
+
+        assertTrue(result is BookmarkRepository.UpdateResult.Success)
+        coVerify { pendingActionDao.delete(action) }
+        coVerify(exactly = 0) { bookmarkDao.hardDeleteBookmark(any()) }
+    }
+
+    @Test
+    fun `syncPendingActions delete action calls deleteBookmark API and cleans up on success`() = runTest {
+        val action = PendingActionEntity(1, "bk-del", ActionType.DELETE, null, Clock.System.now())
+        coEvery { pendingActionDao.getAllActionsSorted() } returns listOf(action)
+        coEvery { readeckApi.deleteBookmark("bk-del") } returns Response.success(Unit)
+
+        val result = bookmarkRepositoryImpl.syncPendingActions()
+
+        assertTrue(result is BookmarkRepository.UpdateResult.Success)
+        coVerify { readeckApi.deleteBookmark("bk-del") }
+        coVerify { pendingActionDao.delete(action) }
+    }
+
+    @Test
+    fun `syncPendingActions empty queue returns Success immediately`() = runTest {
+        coEvery { pendingActionDao.getAllActionsSorted() } returns emptyList()
+
+        val result = bookmarkRepositoryImpl.syncPendingActions()
+
+        assertTrue(result is BookmarkRepository.UpdateResult.Success)
+        coVerify(exactly = 0) { readeckApi.editBookmark(any(), any()) }
     }
 
     private val editBookmarkResponseDto = EditBookmarkResponseDto(

@@ -12,27 +12,26 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
+import kotlinx.coroutines.flow.collectLatest
 import androidx.compose.ui.Modifier
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.res.stringResource
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
+import com.mikepenz.aboutlibraries.ui.compose.android.rememberLibraries
 import com.mikepenz.aboutlibraries.ui.compose.m3.LibrariesContainer
 import com.mydeck.app.R
 
 @Composable
 fun OpenSourceLibrariesScreen(navHostController: NavHostController) {
     val viewModel: OpenSourceLibrariesViewModel = hiltViewModel()
-    val navigationEvent = viewModel.navigationEvent.collectAsState()
-
-    LaunchedEffect(key1 = navigationEvent.value) {
-        navigationEvent.value?.let { event ->
+    LaunchedEffect(Unit) {
+        viewModel.navigationEvent.collectLatest { event ->
             when (event) {
                 OpenSourceLibrariesViewModel.NavigationEvent.NavigateBack -> {
                     navHostController.popBackStack()
                 }
             }
-            viewModel.onNavigationEventConsumed()
         }
     }
 
@@ -54,7 +53,9 @@ fun OpenSourceLibrariesScreenContent(onBackClick: () -> Unit) {
             )
         }
     ) { padding ->
+        val libraries by rememberLibraries(R.raw.aboutlibraries)
         LibrariesContainer(
+            libraries = libraries,
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)

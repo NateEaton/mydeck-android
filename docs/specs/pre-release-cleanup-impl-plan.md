@@ -1,3 +1,4 @@
+
 # Pre-Release Cleanup — Implementation Plan
 
 Derived from [docs/PRE_RELEASE_CLEANUP.md](../PRE_RELEASE_CLEANUP.md) after the 2026-04-04 scouting pass. Covers all still-partial, still-needed, and newly-identified items. Process items (OAuth branch merge, full code review pass) are not included — they are not coding tasks.

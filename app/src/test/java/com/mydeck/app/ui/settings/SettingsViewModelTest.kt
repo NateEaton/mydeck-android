@@ -10,8 +10,10 @@ import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
@@ -63,36 +65,38 @@ class SettingsViewModelTest {
     }
 
     @Test
-    fun `onClickAccount should navigate to account settings`() = runTest {
+    fun `onClickAccount should emit NavigateToAccountSettings event`() = runTest {
+        val events = mutableListOf<SettingsViewModel.NavigationEvent>()
+        val job = launch { viewModel.navigationEvent.collect { events.add(it) } }
+
         viewModel.onClickAccount()
         testDispatcher.scheduler.advanceUntilIdle()
+        job.cancel()
 
-        assertEquals(SettingsViewModel.NavigationEvent.NavigateToAccountSettings, viewModel.navigationEvent.value)
+        assertEquals(SettingsViewModel.NavigationEvent.NavigateToAccountSettings, events.first())
     }
 
     @Test
-    fun `onClickOpenSourceLibraries should navigate to open source libraries screen`() = runTest {
+    fun `onClickOpenSourceLibraries should emit NavigateToOpenSourceLibraries event`() = runTest {
+        val events = mutableListOf<SettingsViewModel.NavigationEvent>()
+        val job = launch { viewModel.navigationEvent.collect { events.add(it) } }
+
         viewModel.onClickOpenSourceLibraries()
         testDispatcher.scheduler.advanceUntilIdle()
+        job.cancel()
 
-        assertEquals(SettingsViewModel.NavigationEvent.NavigateToOpenSourceLibraries, viewModel.navigationEvent.value)
+        assertEquals(SettingsViewModel.NavigationEvent.NavigateToOpenSourceLibraries, events.first())
     }
 
     @Test
-    fun `onClickBack should navigate back`() = runTest {
+    fun `onClickBack should emit NavigateBack event`() = runTest {
+        val events = mutableListOf<SettingsViewModel.NavigationEvent>()
+        val job = launch { viewModel.navigationEvent.collect { events.add(it) } }
+
         viewModel.onClickBack()
         testDispatcher.scheduler.advanceUntilIdle()
+        job.cancel()
 
-        assertEquals(SettingsViewModel.NavigationEvent.NavigateBack, viewModel.navigationEvent.value)
-    }
-
-    @Test
-    fun `onNavigationEventConsumed should reset navigation event`() = runTest {
-        viewModel.onClickAccount()
-        testDispatcher.scheduler.advanceUntilIdle()
-        viewModel.onNavigationEventConsumed()
-        testDispatcher.scheduler.advanceUntilIdle()
-
-        assertEquals(null, viewModel.navigationEvent.value)
+        assertEquals(SettingsViewModel.NavigationEvent.NavigateBack, events.first())
     }
 }

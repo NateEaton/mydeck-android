@@ -34,6 +34,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import kotlinx.coroutines.flow.collectLatest
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -59,11 +60,10 @@ import java.util.Locale
 @Composable
 fun AboutScreen(navHostController: NavHostController, showBackButton: Boolean = true) {
     val viewModel: AboutViewModel = hiltViewModel()
-    val navigationEvent = viewModel.navigationEvent.collectAsState()
     val uiState = viewModel.uiState.collectAsState()
 
-    LaunchedEffect(key1 = navigationEvent.value) {
-        navigationEvent.value?.let { event ->
+    LaunchedEffect(Unit) {
+        viewModel.navigationEvent.collectLatest { event ->
             when (event) {
                 AboutViewModel.NavigationEvent.NavigateBack -> {
                     navHostController.popBackStack()
@@ -72,7 +72,6 @@ fun AboutScreen(navHostController: NavHostController, showBackButton: Boolean = 
                     navHostController.navigate(OpenSourceLibrariesRoute)
                 }
             }
-            viewModel.onNavigationEventConsumed()
         }
     }
 

@@ -36,6 +36,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import kotlinx.coroutines.flow.collectLatest
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -61,7 +62,6 @@ fun UiSettingsScreen(
 ) {
     val viewModel: UiSettingsViewModel = hiltViewModel()
     val settingsUiState = viewModel.uiState.collectAsState().value
-    val navigationEvent = viewModel.navigationEvent.collectAsState()
     val onClickBack: () -> Unit = { viewModel.onClickBack() }
     val onThemeModeSelected: (Theme) -> Unit = { viewModel.onThemeModeSelected(it) }
     val onLightAppearanceSelected: (LightAppearance) -> Unit = { viewModel.onLightAppearanceSelected(it) }
@@ -73,14 +73,13 @@ fun UiSettingsScreen(
     }
     val snackbarHostState = remember { SnackbarHostState() }
 
-    LaunchedEffect(key1 = navigationEvent.value) {
-        navigationEvent.value?.let { event ->
+    LaunchedEffect(Unit) {
+        viewModel.navigationEvent.collectLatest { event ->
             when (event) {
                 is UiSettingsViewModel.NavigationEvent.NavigateBack -> {
                     navHostController.popBackStack()
                 }
             }
-            viewModel.onNavigationEventConsumed() // Consume the event
         }
     }
 

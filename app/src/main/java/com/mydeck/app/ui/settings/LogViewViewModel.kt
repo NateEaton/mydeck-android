@@ -20,10 +20,12 @@ import com.mydeck.app.util.createLogFilesZip
 import com.mydeck.app.util.getAllLogFiles
 import com.mydeck.app.util.getLatestLogFile
 import com.mydeck.app.util.logAppInfo
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
 import timber.log.Timber
 import java.io.File
@@ -35,8 +37,8 @@ class LogViewViewModel @Inject constructor(
     private val settingsDataStore: SettingsDataStore
 ) : ViewModel() {
 
-    private val _navigationEvent = MutableStateFlow<NavigationEvent?>(null)
-    val navigationEvent: StateFlow<NavigationEvent?> = _navigationEvent.asStateFlow()
+    private val _navigationEvent = Channel<NavigationEvent>(Channel.BUFFERED)
+    val navigationEvent: Flow<NavigationEvent> = _navigationEvent.receiveAsFlow()
     private val _uiState = MutableStateFlow<UiState>(UiState.Loading)
     val uiState = _uiState.asStateFlow()
     private val _availableLogFiles = MutableStateFlow<List<LogFileInfo>>(emptyList())
@@ -53,7 +55,7 @@ class LogViewViewModel @Inject constructor(
     }
 
     fun onClickBack() {
-        _navigationEvent.update { NavigationEvent.NavigateBack }
+        _navigationEvent.trySend(NavigationEvent.NavigateBack)
     }
 
     fun onRefresh() {
@@ -80,9 +82,9 @@ class LogViewViewModel @Inject constructor(
                     "${context.packageName}.provider",
                     zipFile
                 )
-                _navigationEvent.update { NavigationEvent.ShowShareDialog(uri, isZip = true) }
+                _navigationEvent.trySend(NavigationEvent.ShowShareDialog(uri, isZip = true))
             } else {
-                _navigationEvent.update { NavigationEvent.ShareError }
+                _navigationEvent.trySend(NavigationEvent.ShareError)
             }
         }
     }
@@ -92,7 +94,7 @@ class LogViewViewModel @Inject constructor(
         viewModelScope.launch {
             val zipFile = createLogFilesZip(context)
             if (zipFile == null) {
-                _navigationEvent.update { NavigationEvent.SaveError }
+                _navigationEvent.trySend(NavigationEvent.SaveError)
                 return@launch
             }
             try {
@@ -108,9 +110,9 @@ class LogViewViewModel @Inject constructor(
                         resolver.openOutputStream(uri)?.use { out ->
                             zipFile.inputStream().use { input -> input.copyTo(out) }
                         }
-                        _navigationEvent.update { NavigationEvent.SavedToDownloads }
+                        _navigationEvent.trySend(NavigationEvent.SavedToDownloads)
                     } else {
-                        _navigationEvent.update { NavigationEvent.SaveError }
+                        _navigationEvent.trySend(NavigationEvent.SaveError)
                     }
                 } else {
                     // Pre-Q: copy directly to public Downloads directory
@@ -118,11 +120,11 @@ class LogViewViewModel @Inject constructor(
                     val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
                     val destFile = java.io.File(downloadsDir, zipFile.name)
                     zipFile.copyTo(destFile, overwrite = true)
-                    _navigationEvent.update { NavigationEvent.SavedToDownloads }
+                    _navigationEvent.trySend(NavigationEvent.SavedToDownloads)
                 }
             } catch (e: Exception) {
                 Timber.w(e, "Failed to save logs to Downloads")
-                _navigationEvent.update { NavigationEvent.SaveError }
+                _navigationEvent.trySend(NavigationEvent.SaveError)
             }
         }
     }
@@ -131,12 +133,8 @@ class LogViewViewModel @Inject constructor(
         viewModelScope.launch {
             clearLogFiles()
             onRefresh()
-            _navigationEvent.update { NavigationEvent.LogsCleared }
+            _navigationEvent.trySend(NavigationEvent.LogsCleared)
         }
-    }
-
-    fun onNavigationEventConsumed() {
-        _navigationEvent.update { null }
     }
 
     fun onSelectLogFile(file: File) {

@@ -7,10 +7,13 @@ import com.mydeck.app.domain.model.CachedServerInfo
 import com.mydeck.app.domain.sync.ConnectivityMonitor
 import com.mydeck.app.io.prefs.SettingsDataStore
 import com.mydeck.app.io.rest.ReadeckApi
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import timber.log.Timber
@@ -29,8 +32,8 @@ class AboutViewModel @Inject constructor(
         val serverInfoError: Boolean = false
     )
 
-    private val _navigationEvent = MutableStateFlow<NavigationEvent?>(null)
-    val navigationEvent: StateFlow<NavigationEvent?> = _navigationEvent.asStateFlow()
+    private val _navigationEvent = Channel<NavigationEvent>(Channel.BUFFERED)
+    val navigationEvent: Flow<NavigationEvent> = _navigationEvent.receiveAsFlow()
 
     private val _uiState = MutableStateFlow(UiState())
     val uiState: StateFlow<UiState> = _uiState.asStateFlow()
@@ -111,15 +114,11 @@ class AboutViewModel @Inject constructor(
     }
 
     fun onClickBack() {
-        _navigationEvent.value = NavigationEvent.NavigateBack
+        _navigationEvent.trySend(NavigationEvent.NavigateBack)
     }
 
     fun onClickOpenSourceLibraries() {
-        _navigationEvent.value = NavigationEvent.NavigateToOpenSourceLibraries
-    }
-
-    fun onNavigationEventConsumed() {
-        _navigationEvent.value = null
+        _navigationEvent.trySend(NavigationEvent.NavigateToOpenSourceLibraries)
     }
 
     sealed class NavigationEvent {

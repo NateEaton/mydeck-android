@@ -49,6 +49,8 @@ class BatchArticleLoadWorker @AssistedInject constructor(
             return processPriorityBookmark(priorityBookmarkId)
         }
 
+        val overrideConstraints = inputData.getBoolean(KEY_OVERRIDE_CONSTRAINTS, false)
+
         try {
             Timber.d("BatchArticleLoadWorker starting")
 
@@ -67,8 +69,8 @@ class BatchArticleLoadWorker @AssistedInject constructor(
             var previousPendingCount = -1
             var stalledRetries = 0
             while (true) {
-                // Check constraints before each batch
-                if (!policyEvaluator.canFetchContent().allowed) {
+                // Check constraints before each batch (skip if user overrode)
+                if (!overrideConstraints && !policyEvaluator.canFetchContent().allowed) {
                     Timber.i("Content fetch blocked by constraints, stopping batch")
                     break
                 }
@@ -273,6 +275,7 @@ class BatchArticleLoadWorker @AssistedInject constructor(
         const val UNIQUE_WORK_NAME = "batch_article_load"
         const val WORK_TAG_OFFLINE_CONTENT = "offline_content_work"
         const val KEY_PRIORITY_BOOKMARK_ID = "priority_bookmark_id"
+        const val KEY_OVERRIDE_CONSTRAINTS = "override_constraints"
         private const val PRIORITY_WORK_NAME_PREFIX = "content_priority_"
         private const val BATCH_DELAY_MS = 500L
         private const val MAX_STALLED_RETRIES = 3

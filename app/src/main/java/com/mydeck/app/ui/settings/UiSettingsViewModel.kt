@@ -14,13 +14,14 @@ import com.mydeck.app.domain.model.DarkAppearance
 import com.mydeck.app.domain.model.LightAppearance
 import com.mydeck.app.domain.model.Theme
 import com.mydeck.app.io.prefs.SettingsDataStore
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import timber.log.Timber
 import javax.inject.Inject
@@ -31,8 +32,8 @@ class UiSettingsViewModel @Inject constructor(
     private val settingsDataStore: SettingsDataStore,
     @ApplicationContext private val context: Context,
 ) : ViewModel() {
-    private val _navigationEvent = MutableStateFlow<NavigationEvent?>(null)
-    val navigationEvent: StateFlow<NavigationEvent?> = _navigationEvent.asStateFlow()
+    private val _navigationEvent = Channel<NavigationEvent>(Channel.BUFFERED)
+    val navigationEvent: Flow<NavigationEvent> = _navigationEvent.receiveAsFlow()
     private val theme = MutableStateFlow(Theme.SYSTEM)
     private val lightAppearance = MutableStateFlow(LightAppearance.PAPER)
     private val darkAppearance = MutableStateFlow(DarkAppearance.DARK)
@@ -89,10 +90,6 @@ class UiSettingsViewModel @Inject constructor(
                     fullscreenWhileReading = false,
                 )
         )
-
-    fun onNavigationEventConsumed() {
-        _navigationEvent.update { null } // Reset the event
-    }
 
     fun onClickTheme() {
         showDialog.value = true
@@ -153,7 +150,7 @@ class UiSettingsViewModel @Inject constructor(
     }
 
     fun onClickBack() {
-        _navigationEvent.update { NavigationEvent.NavigateBack }
+        _navigationEvent.trySend(NavigationEvent.NavigateBack)
     }
 
     sealed class NavigationEvent {

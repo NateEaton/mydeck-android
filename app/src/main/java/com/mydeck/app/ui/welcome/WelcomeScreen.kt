@@ -5,6 +5,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import kotlinx.coroutines.flow.collectLatest
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
@@ -28,11 +29,10 @@ fun WelcomeScreen(
     viewModel: AccountSettingsViewModel = hiltViewModel()
 ) {
     val settingsUiState = viewModel.uiState.collectAsState().value
-    val navigationEvent = viewModel.navigationEvent.collectAsState()
     val keyboardController = LocalSoftwareKeyboardController.current
 
-    LaunchedEffect(key1 = navigationEvent.value) {
-        navigationEvent.value?.let { event ->
+    LaunchedEffect(Unit) {
+        viewModel.navigationEvent.collectLatest { event ->
             when (event) {
                 is AccountSettingsViewModel.NavigationEvent.NavigateToBookmarkList -> {
                     navHostController.navigate(BookmarkListRoute()) {
@@ -43,7 +43,6 @@ fun WelcomeScreen(
                     // No back from welcome
                 }
             }
-            viewModel.navigationEventConsumed()
         }
     }
 

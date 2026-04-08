@@ -68,6 +68,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -136,8 +137,8 @@ fun BookmarkListScreen(
     drawerState: DrawerState,
     showNavigationIcon: Boolean = true,
 ) {
-    val uiState = viewModel.uiState.collectAsState().value
-    val createBookmarkUiState = viewModel.createBookmarkUiState.collectAsState().value
+    val uiState = viewModel.uiState.collectAsStateWithLifecycle().value
+    val createBookmarkUiState = viewModel.createBookmarkUiState.collectAsStateWithLifecycle().value
 
     // Collect filter states
     val drawerPreset = viewModel.drawerPreset.collectAsState()
@@ -718,7 +719,7 @@ fun BookmarkListScreen(
                         // Consumes a shareIntent and creates the corresponding share dialog
                         ShareBookmarkChooser(
                             context = LocalContext.current,
-                            intent = viewModel.shareIntent.collectAsState().value,
+                            intent = viewModel.shareIntent.collectAsStateWithLifecycle().value,
                             onShareIntentConsumed = { viewModel.onShareIntentConsumed() }
                         )
                     }
@@ -871,12 +872,12 @@ fun BookmarkListScreen(
     }
 
     // Constraint override dialog for user-initiated refresh
-    val showConstraintDialog by viewModel.showConstraintOverrideDialog.collectAsState()
-    if (showConstraintDialog) {
+    val constraintOverrideBodyRes by viewModel.constraintOverrideBodyRes.collectAsState()
+    constraintOverrideBodyRes?.let { bodyRes ->
         AlertDialog(
             onDismissRequest = { viewModel.onConstraintOverrideCancelled() },
             title = { Text(stringResource(R.string.sync_constraint_override_title)) },
-            text = { Text(stringResource(R.string.sync_constraint_override_body)) },
+            text = { Text(stringResource(bodyRes)) },
             confirmButton = {
                 Button(onClick = { viewModel.onConstraintOverrideConfirmed() }) {
                     Text(stringResource(R.string.sync_constraint_override_confirm))

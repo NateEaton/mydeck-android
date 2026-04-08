@@ -22,6 +22,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import kotlinx.coroutines.flow.collectLatest
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
@@ -43,15 +44,14 @@ fun SettingsScreen(
 ) {
     val viewModel: SettingsViewModel = hiltViewModel()
     val settingsUiState = viewModel.uiState.collectAsState().value
-    val navigationEvent = viewModel.navigationEvent.collectAsState()
     val onClickAccount: () -> Unit = { viewModel.onClickAccount() }
     val onClickBack: () -> Unit = { viewModel.onClickBack() }
     val onClickOpenSourceLibraries: () -> Unit = { viewModel.onClickOpenSourceLibraries() }
     val onClickLogs: () -> Unit = { viewModel.onClickLogs() }
     val onClickSync: () -> Unit = { viewModel.onClickSync() }
     val onClickUi: () -> Unit = { viewModel.onClickView() }
-    LaunchedEffect(key1 = navigationEvent.value) {
-        navigationEvent.value?.let { event ->
+    LaunchedEffect(Unit) {
+        viewModel.navigationEvent.collectLatest { event ->
             when (event) {
                 is SettingsViewModel.NavigationEvent.NavigateToAccountSettings -> {
                     navHostController.navigate(AccountSettingsRoute)
@@ -72,7 +72,6 @@ fun SettingsScreen(
                     navHostController.popBackStack()
                 }
             }
-            viewModel.onNavigationEventConsumed() // Consume the event
         }
     }
     SettingScreenView(

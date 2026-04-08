@@ -20,11 +20,14 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
@@ -65,8 +68,8 @@ class AccountSettingsViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(AccountSettingsUiState())
     val uiState: StateFlow<AccountSettingsUiState> = _uiState.asStateFlow()
 
-    private val _navigationEvent = MutableStateFlow<NavigationEvent?>(null)
-    val navigationEvent: StateFlow<NavigationEvent?> = _navigationEvent.asStateFlow()
+    private val _navigationEvent = Channel<NavigationEvent>(Channel.BUFFERED)
+    val navigationEvent: Flow<NavigationEvent> = _navigationEvent.receiveAsFlow()
 
     private var pollingJob: Job? = null
 
@@ -235,7 +238,7 @@ class AccountSettingsViewModel @Inject constructor(
                     deviceAuthState = null
                 )
             }
-            _navigationEvent.value = NavigationEvent.NavigateToBookmarkList
+            _navigationEvent.trySend(NavigationEvent.NavigateToBookmarkList)
         } catch (e: Exception) {
             Timber.e(e, "Failed to prepare initial sync after login")
             _uiState.update {
@@ -310,9 +313,6 @@ class AccountSettingsViewModel @Inject constructor(
         }
     }
 
-    fun navigationEventConsumed() {
-        _navigationEvent.value = null
-    }
 
     override fun onCleared() {
         super.onCleared()

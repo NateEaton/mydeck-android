@@ -1,7 +1,7 @@
 package com.mydeck.app.domain.usecase
 
-import androidx.work.WorkManager
 import com.mydeck.app.domain.BookmarkRepository
+import com.mydeck.app.domain.sync.SyncScheduler
 import com.mydeck.app.domain.mapper.toDomain
 import com.mydeck.app.domain.sync.OfflinePolicyEvaluator
 import com.mydeck.app.io.prefs.SettingsDataStore
@@ -30,7 +30,7 @@ class LoadBookmarksUseCaseTest {
     private lateinit var multipartSyncClient: MultipartSyncClient
     private lateinit var settingsDataStore: SettingsDataStore
     private lateinit var policyEvaluator: OfflinePolicyEvaluator
-    private lateinit var workManager: WorkManager
+    private lateinit var syncScheduler: SyncScheduler
     private lateinit var loadBookmarksUseCase: LoadBookmarksUseCase
 
     @Before
@@ -40,7 +40,7 @@ class LoadBookmarksUseCaseTest {
         multipartSyncClient = mockk(relaxed = true)
         settingsDataStore = mockk(relaxed = true)
         policyEvaluator = mockk(relaxed = true)
-        workManager = mockk(relaxed = true)
+        syncScheduler = mockk(relaxed = true)
         coEvery { policyEvaluator.shouldAutoFetchContent() } returns false
         loadBookmarksUseCase = LoadBookmarksUseCase(
             bookmarkRepository,
@@ -48,7 +48,7 @@ class LoadBookmarksUseCaseTest {
             multipartSyncClient,
             settingsDataStore,
             policyEvaluator,
-            workManager
+            syncScheduler
         )
     }
 

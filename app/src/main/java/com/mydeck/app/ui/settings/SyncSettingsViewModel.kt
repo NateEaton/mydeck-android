@@ -23,6 +23,8 @@ import com.mydeck.app.io.prefs.SettingsDataStore
 import com.mydeck.app.worker.BatchArticleLoadWorker
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -30,8 +32,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onStart
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import timber.log.Timber
 import java.text.DateFormat
@@ -56,8 +58,8 @@ class SyncSettingsViewModel @Inject constructor(
         DateFormat.MEDIUM, DateFormat.SHORT
     )
 
-    private val _navigationEvent = MutableStateFlow<NavigationEvent?>(null)
-    val navigationEvent: StateFlow<NavigationEvent?> = _navigationEvent.asStateFlow()
+    private val _navigationEvent = Channel<NavigationEvent>(Channel.BUFFERED)
+    val navigationEvent: Flow<NavigationEvent> = _navigationEvent.receiveAsFlow()
 
     private val bookmarkSyncFrequency = MutableStateFlow(AutoSyncTimeframe.HOURS_01)
     private val offlineReadingEnabled = MutableStateFlow(false)
@@ -77,14 +79,14 @@ class SyncSettingsViewModel @Inject constructor(
 
     private val detailedSyncStatus = bookmarkDao.observeDetailedSyncStatus()
         .map { counts ->
-            val result = counts ?: BookmarkDao.DetailedSyncStatusCounts(0, 0, 0, 0, 0, 0, 0, 0)
+            val result = counts ?: BookmarkDao.DetailedSyncStatusCounts(0, 0, 0, 0, 0, 0, 0)
             refreshStorageSize()
             result
         }
         .stateIn(
             viewModelScope,
             SharingStarted.WhileSubscribed(5000),
-            BookmarkDao.DetailedSyncStatusCounts(0, 0, 0, 0, 0, 0, 0, 0)
+            BookmarkDao.DetailedSyncStatusCounts(0, 0, 0, 0, 0, 0, 0)
         )
 
     private val workInfoNext = fullSyncUseCase.workInfoFlow.map { workInfoList ->
@@ -385,12 +387,8 @@ class SyncSettingsViewModel @Inject constructor(
         showDialog.value = null
     }
 
-    fun onNavigationEventConsumed() {
-        _navigationEvent.update { null }
-    }
-
     fun onClickBack() {
-        _navigationEvent.update { NavigationEvent.NavigateBack }
+        _navigationEvent.trySend(NavigationEvent.NavigateBack)
     }
 
     private suspend fun purgeArchivedOfflineContent() {
