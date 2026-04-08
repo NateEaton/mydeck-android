@@ -123,7 +123,7 @@ fun UserGuideIndexScreen(
                                         fileName = section.fileName,
                                         title = section.title
                                     )
-                                )
+                                ) { launchSingleTop = true }
                             }
                         )
                         HorizontalDivider()

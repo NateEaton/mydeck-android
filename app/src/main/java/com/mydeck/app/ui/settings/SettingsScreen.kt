@@ -22,7 +22,6 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
-import kotlinx.coroutines.flow.collectLatest
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
@@ -51,22 +50,22 @@ fun SettingsScreen(
     val onClickSync: () -> Unit = { viewModel.onClickSync() }
     val onClickUi: () -> Unit = { viewModel.onClickView() }
     LaunchedEffect(Unit) {
-        viewModel.navigationEvent.collectLatest { event ->
+        viewModel.navigationEvent.collect { event ->
             when (event) {
                 is SettingsViewModel.NavigationEvent.NavigateToAccountSettings -> {
-                    navHostController.navigate(AccountSettingsRoute)
+                    navHostController.navigate(AccountSettingsRoute) { launchSingleTop = true }
                 }
                 is SettingsViewModel.NavigationEvent.NavigateToOpenSourceLibraries -> {
-                    navHostController.navigate(OpenSourceLibrariesRoute)
+                    navHostController.navigate(OpenSourceLibrariesRoute) { launchSingleTop = true }
                 }
                 is SettingsViewModel.NavigationEvent.NavigateToLogView -> {
-                    navHostController.navigate(LogViewRoute)
+                    navHostController.navigate(LogViewRoute) { launchSingleTop = true }
                 }
                 is SettingsViewModel.NavigationEvent.NavigateToSyncView -> {
-                    navHostController.navigate(SyncSettingsRoute)
+                    navHostController.navigate(SyncSettingsRoute) { launchSingleTop = true }
                 }
                 is SettingsViewModel.NavigationEvent.NavigateToUiSettings -> {
-                    navHostController.navigate(UiSettingsRoute)
+                    navHostController.navigate(UiSettingsRoute) { launchSingleTop = true }
                 }
                 is SettingsViewModel.NavigationEvent.NavigateBack -> {
                     navHostController.popBackStack()
