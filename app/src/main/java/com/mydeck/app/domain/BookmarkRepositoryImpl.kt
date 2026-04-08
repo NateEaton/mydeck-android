@@ -938,7 +938,6 @@ class BookmarkRepositoryImpl @Inject constructor(
         return bookmarkDao.observeAllBookmarkCounts().map { entity ->
             if (entity != null) {
                 BookmarkCounts(
-                    unread = entity.unread,
                     archived = entity.archived,
                     favorite = entity.favorite,
                     article = entity.article,

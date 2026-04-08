@@ -8,6 +8,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import kotlinx.coroutines.flow.collectLatest
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -30,7 +31,6 @@ fun AccountSettingsScreen(
     viewModel: AccountSettingsViewModel = hiltViewModel()
 ) {
     val settingsUiState = viewModel.uiState.collectAsState().value
-    val navigationEvent = viewModel.navigationEvent.collectAsState()
     val keyboardController = LocalSoftwareKeyboardController.current
     val onUrlChanged: (String) -> Unit = { url -> viewModel.updateUrl(url) }
     val onLoginClicked: () -> Unit = { viewModel.login() }
@@ -153,8 +153,8 @@ fun AccountSettingsScreen(
     } // end else (non-auth form)
     } // end Scaffold
 
-    LaunchedEffect(key1 = navigationEvent.value) {
-        navigationEvent.value?.let { event ->
+    LaunchedEffect(Unit) {
+        viewModel.navigationEvent.collectLatest { event ->
             when (event) {
                 is AccountSettingsViewModel.NavigationEvent.NavigateBack -> {
                     navHostController.popBackStack()
@@ -165,7 +165,6 @@ fun AccountSettingsScreen(
                     }
                 }
             }
-            viewModel.navigationEventConsumed() // Consume event
         }
     }
 }

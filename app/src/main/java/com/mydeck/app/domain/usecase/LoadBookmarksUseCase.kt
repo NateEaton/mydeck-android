@@ -1,18 +1,13 @@
 package com.mydeck.app.domain.usecase
 
-import androidx.work.Constraints
-import androidx.work.ExistingWorkPolicy
-import androidx.work.NetworkType
-import androidx.work.OneTimeWorkRequestBuilder
-import androidx.work.WorkManager
 import com.mydeck.app.domain.BookmarkRepository
 import com.mydeck.app.domain.mapper.toDomain
 import com.mydeck.app.domain.sync.OfflinePolicyEvaluator
+import com.mydeck.app.domain.sync.SyncScheduler
 import com.mydeck.app.io.prefs.SettingsDataStore
 import com.mydeck.app.io.rest.ReadeckApi
 import com.mydeck.app.io.rest.model.BookmarkDto
 import com.mydeck.app.io.rest.sync.MultipartSyncClient
-import com.mydeck.app.worker.BatchArticleLoadWorker
 import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toInstant
@@ -25,7 +20,7 @@ class LoadBookmarksUseCase @Inject constructor(
     private val multipartSyncClient: MultipartSyncClient,
     private val settingsDataStore: SettingsDataStore,
     private val policyEvaluator: OfflinePolicyEvaluator,
-    private val workManager: WorkManager
+    private val syncScheduler: SyncScheduler
 ) {
 
     sealed class UseCaseResult<out DataType : Any> {
@@ -125,35 +120,11 @@ class LoadBookmarksUseCase @Inject constructor(
     }
 
     private suspend fun enqueueBatchArticleLoader() {
-        try {
-            val syncConstraints = settingsDataStore.getContentSyncConstraints()
-
-            val constraintsBuilder = Constraints.Builder()
-            if (syncConstraints.wifiOnly) {
-                constraintsBuilder.setRequiredNetworkType(NetworkType.UNMETERED)
-            } else {
-                constraintsBuilder.setRequiredNetworkType(NetworkType.CONNECTED)
-            }
-            if (!syncConstraints.allowOnBatterySaver) {
-                constraintsBuilder.setRequiresBatteryNotLow(true)
-            }
-
-            val request = OneTimeWorkRequestBuilder<BatchArticleLoadWorker>()
-                .setConstraints(constraintsBuilder.build())
-                .addTag(BatchArticleLoadWorker.WORK_TAG_OFFLINE_CONTENT)
-                .build()
-
-            workManager.enqueueUniqueWork(
-                BatchArticleLoadWorker.UNIQUE_WORK_NAME,
-                ExistingWorkPolicy.REPLACE,
-                request
-            )
-            Timber.d(
-                "Batch article loader enqueued (wifiOnly=${syncConstraints.wifiOnly}, batterySaver=${syncConstraints.allowOnBatterySaver})"
-            )
-        } catch (e: Exception) {
-            Timber.w(e, "Failed to enqueue batch article loader")
-        }
+        val syncConstraints = settingsDataStore.getContentSyncConstraints()
+        syncScheduler.scheduleBatchArticleLoad(
+            wifiOnly = syncConstraints.wifiOnly,
+            allowBatterySaver = syncConstraints.allowOnBatterySaver
+        )
     }
 
     companion object {

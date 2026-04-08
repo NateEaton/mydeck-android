@@ -8,14 +8,15 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import com.mydeck.app.R
 import com.mydeck.app.domain.UserRepository
 import com.mydeck.app.domain.model.Theme
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.flow.update
 import javax.inject.Inject
 
 @HiltViewModel
@@ -24,8 +25,8 @@ class SettingsViewModel @Inject constructor(
     private val settingsDataStore: com.mydeck.app.io.prefs.SettingsDataStore,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
-    private val _navigationEvent = MutableStateFlow<NavigationEvent?>(null)
-    val navigationEvent: StateFlow<NavigationEvent?> = _navigationEvent.asStateFlow()
+    private val _navigationEvent = Channel<NavigationEvent>(Channel.BUFFERED)
+    val navigationEvent: Flow<NavigationEvent> = _navigationEvent.receiveAsFlow()
     val uiState: StateFlow<SettingsUiState> = combine(
         userRepository.observeAuthenticationDetails(),
         settingsDataStore.offlineReadingEnabledFlow,
@@ -54,32 +55,28 @@ class SettingsViewModel @Inject constructor(
         SettingsUiState(username = null)
     )
 
-    fun onNavigationEventConsumed() {
-        _navigationEvent.update { null } // Reset the event
-    }
-
     fun onClickAccount() {
-        _navigationEvent.update { NavigationEvent.NavigateToAccountSettings }
+        _navigationEvent.trySend(NavigationEvent.NavigateToAccountSettings)
     }
 
     fun onClickBack() {
-        _navigationEvent.update { NavigationEvent.NavigateBack }
+        _navigationEvent.trySend(NavigationEvent.NavigateBack)
     }
 
     fun onClickOpenSourceLibraries() {
-        _navigationEvent.update { NavigationEvent.NavigateToOpenSourceLibraries }
+        _navigationEvent.trySend(NavigationEvent.NavigateToOpenSourceLibraries)
     }
 
     fun onClickLogs() {
-        _navigationEvent.update { NavigationEvent.NavigateToLogView }
+        _navigationEvent.trySend(NavigationEvent.NavigateToLogView)
     }
 
     fun onClickSync() {
-        _navigationEvent.update { NavigationEvent.NavigateToSyncView }
+        _navigationEvent.trySend(NavigationEvent.NavigateToSyncView)
     }
 
     fun onClickView() {
-        _navigationEvent.update { NavigationEvent.NavigateToUiSettings }
+        _navigationEvent.trySend(NavigationEvent.NavigateToUiSettings)
     }
 
     sealed class NavigationEvent {

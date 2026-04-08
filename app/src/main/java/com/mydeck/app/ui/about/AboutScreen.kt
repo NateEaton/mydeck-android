@@ -59,20 +59,18 @@ import java.util.Locale
 @Composable
 fun AboutScreen(navHostController: NavHostController, showBackButton: Boolean = true) {
     val viewModel: AboutViewModel = hiltViewModel()
-    val navigationEvent = viewModel.navigationEvent.collectAsState()
     val uiState = viewModel.uiState.collectAsState()
 
-    LaunchedEffect(key1 = navigationEvent.value) {
-        navigationEvent.value?.let { event ->
+    LaunchedEffect(Unit) {
+        viewModel.navigationEvent.collect { event ->
             when (event) {
                 AboutViewModel.NavigationEvent.NavigateBack -> {
                     navHostController.popBackStack()
                 }
                 AboutViewModel.NavigationEvent.NavigateToOpenSourceLibraries -> {
-                    navHostController.navigate(OpenSourceLibrariesRoute)
+                    navHostController.navigate(OpenSourceLibrariesRoute) { launchSingleTop = true }
                 }
             }
-            viewModel.onNavigationEventConsumed()
         }
     }
 

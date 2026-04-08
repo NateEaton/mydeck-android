@@ -366,7 +366,6 @@ interface BookmarkDao {
     @Query(
         """
         SELECT
-            (SELECT COUNT(*) FROM bookmarks WHERE readProgress < 100 AND state = 0 AND isLocalDeleted = 0) AS unread_count,
             (SELECT COUNT(*) FROM bookmarks WHERE isArchived = 1 AND state = 0 AND isLocalDeleted = 0) AS archived_count,
             (SELECT COUNT(*) FROM bookmarks WHERE isMarked = 1 AND state = 0 AND isLocalDeleted = 0) AS favorite_count,
             (SELECT COUNT(*) FROM bookmarks WHERE type = 'article' AND state = 0 AND isLocalDeleted = 0) AS article_count,
@@ -653,7 +652,6 @@ interface BookmarkDao {
 
     data class DetailedSyncStatusCounts(
         val total: Int,
-        val unread: Int,
         val archived: Int,
         val favorites: Int,
         val contentDownloaded: Int,
@@ -672,7 +670,6 @@ interface BookmarkDao {
     @Query("""
         SELECT
             (SELECT COUNT(*) FROM bookmarks WHERE state = 0 AND isLocalDeleted = 0) AS total,
-            (SELECT COUNT(*) FROM bookmarks WHERE readProgress < 100 AND state = 0 AND isLocalDeleted = 0) AS unread,
             (SELECT COUNT(*) FROM bookmarks WHERE isArchived = 1 AND state = 0 AND isLocalDeleted = 0) AS archived,
             (SELECT COUNT(*) FROM bookmarks WHERE isMarked = 1 AND state = 0 AND isLocalDeleted = 0) AS favorites,
             (SELECT COUNT(*) FROM bookmarks WHERE contentState = 1 AND isLocalDeleted = 0) AS contentDownloaded,

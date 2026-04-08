@@ -19,6 +19,7 @@ import io.mockk.unmockkObject
 import io.mockk.verify
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
@@ -238,15 +239,16 @@ class AccountSettingsViewModelTest {
         every { workManager.getWorkInfosForUniqueWorkFlow(LoadBookmarksWorker.UNIQUE_WORK_NAME) } returns
             flowOf(listOf(succeededWorkInfo))
 
+        val navEvents = mutableListOf<AccountSettingsViewModel.NavigationEvent>()
+        val navJob = launch { viewModel.navigationEvent.collect { navEvents.add(it) } }
+
         viewModel.updateUrl("https://example.com")
         viewModel.login()
         advanceUntilIdle()
+        navJob.cancel()
 
         assertEquals(AccountSettingsViewModel.AuthStatus.Success, viewModel.uiState.value.authStatus)
-        assertEquals(
-            AccountSettingsViewModel.NavigationEvent.NavigateToBookmarkList,
-            viewModel.navigationEvent.value
-        )
+        assertEquals(AccountSettingsViewModel.NavigationEvent.NavigateToBookmarkList, navEvents.firstOrNull())
         coVerify { settingsDataStore.setInitialSyncPerformed(false) }
         coVerify { bookmarkRepository.deleteAllBookmarks() }
         verify { LoadBookmarksWorker.enqueue(any(), true) }
@@ -285,15 +287,16 @@ class AccountSettingsViewModelTest {
         every { workManager.getWorkInfosForUniqueWorkFlow(LoadBookmarksWorker.UNIQUE_WORK_NAME) } returns
             flowOf(listOf(failedWorkInfo))
 
+        val navEvents = mutableListOf<AccountSettingsViewModel.NavigationEvent>()
+        val navJob = launch { viewModel.navigationEvent.collect { navEvents.add(it) } }
+
         viewModel.updateUrl("https://example.com")
         viewModel.login()
         advanceUntilIdle()
+        navJob.cancel()
 
         assertEquals(AccountSettingsViewModel.AuthStatus.Success, viewModel.uiState.value.authStatus)
-        assertEquals(
-            AccountSettingsViewModel.NavigationEvent.NavigateToBookmarkList,
-            viewModel.navigationEvent.value
-        )
+        assertEquals(AccountSettingsViewModel.NavigationEvent.NavigateToBookmarkList, navEvents.firstOrNull())
         coVerify { settingsDataStore.setInitialSyncPerformed(false) }
     }
 
@@ -332,18 +335,19 @@ class AccountSettingsViewModelTest {
             workFlow
         every { workManager.cancelWorkById(workId) } returns mockk(relaxed = true)
 
+        val navEvents = mutableListOf<AccountSettingsViewModel.NavigationEvent>()
+        val navJob = launch { viewModel.navigationEvent.collect { navEvents.add(it) } }
+
         viewModel.updateUrl("https://example.com")
         viewModel.login()
         runCurrent()
         advanceTimeBy(20_000)
         advanceUntilIdle()
+        navJob.cancel()
 
         verify { workManager.cancelWorkById(workId) }
         assertEquals(AccountSettingsViewModel.AuthStatus.Success, viewModel.uiState.value.authStatus)
-        assertEquals(
-            AccountSettingsViewModel.NavigationEvent.NavigateToBookmarkList,
-            viewModel.navigationEvent.value
-        )
+        assertEquals(AccountSettingsViewModel.NavigationEvent.NavigateToBookmarkList, navEvents.firstOrNull())
     }
 
     @Test

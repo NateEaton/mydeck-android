@@ -44,10 +44,10 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import kotlinx.coroutines.flow.collectLatest
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -59,15 +59,12 @@ import androidx.navigation.NavHostController
 import com.mydeck.app.R
 import com.mydeck.app.ui.components.VerticalScrollbar
 import com.mydeck.app.util.LogFileInfo
-import kotlinx.coroutines.launch
 
 @Composable
 fun LogViewScreen(navController: NavHostController) {
     val viewModel: LogViewViewModel = androidx.hilt.navigation.compose.hiltViewModel()
     val uiState = viewModel.uiState.collectAsState()
-    val navigationEvent = viewModel.navigationEvent.collectAsState()
     val context = LocalContext.current
-    val scope = rememberCoroutineScope()
     val availableLogFiles by viewModel.availableLogFiles.collectAsState()
     val selectedLogFile by viewModel.selectedLogFile.collectAsState()
     val showRetentionDialog by viewModel.showRetentionDialog.collectAsState()
@@ -79,8 +76,8 @@ fun LogViewScreen(navController: NavHostController) {
     val savedToDownloadsText = stringResource(R.string.log_view_saved_to_downloads)
     val saveErrorText = stringResource(R.string.log_view_save_error)
 
-    LaunchedEffect(key1 = navigationEvent.value) {
-        navigationEvent.value?.let { event ->
+    LaunchedEffect(Unit) {
+        viewModel.navigationEvent.collectLatest { event ->
             when (event) {
                 LogViewViewModel.NavigationEvent.NavigateBack -> {
                     navController.popBackStack()
@@ -97,30 +94,21 @@ fun LogViewScreen(navController: NavHostController) {
                 }
 
                 LogViewViewModel.NavigationEvent.ShareError -> {
-                    scope.launch {
-                        Toast.makeText(context, shareErrorText, Toast.LENGTH_SHORT).show()
-                    }
+                    Toast.makeText(context, shareErrorText, Toast.LENGTH_SHORT).show()
                 }
 
                 LogViewViewModel.NavigationEvent.SavedToDownloads -> {
-                    scope.launch {
-                        Toast.makeText(context, savedToDownloadsText, Toast.LENGTH_SHORT).show()
-                    }
+                    Toast.makeText(context, savedToDownloadsText, Toast.LENGTH_SHORT).show()
                 }
 
                 LogViewViewModel.NavigationEvent.SaveError -> {
-                    scope.launch {
-                        Toast.makeText(context, saveErrorText, Toast.LENGTH_SHORT).show()
-                    }
+                    Toast.makeText(context, saveErrorText, Toast.LENGTH_SHORT).show()
                 }
 
                 LogViewViewModel.NavigationEvent.LogsCleared -> {
-                    scope.launch {
-                        Toast.makeText(context, logsClearedText, Toast.LENGTH_SHORT).show()
-                    }
+                    Toast.makeText(context, logsClearedText, Toast.LENGTH_SHORT).show()
                 }
             }
-            viewModel.onNavigationEventConsumed()
         }
     }
 

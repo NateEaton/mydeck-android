@@ -5,10 +5,6 @@ import android.content.Intent
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import androidx.work.Constraints
-import androidx.work.ExistingWorkPolicy
-import androidx.work.NetworkType
-import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -28,7 +24,6 @@ import com.mydeck.app.domain.sync.OfflinePolicyEvaluator
 import com.mydeck.app.domain.usecase.FullSyncUseCase
 import com.mydeck.app.domain.usecase.UpdateBookmarkUseCase
 import com.mydeck.app.io.prefs.SettingsDataStore
-import com.mydeck.app.worker.BatchArticleLoadWorker
 import com.mydeck.app.util.extractUrlAndTitle
 import com.mydeck.app.util.formatBookmarkShareText
 import com.mydeck.app.util.isValidUrl
@@ -67,6 +62,7 @@ class BookmarkListViewModel @Inject constructor(
     private val savedStateHandle: SavedStateHandle,
     private val contentSyncPolicyEvaluator: OfflinePolicyEvaluator,
     private val contentPackageManager: ContentPackageManager,
+    private val syncScheduler: com.mydeck.app.domain.sync.SyncScheduler,
     connectivityMonitor: ConnectivityMonitor
 ) : ViewModel() {
 
@@ -106,9 +102,10 @@ class BookmarkListViewModel @Inject constructor(
     private val _constraintSnackbarEvent = Channel<Int>(Channel.BUFFERED)
     val constraintSnackbarEvent: Flow<Int> = _constraintSnackbarEvent.receiveAsFlow()
 
-    // Constraint override dialog for user-initiated refresh
-    private val _showConstraintOverrideDialog = MutableStateFlow(false)
-    val showConstraintOverrideDialog = _showConstraintOverrideDialog.asStateFlow()
+    // Constraint override dialog for user-initiated refresh.
+    // Holds the @StringRes body text describing the specific blocked constraint, or null when dismissed.
+    private val _constraintOverrideBodyRes = MutableStateFlow<Int?>(null)
+    val constraintOverrideBodyRes = _constraintOverrideBodyRes.asStateFlow()
 
     init {
         viewModelScope.launch {
@@ -464,30 +461,24 @@ class BookmarkListViewModel @Inject constructor(
         viewModelScope.launch {
             if (!contentSyncPolicyEvaluator.shouldAutoFetchContent()) return@launch
             val decision = contentSyncPolicyEvaluator.canFetchContent()
-            if (!decision.allowed && decision.blockedReason != "No network") {
-                _showConstraintOverrideDialog.value = true
+            if (!decision.allowed) {
+                val bodyRes = when (decision.blockedReason) {
+                    "Wi-Fi required" -> R.string.sync_constraint_override_body_wifi
+                    "Battery saver active" -> R.string.sync_constraint_override_body_battery
+                    else -> return@launch // No network — don't show override dialog
+                }
+                _constraintOverrideBodyRes.value = bodyRes
             }
         }
     }
 
     fun onConstraintOverrideConfirmed() {
-        _showConstraintOverrideDialog.value = false
-        // Enqueue content sync without user constraints (just network required)
-        val constraints = Constraints.Builder()
-            .setRequiredNetworkType(NetworkType.CONNECTED)
-            .build()
-        val request = OneTimeWorkRequestBuilder<BatchArticleLoadWorker>()
-            .setConstraints(constraints)
-            .build()
-        workManager.enqueueUniqueWork(
-            BatchArticleLoadWorker.UNIQUE_WORK_NAME,
-            ExistingWorkPolicy.REPLACE,
-            request
-        )
+        _constraintOverrideBodyRes.value = null
+        syncScheduler.scheduleBatchArticleLoadOverridingConstraints()
     }
 
     fun onConstraintOverrideCancelled() {
-        _showConstraintOverrideDialog.value = false
+        _constraintOverrideBodyRes.value = null
     }
 
     /**

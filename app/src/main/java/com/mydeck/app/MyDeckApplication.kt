@@ -86,7 +86,7 @@ class CustomExceptionHandler(private val application: Application) :
             Timber.e(throwable, "CRASH: Uncaught exception")
         } catch (e: Exception) {
             // Handle any exceptions that occur during logging (e.g., file write errors)
-            e.printStackTrace()
+            android.util.Log.w("CrashHandler", "Timber failed while logging crash", e)
         } finally {
             // If there was a default handler, call it to let the system handle the crash
             defaultHandler?.uncaughtException(thread, throwable) ?: android.os.Process.killProcess(android.os.Process.myPid())

@@ -43,36 +43,34 @@ fun SettingsScreen(
 ) {
     val viewModel: SettingsViewModel = hiltViewModel()
     val settingsUiState = viewModel.uiState.collectAsState().value
-    val navigationEvent = viewModel.navigationEvent.collectAsState()
     val onClickAccount: () -> Unit = { viewModel.onClickAccount() }
     val onClickBack: () -> Unit = { viewModel.onClickBack() }
     val onClickOpenSourceLibraries: () -> Unit = { viewModel.onClickOpenSourceLibraries() }
     val onClickLogs: () -> Unit = { viewModel.onClickLogs() }
     val onClickSync: () -> Unit = { viewModel.onClickSync() }
     val onClickUi: () -> Unit = { viewModel.onClickView() }
-    LaunchedEffect(key1 = navigationEvent.value) {
-        navigationEvent.value?.let { event ->
+    LaunchedEffect(Unit) {
+        viewModel.navigationEvent.collect { event ->
             when (event) {
                 is SettingsViewModel.NavigationEvent.NavigateToAccountSettings -> {
-                    navHostController.navigate(AccountSettingsRoute)
+                    navHostController.navigate(AccountSettingsRoute) { launchSingleTop = true }
                 }
                 is SettingsViewModel.NavigationEvent.NavigateToOpenSourceLibraries -> {
-                    navHostController.navigate(OpenSourceLibrariesRoute)
+                    navHostController.navigate(OpenSourceLibrariesRoute) { launchSingleTop = true }
                 }
                 is SettingsViewModel.NavigationEvent.NavigateToLogView -> {
-                    navHostController.navigate(LogViewRoute)
+                    navHostController.navigate(LogViewRoute) { launchSingleTop = true }
                 }
                 is SettingsViewModel.NavigationEvent.NavigateToSyncView -> {
-                    navHostController.navigate(SyncSettingsRoute)
+                    navHostController.navigate(SyncSettingsRoute) { launchSingleTop = true }
                 }
                 is SettingsViewModel.NavigationEvent.NavigateToUiSettings -> {
-                    navHostController.navigate(UiSettingsRoute)
+                    navHostController.navigate(UiSettingsRoute) { launchSingleTop = true }
                 }
                 is SettingsViewModel.NavigationEvent.NavigateBack -> {
                     navHostController.popBackStack()
                 }
             }
-            viewModel.onNavigationEventConsumed() // Consume the event
         }
     }
     SettingScreenView(

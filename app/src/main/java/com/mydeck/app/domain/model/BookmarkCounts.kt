@@ -1,7 +1,6 @@
 package com.mydeck.app.domain.model
 
 data class BookmarkCounts(
-    val unread: Int = 0,
     val archived: Int = 0,
     val favorite: Int = 0,
     val article: Int = 0,
