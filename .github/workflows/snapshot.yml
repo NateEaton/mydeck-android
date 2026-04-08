@@ -13,6 +13,15 @@ on:
   pull_request:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      build_type:
+        description: 'Build type'
+        required: false
+        default: 'release'
+        type: choice
+        options:
+          - release
+          - debug
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
@@ -49,7 +58,22 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
+      - name: Set Build Vars
+        id: build_vars
+        run: |
+          BUILD_TYPE="${{ github.event.inputs.build_type || 'release' }}"
+          if [ "$BUILD_TYPE" = "debug" ]; then
+            echo "GRADLE_TASK=assembleGithubSnapshotDebug" >> "$GITHUB_OUTPUT"
+            echo "APK_DIR=debug" >> "$GITHUB_OUTPUT"
+            echo "VERSION_SUFFIX=-debug" >> "$GITHUB_OUTPUT"
+          else
+            echo "GRADLE_TASK=assembleGithubSnapshotRelease" >> "$GITHUB_OUTPUT"
+            echo "APK_DIR=release" >> "$GITHUB_OUTPUT"
+            echo "VERSION_SUFFIX=" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Decode Keystore
+        if: steps.build_vars.outputs.APK_DIR == 'release'
         run: |
           echo "${{ secrets.SIGNING_KEY }}" | base64 --decode > ${{ github.workspace }}/keystore.jks
 
@@ -59,10 +83,10 @@ jobs:
           echo "TIMESTAMP=$(date +%Y%m%dT%H%M%S)" >> "$GITHUB_OUTPUT"
           echo "COMMIT_SHA=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
 
-      - name: Build Snapshot Release APK
-        run: ./gradlew assembleGithubSnapshotRelease
-        env: 
-          SNAPSHOT_VERSION_NAME: ${{ steps.set_env.outputs.TIMESTAMP }}-${{ steps.set_env.outputs.COMMIT_SHA }}
+      - name: Build Snapshot APK
+        run: ./gradlew ${{ steps.build_vars.outputs.GRADLE_TASK }}
+        env:
+          SNAPSHOT_VERSION_NAME: ${{ steps.set_env.outputs.TIMESTAMP }}-${{ steps.set_env.outputs.COMMIT_SHA }}${{ steps.build_vars.outputs.VERSION_SUFFIX }}
           KEY_ALIAS: ${{ secrets.ALIAS }}
           KEYSTORE_PASSWORD: ${{ secrets.KEY_STORE_PASSWORD }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
@@ -71,7 +95,7 @@ jobs:
       - name: Create Checksum
         id: create_checksum
         run: |
-          FILENAME=$(echo app/build/outputs/apk/githubSnapshot/release/*.apk)
+          FILENAME=$(echo app/build/outputs/apk/githubSnapshot/${{ steps.build_vars.outputs.APK_DIR }}/*.apk)
           sha256sum $FILENAME > checksums.txt
           echo "ARTIFACT_FILENAME=$FILENAME" >> "$GITHUB_OUTPUT"
 
@@ -79,7 +103,7 @@ jobs:
       - name: Upload Snapshot Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: tester-snapshot-release
+          name: tester-snapshot-${{ steps.build_vars.outputs.APK_DIR }}
           path: |
             ${{ steps.create_checksum.outputs.ARTIFACT_FILENAME }}
             checksums.txt
