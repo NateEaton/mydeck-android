@@ -20,6 +20,8 @@ import com.mydeck.app.io.rest.model.EditBookmarkDto
 import com.mydeck.app.io.rest.model.EditBookmarkErrorDto
 import com.mydeck.app.io.rest.model.EditBookmarkResponseDto
 import com.mydeck.app.io.db.model.BookmarkCountsEntity
+import com.mydeck.app.io.db.model.BookmarkEntity
+import com.mydeck.app.io.db.model.BookmarkListItemEntity
 import com.mydeck.app.io.db.model.BookmarkWithArticleContent
 import com.mydeck.app.io.rest.model.ImageResource
 import com.mydeck.app.io.rest.model.Resource
@@ -37,6 +39,7 @@ import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import kotlinx.datetime.Clock
+import kotlinx.datetime.Instant
 import kotlinx.serialization.json.Json
 import okhttp3.Headers
 import okhttp3.ResponseBody.Companion.toResponseBody
@@ -1006,6 +1009,79 @@ class BookmarkRepositoryImplTest {
         assertTrue(result is BookmarkRepository.UpdateResult.Success)
         coVerify(exactly = 0) { readeckApi.editBookmark(any(), any()) }
     }
+
+    // ── BookmarkListItem observer / search smoke tests ────────────────────────
+
+    @Test
+    fun `observeBookmarkListItems emits mapped domain list on DAO emission`() = runTest {
+        every {
+            bookmarkDao.getBookmarkListItemsByFilters(
+                type = any(), isUnread = any(), isArchived = any(),
+                isFavorite = any(), label = any(), state = any(), orderBy = any()
+            )
+        } returns flowOf(listOf(bookmarkListItemEntity))
+
+        val emission = bookmarkRepositoryImpl.observeBookmarkListItems().first()
+
+        assertEquals(1, emission.size)
+        assertEquals("item-1", emission[0].id)
+        assertEquals("Item Title", emission[0].title)
+        assertEquals(Bookmark.Type.Article, emission[0].type)
+    }
+
+    @Test
+    fun `searchBookmarkListItems emits mapped domain list on DAO emission`() = runTest {
+        every {
+            bookmarkDao.searchBookmarkListItems(
+                searchQuery = any(), type = any(), isUnread = any(), isArchived = any(),
+                isFavorite = any(), label = any(), state = any(), orderBy = any()
+            )
+        } returns flowOf(listOf(bookmarkListItemEntity))
+
+        val emission = bookmarkRepositoryImpl.searchBookmarkListItems("kotlin").first()
+
+        assertEquals(1, emission.size)
+        assertEquals("item-1", emission[0].id)
+    }
+
+    @Test
+    fun `observeFilteredBookmarkListItems emits mapped domain list on DAO emission`() = runTest {
+        every {
+            bookmarkDao.getFilteredBookmarkListItems(
+                searchQuery = any(), title = any(), author = any(), site = any(),
+                types = any(), progressFilters = any(), isArchived = any(),
+                isFavorite = any(), label = any(), fromDate = any(), toDate = any(),
+                isLoaded = any(), withLabels = any(), withErrors = any(), orderBy = any()
+            )
+        } returns flowOf(listOf(bookmarkListItemEntity))
+
+        val emission = bookmarkRepositoryImpl.observeFilteredBookmarkListItems().first()
+
+        assertEquals(1, emission.size)
+        assertEquals("item-1", emission[0].id)
+    }
+
+    private val bookmarkListItemEntity = BookmarkListItemEntity(
+        id = "item-1",
+        href = "https://example.com/item-1",
+        url = "https://example.com/item-1",
+        title = "Item Title",
+        siteName = "Example",
+        isMarked = false,
+        isArchived = false,
+        readProgress = 0,
+        thumbnailSrc = "",
+        imageSrc = "",
+        iconSrc = "",
+        labels = emptyList(),
+        type = BookmarkEntity.Type.ARTICLE,
+        readingTime = 3,
+        created = Instant.fromEpochSeconds(0),
+        wordCount = 500,
+        published = null,
+        contentState = BookmarkEntity.ContentState.NOT_ATTEMPTED,
+        hasResources = null
+    )
 
     private val editBookmarkResponseDto = EditBookmarkResponseDto(
         href = "http://example.com",
