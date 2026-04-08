@@ -1,8 +1,9 @@
 # Fix: Text Disappearing in Reader View During Typography Changes
 
-**Status:** Diagnosed, not yet implemented
+**Status:** Implementation in progress
 **Reported:** 2026-03-23
-**Affects:** v0.11.1 and current (`feature/sync-multipart-v012`)
+**Affects:** v0.11.1 and current (`main`)
+**Branch:** `fix/reader-text-disappearing`
 
 ## Problem
 
@@ -52,13 +53,13 @@ Key files:
 
 The WebView's measured content height gets calculated too short and then "sticks" — the article renders but is clipped partway through. Contributing factors:
 
-1. **`textZoom` in the `update` block** (line ~593) fires on every Compose recomposition, not just on actual changes. Each assignment triggers an internal WebView relayout.
+1. **`textZoom` in the `update` block** (line ~610) fires on every Compose recomposition, not just on actual changes. Each assignment triggers an internal WebView relayout.
 
-2. **Typography JS runs after a 150ms delay** (LaunchedEffect at line ~215). This creates a window where `textZoom` has changed but CSS properties (line-height, hyphens, font-family) haven't caught up — the WebView is in an inconsistent layout state.
+2. **Typography JS runs after a 150ms delay** (LaunchedEffect at lines ~227-239). This creates a window where `textZoom` has changed but CSS properties (line-height, hyphens, font-family) haven't caught up — the WebView is in an inconsistent layout state.
 
-3. **No `requestLayout()` after JS typography changes.** After `evaluateJavascript` modifies `body.style.*`, the WebView reflows internally but doesn't tell Compose it needs re-measurement.
+3. **No `requestLayout()` after JS typography changes.** After `evaluateJavascript` modifies `body.style.*`, the WebView reflows internally but doesn't tell Compose it needs re-measurement. The `postVisualStateCallback` pattern is already used successfully elsewhere in the file (lines ~491-502 for content ready detection).
 
-4. **`LAYER_TYPE_HARDWARE`** (line ~351) can cause the WebView to skip repainting after content reflow, a known Android WebView issue especially pre-API 30.
+4. **`LAYER_TYPE_HARDWARE`** (line ~363) can cause the WebView to skip repainting after content reflow, a known Android WebView issue especially pre-API 30.
 
 5. **Bundled font loading** (`@font-face` from `file:///android_asset/`) is asynchronous. With `font-display: swap`, the WebView may measure with a fallback font, then reflow when the real font loads — another window for height miscalculation.
 
@@ -95,48 +96,52 @@ update = {
 }
 ```
 
-### 2. Force re-layout after typography JS (primary fix)
+### 2. Force re-layout after typography JS using `postVisualStateCallback` (primary fix)
 
-After `evaluateJavascript` in the typography LaunchedEffect, force the WebView to re-measure:
+After `evaluateJavascript` in the typography LaunchedEffect, use the WebView's own signal that it has finished painting to trigger re-measurement. This is the same pattern already used successfully in `reportReadyIfNeeded()` (lines ~491-502).
 
 ```kotlin
 LaunchedEffect(uiState.typographySettings) {
     webViewRef.value?.let { webView ->
-        webView.settings.textZoom = uiState.typographySettings.fontSizePercent
-        delay(50)  // reduced from 150ms
+        // Guard textZoom to avoid spurious relayouts
+        if (webView.settings.textZoom != uiState.typographySettings.fontSizePercent) {
+            webView.settings.textZoom = uiState.typographySettings.fontSizePercent
+        }
+        // Reduced delay from 150ms - just enough for textZoom to take effect
+        delay(50)
         withContext(Dispatchers.Main) {
             val js = WebViewTypographyBridge.applyTypography(uiState.typographySettings)
             webView.evaluateJavascript(js) {
-                // Force Compose to re-measure after WebView reflows
-                webView.requestLayout()
+                // Use postVisualStateCallback for reliable timing (API 23+)
+                // Fallback to postDelayed for older devices
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    val requestId = System.currentTimeMillis()
+                    webView.postVisualStateCallback(requestId,
+                        object : WebView.VisualStateCallback() {
+                            override fun onComplete(requestId: Long) {
+                                webView.requestLayout()
+                            }
+                        })
+                } else {
+                    webView.postDelayed({ webView.requestLayout() }, 100)
+                }
             }
         }
     }
 }
 ```
 
-### 3. Consider `postVisualStateCallback` for reliable timing
+### 3. Evaluate `LAYER_TYPE_SOFTWARE` fallback (deferred)
 
-Instead of arbitrary delays, use the WebView's own signal that it has finished painting:
+**Status:** Deferred — only implement if fixes #1 and #2 prove insufficient.
 
-```kotlin
-webView.evaluateJavascript(js) {
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-        webView.postVisualStateCallback(System.currentTimeMillis(),
-            object : WebView.VisualStateCallback() {
-                override fun onComplete(requestId: Long) {
-                    webView.requestLayout()
-                }
-            })
-    } else {
-        webView.postDelayed({ webView.requestLayout() }, 100)
-    }
-}
-```
+## Implementation Status
 
-### 4. Evaluate `LAYER_TYPE_SOFTWARE` fallback (if above insufficient)
-
-If hardware layer continues to cause stale rendering, consider software rendering as a targeted fallback during typography transitions.
+| Fix | Status | Location | Notes |
+|-----|--------|----------|-------|
+| 1. Guard `textZoom` | ✅ Implemented | `BookmarkDetailWebViews.kt` ~line 610 | Prevents spurious relayouts on every recomposition |
+| 2. `postVisualStateCallback` | ✅ Implemented | `BookmarkDetailWebViews.kt` ~lines 227-239 | Uses proven pattern from content-ready detection |
+| 3. Software layer fallback | ⏸️ Deferred | - | Only if fixes 1+2 insufficient |
 
 ## Testing Plan
 
