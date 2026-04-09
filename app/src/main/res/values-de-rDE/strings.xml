@@ -17,6 +17,7 @@
     <string name="account_settings_password_placeholder">Passwort</string>
     <string name="account_settings_login">Einloggen</string>
     <string name="account_settings_url_error">Ungültige URL</string>
+    <string name="account_settings_url_http_warning">Insecure connection — only use on a trusted private network (e.g. Tailscale)</string>
     <string name="account_settings_username_error">Benutzername darf nicht leer sein</string>
     <string name="account_settings_password_error">Passwort darf nicht leer sein</string>
     <string name="account_settings_allow_unencrypted">Unverschlüsselte Verbindunge erlauben</string>

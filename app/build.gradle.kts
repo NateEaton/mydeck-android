@@ -9,9 +9,10 @@ plugins {
     alias(libs.plugins.aboutLibraries)
 }
 
-fun booleanBuildFlag(propertyName: String, envName: String): Boolean {
+fun booleanBuildFlag(propertyName: String, envName: String, default: Boolean = false): Boolean {
     val configuredValue = providers.gradleProperty(propertyName).orNull ?: System.getenv(envName)
-    return configuredValue?.equals("true", ignoreCase = true) == true
+    return if (configuredValue == null) default
+    else configuredValue.equals("true", ignoreCase = true)
 }
 
 fun networkSecurityConfigRef(allowHttp: Boolean, allowUserCa: Boolean): String = when {
@@ -25,7 +26,8 @@ fun networkSecurityConfigRef(allowHttp: Boolean, allowUserCa: Boolean): String =
 // network policy in custom builds via Gradle properties or matching env vars.
 val allowInsecureHttpRelease = booleanBuildFlag(
     propertyName = "allowInsecureHttpRelease",
-    envName = "ALLOW_INSECURE_HTTP_RELEASE"
+    envName = "ALLOW_INSECURE_HTTP_RELEASE",
+    default = true
 )
 val allowUserCaRelease = booleanBuildFlag(
     propertyName = "allowUserCaRelease",

@@ -14,20 +14,33 @@ MyDeck authenticates with the Readeck server using the **OAuth 2.0 Device Author
 
 ### Default configuration
 
-The default release build enforces HTTPS-only communication:
+Release builds permit both `https://` and `http://` server URLs:
 
-- `cleartextTrafficPermitted="false"` in the network security config
-- Only system-trusted certificate authorities are accepted
-- OAuth requires HTTPS by design
+- `https://` connections use system-trusted certificate authorities only
+- `http://` connections are permitted but trigger an in-app warning at the URL entry screen
+- OAuth operates over whatever scheme the user configures; no HTTPS is enforced at the protocol level
 
-### Self-hosted overrides
+The inline warning is the primary user-facing safeguard for HTTP connections. It is displayed as soon as an `http://` URL is entered and remains visible until the URL is changed to `https://`.
 
-For users running Readeck on a local network or behind a private CA, two opt-in build flags are available. These are **disabled by default** and require a custom build:
+### Two-layer HTTP policy
 
-- `ALLOW_INSECURE_HTTP_RELEASE` — permits cleartext HTTP connections (for `http://` Readeck instances without TLS)
-- `ALLOW_USER_CA_RELEASE` — trusts user-installed certificate authorities (for HTTPS servers signed by a private CA)
+HTTP support uses two independent controls with different audiences:
 
-These flags are documented in `.github/workflows/release.yml` and are never enabled in the standard GitHub release builds.
+- **Build gate** (`ALLOW_INSECURE_HTTP_RELEASE` / `allowInsecureHttpRelease`): a distribution-policy control. Defaults to `true` in standard release builds. Set to `false` to produce a binary that rejects `http://` URLs entirely — suitable for organisational deployments that mandate HTTPS. When set to `false`, no inline warning is shown because HTTP cannot be entered.
+- **Inline warning**: user-awareness in the distributed APK. Shown whenever a valid `http://` URL is entered; does not block login.
+
+### Self-hosted HTTP use case
+
+The primary supported scenario for HTTP is a self-hosted Readeck instance accessed over [Tailscale](https://tailscale.com/), which provides WireGuard-based network-layer encryption. Traffic over Tailscale is encrypted in transit even without TLS, making the confidentiality risk comparable to HTTPS on a private network.
+
+### Build flags
+
+Two build flags control network policy in custom builds. Both are set via Gradle property or matching environment variable:
+
+- `ALLOW_INSECURE_HTTP_RELEASE` / `allowInsecureHttpRelease` — controls whether `http://` URLs are accepted (default: `true`)
+- `ALLOW_USER_CA_RELEASE` / `allowUserCaRelease` — trusts user-installed certificate authorities for HTTPS servers signed by a private CA (default: `false`)
+
+These flags are documented in `.github/workflows/release.yml`.
 
 ## Credential Storage
 
