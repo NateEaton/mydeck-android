@@ -249,6 +249,12 @@ fun BookmarkDetailArticle(
                             object : WebView.VisualStateCallback() {
                                 override fun onComplete(requestId: Long) {
                                     webView.requestLayout()
+                                    // Diagnostic: compare JS content height vs View height
+                                    webView.evaluateJavascript(
+                                        "(document.documentElement.scrollHeight)"
+                                    ) { jsHeight ->
+                                        Timber.d("ReflowDiag: JS scrollHeight=$jsHeight, view height=${webView.height}, view measuredHeight=${webView.measuredHeight}")
+                                    }
                                 }
                             }
                         )
@@ -382,7 +388,7 @@ fun BookmarkDetailArticle(
                         settings.mediaPlaybackRequiresUserGesture = true
                         settings.useWideViewPort = false
                         settings.loadWithOverviewMode = false
-                        setLayerType(View.LAYER_TYPE_HARDWARE, null)
+                        setLayerType(View.LAYER_TYPE_NONE, null)
                         settings.defaultTextEncodingName = "utf-8"
                         isVerticalScrollBarEnabled = false
                         isHorizontalScrollBarEnabled = false
@@ -859,7 +865,7 @@ fun BookmarkDetailOriginalWebView(
                         settings.mediaPlaybackRequiresUserGesture = false
                         settings.useWideViewPort = true
                         settings.loadWithOverviewMode = true
-                        setLayerType(View.LAYER_TYPE_HARDWARE, null)
+                        setLayerType(View.LAYER_TYPE_NONE, null)
                         settings.defaultTextEncodingName = "utf-8"
                         isVerticalScrollBarEnabled = false
                         isHorizontalScrollBarEnabled = false

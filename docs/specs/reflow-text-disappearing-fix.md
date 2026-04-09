@@ -1,6 +1,6 @@
 # Fix: Text Disappearing in Reader View During Typography Changes
 
-**Status:** Implementation in progress
+**Status:** Fix applied, confirmation pending
 **Reported:** 2026-03-23
 **Affects:** v0.11.1 and current (`main`)
 **Branch:** `fix/reader-text-disappearing`
@@ -131,17 +131,32 @@ LaunchedEffect(uiState.typographySettings) {
 }
 ```
 
-### 3. Evaluate `LAYER_TYPE_SOFTWARE` fallback (deferred)
+### 3. Remove forced hardware layer type (critical fix)
 
-**Status:** Deferred — only implement if fixes #1 and #2 prove insufficient.
+The WebView is inside a Compose `verticalScroll` Column, so it renders its entire content height at once. `LAYER_TYPE_HARDWARE` forces the entire View into a single GPU texture. Most mobile GPUs have a maximum texture dimension of 8,192–16,384 CSS pixels. When a long article with large font and wide width exceeds that limit, rendering stops abruptly mid-content — producing exactly the "text cut off with blank space below" symptom.
+
+**Fix:** Change `setLayerType(View.LAYER_TYPE_HARDWARE, null)` to `setLayerType(View.LAYER_TYPE_NONE, null)` in both WebView factory blocks (article and embed). `LAYER_TYPE_NONE` uses standard hardware-accelerated display list rendering with automatic tiling — no single-texture ceiling.
+
+Do **not** use `LAYER_TYPE_SOFTWARE` — that would allocate a massive bitmap in RAM and likely OOM on long articles.
 
 ## Implementation Status
 
 | Fix | Status | Location | Notes |
 |-----|--------|----------|-------|
-| 1. Guard `textZoom` | ✅ Implemented | `BookmarkDetailWebViews.kt` ~line 610 | Prevents spurious relayouts on every recomposition |
-| 2. `postVisualStateCallback` | ✅ Implemented | `BookmarkDetailWebViews.kt` ~lines 227-239 | Uses proven pattern from content-ready detection |
-| 3. Software layer fallback | ⏸️ Deferred | - | Only if fixes 1+2 insufficient |
+| 1. Guard `textZoom` | ✅ Implemented | `BookmarkDetailWebViews.kt` ~line 633 | Prevents spurious relayouts on every recomposition |
+| 2. `postVisualStateCallback` | ✅ Implemented | `BookmarkDetailWebViews.kt` ~lines 243-258 | Uses proven pattern from content-ready detection |
+| 3. `LAYER_TYPE_NONE` | ✅ Implemented | `BookmarkDetailWebViews.kt` lines 391, 868 | Most likely primary fix — eliminates GPU texture size limit |
+
+## Diagnostic Results (2026-04-08)
+
+After applying all three fixes, diagnostic logging was added to compare JS `document.documentElement.scrollHeight` against the Android View's `height` and `measuredHeight` after each typography change.
+
+Over 130 logged typography changes across multiple articles:
+- **Zero measurement desyncs** — JS height and View height maintained a consistent ratio (~2.875x, matching device density) in every single entry
+- View heights reached up to **797,829 device pixels** (277,506 CSS pixels) without truncation — far exceeding the ~8,192–16,384 CSS pixel GPU texture limit that would have applied under `LAYER_TYPE_HARDWARE`
+- Rapid typography toggling (10+ changes in 2 seconds) showed no stale measurements
+
+**Conclusion:** The GPU texture limit from `LAYER_TYPE_HARDWARE` was almost certainly the primary cause. Fixes #1 and #2 are good defensive improvements but were not sufficient on their own. Developer testing shows the issue is resolved; confirmation from the original reporter is pending.
 
 ## Testing Plan
 
