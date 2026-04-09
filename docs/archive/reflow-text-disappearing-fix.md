@@ -1,6 +1,6 @@
 # Fix: Text Disappearing in Reader View During Typography Changes
 
-**Status:** Fix applied, confirmation pending
+**Status:** Fixed (confirmed 2026-04-09)
 **Reported:** 2026-03-23
 **Affects:** v0.11.1 and current (`main`)
 **Branch:** `fix/reader-text-disappearing`
@@ -156,7 +156,7 @@ Over 130 logged typography changes across multiple articles:
 - View heights reached up to **797,829 device pixels** (277,506 CSS pixels) without truncation — far exceeding the ~8,192–16,384 CSS pixel GPU texture limit that would have applied under `LAYER_TYPE_HARDWARE`
 - Rapid typography toggling (10+ changes in 2 seconds) showed no stale measurements
 
-**Conclusion:** The GPU texture limit from `LAYER_TYPE_HARDWARE` was almost certainly the primary cause. Fixes #1 and #2 are good defensive improvements but were not sufficient on their own. Developer testing shows the issue is resolved; confirmation from the original reporter is pending.
+**Conclusion:** The GPU texture limit from `LAYER_TYPE_HARDWARE` was almost certainly the primary cause. Fixes #1 and #2 are good defensive improvements but were not sufficient on their own. Developer testing shows the issue is resolved; confirmed fixed by original reporter on 2026-04-09.
 
 ## Testing Plan
 
