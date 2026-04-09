@@ -828,9 +828,11 @@ private fun BookmarkGridCardMobilePortrait(
                         )
                         bookmark.readingTime?.let {
                             Text(
-                                text = " · $it min",
+                                text = "$it min",
                                 style = MaterialTheme.typography.labelMedium,
-                                maxLines = 1
+                                maxLines = 1,
+                                softWrap = false,
+                                modifier = Modifier.padding(start = 4.dp)
                             )
                         }
                         BookmarkDownloadStatusIndicator(
@@ -1126,9 +1128,11 @@ private fun BookmarkGridCardNarrow(
                     )
                     bookmark.readingTime?.let {
                         Text(
-                            text = " · $it min",
+                            text = "$it min",
                             style = MaterialTheme.typography.labelMedium,
-                            maxLines = 1
+                            maxLines = 1,
+                            softWrap = false,
+                            modifier = Modifier.padding(start = 4.dp)
                         )
                     }
                     BookmarkDownloadStatusIndicator(
@@ -1425,9 +1429,11 @@ private fun BookmarkGridCardWide(
                     )
                     bookmark.readingTime?.let {
                         Text(
-                            text = " · $it min",
+                            text = "$it min",
                             style = MaterialTheme.typography.labelMedium,
-                            maxLines = 1
+                            maxLines = 1,
+                            softWrap = false,
+                            modifier = Modifier.padding(start = 4.dp)
                         )
                     }
                     BookmarkDownloadStatusIndicator(
@@ -1754,9 +1760,11 @@ private fun BookmarkCompactCardNarrow(
                 )
                 bookmark.readingTime?.let {
                     Text(
-                        text = " · $it min",
+                        text = "$it min",
                         style = MaterialTheme.typography.labelMedium,
-                        maxLines = 1
+                        maxLines = 1,
+                        softWrap = false,
+                        modifier = Modifier.padding(start = 4.dp)
                     )
                 }
                 BookmarkDownloadStatusIndicator(
@@ -2028,9 +2036,11 @@ private fun BookmarkCompactCardWide(
                 )
                 bookmark.readingTime?.let {
                     Text(
-                        text = " · $it min",
+                        text = "$it min",
                         style = MaterialTheme.typography.labelMedium,
-                        maxLines = 1
+                        maxLines = 1,
+                        softWrap = false,
+                        modifier = Modifier.padding(start = 4.dp)
                     )
                 }
                 BookmarkDownloadStatusIndicator(
