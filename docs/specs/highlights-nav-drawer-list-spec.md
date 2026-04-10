@@ -11,7 +11,7 @@
 Add a "Highlights" item to the navigation drawer that opens a full-screen list of all highlights across all bookmarks, fetched from the `GET /bookmarks/annotations` API endpoint. Tapping a highlight card navigates to the bookmark's reading view and scrolls to the specific annotation.
 
 This spec also covers two prerequisite bug fixes that must land in the same PR:
-- Relax the `ARTICLE`-only gate on annotation UI so Video/Photo bookmarks can also use it.
+- Relax the remaining `ARTICLE`-only annotation UI gates so Video/Photo bookmarks can also use them.
 - Fix annotation CRUD for video bookmarks (post-mutation HTML refresh currently silently no-ops).
 
 ---
@@ -32,7 +32,7 @@ These bugs are uncovered by the Highlights feature (a user can navigate to a Pho
 
 **Files:** `BookmarkDetailMenu.kt` and `BookmarkDetailScreen.kt`
 
-Three hard-coded `type == ARTICLE` guards restrict annotation UI to articles only. The underlying `HighlightActionWebView` already works for all content types; Readeck's backend supports annotations on photos and videos.
+The codebase has already partially relaxed this behaviour: the top bar and end-of-content reader actions already allow `ARTICLE`, `VIDEO`, and `PHOTO`. The remaining `type == ARTICLE` guards below still restrict parts of the annotation UI to articles only. The underlying `HighlightActionWebView` already works for all content types; Readeck's backend supports annotations on photos and videos.
 
 #### `BookmarkDetailMenu.kt` (line 66–67)
 
@@ -280,6 +280,12 @@ data class BookmarkDetailRoute(
     val annotationId: String? = null,   // NEW: scroll to annotation after load
 )
 ```
+
+Implementation note: in the current app architecture, `BookmarkDetailRoute` is decoded in `AppShell.kt` and its values are passed down to `BookmarkDetailScreen(...)` as plain parameters. The implementation should therefore either:
+- add `annotationId: String?` to `BookmarkDetailScreen(...)` and pass it from each `composable<BookmarkDetailRoute>` call site in `AppShell.kt`, or
+- refactor the entry flow so the screen owns route parsing directly.
+
+Do not assume `BookmarkDetailScreen.kt` currently calls `toRoute()` itself.
 
 ---
 
@@ -552,7 +558,7 @@ NavigationRailItem(
 
 ### 10.3 `AppShell.kt`
 
-In all three NavHost variants (`CompactAppShell`, `MediumAppShell`, `ExpandedAppShell`), add the `composable<HighlightsRoute>` destination and wire the drawer callback:
+In all three NavHost variants (`CompactAppShell`, `MediumAppShell`, `ExpandedAppShell`), add the `composable<HighlightsRoute>` destination and wire the navigation callback:
 
 ```kotlin
 composable<HighlightsRoute> {
@@ -569,23 +575,32 @@ onClickHighlights = {
 }
 ```
 
+Architectural note: this app exposes primary navigation through both the drawer and the navigation rail depending on window size. Highlights must therefore be wired into:
+- `AppDrawerContent.kt`
+- `AppNavigationRailContent.kt`
+- all three shell variants in `AppShell.kt`
+
 ---
 
 ## 11. Scroll-to-Annotation on Entry
 
 When the user taps a highlight card and `BookmarkDetailRoute` is created with a non-null `annotationId`, the reading view must scroll to that annotation after content loads.
 
-**In `BookmarkDetailScreen.kt`**, read the route argument at the composable entry point (alongside the existing `bookmarkId` and `showOriginal` reads) and trigger the scroll:
+**In the current codebase**, `BookmarkDetailScreen.kt` does not read `BookmarkDetailRoute` directly; `AppShell.kt` reads the route and invokes `BookmarkDetailScreen(...)` with primitive parameters. Update that flow first, then trigger the scroll from the screen entry point using the passed-in `annotationId`:
 
 ```kotlin
-// At the top of BookmarkDetailScreen composable, after toRoute():
-val route = navBackStackEntry.toRoute<BookmarkDetailRoute>()
-val initialAnnotationId = route.annotationId
+fun BookmarkDetailScreen(
+    navHostController: NavController,
+    bookmarkId: String?,
+    showOriginal: Boolean = false,
+    annotationId: String? = null,
+) {
+    val initialAnnotationId = annotationId
 
-// Trigger annotation scroll once, after the screen enters composition:
-LaunchedEffect(initialAnnotationId) {
-    val id = initialAnnotationId ?: return@LaunchedEffect
-    viewModel.scrollToAnnotation(id)
+    LaunchedEffect(initialAnnotationId) {
+        val id = initialAnnotationId ?: return@LaunchedEffect
+        viewModel.scrollToAnnotation(id)
+    }
 }
 ```
 
@@ -624,7 +639,8 @@ Add to `values/strings.xml` and all 9 language-variant files (with English as pl
 | `ui/shell/AppDrawerContent.kt` | Add `onClickHighlights` param + drawer item |
 | `ui/shell/AppNavigationRailContent.kt` | Add `onClickHighlights` param + rail item |
 | `ui/shell/AppShell.kt` | Register `HighlightsRoute`; wire `onClickHighlights` in all three shell variants |
-| `ui/detail/BookmarkDetailScreen.kt` | Read `annotationId` from route; call `viewModel.scrollToAnnotation()` |
+| `ui/detail/BookmarkDetailScreen.kt` | Accept `annotationId` parameter; call `viewModel.scrollToAnnotation()` |
+| `ui/shell/AppShell.kt` | Pass `annotationId` from `BookmarkDetailRoute` into `BookmarkDetailScreen(...)` in all shell variants |
 | `ui/detail/components/BookmarkDetailMenu.kt` | Relax `ARTICLE` gate to include `VIDEO` and `PHOTO` |
 | `ui/detail/BookmarkDetailViewModel.kt` | Fix `refreshAnnotationHtml()` for video bookmarks |
 | `res/values/strings.xml` + 9 language files | Add 5 new strings |
@@ -703,7 +719,7 @@ Add the 5 new strings to all 10 language files.
 
 This is an **Opus-class task** (high-capability model required). The implementation spans 15+ files across data, domain, and UI layers. The Highlights list itself is straightforward, but it is entangled with three non-trivial concerns:
 
-1. **Typed navigation with a new optional route parameter** — adding `annotationId` to `BookmarkDetailRoute` requires verifying all existing construction sites compile and that the `toRoute()` deserialization is correct.
+1. **Typed navigation with a new optional route parameter** — adding `annotationId` to `BookmarkDetailRoute` requires verifying all existing construction sites compile and that `AppShell.kt` correctly decodes and forwards it in all three shell variants.
 2. **Cross-screen scroll coordination** — the scroll-to-annotation mechanism depends on a chain of three async steps (route read → ViewModel state → WebView ready → scroll) that must be wired correctly without introducing duplicate scrolls or races.
 3. **Video annotation fix** — understanding the existing `refreshAnnotationHtml` call graph (`hasResources` branch, two separate use-case paths, the `AnnotationRefreshEvent` channel) is required to make a correct, minimal change.
 
