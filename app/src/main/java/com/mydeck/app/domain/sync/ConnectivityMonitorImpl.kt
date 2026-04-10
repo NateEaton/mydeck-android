@@ -55,7 +55,7 @@ class ConnectivityMonitorImpl @Inject constructor(
             }
 
             override fun onLost(network: Network) {
-                trySend(false)
+                trySend(isNetworkAvailable())
             }
         }
 
