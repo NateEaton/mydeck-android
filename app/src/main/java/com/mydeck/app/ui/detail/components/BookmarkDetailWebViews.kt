@@ -189,7 +189,11 @@ fun BookmarkDetailArticle(
         uiState.bookmark.embed
     ) {
         content.value = uiState.bookmark.getContent(uiState.template, isSystemInDarkMode)
-        webViewRef.value?.settings?.textZoom = uiState.typographySettings.fontSizePercent
+        webViewRef.value?.let { webView ->
+            if (webView.settings.textZoom != uiState.typographySettings.fontSizePercent) {
+                webView.settings.textZoom = uiState.typographySettings.fontSizePercent
+            }
+        }
     }
 
     LaunchedEffect(content.value) {
@@ -228,12 +232,30 @@ fun BookmarkDetailArticle(
         webViewRef.value?.let { webView ->
             // Font size still uses textZoom so body text and in-article headings
             // scale together under the current simplified reader model.
-            webView.settings.textZoom = uiState.typographySettings.fontSizePercent
-            // Small delay to let any pending content load finish
-            delay(150)
+            // Guard to avoid spurious relayouts.
+            if (webView.settings.textZoom != uiState.typographySettings.fontSizePercent) {
+                webView.settings.textZoom = uiState.typographySettings.fontSizePercent
+            }
+            // Small delay to let textZoom take effect before applying CSS typography
+            delay(50)
             withContext(Dispatchers.Main) {
                 val js = WebViewTypographyBridge.applyTypography(uiState.typographySettings)
-                webView.evaluateJavascript(js, null)
+                webView.evaluateJavascript(js) {
+                    // Force Compose to re-measure after WebView reflows.
+                    // Use postVisualStateCallback for reliable timing (API 23+).
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                        webView.postVisualStateCallback(
+                            System.currentTimeMillis(),
+                            object : WebView.VisualStateCallback() {
+                                override fun onComplete(requestId: Long) {
+                                    webView.requestLayout()
+                                }
+                            }
+                        )
+                    } else {
+                        webView.postDelayed({ webView.requestLayout() }, 100)
+                    }
+                }
             }
         }
     }
@@ -360,7 +382,7 @@ fun BookmarkDetailArticle(
                         settings.mediaPlaybackRequiresUserGesture = true
                         settings.useWideViewPort = false
                         settings.loadWithOverviewMode = false
-                        setLayerType(View.LAYER_TYPE_HARDWARE, null)
+                        setLayerType(View.LAYER_TYPE_NONE, null)
                         settings.defaultTextEncodingName = "utf-8"
                         isVerticalScrollBarEnabled = false
                         isHorizontalScrollBarEnabled = false
@@ -607,7 +629,10 @@ fun BookmarkDetailArticle(
                 webViewRef.value = it
                 onWebViewChanged(it)
             }
-            it.settings.textZoom = uiState.typographySettings.fontSizePercent
+            // Guard textZoom to avoid spurious relayouts on every recomposition
+            if (it.settings.textZoom != uiState.typographySettings.fontSizePercent) {
+                it.settings.textZoom = uiState.typographySettings.fontSizePercent
+            }
             it.setBackgroundColor(android.graphics.Color.parseColor(readerThemePalette.bodyBackgroundColor))
         }
             )
@@ -834,7 +859,7 @@ fun BookmarkDetailOriginalWebView(
                         settings.mediaPlaybackRequiresUserGesture = false
                         settings.useWideViewPort = true
                         settings.loadWithOverviewMode = true
-                        setLayerType(View.LAYER_TYPE_HARDWARE, null)
+                        setLayerType(View.LAYER_TYPE_NONE, null)
                         settings.defaultTextEncodingName = "utf-8"
                         isVerticalScrollBarEnabled = false
                         isHorizontalScrollBarEnabled = false
