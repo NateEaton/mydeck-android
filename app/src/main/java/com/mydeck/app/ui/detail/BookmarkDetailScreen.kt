@@ -1213,6 +1213,7 @@ fun BookmarkDetailContent(
     onClickToggleArchive: (String, Boolean) -> Unit = { _, _ -> },
     scrollState: ScrollState = rememberScrollState()
 ) {
+    val coroutineScope = rememberCoroutineScope()
     val hasArticleContent = uiState.bookmark.articleContent != null
     val isArticle = uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.ARTICLE
     val needsRestore = isArticle && hasArticleContent && initialReadProgress > 0 && initialReadProgress <= 100
@@ -1428,6 +1429,12 @@ fun BookmarkDetailContent(
                             onLinkLongPress = onLinkLongPress,
                             onTextSelectionCaptured = onTextSelectionCaptured,
                             onAnnotationClicked = onAnnotationClicked,
+                            onFragmentScroll = { absoluteY ->
+                                coroutineScope.launch {
+                                    val targetScroll = (absoluteY + articleTopOffsetPx).toInt().coerceIn(0, scrollState.maxValue)
+                                    scrollState.animateScrollTo(targetScroll)
+                                }
+                            },
                             onVideoEnterFullscreen = onVideoEnterFullscreen,
                             onVideoExitFullscreen = onVideoExitFullscreen,
                         )
