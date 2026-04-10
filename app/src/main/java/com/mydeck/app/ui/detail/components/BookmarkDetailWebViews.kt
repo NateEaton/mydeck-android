@@ -249,12 +249,6 @@ fun BookmarkDetailArticle(
                             object : WebView.VisualStateCallback() {
                                 override fun onComplete(requestId: Long) {
                                     webView.requestLayout()
-                                    // Diagnostic: compare JS content height vs View height
-                                    webView.evaluateJavascript(
-                                        "(document.documentElement.scrollHeight)"
-                                    ) { jsHeight ->
-                                        Timber.d("ReflowDiag: JS scrollHeight=$jsHeight, view height=${webView.height}, view measuredHeight=${webView.measuredHeight}")
-                                    }
                                 }
                             }
                         )

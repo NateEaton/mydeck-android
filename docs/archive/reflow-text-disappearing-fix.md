@@ -165,3 +165,27 @@ Over 130 logged typography changes across multiple articles:
 - Rapidly toggle settings to stress the race condition
 - Test on both phone and emulator (different screen densities)
 - Verify no regression in scroll-position restoration or search highlighting
+
+## Removed Diagnostic Code
+
+**Removed:** Diagnostic logging that called `evaluateJavascript("(document.documentElement.scrollHeight)")` on every typography change in `BookmarkDetailWebViews.kt` (~lines 252–258).
+
+**Purpose:** This code was added during debugging to validate that the fixes were working correctly by comparing JS-measured height (`document.documentElement.scrollHeight`) against Android View height (`view.height` / `view.measuredHeight`). It logged results via Timber as "ReflowDiag" entries.
+
+**Why removed:** 
+- The diagnostic work is complete — 130+ logged typography changes showed zero measurement desyncs and confirmed the fix works
+- Each `evaluateJavascript()` call adds an extra JS round-trip and UI thread callback
+- On long articles or rapid typography toggling, this creates unnecessary overhead and potential jank
+- Not needed in production; removal keeps code clean and performance optimal
+
+**Code removed:**
+```kotlin
+// Diagnostic: compare JS content height vs View height
+webView.evaluateJavascript(
+    "(document.documentElement.scrollHeight)"
+) { jsHeight ->
+    Timber.d("ReflowDiag: JS scrollHeight=$jsHeight, view height=${webView.height}, view measuredHeight=${webView.measuredHeight}")
+}
+```
+
+**The three core fixes remain intact** (guards on `textZoom`, `postVisualStateCallback`, `LAYER_TYPE_NONE`).
