@@ -9,6 +9,7 @@ import com.mydeck.app.domain.model.Theme
 import com.mydeck.app.io.prefs.SettingsDataStore
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import javax.inject.Inject
@@ -17,8 +18,11 @@ import javax.inject.Inject
 class MainViewModel @Inject constructor(
     val settingsDataStore: SettingsDataStore
 ): ViewModel() {
-    val isReady: StateFlow<Boolean> = settingsDataStore.themeFlow
-        .map { true }
+    val isReady: StateFlow<Boolean> = combine(
+        settingsDataStore.themeFlow,
+        settingsDataStore.lightAppearanceFlow,
+        settingsDataStore.darkAppearanceFlow,
+    ) { _, _, _ -> true }
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.Eagerly,
@@ -31,19 +35,19 @@ class MainViewModel @Inject constructor(
         } ?: Theme.SYSTEM
     }.stateIn(
         scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5000),
+        started = SharingStarted.Eagerly,
         initialValue = Theme.SYSTEM
     )
 
     val lightAppearance = settingsDataStore.lightAppearanceFlow.stateIn(
         scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5000),
+        started = SharingStarted.Eagerly,
         initialValue = LightAppearance.PAPER
     )
 
     val darkAppearance = settingsDataStore.darkAppearanceFlow.stateIn(
         scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5000),
+        started = SharingStarted.Eagerly,
         initialValue = DarkAppearance.DARK
     )
 }
