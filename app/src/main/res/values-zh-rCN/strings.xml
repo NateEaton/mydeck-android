@@ -6,6 +6,7 @@
     <string name="account_settings_password_placeholder">密码</string>
     <string name="account_settings_login">登录</string>
     <string name="account_settings_url_error">无效的 URL</string>
+    <string name="account_settings_url_http_warning">Insecure connection — only use on a trusted private network (e.g. Tailscale)</string>
     <string name="favorites">收藏</string>
     <string name="url">URL</string>
     <string name="detail_view_no_content">未找到文章内容</string>

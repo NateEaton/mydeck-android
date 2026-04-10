@@ -8,7 +8,7 @@ To use MyDeck you need access to a running Readeck server.
 
 When you first open MyDeck, you'll see the welcome screen with a **Readeck URL** field pre-filled with `https://`. Enter the address of your Readeck server — for example, `https://readeck.example.com` — and tap **Connect**.
 
-Official MyDeck release builds require an `https://` server URL. If you self-host Readeck without HTTPS, you can still use MyDeck by building a custom APK with insecure HTTP support enabled.
+`http://` URLs are also accepted. If you enter one, a warning will appear below the field noting that the connection is insecure. This is intended for self-hosted setups on a trusted private network — for example, accessing Readeck over [Tailscale](https://tailscale.com/), which encrypts traffic at the network layer even without HTTPS. You can still connect by tapping **Connect** after the warning appears.
 
 If the URL is invalid or the server cannot be reached, an error message will appear below the field. Double-check the address and make sure your device has network access to the server.
 

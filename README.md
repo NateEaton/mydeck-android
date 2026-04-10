@@ -42,7 +42,7 @@ cd mydeck-android
 
 The debug APK will be at `app/build/outputs/apk/githubSnapshot/debug/`. Release builds require signing configuration — refer to the GitHub Actions workflow in `.github/workflows/release.yml`.
 
-If you need a custom insecure release for self-hosting, such as connecting to a local `http://` Readeck instance without TLS or to an HTTPS server signed by a private CA, see the comments in `.github/workflows/release.yml` for the `ALLOW_INSECURE_HTTP_RELEASE` and `ALLOW_USER_CA_RELEASE` build-time flags.
+Standard release builds permit `http://` server URLs (with an in-app warning). If you need to prohibit HTTP entirely in a custom build — for example, to enforce HTTPS in an organisational deployment — set `allowInsecureHttpRelease=false` as a Gradle property or `ALLOW_INSECURE_HTTP_RELEASE=false` as an environment variable. To trust HTTPS servers signed by a private CA, use `ALLOW_USER_CA_RELEASE=true`.
 
 ## Contributing
 

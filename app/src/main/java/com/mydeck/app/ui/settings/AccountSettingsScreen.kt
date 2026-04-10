@@ -93,8 +93,11 @@ fun AccountSettingsScreen(
                     }
                 ),
                 supportingText = {
-                    settingsUiState.urlError?.let {
-                        Text(text = stringResource(it))
+                    when {
+                        settingsUiState.urlError != null ->
+                            Text(text = stringResource(settingsUiState.urlError))
+                        settingsUiState.urlWarning != null ->
+                            Text(text = stringResource(settingsUiState.urlWarning))
                     }
                 }
             )

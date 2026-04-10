@@ -404,4 +404,5 @@
     <string name="sync_status_last_content_sync_label">Last content sync</string>
     <string name="sync_status_next_sync">Next sync: %1$s</string>
     <string name="sync_status_favorites_label">Favorites</string>
+    <string name="account_settings_url_http_warning">Insecure connection — only use on a trusted private network (e.g. Tailscale)</string>
 </resources>

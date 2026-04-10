@@ -51,6 +51,7 @@ class AccountSettingsViewModel @Inject constructor(
     data class AccountSettingsUiState(
         val url: String = "https://",
         val urlError: Int? = null,
+        val urlWarning: Int? = null,
         val loginEnabled: Boolean = true,
         val isLoggedIn: Boolean = false,
         val authStatus: AuthStatus = AuthStatus.Idle,
@@ -300,7 +301,12 @@ class AccountSettingsViewModel @Inject constructor(
     private fun validateUrl(value: String) {
         val isUrlValid = isValidUrlForCurrentSettings(value)
         val urlError = if (!isUrlValid && value.isNotEmpty()) {
-            com.mydeck.app.R.string.account_settings_url_error // Use resource ID
+            com.mydeck.app.R.string.account_settings_url_error
+        } else {
+            null
+        }
+        val urlWarning = if (isUrlValid && BuildConfig.ALLOW_INSECURE_HTTP && value.trim().lowercase().startsWith("http://")) {
+            com.mydeck.app.R.string.account_settings_url_http_warning
         } else {
             null
         }
@@ -308,7 +314,8 @@ class AccountSettingsViewModel @Inject constructor(
             it.copy(
                 url = value,
                 urlError = urlError,
-                loginEnabled = isUrlValid // OAuth only needs valid URL
+                urlWarning = urlWarning,
+                loginEnabled = isUrlValid
             )
         }
     }

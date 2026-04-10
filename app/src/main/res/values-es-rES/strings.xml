@@ -17,6 +17,7 @@
     <string name="account_settings_password_placeholder">contraseña</string>
     <string name="account_settings_login">Iniciar sesión</string>
     <string name="account_settings_url_error">URL no válida</string>
+    <string name="account_settings_url_http_warning">Insecure connection — only use on a trusted private network (e.g. Tailscale)</string>
     <string name="account_settings_username_error">Debes escribir el identificador</string>
     <string name="account_settings_password_error">Debes escribir una contraseña</string>
     <string name="authors" translatable="true">
