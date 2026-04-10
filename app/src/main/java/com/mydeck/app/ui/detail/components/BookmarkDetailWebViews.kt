@@ -21,6 +21,7 @@ import com.mydeck.app.domain.model.SelectionData
 import com.mydeck.app.ui.detail.WebViewAnnotationBridge
 import com.mydeck.app.ui.detail.WebViewImageBridge
 import com.mydeck.app.ui.detail.WebViewAnnotationTapBridge
+import com.mydeck.app.ui.detail.WebViewTocBridge
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -106,6 +107,7 @@ fun BookmarkDetailArticle(
     onLinkLongPress: (linkUrl: String, linkText: String) -> Unit = { _, _ -> },
     onTextSelectionCaptured: (SelectionData) -> Unit = {},
     onAnnotationClicked: (String) -> Unit = {},
+    onFragmentScroll: (absoluteY: Int) -> Unit = {},
     onVideoEnterFullscreen: (View, android.webkit.WebChromeClient.CustomViewCallback?) -> Unit = { _, _ -> },
     onVideoExitFullscreen: (VideoFullscreenDismissSource) -> Unit = {},
 ) {
@@ -140,6 +142,7 @@ fun BookmarkDetailArticle(
     val json = remember { Json { ignoreUnknownKeys = true } }
     val latestSelectionHandler = rememberUpdatedState(onTextSelectionCaptured)
     val latestAnnotationClickHandler = rememberUpdatedState(onAnnotationClicked)
+    val latestFragmentScrollHandler = rememberUpdatedState(onFragmentScroll)
     val latestTypographySettings = rememberUpdatedState(uiState.typographySettings)
     val latestThemePalette = rememberUpdatedState(readerThemePalette)
     val latestThemeScript = rememberUpdatedState(WebViewThemeBridge.applyTheme(readerThemePalette))
@@ -404,6 +407,14 @@ fun BookmarkDetailArticle(
                             ),
                             WebViewAnnotationTapBridge.BRIDGE_NAME
                         )
+                        addJavascriptInterface(
+                            WebViewTocBridge(
+                                onFragmentScroll = { absoluteY ->
+                                    latestFragmentScrollHandler.value(absoluteY)
+                                }
+                            ),
+                            WebViewTocBridge.BRIDGE_NAME
+                        )
                         webChromeClient = object : android.webkit.WebChromeClient() {
                             override fun onShowCustomView(
                                 view: View?,
@@ -428,7 +439,7 @@ fun BookmarkDetailArticle(
 
                             override fun onConsoleMessage(consoleMessage: ConsoleMessage): Boolean {
                                 val message = consoleMessage.message()
-                                if (message.contains("[AnnotationTap]")) {
+                                if (message.contains("[AnnotationTap]") || message.contains("[TocNav]")) {
                                     Timber.d(
                                         "%s line=%d source=%s",
                                         message,
@@ -499,6 +510,8 @@ fun BookmarkDetailArticle(
                                 webView.evaluateJavascript(imageJs, null)
                                 val annotationJs = WebViewAnnotationBridge.injectAnnotationInteractions()
                                 webView.evaluateJavascript(annotationJs, null)
+                                val tocJs = WebViewTocBridge.injectFragmentLinkInterceptor()
+                                webView.evaluateJavascript(tocJs, null)
                             }
 
                             private fun reportReadyIfNeeded(webView: WebView?) {

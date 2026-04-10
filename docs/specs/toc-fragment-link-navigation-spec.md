@@ -1,6 +1,6 @@
 # In-Article Fragment Link Navigation — Technical Specification
 
-**Status:** Ready for implementation
+**Status:** Implemented (2026-04-10)
 **Date:** 2026-04-04
 **Supersedes:** `_notes/toc-fragment-link-navigation-spec.md`
 
@@ -8,7 +8,7 @@
 
 ## 1. Purpose
 
-Enable same-page anchor links (e.g. table-of-contents links) to work in the reader WebView. Currently, tapping a TOC link does nothing. This spec describes why that happens and exactly how to fix it, with full code-level detail.
+Enable same-page anchor links (e.g. table-of-contents links) to work in the reader WebView. Tapping a TOC link now scrolls the article to the target heading. Intrapage links are visually distinguished from external links via a dashed underline.
 
 ---
 
@@ -18,12 +18,6 @@ Article HTML returned by the Readeck API can include a table of contents generat
 
 ```html
 <a href="#uY.XlwQ.Seek_Using_-ss_Parameter">Seek Using -ss Parameter</a>
-```
-
-The target heading carries a matching `id` attribute:
-
-```html
-<h2 id="uY.XlwQ.Seek_Using_-ss_Parameter">Seek Using -ss Parameter</h2>
 ```
 
 Readeck's sanitiser prefixes IDs and fragment hrefs with a per-article token (e.g. `uY.XlwQ.`) to prevent ID collisions when multiple articles are rendered in the same page. The prefix does not affect correctness on Android because each article is loaded in its own WebView.
@@ -50,150 +44,92 @@ No Compose layout changes are required. The `scrollState` is already a parameter
 
 ### 4.2 New file: `WebViewTocBridge.kt`
 
-Create `app/src/main/java/com/mydeck/app/ui/detail/WebViewTocBridge.kt`. Following the pattern of `WebViewAnnotationTapBridge`, the bridge class owns the `@JavascriptInterface` method and the companion object holds the injected JS and bridge name constant.
+`app/src/main/java/com/mydeck/app/ui/detail/WebViewTocBridge.kt`
 
-```kotlin
-package com.mydeck.app.ui.detail
+The bridge class owns the `@JavascriptInterface` method. The companion object holds the injected JS and bridge name constant. The JS uses a delegated click listener on `.container` (the same pattern as `WebViewAnnotationBridge`) rather than attaching listeners to individual `<a>` elements — this avoids losing listeners when the DOM is updated by annotation refresh.
 
-import android.os.Handler
-import android.os.Looper
-import android.webkit.JavascriptInterface
-import timber.log.Timber
+Key implementation details that differ from the original spec:
 
-/**
- * JavaScript-to-native bridge for fragment link (TOC) navigation in the reader WebView.
- *
- * Registered on the WebView as "MyDeckTocBridge".
- * Called from injected JavaScript when the user taps an in-page anchor link.
- */
-class WebViewTocBridge(
-    private val onFragmentScroll: (absoluteY: Int) -> Unit,
-) {
-    @JavascriptInterface
-    fun onFragmentLinkTapped(absoluteY: Int) {
-        // @JavascriptInterface methods run on a background thread.
-        Handler(Looper.getMainLooper()).post {
-            Timber.d("[TocNav] Fragment link tapped, absoluteY=%d", absoluteY)
-            onFragmentScroll(absoluteY)
-        }
-    }
+1. **Delegated listener on `.container`**, not per-element listeners. Matches the annotation bridge pattern and survives DOM mutations.
 
-    companion object {
-        const val BRIDGE_NAME = "MyDeckTocBridge"
+2. **`window.mydeckTocInstalled` guard** prevents duplicate listener registration when `applyReaderEnhancements` fires twice (once from `onPageCommitVisible`, once from `onPageFinished`).
 
-        /**
-         * Returns JavaScript to inject after page load.
-         *
-         * Attaches click interceptors to all <a href="#..."> elements in the
-         * document. On click, prevents the WebView's own fragment-scroll attempt
-         * (which is a no-op because Compose owns the scroll), resolves the target
-         * element's absolute Y position, and reports it to Kotlin via the bridge.
-         *
-         * Uses an attribute selector `[id="targetId"]` rather than querySelector
-         * with a CSS ID selector (`#uY.XlwQ.foo`) because dots in the Readeck-
-         * prefixed IDs would be misinterpreted as class selectors.
-         */
-        fun injectFragmentLinkInterceptor(): String {
-            return """
-                (function() {
-                    'use strict';
-                    var links = document.querySelectorAll('a[href^="#"]');
-                    links.forEach(function(a) {
-                        a.addEventListener('click', function(e) {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            var href = a.getAttribute('href');
-                            if (!href || href.length < 2) return;
-                            var targetId = href.slice(1);
-                            var el = document.querySelector('[id="' + targetId + '"]');
-                            if (!el) return;
-                            var rect = el.getBoundingClientRect();
-                            // window.scrollY is always 0 because Compose owns the
-                            // scroll, but include it for correctness.
-                            var absoluteY = Math.round(rect.top + window.scrollY);
-                            MyDeckTocBridge.onFragmentLinkTapped(absoluteY);
-                        }, true);
-                    });
-                })();
-            """.trimIndent()
-        }
-    }
-}
-```
+3. **Bridge availability check**: `window['MyDeckTocBridge']` is tested before use; if missing, the IIFE exits cleanly with a log.
+
+4. **`devicePixelRatio` conversion**: `getBoundingClientRect().top` returns CSS pixels. `scrollState.animateScrollTo` expects physical pixels. The JS multiplies by `window.devicePixelRatio` before sending to Kotlin.
+
+5. **Heading text fallback**: Readeck's sanitiser strips `id` attributes from headings. `querySelector('[id="..."]')` therefore returns null for TOC targets even though the TOC `href` is correct. When the id lookup fails, the JS strips the per-article prefix from the fragment ID (e.g. `eK.sfkN.CutTrim_With_Re-encoding` → `CutTrim_With_Re-encoding`), normalises underscores to spaces and removes non-alphanumeric characters, then matches the first heading whose normalised text content equals the normalised fragment. This correctly maps `CutTrim_With_Re-encoding` to the heading `<h2>Cut/Trim With Re-encoding</h2>`.
 
 ### 4.3 Changes to `BookmarkDetailWebViews.kt`
 
-**File:** `app/src/main/java/com/mydeck/app/ui/detail/components/BookmarkDetailWebViews.kt`
-
-Three changes are required, all within `BookmarkDetailArticle`:
+Three changes within `BookmarkDetailArticle`:
 
 #### 4.3.1 Add callback parameter
-
-Add an `onFragmentScroll` parameter to `BookmarkDetailArticle` alongside the existing `onAnnotationClicked`, `onImageTapped`, etc.:
 
 ```kotlin
 onFragmentScroll: (absoluteY: Int) -> Unit = {},
 ```
 
-Place it after `onAnnotationClicked`.
+Placed after `onAnnotationClicked`. Default is a no-op so no existing call sites break.
 
-#### 4.3.2 Register the bridge on the WebView
+#### 4.3.2 Capture callback with `rememberUpdatedState`
 
-In the `AndroidView` `factory` block, after the existing `addJavascriptInterface` call for `WebViewAnnotationTapBridge`, add:
+```kotlin
+val latestFragmentScrollHandler = rememberUpdatedState(onFragmentScroll)
+```
+
+Added alongside `latestAnnotationClickHandler`. The bridge lambda references `latestFragmentScrollHandler.value` rather than capturing `onFragmentScroll` directly, matching the annotation bridge pattern and ensuring the lambda always calls the current callback without holding a stale reference.
+
+#### 4.3.3 Register the bridge on the WebView
+
+In the `AndroidView` `factory` block, after the `WebViewAnnotationTapBridge` registration:
 
 ```kotlin
 addJavascriptInterface(
     WebViewTocBridge(
         onFragmentScroll = { absoluteY ->
-            coroutineScope.launch {
-                scrollState.animateScrollTo(absoluteY)
-            }
+            latestFragmentScrollHandler.value(absoluteY)
         }
     ),
     WebViewTocBridge.BRIDGE_NAME
 )
 ```
 
-Note: `coroutineScope` and `scrollState` are both captured by the lambda closure. `coroutineScope` is already in scope from `rememberCoroutineScope()` at line 143 of the file. `scrollState` is a parameter of `BookmarkDetailArticle`.
-
-#### 4.3.3 Inject the JS in `applyReaderEnhancements`
-
-In `applyReaderEnhancements(webView: WebView)` (currently at line 472), add the fragment interceptor after the existing injections:
+#### 4.3.4 Inject the JS in `applyReaderEnhancements`
 
 ```kotlin
-private fun applyReaderEnhancements(webView: WebView) {
-    val typographyJs = WebViewTypographyBridge.applyTypography(latestTypographySettings.value)
-    applyTheme(webView)
-    webView.evaluateJavascript(typographyJs, null)
-    val imageJs = WebViewImageBridge.injectImageInterceptor()
-    webView.evaluateJavascript(imageJs, null)
-    val annotationJs = WebViewAnnotationBridge.injectAnnotationInteractions()
-    webView.evaluateJavascript(annotationJs, null)
-    // NEW: fragment link (TOC) interceptor
-    val tocJs = WebViewTocBridge.injectFragmentLinkInterceptor()
-    webView.evaluateJavascript(tocJs, null)
-}
+val tocJs = WebViewTocBridge.injectFragmentLinkInterceptor()
+webView.evaluateJavascript(tocJs, null)
 ```
 
-`applyReaderEnhancements` is called in both `onPageCommitVisible` and `onPageFinished`, so the interceptor is registered on both paths.
+Added after the annotation JS injection. `applyReaderEnhancements` is called in both `onPageCommitVisible` and `onPageFinished`; the `window.mydeckTocInstalled` guard prevents double-registration.
 
 ### 4.4 Changes to `BookmarkDetailScreen.kt`
 
-**File:** `app/src/main/java/com/mydeck/app/ui/detail/BookmarkDetailScreen.kt`
-
-Pass the callback through from `BookmarkDetailArticle`'s call site. Locate where `BookmarkDetailArticle` is called inside `BookmarkDetailArticleContent` (or equivalent) and add:
+`coroutineScope` is added via `rememberCoroutineScope()` at the top of `BookmarkDetailContent`. The `onFragmentScroll` callback is wired at the `BookmarkDetailArticle` call site, adding `articleTopOffsetPx` (the physical-pixel offset of the WebView's top edge within the scroll container) to the raw Y value before scrolling:
 
 ```kotlin
 onFragmentScroll = { absoluteY ->
     coroutineScope.launch {
-        scrollState.animateScrollTo(absoluteY)
+        val targetScroll = (absoluteY + articleTopOffsetPx).toInt().coerceIn(0, scrollState.maxValue)
+        scrollState.animateScrollTo(targetScroll)
     }
 }
 ```
 
-The `scrollState` is already available at that call site (it is threaded into `BookmarkDetailArticle` as a parameter). `coroutineScope` is available via `rememberCoroutineScope()`.
+This offset is required because `absoluteY` is relative to the WebView's own coordinate space; `scrollState` is relative to the top of the entire scroll container (which includes the article header above the WebView).
 
-**Optional offset:** Subtract the top-bar height (in pixels) from `absoluteY` before scrolling to leave visual breathing room above the heading, consistent with how annotation scrolling targets are handled. This is a polish decision — the basic implementation does not require it.
+### 4.5 Visual styling of intrapage links
+
+A CSS rule is added to all four HTML templates (`html_template_light.html`, `html_template_dark.html`, `html_template_black.html`, `html_template_sepia.html`) to visually distinguish intrapage links from external links:
+
+```css
+a[href^="#"] {
+  text-decoration-style: dashed;
+}
+```
+
+All other link properties (colour, underline offset, thickness) are inherited from the base `a` rule. This applies to all `href="#..."` links — TOC links, Wikipedia footnote citations, and any other same-page anchors — which is intentional: all are navigable within the page.
 
 ---
 
@@ -213,43 +149,30 @@ The `scrollState` is already available at that call site (it is threaded into `B
 | File | Change |
 |------|--------|
 | `ui/detail/WebViewTocBridge.kt` | **New file.** Bridge class + `injectFragmentLinkInterceptor()` JS. |
-| `ui/detail/components/BookmarkDetailWebViews.kt` | Add `onFragmentScroll` param; register `WebViewTocBridge`; call `injectFragmentLinkInterceptor()` in `applyReaderEnhancements()`. |
-| `ui/detail/BookmarkDetailScreen.kt` | Pass `onFragmentScroll` callback at `BookmarkDetailArticle` call site. |
+| `ui/detail/components/BookmarkDetailWebViews.kt` | Add `onFragmentScroll` param + `rememberUpdatedState`; register `WebViewTocBridge`; call `injectFragmentLinkInterceptor()` in `applyReaderEnhancements()`. |
+| `ui/detail/BookmarkDetailScreen.kt` | Add `rememberCoroutineScope()`; pass `onFragmentScroll` callback with `articleTopOffsetPx` offset at `BookmarkDetailArticle` call site. |
+| `assets/html_template_light.html` | Add `a[href^="#"]` dashed underline rule. |
+| `assets/html_template_dark.html` | Add `a[href^="#"]` dashed underline rule. |
+| `assets/html_template_black.html` | Add `a[href^="#"]` dashed underline rule. |
+| `assets/html_template_sepia.html` | Add `a[href^="#"]` dashed underline rule. |
 
 ---
 
-## 7. Implementation Plan
+## 7. Implementation Notes (Post-Hoc)
 
-Execute steps in order. Each step is self-contained and builds cleanly on the previous one.
+Issues discovered during implementation that were not anticipated in the original spec:
 
-### Step 1 — Create `WebViewTocBridge.kt`
+### JS listener strategy
+The original spec used per-element `addEventListener` on each `a[href^="#"]`. This was replaced with a single delegated listener on `.container`, matching the annotation bridge's proven pattern. Benefits: survives DOM mutations, no duplicate listeners on double-injection, simpler.
 
-Create the new file at `app/src/main/java/com/mydeck/app/ui/detail/WebViewTocBridge.kt` with the full class body from section 4.2.
+### CSS pixel vs physical pixel mismatch
+`getBoundingClientRect().top` returns CSS pixels. `scrollState.animateScrollTo` takes physical pixels. The original spec omitted the `devicePixelRatio` multiplication, which would cause the scroll to undershoot by the display density factor (3× on a typical device).
 
-**Verify:** The file compiles independently. No other files changed yet.
+### `onFragmentScroll` callback bypass
+The bridge must call through `latestFragmentScrollHandler.value` (a `rememberUpdatedState` wrapper), not directly call `scrollState.animateScrollTo`. The `BookmarkDetailScreen.kt` callback adds the `articleTopOffsetPx` offset that maps WebView-relative Y to scroll-container-relative Y. Bypassing it causes scrolls to land in the wrong position.
 
-### Step 2 — Wire bridge and callback in `BookmarkDetailWebViews.kt`
-
-1. Add `import com.mydeck.app.ui.detail.WebViewTocBridge` to the import block.
-2. Add `onFragmentScroll: (absoluteY: Int) -> Unit = {}` to `BookmarkDetailArticle`'s parameter list, after `onAnnotationClicked`.
-3. In the `AndroidView` factory block, after the `WebViewAnnotationTapBridge` registration, add the `WebViewTocBridge` registration (code in section 4.3.2).
-4. In `applyReaderEnhancements`, add the two lines that call `injectFragmentLinkInterceptor()` (section 4.3.3).
-
-**Verify:** Project compiles. The new parameter has a default value so no existing call sites break.
-
-### Step 3 — Pass callback in `BookmarkDetailScreen.kt`
-
-Find the call site(s) of `BookmarkDetailArticle` inside `BookmarkDetailScreen.kt` and add `onFragmentScroll` (section 4.4).
-
-**Verify:** Project compiles. Run the app on a debug build; open an article with a TOC (e.g. a long Wikipedia article cached or fetched via Readeck); tap a TOC link; confirm the article scrolls to the correct heading.
-
-### Step 4 — Build validation
-
-```
-./gradlew :app:assembleDebugAll
-./gradlew :app:testDebugUnitTestAll
-./gradlew :app:lintDebugAll
-```
+### Readeck strips heading IDs
+Readeck's sanitiser removes `id` attributes from heading elements, keeping them only on wrapper `<div>` containers. A `querySelector('[id="..."]')` lookup therefore fails for TOC targets even though the TOC `href` value is correct. The heading text normalisation fallback is required for correct operation with real Readeck content.
 
 ---
 
@@ -259,9 +182,3 @@ Find the call site(s) of `BookmarkDetailArticle` inside `BookmarkDetailScreen.kt
 - Back-navigation after following a TOC link (user can scroll back manually).
 - Highlighting the active TOC entry.
 - Multi-column or paginated reading modes (not implemented in this app).
-
----
-
-## 9. Model Complexity Assessment
-
-This is a **Sonnet-class task** (mid-tier model sufficient). The implementation is three small, well-bounded changes across three files with no new architecture, no new data models, and no async complexity beyond a single `coroutineScope.launch`. The primary risk is an incorrect lambda capture (e.g. stale `scrollState`), but the existing annotation tap and search-scroll patterns demonstrate the correct idiom to follow. A capable model reading this spec alongside the three target files can complete the implementation correctly in a single pass without further research.
