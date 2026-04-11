@@ -74,6 +74,10 @@ import kotlinx.serialization.json.Json
 import timber.log.Timber
 import java.io.ByteArrayInputStream
 
+// NOTE: READPOS and [LongPress] log statements throughout this file are intentionally
+// retained. They provide diagnostic visibility into WebView scroll position tracking
+// and hit-test behaviour needed for the planned WebView/Compose rearchitecture.
+// See docs/specs/webview-scroll-rearchitecture.md before removing.
 private const val ReadPositionLogPrefix = "READPOS"
 
 private inline fun logReadPos(message: () -> String) {
