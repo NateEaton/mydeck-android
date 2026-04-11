@@ -93,18 +93,25 @@ The menu includes visual dividers to separate related actions and destructive ac
 
 ## Links in Content
 
-Tapping a link within bookmark content (articles, pictures with descriptions, or videos with text) opens the associated web page in your device's default browser.
+Tapping a link within bookmark content (articles, pictures with descriptions, or videos with text) opens the associated web page in a Chrome overlay without leaving the app.
 
-In every reading appearance, article links use a subtle underline so they are easier to distinguish from body text while reading. In **Paper**, **Dark**, and **Black**, link and other accent colors follow the current system accent on supported Android versions, while **Sepia** keeps its own curated palette.
+Some articles include same-page links — table of contents entries, footnote citations, and similar anchors that jump to another section of the same article rather than opening a new page. Tapping a same-page link scrolls the article to the target section.
+
+In every reading appearance, article links use a subtle underline so they are easier to distinguish from body text while reading. Same-page links use a **dashed underline** to distinguish them from links that open external pages. In **Paper**, **Dark**, and **Black**, link and other accent colors follow the current system accent on supported Android versions, while **Sepia** keeps its own curated palette.
 
 ## Long-press Context Menus
 
 Long-pressing on links or images within bookmark content opens a context menu dialog with quick actions. The dialog header shows the URL or image source — tap the header to expand truncated text, tap again to collapse.
 
-**Link long-press:**
+**External link long-press:**
 - Copy link address
 - Copy link text
 - Download link
+- Share link
+- Open in browser
+
+**Same-page link long-press** (dashed underline):
+- Copy link address
 - Share link
 - Open in browser
 

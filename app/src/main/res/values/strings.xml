@@ -562,6 +562,7 @@ other{}
     <!-- Label autocomplete -->
     <string name="label_suggestion_hint">Suggestions</string>
     <!-- Long-press body actions -->
+    <string name="reader_intrapage_link_label">Section in this article</string>
     <string name="action_copy_link">Copy link address</string>
     <string name="action_copy_link_text">Copy link text</string>
     <string name="action_share_link">Share link</string>

@@ -155,6 +155,12 @@ All other link properties (colour, underline offset, thickness) are inherited fr
 | `assets/html_template_dark.html` | Add `a[href^="#"]` dashed underline rule. |
 | `assets/html_template_black.html` | Add `a[href^="#"]` dashed underline rule. |
 | `assets/html_template_sepia.html` | Add `a[href^="#"]` dashed underline rule. |
+| `ui/detail/components/BookmarkDetailWebViews.kt` | Detect intrapage links in `SRC_ANCHOR_TYPE` handler; strip Readeck prefix from fragment; construct canonical URL; call `onIntrapageLinkLongPress`. |
+| `ui/detail/BookmarkDetailScreen.kt` | Add `onIntrapageLinkLongPress` callback chain; `isIntrapage` flag in dialog; link icon + "Section in this article" subtitle for intrapage variant. |
+| `ui/detail/BookmarkDetailViewModel.kt` | Add `onShowIntrapageLinkContextMenu()`; add `isIntrapage` field to `ReaderContextMenuState`. |
+| `ui/components/LongPressContextMenuDialog.kt` | Add `headerIcon: ImageVector?` parameter as alternative to `headerImageUrl`; renders icon in secondary container when set. |
+| `res/values*/strings.xml` | Add `reader_intrapage_link_label` ("Section in this article") to all 10 locale files. |
+| `assets/guide/en/reading.md` | Document same-page link navigation, dashed underline, and separate long-press action sets for external vs same-page links. |
 
 ---
 
@@ -173,6 +179,18 @@ The bridge must call through `latestFragmentScrollHandler.value` (a `rememberUpd
 
 ### Readeck strips heading IDs
 Readeck's sanitiser removes `id` attributes from heading elements, keeping them only on wrapper `<div>` containers. A `querySelector('[id="..."]')` lookup therefore fails for TOC targets even though the TOC `href` value is correct. The heading text normalisation fallback is required for correct operation with real Readeck content.
+
+### Long-press context menu for intrapage links
+The WebView's `setOnLongClickListener` fires for all `SRC_ANCHOR_TYPE` hits including fragment links. Detection: `hitTestResult.extra` for an `href="#foo"` link resolves to `about:blank#foo` (online articles, null base URL) or `https://offline.mydeck.local/...#foo` (offline articles). Both cases are caught by checking that the URL contains `#` and the portion before `#` is either empty, `about:blank`, or the offline asset host.
+
+For intrapage links, the Readeck prefix is stripped from the fragment (e.g. `Av.YUgq.cite_note-1` → `cite_note-1`) and the canonical URL is constructed as `bookmark.url + "#" + strippedFragment`. A tailored context menu is shown via a separate `onIntrapageLinkLongPress` callback chain, with `isIntrapage = true` set on `ReaderContextMenuState`.
+
+The intrapage dialog variant shows: a `Link` icon in a secondary container box (instead of the site favicon), the link text as title, "Section in this article" as subtitle, and three actions: Copy link address, Share link, Open in browser. "Copy link text" and "Download link" are omitted as they are not meaningful for section anchors.
+
+`LongPressContextMenuDialog` was extended with an optional `headerIcon: ImageVector?` parameter. When set it takes precedence over `headerImageUrl` and renders the icon tinted in `onSecondaryContainer` on a `secondaryContainer` background, matching the app's M3 colour system.
+
+### User guide
+`reading.md` was not updated in the initial implementation. Added documentation for same-page link navigation, dashed underline styling, and separate long-press action sets for external vs same-page links.
 
 ---
 

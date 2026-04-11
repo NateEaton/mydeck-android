@@ -388,6 +388,7 @@ other{}
     <string name="select_bookmark">Seleccionar un marcador para leer</string>
     <string name="long_press_for_options">Mantén presionado para opciones</string>
     <string name="label_suggestion_hint">Sugerencias</string>
+    <string name="reader_intrapage_link_label">Section in this article</string>
     <string name="action_copy_link">Copiar dirección del enlace</string>
     <string name="action_copy_link_text">Copiar texto del enlace</string>
     <string name="action_share_link">Compartir enlace</string>

@@ -105,6 +105,7 @@ fun BookmarkDetailArticle(
     onImageTapped: (ImageGalleryData) -> Unit = {},
     onImageLongPress: (imageUrl: String, linkUrl: String?, linkType: String, imageAlt: String) -> Unit = { _, _, _, _ -> },
     onLinkLongPress: (linkUrl: String, linkText: String) -> Unit = { _, _ -> },
+    onIntrapageLinkLongPress: (linkUrl: String, linkText: String) -> Unit = { _, _ -> },
     onTextSelectionCaptured: (SelectionData) -> Unit = {},
     onAnnotationClicked: (String) -> Unit = {},
     onFragmentScroll: (absoluteY: Int) -> Unit = {},
@@ -143,6 +144,7 @@ fun BookmarkDetailArticle(
     val latestSelectionHandler = rememberUpdatedState(onTextSelectionCaptured)
     val latestAnnotationClickHandler = rememberUpdatedState(onAnnotationClicked)
     val latestFragmentScrollHandler = rememberUpdatedState(onFragmentScroll)
+    val latestIntrapageLinkLongPressHandler = rememberUpdatedState(onIntrapageLinkLongPress)
     val latestTypographySettings = rememberUpdatedState(uiState.typographySettings)
     val latestThemePalette = rememberUpdatedState(readerThemePalette)
     val latestThemeScript = rememberUpdatedState(WebViewThemeBridge.applyTheme(readerThemePalette))
@@ -575,6 +577,7 @@ fun BookmarkDetailArticle(
                         setOnLongClickListener { view ->
                             val webView = view as WebView
                             val result = webView.hitTestResult
+                            Timber.d("[LongPress] type=%d extra=%s", result.type, result.extra)
                             val imageExtRe = Regex(
                                 """\.(jpg|jpeg|png|gif|webp|svg|bmp|tiff|avif)(\?.*)?$""",
                                 RegexOption.IGNORE_CASE
@@ -591,6 +594,34 @@ fun BookmarkDetailArticle(
                                 }
                                 WebView.HitTestResult.SRC_ANCHOR_TYPE -> {
                                     val linkUrl = result.extra ?: ""
+                                    // Intrapage fragment links resolve to "about:blank#id" (online)
+                                    // or "https://offline.mydeck.local/...#id" (offline).
+                                    // Construct the canonical URL (bookmark origin + fragment) and
+                                    // show a tailored context menu via onIntrapageLinkLongPress.
+                                    val baseUrl = linkUrl.substringBefore("#")
+                                    val isIntrapage = linkUrl.contains("#") &&
+                                        (baseUrl.isEmpty() || baseUrl == "about:blank" ||
+                                            baseUrl.startsWith("https://${OfflineContentPathHandler.OFFLINE_HOST}"))
+                                    if (isIntrapage) {
+                                        // Strip the Readeck per-article prefix (e.g. "Av.YUgq.")
+                                        // from the fragment to recover the original anchor ID.
+                                        val rawFragment = linkUrl.substringAfter("#")
+                                        val firstDot = rawFragment.indexOf('.')
+                                        val secondDot = if (firstDot >= 0) rawFragment.indexOf('.', firstDot + 1) else -1
+                                        val fragment = if (secondDot >= 0) rawFragment.substring(secondDot + 1) else rawFragment
+                                        val canonicalUrl = uiState.bookmark.url.trimEnd('/') + "#" + fragment
+                                        Timber.d("[LongPress] intrapage detected, canonicalUrl=%s", canonicalUrl)
+                                        webView.evaluateJavascript(
+                                            WebViewImageBridge.getLinkTextForUrl(linkUrl)
+                                        ) { text ->
+                                            Timber.d("[LongPress] intrapage js callback text=%s", text)
+                                            latestIntrapageLinkLongPressHandler.value(
+                                                canonicalUrl,
+                                                WebViewImageBridge.decodeJsString(text)
+                                            )
+                                        }
+                                        return@setOnLongClickListener true
+                                    }
                                     webView.evaluateJavascript(
                                         WebViewImageBridge.getLinkTextForUrl(linkUrl)
                                     ) { text ->

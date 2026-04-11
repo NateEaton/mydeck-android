@@ -64,6 +64,7 @@ import androidx.compose.material.icons.outlined.FormatSize
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Inventory2
 import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.Link
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Refresh
@@ -395,6 +396,7 @@ fun BookmarkDetailHost(
         viewModel.onShowImageContextMenu(imageUrl, imageAlt, linkUrl, linkType)
     }
     val onLinkLongPress = { linkUrl: String, linkText: String -> viewModel.onShowLinkContextMenu(linkUrl, linkText) }
+    val onIntrapageLinkLongPress = { linkUrl: String, linkText: String -> viewModel.onShowIntrapageLinkContextMenu(linkUrl, linkText) }
 
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
@@ -563,6 +565,7 @@ fun BookmarkDetailHost(
                     onImageTapped = onImageTapped,
                     onImageLongPress = onImageLongPress,
                     onLinkLongPress = onLinkLongPress,
+                    onIntrapageLinkLongPress = onIntrapageLinkLongPress,
                     onTextSelectionCaptured = { selectionData ->
                         showSelectionAnnotationEditor(uiState.bookmark.bookmarkId, selectionData)
                     },
@@ -768,6 +771,7 @@ fun BookmarkDetailScreen(
     onImageTapped: (ImageGalleryData) -> Unit = {},
     onImageLongPress: (imageUrl: String, linkUrl: String?, linkType: String, imageAlt: String) -> Unit = { _, _, _, _ -> },
     onLinkLongPress: (linkUrl: String, linkText: String) -> Unit = { _, _ -> },
+    onIntrapageLinkLongPress: (linkUrl: String, linkText: String) -> Unit = { _, _ -> },
     onTextSelectionCaptured: (com.mydeck.app.domain.model.SelectionData) -> Unit = {},
     onAnnotationClicked: (String) -> Unit = {},
     pendingAnnotationScrollId: String? = null,
@@ -941,6 +945,7 @@ fun BookmarkDetailScreen(
                     onImageTapped = onImageTapped,
                     onImageLongPress = onImageLongPress,
                     onLinkLongPress = onLinkLongPress,
+                    onIntrapageLinkLongPress = onIntrapageLinkLongPress,
                     onTextSelectionCaptured = onTextSelectionCaptured,
                     onAnnotationClicked = onAnnotationClicked,
                     onArticlePositionChanged = { articleTopOffset = it },
@@ -1200,6 +1205,7 @@ fun BookmarkDetailContent(
     onImageTapped: (ImageGalleryData) -> Unit = {},
     onImageLongPress: (imageUrl: String, linkUrl: String?, linkType: String, imageAlt: String) -> Unit = { _, _, _, _ -> },
     onLinkLongPress: (linkUrl: String, linkText: String) -> Unit = { _, _ -> },
+    onIntrapageLinkLongPress: (linkUrl: String, linkText: String) -> Unit = { _, _ -> },
     onTextSelectionCaptured: (com.mydeck.app.domain.model.SelectionData) -> Unit = {},
     onAnnotationClicked: (String) -> Unit = {},
     onArticlePositionChanged: (Float) -> Unit = {},
@@ -1427,6 +1433,7 @@ fun BookmarkDetailContent(
                             onImageTapped = onImageTapped,
                             onImageLongPress = onImageLongPress,
                             onLinkLongPress = onLinkLongPress,
+                            onIntrapageLinkLongPress = onIntrapageLinkLongPress,
                             onTextSelectionCaptured = onTextSelectionCaptured,
                             onAnnotationClicked = onAnnotationClicked,
                             onFragmentScroll = { absoluteY ->
@@ -1648,9 +1655,10 @@ private fun ReaderContextMenu(
         }
     } else if (state.linkUrl != null) {
         LongPressContextMenuDialog(
-            headerImageUrl = bookmarkIconUrl,
+            headerImageUrl = if (state.isIntrapage) null else bookmarkIconUrl,
+            headerIcon = if (state.isIntrapage) Icons.Outlined.Link else null,
             title = state.linkText ?: state.linkUrl,
-            subtitle = state.linkUrl,
+            subtitle = if (state.isIntrapage) stringResource(R.string.reader_intrapage_link_label) else state.linkUrl,
             onDismiss = onDismiss,
         ) {
             LongPressContextMenuItem(
@@ -1661,24 +1669,26 @@ private fun ReaderContextMenu(
                     onDismiss()
                 }
             )
-            LongPressContextMenuItem(
-                icon = Icons.Outlined.ContentCopy,
-                text = stringResource(R.string.action_copy_link_text),
-                onClick = {
-                    readerContextMenuCopyToClipboard(context, state.linkText.orEmpty())
-                    onDismiss()
-                }
-            )
-            LongPressContextMenuItem(
-                icon = Icons.Outlined.Download,
-                text = stringResource(R.string.action_download_link),
-                onClick = {
-                    val fileName = state.linkText?.ifBlank { null }
-                        ?: state.linkUrl.substringAfterLast('/').ifBlank { "download" }
-                    readerContextMenuDownloadUrl(context, state.linkUrl, fileName)
-                    onDismiss()
-                }
-            )
+            if (!state.isIntrapage) {
+                LongPressContextMenuItem(
+                    icon = Icons.Outlined.ContentCopy,
+                    text = stringResource(R.string.action_copy_link_text),
+                    onClick = {
+                        readerContextMenuCopyToClipboard(context, state.linkText.orEmpty())
+                        onDismiss()
+                    }
+                )
+                LongPressContextMenuItem(
+                    icon = Icons.Outlined.Download,
+                    text = stringResource(R.string.action_download_link),
+                    onClick = {
+                        val fileName = state.linkText?.ifBlank { null }
+                            ?: state.linkUrl.substringAfterLast('/').ifBlank { "download" }
+                        readerContextMenuDownloadUrl(context, state.linkUrl, fileName)
+                        onDismiss()
+                    }
+                )
+            }
             LongPressContextMenuItem(
                 icon = Icons.Outlined.Share,
                 text = stringResource(R.string.action_share_link),

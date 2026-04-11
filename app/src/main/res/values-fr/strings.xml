@@ -288,6 +288,7 @@
     <string name="select_bookmark">Select a bookmark to read</string>
     <string name="long_press_for_options">Long press for options</string>
     <string name="label_suggestion_hint">Suggestions</string>
+    <string name="reader_intrapage_link_label">Section in this article</string>
     <string name="action_copy_link">Copy link address</string>
     <string name="action_copy_link_text">Copy link text</string>
     <string name="action_share_link">Share link</string>

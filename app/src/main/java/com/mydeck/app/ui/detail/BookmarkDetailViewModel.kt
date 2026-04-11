@@ -1611,6 +1611,17 @@ class BookmarkDetailViewModel @Inject constructor(
         )
     }
 
+    fun onShowIntrapageLinkContextMenu(linkUrl: String, linkText: String = "") {
+        _readerContextMenu.value = ReaderContextMenuState(
+            visible = true,
+            imageUrl = null,
+            linkUrl = linkUrl,
+            linkText = linkText.ifBlank { null },
+            linkType = "page",
+            isIntrapage = true,
+        )
+    }
+
     fun onDismissReaderContextMenu() {
         _readerContextMenu.value = ReaderContextMenuState()
     }
@@ -1724,6 +1735,7 @@ class BookmarkDetailViewModel @Inject constructor(
         val linkUrl: String? = null,
         val linkText: String? = null,
         val linkType: String = "none",  // "none" | "image" | "page"
+        val isIntrapage: Boolean = false,
     )
 
     /**
