@@ -1,0 +1,15 @@
+<b>Added</b>
+- In-page anchor link support in reader content: table-of-contents and fragment links now navigate correctly within articles
+- Long-press context menu for in-page links to open or copy anchor targets
+- Content download status icon on reading-view bookmark cards
+- Reading progress icon in Compact list view
+
+<b>Changed</b>
+- Sync architecture updated to multipart sync for improved reliability and consistency when refreshing bookmark metadata and content
+- Sync Settings revised with automatic content sync for offline reading using volume, item-count, or date-range policies
+- Internal documentation and implementation plans for v0.12 work have been consolidated and archived in-project
+
+<b>Fixed</b>
+- Reader text reflow regression: resolved cases where article text could disappear after layout/font reflow updates
+- Server URL validation now allows http:// endpoints (in addition to https://) for self-hosted/local Readeck setups
+- Offline status indicator now tracks network transitions more accurately and avoids incorrect offline icon states
