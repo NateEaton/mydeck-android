@@ -140,6 +140,7 @@ class BookmarkDetailViewModel @Inject constructor(
     val keepScreenOnWhileReading: StateFlow<Boolean> = settingsDataStore.keepScreenOnWhileReadingFlow
     val fullscreenWhileReading: StateFlow<Boolean> = settingsDataStore.fullscreenWhileReadingFlow
     private val updateState = MutableStateFlow<UpdateBookmarkState?>(null)
+    private val _pendingArchiveState = MutableStateFlow<Boolean?>(null)
 
     val labelsWithCounts: StateFlow<Map<String, Int>> = bookmarkRepository
         .observeAllLabelsWithCounts()
@@ -228,6 +229,7 @@ class BookmarkDetailViewModel @Inject constructor(
         _showAnnotationsSheet.value = false
         _pendingAnnotationScrollId.value = null
         _annotationEditState.value = null
+        _pendingArchiveState.value = null
 
         _bookmarkId.value = bookmarkId
         initializeBookmark(bookmarkId)
@@ -353,7 +355,19 @@ class BookmarkDetailViewModel @Inject constructor(
 
     private suspend fun saveCurrentProgress() {
         val id = _bookmarkId.value
-        if (id != null && currentScrollProgress > 0) {
+        if (id == null) return
+
+        val pendingArchive = _pendingArchiveState.value
+        if (pendingArchive != null) {
+            try {
+                updateBookmarkUseCase.updateIsArchived(id, pendingArchive)
+                Timber.w("Saved pending archive state: $pendingArchive")
+            } catch (e: Exception) {
+                Timber.e(e, "Error saving pending archive state: ${e.message}")
+            }
+        }
+
+        if (currentScrollProgress > 0) {
             try {
                 bookmarkRepository.updateReadProgress(id, currentScrollProgress)
                 Timber.w("Saved final read progress: $currentScrollProgress%")
@@ -382,18 +396,24 @@ class BookmarkDetailViewModel @Inject constructor(
         .flatMapLatest { id ->
             combine(
                 bookmarkRepository.observeBookmark(id),
-                updateState,
-                template,
-                typographySettings,
-                readerAppearanceSelection
-            ) { bookmark, updateState, template, typographySettings, readerAppearanceSelection ->
-                ContentRefreshable(bookmark, updateState, template, typographySettings, readerAppearanceSelection)
+                combine(
+                    updateState,
+                    template,
+                    typographySettings,
+                    readerAppearanceSelection,
+                    _pendingArchiveState
+                ) { uState, temp, typo, reader, pendingArch ->
+                    UpdateData(uState, temp, typo, reader, pendingArch)
+                }
+            ) { bookmark, data ->
+                ContentRefreshable(bookmark, data.updateState, data.template, data.typographySettings, data.readerAppearanceSelection, data.pendingArchiveState)
             }.map { data ->
                 val bookmark = data.bookmark
                 val updateState = data.updateState
                 val template = data.template
                 val typographySettings = data.typographySettings
                 val readerAppearanceSelection = data.readerAppearanceSelection
+                val pendingArchiveState = data.pendingArchiveState
                 if (bookmark == null) {
                     Timber.e("Error loading bookmark [bookmarkId=$id]")
                     UiState.Error
@@ -424,7 +444,7 @@ class BookmarkDetailViewModel @Inject constructor(
                             iconSrc = bookmark.icon.src,
                             thumbnailSrc = bookmark.thumbnail.src,
                             isFavorite = bookmark.isMarked,
-                            isArchived = bookmark.isArchived,
+                            isArchived = pendingArchiveState ?: bookmark.isArchived,
                             isRead = bookmark.isRead(),
                             type = when (bookmark.type) {
                                 is com.mydeck.app.domain.model.Bookmark.Type.Article -> Bookmark.Type.ARTICLE
@@ -480,12 +500,7 @@ class BookmarkDetailViewModel @Inject constructor(
     }
 
     fun onToggleArchive(bookmarkId: String, isArchived: Boolean) {
-        updateBookmark {
-            updateBookmarkUseCase.updateIsArchived(
-                bookmarkId = bookmarkId,
-                isArchived = isArchived
-            )
-        }
+        _pendingArchiveState.value = isArchived
     }
 
     fun onToggleMarkRead(bookmarkId: String, isRead: Boolean) {
@@ -1387,7 +1402,16 @@ class BookmarkDetailViewModel @Inject constructor(
         val updateState: UpdateBookmarkState?,
         val template: Template?,
         val typographySettings: com.mydeck.app.domain.model.TypographySettings,
-        val readerAppearanceSelection: ReaderAppearanceSelection
+        val readerAppearanceSelection: ReaderAppearanceSelection,
+        val pendingArchiveState: Boolean?
+    )
+
+    private data class UpdateData(
+        val updateState: UpdateBookmarkState?,
+        val template: Template?,
+        val typographySettings: com.mydeck.app.domain.model.TypographySettings,
+        val readerAppearanceSelection: ReaderAppearanceSelection,
+        val pendingArchiveState: Boolean?
     )
 
     sealed class UiState {

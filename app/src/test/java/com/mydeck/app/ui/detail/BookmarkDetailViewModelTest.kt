@@ -496,7 +496,7 @@ class BookmarkDetailViewModelTest {
     }
 
     @Test
-    fun `onToggleArchivedBookmark updates UiState with Success`() = runTest {
+    fun `onToggleArchivedBookmark queues archive state and saves on exit`() = runTest {
         // Arrange
         val bookmarkId = "123"
         val isArchived = true
@@ -510,62 +510,18 @@ class BookmarkDetailViewModelTest {
         advanceUntilIdle()
 
         val uiStates = viewModel.uiState.take(2).toList()
-        val loadingState = uiStates[0]
-        val successState = uiStates[1]
-        assert(loadingState is BookmarkDetailViewModel.UiState.Loading)
-        assert(successState is BookmarkDetailViewModel.UiState.Success)
-        assertEquals(BookmarkDetailViewModel.UpdateBookmarkState.Success(), (successState as BookmarkDetailViewModel.UiState.Success).updateBookmarkState)
-        coVerify { updateBookmarkUseCase.updateIsArchived(bookmarkId, isArchived) }
-    }
-
-    @Test
-    fun `onToggleArchivedBookmark updates UiState with GenericError`() = runTest {
-        // Arrange
-        val bookmarkId = "123"
-        val isArchived = true
-        val errorMessage = "Generic Error"
-        coEvery { updateBookmarkUseCase.updateIsArchived(bookmarkId, isArchived) } returns UpdateBookmarkUseCase.Result.GenericError(errorMessage)
-        every { bookmarkRepository.observeBookmark(bookmarkId) } returns MutableStateFlow(sampleBookmark)
-        coEvery { assetLoader.loadAsset("html_template_light.html") } returns htmlTemplate
-
-        // Act
-        viewModel = createViewModel()
-        viewModel.onToggleArchive(bookmarkId, isArchived)
+        val successState = uiStates.last() as BookmarkDetailViewModel.UiState.Success
+        assertEquals(true, successState.bookmark.isArchived)
+        
+        // Ensure not yet called
+        coVerify(exactly = 0) { updateBookmarkUseCase.updateIsArchived(bookmarkId, isArchived) }
+        
+        // Now trigger an exit
+        viewModel.onClickBack()
         advanceUntilIdle()
 
-        // Assert
-        val uiStates = viewModel.uiState.take(2).toList()
-        val loadingState = uiStates[0]
-        val successState = uiStates[1]
-        assert(loadingState is BookmarkDetailViewModel.UiState.Loading)
-        assert(successState is BookmarkDetailViewModel.UiState.Success)
-        assertEquals(BookmarkDetailViewModel.UpdateBookmarkState.Error(errorMessage), (successState as BookmarkDetailViewModel.UiState.Success).updateBookmarkState)
-        coVerify { updateBookmarkUseCase.updateIsArchived(bookmarkId, isArchived) }
-    }
-
-    @Test
-    fun `onToggleArchivedBookmark updates UiState with NetworkError`() = runTest {
-        // Arrange
-        val bookmarkId = "123"
-        val isArchived = true
-        val errorMessage = "Network Error"
-        coEvery { updateBookmarkUseCase.updateIsArchived(bookmarkId, isArchived) } returns UpdateBookmarkUseCase.Result.NetworkError(errorMessage)
-        every { bookmarkRepository.observeBookmark(bookmarkId) } returns MutableStateFlow(sampleBookmark)
-        coEvery { assetLoader.loadAsset("html_template_light.html") } returns htmlTemplate
-
-        // Act
-        viewModel = createViewModel()
-        viewModel.onToggleArchive(bookmarkId, isArchived)
-        advanceUntilIdle()
-
-        // Assert
-        val uiStates = viewModel.uiState.take(2).toList()
-        val loadingState = uiStates[0]
-        val successState = uiStates[1]
-        assert(loadingState is BookmarkDetailViewModel.UiState.Loading)
-        assert(successState is BookmarkDetailViewModel.UiState.Success)
-        assertEquals(BookmarkDetailViewModel.UpdateBookmarkState.Error(errorMessage), (successState as BookmarkDetailViewModel.UiState.Success).updateBookmarkState)
-        coVerify { updateBookmarkUseCase.updateIsArchived(bookmarkId, isArchived) }
+        // Verify saved
+        coVerify(exactly = 1) { updateBookmarkUseCase.updateIsArchived(bookmarkId, isArchived) }
     }
     @Test
     fun `onToggleMarkReadBookmark updates UiState with Success`() = runTest {
