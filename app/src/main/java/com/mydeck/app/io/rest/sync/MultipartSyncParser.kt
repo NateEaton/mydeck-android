@@ -92,6 +92,10 @@ class MultipartSyncParser(
                     part.cleanup()
                 }
             }
+
+            if (part.isClosingBoundary) {
+                break
+            }
         }
 
         return finalize(builders)
@@ -155,21 +159,11 @@ class MultipartSyncParser(
         closeBoundary: String,
         headers: Map<String, String>
     ): ParsedPart {
-        val textBuilder = StringBuilder()
-        var hitClose = false
-
-        while (!source.exhausted()) {
-            val line = source.readUtf8Line() ?: break
-            if (line.startsWith(dashBoundary)) {
-                hitClose = line.startsWith(closeBoundary)
-                break
-            }
-            if (textBuilder.isNotEmpty()) textBuilder.append('\n')
-            textBuilder.append(line)
-        }
-
-        // Trim trailing whitespace from the body (multipart parts have a trailing CRLF before boundary)
-        val text = textBuilder.toString().trimEnd()
+        val out = java.io.ByteArrayOutputStream()
+        val hitClose = streamUntilBoundary(source, dashBoundary, out)
+        
+        // Convert the collected bytes to a UTF-8 string and trim trailing whitespace
+        val text = out.toString("UTF-8").trimEnd()
 
         return ParsedPart(
             headers = headers,
@@ -276,14 +270,22 @@ class MultipartSyncParser(
         dashBoundary: String,
         out: OutputStream
     ): Boolean {
-        val boundaryPrefix: ByteString = "\n$dashBoundary".toByteArray(Charsets.UTF_8).toByteString()
+        val boundaryPrefixRaw = "\n$dashBoundary".toByteArray(Charsets.UTF_8)
+        val boundaryLen = boundaryPrefixRaw.size
         val tail = Buffer() // keep last boundaryPrefix.size + 1 bytes (for optional '\r')
-        val outBuffer = Buffer()
+        val outBytes = ByteArray(8192)
+        var outBytesLen = 0
 
         fun flushOutBuffer() {
-            if (outBuffer.size > 0) {
-                out.write(outBuffer.readByteArray())
+            if (outBytesLen > 0) {
+                out.write(outBytes, 0, outBytesLen)
+                outBytesLen = 0
             }
+        }
+
+        fun writeOutByte(b: Byte) {
+            outBytes[outBytesLen++] = b
+            if (outBytesLen >= 8192) flushOutBuffer()
         }
 
         while (!source.exhausted()) {
@@ -291,34 +293,38 @@ class MultipartSyncParser(
             tail.writeByte(b.toInt())
 
             // Keep tail bounded to boundaryPrefix.size + 1
-            while (tail.size > boundaryPrefix.size + 1) {
-                outBuffer.writeByte(tail.readByte().toInt())
-                if (outBuffer.size >= 8192) flushOutBuffer()
+            while (tail.size > boundaryLen + 1) {
+                writeOutByte(tail.readByte())
             }
 
-            val snapshot = tail.snapshot()
-            val size = snapshot.size
-            if (size >= boundaryPrefix.size) {
-                val start = size - boundaryPrefix.size
-                val maybeBoundary = snapshot.substring(start, size)
-                if (maybeBoundary == boundaryPrefix) {
+            val size = tail.size.toInt()
+            if (size >= boundaryLen) {
+                var isMatch = true
+                val start = size - boundaryLen
+                for (i in 0 until boundaryLen) {
+                    if (tail[(start + i).toLong()] != boundaryPrefixRaw[i]) {
+                        isMatch = false
+                        break
+                    }
+                }
+                
+                if (isMatch) {
                     // Write any remaining leading bytes in tail excluding optional '\r' before '\n'
-                    if (tail.size > boundaryPrefix.size) {
-                        val leadCount = (tail.size - boundaryPrefix.size).toInt()
+                    if (tail.size > boundaryLen) {
+                        val leadCount = (tail.size - boundaryLen).toInt()
                         if (leadCount > 0) {
                             // If the single leading byte is '\r', drop it; otherwise write it
                             if (leadCount == 1) {
                                 val lead = tail.readByte()
                                 if (lead.toInt() != '\r'.code) {
-                                    outBuffer.writeByte(lead.toInt())
+                                    writeOutByte(lead)
                                 }
                             } else {
                                 val toWrite = tail.readByteArray(leadCount.toLong())
                                 // Drop trailing '\r' if present
-                                if (toWrite.isNotEmpty() && toWrite.last() == '\r'.code.toByte()) {
-                                    outBuffer.write(toWrite, 0, toWrite.size - 1)
-                                } else {
-                                    outBuffer.write(toWrite)
+                                val len = if (toWrite.isNotEmpty() && toWrite.last() == '\r'.code.toByte()) toWrite.size - 1 else toWrite.size
+                                for (i in 0 until len) {
+                                    writeOutByte(toWrite[i])
                                 }
                             }
                         }

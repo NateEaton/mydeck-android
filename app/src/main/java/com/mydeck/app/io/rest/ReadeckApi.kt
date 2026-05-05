@@ -31,6 +31,7 @@ import retrofit2.http.PATCH
 import retrofit2.http.Path
 import retrofit2.http.POST
 import retrofit2.http.Query
+import retrofit2.http.Streaming
 
 interface ReadeckApi {
     @GET("bookmarks")
@@ -48,6 +49,7 @@ interface ReadeckApi {
         @Query("since") since: String?  // ISO 8601 formatted timestamp
     ): Response<List<SyncStatusDto>>
 
+    @Streaming
     @POST("bookmarks/sync")
     suspend fun syncBookmarks(
         @Body request: SyncRequest

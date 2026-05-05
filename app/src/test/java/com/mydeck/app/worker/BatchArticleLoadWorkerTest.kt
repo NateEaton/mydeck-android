@@ -463,8 +463,8 @@ class BatchArticleLoadWorkerTest {
 
     @Test
     fun `adaptiveBatchSize fits as many as headroom allows`() {
-        // 100MB headroom, 2MB articles → 50, capped at MAX_BATCH_SIZE=10
-        assertEquals(10, BatchArticleLoadWorker.adaptiveBatchSize(100_000_000L, 2_000_000L, 50))
+        // 100MB headroom, 2MB articles → 50, capped at MAX_BATCH_SIZE=3
+        assertEquals(3, BatchArticleLoadWorker.adaptiveBatchSize(100_000_000L, 2_000_000L, 50))
     }
 
     @Test

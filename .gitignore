@@ -16,6 +16,9 @@ app/backup-icons/
 .vscode/
 .claude/
 
+# Signing credentials
+keystore.env
+
 # Ignore transient files
 
 logs/

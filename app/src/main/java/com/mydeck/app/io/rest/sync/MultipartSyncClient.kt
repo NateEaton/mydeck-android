@@ -152,7 +152,7 @@ class MultipartSyncClient @Inject constructor(
 
     companion object {
         const val METADATA_BATCH_SIZE = 50
-        const val CONTENT_BATCH_SIZE = 10
+        const val CONTENT_BATCH_SIZE = 3
 
         /**
          * Extract the boundary parameter from a multipart Content-Type header.

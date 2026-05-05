@@ -68,11 +68,49 @@ class BatchArticleLoadWorker @AssistedInject constructor(
             var batchIndex = 0
             var previousPendingCount = -1
             var stalledRetries = 0
+            var processedThisRun = 0
+            
             while (true) {
                 // Check constraints before each batch (skip if user overrode)
                 if (!overrideConstraints && !policyEvaluator.canFetchContent().allowed) {
                     Timber.i("Content fetch blocked by constraints, stopping batch")
                     break
+                }
+
+                if (processedThisRun >= MAX_PROCESSED_PER_RUN) {
+                    Timber.i("Processed maximum bookmarks for one run ($processedThisRun). Yielding to WorkManager to clear heap.")
+                    settingsDataStore.saveLastContentSyncTimestamp(Clock.System.now())
+                    // Enqueue the next chunk to start immediately without exponential backoff
+                    val syncConstraints = settingsDataStore.getContentSyncConstraints()
+                    val constraintsBuilder = Constraints.Builder()
+                    if (overrideConstraints) {
+                        constraintsBuilder.setRequiredNetworkType(NetworkType.CONNECTED)
+                    } else {
+                        if (syncConstraints.wifiOnly) {
+                            constraintsBuilder.setRequiredNetworkType(NetworkType.UNMETERED)
+                        } else {
+                            constraintsBuilder.setRequiredNetworkType(NetworkType.CONNECTED)
+                        }
+                        if (!syncConstraints.allowOnBatterySaver) {
+                            constraintsBuilder.setRequiresBatteryNotLow(true)
+                        }
+                    }
+                    val request = OneTimeWorkRequestBuilder<BatchArticleLoadWorker>()
+                        .setConstraints(constraintsBuilder.build())
+                        .apply {
+                            if (overrideConstraints) {
+                                setInputData(workDataOf(KEY_OVERRIDE_CONSTRAINTS to true))
+                            }
+                        }
+                        .addTag(WORK_TAG_OFFLINE_CONTENT)
+                        .build()
+
+                    WorkManager.getInstance(applicationContext).enqueueUniqueWork(
+                        UNIQUE_WORK_NAME,
+                        ExistingWorkPolicy.APPEND_OR_REPLACE,
+                        request
+                    )
+                    return Result.success()
                 }
 
                 // Re-evaluate eligible bookmarks each iteration so we pick up
@@ -164,6 +202,8 @@ class BatchArticleLoadWorker @AssistedInject constructor(
                         }
                     }.awaitAll()
                 }
+                
+                processedThisRun += batch.size
 
                 pruneManagedContentIfNeeded(includeArchived)
 
@@ -280,7 +320,8 @@ class BatchArticleLoadWorker @AssistedInject constructor(
         private const val BATCH_DELAY_MS = 500L
         private const val MAX_STALLED_RETRIES = 3
 
-        internal const val MAX_BATCH_SIZE = 10
+        internal const val MAX_BATCH_SIZE = 3
+        private const val MAX_PROCESSED_PER_RUN = 100
 
         /**
          * How many articles we can likely fit in the remaining headroom.
