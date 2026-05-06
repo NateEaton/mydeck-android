@@ -1,0 +1,2 @@
+- Resolved a critical OutOfMemoryError that caused crashes during offline content synchronization.
+- Cleaned up obsolete code and reduced app footprint.
