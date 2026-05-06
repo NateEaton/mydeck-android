@@ -361,7 +361,7 @@ class BookmarkDetailViewModel @Inject constructor(
         if (pendingArchive != null) {
             try {
                 updateBookmarkUseCase.updateIsArchived(id, pendingArchive)
-                Timber.w("Saved pending archive state: $pendingArchive")
+                Timber.d("Saved pending archive state: $pendingArchive")
             } catch (e: Exception) {
                 Timber.e(e, "Error saving pending archive state: ${e.message}")
             }
@@ -370,12 +370,12 @@ class BookmarkDetailViewModel @Inject constructor(
         if (currentScrollProgress > 0) {
             try {
                 bookmarkRepository.updateReadProgress(id, currentScrollProgress)
-                Timber.w("Saved final read progress: $currentScrollProgress%")
+                Timber.d("Saved final read progress: $currentScrollProgress%")
             } catch (e: Exception) {
                 Timber.e(e, "Error saving final progress: ${e.message}")
             }
         } else {
-            Timber.w("Skipping progress save - bookmarkId: $id, progress: $currentScrollProgress")
+            Timber.d("Skipping progress save - bookmarkId: $id, progress: $currentScrollProgress")
         }
     }
 
@@ -385,7 +385,7 @@ class BookmarkDetailViewModel @Inject constructor(
      */
     fun saveProgressOnPause() {
         viewModelScope.launch {
-            Timber.w("saveProgressOnPause called for bookmark: ${_bookmarkId.value}, progress: $currentScrollProgress%")
+            Timber.d("saveProgressOnPause called for bookmark: ${_bookmarkId.value}, progress: $currentScrollProgress%")
             saveCurrentProgress()
         }
     }
