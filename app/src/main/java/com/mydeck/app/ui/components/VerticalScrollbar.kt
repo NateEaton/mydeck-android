@@ -137,6 +137,31 @@ fun VerticalScrollbar(
 }
 
 @Composable
+fun VerticalScrollbar(
+    modifier: Modifier = Modifier,
+    progress: Float,
+    width: Dp = 4.dp,
+    color: Color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+    padding: Dp = 4.dp
+) {
+    var isScrollInProgress by remember { mutableStateOf(false) }
+    LaunchedEffect(progress) {
+        isScrollInProgress = true
+        delay(300)
+        isScrollInProgress = false
+    }
+    ScrollbarTrack(
+        modifier = modifier,
+        isScrollInProgress = isScrollInProgress,
+        isScrollable = true,
+        progress = progress,
+        width = width,
+        color = color,
+        padding = padding
+    )
+}
+
+@Composable
 private fun ScrollbarTrack(
     modifier: Modifier = Modifier,
     isScrollInProgress: Boolean,

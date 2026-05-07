@@ -186,6 +186,8 @@ class BookmarkDetailViewModel @Inject constructor(
 
     private val _annotationEditState = MutableStateFlow<AnnotationEditState?>(null)
     val annotationEditState: StateFlow<AnnotationEditState?> = _annotationEditState.asStateFlow()
+    private val _readerContentReloadNonce = MutableStateFlow(0)
+    val readerContentReloadNonce: StateFlow<Int> = _readerContentReloadNonce.asStateFlow()
 
     // Gallery state
     private val _galleryData = MutableStateFlow<ImageGalleryData?>(null)
@@ -600,7 +602,11 @@ class BookmarkDetailViewModel @Inject constructor(
      *
      * Only full offline packages fall back to a multipart force refresh.
      */
-    private suspend fun refreshAnnotationHtml(bookmarkId: String) {
+    private suspend fun refreshAnnotationHtml(
+        bookmarkId: String,
+        expectedPresentAnnotationIds: List<String> = emptyList(),
+        expectedAbsentAnnotationIds: List<String> = emptyList()
+    ) {
         // Video bookmarks: refresh in-memory annotation state and, when a transcript exists,
         // refetch and inject just the article portion to avoid clobbering the iframe embed.
         val bookmarkType = (uiState.value as? UiState.Success)?.bookmark?.type
@@ -627,7 +633,11 @@ class BookmarkDetailViewModel @Inject constructor(
                 }
                 // Also push a DOM refresh for videos with transcripts so newly-created
                 // highlights appear in the WebView without needing to close/reopen.
-                val articleHtml = loadArticleUseCase.refreshHtmlForAnnotations(bookmarkId, skipHasArticleCheck = true)
+                val articleHtml = refreshVideoAnnotationHtml(
+                    bookmarkId = bookmarkId,
+                    expectedPresentAnnotationIds = expectedPresentAnnotationIds,
+                    expectedAbsentAnnotationIds = expectedAbsentAnnotationIds
+                )
                 if (articleHtml != null) {
                     _annotationRefreshEvent.send(AnnotationRefreshEvent.VideoHtmlRefresh(articleHtml))
                 }
@@ -657,6 +667,34 @@ class BookmarkDetailViewModel @Inject constructor(
         } else {
             throw IllegalStateException("Article refresh failed")
         }
+    }
+
+    private suspend fun refreshVideoAnnotationHtml(
+        bookmarkId: String,
+        expectedPresentAnnotationIds: List<String>,
+        expectedAbsentAnnotationIds: List<String>
+    ): String? {
+        val shouldWaitForServerMarkup =
+            expectedPresentAnnotationIds.isNotEmpty() || expectedAbsentAnnotationIds.isNotEmpty()
+        val attempts = if (shouldWaitForServerMarkup) 5 else 1
+
+        repeat(attempts) { attempt ->
+            val articleHtml = loadArticleUseCase.refreshHtmlForAnnotations(
+                bookmarkId = bookmarkId,
+                skipHasArticleCheck = true,
+                expectedPresentAnnotationIds = expectedPresentAnnotationIds,
+                expectedAbsentAnnotationIds = expectedAbsentAnnotationIds
+            )
+            if (articleHtml != null) {
+                return articleHtml
+            }
+            if (attempt < attempts - 1) {
+                delay(250L * (attempt + 1))
+            }
+        }
+
+        Timber.w("Video annotation HTML did not converge for $bookmarkId after mutation")
+        return null
     }
 
     /**
@@ -916,6 +954,7 @@ class BookmarkDetailViewModel @Inject constructor(
                 val result = loadContentPackageUseCase.executeForceRefresh(bookmarkId)
                 if (result is LoadContentPackageUseCase.Result.Success) {
                     cacheAnnotationSnapshot(bookmarkId)
+                    _readerContentReloadNonce.update { it + 1 }
                 } else {
                     throw IllegalStateException("Content refresh failed: $result")
                 }
@@ -1315,7 +1354,26 @@ class BookmarkDetailViewModel @Inject constructor(
                     throw IllegalStateException("HTTP ${response.code()}")
                 }
 
-                refreshAnnotationHtml(bookmarkId)
+                val annotationId = response.body()?.id
+                if (note.isNotEmpty() && annotationId == null) {
+                    throw IllegalStateException("Missing created annotation id")
+                }
+                if (note.isNotEmpty() && annotationId != null) {
+                    val noteResponse = readeckApi.updateAnnotation(
+                        bookmarkId = bookmarkId,
+                        annotationId = annotationId,
+                        body = UpdateAnnotationDto(color = color, note = note)
+                    )
+
+                    if (!noteResponse.isSuccessful) {
+                        throw IllegalStateException("HTTP ${noteResponse.code()}")
+                    }
+                }
+
+                refreshAnnotationHtml(
+                    bookmarkId = bookmarkId,
+                    expectedPresentAnnotationIds = annotationId?.let(::listOf).orEmpty()
+                )
                 _annotationEditState.value = null
             } catch (e: Exception) {
                 Timber.w(e, "Failed to create annotation for $bookmarkId")
@@ -1391,7 +1449,10 @@ class BookmarkDetailViewModel @Inject constructor(
                     }
                 }
 
-                refreshAnnotationHtml(bookmarkId)
+                refreshAnnotationHtml(
+                    bookmarkId = bookmarkId,
+                    expectedAbsentAnnotationIds = annotationIds.distinct()
+                )
                 _annotationEditState.value = null
             } catch (e: Exception) {
                 Timber.w(e, "Failed to delete annotations ${annotationIds.joinToString()} for $bookmarkId")
@@ -1533,7 +1594,14 @@ class BookmarkDetailViewModel @Inject constructor(
                 .trim()
         }
 
-        fun getContent(template: Template, isDark: Boolean): String? {
+        fun getContent(
+            template: Template,
+            isDark: Boolean,
+            favoriteLabel: String = "",
+            unfavoriteLabel: String = "",
+            archiveLabel: String = "",
+            unarchiveLabel: String = "",
+        ): String? {
             val htmlTemplate = when (template) {
                 is Template.SimpleTemplate -> template.template
                 is Template.DynamicTemplate -> {
@@ -1544,16 +1612,23 @@ class BookmarkDetailViewModel @Inject constructor(
                     }
                 }
             }
+            val headerHtml = buildReaderHeaderHtml()
+            val footerHtml = buildReaderFooterHtml(
+                favoriteLabel = favoriteLabel,
+                unfavoriteLabel = unfavoriteLabel,
+                archiveLabel = archiveLabel,
+                unarchiveLabel = unarchiveLabel,
+            )
             return when (type) {
                 Type.PHOTO -> {
                     if (offlineBaseUrl != null && articleContent != null) {
-                        htmlTemplate.replace("%s", articleContent)
+                        htmlTemplate.replace("%s", headerHtml + articleContent + footerHtml)
                     } else {
                         val articleNormalized = articleContent?.let { normalizeText(it) }
                         val descNormalized = normalizeText(description)
                         val textPart = if (articleContent != null && articleNormalized != descNormalized) articleContent else ""
                         val imagePart = """<img src="$imgSrc"/>"""
-                        htmlTemplate.replace("%s", imagePart + textPart)
+                        htmlTemplate.replace("%s", headerHtml + imagePart + textPart + footerHtml)
                     }
                 }
 
@@ -1573,15 +1648,66 @@ class BookmarkDetailViewModel @Inject constructor(
                         }
                     } ?: ""
                     val content = embedPart + "<div id=\"rd-article-content\">$textPart</div>"
-                    if (content.isNotEmpty()) htmlTemplate.replace("%s", content) else null
+                    if (content.isNotEmpty()) {
+                        htmlTemplate.replace("%s", headerHtml + content + footerHtml)
+                    } else {
+                        null
+                    }
                 }
 
                 Type.ARTICLE -> {
                     articleContent?.let {
-                        htmlTemplate.replace("%s", it)
+                        htmlTemplate.replace("%s", headerHtml + it + footerHtml)
                     }
                 }
             }
+        }
+
+        private fun buildReaderHeaderHtml(): String {
+            val titleHtml = "<h1 class=\"mydeck-title\">${escapeHtml(title)}</h1>"
+            val descriptionHtml = if (shouldShowHeaderDescription()) {
+                "<p class=\"mydeck-description\">${escapeHtml(description)}</p>"
+            } else {
+                ""
+            }
+            return "<header class=\"mydeck-header\">$titleHtml$descriptionHtml</header>"
+        }
+
+        private fun buildReaderFooterHtml(
+            favoriteLabel: String,
+            unfavoriteLabel: String,
+            archiveLabel: String,
+            unarchiveLabel: String,
+        ): String {
+            val favIcon = if (isFavorite) WebViewActionsInjector.FAV_ICON_FILLED else WebViewActionsInjector.FAV_ICON_OUTLINE
+            val arcIcon = if (isArchived) WebViewActionsInjector.ARC_ICON_FILLED else WebViewActionsInjector.ARC_ICON_OUTLINE
+            val favText = escapeHtml(if (isFavorite) unfavoriteLabel else favoriteLabel)
+            val arcText = escapeHtml(if (isArchived) unarchiveLabel else archiveLabel)
+            return "<footer class=\"mydeck-footer\">" +
+                "<button id=\"mydeck-favorite-btn\" type=\"button\" class=\"mydeck-action-btn\" data-active=\"$isFavorite\" onclick=\"window.MyDeckActions && window.MyDeckActions.toggleFavorite()\">" +
+                "<span class=\"mydeck-action-icon\" aria-hidden=\"true\">$favIcon</span>" +
+                "<span class=\"mydeck-action-label\">$favText</span>" +
+                "</button>" +
+                "<button id=\"mydeck-archive-btn\" type=\"button\" class=\"mydeck-action-btn\" data-active=\"$isArchived\" onclick=\"window.MyDeckActions && window.MyDeckActions.toggleArchive()\">" +
+                "<span class=\"mydeck-action-icon\" aria-hidden=\"true\">$arcIcon</span>" +
+                "<span class=\"mydeck-action-label\">$arcText</span>" +
+                "</button>" +
+                "</footer>"
+        }
+
+        private fun escapeHtml(value: String): String {
+            val sb = StringBuilder(value.length)
+            for (ch in value) {
+                when (ch) {
+                    '&' -> sb.append("&amp;")
+                    '<' -> sb.append("&lt;")
+                    '>' -> sb.append("&gt;")
+                    '"' -> sb.append("&quot;")
+                    '\'' -> sb.append("&#39;")
+                    else -> sb.append(ch)
+                }
+            }
+            return sb.toString()
         }
     }
 

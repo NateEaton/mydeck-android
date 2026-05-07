@@ -74,13 +74,13 @@ Tap **🔍** to open the in-content search bar. Type to search; matching text in
 
 ### Highlights
 
-Article bookmarks support Readeck highlights directly in the reading view. To create a highlight, select text in the article and tap **Highlight** in the Android text selection menu, then choose a color. If your selection overlaps one or more existing highlights, **Save** changes the color of those highlights and **Delete** removes them immediately. To edit or delete an existing highlight directly, tap the highlighted text in the article. If an existing highlight has a note, the highlight sheet shows that note in a read-only field, and tapping it explains that note editing is not supported yet. You can also open **⋮ → Highlights** to browse saved highlights and jump to any one in the article. When you reopen a downloaded article while online, MyDeck checks whether the saved highlight set changed on the server and refreshes the article if needed.
+Article bookmarks support Readeck highlights directly in the reading view. Video bookmarks also support highlights when Readeck provides text content such as a transcript. To create a highlight, select text in the article or transcript and tap **Highlight** in the Android text selection menu, then choose a color and optionally enter a note. If your selection overlaps one or more existing highlights, **Save** changes the color and note for those highlights and **Delete** removes them immediately. To edit or delete an existing highlight directly, tap the highlighted text. Clear the note field and save to remove a highlight note. You can also open **⋮ → Highlights** to browse saved highlights and jump to any one in the article or transcript. When you reopen downloaded content while online, MyDeck checks whether the saved highlight set changed on the server and refreshes the content if needed.
 
 ## Overflow Menu
 
 Tap **⋮** in the top bar for additional actions:
 
-- **Highlights** — for article bookmarks in reading view, open a list of saved highlights and tap one to jump to it in the article
+- **Highlights** — for article bookmarks and videos with transcript text in reading view, open a list of saved highlights and tap one to jump to it in the article or transcript
 - **Add to favorites / Remove favorite** — toggle the favorite status
 - **Archive / Unarchive** — move the bookmark to the archive (or back to My List)
 - **Mark as read / Mark as unread** — toggle whether the bookmark has been read; this is reflected back in the bookmark list
