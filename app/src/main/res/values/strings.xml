@@ -176,6 +176,7 @@ other{}
     <string name="highlight_update_failed">Failed to update highlight</string>
     <string name="highlight_delete_failed">Failed to delete highlight</string>
     <string name="highlight_offline_unavailable">Highlights can\'t be changed while offline</string>
+    <string name="video_highlight_edit_not_supported">Editing video highlights isn\'t supported yet</string>
     <string name="content_refresh_completed">Content refreshed</string>
     <string name="content_refresh_failed">Failed to refresh content</string>
     <string name="error_no_article_content">Error, article content not available</string>

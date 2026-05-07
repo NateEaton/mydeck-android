@@ -44,6 +44,7 @@ data class FilterFormState(
             DrawerPreset.ARTICLES -> FilterFormState(types = setOf(Bookmark.Type.Article))
             DrawerPreset.VIDEOS -> FilterFormState(types = setOf(Bookmark.Type.Video))
             DrawerPreset.PICTURES -> FilterFormState(types = setOf(Bookmark.Type.Picture))
+            DrawerPreset.HIGHLIGHTS -> FilterFormState()
         }
     }
 }

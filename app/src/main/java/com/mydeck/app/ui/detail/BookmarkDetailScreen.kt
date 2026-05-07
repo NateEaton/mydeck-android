@@ -179,8 +179,18 @@ enum class VideoFullscreenDismissSource {
 }
 
 @Composable
-fun BookmarkDetailScreen(navHostController: NavController, bookmarkId: String?, showOriginal: Boolean = false) {
+fun BookmarkDetailScreen(
+    navHostController: NavController,
+    bookmarkId: String?,
+    showOriginal: Boolean = false,
+    annotationId: String? = null
+) {
     val viewModel: BookmarkDetailViewModel = hiltViewModel()
+    LaunchedEffect(annotationId) {
+        if (annotationId != null) {
+            viewModel.scrollToAnnotation(annotationId)
+        }
+    }
     BookmarkDetailHost(
         viewModel = viewModel,
         showOriginal = showOriginal,
@@ -202,6 +212,7 @@ fun BookmarkDetailHost(
     onNavigateBack: (String?) -> Unit
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
+    val coroutineScope = rememberCoroutineScope()
     val dismissPendingDeleteSnackbar: () -> Unit = {
         snackbarHostState.currentSnackbarData?.dismiss()
     }
@@ -329,6 +340,14 @@ fun BookmarkDetailHost(
         bookmarkId: String,
         selectionData: com.mydeck.app.domain.model.SelectionData
     ) {
+        // A1: block highlight creation for video bookmarks
+        val currentType = (viewModel.uiState.value as? BookmarkDetailViewModel.UiState.Success)?.bookmark?.type
+        if (currentType == BookmarkDetailViewModel.Bookmark.Type.VIDEO) {
+            coroutineScope.launch {
+                snackbarHostState.showSnackbar(context.getString(R.string.video_highlight_edit_not_supported))
+            }
+            return
+        }
         if (selectionData.selectedAnnotationIds.isEmpty()) {
             viewModel.showCreateAnnotationSheet(selectionData)
             return
@@ -353,6 +372,14 @@ fun BookmarkDetailHost(
     }
 
     fun showAnnotationEditor(bookmarkId: String, annotationId: String) {
+        // A2: block annotation edit for video bookmarks
+        val currentType = (viewModel.uiState.value as? BookmarkDetailViewModel.UiState.Success)?.bookmark?.type
+        if (currentType == BookmarkDetailViewModel.Bookmark.Type.VIDEO) {
+            coroutineScope.launch {
+                snackbarHostState.showSnackbar(context.getString(R.string.video_highlight_edit_not_supported))
+            }
+            return
+        }
         Timber.d(
             "[AnnotationTap] Attempting to open editor for annotation=%s bookmark=%s cachedAnnotations=%d",
             annotationId,
@@ -461,6 +488,27 @@ fun BookmarkDetailHost(
                         null
                     )
                     // Re-inject interaction listeners for the new DOM elements
+                    webView.evaluateJavascript(
+                        WebViewImageBridge.injectImageInterceptor(),
+                        null
+                    )
+                    webView.evaluateJavascript(
+                        WebViewAnnotationBridge.injectAnnotationInteractions(),
+                        null
+                    )
+                }
+                is BookmarkDetailViewModel.AnnotationRefreshEvent.VideoHtmlRefresh -> {
+                    val base64Html = android.util.Base64.encodeToString(
+                        event.articleHtml.toByteArray(Charsets.UTF_8),
+                        android.util.Base64.NO_WRAP
+                    )
+                    // Surgical refresh: only replace the article div, leaving the
+                    // <div class="video-embed"> iframe untouched so playback continues.
+                    webView.evaluateJavascript(
+                        "var el=document.getElementById('rd-article-content');" +
+                            "if(el)el.innerHTML=decodeURIComponent(escape(atob('$base64Html')));",
+                        null
+                    )
                     webView.evaluateJavascript(
                         WebViewImageBridge.injectImageInterceptor(),
                         null
@@ -692,7 +740,8 @@ fun BookmarkDetailHost(
                 )
             }
             if (showAnnotationsSheet &&
-                uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.ARTICLE &&
+                (uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.ARTICLE ||
+                 uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.VIDEO) &&
                 contentMode == ContentMode.READER) {
                 AnnotationsBottomSheet(
                     annotations = annotationsState.annotations,
@@ -788,6 +837,7 @@ fun BookmarkDetailScreen(
     val coroutineScope = rememberCoroutineScope()
     var articleTopOffset by remember { mutableStateOf(0f) }
     var viewportHeight by remember { mutableIntStateOf(0) }
+    var isReaderContentReady by remember(uiState.bookmark.bookmarkId, contentMode) { mutableStateOf(false) }
     val articleViewportTopPx = (scrollState.value - articleTopOffset).coerceAtLeast(0f).toInt()
     val fullscreenReaderMode = fullscreenWhileReading && contentMode == ContentMode.READER
     val immersiveModeEnabled = fullscreenReaderMode || videoFullscreenView != null
@@ -855,8 +905,10 @@ fun BookmarkDetailScreen(
         readerWebView,
         articleTopOffset,
         viewportHeight,
-        contentMode
+        contentMode,
+        isReaderContentReady
     ) {
+        if (!isReaderContentReady) return@LaunchedEffect
         val annotationId = pendingAnnotationScrollId
         val webView = readerWebView
         if (annotationId == null ||
@@ -957,6 +1009,8 @@ fun BookmarkDetailScreen(
                     onVideoExitFullscreen = onVideoExitFullscreen,
                     onClickToggleFavorite = onClickToggleFavorite,
                     onClickToggleArchive = onClickToggleArchive,
+                    onContentReady = { ready -> isReaderContentReady = ready },
+                    pendingAnnotationScrollId = pendingAnnotationScrollId,
                     scrollState = scrollState
                 )
 
@@ -1217,6 +1271,8 @@ fun BookmarkDetailContent(
     onVideoExitFullscreen: (VideoFullscreenDismissSource) -> Unit = {},
     onClickToggleFavorite: (String, Boolean) -> Unit = { _, _ -> },
     onClickToggleArchive: (String, Boolean) -> Unit = { _, _ -> },
+    onContentReady: (Boolean) -> Unit = {},
+    pendingAnnotationScrollId: String? = null,
     scrollState: ScrollState = rememberScrollState()
 ) {
     val coroutineScope = rememberCoroutineScope()
@@ -1301,6 +1357,14 @@ fun BookmarkDetailContent(
 
     // Restore scroll position only after reader content is ready and maxValue stabilizes.
     LaunchedEffect(uiState.bookmark.bookmarkId, isReaderContentReady, initialReadProgress) {
+        // Skip restore when navigating from the Highlights screen — the highlight-scroll
+        // LaunchedEffect owns positioning in that case. The restore loop's scrollTo calls
+        // run for up to 2s and would otherwise race with (and overwrite) animateScrollTo
+        // when the saved position sits below the highlight target.
+        if (pendingAnnotationScrollId != null) {
+            hasRestoredPosition = true
+            return@LaunchedEffect
+        }
         if (!hasRestoredPosition && isReaderContentReady && initialReadProgress > 0 && initialReadProgress <= 100) {
             val restoreStartMs = SystemClock.elapsedRealtime()
             Timber.d(
@@ -1428,7 +1492,10 @@ fun BookmarkDetailContent(
                             articleTopOffsetPx = articleTopOffsetPx,
                             viewportHeightPx = viewportHeightPx,
                             scrollState = scrollState,
-                            onContentReady = { ready -> isReaderContentReady = ready },
+                            onContentReady = { ready ->
+                                isReaderContentReady = ready
+                                onContentReady(ready)
+                            },
                             onWebViewChanged = onReaderWebViewChanged,
                             onImageTapped = onImageTapped,
                             onImageLongPress = onImageLongPress,

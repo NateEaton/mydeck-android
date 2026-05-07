@@ -88,6 +88,12 @@ interface ReadeckApi {
     @GET("bookmarks/{id}/annotations")
     suspend fun getAnnotations(@Path("id") bookmarkId: String): Response<List<AnnotationDto>>
 
+    @GET("bookmarks/annotations")
+    suspend fun getAnnotationSummaries(
+        @Query("limit") limit: Int,
+        @Query("offset") offset: Int,
+    ): Response<List<com.mydeck.app.io.rest.model.AnnotationSummaryDto>>
+
     @POST("bookmarks/{id}/annotations")
     suspend fun createAnnotation(
         @Path("id") bookmarkId: String,

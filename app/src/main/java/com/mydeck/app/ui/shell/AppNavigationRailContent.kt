@@ -12,16 +12,22 @@ import androidx.compose.material.icons.outlined.Inventory2
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.CollectionsBookmark
 import androidx.compose.material.icons.outlined.VideoLibrary
+import androidx.compose.material.icons.outlined.EditNote
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Icon
+import androidx.compose.material3.Text
 import androidx.compose.material3.NavigationRail
 import androidx.compose.material3.NavigationRailItem
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import com.mydeck.app.domain.model.BookmarkCounts
 import com.mydeck.app.domain.model.DrawerPreset
 
 @Composable
 fun AppNavigationRailContent(
     drawerPreset: DrawerPreset,
+    bookmarkCounts: BookmarkCounts,
     activeLabel: String?,
     onClickMyList: () -> Unit,
     onClickArchive: () -> Unit,
@@ -30,6 +36,7 @@ fun AppNavigationRailContent(
     onClickVideos: () -> Unit,
     onClickPictures: () -> Unit,
     onClickLabels: () -> Unit,
+    onClickHighlights: () -> Unit,
     onClickSettings: () -> Unit,
     onClickUserGuide: () -> Unit,
     onClickAbout: () -> Unit,
@@ -71,6 +78,21 @@ fun AppNavigationRailContent(
             selected = isLabelMode,
             onClick = onClickLabels,
             icon = { Icon(imageVector = Icons.AutoMirrored.Outlined.Label, contentDescription = null) }
+        )
+        NavigationRailItem(
+            selected = !isLabelMode && drawerPreset == DrawerPreset.HIGHLIGHTS,
+            onClick = onClickHighlights,
+            icon = {
+                BadgedBox(
+                    badge = {
+                        if (bookmarkCounts.highlights > 0) {
+                            Badge { Text(bookmarkCounts.highlights.toString()) }
+                        }
+                    }
+                ) {
+                    Icon(imageVector = Icons.Outlined.EditNote, contentDescription = null)
+                }
+            },
         )
         Spacer(Modifier.weight(1f))
         NavigationRailItem(

@@ -114,6 +114,12 @@ fun AppShell(
         it.matchesRoute<BookmarkDetailRoute>() || it.matchesRoute<WelcomeRoute>()
     } ?: true
 
+    val effectiveDrawerPreset = if (currentDestination.matchesRoute<com.mydeck.app.ui.navigation.HighlightsRoute>()) {
+        com.mydeck.app.domain.model.DrawerPreset.HIGHLIGHTS
+    } else {
+        drawerPreset.value
+    }
+
     when (layoutTier) {
         "compact" -> CompositionLocalProvider(
             LocalReaderMaxWidth provides Dp.Unspecified,
@@ -123,7 +129,7 @@ fun AppShell(
             navController = navController,
             settingsDataStore = settingsDataStore,
             bookmarkListViewModel = bookmarkListViewModel,
-            drawerPreset = drawerPreset.value,
+            drawerPreset = effectiveDrawerPreset,
             activeLabel = activeLabel.value,
             bookmarkCounts = bookmarkCounts.value,
             labelsWithCounts = labelsWithCounts.value,
@@ -135,7 +141,7 @@ fun AppShell(
             navController = navController,
             settingsDataStore = settingsDataStore,
             bookmarkListViewModel = bookmarkListViewModel,
-            drawerPreset = drawerPreset.value,
+            drawerPreset = effectiveDrawerPreset,
             activeLabel = activeLabel.value,
             bookmarkCounts = bookmarkCounts.value,
             labelsWithCounts = labelsWithCounts.value,
@@ -148,8 +154,9 @@ fun AppShell(
             navController = navController,
             settingsDataStore = settingsDataStore,
             bookmarkListViewModel = bookmarkListViewModel,
-            drawerPreset = drawerPreset.value,
+            drawerPreset = effectiveDrawerPreset,
             activeLabel = activeLabel.value,
+            bookmarkCounts = bookmarkCounts.value,
             hideNavigation = hideNavigation,
         )
         } // end MediumAppShell CompositionLocalProvider
@@ -242,6 +249,10 @@ private fun CompactAppShell(
                     bookmarkListViewModel.onOpenLabelsSheet()
                     scope.launch { drawerState.close() }
                 },
+                onClickHighlights = {
+                    navController.navigate(com.mydeck.app.ui.navigation.HighlightsRoute) { launchSingleTop = true }
+                    scope.launch { drawerState.close() }
+                },
                 onClickSettings = {
                     bookmarkListViewModel.onClickSettings()
                     scope.launch { drawerState.close() }
@@ -290,6 +301,9 @@ private fun CompactAppShell(
                 composable<BookmarkListRoute> {
                     BookmarkListScreen(navController, bookmarkListViewModel, drawerState)
                 }
+                composable<com.mydeck.app.ui.navigation.HighlightsRoute> {
+                    com.mydeck.app.ui.highlights.HighlightsScreen(navController)
+                }
                 composable<SettingsRoute> { SettingsScreen(navController) }
                 composable<WelcomeRoute> { WelcomeScreen(navController) }
                 composable<AccountSettingsRoute> { AccountSettingsScreen(navController) }
@@ -323,7 +337,8 @@ private fun CompactAppShell(
                     BookmarkDetailScreen(
                         navController,
                         route.bookmarkId,
-                        showOriginal = route.showOriginal
+                        showOriginal = route.showOriginal,
+                        annotationId = route.annotationId
                     )
                 }
                 composable<OpenSourceLibrariesRoute> {
@@ -360,6 +375,7 @@ private fun MediumAppShell(
     bookmarkListViewModel: BookmarkListViewModel,
     drawerPreset: com.mydeck.app.domain.model.DrawerPreset,
     activeLabel: String?,
+    bookmarkCounts: com.mydeck.app.domain.model.BookmarkCounts,
     hideNavigation: Boolean,
 ) {
     LaunchedEffect(Unit) {
@@ -417,6 +433,7 @@ private fun MediumAppShell(
             ) {
                 AppNavigationRailContent(
                     drawerPreset = drawerPreset,
+                    bookmarkCounts = bookmarkCounts,
                     activeLabel = activeLabel,
                     onClickMyList = { navigateToListAndApply { bookmarkListViewModel.onClickMyList() } },
                     onClickArchive = { navigateToListAndApply { bookmarkListViewModel.onClickArchive() } },
@@ -425,6 +442,7 @@ private fun MediumAppShell(
                     onClickVideos = { navigateToListAndApply { bookmarkListViewModel.onClickVideos() } },
                     onClickPictures = { navigateToListAndApply { bookmarkListViewModel.onClickPictures() } },
                     onClickLabels = { navigateToListAndApply { bookmarkListViewModel.onOpenLabelsSheet() } },
+                    onClickHighlights = { navController.navigate(com.mydeck.app.ui.navigation.HighlightsRoute) { launchSingleTop = true } },
                     onClickSettings = { bookmarkListViewModel.onClickSettings() },
                     onClickUserGuide = { bookmarkListViewModel.onClickUserGuide() },
                     onClickAbout = { bookmarkListViewModel.onClickAbout() },
@@ -473,6 +491,9 @@ private fun MediumAppShell(
                         showNavigationIcon = false,
                     )
                 }
+                composable<com.mydeck.app.ui.navigation.HighlightsRoute> {
+                    com.mydeck.app.ui.highlights.HighlightsScreen(navController)
+                }
                 composable<SettingsRoute> { SettingsScreen(navController, showBackButton = false) }
                 composable<WelcomeRoute> { WelcomeScreen(navController) }
                 composable<AccountSettingsRoute> { AccountSettingsScreen(navController) }
@@ -506,7 +527,8 @@ private fun MediumAppShell(
                     BookmarkDetailScreen(
                         navController,
                         route.bookmarkId,
-                        showOriginal = route.showOriginal
+                        showOriginal = route.showOriginal,
+                        annotationId = route.annotationId
                     )
                 }
                 composable<OpenSourceLibrariesRoute> {
@@ -610,6 +632,7 @@ private fun ExpandedAppShell(
                 onClickVideos = { navigateToListAndApply { bookmarkListViewModel.onClickVideos() } },
                 onClickPictures = { navigateToListAndApply { bookmarkListViewModel.onClickPictures() } },
                 onClickLabels = { navigateToListAndApply { bookmarkListViewModel.onOpenLabelsSheet() } },
+                onClickHighlights = { navController.navigate(com.mydeck.app.ui.navigation.HighlightsRoute) { launchSingleTop = true } },
                 onClickSettings = { bookmarkListViewModel.onClickSettings() },
                 onClickUserGuide = { bookmarkListViewModel.onClickUserGuide() },
                 onClickAbout = { bookmarkListViewModel.onClickAbout() },
@@ -656,6 +679,9 @@ private fun ExpandedAppShell(
                         showNavigationIcon = false,
                     )
                 }
+                composable<com.mydeck.app.ui.navigation.HighlightsRoute> {
+                    com.mydeck.app.ui.highlights.HighlightsScreen(navController)
+                }
                 composable<SettingsRoute> { SettingsScreen(navController, showBackButton = false) }
                 composable<WelcomeRoute> { WelcomeScreen(navController) }
                 composable<AccountSettingsRoute> { AccountSettingsScreen(navController) }
@@ -689,7 +715,8 @@ private fun ExpandedAppShell(
                     BookmarkDetailScreen(
                         navController,
                         route.bookmarkId,
-                        showOriginal = route.showOriginal
+                        showOriginal = route.showOriginal,
+                        annotationId = route.annotationId
                     )
                 }
                 composable<OpenSourceLibrariesRoute> {

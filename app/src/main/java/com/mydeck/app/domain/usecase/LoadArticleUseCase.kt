@@ -96,10 +96,16 @@ class LoadArticleUseCase @Inject constructor(
      *
      * @return The refreshed HTML body, or null if the refresh failed
      */
-    suspend fun refreshHtmlForAnnotations(bookmarkId: String): String? {
+    suspend fun refreshHtmlForAnnotations(
+        bookmarkId: String,
+        skipHasArticleCheck: Boolean = false
+    ): String? {
         val bookmark = bookmarkRepository.getBookmarkById(bookmarkId)
 
-        if (bookmark.contentState == ContentState.PERMANENT_NO_CONTENT || !bookmark.hasArticle) {
+        if (bookmark.contentState == ContentState.PERMANENT_NO_CONTENT) {
+            return null
+        }
+        if (!skipHasArticleCheck && !bookmark.hasArticle) {
             return null
         }
         if (!connectivityMonitor.isNetworkAvailable()) {

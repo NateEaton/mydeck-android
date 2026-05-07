@@ -371,6 +371,7 @@ interface BookmarkDao {
             (SELECT COUNT(*) FROM bookmarks WHERE type = 'article' AND state = 0 AND isLocalDeleted = 0) AS article_count,
             (SELECT COUNT(*) FROM bookmarks WHERE type = 'video' AND state = 0 AND isLocalDeleted = 0) AS video_count,
             (SELECT COUNT(*) FROM bookmarks WHERE type = 'photo' AND state = 0 AND isLocalDeleted = 0) AS picture_count,
+            (SELECT COUNT(*) FROM cached_annotation) AS highlights_count,
             (SELECT COUNT(*) FROM bookmarks WHERE state = 0 AND isLocalDeleted = 0) AS total_count
         FROM bookmarks
         LIMIT 1

@@ -943,6 +943,7 @@ class BookmarkRepositoryImpl @Inject constructor(
                     article = entity.article,
                     video = entity.video,
                     picture = entity.picture,
+                    highlights = entity.highlights,
                     total = entity.total
                 )
             } else {

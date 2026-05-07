@@ -24,6 +24,7 @@ import com.mydeck.app.domain.content.ContentPackageManager
 import com.mydeck.app.domain.sync.ConnectivityMonitor
 import com.mydeck.app.domain.usecase.LoadArticleUseCase
 import com.mydeck.app.io.db.dao.CachedAnnotationDao
+import com.mydeck.app.io.db.model.CachedAnnotationEntity
 import com.mydeck.app.domain.usecase.LoadContentPackageUseCase
 import com.mydeck.app.domain.usecase.UpdateBookmarkUseCase
 import com.mydeck.app.io.AssetLoader
@@ -277,9 +278,13 @@ class BookmarkDetailViewModel @Inject constructor(
                                 cachedHasResources = contentPackageManager.hasResources(id)
                                 cachedHasOfflinePackage = contentPackageManager.getContentDir(id) != null
                                 _contentLoadState.value = ContentLoadState.Loaded
-                                // Check for annotation changes from other clients
+                                // Check for annotation changes from other clients. Mirrors the
+                                // Article DOWNLOADED branch so video transcripts get the same
+                                // legacy annotation sync when no content package is present.
                                 if (contentPackageManager.getContentDir(id) != null) {
                                     syncAnnotationsForContentPackage(id)
+                                } else {
+                                    syncAnnotationsIfNeeded(id)
                                 }
                             }
                             ContentState.PERMANENT_NO_CONTENT -> {
@@ -596,6 +601,42 @@ class BookmarkDetailViewModel @Inject constructor(
      * Only full offline packages fall back to a multipart force refresh.
      */
     private suspend fun refreshAnnotationHtml(bookmarkId: String) {
+        // Video bookmarks: refresh in-memory annotation state and, when a transcript exists,
+        // refetch and inject just the article portion to avoid clobbering the iframe embed.
+        val bookmarkType = (uiState.value as? UiState.Success)?.bookmark?.type
+        if (bookmarkType == Bookmark.Type.VIDEO) {
+            try {
+                val response = readeckApi.getAnnotations(bookmarkId)
+                if (response.isSuccessful) {
+                    val annotations = response.body() ?: emptyList()
+                    cacheAnnotationSnapshot(bookmarkId)
+                    // Update the in-memory annotations state so the sheet reflects the change
+                    _annotationsState.value = AnnotationsState(
+                        annotations = annotations.map { dto ->
+                            Annotation(
+                                id = dto.id,
+                                bookmarkId = bookmarkId,
+                                text = dto.text,
+                                color = dto.color.takeIf { it.isNotBlank() } ?: "yellow",
+                                note = dto.note.takeIf { it.isNotBlank() },
+                                created = dto.created
+                            )
+                        },
+                        isLoading = false
+                    )
+                }
+                // Also push a DOM refresh for videos with transcripts so newly-created
+                // highlights appear in the WebView without needing to close/reopen.
+                val articleHtml = loadArticleUseCase.refreshHtmlForAnnotations(bookmarkId, skipHasArticleCheck = true)
+                if (articleHtml != null) {
+                    _annotationRefreshEvent.send(AnnotationRefreshEvent.VideoHtmlRefresh(articleHtml))
+                }
+            } catch (e: Exception) {
+                Timber.w(e, "Failed to refresh annotation cache for $bookmarkId")
+            }
+            return
+        }
+
         val hasResources = cachedHasResources ?: contentPackageManager.hasResources(bookmarkId) ?: false
         val enrichedHtml = if (hasResources) {
             loadContentPackageUseCase.refreshHtmlForAnnotations(bookmarkId)
@@ -1048,9 +1089,23 @@ class BookmarkDetailViewModel @Inject constructor(
         try {
             val response = readeckApi.getAnnotations(bookmarkId)
             if (response.isSuccessful) {
+                val annotations = response.body().orEmpty()
                 settingsDataStore.saveCachedAnnotationSnapshot(
                     bookmarkId,
-                    response.body().orEmpty().toAnnotationCachePayload(json)
+                    annotations.toAnnotationCachePayload(json)
+                )
+                cachedAnnotationDao.replaceAnnotationsForBookmark(
+                    bookmarkId,
+                    annotations.map { dto ->
+                        CachedAnnotationEntity(
+                            id = dto.id,
+                            bookmarkId = bookmarkId,
+                            text = dto.text,
+                            color = dto.color.takeIf { it.isNotBlank() } ?: "yellow",
+                            note = dto.note.takeIf { it.isNotBlank() },
+                            created = dto.created
+                        )
+                    }
                 )
             } else {
                 Timber.w("Failed to cache annotations for $bookmarkId: HTTP ${response.code()}")
@@ -1517,7 +1572,7 @@ class BookmarkDetailViewModel @Inject constructor(
                             raw
                         }
                     } ?: ""
-                    val content = embedPart + textPart
+                    val content = embedPart + "<div id=\"rd-article-content\">$textPart</div>"
                     if (content.isNotEmpty()) htmlTemplate.replace("%s", content) else null
                 }
 
@@ -1770,6 +1825,8 @@ class BookmarkDetailViewModel @Inject constructor(
         data class ColorUpdate(val annotationIds: List<String>, val color: String) : AnnotationRefreshEvent()
         /** Replace .container innerHTML with fresh HTML. Used after create/delete. */
         data class HtmlRefresh(val containerHtml: String) : AnnotationRefreshEvent()
+        /** Replace #rd-article-content innerHTML with fresh article HTML for VIDEO bookmarks. Leaves the iframe embed intact. */
+        data class VideoHtmlRefresh(val articleHtml: String) : AnnotationRefreshEvent()
     }
 
     companion object {

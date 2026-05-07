@@ -106,6 +106,7 @@ class BookmarkDetailViewModelTest {
         coEvery { bookmarkRepository.getBookmarkById(any()) } returns sampleBookmark
         every { assetLoader.loadAsset(match { it.startsWith("html_template_") }) } returns htmlTemplate
         every { savedStateHandle.get<String>("bookmarkId") } returns "123"
+        every { savedStateHandle.get<String>("annotationId") } returns null
         themeFlow = MutableStateFlow(Theme.LIGHT.name)
         lightAppearanceFlow = MutableStateFlow(LightAppearance.PAPER)
         darkAppearanceFlow = MutableStateFlow(DarkAppearance.DARK)
@@ -1150,6 +1151,24 @@ class BookmarkDetailViewModelTest {
         )
 
         assertTrue(bookmark.shouldShowHeaderDescription())
+    }
+
+    @Test
+    fun `scrollToAnnotation sets pendingAnnotationScrollId and clears it on handled`() = runTest {
+        // Arrange — ViewModel is already constructed in @Before with the standard setup
+
+        // Act — scroll to a specific annotation
+        viewModel.scrollToAnnotation("test-anno-id")
+
+        // Assert — pending scroll id is set and annotations sheet is dismissed
+        assertEquals("test-anno-id", viewModel.pendingAnnotationScrollId.value)
+        assertEquals(false, viewModel.showAnnotationsSheet.value)
+
+        // Act — signal that the scroll has been handled
+        viewModel.onAnnotationScrollHandled()
+
+        // Assert — pending scroll id is cleared
+        assertNull(viewModel.pendingAnnotationScrollId.value)
     }
 
     val sampleBookmark = Bookmark(

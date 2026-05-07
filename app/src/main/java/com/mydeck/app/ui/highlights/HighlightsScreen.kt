@@ -1,0 +1,253 @@
+package com.mydeck.app.ui.highlights
+
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.outlined.EditNote
+import androidx.compose.material3.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.navigation.NavHostController
+import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.ui.text.font.FontWeight
+import com.mydeck.app.R
+import com.mydeck.app.domain.model.BookmarkHighlightGroup
+import com.mydeck.app.domain.model.HighlightSummary
+import com.mydeck.app.ui.navigation.BookmarkDetailRoute
+import kotlinx.datetime.toJavaInstant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.time.format.FormatStyle
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
+
+@Composable
+fun HighlightsScreen(
+    navController: NavHostController,
+    viewModel: HighlightsViewModel = hiltViewModel(),
+) {
+    val uiState by viewModel.uiState.collectAsState()
+    HighlightsContent(
+        uiState = uiState,
+        onNavigateBack = { navController.popBackStack() },
+        onNavigateToBookmark = { bookmarkId, annotationId ->
+            navController.navigate(BookmarkDetailRoute(bookmarkId, annotationId = annotationId))
+        },
+        onRetry = { viewModel.loadHighlights() }
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun HighlightsContent(
+    uiState: HighlightsUiState,
+    onNavigateBack: () -> Unit,
+    onNavigateToBookmark: (String, String?) -> Unit,
+    onRetry: () -> Unit
+) {
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text(stringResource(R.string.highlights_title)) },
+                navigationIcon = {
+                    IconButton(onClick = onNavigateBack) {
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = stringResource(R.string.back)
+                        )
+                    }
+                }
+            )
+        }
+    ) { paddingValues ->
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+        ) {
+            when (uiState) {
+                is HighlightsUiState.Loading -> {
+                    CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+                }
+                is HighlightsUiState.Empty -> {
+                    Text(
+                        text = stringResource(R.string.highlights_empty),
+                        modifier = Modifier
+                            .align(Alignment.Center)
+                            .padding(16.dp),
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                is HighlightsUiState.Error -> {
+                    Column(
+                        modifier = Modifier.align(Alignment.Center),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = uiState.message,
+                            color = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.padding(bottom = 8.dp)
+                        )
+                        Button(onClick = onRetry) {
+                            Text(stringResource(R.string.retry))
+                        }
+                    }
+                }
+                is HighlightsUiState.Success -> {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(vertical = 8.dp)
+                    ) {
+                        uiState.groups.forEach { group ->
+                            items(group.highlights, key = { it.id }) { highlight ->
+                                HighlightCard(
+                                    highlight = highlight,
+                                    onClick = { onNavigateToBookmark(group.bookmarkId, highlight.id) }
+                                )
+                            }
+                            item(key = "title_${group.bookmarkId}") {
+                                BookmarkTitleLine(
+                                    group = group,
+                                    onClick = { onNavigateToBookmark(group.bookmarkId, null) }
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun HighlightCard(
+    highlight: HighlightSummary,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val backgroundColor = annotationColor(highlight.color)
+    val borderColor = annotationBorderColor(highlight.color)
+    Card(
+        onClick = onClick,
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 2.dp),
+        colors = CardDefaults.cardColors(containerColor = backgroundColor),
+        border = BorderStroke(1.dp, borderColor)
+    ) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            val formatter = DateTimeFormatter.ofLocalizedDateTime(FormatStyle.MEDIUM, FormatStyle.SHORT)
+                .withZone(ZoneId.systemDefault())
+            Text(
+                text = formatter.format(highlight.created.toJavaInstant()),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.height(4.dp))
+            Text(
+                text = highlight.text,
+                style = MaterialTheme.typography.bodyLarge.copy(fontStyle = FontStyle.Italic),
+            )
+            if (highlight.note.isNotEmpty()) {
+                Spacer(Modifier.height(4.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Outlined.EditNote,
+                        contentDescription = null,
+                        modifier = Modifier.size(14.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Spacer(Modifier.width(4.dp))
+                    Text(
+                        text = highlight.note,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun annotationColor(color: String): Color {
+    val isDark = isSystemInDarkTheme()
+    return when (color) {
+        "yellow" -> if (isDark) Color(0xFFFFEB3B).copy(alpha = 0.15f) else Color(0xFFFFEB3B).copy(alpha = 0.10f)
+        "red"    -> if (isDark) Color(0xFFEF5350).copy(alpha = 0.15f) else Color(0xFFEF5350).copy(alpha = 0.10f)
+        "blue"   -> if (isDark) Color(0xFF42A5F5).copy(alpha = 0.15f) else Color(0xFF42A5F5).copy(alpha = 0.10f)
+        "green"  -> if (isDark) Color(0xFF66BB6A).copy(alpha = 0.15f) else Color(0xFF66BB6A).copy(alpha = 0.10f)
+        else     -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+    }
+}
+
+@Composable
+private fun annotationBorderColor(color: String): Color {
+    val isDark = isSystemInDarkTheme()
+    val base = when (color) {
+        "yellow" -> Color(0xFFFFEB3B)
+        "red"    -> Color(0xFFEF5350)
+        "blue"   -> Color(0xFF42A5F5)
+        "green"  -> Color(0xFF66BB6A)
+        else     -> MaterialTheme.colorScheme.outline
+    }
+    return if (isDark) {
+        // High alpha on dark background makes it lighter
+        base.copy(alpha = 0.60f)
+    } else {
+        // High alpha on light background makes it darker
+        base.copy(alpha = 0.60f)
+    }
+}
+
+@Composable
+private fun BookmarkTitleLine(
+    group: BookmarkHighlightGroup,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val label = buildAnnotatedString {
+        if (group.bookmarkSiteName.isNotBlank()) {
+            withStyle(style = SpanStyle(
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface
+            )) {
+                append(group.bookmarkSiteName)
+            }
+            append(" — ")
+        }
+        withStyle(style = SpanStyle(
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.primary
+        )) {
+            append(group.bookmarkTitle)
+        }
+    }
+    Text(
+        text = label,
+        style = MaterialTheme.typography.bodyMedium,
+        modifier = modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 4.dp),
+        maxLines = 2,
+        overflow = TextOverflow.Ellipsis,
+    )
+}

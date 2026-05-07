@@ -899,7 +899,7 @@ class BookmarkRepositoryImplTest {
     @Test
     fun `observeAllBookmarkCounts emits mapped counts on DAO emission`() = runTest {
         val entity = BookmarkCountsEntity(
-            archived = 3, favorite = 5, article = 10, video = 2, picture = 1, total = 16
+            archived = 3, favorite = 5, article = 10, video = 2, picture = 1, highlights = 0, total = 16
         )
         every { bookmarkDao.observeAllBookmarkCounts() } returns flowOf(entity)
 

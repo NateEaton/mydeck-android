@@ -22,6 +22,7 @@ import androidx.compose.material.icons.automirrored.outlined.Label
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.CollectionsBookmark
 import androidx.compose.material.icons.outlined.VideoLibrary
+import androidx.compose.material.icons.outlined.EditNote
 import androidx.compose.material3.Badge
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -55,6 +56,7 @@ fun AppDrawerContent(
     onClickVideos: () -> Unit,
     onClickPictures: () -> Unit,
     onClickLabels: () -> Unit,
+    onClickHighlights: () -> Unit,
     onClickSettings: () -> Unit,
     onClickUserGuide: () -> Unit,
     onClickAbout: () -> Unit,
@@ -78,6 +80,7 @@ fun AppDrawerContent(
                 onClickVideos = onClickVideos,
                 onClickPictures = onClickPictures,
                 onClickLabels = onClickLabels,
+                onClickHighlights = onClickHighlights,
                 onClickSettings = onClickSettings,
                 onClickUserGuide = onClickUserGuide,
                 onClickAbout = onClickAbout,
@@ -101,6 +104,7 @@ fun AppDrawerContent(
                 onClickVideos = onClickVideos,
                 onClickPictures = onClickPictures,
                 onClickLabels = onClickLabels,
+                onClickHighlights = onClickHighlights,
                 onClickSettings = onClickSettings,
                 onClickUserGuide = onClickUserGuide,
                 onClickAbout = onClickAbout,
@@ -124,6 +128,7 @@ private fun DrawerColumnContent(
     onClickVideos: () -> Unit,
     onClickPictures: () -> Unit,
     onClickLabels: () -> Unit,
+    onClickHighlights: () -> Unit,
     onClickSettings: () -> Unit,
     onClickUserGuide: () -> Unit,
     onClickAbout: () -> Unit,
@@ -328,6 +333,28 @@ private fun DrawerColumnContent(
             selected = isLabelMode,
             colors = prominentItemColors,
             onClick = onClickLabels
+        )
+        NavigationDrawerItem(
+            label = {
+                Text(
+                    style = MaterialTheme.typography.titleMedium,
+                    text = stringResource(R.string.highlights_title)
+                )
+            },
+            icon = { Icon(Icons.Outlined.EditNote, contentDescription = null) },
+            badge = {
+                if (bookmarkCounts.highlights > 0) {
+                    Badge(containerColor = MaterialTheme.colorScheme.secondaryContainer) {
+                        Text(
+                            text = bookmarkCounts.highlights.toString(),
+                            style = MaterialTheme.typography.labelMedium
+                        )
+                    }
+                }
+            },
+            selected = drawerPreset == com.mydeck.app.domain.model.DrawerPreset.HIGHLIGHTS,
+            colors = prominentItemColors,
+            onClick = onClickHighlights,
         )
         HorizontalDivider(
             modifier = Modifier.padding(vertical = 4.dp).fillMaxWidth(),
