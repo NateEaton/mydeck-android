@@ -192,14 +192,10 @@ fun BookmarkDetailScreen(
     annotationId: String? = null
 ) {
     val viewModel: BookmarkDetailViewModel = hiltViewModel()
-    LaunchedEffect(annotationId) {
-        if (annotationId != null) {
-            viewModel.scrollToAnnotation(annotationId)
-        }
-    }
     BookmarkDetailHost(
         viewModel = viewModel,
         showOriginal = showOriginal,
+        annotationId = annotationId,
         onNavigateBack = { pendingDeleteBookmarkId ->
             if (pendingDeleteBookmarkId != null) {
                 navHostController.previousBackStackEntry
@@ -215,6 +211,7 @@ fun BookmarkDetailScreen(
 fun BookmarkDetailHost(
     viewModel: BookmarkDetailViewModel,
     showOriginal: Boolean,
+    annotationId: String? = null,
     onNavigateBack: (String?) -> Unit
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
@@ -256,7 +253,6 @@ fun BookmarkDetailHost(
     val articleSearchState = viewModel.articleSearchState.collectAsState().value
     val annotationsState = viewModel.annotationsState.collectAsState().value
     val showAnnotationsSheet = viewModel.showAnnotationsSheet.collectAsState().value
-    val pendingAnnotationScrollId = viewModel.pendingAnnotationScrollId.collectAsState().value
     val annotationEditState = viewModel.annotationEditState.collectAsState().value
     val readerContentReloadNonce = viewModel.readerContentReloadNonce.collectAsState().value
     val labelsWithCounts = viewModel.labelsWithCounts.collectAsState().value
@@ -493,7 +489,8 @@ fun BookmarkDetailHost(
                         android.util.Base64.NO_WRAP
                     )
                     webView.evaluateJavascript(
-                        "document.querySelector('.container').innerHTML=decodeURIComponent(escape(atob('$base64Html')));",
+                        "var el=document.getElementById('rd-article-content');" +
+                            "if(el)el.innerHTML=decodeURIComponent(escape(atob('$base64Html')));",
                         null
                     )
                     // Re-inject interaction listeners for the new DOM elements
@@ -629,10 +626,8 @@ fun BookmarkDetailHost(
                     onAnnotationClicked = { annotationId ->
                         showAnnotationEditor(uiState.bookmark.bookmarkId, annotationId)
                     },
-                    pendingAnnotationScrollId = pendingAnnotationScrollId,
-                    readerWebView = readerWebView.value,
-                    onAnnotationScrollHandled = { viewModel.onAnnotationScrollHandled() },
                     onReaderWebViewChanged = { readerWebView.value = it },
+                    readerWebView = readerWebView.value,
                     videoFullscreenView = videoFullscreenView,
                     onVideoEnterFullscreen = { view, callback ->
                         if (videoFullscreenView !== view) {
@@ -758,9 +753,13 @@ fun BookmarkDetailHost(
                     annotations = annotationsState.annotations,
                     isLoading = annotationsState.isLoading,
                     onDismiss = { viewModel.hideAnnotationsSheet() },
-                    onAnnotationClick = { annotationId ->
+                    onAnnotationClick = { selectedAnnotationId ->
                         viewModel.hideAnnotationsSheet()
-                        viewModel.scrollToAnnotation(annotationId)
+                        readerWebView.value?.evaluateJavascript(
+                            "(function(){ var el = document.getElementById('annotation-$selectedAnnotationId'); " +
+                                "if (el) el.scrollIntoView({block:'center', behavior:'smooth'}); })();",
+                            null
+                        )
                     }
                 )
             }
@@ -836,9 +835,7 @@ fun BookmarkDetailScreen(
     onIntrapageLinkLongPress: (linkUrl: String, linkText: String) -> Unit = { _, _ -> },
     onTextSelectionCaptured: (com.mydeck.app.domain.model.SelectionData) -> Unit = {},
     onAnnotationClicked: (String) -> Unit = {},
-    pendingAnnotationScrollId: String? = null,
     readerWebView: WebView? = null,
-    onAnnotationScrollHandled: () -> Unit = {},
     onReaderWebViewChanged: (WebView?) -> Unit = {},
     videoFullscreenView: View? = null,
     onVideoEnterFullscreen: (View, WebChromeClient.CustomViewCallback?) -> Unit = { _, _ -> },
@@ -855,12 +852,8 @@ fun BookmarkDetailScreen(
         mutableIntStateOf(initialReadProgress.coerceIn(0, 100))
     }
     val coroutineScope = rememberCoroutineScope()
-    // TODO(spec section 5d): dead after Phase 2 — Phase 5 removes
-    var articleTopOffset by remember { mutableStateOf(0f) }
-    var viewportHeight by remember { mutableIntStateOf(0) }
     var bottomTopBarRevealJob by remember { mutableStateOf<Job?>(null) }
     var isReaderContentReady by remember(uiState.bookmark.bookmarkId, contentMode) { mutableStateOf(false) }
-    val articleViewportTopPx = (scrollState.value - articleTopOffset).coerceAtLeast(0f).toInt()
     val fullscreenReaderMode = fullscreenWhileReading && contentMode == ContentMode.READER
     val immersiveModeEnabled = fullscreenReaderMode || videoFullscreenView != null
     var showFullscreenTopBar by remember(uiState.bookmark.bookmarkId, fullscreenReaderMode) {
@@ -984,41 +977,6 @@ fun BookmarkDetailScreen(
 
     ReaderFullscreenEffect(enabled = immersiveModeEnabled)
 
-    // TODO(spec section 5d): dead after Phase 2 — Phase 5 removes
-    LaunchedEffect(
-        pendingAnnotationScrollId,
-        readerWebView,
-        articleTopOffset,
-        viewportHeight,
-        contentMode,
-        isReaderContentReady
-    ) {
-        if (!isReaderContentReady) return@LaunchedEffect
-        val annotationId = pendingAnnotationScrollId
-        val webView = readerWebView
-        if (annotationId == null ||
-            webView == null ||
-            contentMode != ContentMode.READER ||
-            viewportHeight == 0) {
-            return@LaunchedEffect
-        }
-
-        val viewportInfo = WebViewAnnotationBridge.getAnnotationViewportInfo(webView, annotationId)
-        if (viewportInfo == null) {
-            onAnnotationScrollHandled()
-            return@LaunchedEffect
-        }
-
-        val targetInsideArticle = webView.height.toFloat() * viewportInfo.centerRatio
-        val targetScroll = (
-            articleTopOffset +
-                targetInsideArticle -
-                (viewportHeight / 2f)
-            ).toInt().coerceIn(0, scrollState.maxValue)
-
-        scrollState.animateScrollTo(targetScroll)
-        onAnnotationScrollHandled()
-    }
 
     Box(modifier = modifier.fillMaxSize()) {
         Scaffold(
@@ -1065,8 +1023,6 @@ fun BookmarkDetailScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(padding)
-                    // TODO(spec section 5d): dead after Phase 2 — Phase 5 removes
-                    .onSizeChanged { viewportHeight = it.height }
             ) {
                 BookmarkDetailContent(
                     modifier = Modifier.fillMaxSize(),
@@ -1088,17 +1044,11 @@ fun BookmarkDetailScreen(
                     onIntrapageLinkLongPress = onIntrapageLinkLongPress,
                     onTextSelectionCaptured = onTextSelectionCaptured,
                     onAnnotationClicked = onAnnotationClicked,
-                    onArticlePositionChanged = { articleTopOffset = it },
-                    articleViewportTopPx = articleViewportTopPx,
-                    articleTopOffsetPx = articleTopOffset,
-                    viewportHeightPx = viewportHeight,
                     onReaderWebViewChanged = onReaderWebViewChanged,
                     onVideoEnterFullscreen = onVideoEnterFullscreen,
                     onVideoExitFullscreen = onVideoExitFullscreen,
                     onClickToggleFavorite = onClickToggleFavorite,
                     onClickToggleArchive = onClickToggleArchive,
-                    onContentReady = { ready -> isReaderContentReady = ready },
-                    pendingAnnotationScrollId = pendingAnnotationScrollId,
                     onReaderScrollChanged = ::updateTopBarFromReaderScroll,
                     scrollState = scrollState,
                     annotationId = annotationId,
@@ -1363,17 +1313,11 @@ fun BookmarkDetailContent(
     onIntrapageLinkLongPress: (linkUrl: String, linkText: String) -> Unit = { _, _ -> },
     onTextSelectionCaptured: (com.mydeck.app.domain.model.SelectionData) -> Unit = {},
     onAnnotationClicked: (String) -> Unit = {},
-    onArticlePositionChanged: (Float) -> Unit = {},
-    articleViewportTopPx: Int = 0,
-    articleTopOffsetPx: Float = 0f,
-    viewportHeightPx: Int = 0,
     onReaderWebViewChanged: (WebView?) -> Unit = {},
-    onVideoEnterFullscreen: (View, WebChromeClient.CustomViewCallback?) -> Unit = { _, _ -> },
+    onVideoEnterFullscreen: (View, android.webkit.WebChromeClient.CustomViewCallback?) -> Unit = { _, _ -> },
     onVideoExitFullscreen: (VideoFullscreenDismissSource) -> Unit = {},
     onClickToggleFavorite: (String, Boolean) -> Unit = { _, _ -> },
     onClickToggleArchive: (String, Boolean) -> Unit = { _, _ -> },
-    onContentReady: (Boolean) -> Unit = {},
-    pendingAnnotationScrollId: String? = null,
     onReaderScrollChanged: (scrollY: Int, deltaY: Int, scrollProgress: Float, userInitiated: Boolean) -> Unit = { _, _, _, _ -> },
     scrollState: ScrollState = rememberScrollState(),
     annotationId: String? = null,
@@ -1478,13 +1422,9 @@ fun BookmarkDetailContent(
                         webViewDispatcher = webViewDispatcher,
                         articleSearchState = articleSearchState,
                         onArticleSearchUpdateResults = onArticleSearchUpdateResults,
-                        articleViewportTopPx = articleViewportTopPx,
-                        articleTopOffsetPx = articleTopOffsetPx,
-                        viewportHeightPx = viewportHeightPx,
                         scrollState = scrollState,
                         onContentReady = { ready ->
                             isReaderContentReady = ready
-                            onContentReady(ready)
                         },
                         initialReadProgress = initialReadProgress,
                         onScrollProgressChanged = onScrollProgressChanged,
@@ -1495,13 +1435,6 @@ fun BookmarkDetailContent(
                         onIntrapageLinkLongPress = onIntrapageLinkLongPress,
                         onTextSelectionCaptured = onTextSelectionCaptured,
                         onAnnotationClicked = onAnnotationClicked,
-                        // TODO(spec section 5d): dead after Phase 2 — Phase 5 removes
-                        onFragmentScroll = { absoluteY ->
-                            coroutineScope.launch {
-                                val targetScroll = (absoluteY + articleTopOffsetPx).toInt().coerceIn(0, scrollState.maxValue)
-                                scrollState.animateScrollTo(targetScroll)
-                            }
-                        },
                         onVideoEnterFullscreen = onVideoEnterFullscreen,
                         onVideoExitFullscreen = onVideoExitFullscreen,
                         onToggleFavorite = onClickToggleFavorite,

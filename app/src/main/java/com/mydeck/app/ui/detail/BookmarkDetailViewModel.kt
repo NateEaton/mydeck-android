@@ -181,8 +181,6 @@ class BookmarkDetailViewModel @Inject constructor(
     private val _showAnnotationsSheet = MutableStateFlow(false)
     val showAnnotationsSheet: StateFlow<Boolean> = _showAnnotationsSheet.asStateFlow()
 
-    private val _pendingAnnotationScrollId = MutableStateFlow<String?>(null)
-    val pendingAnnotationScrollId: StateFlow<String?> = _pendingAnnotationScrollId.asStateFlow()
 
     private val _annotationEditState = MutableStateFlow<AnnotationEditState?>(null)
     val annotationEditState: StateFlow<AnnotationEditState?> = _annotationEditState.asStateFlow()
@@ -230,7 +228,6 @@ class BookmarkDetailViewModel @Inject constructor(
         _articleSearchState.value = ArticleSearchState()
         _annotationsState.value = AnnotationsState()
         _showAnnotationsSheet.value = false
-        _pendingAnnotationScrollId.value = null
         _annotationEditState.value = null
         _pendingArchiveState.value = null
 
@@ -1487,14 +1484,6 @@ class BookmarkDetailViewModel @Inject constructor(
         }
     }
 
-    fun scrollToAnnotation(annotationId: String) {
-        _showAnnotationsSheet.value = false
-        _pendingAnnotationScrollId.value = annotationId
-    }
-
-    fun onAnnotationScrollHandled() {
-        _pendingAnnotationScrollId.value = null
-    }
 
     sealed class ContentLoadState {
         data object Idle : ContentLoadState()
@@ -1657,7 +1646,7 @@ class BookmarkDetailViewModel @Inject constructor(
 
                 Type.ARTICLE -> {
                     articleContent?.let {
-                        htmlTemplate.replace("%s", headerHtml + it + footerHtml)
+                        htmlTemplate.replace("%s", headerHtml + "<div id=\"rd-article-content\">" + it + "</div>" + footerHtml)
                     }
                 }
             }

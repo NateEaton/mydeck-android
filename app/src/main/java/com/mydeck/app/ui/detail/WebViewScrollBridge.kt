@@ -16,26 +16,46 @@ object WebViewScrollBridge {
     }
 
     /** Returns JS that restores scroll, observes reflows, and reports user scroll progress. */
-    fun injectScrollManager(targetPercentage: Float): String = """
+    fun injectScrollManager(targetPercentage: Float, targetAnnotationId: String = ""): String {
+        // Escape the annotation ID for safe embedding in a JS string literal
+        val escapedAnnotationId = targetAnnotationId
+            .replace("\\", "\\\\")
+            .replace("\"", "\\\"")
+        return """
         (function() {
             if (window.__mdScrollManagerInstalled) return;
             window.__mdScrollManagerInstalled = true;
             var targetPercentage = ${"%.6f".format(Locale.US, targetPercentage)};
+            var targetAnnotationId = "$escapedAnnotationId";
             var isUserScrolling = false;
+            var initialPositionApplied = false;
 
             function getScrollMax() {
                 return document.documentElement.scrollHeight - window.innerHeight;
             }
 
-            function maintainScrollPosition() {
-                if (!isUserScrolling && targetPercentage > 0) {
+            function applyInitialPosition() {
+                if (initialPositionApplied || isUserScrolling) return;
+                if (targetAnnotationId) {
+                    var el = document.getElementById('annotation-' + targetAnnotationId);
+                    if (el) {
+                        el.scrollIntoView({block: 'center', behavior: 'instant'});
+                        initialPositionApplied = true;
+                        return;
+                    }
+                    return;
+                }
+                if (targetPercentage > 0) {
                     var max = getScrollMax();
-                    if (max > 0) window.scrollTo(0, max * targetPercentage);
+                    if (max > 0) {
+                        window.scrollTo(0, max * targetPercentage);
+                        initialPositionApplied = true;
+                    }
                 }
             }
 
-            maintainScrollPosition();
-            new ResizeObserver(maintainScrollPosition).observe(document.documentElement);
+            applyInitialPosition();
+            new ResizeObserver(applyInitialPosition).observe(document.documentElement);
 
             window.addEventListener('scroll', function() {
                 if (!isUserScrolling) return;
@@ -52,4 +72,5 @@ object WebViewScrollBridge {
             });
         })();
     """.trimIndent()
+    }
 }

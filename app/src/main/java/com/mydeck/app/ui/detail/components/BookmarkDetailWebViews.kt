@@ -116,9 +116,6 @@ fun BookmarkDetailArticle(
     webViewDispatcher: NestedScrollDispatcher,
     articleSearchState: BookmarkDetailViewModel.ArticleSearchState = BookmarkDetailViewModel.ArticleSearchState(),
     onArticleSearchUpdateResults: (Int, Int) -> Unit = { _, _ -> },
-    articleViewportTopPx: Int = 0,
-    articleTopOffsetPx: Float = 0f,
-    viewportHeightPx: Int = 0,
     scrollState: ScrollState,
     onContentReady: (Boolean) -> Unit = {},
     initialReadProgress: Int = 0,
@@ -130,7 +127,6 @@ fun BookmarkDetailArticle(
     onIntrapageLinkLongPress: (linkUrl: String, linkText: String) -> Unit = { _, _ -> },
     onTextSelectionCaptured: (SelectionData) -> Unit = {},
     onAnnotationClicked: (String) -> Unit = {},
-    onFragmentScroll: (absoluteY: Int) -> Unit = {},
     onVideoEnterFullscreen: (View, android.webkit.WebChromeClient.CustomViewCallback?) -> Unit = { _, _ -> },
     onVideoExitFullscreen: (VideoFullscreenDismissSource) -> Unit = {},
     onToggleFavorite: (String, Boolean) -> Unit = { _, _ -> },
@@ -187,7 +183,6 @@ fun BookmarkDetailArticle(
     val json = remember { Json { ignoreUnknownKeys = true } }
     val latestSelectionHandler = rememberUpdatedState(onTextSelectionCaptured)
     val latestAnnotationClickHandler = rememberUpdatedState(onAnnotationClicked)
-    val latestFragmentScrollHandler = rememberUpdatedState(onFragmentScroll)
     val latestIntrapageLinkLongPressHandler = rememberUpdatedState(onIntrapageLinkLongPress)
     val latestTypographySettings = rememberUpdatedState(uiState.typographySettings)
     val latestThemePalette = rememberUpdatedState(readerThemePalette)
@@ -195,6 +190,7 @@ fun BookmarkDetailArticle(
     val latestProgressHandler = rememberUpdatedState(onScrollProgressChanged)
     val latestScrollChangedHandler = rememberUpdatedState(onScrollChanged)
     val latestInitialProgress = rememberUpdatedState(initialReadProgress)
+    val latestAnnotationId = rememberUpdatedState(annotationId)
     val lastDeliveredAnnotationTap = remember { mutableStateOf<Pair<String, Long>?>(null) }
     var hasReportedReady by remember(uiState.bookmark.bookmarkId, uiState.bookmark.articleContent != null) { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
@@ -204,19 +200,14 @@ fun BookmarkDetailArticle(
         webView.evaluateJavascript(latestThemeScript.value, null)
     }
 
-    // TODO(spec section 5d): dead after Phase 2 — Phase 5 removes
-    suspend fun focusSearchMatch(webView: WebView, matchIndex: Int) {
+    fun focusSearchMatch(webView: WebView, matchIndex: Int) {
         if (matchIndex < 0) return
         WebViewSearchBridge.highlightCurrentMatch(webView, matchIndex)
-        if (viewportHeightPx <= 0) return
-        val centerRatio = WebViewSearchBridge.getMatchViewportCenterRatio(webView, matchIndex) ?: return
-        val targetInsideArticle = webView.height.toFloat() * centerRatio
-        val targetScroll = (
-            articleTopOffsetPx +
-                targetInsideArticle -
-                (viewportHeightPx / 2f)
-            ).toInt().coerceIn(0, scrollState.maxValue)
-        scrollState.animateScrollTo(targetScroll)
+        webView.evaluateJavascript(
+            "(function(){ var el = document.querySelector('.mydeck-search-match[data-match-index=\"$matchIndex\"]'); " +
+                "if (el) el.scrollIntoView({block:'center', behavior:'smooth'}); })();",
+            null
+        )
     }
 
     fun deliverAnnotationTap(annotationId: String, source: String) {
@@ -362,7 +353,7 @@ fun BookmarkDetailArticle(
                 WebViewSearchBridge.searchAndHighlight(
                     webView = webView,
                     query = articleSearchState.query,
-                    viewportTopPx = articleViewportTopPx
+                    
                 ) { matchCount, preferredIndex ->
                     val targetMatch = when {
                         articleSearchState.currentMatch in 1..matchCount -> articleSearchState.currentMatch
@@ -416,7 +407,7 @@ fun BookmarkDetailArticle(
                 WebViewSearchBridge.searchAndHighlight(
                     webView = webView,
                     query = articleSearchState.query,
-                    viewportTopPx = articleViewportTopPx
+                    
                 ) { matchCount, preferredIndex ->
                     val targetMatch = when {
                         articleSearchState.currentMatch in 1..matchCount -> articleSearchState.currentMatch
@@ -503,16 +494,8 @@ fun BookmarkDetailArticle(
                             WebViewAnnotationTapBridge.BRIDGE_NAME
                         )
                         addJavascriptInterface(
-                            WebViewTocBridge(
-                                onFragmentScroll = { absoluteY ->
-                                    latestFragmentScrollHandler.value(absoluteY)
-                                }
-                            ),
-                            WebViewTocBridge.BRIDGE_NAME
-                        )
-                        addJavascriptInterface(
                             WebViewScrollBridge.BookmarkScrollInterface { percentage ->
-                                val progress = (percentage * 100).toInt().coerceIn(0, 100)
+                                val progress = Math.round(percentage * 100).coerceIn(0, 100)
                                 Timber.d(
                                     "$ReadPositionLogPrefix: progress-report bookmark=${uiState.bookmark.bookmarkId} " +
                                         "progress=$progress source=js-bridge"
@@ -635,8 +618,6 @@ fun BookmarkDetailArticle(
                                 webView.evaluateJavascript(imageJs, null)
                                 val annotationJs = WebViewAnnotationBridge.injectAnnotationInteractions()
                                 webView.evaluateJavascript(annotationJs, null)
-                                val tocJs = WebViewTocBridge.injectFragmentLinkInterceptor()
-                                webView.evaluateJavascript(tocJs, null)
                                 webView.evaluateJavascript(WebViewActionsInjector.injectActions(), null)
                             }
 
@@ -684,9 +665,11 @@ fun BookmarkDetailArticle(
                                 super.onPageCommitVisible(view, url)
                                 view?.let { webView ->
                                     applyReaderEnhancements(webView)
-                                    val target = (latestInitialProgress.value / 100f).coerceIn(0f, 1f)
+                                    val currentAnnotationId = latestAnnotationId.value
+                                    val target = if (currentAnnotationId.isNotEmpty()) 0f
+                                                 else (latestInitialProgress.value / 100f).coerceIn(0f, 1f)
                                     webView.evaluateJavascript(
-                                        WebViewScrollBridge.injectScrollManager(target),
+                                        WebViewScrollBridge.injectScrollManager(target, currentAnnotationId),
                                         null
                                     )
                                 }
