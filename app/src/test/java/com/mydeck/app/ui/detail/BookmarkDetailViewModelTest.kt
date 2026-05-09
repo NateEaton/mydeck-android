@@ -22,6 +22,7 @@ import com.mydeck.app.io.AssetLoader
 import com.mydeck.app.io.prefs.SettingsDataStore
 import com.mydeck.app.io.rest.ReadeckApi
 import com.mydeck.app.io.rest.model.AnnotationDto
+import com.mydeck.app.io.rest.model.UpdateAnnotationDto
 import io.mockk.Runs
 import io.mockk.clearMocks
 import io.mockk.coEvery
@@ -29,6 +30,7 @@ import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.just
 import io.mockk.mockk
+import io.mockk.slot
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -842,7 +844,8 @@ class BookmarkDetailViewModelTest {
         assertEquals("green", state?.color)
         assertNull(state?.selectionData)
         assertEquals("Selected text", state?.text)
-        assertEquals("First note\n\nSecond note", state?.noteText)
+        assertEquals("", state?.noteText)
+        assertEquals(true, state?.hasMixedNotes)
     }
 
     @Test
@@ -864,10 +867,11 @@ class BookmarkDetailViewModelTest {
         assertNull(state?.selectionData)
         assertEquals("Existing highlight", state?.text)
         assertEquals("Saved note", state?.noteText)
+        assertEquals(false, state?.hasMixedNotes)
     }
 
     @Test
-    fun `saveAnnotationEdit creates annotation and refreshes article content`() = runTest {
+    fun `saveAnnotationEdit creates annotation patches note and refreshes article content`() = runTest {
         val selectionData = SelectionData(
             text = "Selected text",
             startSelector = "/section[1]/p[1]",
@@ -884,21 +888,29 @@ class BookmarkDetailViewModelTest {
             created = "2026-03-09T10:00:00Z",
             text = selectionData.text
         )
+        val updateBody = slot<UpdateAnnotationDto>()
 
         coEvery {
             readeckApi.createAnnotation("123", any())
         } returns Response.success(createdAnnotation)
+        coEvery {
+            readeckApi.updateAnnotation("123", "annotation-1", capture(updateBody))
+        } returns Response.success(Unit)
         coEvery { contentPackageManager.hasResources("123") } returns true
         coEvery { loadContentPackageUseCase.refreshHtmlForAnnotations("123") } returns "<p>refreshed</p>"
         coEvery { readeckApi.getAnnotations("123") } returns Response.success(emptyList())
 
         viewModel.showCreateAnnotationSheet(selectionData)
         viewModel.onAnnotationEditColorSelected("red")
+        viewModel.onAnnotationEditNoteChanged("New note")
         viewModel.saveAnnotationEdit()
         advanceUntilIdle()
 
         assertNull(viewModel.annotationEditState.value)
         coVerify { readeckApi.createAnnotation("123", any()) }
+        coVerify { readeckApi.updateAnnotation("123", "annotation-1", any()) }
+        assertEquals("red", updateBody.captured.color)
+        assertEquals("New note", updateBody.captured.note)
         coVerify { loadContentPackageUseCase.refreshHtmlForAnnotations("123") }
     }
 
@@ -931,22 +943,110 @@ class BookmarkDetailViewModelTest {
             )
         )
 
-        coEvery { readeckApi.updateAnnotation("123", "annotation-1", any()) } returns Response.success(Unit)
-        coEvery { readeckApi.updateAnnotation("123", "annotation-2", any()) } returns Response.success(Unit)
+        val updateBodies = mutableListOf<UpdateAnnotationDto>()
+        coEvery { readeckApi.updateAnnotation("123", "annotation-1", capture(updateBodies)) } returns Response.success(Unit)
+        coEvery { readeckApi.updateAnnotation("123", "annotation-2", capture(updateBodies)) } returns Response.success(Unit)
         coEvery { readeckApi.getAnnotations("123") } returns Response.success(emptyList())
+        coEvery {
+            contentPackageManager.getCachedReaderHtml("123")
+        } returns """<rd-annotation id="annotation-1" data-annotation-id-value="annotation-1" data-annotation-color="yellow">one</rd-annotation><rd-annotation id="annotation-2" data-annotation-id-value="annotation-2" data-annotation-color="yellow" title="old" data-annotation-note="true">two</rd-annotation>"""
 
         viewModel.showCreateAnnotationSheet(selectionData, existingAnnotations)
         viewModel.onAnnotationEditColorSelected("red")
+        viewModel.onAnnotationEditNoteChanged("Shared note")
         viewModel.saveAnnotationEdit()
         advanceUntilIdle()
 
         assertNull(viewModel.annotationEditState.value)
         coVerify { readeckApi.updateAnnotation("123", "annotation-1", any()) }
         coVerify { readeckApi.updateAnnotation("123", "annotation-2", any()) }
+        assertEquals(listOf("Shared note", "Shared note"), updateBodies.map { it.note })
+        coVerify {
+            contentPackageManager.updateCachedReaderHtml(
+                "123",
+                match { html ->
+                    html.contains("""data-annotation-color="red"""") &&
+                        html.contains("""title="Shared note"""") &&
+                        html.contains("""data-annotation-note="true"""")
+                }
+            )
+        }
         coVerify(exactly = 0) { readeckApi.createAnnotation(any(), any()) }
         // Color changes use JS-only path, no full content refresh
         coVerify(exactly = 0) { loadContentPackageUseCase.executeForceRefresh("123") }
         coVerify { readeckApi.getAnnotations("123") }
+    }
+
+    @Test
+    fun `saveAnnotationEdit clears existing annotation note with blank text`() = runTest {
+        val annotation = Annotation(
+            id = "annotation-1",
+            bookmarkId = "123",
+            text = "Existing highlight",
+            color = "yellow",
+            note = "Old note",
+            created = "2026-03-09T10:00:00Z"
+        )
+        val updateBody = slot<UpdateAnnotationDto>()
+
+        coEvery {
+            readeckApi.updateAnnotation("123", "annotation-1", capture(updateBody))
+        } returns Response.success(Unit)
+        coEvery { readeckApi.getAnnotations("123") } returns Response.success(emptyList())
+        coEvery {
+            contentPackageManager.getCachedReaderHtml("123")
+        } returns """<rd-annotation id="annotation-1" data-annotation-id-value="annotation-1" data-annotation-color="yellow" title="Old note" data-annotation-note="true">one</rd-annotation>"""
+
+        viewModel.showEditAnnotationSheet(annotation)
+        viewModel.onAnnotationEditNoteChanged("")
+        viewModel.saveAnnotationEdit()
+        advanceUntilIdle()
+
+        assertEquals("", updateBody.captured.note)
+        coVerify {
+            contentPackageManager.updateCachedReaderHtml(
+                "123",
+                match { html ->
+                    !html.contains("title=") &&
+                        !html.contains("data-annotation-note") &&
+                        html.contains("""data-annotation-color="yellow"""")
+                }
+            )
+        }
+    }
+
+    @Test
+    fun `saveAnnotationEdit writes note marker only on final cached segment`() = runTest {
+        val annotation = Annotation(
+            id = "annotation-1",
+            bookmarkId = "123",
+            text = "Split highlight",
+            color = "yellow",
+            note = null,
+            created = "2026-03-09T10:00:00Z"
+        )
+
+        coEvery { readeckApi.updateAnnotation("123", "annotation-1", any()) } returns Response.success(Unit)
+        coEvery { readeckApi.getAnnotations("123") } returns Response.success(emptyList())
+        coEvery {
+            contentPackageManager.getCachedReaderHtml("123")
+        } returns """<rd-annotation id="annotation-1" data-annotation-id-value="annotation-1" data-annotation-color="yellow">one</rd-annotation><rd-annotation data-annotation-id-value="annotation-1" data-annotation-color="yellow">two</rd-annotation>"""
+
+        viewModel.showEditAnnotationSheet(annotation)
+        viewModel.onAnnotationEditNoteChanged("Segment note")
+        viewModel.saveAnnotationEdit()
+        advanceUntilIdle()
+
+        coVerify {
+            contentPackageManager.updateCachedReaderHtml(
+                "123",
+                match { html ->
+                    Regex("""data-annotation-note="true"""").findAll(html).count() == 1 &&
+                        Regex("""title="Segment note"""").findAll(html).count() == 1 &&
+                        html.contains(""">one</rd-annotation><rd-annotation data-annotation-id-value="annotation-1" data-annotation-color="yellow" title="Segment note" data-annotation-note="true">two</rd-annotation>""")
+                }
+            )
+        }
     }
 
     @Test

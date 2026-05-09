@@ -22,7 +22,11 @@ fun AnnotationSummaryDto.toDomain(): com.mydeck.app.domain.model.HighlightSummar
     text = text,
     color = color,
     note = note,
-    created = kotlinx.datetime.Instant.parse(created),
+    created = runCatching {
+        kotlinx.datetime.Instant.parse(created)
+    }.getOrElse {
+        kotlinx.datetime.Instant.fromEpochMilliseconds(0)
+    },
     bookmarkId = bookmark_id,
     bookmarkTitle = bookmark_title,
     bookmarkSiteName = bookmark_site_name,

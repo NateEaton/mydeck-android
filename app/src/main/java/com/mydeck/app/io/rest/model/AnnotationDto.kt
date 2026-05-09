@@ -26,5 +26,6 @@ data class CreateAnnotationDto(
 
 @Serializable
 data class UpdateAnnotationDto(
-    val color: String
+    val color: String,
+    val note: String
 )

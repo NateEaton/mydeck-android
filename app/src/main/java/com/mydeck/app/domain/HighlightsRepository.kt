@@ -5,6 +5,7 @@ import com.mydeck.app.io.db.dao.CachedAnnotationDao
 import com.mydeck.app.io.db.model.CachedAnnotationEntity
 import com.mydeck.app.io.rest.ReadeckApi
 import com.mydeck.app.io.rest.model.toDomain
+import kotlinx.datetime.Clock
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -51,7 +52,7 @@ class HighlightsRepositoryImpl @Inject constructor(
                             text = dto.text,
                             color = dto.color.takeIf { it.isNotBlank() } ?: "yellow",
                             note = dto.note.takeIf { it.isNotBlank() },
-                            created = dto.created
+                            created = dto.created.takeIf { it.isNotBlank() } ?: Clock.System.now().toString()
                         )
                     }
                 )

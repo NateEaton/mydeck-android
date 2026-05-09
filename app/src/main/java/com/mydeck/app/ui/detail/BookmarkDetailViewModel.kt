@@ -62,6 +62,7 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.datetime.Clock
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toInstant
@@ -695,26 +696,64 @@ class BookmarkDetailViewModel @Inject constructor(
     }
 
     /**
-     * Update annotation color attribute in the on-disk index.html.
-     * Used for color changes where only the attribute value changes.
+     * Update mutable annotation attributes in cached reader HTML.
+     * Used for color/note changes where only attributes change.
      */
-    private suspend fun updateAnnotationColorOnDisk(bookmarkId: String, annotationIds: List<String>, color: String) {
+    private suspend fun updateAnnotationAttributesInCache(
+        bookmarkId: String,
+        annotationIds: List<String>,
+        color: String,
+        note: String
+    ) {
         var html = contentPackageManager.getHtmlContent(bookmarkId) ?: return
         for (id in annotationIds) {
             val escapedId = Regex.escape(id)
             // Match entire <rd-annotation ...> opening tag containing this annotation ID,
-            // then replace the color attribute within it (handles any attribute order)
+            // then replace mutable attributes within it (handles any attribute order).
             val tagRegex = Regex("""<rd-annotation\b([^>]*data-annotation-id-value="$escapedId"[^>]*)>""")
+            val lastMatchIndex = tagRegex.findAll(html).count() - 1
+            var matchIndex = 0
             html = tagRegex.replace(html) { match ->
                 val attrs = match.groupValues[1]
-                val updatedAttrs = attrs.replace(
-                    Regex("""data-annotation-color="[^"]*""""),
-                    """data-annotation-color="$color""""
-                )
+                val updatedAttrs = attrs
+                    .withHtmlAttribute("data-annotation-color", color)
+                    .withoutHtmlAttribute("title")
+                    .withoutHtmlAttribute("data-annotation-note")
+                    .let { attributes ->
+                        if (note.isNotBlank() && matchIndex == lastMatchIndex) {
+                            attributes
+                                .withHtmlAttribute("title", note)
+                                .withHtmlAttribute("data-annotation-note", "true")
+                        } else {
+                            attributes
+                        }
+                    }
+                matchIndex++
                 "<rd-annotation$updatedAttrs>"
             }
         }
         contentPackageManager.updateHtml(bookmarkId, html)
+    }
+
+    private fun String.withHtmlAttribute(name: String, value: String): String {
+        val attrRegex = Regex("""\s+$name="[^"]*"""")
+        val escapedValue = value.escapeHtmlAttribute()
+        return if (attrRegex.containsMatchIn(this)) {
+            replace(attrRegex, """ $name="$escapedValue"""")
+        } else {
+            "$this $name=\"$escapedValue\""
+        }
+    }
+
+    private fun String.withoutHtmlAttribute(name: String): String {
+        return replace(Regex("""\s+$name="[^"]*""""), "")
+    }
+
+    private fun String.escapeHtmlAttribute(): String {
+        return replace("&", "&amp;")
+            .replace("\"", "&quot;")
+            .replace("<", "&lt;")
+            .replace(">", "&gt;")
     }
 
     fun onClickShareBookmark(title: String, url: String) {
@@ -1126,6 +1165,7 @@ class BookmarkDetailViewModel @Inject constructor(
             val response = readeckApi.getAnnotations(bookmarkId)
             if (response.isSuccessful) {
                 val annotations = response.body().orEmpty()
+                val existingById = cachedAnnotationDao.getAnnotationsForBookmark(bookmarkId).associateBy { it.id }
                 settingsDataStore.saveCachedAnnotationSnapshot(
                     bookmarkId,
                     annotations.toAnnotationCachePayload(json)
@@ -1139,7 +1179,9 @@ class BookmarkDetailViewModel @Inject constructor(
                             text = dto.text,
                             color = dto.color.takeIf { it.isNotBlank() } ?: "yellow",
                             note = dto.note.takeIf { it.isNotBlank() },
-                            created = dto.created
+                            created = dto.created.takeIf { it.isNotBlank() }
+                                ?: existingById[dto.id]?.created?.takeIf { it.isNotBlank() }
+                                ?: Clock.System.now().toString()
                         )
                     }
                 )
@@ -1169,7 +1211,8 @@ class BookmarkDetailViewModel @Inject constructor(
             selectionData = selectionData.takeIf { annotationIds.isEmpty() },
             text = selectionData.text,
             previewLines = buildAnnotationPreviewLines(selectionData.text, existingAnnotations),
-            noteText = resolveExistingNotes(existingAnnotations)
+            noteText = resolveInitialAnnotationNote(existingAnnotations),
+            hasMixedNotes = hasMixedAnnotationNotes(existingAnnotations)
         )
     }
 
@@ -1186,7 +1229,7 @@ class BookmarkDetailViewModel @Inject constructor(
             selectionData = null,
             text = annotation.text,
             previewLines = buildAnnotationPreviewLines(annotation.text, listOf(annotation)),
-            noteText = annotation.note?.trim()?.takeIf { it.isNotEmpty() }
+            noteText = annotation.note?.trim().orEmpty()
         )
     }
 
@@ -1292,15 +1335,25 @@ class BookmarkDetailViewModel @Inject constructor(
         }
     }
 
+    fun onAnnotationEditNoteChanged(note: String) {
+        _annotationEditState.update { state ->
+            state?.copy(
+                noteText = note,
+                hasMixedNotes = false
+            )
+        }
+    }
+
     fun saveAnnotationEdit() {
         val state = _annotationEditState.value ?: return
         val selectionData = state.selectionData
         if (state.isSaving) return
 
         if (state.annotationIds.isNotEmpty()) {
-            updateAnnotationColors(
+            updateAnnotations(
                 annotationIds = state.annotationIds,
-                color = state.color
+                color = state.color,
+                note = state.noteText.trim()
             )
         } else if (selectionData != null) {
             createAnnotation(
@@ -1308,7 +1361,8 @@ class BookmarkDetailViewModel @Inject constructor(
                 startOffset = selectionData.startOffset,
                 endSelector = selectionData.endSelector,
                 endOffset = selectionData.endOffset,
-                color = state.color
+                color = state.color,
+                note = state.noteText.trim()
             )
         }
     }
@@ -1324,7 +1378,8 @@ class BookmarkDetailViewModel @Inject constructor(
         startOffset: Int,
         endSelector: String,
         endOffset: Int,
-        color: String
+        color: String,
+        note: String = ""
     ) {
         val bookmarkId = _bookmarkId.value ?: return
         if (!connectivityMonitor.isNetworkAvailable()) {
@@ -1381,10 +1436,14 @@ class BookmarkDetailViewModel @Inject constructor(
     }
 
     fun updateAnnotationColor(annotationId: String, color: String) {
-        updateAnnotationColors(listOf(annotationId), color)
+        updateAnnotations(listOf(annotationId), color, note = "")
     }
 
     fun updateAnnotationColors(annotationIds: List<String>, color: String) {
+        updateAnnotations(annotationIds, color, note = "")
+    }
+
+    fun updateAnnotations(annotationIds: List<String>, color: String, note: String) {
         val bookmarkId = _bookmarkId.value ?: return
         if (!connectivityMonitor.isNetworkAvailable()) {
             _annotationEditState.value = null
@@ -1399,7 +1458,7 @@ class BookmarkDetailViewModel @Inject constructor(
                     val response = readeckApi.updateAnnotation(
                         bookmarkId = bookmarkId,
                         annotationId = annotationId,
-                        body = UpdateAnnotationDto(color = color)
+                        body = UpdateAnnotationDto(color = color, note = note)
                     )
 
                     if (!response.isSuccessful) {
@@ -1407,9 +1466,9 @@ class BookmarkDetailViewModel @Inject constructor(
                     }
                 }
 
-                // Color change: instant JS update + disk persistence (no full HTML refresh)
-                _annotationRefreshEvent.send(AnnotationRefreshEvent.ColorUpdate(annotationIds, color))
-                updateAnnotationColorOnDisk(bookmarkId, annotationIds, color)
+                // Attribute change: instant JS update + disk persistence (no full HTML refresh)
+                _annotationRefreshEvent.send(AnnotationRefreshEvent.AttributeUpdate(annotationIds, color, note))
+                updateAnnotationAttributesInCache(bookmarkId, annotationIds, color, note)
                 cacheAnnotationSnapshot(bookmarkId)
                 _annotationEditState.value = null
             } catch (e: Exception) {
@@ -1471,17 +1530,15 @@ class BookmarkDetailViewModel @Inject constructor(
         }
     }
 
-    private fun resolveExistingNotes(existingAnnotations: List<Annotation>): String? {
-        val notes = existingAnnotations
-            .mapNotNull { annotation ->
-                annotation.note?.trim()?.takeIf { it.isNotEmpty() }
-            }
-            .distinct()
+    private fun resolveInitialAnnotationNote(existingAnnotations: List<Annotation>): String {
+        if (existingAnnotations.isEmpty()) return ""
+        val notes = existingAnnotations.map { annotation -> annotation.note?.trim().orEmpty() }.distinct()
+        return notes.singleOrNull().orEmpty()
+    }
 
-        return when {
-            notes.isEmpty() -> null
-            else -> notes.joinToString(separator = "\n\n")
-        }
+    private fun hasMixedAnnotationNotes(existingAnnotations: List<Annotation>): Boolean {
+        if (existingAnnotations.size < 2) return false
+        return existingAnnotations.map { annotation -> annotation.note?.trim().orEmpty() }.distinct().size > 1
     }
 
 
@@ -1906,7 +1963,8 @@ class BookmarkDetailViewModel @Inject constructor(
         val selectionData: SelectionData?,
         val text: String,
         val previewLines: List<AnnotationPreviewLine> = emptyList(),
-        val noteText: String? = null,
+        val noteText: String = "",
+        val hasMixedNotes: Boolean = false,
         val isSaving: Boolean = false
     ) {
         val annotationId: String?
@@ -1936,8 +1994,8 @@ class BookmarkDetailViewModel @Inject constructor(
      * Events for in-place WebView annotation updates that avoid full page reload.
      */
     sealed class AnnotationRefreshEvent {
-        /** Update annotation color attributes in the DOM via JS. No page reload needed. */
-        data class ColorUpdate(val annotationIds: List<String>, val color: String) : AnnotationRefreshEvent()
+        /** Update mutable annotation attributes in the DOM via JS. No page reload needed. */
+        data class AttributeUpdate(val annotationIds: List<String>, val color: String, val note: String) : AnnotationRefreshEvent()
         /** Replace .container innerHTML with fresh HTML. Used after create/delete. */
         data class HtmlRefresh(val containerHtml: String) : AnnotationRefreshEvent()
         /** Replace #rd-article-content innerHTML with fresh article HTML for VIDEO bookmarks. Leaves the iframe embed intact. */

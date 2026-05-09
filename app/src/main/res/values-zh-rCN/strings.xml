@@ -417,7 +417,7 @@
     <string name="highlight_edit">Edit Highlight</string>
     <string name="highlight_delete">Delete Highlight</string>
     <string name="highlight_note_label">Note</string>
-    <string name="highlight_note_not_supported">Adding and editing notes is not supported yet</string>
+    <string name="highlight_note_replace_helper">Saving replaces notes on selected highlights.</string>
     <string name="highlight_color_yellow">Yellow</string>
     <string name="highlight_color_red">Red</string>
     <string name="highlight_color_blue">Blue</string>

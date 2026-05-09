@@ -10,7 +10,6 @@ import android.content.Intent
 import android.icu.text.MessageFormat
 import android.net.Uri
 import android.os.SystemClock
-import android.widget.Toast
 import android.view.View
 import android.view.ViewGroup
 import android.webkit.WebChromeClient
@@ -470,15 +469,28 @@ fun BookmarkDetailHost(
         viewModel.annotationRefreshEvent.collect { event ->
             val webView = readerWebView.value ?: return@collect
             when (event) {
-                is BookmarkDetailViewModel.AnnotationRefreshEvent.ColorUpdate -> {
+                is BookmarkDetailViewModel.AnnotationRefreshEvent.AttributeUpdate -> {
                     val js = buildString {
                         for (id in event.annotationIds) {
                             val escapedId = id.replace("'", "\\'")
-                            append("document.querySelectorAll('rd-annotation[data-annotation-id-value=\"")
+                            val escapedColor = event.color.replace("'", "\\'")
+                            val noteBase64 = android.util.Base64.encodeToString(
+                                event.note.toByteArray(Charsets.UTF_8),
+                                android.util.Base64.NO_WRAP
+                            )
+                            append("var nodes=Array.from(document.querySelectorAll('rd-annotation[data-annotation-id-value=\"")
                             append(escapedId)
-                            append("\"]').forEach(function(el){el.setAttribute('data-annotation-color','")
-                            append(event.color.replace("'", "\\'"))
-                            append("');});")
+                            append("\"]'));")
+                            append("nodes.forEach(function(el,index){")
+                            append("el.setAttribute('data-annotation-color','")
+                            append(escapedColor)
+                            append("');")
+                            append("var note=decodeURIComponent(escape(atob('")
+                            append(noteBase64)
+                            append("')));")
+                            append("el.removeAttribute('title');el.removeAttribute('data-annotation-note');")
+                            append("if(note.trim().length!==0&&index===nodes.length-1){el.setAttribute('title',note);el.setAttribute('data-annotation-note','true');}")
+                            append("});")
                         }
                     }
                     webView.evaluateJavascript(js, null)
@@ -771,15 +783,9 @@ fun BookmarkDetailHost(
                 AnnotationEditSheet(
                     state = annotationEditState,
                     onColorSelected = { color -> viewModel.onAnnotationEditColorSelected(color) },
+                    onNoteChanged = { note -> viewModel.onAnnotationEditNoteChanged(note) },
                     onSave = { viewModel.saveAnnotationEdit() },
                     onDelete = { viewModel.deleteCurrentAnnotation() },
-                    onNoteClicked = {
-                        Toast.makeText(
-                            context,
-                            context.getString(R.string.highlight_note_not_supported),
-                            Toast.LENGTH_SHORT
-                        ).show()
-                    },
                     onDismiss = { viewModel.dismissAnnotationEditSheet() }
                 )
             }
