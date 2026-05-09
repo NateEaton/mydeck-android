@@ -235,6 +235,9 @@ other{}
     <string name="action_find_in_page">Find in page</string>
     <string name="highlights_title">Highlights</string>
     <string name="highlights_empty">No highlights yet</string>
+    <string name="highlights_refreshing">Refreshing highlights...</string>
+    <string name="highlights_refresh_failed">Could not refresh highlights</string>
+    <string name="highlights_refresh_failed_showing_saved">Could not refresh highlights. Showing saved highlights.</string>
     <string name="highlights_menu_item">Highlights</string>
     <string name="action_refresh_content">Refresh content</string>
     <string name="highlight_create">Create Highlight</string>

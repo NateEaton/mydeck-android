@@ -10,8 +10,10 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.outlined.EditNote
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -20,6 +22,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import com.mydeck.app.R
@@ -31,7 +35,6 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.withStyle
@@ -42,13 +45,27 @@ fun HighlightsScreen(
     viewModel: HighlightsViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val lifecycleOwner = LocalLifecycleOwner.current
+
+    DisposableEffect(lifecycleOwner, viewModel) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                viewModel.refreshFromScreenOpen()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+
     HighlightsContent(
         uiState = uiState,
         onNavigateBack = { navController.popBackStack() },
         onNavigateToBookmark = { bookmarkId, annotationId ->
             navController.navigate(BookmarkDetailRoute(bookmarkId, annotationId = annotationId))
         },
-        onRetry = { viewModel.loadHighlights() }
+        onRetry = { viewModel.retry() }
     )
 }
 
@@ -62,17 +79,22 @@ fun HighlightsContent(
 ) {
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.highlights_title)) },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(R.string.back)
-                        )
+            Column {
+                TopAppBar(
+                    title = { Text(stringResource(R.string.highlights_title)) },
+                    navigationIcon = {
+                        IconButton(onClick = onNavigateBack) {
+                            Icon(
+                                Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = stringResource(R.string.back)
+                            )
+                        }
                     }
+                )
+                if (uiState.isRefreshing) {
+                    LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
                 }
-            )
+            }
         }
     ) { paddingValues ->
         Box(
@@ -80,40 +102,58 @@ fun HighlightsContent(
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
-            when (uiState) {
-                is HighlightsUiState.Loading -> {
+            when {
+                uiState.isInitialLocalLoad -> {
                     CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
                 }
-                is HighlightsUiState.Empty -> {
-                    Text(
-                        text = stringResource(R.string.highlights_empty),
+                uiState.groups.isEmpty() -> {
+                    Column(
                         modifier = Modifier
                             .align(Alignment.Center)
                             .padding(16.dp),
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-                is HighlightsUiState.Error -> {
-                    Column(
-                        modifier = Modifier.align(Alignment.Center),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Text(
-                            text = uiState.message,
-                            color = MaterialTheme.colorScheme.error,
-                            modifier = Modifier.padding(bottom = 8.dp)
+                            text = if (uiState.refreshFailed) {
+                                stringResource(R.string.highlights_refresh_failed)
+                            } else {
+                                stringResource(R.string.highlights_empty)
+                            },
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = if (uiState.refreshFailed) {
+                                MaterialTheme.colorScheme.error
+                            } else {
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            }
                         )
-                        Button(onClick = onRetry) {
-                            Text(stringResource(R.string.retry))
+                        if (uiState.isRefreshing) {
+                            Spacer(Modifier.height(12.dp))
+                            CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                            Spacer(Modifier.height(8.dp))
+                            Text(
+                                text = stringResource(R.string.highlights_refreshing),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        if (uiState.refreshFailed) {
+                            Spacer(Modifier.height(8.dp))
+                            Button(onClick = onRetry) {
+                                Text(stringResource(R.string.retry))
+                            }
                         }
                     }
                 }
-                is HighlightsUiState.Success -> {
+                else -> {
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
                         contentPadding = PaddingValues(vertical = 8.dp)
                     ) {
+                        if (uiState.refreshFailed) {
+                            item(key = "refresh_error") {
+                                RefreshErrorBanner(onRetry = onRetry)
+                            }
+                        }
                         uiState.groups.forEach { group ->
                             items(group.highlights, key = { it.id }) { highlight ->
                                 HighlightCard(
@@ -131,6 +171,35 @@ fun HighlightsContent(
                         }
                     }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun RefreshErrorBanner(
+    onRetry: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        color = MaterialTheme.colorScheme.errorContainer,
+        contentColor = MaterialTheme.colorScheme.onErrorContainer,
+        shape = MaterialTheme.shapes.small,
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = stringResource(R.string.highlights_refresh_failed_showing_saved),
+                modifier = Modifier.weight(1f),
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            TextButton(onClick = onRetry) {
+                Text(stringResource(R.string.retry))
             }
         }
     }
@@ -164,6 +233,8 @@ private fun HighlightCard(
             Text(
                 text = highlight.text,
                 style = MaterialTheme.typography.bodyLarge.copy(fontStyle = FontStyle.Italic),
+                maxLines = 5,
+                overflow = TextOverflow.Ellipsis,
             )
             if (highlight.note.isNotEmpty()) {
                 Spacer(Modifier.height(4.dp))
@@ -179,6 +250,8 @@ private fun HighlightCard(
                         text = highlight.note,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 3,
+                        overflow = TextOverflow.Ellipsis,
                     )
                 }
             }

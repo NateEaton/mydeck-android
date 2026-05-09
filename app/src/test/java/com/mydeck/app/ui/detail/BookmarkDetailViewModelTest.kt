@@ -20,6 +20,7 @@ import com.mydeck.app.domain.usecase.LoadContentPackageUseCase
 import com.mydeck.app.domain.usecase.UpdateBookmarkUseCase
 import com.mydeck.app.io.AssetLoader
 import com.mydeck.app.io.prefs.SettingsDataStore
+import com.mydeck.app.io.db.model.CachedAnnotationEntity
 import com.mydeck.app.io.rest.ReadeckApi
 import com.mydeck.app.io.rest.model.AnnotationDto
 import com.mydeck.app.io.rest.model.UpdateAnnotationDto
@@ -708,6 +709,58 @@ class BookmarkDetailViewModelTest {
             viewModel.annotationsState.value.annotations
         )
         coVerify(exactly = 0) { settingsDataStore.saveCachedAnnotationSnapshot(any(), any()) }
+    }
+
+    @Test
+    fun `updating annotation attributes upserts snapshot without pruning existing cached annotations`() = runTest {
+        advanceUntilIdle()
+        clearMocks(cachedAnnotationDao, readeckApi, answers = false, recordedCalls = true)
+        coEvery {
+            readeckApi.updateAnnotation(
+                bookmarkId = "123",
+                annotationId = "selected",
+                body = UpdateAnnotationDto(color = "green", note = "Updated")
+            )
+        } returns Response.success(Unit)
+        coEvery { cachedAnnotationDao.getAnnotationsForBookmark("123") } returns listOf(
+            CachedAnnotationEntity(
+                id = "selected",
+                bookmarkId = "123",
+                text = "Selected cached text",
+                color = "yellow",
+                note = null,
+                created = "2024-01-20T12:00:00Z"
+            ),
+            CachedAnnotationEntity(
+                id = "other",
+                bookmarkId = "123",
+                text = "Other cached text",
+                color = "yellow",
+                note = null,
+                created = "2024-01-20T12:01:00Z"
+            )
+        )
+        coEvery { readeckApi.getAnnotations("123") } returns Response.success(
+            listOf(
+                AnnotationDto(
+                    id = "selected",
+                    start_selector = "/p[1]",
+                    start_offset = 0,
+                    end_selector = "/p[1]",
+                    end_offset = 5,
+                    created = "2024-01-20T12:00:00Z",
+                    text = "Selected API text",
+                    color = "green",
+                    note = "Updated"
+                )
+            )
+        )
+
+        viewModel.updateAnnotations(listOf("selected"), color = "green", note = "Updated")
+        advanceUntilIdle()
+
+        coVerify(exactly = 1) { cachedAnnotationDao.insertAnnotations(any()) }
+        coVerify(exactly = 0) { cachedAnnotationDao.replaceAnnotationsForBookmark(any(), any()) }
     }
 
     @Test

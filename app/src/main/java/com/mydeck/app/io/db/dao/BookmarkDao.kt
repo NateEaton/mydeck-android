@@ -147,7 +147,10 @@ interface BookmarkDao {
                 bookmark
             }
 
-            insertBookmark(bookmarkToInsert)
+            // Update in place for existing rows. REPLACE is implemented as DELETE+INSERT
+            // by SQLite, which cascades through cached_annotation and drops highlights
+            // when content-bearing bookmark metadata is refreshed.
+            upsertBookmark(bookmarkToInsert)
 
             // Re-insert article content: prefer new content, fall back to preserved existing
             val contentToSave = articleContent ?: existingArticleContent?.let {
@@ -371,7 +374,7 @@ interface BookmarkDao {
             (SELECT COUNT(*) FROM bookmarks WHERE type = 'article' AND state = 0 AND isLocalDeleted = 0) AS article_count,
             (SELECT COUNT(*) FROM bookmarks WHERE type = 'video' AND state = 0 AND isLocalDeleted = 0) AS video_count,
             (SELECT COUNT(*) FROM bookmarks WHERE type = 'photo' AND state = 0 AND isLocalDeleted = 0) AS picture_count,
-            (SELECT COUNT(*) FROM cached_annotation) AS highlights_count,
+            (SELECT COUNT(*) FROM cached_annotation ca INNER JOIN bookmarks b ON b.id = ca.bookmarkId WHERE b.isLocalDeleted = 0) AS highlights_count,
             (SELECT COUNT(*) FROM bookmarks WHERE state = 0 AND isLocalDeleted = 0) AS total_count
         FROM bookmarks
         LIMIT 1

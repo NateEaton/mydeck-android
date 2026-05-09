@@ -4,9 +4,11 @@ import android.content.Context
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import com.mydeck.app.io.db.dao.BookmarkDao
+import com.mydeck.app.io.db.dao.CachedAnnotationDao
 import com.mydeck.app.io.db.model.ArticleContentEntity
 import com.mydeck.app.io.db.model.BookmarkEntity
 import com.mydeck.app.io.db.model.BookmarkWithArticleContent
+import com.mydeck.app.io.db.model.CachedAnnotationEntity
 import com.mydeck.app.io.db.model.ImageResourceEntity
 import com.mydeck.app.io.db.model.RemoteBookmarkIdEntity
 import com.mydeck.app.io.db.model.ResourceEntity
@@ -38,6 +40,7 @@ import timber.log.Timber
 class BookmarkDaoTest {
     internal abstract class BaseTest {
         lateinit var bookmarkDao: BookmarkDao
+        lateinit var cachedAnnotationDao: CachedAnnotationDao
         private lateinit var db: MyDeckDatabase
         val testDispatcher = StandardTestDispatcher()
 
@@ -48,6 +51,7 @@ class BookmarkDaoTest {
             db = Room.inMemoryDatabaseBuilder(context, MyDeckDatabase::class.java)
                 .allowMainThreadQueries().build()
             bookmarkDao = db.getBookmarkDao()
+            cachedAnnotationDao = db.getCachedAnnotationDao()
             generateTestData()
         }
 
@@ -186,6 +190,46 @@ class BookmarkDaoTest {
             }
         }
 
+    }
+
+    @RunWith(RobolectricTestRunner::class)
+    internal class InsertBookmarksWithArticleContentTest : BaseTest() {
+        @Test
+        fun updatingExistingBookmarkPreservesCachedAnnotations() = runTest(testDispatcher) {
+            cachedAnnotationDao.insertAnnotations(
+                listOf(
+                    CachedAnnotationEntity(
+                        id = "annotation-1",
+                        bookmarkId = "test-0",
+                        text = "Cached highlight",
+                        color = "yellow",
+                        note = null,
+                        created = "2026-01-01T00:00:00Z"
+                    )
+                )
+            )
+            val updatedBookmark = bookmarkDao.getBookmarkById("test-0").copy(
+                title = "Updated title"
+            )
+
+            bookmarkDao.insertBookmarksWithArticleContent(
+                listOf(
+                    BookmarkWithArticleContent(
+                        bookmark = updatedBookmark,
+                        articleContent = ArticleContentEntity(
+                            bookmarkId = "test-0",
+                            content = "updated content"
+                        )
+                    )
+                )
+            )
+
+            assertEquals(
+                listOf("annotation-1"),
+                cachedAnnotationDao.getAnnotationsForBookmark("test-0").map { it.id }
+            )
+            assertEquals("Updated title", bookmarkDao.getBookmarkById("test-0").title)
+        }
     }
 
     @RunWith(RobolectricTestRunner::class)

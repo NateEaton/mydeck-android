@@ -705,7 +705,7 @@ class BookmarkDetailViewModel @Inject constructor(
         color: String,
         note: String
     ) {
-        var html = contentPackageManager.getHtmlContent(bookmarkId) ?: return
+        var html = contentPackageManager.getCachedReaderHtml(bookmarkId) ?: return
         for (id in annotationIds) {
             val escapedId = Regex.escape(id)
             // Match entire <rd-annotation ...> opening tag containing this annotation ID,
@@ -732,7 +732,7 @@ class BookmarkDetailViewModel @Inject constructor(
                 "<rd-annotation$updatedAttrs>"
             }
         }
-        contentPackageManager.updateHtml(bookmarkId, html)
+        contentPackageManager.updateCachedReaderHtml(bookmarkId, html)
     }
 
     private fun String.withHtmlAttribute(name: String, value: String): String {
@@ -1160,7 +1160,10 @@ class BookmarkDetailViewModel @Inject constructor(
         }
     }
 
-    private suspend fun cacheAnnotationSnapshot(bookmarkId: String) {
+    private suspend fun cacheAnnotationSnapshot(
+        bookmarkId: String,
+        pruneMissing: Boolean = false
+    ) {
         try {
             val response = readeckApi.getAnnotations(bookmarkId)
             if (response.isSuccessful) {
@@ -1170,21 +1173,41 @@ class BookmarkDetailViewModel @Inject constructor(
                     bookmarkId,
                     annotations.toAnnotationCachePayload(json)
                 )
-                cachedAnnotationDao.replaceAnnotationsForBookmark(
-                    bookmarkId,
-                    annotations.map { dto ->
-                        CachedAnnotationEntity(
-                            id = dto.id,
-                            bookmarkId = bookmarkId,
-                            text = dto.text,
-                            color = dto.color.takeIf { it.isNotBlank() } ?: "yellow",
-                            note = dto.note.takeIf { it.isNotBlank() },
-                            created = dto.created.takeIf { it.isNotBlank() }
-                                ?: existingById[dto.id]?.created?.takeIf { it.isNotBlank() }
-                                ?: Clock.System.now().toString()
-                        )
-                    }
-                )
+                val entities = annotations.map { dto ->
+                    CachedAnnotationEntity(
+                        id = dto.id,
+                        bookmarkId = bookmarkId,
+                        text = dto.text,
+                        color = dto.color.takeIf { it.isNotBlank() } ?: "yellow",
+                        note = dto.note.takeIf { it.isNotBlank() },
+                        created = dto.created.takeIf { it.isNotBlank() }
+                            ?: existingById[dto.id]?.created?.takeIf { it.isNotBlank() }
+                            ?: Clock.System.now().toString()
+                    )
+                }
+                if (pruneMissing) {
+                    cachedAnnotationDao.replaceAnnotationsForBookmark(bookmarkId, entities)
+                    Timber.d(
+                        "Pruned annotation cache for %s from %d to %d rows",
+                        bookmarkId,
+                        existingById.size,
+                        entities.size
+                    )
+                } else if (entities.isNotEmpty()) {
+                    cachedAnnotationDao.insertAnnotations(entities)
+                    Timber.d(
+                        "Upserted annotation cache for %s with %d rows; preserved %d existing rows",
+                        bookmarkId,
+                        entities.size,
+                        existingById.size
+                    )
+                } else {
+                    Timber.d(
+                        "Annotation cache snapshot for %s returned no rows; preserved %d existing rows",
+                        bookmarkId,
+                        existingById.size
+                    )
+                }
             } else {
                 Timber.w("Failed to cache annotations for $bookmarkId: HTTP ${response.code()}")
             }
@@ -1509,6 +1532,7 @@ class BookmarkDetailViewModel @Inject constructor(
                     bookmarkId = bookmarkId,
                     expectedAbsentAnnotationIds = annotationIds.distinct()
                 )
+                cacheAnnotationSnapshot(bookmarkId, pruneMissing = true)
                 _annotationEditState.value = null
             } catch (e: Exception) {
                 Timber.w(e, "Failed to delete annotations ${annotationIds.joinToString()} for $bookmarkId")
