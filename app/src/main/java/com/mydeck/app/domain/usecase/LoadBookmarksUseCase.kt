@@ -36,15 +36,18 @@ class LoadBookmarksUseCase @Inject constructor(
     suspend fun execute(
         updatedIds: List<String>? = null,
         pageSize: Int = DEFAULT_PAGE_SIZE,
-        initialOffset: Int = 0
+        initialOffset: Int = 0,
+        enqueueContentSyncAfterLoad: Boolean = true
     ): UseCaseResult<Unit> {
         return try {
             if (updatedIds != null && updatedIds.isNotEmpty()) {
-                executeMultipart(updatedIds)
+                executeMultipart(updatedIds, enqueueContentSyncAfterLoad)
             } else {
                 // No updated IDs — nothing to reload
                 Timber.d("No updated IDs to reload via multipart")
-                enqueueContentSyncIfNeeded()
+                if (enqueueContentSyncAfterLoad) {
+                    enqueueContentSyncIfNeeded()
+                }
                 UseCaseResult.Success(Unit)
             }
         } catch (e: Exception) {
@@ -56,7 +59,10 @@ class LoadBookmarksUseCase @Inject constructor(
     /**
      * Primary path: fetch metadata for specific bookmark IDs via POST /bookmarks/sync.
      */
-    private suspend fun executeMultipart(updatedIds: List<String>): UseCaseResult<Unit> {
+    private suspend fun executeMultipart(
+        updatedIds: List<String>,
+        enqueueContentSyncAfterLoad: Boolean
+    ): UseCaseResult<Unit> {
         Timber.d("executeMultipart: fetching metadata for ${updatedIds.size} bookmarks")
 
         val result = multipartSyncClient.fetchMetadata(updatedIds)
@@ -98,7 +104,9 @@ class LoadBookmarksUseCase @Inject constructor(
                 }
 
                 refreshServerErrorFlags(DEFAULT_PAGE_SIZE)
-                enqueueContentSyncIfNeeded()
+                if (enqueueContentSyncAfterLoad) {
+                    enqueueContentSyncIfNeeded()
+                }
 
                 return UseCaseResult.Success(Unit)
             }

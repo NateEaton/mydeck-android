@@ -8,16 +8,18 @@ import androidx.work.Data
 import androidx.work.ExistingWorkPolicy
 import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
-import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
+import com.mydeck.app.domain.BookmarkAnnotationSyncReason
 import com.mydeck.app.domain.BookmarkRepository
+import com.mydeck.app.domain.HighlightsRefreshReason
+import com.mydeck.app.domain.HighlightsRepository
+import com.mydeck.app.domain.SyncPriority
+import com.mydeck.app.domain.sync.BookmarkMetadataSyncCoordinator
 import com.mydeck.app.domain.usecase.LoadBookmarksUseCase
 import com.mydeck.app.io.prefs.SettingsDataStore
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import timber.log.Timber
@@ -31,6 +33,8 @@ class LoadBookmarksWorker @AssistedInject constructor(
     private val loadBookmarksUseCase: LoadBookmarksUseCase,
     private val bookmarkRepository: BookmarkRepository,
     private val settingsDataStore: SettingsDataStore,
+    private val highlightsRepository: HighlightsRepository,
+    private val bookmarkMetadataSyncCoordinator: BookmarkMetadataSyncCoordinator,
 ) : CoroutineWorker(appContext, workerParams) {
 
     enum class Trigger {
@@ -47,29 +51,49 @@ class LoadBookmarksWorker @AssistedInject constructor(
 
         Timber.d("LoadBookmarksWorker start [trigger=$trigger, isInitialLoad=$isInitialLoad]")
 
-        if (isInitialLoad && isAnotherWorkerRunning()) {
-            Timber.i("Another LoadBookmarksWorker is running, exiting early.")
-            return Result.success() // Or Result.failure() if you want to signal an error
+        val outcome = bookmarkMetadataSyncCoordinator.withExclusiveMetadataSync(
+            reason = "LoadBookmarksWorker.${trigger.name}"
+        ) {
+            runMetadataSync(trigger, isInitialLoad)
         }
 
+        if (outcome.enqueueContentSync) {
+            loadBookmarksUseCase.enqueueContentSyncIfNeeded()
+        }
+        if (outcome.bookmarkAnnotationCheckIds.isNotEmpty()) {
+            requestBookmarkAnnotationChecksForDeltaHints(outcome.bookmarkAnnotationCheckIds)
+        }
+        outcome.globalHighlightsReason?.let { requestGlobalHighlightsBackstop(it) }
+
+        return outcome.result
+    }
+
+    private suspend fun runMetadataSync(
+        trigger: Trigger,
+        isInitialLoad: Boolean
+    ): MetadataSyncOutcome {
         if (isInitialLoad) {
             // Initial load: use full sync which persists metadata from the paging response
             Timber.d("Initial load: performing full sync to bootstrap bookmarks")
             return when (val result = bookmarkRepository.performFullSync()) {
                 is BookmarkRepository.SyncResult.Success -> {
                     Timber.i("Initial full sync: inserted ${result.countUpdated} bookmarks, deleted ${result.countDeleted}")
+                    Timber.d("Bookmark annotation checks skipped: path was full sync [path=LoadBookmarksWorker.initial]")
                     settingsDataStore.saveLastSyncTimestamp(Clock.System.now())
                     settingsDataStore.saveLastFullSyncTimestamp(Clock.System.now())
                     settingsDataStore.setInitialSyncPerformed(true)
-                    Result.success()
+                    MetadataSyncOutcome(
+                        result = Result.success(),
+                        globalHighlightsReason = trigger.toHighlightsRefreshReason()
+                    )
                 }
                 is BookmarkRepository.SyncResult.NetworkError -> {
                     Timber.e(result.ex, "Network error during initial full sync")
-                    Result.retry()
+                    MetadataSyncOutcome(Result.retry())
                 }
                 is BookmarkRepository.SyncResult.Error -> {
                     Timber.e("Initial full sync failed: ${result.errorMessage}")
-                    Result.failure()
+                    MetadataSyncOutcome(Result.failure())
                 }
             }
         }
@@ -91,12 +115,16 @@ class LoadBookmarksWorker @AssistedInject constructor(
                     }
                     if (result.countUpdated == 0) {
                         Timber.i("Delta sync reported no metadata updates; skipping bookmark reload")
+                        Timber.d("Bookmark delta annotation checks skipped: no updatedIds [path=LoadBookmarksWorker]")
                         settingsDataStore.saveLastSyncTimestamp(pendingSyncCursor!!)
                         if (!settingsDataStore.isInitialSyncPerformed()) {
                             settingsDataStore.setInitialSyncPerformed(true)
                         }
-                        loadBookmarksUseCase.enqueueContentSyncIfNeeded()
-                        return Result.success()
+                        return MetadataSyncOutcome(
+                            result = Result.success(),
+                            enqueueContentSync = true,
+                            globalHighlightsReason = trigger.toHighlightsRefreshReason()
+                        )
                     }
                     deltaUpdatedIds = result.updatedIds
                 }
@@ -111,55 +139,131 @@ class LoadBookmarksWorker @AssistedInject constructor(
             return when (val result = bookmarkRepository.performFullSync()) {
                 is BookmarkRepository.SyncResult.Success -> {
                     Timber.i("Full sync fallback: updated ${result.countUpdated}, deleted ${result.countDeleted}")
+                    Timber.d("Bookmark annotation checks skipped: path was full sync [path=LoadBookmarksWorker.fallback]")
                     settingsDataStore.saveLastSyncTimestamp(Clock.System.now())
                     if (!settingsDataStore.isInitialSyncPerformed()) {
                         settingsDataStore.setInitialSyncPerformed(true)
                     }
-                    loadBookmarksUseCase.enqueueContentSyncIfNeeded()
-                    Result.success()
+                    MetadataSyncOutcome(
+                        result = Result.success(),
+                        enqueueContentSync = true,
+                        globalHighlightsReason = trigger.toHighlightsRefreshReason()
+                    )
                 }
                 is BookmarkRepository.SyncResult.NetworkError -> {
                     Timber.e(result.ex, "Network error during full sync fallback")
-                    Result.retry()
+                    MetadataSyncOutcome(Result.retry())
                 }
                 is BookmarkRepository.SyncResult.Error -> {
                     Timber.e("Full sync fallback failed: ${result.errorMessage}")
-                    Result.failure()
+                    MetadataSyncOutcome(Result.failure())
                 }
             }
         }
 
-        return when (val result = loadBookmarksUseCase.execute(updatedIds = deltaUpdatedIds)) {
+        return when (val result = loadBookmarksUseCase.execute(
+            updatedIds = deltaUpdatedIds,
+            enqueueContentSyncAfterLoad = false
+        )) {
             is LoadBookmarksUseCase.UseCaseResult.Success -> {
                 pendingSyncCursor?.let { settingsDataStore.saveLastSyncTimestamp(it) }
                 if (!settingsDataStore.isInitialSyncPerformed()) {
                     settingsDataStore.setInitialSyncPerformed(true)
                 }
-                Result.success()
+                MetadataSyncOutcome(
+                    result = Result.success(),
+                    enqueueContentSync = true,
+                    bookmarkAnnotationCheckIds = deltaUpdatedIds.orEmpty(),
+                    globalHighlightsReason = trigger.toHighlightsRefreshReason()
+                )
             }
             is LoadBookmarksUseCase.UseCaseResult.Error -> {
                 Timber.e(result.exception, "Error loading bookmarks")
+                Timber.d(
+                    "Bookmark delta annotation checks skipped: metadata reload failed [updatedIds=%d path=LoadBookmarksWorker]",
+                    deltaUpdatedIds.orEmpty().size
+                )
                 if (result.exception is IOException) {
-                    Result.retry()
+                    MetadataSyncOutcome(Result.retry())
                 } else {
-                    Result.failure()
+                    MetadataSyncOutcome(Result.failure())
                 }
             }
         }
     }
 
-    private suspend fun isAnotherWorkerRunning(): Boolean {
-        return withContext(Dispatchers.IO) {
-            val workInfos = WorkManager.getInstance(applicationContext)
-                .getWorkInfosForUniqueWork(UNIQUE_WORK_NAME)
-                .get()
-
-            // Check if there's another worker running with a different ID.
-            // This prevents the worker from exiting early if it's briefly interrupted
-            // and then rescheduled.
-            workInfos.any { it.id != id && it.state == WorkInfo.State.RUNNING }
+    private suspend fun requestGlobalHighlightsBackstop(reason: HighlightsRefreshReason) {
+        Timber.d(
+            "Global highlights reconciliation requested from bookmark sync: reason=%s path=LoadBookmarksWorker",
+            reason
+        )
+        try {
+            highlightsRepository.requestRefresh(reason)
+                .onSuccess {
+                    Timber.d(
+                        "Global highlights reconciliation request accepted: reason=%s path=LoadBookmarksWorker",
+                        reason
+                    )
+                }
+                .onFailure { throwable ->
+                    Timber.w(
+                        throwable,
+                        "Global highlights reconciliation request failed: reason=%s path=LoadBookmarksWorker",
+                        reason
+                    )
+                }
+        } catch (throwable: Exception) {
+            Timber.w(
+                throwable,
+                "Global highlights reconciliation request failed: reason=%s path=LoadBookmarksWorker",
+                reason
+            )
         }
     }
+
+    private suspend fun requestBookmarkAnnotationChecksForDeltaHints(updatedIds: List<String>) {
+        if (updatedIds.isEmpty()) {
+            Timber.d("Bookmark delta annotation checks skipped: no updatedIds [path=LoadBookmarksWorker]")
+            return
+        }
+
+        Timber.d(
+            "Bookmark delta sync annotation hints: updatedIds=%d path=LoadBookmarksWorker",
+            updatedIds.size
+        )
+        try {
+            val result = highlightsRepository.requestBookmarkAnnotationChecks(
+                bookmarkIds = updatedIds,
+                reason = BookmarkAnnotationSyncReason.BOOKMARK_DELTA_HINT,
+                priority = SyncPriority.Normal,
+            )
+            result.onSuccess {
+                Timber.d(
+                    "Bookmark delta annotation check enqueue count: requested=%d path=LoadBookmarksWorker",
+                    updatedIds.size
+                )
+            }.onFailure { throwable ->
+                Timber.w(
+                    throwable,
+                    "Bookmark delta annotation check enqueue failed [requested=%d path=LoadBookmarksWorker]",
+                    updatedIds.size
+                )
+            }
+        } catch (throwable: Exception) {
+            Timber.w(
+                throwable,
+                "Bookmark delta annotation check enqueue failed [requested=%d path=LoadBookmarksWorker]",
+                updatedIds.size
+            )
+        }
+    }
+
+    private data class MetadataSyncOutcome(
+        val result: Result,
+        val enqueueContentSync: Boolean = false,
+        val bookmarkAnnotationCheckIds: List<String> = emptyList(),
+        val globalHighlightsReason: HighlightsRefreshReason? = null
+    )
 
     companion object {
         const val PARAM_IS_INITIAL_LOAD = "isInitialLoad"
@@ -176,6 +280,14 @@ class LoadBookmarksWorker @AssistedInject constructor(
             return lastSyncTimestamp
                 ?.takeIf { it.epochSeconds > 0 }
                 ?: lastBookmarkTimestamp?.takeIf { it.epochSeconds > 0 }
+        }
+
+        private fun Trigger.toHighlightsRefreshReason(): HighlightsRefreshReason {
+            return when (this) {
+                Trigger.APP_OPEN -> HighlightsRefreshReason.APP_OPEN
+                Trigger.INITIAL,
+                Trigger.PULL_TO_REFRESH -> HighlightsRefreshReason.MANUAL_SYNC
+            }
         }
 
         fun enqueue(context: Context, isInitialLoad: Boolean = false): UUID {

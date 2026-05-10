@@ -442,6 +442,7 @@ class SyncSettingsViewModel @Inject constructor(
             return when (decision.blockedReason) {
                 "Wi-Fi required" -> R.string.sync_content_waiting_wifi
                 "Battery saver active" -> R.string.sync_content_waiting_battery
+                "No network" -> R.string.sync_content_waiting_network
                 else -> null
             }
         }

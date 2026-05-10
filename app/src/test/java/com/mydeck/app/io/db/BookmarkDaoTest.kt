@@ -43,6 +43,7 @@ class BookmarkDaoTest {
         lateinit var cachedAnnotationDao: CachedAnnotationDao
         private lateinit var db: MyDeckDatabase
         val testDispatcher = StandardTestDispatcher()
+        val remoteSyncRunId = "remote-sync-run"
 
         @Before
         fun setup() {
@@ -131,9 +132,9 @@ class BookmarkDaoTest {
                 )
             }
             bookmarkDao.insertBookmarksWithArticleContent(bookmarkArticles)
-            val ids = bookmarkArticles.map { RemoteBookmarkIdEntity(it.bookmark.id) }
+            val ids = bookmarkArticles.map { RemoteBookmarkIdEntity(remoteSyncRunId, it.bookmark.id) }
                 .filterNot { it.id == "test-1" || it.id == "test-11" || it.id == "test-21" }
-           bookmarkDao.insertRemoteBookmarkIds(ids + RemoteBookmarkIdEntity("not-a-bookmark"))
+           bookmarkDao.insertRemoteBookmarkIds(ids + RemoteBookmarkIdEntity(remoteSyncRunId, "not-a-bookmark"))
         }
     }
 
@@ -307,7 +308,7 @@ class BookmarkDaoTest {
     internal class RemoteBookmarkIdTest : BaseTest() {
         @Test
         fun testGetRemoteBookmarkIds() = runTest(testDispatcher) {
-            val list = bookmarkDao.getAllRemoteBookmarkIds()
+            val list = bookmarkDao.getAllRemoteBookmarkIds(remoteSyncRunId)
             assertEquals(28, list.size)
             list.forEach {
                 if (it == "not-a-bookmark") {
@@ -333,7 +334,7 @@ class BookmarkDaoTest {
                 assertNotNull(bookmarkDao.getBookmarkById(it))
                 Timber.d("id=$it is not null")
             }
-            val count = bookmarkDao.removeDeletedBookmars()
+            val count = bookmarkDao.removeDeletedBookmars(remoteSyncRunId)
             assertEquals(3, count)
             removedIds.forEach {
                 try {
@@ -343,6 +344,65 @@ class BookmarkDaoTest {
                     Timber.d("id=$it is null")
                 }
             }
+        }
+
+        @Test
+        fun `removeDeletedBookmars only uses current sync run`() = runTest(testDispatcher) {
+            val currentRunId = "current-run"
+            val oldRunId = "old-run"
+            bookmarkDao.clearRemoteBookmarkIds(remoteSyncRunId)
+            bookmarkDao.insertRemoteBookmarkIds(
+                listOf(
+                    RemoteBookmarkIdEntity(oldRunId, "test-1"),
+                    RemoteBookmarkIdEntity(oldRunId, "test-11"),
+                    RemoteBookmarkIdEntity(currentRunId, "test-0"),
+                    RemoteBookmarkIdEntity(currentRunId, "test-2")
+                )
+            )
+
+            val count = bookmarkDao.removeDeletedBookmars(currentRunId)
+
+            assertEquals(28, count)
+            assertNotNull(bookmarkDao.getBookmarkById("test-0"))
+            assertNotNull(bookmarkDao.getBookmarkById("test-2"))
+            try {
+                bookmarkDao.getBookmarkById("test-1")
+                fail("Expected stale run ID to be ignored during deletion detection")
+            } catch (_: IllegalStateException) {
+                Timber.d("stale run ID ignored")
+            }
+        }
+
+        @Test
+        fun `clearRemoteBookmarkIds clears only current sync run`() = runTest(testDispatcher) {
+            val currentRunId = "current-run"
+            val otherRunId = "other-run"
+            bookmarkDao.insertRemoteBookmarkIds(
+                listOf(
+                    RemoteBookmarkIdEntity(currentRunId, "current-1"),
+                    RemoteBookmarkIdEntity(currentRunId, "current-2"),
+                    RemoteBookmarkIdEntity(otherRunId, "other-1")
+                )
+            )
+
+            bookmarkDao.clearRemoteBookmarkIds(currentRunId)
+
+            assertEquals(0, bookmarkDao.countDistinctRemoteBookmarkIds(currentRunId))
+            assertEquals(1, bookmarkDao.countDistinctRemoteBookmarkIds(otherRunId))
+        }
+    }
+
+    @RunWith(RobolectricTestRunner::class)
+    internal class BookmarkExistenceTest : BaseTest() {
+        @Test
+        fun `getExistingActiveBookmarkIds returns only local non-deleted bookmarks`() = runTest(testDispatcher) {
+            bookmarkDao.softDeleteBookmark("test-1")
+
+            val ids = bookmarkDao.getExistingActiveBookmarkIds(
+                listOf("test-0", "test-1", "missing-bookmark", "test-2")
+            )
+
+            assertEquals(listOf("test-0", "test-2"), ids.sorted())
         }
     }
 

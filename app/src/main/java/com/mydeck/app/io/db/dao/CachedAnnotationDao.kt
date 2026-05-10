@@ -5,6 +5,7 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Transaction
+import com.mydeck.app.io.db.model.BookmarkAnnotationSyncMetadataEntity
 import com.mydeck.app.io.db.model.CachedAnnotationEntity
 import com.mydeck.app.io.db.model.CachedAnnotationHighlightEntity
 import com.mydeck.app.io.db.model.RemoteAnnotationIdEntity
@@ -53,6 +54,12 @@ interface CachedAnnotationDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertRemoteAnnotationIds(ids: List<RemoteAnnotationIdEntity>)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertBookmarkAnnotationSyncMetadata(metadata: BookmarkAnnotationSyncMetadataEntity)
+
+    @Query("SELECT * FROM bookmark_annotation_sync_metadata WHERE bookmarkId = :bookmarkId")
+    suspend fun getBookmarkAnnotationSyncMetadata(bookmarkId: String): BookmarkAnnotationSyncMetadataEntity?
 
     @Query("DELETE FROM remote_annotation_ids")
     suspend fun clearRemoteAnnotationIds()

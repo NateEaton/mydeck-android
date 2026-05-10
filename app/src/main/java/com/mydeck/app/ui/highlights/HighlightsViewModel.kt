@@ -29,7 +29,7 @@ class HighlightsViewModel @Inject constructor(
             .map<List<HighlightSummary>, List<BookmarkHighlightGroup>?> { highlights ->
                 val groups = group(highlights)
                 Timber.d(
-                    "Highlights cached emission: highlights=%d groups=%d empty=%s",
+                    "Highlights screen render from cache: highlights=%d groups=%d empty=%s",
                     highlights.size,
                     groups.size,
                     highlights.isEmpty()

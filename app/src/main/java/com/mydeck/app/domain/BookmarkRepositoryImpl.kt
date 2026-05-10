@@ -47,6 +47,7 @@ import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
 import timber.log.Timber
 import java.io.IOException
+import java.util.UUID
 import javax.inject.Inject
 
 class BookmarkRepositoryImpl @Inject constructor(
@@ -699,14 +700,15 @@ class BookmarkRepositoryImpl @Inject constructor(
     }
 
     override suspend fun performFullSync(): BookmarkRepository.SyncResult = withContext(dispatcher) {
+        val syncRunId = UUID.randomUUID().toString()
         try {
-            bookmarkDao.clearRemoteBookmarkIds() // Clear any previous sync data
-
             val pageSize = 50
             var offset = 0
             var hasMore = true
 
             var totalInserted = 0
+            var expectedTotalCount: Int? = null
+            var fetchedBookmarkCount = 0
 
             while (hasMore) {
                 val response = readeckApi.getBookmarks(limit = pageSize, offset = offset, updatedSince = null, ReadeckApi.SortOrder(ReadeckApi.Sort.Created))
@@ -726,13 +728,15 @@ class BookmarkRepositoryImpl @Inject constructor(
                     val totalCount = totalCountHeader.toInt()
                     val totalPages = totalPagesHeader.toInt()
                     val currentPage = currentPageHeader.toInt()
+                    expectedTotalCount = totalCount
+                    fetchedBookmarkCount += remoteBookmarks.size
 
                     Timber.d("currentPage=$currentPage")
                     Timber.d("totalPages=$totalPages")
                     Timber.d("totalCount=$totalCount")
 
                     // Save remote bookmark IDs to the temporary table
-                    val remoteBookmarkIdEntities = remoteBookmarks.map { RemoteBookmarkIdEntity(it.id) }
+                    val remoteBookmarkIdEntities = remoteBookmarks.map { RemoteBookmarkIdEntity(syncRunId, it.id) }
                     bookmarkDao.insertRemoteBookmarkIds(remoteBookmarkIdEntities)
 
                     // Persist bookmark metadata from the response we already have
@@ -766,16 +770,38 @@ class BookmarkRepositoryImpl @Inject constructor(
 
             // After fetching all remote IDs, find local bookmarks to delete
             // Crucial: skip hard-deletion of soft-deleted bookmarks that are pending sync
-            val deleted = bookmarkDao.removeDeletedBookmars()
-            Timber.i("Deleted bookmarks: $deleted")
+            val expectedCount = expectedTotalCount ?: 0
+            val stagedCount = bookmarkDao.countDistinctRemoteBookmarkIds(syncRunId)
+            if (stagedCount != expectedCount) {
+                Timber.w(
+                    "Full sync deletion detection aborted: syncRunId=%s expectedTotalCount=%d stagedCount=%d fetchedPageCount=%d",
+                    syncRunId,
+                    expectedCount,
+                    stagedCount,
+                    fetchedBookmarkCount
+                )
+                return@withContext BookmarkRepository.SyncResult.NetworkError(
+                    errorMessage = "Full sync incomplete; retry later",
+                    ex = IllegalStateException(
+                        "Staged remote bookmark ID count $stagedCount did not match expected totalCount $expectedCount"
+                    )
+                )
+            }
 
-            bookmarkDao.clearRemoteBookmarkIds() // Clean up the temporary table
+            val deleted = bookmarkDao.removeDeletedBookmars(syncRunId)
+            Timber.i("Deleted bookmarks: $deleted")
 
             Timber.i("Full sync complete: inserted $totalInserted bookmarks, deleted $deleted")
             BookmarkRepository.SyncResult.Success(countDeleted = deleted, countUpdated = totalInserted)
         } catch (e: Exception) {
             Timber.e(e, "Full sync failed")
             BookmarkRepository.SyncResult.NetworkError(errorMessage = "Network error during full sync", ex = e)
+        } finally {
+            try {
+                bookmarkDao.clearRemoteBookmarkIds(syncRunId)
+            } catch (e: Exception) {
+                Timber.w(e, "Failed to clear remote bookmark IDs for syncRunId=%s", syncRunId)
+            }
         }
     }
 
@@ -936,7 +962,7 @@ class BookmarkRepositoryImpl @Inject constructor(
 
     override fun observeAllBookmarkCounts(): Flow<BookmarkCounts> {
         return bookmarkDao.observeAllBookmarkCounts().map { entity ->
-            if (entity != null) {
+            val counts = if (entity != null) {
                 BookmarkCounts(
                     archived = entity.archived,
                     favorite = entity.favorite,
@@ -949,6 +975,12 @@ class BookmarkRepositoryImpl @Inject constructor(
             } else {
                 BookmarkCounts()
             }
+            Timber.d(
+                "Highlights badge count read locally: highlights=%d total=%d source=bookmarks+cached_annotation",
+                counts.highlights,
+                counts.total
+            )
+            counts
         }
     }
 

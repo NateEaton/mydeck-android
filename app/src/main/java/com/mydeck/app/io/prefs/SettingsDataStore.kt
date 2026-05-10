@@ -4,6 +4,7 @@ import com.mydeck.app.domain.model.AutoSyncTimeframe
 import com.mydeck.app.domain.model.CachedServerInfo
 import com.mydeck.app.domain.model.BookmarkShareFormat
 import com.mydeck.app.domain.model.DarkAppearance
+import com.mydeck.app.domain.model.HighlightsSyncMetadata
 import com.mydeck.app.domain.model.LightAppearance
 import com.mydeck.app.domain.model.Theme
 import com.mydeck.app.domain.model.TypographySettings
@@ -36,6 +37,9 @@ interface SettingsDataStore {
     suspend fun saveCachedAnnotationSnapshot(bookmarkId: String, snapshot: String)
     suspend fun getCachedAnnotationSnapshot(bookmarkId: String): String?
     suspend fun clearCachedAnnotationSnapshot(bookmarkId: String)
+    suspend fun saveHighlightsSyncMetadata(metadata: HighlightsSyncMetadata)
+    suspend fun getHighlightsSyncMetadata(): HighlightsSyncMetadata
+    suspend fun clearHighlightsSyncMetadata()
     suspend fun setInitialSyncPerformed(performed: Boolean)
     suspend fun isInitialSyncPerformed(): Boolean
     suspend fun clearCredentials()

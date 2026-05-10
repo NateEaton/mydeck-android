@@ -362,17 +362,7 @@ class ContentPackageManager @Inject constructor(
      * Calculate total size of managed offline packages only (hasResources=true).
      */
     suspend fun calculateManagedOfflineSize(): Long {
-        return bookmarkDao.getBookmarkIdsWithOfflinePackages()
-            .sumOf { bookmarkId ->
-                val dir = File(offlineContentDir, bookmarkId)
-                if (dir.exists()) {
-                    dir.walkTopDown()
-                        .filter { it.isFile }
-                        .sumOf { it.length() }
-                } else {
-                    0L
-                }
-            }
+        return bookmarkDao.getManagedOfflineStorageSize()
     }
 
     /**

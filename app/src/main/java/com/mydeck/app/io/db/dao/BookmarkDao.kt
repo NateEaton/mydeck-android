@@ -179,6 +179,9 @@ interface BookmarkDao {
     @Query("SELECT * FROM bookmarks WHERE id IN (:ids) AND isLocalDeleted = 0")
     suspend fun getBookmarksByIds(ids: List<String>): List<BookmarkEntity>
 
+    @Query("SELECT id FROM bookmarks WHERE id IN (:ids) AND isLocalDeleted = 0")
+    suspend fun getExistingActiveBookmarkIds(ids: List<String>): List<String>
+
     @Query("SELECT * FROM bookmarks WHERE id = :id AND isLocalDeleted = 0")
     fun observeBookmark(id: String): Flow<BookmarkEntity?>
 
@@ -351,20 +354,27 @@ interface BookmarkDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertRemoteBookmarkIds(ids: List<RemoteBookmarkIdEntity>)
 
-    @Query("DELETE FROM remote_bookmark_ids")
-    suspend fun clearRemoteBookmarkIds()
+    @Query("DELETE FROM remote_bookmark_ids WHERE syncRunId = :syncRunId")
+    suspend fun clearRemoteBookmarkIds(syncRunId: String)
 
-    @Query("SELECT id FROM remote_bookmark_ids")
-    suspend fun getAllRemoteBookmarkIds(): List<String>
+    @Query("SELECT id FROM remote_bookmark_ids WHERE syncRunId = :syncRunId")
+    suspend fun getAllRemoteBookmarkIds(syncRunId: String): List<String>
+
+    @Query("SELECT COUNT(DISTINCT id) FROM remote_bookmark_ids WHERE syncRunId = :syncRunId")
+    suspend fun countDistinctRemoteBookmarkIds(syncRunId: String): Int
 
     @Query(
         """
             DELETE FROM bookmarks
             WHERE isLocalDeleted = 0 
-            AND NOT EXISTS (SELECT 1 FROM remote_bookmark_ids WHERE bookmarks.id = remote_bookmark_ids.id)
+            AND NOT EXISTS (
+                SELECT 1 FROM remote_bookmark_ids
+                WHERE remote_bookmark_ids.syncRunId = :syncRunId
+                AND bookmarks.id = remote_bookmark_ids.id
+            )
         """
     )
-    suspend fun removeDeletedBookmars(): Int
+    suspend fun removeDeletedBookmars(syncRunId: String): Int
 
     @Query(
         """
@@ -841,6 +851,15 @@ interface BookmarkDao {
         ORDER BY b.created ASC
     """)
     suspend fun getBookmarkIdsWithOfflinePackages(): List<String>
+
+    @Query("""
+        SELECT COALESCE(
+            (SELECT SUM(byteSize) FROM content_resource WHERE bookmarkId IN (SELECT bookmarkId FROM content_package WHERE hasResources = 1)), 0
+        ) + COALESCE(
+            (SELECT SUM(LENGTH(CAST(content AS BLOB))) FROM article_content WHERE bookmarkId IN (SELECT bookmarkId FROM content_package WHERE hasResources = 1)), 0
+        )
+    """)
+    suspend fun getManagedOfflineStorageSize(): Long
 
     @Query("SELECT COALESCE(SUM(byteSize), 0) FROM content_resource WHERE mimeType LIKE 'image/%'")
     suspend fun getTotalImageResourceBytes(): Long

@@ -3,6 +3,9 @@ package com.mydeck.app.ui.highlights
 import com.mydeck.app.domain.HighlightsRefreshReason
 import com.mydeck.app.domain.HighlightsRepository
 import com.mydeck.app.domain.HighlightsSyncState
+import com.mydeck.app.domain.BookmarkAnnotationReconcileResult
+import com.mydeck.app.domain.BookmarkAnnotationSyncReason
+import com.mydeck.app.domain.SyncPriority
 import com.mydeck.app.domain.model.HighlightSummary
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -80,6 +83,24 @@ class HighlightsViewModelTest {
         assertFalse(state.isInitialLocalLoad)
     }
 
+    @Test
+    fun `ui state does not regress to initial loading after cached rows emit`() = runTest {
+        repository.highlights.value = listOf(highlight("h1"))
+
+        val viewModel = HighlightsViewModel(repository)
+        advanceUntilIdle()
+
+        repository.syncState.value = HighlightsSyncState.Running(loadedCount = 1)
+        advanceUntilIdle()
+        repository.syncState.value = HighlightsSyncState.Failed("Could not refresh highlights")
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertEquals(1, state.groups.single().highlights.size)
+        assertTrue(state.refreshFailed)
+        assertFalse(state.isInitialLocalLoad)
+    }
+
     private fun highlight(id: String): HighlightSummary {
         return HighlightSummary(
             id = id,
@@ -107,6 +128,29 @@ class HighlightsViewModelTest {
         override suspend fun requestRefresh(reason: HighlightsRefreshReason): Result<Unit> {
             refreshRequests += reason
             return Result.success(Unit)
+        }
+
+        override suspend fun requestBookmarkAnnotationChecks(
+            bookmarkIds: Collection<String>,
+            reason: BookmarkAnnotationSyncReason,
+            priority: SyncPriority,
+        ): Result<Unit> = Result.success(Unit)
+
+        override suspend fun reconcileBookmarkAnnotationsNow(
+            bookmarkId: String,
+            reason: BookmarkAnnotationSyncReason,
+            force: Boolean,
+        ): Result<BookmarkAnnotationReconcileResult> {
+            return Result.success(
+                BookmarkAnnotationReconcileResult(
+                    bookmarkId = bookmarkId,
+                    previousCount = 0,
+                    remoteCount = 0,
+                    changed = false,
+                    skipped = false,
+                    reason = "success",
+                )
+            )
         }
     }
 }

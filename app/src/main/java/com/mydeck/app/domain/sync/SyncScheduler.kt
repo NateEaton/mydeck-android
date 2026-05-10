@@ -17,6 +17,12 @@ interface SyncScheduler {
     fun scheduleBatchArticleLoad(wifiOnly: Boolean, allowBatterySaver: Boolean)
 
     /**
+     * Enqueues a one-time forced bookmark metadata repair after global highlight
+     * reconciliation finds annotations for locally missing bookmarks.
+     */
+    fun scheduleBookmarkOrphanRepairFullSync()
+
+    /**
      * Enqueues a batch content-sync job that bypasses the user's connectivity
      * and battery-saver constraints (requires any network connection).
      * Used when the user explicitly overrides constraints via the pull-to-refresh dialog.
