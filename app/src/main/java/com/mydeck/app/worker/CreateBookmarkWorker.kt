@@ -14,7 +14,10 @@ import com.mydeck.app.domain.BookmarkRepository
 import com.mydeck.app.domain.model.Bookmark
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import timber.log.Timber
 import java.util.concurrent.TimeUnit
 import javax.inject.Provider
@@ -39,13 +42,15 @@ class CreateBookmarkWorker @AssistedInject constructor(
         }
 
         return try {
-            Timber.d("CreateBookmarkWorker: Creating bookmark for URL=$url")
             val bookmarkRepository = bookmarkRepositoryProvider.get()
-            val bookmarkId = bookmarkRepository.createBookmark(
-                title = title,
-                url = url,
-                labels = labels
-            )
+            val bookmarkId = createMutex.withLock {
+                Timber.d("CreateBookmarkWorker: Creating bookmark for URL=$url")
+                bookmarkRepository.createBookmark(
+                    title = title,
+                    url = url,
+                    labels = labels
+                )
+            }
 
             if (isArchived || isFavorite) {
                 // Wait for bookmark to reach LOADED state before updating,
@@ -66,6 +71,9 @@ class CreateBookmarkWorker @AssistedInject constructor(
                     .putString(RESULT_BOOKMARK_ID, bookmarkId)
                     .build()
             )
+        } catch (e: CancellationException) {
+            Timber.w(e, "CreateBookmarkWorker: Cancelled while creating bookmark")
+            throw e
         } catch (e: Exception) {
             Timber.e(e, "CreateBookmarkWorker: Failed to create bookmark")
             if (runAttemptCount < 3) {
@@ -104,6 +112,7 @@ class CreateBookmarkWorker @AssistedInject constructor(
         const val PARAM_IS_ARCHIVED = "isArchived"
         const val PARAM_IS_FAVORITE = "isFavorite"
         const val RESULT_BOOKMARK_ID = "bookmarkId"
+        private val createMutex = Mutex()
 
         fun enqueue(
             workManager: WorkManager,

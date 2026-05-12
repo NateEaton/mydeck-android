@@ -404,7 +404,12 @@ class HighlightsRepositoryImplTest {
                 Response.success(listOf(remoteAnnotation("remote-1", "bookmark-1", "Remote")))
 
             val result = repository.requestRefresh(HighlightsRefreshReason.USER_RETRY)
-            waitUntil { annotationSummaryCalls.isNotEmpty() && syncMetadata.cacheComplete }
+            waitUntil {
+                annotationSummaryCalls.isNotEmpty() &&
+                    syncMetadata.cacheComplete &&
+                    syncMetadata.globalFailureCount == 0 &&
+                    syncMetadata.globalBackoffUntil == null
+            }
 
             assertTrue(result.isSuccess)
             assertEquals(listOf(50 to 0), annotationSummaryCalls)
@@ -994,11 +999,12 @@ class HighlightsRepositoryImplTest {
     }
 
     private suspend fun withRepository(block: suspend (HighlightsRepository) -> Unit) {
-        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+        val job = SupervisorJob()
+        val scope = CoroutineScope(job + Dispatchers.Default)
         try {
             block(repository(scope))
         } finally {
-            scope.cancel()
+            job.cancelAndJoin()
         }
     }
 

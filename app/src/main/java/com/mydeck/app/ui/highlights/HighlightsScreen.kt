@@ -1,23 +1,38 @@
 package com.mydeck.app.ui.highlights
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.ArrowDownward
+import androidx.compose.material.icons.filled.ArrowUpward
+import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.outlined.EditNote
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -38,6 +53,8 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.withStyle
+import com.mydeck.app.ui.components.VerticalScrollbar
+import kotlinx.coroutines.launch
 
 @Composable
 fun HighlightsScreen(
@@ -65,7 +82,16 @@ fun HighlightsScreen(
         onNavigateToBookmark = { bookmarkId, annotationId ->
             navController.navigate(BookmarkDetailRoute(bookmarkId, annotationId = annotationId))
         },
-        onRetry = { viewModel.retry() }
+        onRetry = { viewModel.retry() },
+        onSearchActiveChange = viewModel::setSearchActive,
+        onSearchQueryChange = viewModel::setSearchQuery,
+        onClearSearch = viewModel::clearSearch,
+        onToggleSearchTarget = viewModel::toggleSearchTarget,
+        onSelectColorFilter = viewModel::selectColorFilter,
+        onSelectNoteFilter = viewModel::selectNoteFilter,
+        onClearFilters = viewModel::clearFilters,
+        onToggleSortOrder = viewModel::toggleSortOrder,
+        onTitleTap = viewModel::logTitleTap,
     )
 }
 
@@ -75,24 +101,110 @@ fun HighlightsContent(
     uiState: HighlightsUiState,
     onNavigateBack: () -> Unit,
     onNavigateToBookmark: (String, String?) -> Unit,
-    onRetry: () -> Unit
+    onRetry: () -> Unit,
+    onSearchActiveChange: (Boolean) -> Unit,
+    onSearchQueryChange: (String) -> Unit,
+    onClearSearch: () -> Unit,
+    onToggleSearchTarget: (HighlightSearchTarget) -> Unit,
+    onSelectColorFilter: (HighlightColorFilter) -> Unit,
+    onSelectNoteFilter: (HighlightNoteFilter) -> Unit,
+    onClearFilters: () -> Unit,
+    onToggleSortOrder: () -> Unit,
+    onTitleTap: () -> Unit,
 ) {
+    val lazyListState = rememberLazyListState()
+    val coroutineScope = rememberCoroutineScope()
+
+    LaunchedEffect(
+        uiState.query,
+        uiState.searchTargets,
+        uiState.selectedColor,
+        uiState.noteFilter,
+        uiState.sortOrder,
+    ) {
+        if ((uiState.hasActiveSearchOrFilters || uiState.filteredGroups.isNotEmpty()) && uiState.filteredGroups.isNotEmpty()) {
+            lazyListState.scrollToItem(0)
+        }
+    }
+
     Scaffold(
         topBar = {
             Column {
                 TopAppBar(
-                    title = { Text(stringResource(R.string.highlights_title)) },
+                    title = {
+                        if (uiState.isSearchActive) {
+                            HighlightsSearchField(
+                                query = uiState.query,
+                                onQueryChange = onSearchQueryChange,
+                                onClearSearch = onClearSearch,
+                            )
+                        } else {
+                            Text(
+                                text = stringResource(R.string.highlights_title),
+                                modifier = Modifier.clickable {
+                                    onTitleTap()
+                                    coroutineScope.launch { lazyListState.scrollToItem(0) }
+                                }
+                            )
+                        }
+                    },
                     navigationIcon = {
-                        IconButton(onClick = onNavigateBack) {
+                        IconButton(
+                            onClick = {
+                                if (uiState.isSearchActive) {
+                                    onSearchActiveChange(false)
+                                } else {
+                                    onNavigateBack()
+                                }
+                            }
+                        ) {
                             Icon(
-                                Icons.AutoMirrored.Filled.ArrowBack,
+                                imageVector = if (uiState.isSearchActive) Icons.Filled.Close else Icons.AutoMirrored.Filled.ArrowBack,
                                 contentDescription = stringResource(R.string.back)
                             )
+                        }
+                    },
+                    actions = {
+                        IconButton(onClick = onToggleSortOrder) {
+                            Icon(
+                                imageVector = if (uiState.sortOrder == HighlightSortOrder.Descending) {
+                                    Icons.Filled.ArrowDownward
+                                } else {
+                                    Icons.Filled.ArrowUpward
+                                },
+                                contentDescription = if (uiState.sortOrder == HighlightSortOrder.Descending) {
+                                    stringResource(R.string.highlights_sort_oldest_first)
+                                } else {
+                                    stringResource(R.string.highlights_sort_newest_first)
+                                }
+                            )
+                        }
+                        if (!uiState.isSearchActive) {
+                            IconButton(onClick = { onSearchActiveChange(true) }) {
+                                Icon(
+                                    imageVector = Icons.Filled.FilterList,
+                                    contentDescription = stringResource(R.string.highlights_filter),
+                                    tint = if (uiState.hasActiveSearchOrFilters) {
+                                        MaterialTheme.colorScheme.primary
+                                    } else {
+                                        LocalContentColor.current
+                                    }
+                                )
+                            }
                         }
                     }
                 )
                 if (uiState.isRefreshing) {
                     LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                }
+                if (uiState.isSearchActive) {
+                    HighlightsFilterControls(
+                        uiState = uiState,
+                        onToggleSearchTarget = onToggleSearchTarget,
+                        onSelectColorFilter = onSelectColorFilter,
+                        onSelectNoteFilter = onSelectNoteFilter,
+                        onClearFilters = onClearFilters,
+                    )
                 }
             }
         }
@@ -145,28 +257,50 @@ fun HighlightsContent(
                     }
                 }
                 else -> {
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(vertical = 8.dp)
-                    ) {
-                        if (uiState.refreshFailed) {
-                            item(key = "refresh_error") {
-                                RefreshErrorBanner(onRetry = onRetry)
+                    if (uiState.hasNoMatches) {
+                        NoMatchingHighlightsState(
+                            filtersActive = uiState.hasActiveSearchOrFilters,
+                            onClearFilters = onClearFilters,
+                            modifier = Modifier.align(Alignment.Center)
+                        )
+                    } else {
+                        Box(modifier = Modifier.fillMaxSize()) {
+                            LazyColumn(
+                                state = lazyListState,
+                                modifier = Modifier.fillMaxSize(),
+                                contentPadding = PaddingValues(vertical = 8.dp)
+                            ) {
+                                uiState.filteredGroups.forEach { group ->
+                                    items(group.highlights, key = { "${group.bookmarkId}_${it.id}" }) { highlight ->
+                                        HighlightCard(
+                                            highlight = highlight,
+                                            onClick = { onNavigateToBookmark(group.bookmarkId, highlight.id) }
+                                        )
+                                    }
+                                    item(key = "title_${group.bookmarkId}") {
+                                        BookmarkTitleLine(
+                                            group = group,
+                                            onClick = { onNavigateToBookmark(group.bookmarkId, null) }
+                                        )
+                                        Spacer(modifier = Modifier.height(8.dp))
+                                    }
+                                }
                             }
-                        }
-                        uiState.groups.forEach { group ->
-                            items(group.highlights, key = { it.id }) { highlight ->
-                                HighlightCard(
-                                    highlight = highlight,
-                                    onClick = { onNavigateToBookmark(group.bookmarkId, highlight.id) }
-                                )
-                            }
-                            item(key = "title_${group.bookmarkId}") {
-                                BookmarkTitleLine(
-                                    group = group,
-                                    onClick = { onNavigateToBookmark(group.bookmarkId, null) }
-                                )
-                                Spacer(modifier = Modifier.height(8.dp))
+                            VerticalScrollbar(
+                                modifier = Modifier
+                                    .align(Alignment.CenterEnd)
+                                    .fillMaxHeight(),
+                                lazyListState = lazyListState
+                            )
+                            if (uiState.refreshFailed) {
+                                TextButton(
+                                    onClick = onRetry,
+                                    modifier = Modifier
+                                        .align(Alignment.TopEnd)
+                                        .padding(end = 24.dp)
+                                ) {
+                                    Text(stringResource(R.string.retry))
+                                }
                             }
                         }
                     }
@@ -177,29 +311,223 @@ fun HighlightsContent(
 }
 
 @Composable
-private fun RefreshErrorBanner(
-    onRetry: () -> Unit,
+private fun HighlightsSearchField(
+    query: String,
+    onQueryChange: (String) -> Unit,
+    onClearSearch: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Surface(
+    val focusRequester = remember { FocusRequester() }
+    LaunchedEffect(Unit) {
+        focusRequester.requestFocus()
+    }
+    TextField(
+        value = query,
+        onValueChange = onQueryChange,
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        color = MaterialTheme.colorScheme.errorContainer,
-        contentColor = MaterialTheme.colorScheme.onErrorContainer,
-        shape = MaterialTheme.shapes.small,
+            .focusRequester(focusRequester),
+        singleLine = true,
+        placeholder = { Text(stringResource(R.string.highlights_search_hint)) },
+        trailingIcon = {
+            if (query.isNotEmpty()) {
+                IconButton(onClick = onClearSearch) {
+                    Icon(
+                        imageVector = Icons.Filled.Clear,
+                        contentDescription = stringResource(R.string.highlights_clear_search)
+                    )
+                }
+            }
+        },
+        colors = TextFieldDefaults.colors(
+            focusedContainerColor = Color.Transparent,
+            unfocusedContainerColor = Color.Transparent,
+            disabledContainerColor = Color.Transparent,
+            focusedIndicatorColor = Color.Transparent,
+            unfocusedIndicatorColor = Color.Transparent,
+        )
+    )
+}
+
+@Composable
+private fun HighlightsFilterControls(
+    uiState: HighlightsUiState,
+    onToggleSearchTarget: (HighlightSearchTarget) -> Unit,
+    onSelectColorFilter: (HighlightColorFilter) -> Unit,
+    onSelectNoteFilter: (HighlightNoteFilter) -> Unit,
+    onClearFilters: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(start = 12.dp, end = 12.dp, bottom = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
-                text = stringResource(R.string.highlights_refresh_failed_showing_saved),
-                modifier = Modifier.weight(1f),
-                style = MaterialTheme.typography.bodyMedium,
+                text = stringResource(
+                    R.string.highlights_grouped_results_count,
+                    uiState.filteredHighlightCount,
+                    uiState.filteredGroups.size
+                ),
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            TextButton(onClick = onRetry) {
-                Text(stringResource(R.string.retry))
+            SearchTargetChip(
+                selected = uiState.searchTargets.text,
+                label = stringResource(R.string.highlights_filter_text),
+                onClick = { onToggleSearchTarget(HighlightSearchTarget.Text) },
+            )
+            SearchTargetChip(
+                selected = uiState.searchTargets.notes,
+                label = stringResource(R.string.highlights_filter_notes),
+                onClick = { onToggleSearchTarget(HighlightSearchTarget.Notes) },
+            )
+            SearchTargetChip(
+                selected = uiState.searchTargets.title,
+                label = stringResource(R.string.highlights_filter_title),
+                onClick = { onToggleSearchTarget(HighlightSearchTarget.Title) },
+            )
+            SearchTargetChip(
+                selected = uiState.searchTargets.site,
+                label = stringResource(R.string.highlights_filter_site),
+                onClick = { onToggleSearchTarget(HighlightSearchTarget.Site) },
+            )
+        }
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            HighlightColorFilter.values().forEach { colorFilter ->
+                ColorFilterChip(
+                    colorFilter = colorFilter,
+                    selected = uiState.selectedColor == colorFilter,
+                    onClick = { onSelectColorFilter(colorFilter) },
+                )
+            }
+            NoteFilterChip(
+                selected = uiState.noteFilter == HighlightNoteFilter.Any,
+                label = stringResource(R.string.highlights_filter_notes_any),
+                onClick = { onSelectNoteFilter(HighlightNoteFilter.Any) },
+            )
+            NoteFilterChip(
+                selected = uiState.noteFilter == HighlightNoteFilter.WithNotes,
+                label = stringResource(R.string.highlights_filter_with_notes),
+                onClick = { onSelectNoteFilter(HighlightNoteFilter.WithNotes) },
+            )
+            NoteFilterChip(
+                selected = uiState.noteFilter == HighlightNoteFilter.WithoutNotes,
+                label = stringResource(R.string.highlights_filter_without_notes),
+                onClick = { onSelectNoteFilter(HighlightNoteFilter.WithoutNotes) },
+            )
+            if (uiState.hasActiveSearchOrFilters) {
+                TextButton(onClick = onClearFilters) {
+                    Text(stringResource(R.string.highlights_clear_filters))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SearchTargetChip(
+    selected: Boolean,
+    label: String,
+    onClick: () -> Unit,
+) {
+    FilterChip(
+        selected = selected,
+        onClick = onClick,
+        label = { Text(label) },
+    )
+}
+
+@Composable
+private fun NoteFilterChip(
+    selected: Boolean,
+    label: String,
+    onClick: () -> Unit,
+) {
+    FilterChip(
+        selected = selected,
+        onClick = onClick,
+        label = { Text(label) },
+    )
+}
+
+@Composable
+private fun ColorFilterChip(
+    colorFilter: HighlightColorFilter,
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
+    FilterChip(
+        selected = selected,
+        onClick = onClick,
+        label = { Text(colorFilter.label()) },
+        leadingIcon = {
+            Box(
+                modifier = Modifier
+                    .size(10.dp)
+                    .background(colorFilter.swatchColor(), CircleShape)
+            )
+        },
+    )
+}
+
+@Composable
+private fun HighlightColorFilter.label(): String {
+    return when (this) {
+        HighlightColorFilter.Any -> stringResource(R.string.highlights_filter_color_any)
+        HighlightColorFilter.Yellow -> stringResource(R.string.highlights_filter_color_yellow)
+        HighlightColorFilter.Red -> stringResource(R.string.highlights_filter_color_red)
+        HighlightColorFilter.Blue -> stringResource(R.string.highlights_filter_color_blue)
+        HighlightColorFilter.Green -> stringResource(R.string.highlights_filter_color_green)
+        HighlightColorFilter.None -> stringResource(R.string.highlights_filter_color_none)
+    }
+}
+
+@Composable
+private fun HighlightColorFilter.swatchColor(): Color {
+    return when (this) {
+        HighlightColorFilter.Any -> MaterialTheme.colorScheme.outline
+        HighlightColorFilter.Yellow -> Color(0xFFFFEB3B)
+        HighlightColorFilter.Red -> Color(0xFFEF5350)
+        HighlightColorFilter.Blue -> Color(0xFF42A5F5)
+        HighlightColorFilter.Green -> Color(0xFF66BB6A)
+        HighlightColorFilter.None -> MaterialTheme.colorScheme.surfaceVariant
+    }
+}
+
+@Composable
+private fun NoMatchingHighlightsState(
+    filtersActive: Boolean,
+    onClearFilters: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier.padding(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Text(
+            text = stringResource(R.string.highlights_no_matches),
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        if (filtersActive) {
+            TextButton(onClick = onClearFilters) {
+                Text(stringResource(R.string.highlights_clear_filters))
             }
         }
     }
