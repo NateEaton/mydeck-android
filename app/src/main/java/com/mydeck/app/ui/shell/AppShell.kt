@@ -492,7 +492,7 @@ private fun MediumAppShell(
                     )
                 }
                 composable<com.mydeck.app.ui.navigation.HighlightsRoute> {
-                    com.mydeck.app.ui.highlights.HighlightsScreen(navController)
+                    com.mydeck.app.ui.highlights.HighlightsScreen(navController, showBackButton = false)
                 }
                 composable<SettingsRoute> { SettingsScreen(navController, showBackButton = false) }
                 composable<WelcomeRoute> { WelcomeScreen(navController) }
@@ -680,7 +680,7 @@ private fun ExpandedAppShell(
                     )
                 }
                 composable<com.mydeck.app.ui.navigation.HighlightsRoute> {
-                    com.mydeck.app.ui.highlights.HighlightsScreen(navController)
+                    com.mydeck.app.ui.highlights.HighlightsScreen(navController, showBackButton = false)
                 }
                 composable<SettingsRoute> { SettingsScreen(navController, showBackButton = false) }
                 composable<WelcomeRoute> { WelcomeScreen(navController) }

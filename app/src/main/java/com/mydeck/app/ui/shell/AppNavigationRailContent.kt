@@ -82,17 +82,7 @@ fun AppNavigationRailContent(
         NavigationRailItem(
             selected = !isLabelMode && drawerPreset == DrawerPreset.HIGHLIGHTS,
             onClick = onClickHighlights,
-            icon = {
-                BadgedBox(
-                    badge = {
-                        if (bookmarkCounts.highlights > 0) {
-                            Badge { Text(bookmarkCounts.highlights.toString()) }
-                        }
-                    }
-                ) {
-                    Icon(imageVector = Icons.Outlined.EditNote, contentDescription = null)
-                }
-            },
+            icon = { Icon(imageVector = Icons.Outlined.EditNote, contentDescription = null) },
         )
         Spacer(Modifier.weight(1f))
         NavigationRailItem(

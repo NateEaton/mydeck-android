@@ -60,6 +60,7 @@ import kotlinx.coroutines.launch
 fun HighlightsScreen(
     navController: NavHostController,
     viewModel: HighlightsViewModel = hiltViewModel(),
+    showBackButton: Boolean = true,
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -78,6 +79,7 @@ fun HighlightsScreen(
 
     HighlightsContent(
         uiState = uiState,
+        showBackButton = showBackButton,
         onNavigateBack = { navController.popBackStack() },
         onNavigateToBookmark = { bookmarkId, annotationId ->
             navController.navigate(BookmarkDetailRoute(bookmarkId, annotationId = annotationId))
@@ -99,6 +101,7 @@ fun HighlightsScreen(
 @Composable
 fun HighlightsContent(
     uiState: HighlightsUiState,
+    showBackButton: Boolean = true,
     onNavigateBack: () -> Unit,
     onNavigateToBookmark: (String, String?) -> Unit,
     onRetry: () -> Unit,
@@ -149,19 +152,21 @@ fun HighlightsContent(
                         }
                     },
                     navigationIcon = {
-                        IconButton(
-                            onClick = {
-                                if (uiState.isSearchActive) {
-                                    onSearchActiveChange(false)
-                                } else {
-                                    onNavigateBack()
+                        if (showBackButton || uiState.isSearchActive) {
+                            IconButton(
+                                onClick = {
+                                    if (uiState.isSearchActive) {
+                                        onSearchActiveChange(false)
+                                    } else {
+                                        onNavigateBack()
+                                    }
                                 }
+                            ) {
+                                Icon(
+                                    imageVector = if (uiState.isSearchActive) Icons.Filled.Close else Icons.AutoMirrored.Filled.ArrowBack,
+                                    contentDescription = stringResource(R.string.back)
+                                )
                             }
-                        ) {
-                            Icon(
-                                imageVector = if (uiState.isSearchActive) Icons.Filled.Close else Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = stringResource(R.string.back)
-                            )
                         }
                     },
                     actions = {
