@@ -74,9 +74,20 @@ Tap **🔍** to open the in-content search bar. Type to search; matching text in
 
 ### Highlights
 
-Article bookmarks support Readeck highlights directly in the reading view. Video bookmarks also support highlights when Readeck provides text content such as a transcript. To create a highlight, select text in the article or transcript and tap **Highlight** in the Android text selection menu, then choose a color and optionally enter a note. If your selection overlaps one or more existing highlights, **Save** changes the color and note for those highlights and **Delete** removes them immediately. To edit or delete an existing highlight directly, tap the highlighted text. Clear the note field and save to remove a highlight note. You can also open **⋮ → Highlights** to browse saved highlights and jump to any one in the article or transcript.
+Article bookmarks support Readeck highlights directly in the reading view. Video bookmarks also support highlights when Readeck provides text content such as a transcript.
 
-The main **Highlights** destination in the navigation drawer opens from saved local highlights immediately and refreshes from Readeck in the background. Highlights stay grouped by bookmark/article, with groups and highlights ordered by newest visible highlight by default. Use the filter button to search saved highlight text, notes, bookmark titles, and site names locally, and to narrow results by search target, highlight color, or whether highlights have notes. The sort button switches both article groups and highlights inside each group between newest-first and oldest-first order. Tap the **Highlights** title to jump back to the top. Long lists show the standard scroll progress indicator while you scroll. Search and filters use saved highlights and continue working while background sync runs; if refresh fails, saved highlights remain visible with a retry option. When you reopen downloaded content while online, MyDeck checks whether the saved highlight set changed on the server and refreshes the content if needed.
+To create a highlight, select text in the article or transcript and tap **Highlight** in the Android text selection menu, then choose a color and optionally enter a note. If your selection overlaps one or more existing highlights, **Save** changes the color and note for those highlights and **Delete** removes them immediately.
+
+To edit or delete an existing highlight directly, tap the highlighted text. Clear the note field and save to remove a highlight note. You can also open **⋮ → Highlights** to browse saved highlights and jump to any one in the article or transcript.
+
+The main **Highlights** destination in the navigation drawer opens a global list of all your highlights across all bookmarks. See the [Highlights](./highlights.md) guide for more details.
+
+## End-of-content Actions
+
+At the bottom of the article or transcript, two buttons let you act on the bookmark without opening a menu:
+
+- **Add to favorites / Remove favorite** — toggle the favorite status
+- **Archive / Unarchive** — move the bookmark to the archive (or back to My List)
 
 ## Overflow Menu
 

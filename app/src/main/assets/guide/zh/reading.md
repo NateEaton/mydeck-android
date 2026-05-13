@@ -61,6 +61,16 @@ These settings are saved automatically and apply to every Article, Video, and Pi
 
 Tap **🔍** to open the in-content search bar. Type to search; matching text in the content is highlighted. If there are multiple matches, the current one is highlighted in amber and others in yellow. Use the **↑** and **↓** arrows to move between matches. The counter shows your current position (e.g., "2/5").
 
+### Highlights
+
+Article bookmarks support Readeck highlights directly in the reading view. Video bookmarks also support highlights when Readeck provides text content such as a transcript.
+
+To create a highlight, select text in the article or transcript and tap **Highlight** in the Android text selection menu, then choose a color and optionally enter a note. If your selection overlaps one or more existing highlights, **Save** changes the color and note for those highlights and **Delete** removes them immediately.
+
+To edit or delete an existing highlight directly, tap the highlighted text. Clear the note field and save to remove a highlight note. You can also open **⋮ → Highlights** to browse saved highlights and jump to any one in the article or transcript.
+
+The main **Highlights** destination in the navigation drawer opens a global list of all your highlights across all bookmarks. See the [Highlights](./highlights.md) guide for more details.
+
 ## Overflow Menu
 
 Tap **⋮** in the top bar for additional actions:

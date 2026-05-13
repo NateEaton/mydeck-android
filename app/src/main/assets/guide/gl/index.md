@@ -4,9 +4,10 @@ Title: Table of Contents
 TOC:
     - ""
     - getting-started
-    - bookmark-list
-    - bookmark
-    - labels
+    - your-bookmarks
+    - reading
+    - organizing
+    - highlights
     - settings
 ---
 
@@ -17,7 +18,8 @@ MyDeck is a mobile reader for [Readeck](https://readeck.org), a self-hosted read
 ## Contents
 
 - [Getting Started](./getting-started.md)
-- [Bookmarks](./bookmark-list.md)
-- [Bookmark View](./bookmark.md)
-- [Labels](./labels.md)
+- [Bookmarks](./your-bookmarks.md)
+- [Reading](./reading.md)
+- [Organizing](./organizing.md)
+- [Highlights](./highlights.md)
 - [Settings](./settings.md)

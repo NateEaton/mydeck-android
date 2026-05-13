@@ -13,6 +13,7 @@ Tap the **menu icon** (☰) in the top-left corner to open the navigation drawer
 - **Videos** — video-type bookmarks only
 - **Pictures** — picture-type bookmarks only
 - **Labels** — browse bookmarks by label; tap a label to see all bookmarks with that label
+- **Highlights** — a global index of all highlights saved across all your bookmarks
 
 Each item shows a count of how many bookmarks it contains.
 
