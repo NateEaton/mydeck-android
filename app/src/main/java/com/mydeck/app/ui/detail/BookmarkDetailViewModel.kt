@@ -1650,7 +1650,6 @@ class BookmarkDetailViewModel @Inject constructor(
         }
 
         fun shouldShowHeaderDescription(): Boolean {
-            if (offlineBaseUrl != null && (type == Type.PHOTO || type == Type.VIDEO)) return false
             return description.isNotBlank() && !(
                 omitDescription == true &&
                     !articleContent.isNullOrBlank()
@@ -1691,12 +1690,22 @@ class BookmarkDetailViewModel @Inject constructor(
             )
             return when (type) {
                 Type.PHOTO -> {
+                    val articleNormalized = articleContent?.let { normalizeText(it) }
+                    val descNormalized = normalizeText(description)
+                    val textIsDescription = articleContent != null && articleNormalized == descNormalized
+                    val showInHeader = shouldShowHeaderDescription()
+
                     if (offlineBaseUrl != null && articleContent != null) {
-                        htmlTemplate.replace("%s", headerHtml + articleContent + footerHtml)
+                        val content = if (textIsDescription && showInHeader) {
+                            // Extract just the image tag to avoid duplicating the description in the content area
+                            val imgMatch = Regex("""<img[^>]+>""").find(articleContent)?.value
+                            imgMatch ?: articleContent
+                        } else {
+                            articleContent
+                        }
+                        htmlTemplate.replace("%s", headerHtml + content + footerHtml)
                     } else {
-                        val articleNormalized = articleContent?.let { normalizeText(it) }
-                        val descNormalized = normalizeText(description)
-                        val textPart = if (articleContent != null && articleNormalized != descNormalized) articleContent else ""
+                        val textPart = if (articleContent != null && (!textIsDescription || !showInHeader)) articleContent else ""
                         val imagePart = """<img src="$imgSrc"/>"""
                         htmlTemplate.replace("%s", headerHtml + imagePart + textPart + footerHtml)
                     }
