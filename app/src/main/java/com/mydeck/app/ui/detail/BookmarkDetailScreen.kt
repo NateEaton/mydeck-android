@@ -472,8 +472,8 @@ fun BookmarkDetailHost(
                 is BookmarkDetailViewModel.AnnotationRefreshEvent.AttributeUpdate -> {
                     val js = buildString {
                         for (id in event.annotationIds) {
-                            val escapedId = id.replace("'", "\\'")
-                            val escapedColor = event.color.replace("'", "\\'")
+                            val escapedId = id.escapeForJavascript()
+                            val escapedColor = event.color.escapeForJavascript()
                             val noteBase64 = android.util.Base64.encodeToString(
                                 event.note.toByteArray(Charsets.UTF_8),
                                 android.util.Base64.NO_WRAP

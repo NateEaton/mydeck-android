@@ -566,13 +566,6 @@ object WebViewAnnotationBridge {
     }
 
 
-    private fun String.escapeForJavascript(): String {
-        return replace("\\", "\\\\")
-            .replace("'", "\\'")
-            .replace("\"", "\\\"")
-            .replace("\n", "\\n")
-            .replace("\r", "\\r")
-    }
 
 
     @kotlinx.serialization.Serializable
@@ -607,4 +600,12 @@ object WebViewAnnotationBridge {
         val note: String? = null,
         val position: Int = Int.MAX_VALUE
     )
+}
+
+internal fun String.escapeForJavascript(): String {
+    return replace("\\", "\\\\")
+        .replace("'", "\\'")
+        .replace("\"", "\\\"")
+        .replace("\n", "\\n")
+        .replace("\r", "\\r")
 }

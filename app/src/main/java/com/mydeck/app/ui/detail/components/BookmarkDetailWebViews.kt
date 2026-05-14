@@ -603,6 +603,8 @@ fun BookmarkDetailArticle(
                                 return super.shouldInterceptRequest(view, request)
                             }
 
+                            private var imageInterceptorInjected = false
+
                             private fun applyReaderEnhancements(webView: WebView) {
                                 val latestTypography = latestTypographySettings.value
                                 val widthPercent =
@@ -614,8 +616,10 @@ fun BookmarkDetailArticle(
                                     )
                                 applyTheme(webView)
                                 webView.evaluateJavascript(typographyJs, null)
-                                val imageJs = WebViewImageBridge.injectImageInterceptor()
-                                webView.evaluateJavascript(imageJs, null)
+                                if (!imageInterceptorInjected) {
+                                    imageInterceptorInjected = true
+                                    webView.evaluateJavascript(WebViewImageBridge.injectImageInterceptor(), null)
+                                }
                                 val annotationJs = WebViewAnnotationBridge.injectAnnotationInteractions()
                                 webView.evaluateJavascript(annotationJs, null)
                                 webView.evaluateJavascript(WebViewActionsInjector.injectActions(), null)
@@ -659,6 +663,11 @@ fun BookmarkDetailArticle(
                                     return true
                                 }
                                 return false
+                            }
+
+                            override fun onPageStarted(view: WebView?, url: String?, favicon: android.graphics.Bitmap?) {
+                                super.onPageStarted(view, url, favicon)
+                                imageInterceptorInjected = false
                             }
 
                             override fun onPageCommitVisible(view: WebView?, url: String?) {

@@ -1,5 +1,7 @@
 package com.mydeck.app.ui.detail
 
+import android.os.Handler
+import android.os.Looper
 import android.webkit.JavascriptInterface
 import java.util.Locale
 
@@ -11,7 +13,9 @@ object WebViewScrollBridge {
     ) {
         @JavascriptInterface
         fun reportProgress(percentage: Float) {
-            onProgressChanged(percentage)
+            Handler(Looper.getMainLooper()).post {
+                onProgressChanged(percentage)
+            }
         }
     }
 
