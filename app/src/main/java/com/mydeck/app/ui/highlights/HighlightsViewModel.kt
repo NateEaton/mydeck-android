@@ -89,10 +89,6 @@ class HighlightsViewModel @Inject constructor(
         initialValue = HighlightsUiState()
     )
 
-    init {
-        refresh(HighlightsRefreshReason.SCREEN_OPEN)
-    }
-
     fun refreshFromScreenOpen() {
         refresh(HighlightsRefreshReason.SCREEN_OPEN)
     }

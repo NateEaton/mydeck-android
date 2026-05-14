@@ -316,7 +316,7 @@ class HighlightsViewModelTest {
 
         val viewModel = HighlightsViewModel(repository)
         advanceUntilIdle()
-        assertEquals(listOf(HighlightsRefreshReason.SCREEN_OPEN), repository.refreshRequests)
+        assertEquals(emptyList<HighlightsRefreshReason>(), repository.refreshRequests)
 
         viewModel.setSearchQuery("saved")
         viewModel.toggleSearchTarget(HighlightSearchTarget.Notes)
@@ -324,7 +324,7 @@ class HighlightsViewModelTest {
         viewModel.selectNoteFilter(HighlightNoteFilter.WithoutNotes)
         advanceUntilIdle()
 
-        assertEquals(listOf(HighlightsRefreshReason.SCREEN_OPEN), repository.refreshRequests)
+        assertEquals(emptyList<HighlightsRefreshReason>(), repository.refreshRequests)
     }
 
     @Test

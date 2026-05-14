@@ -192,7 +192,8 @@ class HighlightsRepositoryImpl @Inject constructor(
                                 }
                             }
                         }
-                        .onFailure {
+                        .onFailure { cause ->
+                            Timber.w(cause, "Per-bookmark annotation check failed: bookmarkId=%s", bookmarkId)
                             failed += 1
                         }
                 } finally {
@@ -577,6 +578,8 @@ class HighlightsRepositoryImpl @Inject constructor(
         if (reason == HighlightsRefreshReason.ORPHAN_REPAIR) {
             return GlobalRefreshDecision(due = true, detail = "orphan repair bypasses throttle and backoff")
         }
+        // SCREEN_OPEN, APP_OPEN, MANUAL_SYNC, and any other reasons intentionally share the same
+        // freshness-and-backoff path below. Only USER_RETRY and ORPHAN_REPAIR get early-return bypasses.
         metadata.globalBackoffUntil?.let { backoffUntil ->
             if (backoffUntil > now) {
                 return GlobalRefreshDecision(due = false, detail = "failure backoff active until $backoffUntil")
@@ -600,6 +603,9 @@ class HighlightsRepositoryImpl @Inject constructor(
         metadata: BookmarkAnnotationSyncMetadataEntity?,
     ): BookmarkAnnotationCheckDecision {
         val now = Clock.System.now()
+        if (force) {
+            return BookmarkAnnotationCheckDecision(due = true, detail = "forced")
+        }
         metadata?.backoffUntil?.let { backoffUntil ->
             if (backoffUntil > now) {
                 return BookmarkAnnotationCheckDecision(
@@ -607,9 +613,6 @@ class HighlightsRepositoryImpl @Inject constructor(
                     detail = "failure backoff active until $backoffUntil"
                 )
             }
-        }
-        if (force) {
-            return BookmarkAnnotationCheckDecision(due = true, detail = "forced")
         }
         val lastSuccess = metadata?.lastSuccessAt
             ?: return BookmarkAnnotationCheckDecision(due = true, detail = "no previous success")

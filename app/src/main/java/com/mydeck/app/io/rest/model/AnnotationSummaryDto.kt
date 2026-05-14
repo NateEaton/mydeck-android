@@ -8,7 +8,7 @@ data class AnnotationSummaryDto(
     val href: String,
     val text: String,
     val color: String,
-    val note: String,
+    val note: String = "",
     val created: String,
     val bookmark_id: String,
     val bookmark_href: String,
