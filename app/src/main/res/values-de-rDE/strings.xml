@@ -238,6 +238,7 @@ other{}
     <string name="highlights_refreshing">Refreshing highlights...</string>
     <string name="highlights_refresh_failed">Could not refresh highlights</string>
     <string name="highlights_refresh_failed_showing_saved">Could not refresh highlights. Showing saved highlights.</string>
+    <string name="highlights_partial_cache_banner">Highlights are partially synced. Pull to refresh now or wait for automatic retry.</string>
     <string name="highlights_menu_item">Highlights</string>
     <string name="highlights_search_hint">Search highlights</string>
     <string name="highlights_clear_search">Clear search</string>

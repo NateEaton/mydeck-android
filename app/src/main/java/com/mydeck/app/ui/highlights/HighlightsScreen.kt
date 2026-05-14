@@ -18,7 +18,10 @@ import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.outlined.EditNote
+import androidx.compose.material.icons.outlined.SyncProblem
 import androidx.compose.material3.*
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -199,9 +202,6 @@ fun HighlightsContent(
                         }
                     }
                 )
-                if (uiState.isRefreshing) {
-                    LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
-                }
                 if (uiState.isSearchActive) {
                     HighlightsFilterControls(
                         uiState = uiState,
@@ -210,6 +210,9 @@ fun HighlightsContent(
                         onSelectNoteFilter = onSelectNoteFilter,
                         onClearFilters = onClearFilters,
                     )
+                }
+                if (uiState.cachePartial) {
+                    HighlightsPartialCacheBanner()
                 }
             }
         }
@@ -253,7 +256,7 @@ fun HighlightsContent(
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
-                        if (uiState.refreshFailed) {
+                        if (uiState.refreshFailed && !uiState.cachePartial) {
                             Spacer(Modifier.height(8.dp))
                             Button(onClick = onRetry) {
                                 Text(stringResource(R.string.retry))
@@ -269,48 +272,72 @@ fun HighlightsContent(
                             modifier = Modifier.align(Alignment.Center)
                         )
                     } else {
-                        Box(modifier = Modifier.fillMaxSize()) {
-                            LazyColumn(
-                                state = lazyListState,
-                                modifier = Modifier.fillMaxSize(),
-                                contentPadding = PaddingValues(vertical = 8.dp)
-                            ) {
-                                uiState.filteredGroups.forEach { group ->
-                                    items(group.highlights, key = { "${group.bookmarkId}_${it.id}" }) { highlight ->
-                                        HighlightCard(
-                                            highlight = highlight,
-                                            onClick = { onNavigateToBookmark(group.bookmarkId, highlight.id) }
-                                        )
-                                    }
-                                    item(key = "title_${group.bookmarkId}") {
-                                        BookmarkTitleLine(
-                                            group = group,
-                                            onClick = { onNavigateToBookmark(group.bookmarkId, null) }
-                                        )
-                                        Spacer(modifier = Modifier.height(8.dp))
-                                    }
-                                }
-                            }
-                            VerticalScrollbar(
-                                modifier = Modifier
-                                    .align(Alignment.CenterEnd)
-                                    .fillMaxHeight(),
-                                lazyListState = lazyListState
-                            )
-                            if (uiState.refreshFailed) {
-                                TextButton(
-                                    onClick = onRetry,
-                                    modifier = Modifier
-                                        .align(Alignment.TopEnd)
-                                        .padding(end = 24.dp)
+                        val pullToRefreshState = rememberPullToRefreshState()
+                        PullToRefreshBox(
+                            isRefreshing = uiState.isRefreshing,
+                            onRefresh = onRetry,
+                            state = pullToRefreshState,
+                            modifier = Modifier.fillMaxSize()
+                        ) {
+                            Box(modifier = Modifier.fillMaxSize()) {
+                                LazyColumn(
+                                    state = lazyListState,
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentPadding = PaddingValues(vertical = 8.dp)
                                 ) {
-                                    Text(stringResource(R.string.retry))
+                                    uiState.filteredGroups.forEach { group ->
+                                        items(group.highlights, key = { "${group.bookmarkId}_${it.id}" }) { highlight ->
+                                            HighlightCard(
+                                                highlight = highlight,
+                                                onClick = { onNavigateToBookmark(group.bookmarkId, highlight.id) }
+                                            )
+                                        }
+                                        item(key = "title_${group.bookmarkId}_${group.groupDate}") {
+                                            BookmarkTitleLine(
+                                                group = group,
+                                                onClick = { onNavigateToBookmark(group.bookmarkId, null) }
+                                            )
+                                            Spacer(modifier = Modifier.height(8.dp))
+                                        }
+                                    }
                                 }
+                                VerticalScrollbar(
+                                    modifier = Modifier
+                                        .align(Alignment.CenterEnd)
+                                        .fillMaxHeight(),
+                                    lazyListState = lazyListState
+                                )
                             }
                         }
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun HighlightsPartialCacheBanner() {
+    Surface(
+        color = MaterialTheme.colorScheme.tertiaryContainer,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Outlined.SyncProblem,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onTertiaryContainer,
+                modifier = Modifier.size(24.dp)
+            )
+            Spacer(modifier = Modifier.width(16.dp))
+            Text(
+                text = stringResource(R.string.highlights_partial_cache_banner),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onTertiaryContainer
+            )
         }
     }
 }
@@ -562,32 +589,32 @@ private fun HighlightCard(
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            Spacer(Modifier.height(4.dp))
-            Text(
-                text = highlight.text,
-                style = MaterialTheme.typography.bodyLarge.copy(fontStyle = FontStyle.Italic),
-                maxLines = 5,
-                overflow = TextOverflow.Ellipsis,
-            )
             if (highlight.note.isNotEmpty()) {
                 Spacer(Modifier.height(4.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(verticalAlignment = Alignment.Top) {
                     Icon(
                         imageVector = Icons.Outlined.EditNote,
                         contentDescription = null,
-                        modifier = Modifier.size(14.dp),
+                        modifier = Modifier.size(18.dp),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Spacer(Modifier.width(4.dp))
                     Text(
                         text = highlight.note,
-                        style = MaterialTheme.typography.bodySmall,
+                        style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 3,
-                        overflow = TextOverflow.Ellipsis,
                     )
                 }
+                HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+            } else {
+                Spacer(Modifier.height(4.dp))
             }
+            Text(
+                text = highlight.text,
+                style = MaterialTheme.typography.bodyMedium.copy(fontStyle = FontStyle.Italic),
+                maxLines = 5,
+                overflow = TextOverflow.Ellipsis,
+            )
         }
     }
 }

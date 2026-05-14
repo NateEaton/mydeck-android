@@ -36,6 +36,7 @@ interface HighlightsRepository {
     fun observeHighlights(): Flow<List<HighlightSummary>>
     fun observeHighlightCount(): Flow<Int>
     fun observeSyncState(): StateFlow<HighlightsSyncState>
+    fun observeSyncMetadata(): StateFlow<HighlightsSyncMetadata>
     suspend fun requestRefresh(reason: HighlightsRefreshReason): Result<Unit>
     suspend fun requestBookmarkAnnotationChecks(
         bookmarkIds: Collection<String>,
@@ -103,6 +104,18 @@ class HighlightsRepositoryImpl @Inject constructor(
     private val bookmarkCheckMutex = Mutex()
     private val runningBookmarkChecks = mutableSetOf<String>()
     private val syncState = MutableStateFlow<HighlightsSyncState>(HighlightsSyncState.Idle)
+    private val syncMetadata = MutableStateFlow(HighlightsSyncMetadata())
+
+    init {
+        applicationScope.launch {
+            syncMetadata.value = settingsDataStore.getHighlightsSyncMetadata()
+        }
+    }
+
+    private suspend fun persistSyncMetadata(metadata: HighlightsSyncMetadata) {
+        settingsDataStore.saveHighlightsSyncMetadata(metadata)
+        syncMetadata.value = metadata
+    }
 
     override fun observeHighlights(): Flow<List<HighlightSummary>> {
         return cachedAnnotationDao.observeAllHighlights()
@@ -118,6 +131,8 @@ class HighlightsRepositoryImpl @Inject constructor(
         }
 
     override fun observeSyncState(): StateFlow<HighlightsSyncState> = syncState
+
+    override fun observeSyncMetadata(): StateFlow<HighlightsSyncMetadata> = syncMetadata
 
     override suspend fun requestRefresh(reason: HighlightsRefreshReason): Result<Unit> {
         val metadata = settingsDataStore.getHighlightsSyncMetadata()
@@ -356,7 +371,7 @@ class HighlightsRepositoryImpl @Inject constructor(
         val missingBookmarkIds = mutableSetOf<String>()
         val startedAtMs = System.currentTimeMillis()
         val attemptAt = Clock.System.now()
-        settingsDataStore.saveHighlightsSyncMetadata(
+        persistSyncMetadata(
             initialMetadata.copy(lastGlobalAttemptAt = attemptAt)
         )
         return try {
@@ -476,7 +491,7 @@ class HighlightsRepositoryImpl @Inject constructor(
                 cachedAnnotationDao.clearRemoteAnnotationIds()
             }
             val successAt = Clock.System.now()
-            settingsDataStore.saveHighlightsSyncMetadata(
+            persistSyncMetadata(
                 settingsDataStore.getHighlightsSyncMetadata().copy(
                     lastGlobalSuccessAt = successAt,
                     globalFailureCount = 0,
@@ -535,7 +550,7 @@ class HighlightsRepositoryImpl @Inject constructor(
         val current = settingsDataStore.getHighlightsSyncMetadata()
         val failureCount = current.globalFailureCount + 1
         val backoffUntil = failedAt.plusMilliseconds(globalFailureBackoffMs(failureCount))
-        settingsDataStore.saveHighlightsSyncMetadata(
+        persistSyncMetadata(
             current.copy(
                 lastGlobalFailureAt = failedAt,
                 globalFailureCount = failureCount,

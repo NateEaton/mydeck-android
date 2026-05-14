@@ -7,6 +7,7 @@ import com.mydeck.app.domain.HighlightsRepository
 import com.mydeck.app.domain.HighlightsSyncState
 import com.mydeck.app.domain.model.BookmarkHighlightGroup
 import com.mydeck.app.domain.model.HighlightSummary
+import com.mydeck.app.domain.model.HighlightsSyncMetadata
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -18,6 +19,8 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
 import timber.log.Timber
 import javax.inject.Inject
 
@@ -48,8 +51,9 @@ class HighlightsViewModel @Inject constructor(
             .onEach { syncState ->
                 Timber.d("Highlights sync state observed: %s", syncState.toHighlightsLogString())
             },
+        highlightsRepository.observeSyncMetadata(),
         searchState
-    ) { groupsOrNull, syncState, searchState ->
+    ) { groupsOrNull, syncState, metadata, searchState ->
         val groups = groupsOrNull.orEmpty()
         val filteredGroups = filterHighlightGroups(groups, searchState)
         val state = HighlightsUiState(
@@ -64,7 +68,8 @@ class HighlightsViewModel @Inject constructor(
             isInitialLocalLoad = groupsOrNull == null,
             isRefreshing = syncState is HighlightsSyncState.Running,
             refreshFailed = syncState is HighlightsSyncState.Failed,
-            loadedCount = (syncState as? HighlightsSyncState.Running)?.loadedCount
+            loadedCount = (syncState as? HighlightsSyncState.Running)?.loadedCount,
+            cachePartial = isCachePartial(metadata),
         )
         Timber.d(
             "Highlights UI state derived: groups=%d highlights=%d filteredGroups=%d filteredHighlights=%d initialLocalLoad=%s refreshing=%s refreshFailed=%s loadedCount=%s",
@@ -193,15 +198,28 @@ class HighlightsViewModel @Inject constructor(
      * Groups flat highlights by bookmarkId. Groups are sorted by most-recent
      * highlight descending. Within each group, highlights are newest-first.
      */
+    // The cache is "partial" once a global reconciliation has failed but is not yet
+    // complete. A successful reconciliation flips cacheComplete=true even when some
+    // annotations were skipped (those are repaired out-of-band), so the banner only
+    // surfaces while data the user can see is genuinely incomplete.
+    private fun isCachePartial(metadata: HighlightsSyncMetadata): Boolean {
+        return !metadata.cacheComplete && metadata.lastGlobalFailureAt != null
+    }
+
     private fun group(highlights: List<HighlightSummary>): List<BookmarkHighlightGroup> {
+        val timeZone = TimeZone.currentSystemDefault()
         return highlights
             .sortedByDescending { it.created }
-            .groupBy { it.bookmarkId }
-            .map { (bookmarkId, items) ->
+            .groupBy { highlight ->
+                Pair(highlight.bookmarkId, highlight.created.toLocalDateTime(timeZone).date)
+            }
+            .map { (key, items) ->
+                val (bookmarkId, groupDate) = key
                 BookmarkHighlightGroup(
                     bookmarkId = bookmarkId,
                     bookmarkTitle = items.first().bookmarkTitle,
                     bookmarkSiteName = items.first().bookmarkSiteName,
+                    groupDate = groupDate,
                     highlights = items,
                 )
             }
@@ -221,6 +239,7 @@ data class HighlightsUiState(
     val isRefreshing: Boolean = false,
     val refreshFailed: Boolean = false,
     val loadedCount: Int? = null,
+    val cachePartial: Boolean = false,
 ) {
     val totalHighlightCount: Int
         get() = groups.sumOf { it.highlights.size }

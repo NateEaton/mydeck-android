@@ -7,6 +7,7 @@ import com.mydeck.app.domain.BookmarkAnnotationReconcileResult
 import com.mydeck.app.domain.BookmarkAnnotationSyncReason
 import com.mydeck.app.domain.SyncPriority
 import com.mydeck.app.domain.model.HighlightSummary
+import com.mydeck.app.domain.model.HighlightsSyncMetadata
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -433,6 +434,7 @@ class HighlightsViewModelTest {
     private class FakeHighlightsRepository : HighlightsRepository {
         val highlights = MutableStateFlow<List<HighlightSummary>>(emptyList())
         val syncState = MutableStateFlow<HighlightsSyncState>(HighlightsSyncState.Idle)
+        val syncMetadata = MutableStateFlow(HighlightsSyncMetadata())
         val refreshRequests = mutableListOf<HighlightsRefreshReason>()
 
         override fun observeHighlights(): Flow<List<HighlightSummary>> = highlights
@@ -440,6 +442,8 @@ class HighlightsViewModelTest {
         override fun observeHighlightCount(): Flow<Int> = MutableStateFlow(highlights.value.size)
 
         override fun observeSyncState(): StateFlow<HighlightsSyncState> = syncState
+
+        override fun observeSyncMetadata(): StateFlow<HighlightsSyncMetadata> = syncMetadata
 
         override suspend fun requestRefresh(reason: HighlightsRefreshReason): Result<Unit> {
             refreshRequests += reason

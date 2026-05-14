@@ -23,6 +23,7 @@ import com.mydeck.app.ui.detail.WebViewActionsInjector
 import com.mydeck.app.ui.detail.WebViewAnnotationBridge
 import com.mydeck.app.ui.detail.WebViewImageBridge
 import com.mydeck.app.ui.detail.WebViewAnnotationTapBridge
+import com.mydeck.app.ui.detail.WebViewSelectionScopeBridge
 import com.mydeck.app.ui.detail.WebViewTocBridge
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
@@ -493,6 +494,15 @@ fun BookmarkDetailArticle(
                             ),
                             WebViewAnnotationTapBridge.BRIDGE_NAME
                         )
+                        val selfRef = this
+                        addJavascriptInterface(
+                            WebViewSelectionScopeBridge(
+                                onScopeChanged = { inside ->
+                                    selfRef.selectionInsideArticleBody = inside
+                                }
+                            ),
+                            WebViewSelectionScopeBridge.BRIDGE_NAME
+                        )
                         addJavascriptInterface(
                             WebViewScrollBridge.BookmarkScrollInterface { percentage ->
                                 val progress = Math.round(percentage * 100).coerceIn(0, 100)
@@ -622,6 +632,10 @@ fun BookmarkDetailArticle(
                                 }
                                 val annotationJs = WebViewAnnotationBridge.injectAnnotationInteractions()
                                 webView.evaluateJavascript(annotationJs, null)
+                                webView.evaluateJavascript(
+                                    WebViewSelectionScopeBridge.injectSelectionScopeWatcher(),
+                                    null
+                                )
                                 webView.evaluateJavascript(WebViewActionsInjector.injectActions(), null)
                             }
 
@@ -668,6 +682,7 @@ fun BookmarkDetailArticle(
                             override fun onPageStarted(view: WebView?, url: String?, favicon: android.graphics.Bitmap?) {
                                 super.onPageStarted(view, url, favicon)
                                 imageInterceptorInjected = false
+                                (view as? HighlightActionWebView)?.selectionInsideArticleBody = false
                             }
 
                             override fun onPageCommitVisible(view: WebView?, url: String?) {
@@ -845,6 +860,12 @@ private class HighlightActionWebView(
     private var totalDeltaSinceDownY = 0f
     private var actionModeDepth = 0
     private var isUserScrollActive = false
+
+    // Written by WebViewSelectionScopeBridge from the JS thread; read on the UI thread
+    // when populating the selection action menu. Volatile keeps the read fresh without
+    // a lock.
+    @Volatile
+    var selectionInsideArticleBody: Boolean = false
     private val clearUserScrollActive = Runnable {
         isUserScrollActive = false
     }
@@ -1062,6 +1083,14 @@ private class HighlightActionWebView(
 
         private fun addHighlightAction(menu: Menu) {
             menu.removeItem(HIGHLIGHT_ACTION_ID)
+
+            // Suppress "Add Highlight" for selections that originate outside the
+            // article body container (`#rd-article-content`). This naturally covers
+            // header descriptions on ARTICLE/VIDEO/PHOTO bookmarks and the entire
+            // PHOTO reading view, which never wraps its body in that container.
+            if (!this@HighlightActionWebView.selectionInsideArticleBody) {
+                return
+            }
 
             val copyOrder = menu.findItem(android.R.id.copy)?.order
             val shareItem = menu.findItem(android.R.id.shareText)

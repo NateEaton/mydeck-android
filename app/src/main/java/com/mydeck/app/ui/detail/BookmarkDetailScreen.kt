@@ -1017,9 +1017,11 @@ fun BookmarkDetailScreen(
                             onContentModeChange = onContentModeChange,
                             scrollBehavior = topBarScrollBehavior,
                             onScrollToTop = {
-                                readerWebView?.evaluateJavascript(
-                                    "window.scrollTo({top: 0, behavior: 'smooth'});", null
-                                )
+                                if (readProgressPercent > 0) {
+                                    readerWebView?.evaluateJavascript(
+                                        "window.scrollTo({top: 0, behavior: 'smooth'});", null
+                                    )
+                                }
                             },
                         )
                 }
