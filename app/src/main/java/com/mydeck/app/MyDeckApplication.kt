@@ -1,24 +1,46 @@
 package com.mydeck.app
 
 import android.app.Application
-
+import com.mydeck.app.io.db.dao.BookmarkDao
+import com.mydeck.app.io.db.dao.CachedAnnotationDao
 import dagger.hilt.android.HiltAndroidApp
 import com.mydeck.app.util.createLogDir
 import fr.bipi.treessence.context.GlobalContext.startTimber
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import timber.log.Timber
 import java.io.File
+import javax.inject.Inject
 
 
 @HiltAndroidApp
 class MyDeckApplication : Application() {
 
+    @Inject lateinit var bookmarkDao: BookmarkDao
+    @Inject lateinit var cachedAnnotationDao: CachedAnnotationDao
+
     override fun onCreate() {
         super.onCreate()
+        cleanupStagingTables()
         cleanupOldLogs()
         initTimberLog()
         Thread.setDefaultUncaughtExceptionHandler(
             CustomExceptionHandler(this)
         )
+    }
+
+    private fun cleanupStagingTables() {
+        CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
+            try {
+                bookmarkDao.clearAllRemoteBookmarkIds()
+                cachedAnnotationDao.clearRemoteAnnotationIds()
+                Timber.d("Startup staging table cleanup complete")
+            } catch (e: Exception) {
+                Timber.w(e, "Startup staging table cleanup failed")
+            }
+        }
     }
 
     private fun cleanupOldLogs() {

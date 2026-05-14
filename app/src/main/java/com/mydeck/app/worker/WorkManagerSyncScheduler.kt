@@ -78,7 +78,7 @@ class WorkManagerSyncScheduler @Inject constructor(
                 .build()
             workManager.enqueueUniqueWork(
                 FullSyncWorker.UNIQUE_NAME_ORPHAN_REPAIR,
-                ExistingWorkPolicy.KEEP,
+                ExistingWorkPolicy.REPLACE,
                 request
             )
             Timber.i("Bookmark orphan repair full sync enqueued")

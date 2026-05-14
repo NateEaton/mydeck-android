@@ -1,11 +1,15 @@
 package com.mydeck.app.worker
 
+import android.app.PendingIntent
 import android.content.Context
+import android.content.Intent
+import androidx.core.app.NotificationCompat
 import androidx.hilt.work.HiltWorker
 import androidx.work.Constraints
 import androidx.work.CoroutineWorker
 import androidx.work.Data
 import androidx.work.ExistingWorkPolicy
+import androidx.work.ForegroundInfo
 import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
@@ -20,6 +24,9 @@ import com.mydeck.app.domain.SyncPriority
 import com.mydeck.app.domain.sync.BookmarkMetadataSyncCoordinator
 import com.mydeck.app.domain.usecase.LoadBookmarksUseCase
 import com.mydeck.app.io.prefs.SettingsDataStore
+import com.mydeck.app.MainActivity
+import com.mydeck.app.R
+import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import timber.log.Timber
@@ -44,6 +51,13 @@ class LoadBookmarksWorker @AssistedInject constructor(
     }
 
     override suspend fun doWork(): Result {
+        try {
+            setForeground(getForegroundInfo())
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Timber.w(e, "Failed to promote LoadBookmarksWorker to foreground")
+        }
         val isInitialLoad = inputData.getBoolean(PARAM_IS_INITIAL_LOAD, false)
         val trigger = inputData.getString(PARAM_TRIGGER)
             ?.let { runCatching { Trigger.valueOf(it) }.getOrNull() }
@@ -265,7 +279,26 @@ class LoadBookmarksWorker @AssistedInject constructor(
         val globalHighlightsReason: HighlightsRefreshReason? = null
     )
 
+    override suspend fun getForegroundInfo(): ForegroundInfo {
+        val pendingIntent = PendingIntent.getActivity(
+            applicationContext,
+            0,
+            Intent(applicationContext, MainActivity::class.java),
+            PendingIntent.FLAG_IMMUTABLE
+        )
+        val notification = NotificationCompat.Builder(applicationContext, NOTIFICATION_CHANNEL_ID)
+            .setSmallIcon(R.drawable.ic_notification_logo)
+            .setContentTitle(applicationContext.getString(R.string.app_name))
+            .setContentText(applicationContext.getString(R.string.auto_sync_notification_running))
+            .setContentIntent(pendingIntent)
+            .setAutoCancel(true)
+            .build()
+        return ForegroundInfo(NOTIFICATION_ID, notification)
+    }
+
     companion object {
+        private const val NOTIFICATION_CHANNEL_ID = "FullSyncNotificationChannelId"
+        private const val NOTIFICATION_ID = 1
         const val PARAM_IS_INITIAL_LOAD = "isInitialLoad"
         const val PARAM_TRIGGER = "trigger"
         const val UNIQUE_WORK_NAME = "LoadBookmarksSync"

@@ -40,6 +40,8 @@ class BookmarkMetadataSyncCoordinator @Inject constructor() {
         block: suspend () -> T
     ): T {
         val waitMark = TimeSource.Monotonic.markNow()
+        // N12: isLocked is a non-atomic read — lock state may change before lock() is called.
+        // The spurious "waiting" log on a fast-release race is acceptable for observability.
         if (mutex.isLocked) {
             Timber.i(waitLog, reason)
         }

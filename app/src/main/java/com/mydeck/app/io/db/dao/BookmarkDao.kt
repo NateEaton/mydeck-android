@@ -357,6 +357,12 @@ interface BookmarkDao {
     @Query("DELETE FROM remote_bookmark_ids WHERE syncRunId = :syncRunId")
     suspend fun clearRemoteBookmarkIds(syncRunId: String)
 
+    @Query("DELETE FROM remote_bookmark_ids")
+    suspend fun clearAllRemoteBookmarkIds()
+
+    @Query("SELECT COUNT(*) FROM bookmarks WHERE isLocalDeleted = 0")
+    suspend fun countLocalBookmarks(): Int
+
     @Query("SELECT id FROM remote_bookmark_ids WHERE syncRunId = :syncRunId")
     suspend fun getAllRemoteBookmarkIds(syncRunId: String): List<String>
 

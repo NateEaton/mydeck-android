@@ -455,13 +455,8 @@ class SettingsDataStoreImpl @Inject constructor(@ApplicationContext private val 
             remove(KEY_TOKEN.name)
             remove(KEY_URL.name)
             remove(KEY_INITIAL_SYNC_PERFORMED)
-            remove(KEY_HIGHLIGHTS_LAST_GLOBAL_ATTEMPT_AT.name)
-            remove(KEY_HIGHLIGHTS_LAST_GLOBAL_SUCCESS_AT.name)
-            remove(KEY_HIGHLIGHTS_LAST_GLOBAL_FAILURE_AT.name)
-            remove(KEY_HIGHLIGHTS_GLOBAL_FAILURE_COUNT.name)
-            remove(KEY_HIGHLIGHTS_GLOBAL_BACKOFF_UNTIL.name)
-            remove(KEY_HIGHLIGHTS_CACHE_COMPLETE.name)
         }
+        clearHighlightsSyncMetadata()
         clearServerInfo()
     }
 
@@ -475,13 +470,8 @@ class SettingsDataStoreImpl @Inject constructor(@ApplicationContext private val 
             putString(KEY_URL.name, url)
             putString(KEY_USERNAME.name, username)
             putString(KEY_TOKEN.name, token)
-            remove(KEY_HIGHLIGHTS_LAST_GLOBAL_ATTEMPT_AT.name)
-            remove(KEY_HIGHLIGHTS_LAST_GLOBAL_SUCCESS_AT.name)
-            remove(KEY_HIGHLIGHTS_LAST_GLOBAL_FAILURE_AT.name)
-            remove(KEY_HIGHLIGHTS_GLOBAL_FAILURE_COUNT.name)
-            remove(KEY_HIGHLIGHTS_GLOBAL_BACKOFF_UNTIL.name)
-            remove(KEY_HIGHLIGHTS_CACHE_COMPLETE.name)
         }
+        clearHighlightsSyncMetadata()
     }
 
     private fun getStringFlow(

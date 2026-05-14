@@ -25,6 +25,7 @@ import com.mydeck.app.domain.usecase.FreshnessMarkerUseCase
 import com.mydeck.app.io.prefs.SettingsDataStore
 import kotlinx.datetime.Clock
 import timber.log.Timber
+import kotlin.coroutines.cancellation.CancellationException
 import kotlin.time.Duration.Companion.hours
 
 @HiltWorker
@@ -39,6 +40,13 @@ class FullSyncWorker @AssistedInject constructor(
     val bookmarkMetadataSyncCoordinator: BookmarkMetadataSyncCoordinator,
 ) : CoroutineWorker(appContext, workerParams) {
     override suspend fun doWork(): Result {
+        try {
+            setForeground(getForegroundInfo())
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Timber.w(e, "Failed to promote FullSyncWorker to foreground")
+        }
         try {
             Timber.d("Start Work")
             val forceFullSync = inputData.getBoolean(INPUT_FORCE_FULL_SYNC, false)
@@ -80,6 +88,8 @@ class FullSyncWorker @AssistedInject constructor(
             }
 
             return outcome.result
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Timber.e(e, "Error performing sync")
             return Result.failure()
@@ -93,9 +103,10 @@ class FullSyncWorker @AssistedInject constructor(
         val lastFullSyncTimestamp = settingsDataStore.getLastFullSyncTimestamp()
 
         // Step 1: Handle deletions via delta sync or periodic full sync
+        // N9: lastSyncTimestamp==null (e.g. after DataStore migration) does NOT independently
+        // trigger a full sync; only lastFullSyncTimestamp age determines that.
         val needsFullSync = forceFullSync || lastFullSyncTimestamp == null ||
-            lastSyncTimestamp == null ||
-            Clock.System.now() - (lastFullSyncTimestamp ?: kotlinx.datetime.Instant.DISTANT_PAST) > FULL_SYNC_INTERVAL
+            Clock.System.now() - lastFullSyncTimestamp > FULL_SYNC_INTERVAL
 
         val syncResult = if (needsFullSync) {
             Timber.d("Performing full sync for deletion detection")

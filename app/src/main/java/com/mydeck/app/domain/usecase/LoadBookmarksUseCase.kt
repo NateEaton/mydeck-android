@@ -13,6 +13,7 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toInstant
 import timber.log.Timber
 import javax.inject.Inject
+import kotlin.coroutines.cancellation.CancellationException
 
 class LoadBookmarksUseCase @Inject constructor(
     private val bookmarkRepository: BookmarkRepository,
@@ -137,6 +138,7 @@ class LoadBookmarksUseCase @Inject constructor(
 
     companion object {
         const val DEFAULT_PAGE_SIZE = 50
+        private const val MAX_PAGES = 1000
     }
 
     private fun Instant.truncateToSyncCursor(): Instant = Instant.fromEpochSeconds(epochSeconds)
@@ -145,9 +147,14 @@ class LoadBookmarksUseCase @Inject constructor(
         try {
             var offset = 0
             var hasMorePages = true
+            var pagesFetched = 0
             val serverErrorIds = mutableSetOf<String>()
 
             while (hasMorePages) {
+                if (pagesFetched >= MAX_PAGES) {
+                    Timber.w("refreshServerErrorFlags: reached MAX_PAGES=$MAX_PAGES guard; aborting")
+                    break
+                }
                 val response = readeckApi.getBookmarks(
                     limit = pageSize,
                     offset = offset,
@@ -163,6 +170,7 @@ class LoadBookmarksUseCase @Inject constructor(
 
                 val bookmarkDtos = response.body() ?: emptyList()
                 serverErrorIds += bookmarkDtos.map { it.id }
+                pagesFetched++
 
                 val totalPagesHeader = response.headers()[ReadeckApi.Header.TOTAL_PAGES]
                 val currentPageHeader = response.headers()[ReadeckApi.Header.CURRENT_PAGE]
@@ -181,6 +189,8 @@ class LoadBookmarksUseCase @Inject constructor(
             }
 
             bookmarkRepository.replaceServerErrorFlags(serverErrorIds)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Timber.w(e, "Failed to refresh server error flags")
         }

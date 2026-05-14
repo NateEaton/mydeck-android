@@ -39,7 +39,9 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
+import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.datetime.Clock
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
@@ -771,6 +773,21 @@ class BookmarkRepositoryImpl @Inject constructor(
             // After fetching all remote IDs, find local bookmarks to delete
             // Crucial: skip hard-deletion of soft-deleted bookmarks that are pending sync
             val expectedCount = expectedTotalCount ?: 0
+            // S13: Refuse to delete if server reports an empty library but we have local bookmarks
+            // — this prevents a misconfigured proxy/cache from wiping the user's library.
+            if (expectedCount == 0) {
+                val localCount = bookmarkDao.countLocalBookmarks()
+                if (localCount > 0) {
+                    Timber.w(
+                        "Full sync deletion aborted: server returned expectedTotalCount=0 but local has %d bookmarks; treating as network error",
+                        localCount
+                    )
+                    return@withContext BookmarkRepository.SyncResult.NetworkError(
+                        errorMessage = "Server reported 0 bookmarks but local library is non-empty; retry later",
+                        ex = IllegalStateException("expectedTotalCount=0 with localCount=$localCount")
+                    )
+                }
+            }
             val stagedCount = bookmarkDao.countDistinctRemoteBookmarkIds(syncRunId)
             if (stagedCount != expectedCount) {
                 Timber.w(
@@ -793,14 +810,19 @@ class BookmarkRepositoryImpl @Inject constructor(
 
             Timber.i("Full sync complete: inserted $totalInserted bookmarks, deleted $deleted")
             BookmarkRepository.SyncResult.Success(countDeleted = deleted, countUpdated = totalInserted)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Timber.e(e, "Full sync failed")
             BookmarkRepository.SyncResult.NetworkError(errorMessage = "Network error during full sync", ex = e)
         } finally {
-            try {
-                bookmarkDao.clearRemoteBookmarkIds(syncRunId)
-            } catch (e: Exception) {
-                Timber.w(e, "Failed to clear remote bookmark IDs for syncRunId=%s", syncRunId)
+            // NonCancellable ensures cleanup runs even when the coroutine is cancelled.
+            withContext(NonCancellable) {
+                try {
+                    bookmarkDao.clearRemoteBookmarkIds(syncRunId)
+                } catch (e: Exception) {
+                    Timber.w(e, "Failed to clear remote bookmark IDs for syncRunId=%s", syncRunId)
+                }
             }
         }
     }
@@ -853,6 +875,8 @@ class BookmarkRepositoryImpl @Inject constructor(
                 updatedIds = updatedIds,
                 maxServerTime = maxServerTime
             )
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: IOException) {
             Timber.e(e, "Network error during delta sync: ${e.message}")
             BookmarkRepository.SyncResult.NetworkError(errorMessage = "Network error during delta sync", ex = e)
