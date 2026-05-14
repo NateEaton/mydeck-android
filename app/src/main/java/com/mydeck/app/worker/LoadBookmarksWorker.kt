@@ -3,6 +3,7 @@ package com.mydeck.app.worker
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.content.pm.ServiceInfo
 import androidx.core.app.NotificationCompat
 import androidx.hilt.work.HiltWorker
 import androidx.work.Constraints
@@ -293,7 +294,7 @@ class LoadBookmarksWorker @AssistedInject constructor(
             .setContentIntent(pendingIntent)
             .setAutoCancel(true)
             .build()
-        return ForegroundInfo(NOTIFICATION_ID, notification)
+        return ForegroundInfo(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
     }
 
     companion object {

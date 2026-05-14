@@ -1,6 +1,9 @@
 package com.mydeck.app
 
 import android.app.Application
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.os.Build
 import com.mydeck.app.io.db.dao.BookmarkDao
 import com.mydeck.app.io.db.dao.CachedAnnotationDao
 import dagger.hilt.android.HiltAndroidApp
@@ -23,12 +26,24 @@ class MyDeckApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        createSyncNotificationChannel()
         cleanupStagingTables()
         cleanupOldLogs()
         initTimberLog()
         Thread.setDefaultUncaughtExceptionHandler(
             CustomExceptionHandler(this)
         )
+    }
+
+    private fun createSyncNotificationChannel() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
+        val manager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
+        val channel = NotificationChannel(
+            SYNC_NOTIFICATION_CHANNEL_ID,
+            getString(R.string.app_name),
+            NotificationManager.IMPORTANCE_LOW
+        )
+        manager.createNotificationChannel(channel)
     }
 
     private fun cleanupStagingTables() {
@@ -118,3 +133,4 @@ class CustomExceptionHandler(private val application: Application) :
 
 const val LOGFILE = "MyDeckAppLog"
 const val LOGDIR = "logs"
+const val SYNC_NOTIFICATION_CHANNEL_ID = "FullSyncNotificationChannelId"

@@ -3,6 +3,7 @@ package com.mydeck.app.worker
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.content.pm.ServiceInfo
 import androidx.core.app.NotificationCompat
 import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
@@ -313,7 +314,7 @@ class FullSyncWorker @AssistedInject constructor(
             .setAutoCancel(true)
             .build()
 
-        return ForegroundInfo(0, notification)
+        return ForegroundInfo(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
     }
 
 
@@ -322,7 +323,7 @@ class FullSyncWorker @AssistedInject constructor(
         const val UNIQUE_NAME_MANUAL = "manual_full_sync_work"
         const val TAG = "full_sync"
         const val OUTPUT_DATA_COUNT = "count"
-        const val NOTIFICATION_ID = 0
+        const val NOTIFICATION_ID = 2
         const val INPUT_IS_MANUAL_SYNC = "is_manual_sync"
         const val INPUT_FORCE_FULL_SYNC = "force_full_sync"
         const val INPUT_IS_ORPHAN_REPAIR = "is_orphan_repair"
