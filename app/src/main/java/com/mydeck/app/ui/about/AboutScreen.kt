@@ -210,8 +210,19 @@ fun AboutScreenContent(
                 BuildConfig.VERSION_NAME,
                 BuildConfig.VERSION_CODE
             )
-            val appBuildTime = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
-                .format(Date(BuildConfig.BUILD_TIME.toLong()))
+            // Use the OS-recorded install time rather than BuildConfig.BUILD_TIME.
+            // The Kotlin compiler inlines `static final long BUILD_TIME` at every
+            // call site, and incremental compilation does not invalidate this file
+            // when BuildConfig.java is regenerated (the ABI is unchanged), so
+            // BuildConfig.BUILD_TIME silently goes stale across rebuilds.
+            val context = LocalContext.current
+            val appBuildTime = remember(context) {
+                val installedAt = context.packageManager
+                    .getPackageInfo(context.packageName, 0)
+                    .lastUpdateTime
+                SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+                    .format(Date(installedAt))
+            }
             val appAndroid = stringResource(
                 R.string.about_system_info_android,
                 Build.VERSION.RELEASE,
