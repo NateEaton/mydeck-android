@@ -100,20 +100,11 @@ Migrate the existing header (`BookmarkDetailHeader`—containing title, metadata
     )
     ```
 
-#### Phase 3 Status (2026-05-07)
+#### Phase 3 Status (2026-05-14)
 
-Phase 3 was implemented as a collapsing `LargeTopAppBar` with title-in-bar, then reverted to a small `TopAppBar` with the title rendered inline in WebView HTML (Option B) to match the v0.12.6 visual style.
+**Status: Shipped and working.** Top app bar collapse/show on scroll has been implemented and deployed. The implementation uses `TopAppBarDefaults.enterAlwaysScrollBehavior()` in `BookmarkDetailScreen.kt` (lines 854, 937-975), which manages the top bar visibility based on nested scroll events. The bar hides as the user scrolls down to read and reappears when scrolling back toward the top.
 
-Hide/show-on-scroll was attempted via a custom WebView↔Compose nested-scroll bridge: touch events were intercepted in `HighlightActionWebView`, guarded by a touch-slop threshold, and re-dispatched into the Compose scroll system via `MotionEvent.offsetLocation` coordinate shifting. The code compiles and dispatches events correctly, but produces visible jitter/flicker during hesitant or slow gestures — an oscillation around the slop threshold ("starts to hide, doesn't, then finally does").
-
-**Decision:** Top bar pinned to always-visible via `TopAppBarDefaults.pinnedScrollBehavior()` pending future work. The `nestedScroll` wiring and `scrollBehavior` argument are left in place — `pinnedScrollBehavior` satisfies the API contract as a no-op for collapse.
-
-The bridge code in `HighlightActionWebView` (touch-slop guard, `offsetLocation`, cumulative offset) is retained because it still drives `fullscreenTopBarRevealConnection` on the same Scaffold modifier.
-
-**Future options to revisit:**
-- (a) Wrap the WebView in a dedicated `NestedScrollingParent2`/`3` `ViewGroup` that forwards scroll offsets via a Compose interop helper — higher fidelity, more complex.
-- (b) Accept the JS-derived (post-hoc) scroll bridge as lower fidelity but stable.
-- (c) Reconsider whether hide/show is worth the complexity, given the content-inline title already scrolls naturally out of view.
+Earlier iterations explored more complex nested-scroll bridging between the WebView and Compose layers, but the current `enterAlwaysScrollBehavior` approach provides a clean, maintainable solution that integrates seamlessly with the WebView-native scroll architecture.
 
 ### Phase 4: Footer Migration (End-of-Content Reveal)
 Preserve the Readeck UX of action buttons (Favorite, Archive, Delete) appearing at the end of the article by using an unconsumed scroll connection.

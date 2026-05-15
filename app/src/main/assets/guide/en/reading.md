@@ -80,7 +80,7 @@ To create a highlight, select text in the article or transcript and tap **Highli
 
 To edit or delete an existing highlight directly, tap the highlighted text. Clear the note field and save to remove a highlight note. You can also open **⋮ → Highlights** to browse saved highlights and jump to any one in the article or transcript.
 
-The main **Highlights** destination in the navigation drawer opens a global list of all your highlights across all bookmarks. See the [Highlights](./highlights.md) guide for more details.
+The main **Highlights** destination in the navigation drawer opens a global list of all your highlights across all bookmarks. Tap any highlight in that list to open its source bookmark and scroll directly to that highlight. See the [Highlights](./highlights.md) guide for more details.
 
 ## End-of-content Actions
 

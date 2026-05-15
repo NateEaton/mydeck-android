@@ -13,7 +13,7 @@ Tap the **menu icon** (☰) in the top-left corner to open the navigation drawer
 - **Videos** — video-type bookmarks only
 - **Pictures** — picture-type bookmarks only
 - **Labels** — open the label sheet; tap a label to see all bookmarks with that label
-- **Highlights** — a global index of all highlights saved across all your bookmarks
+- **Highlights** — a global index of all highlights saved across all your bookmarks. Pull down on the list to refresh highlights immediately. If a sync fails partway through, MyDeck shows a banner indicating highlights may be incomplete — pull to refresh to retry.
 
 Each item shows a count of how many bookmarks it contains.
 Tap outside the drawer or swipe it closed to dismiss it without changing sections.
@@ -172,7 +172,7 @@ Pull down on the list to sync with your Readeck server. This checks for new and 
 MyDeck adapts its navigation to the available screen space:
 
 - **Phone portrait** — the navigation drawer slides in from the left when you tap ☰.
-- **Phone landscape / Tablet portrait** — the drawer is replaced by a persistent **navigation rail** on the left edge showing icons for each section. Tap ☰ to open the full drawer if needed.
+- **Phone landscape / Tablet portrait** — the drawer is replaced by a persistent **navigation rail** on the left edge showing icons for each section, including Highlights. Tap ☰ to open the full drawer if needed.
 - **Tablet landscape** — the full navigation drawer is always visible alongside the bookmark list.
 
 The bookmark list also adapts in Grid layout: on wider screens cards are arranged in multiple columns with the thumbnail above the title rather than to the left of it.
