@@ -11,7 +11,6 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import com.mydeck.app.R
 import com.mydeck.app.domain.BookmarkRepository
-import com.mydeck.app.domain.HighlightsRepository
 import com.mydeck.app.domain.model.Bookmark
 import com.mydeck.app.domain.model.BookmarkCounts
 import com.mydeck.app.domain.model.BookmarkListItem
@@ -63,8 +62,6 @@ class BookmarkListViewModel @Inject constructor(
     private val savedStateHandle: SavedStateHandle,
     private val contentSyncPolicyEvaluator: OfflinePolicyEvaluator,
     private val contentPackageManager: ContentPackageManager,
-    @Suppress("UNUSED_PARAMETER")
-    highlightsRepository: HighlightsRepository,
     private val syncScheduler: com.mydeck.app.domain.sync.SyncScheduler,
     connectivityMonitor: ConnectivityMonitor
 ) : ViewModel() {

@@ -770,7 +770,7 @@ private fun CachedAnnotationHighlightEntity.toDomain(): HighlightSummary {
         id = id,
         text = text,
         color = color,
-        note = note.orEmpty(),
+        note = note,
         created = created.toInstantOrEpoch(),
         bookmarkId = bookmarkId,
         bookmarkTitle = bookmarkTitle,

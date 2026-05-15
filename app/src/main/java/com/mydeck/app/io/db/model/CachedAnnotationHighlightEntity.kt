@@ -5,7 +5,7 @@ data class CachedAnnotationHighlightEntity(
     val bookmarkId: String,
     val text: String,
     val color: String,
-    val note: String?,
+    val note: String,
     val created: String,
     val bookmarkTitle: String,
     val bookmarkSiteName: String,

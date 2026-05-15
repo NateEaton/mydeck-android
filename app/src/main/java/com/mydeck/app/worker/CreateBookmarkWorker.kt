@@ -112,6 +112,7 @@ class CreateBookmarkWorker @AssistedInject constructor(
         const val PARAM_IS_ARCHIVED = "isArchived"
         const val PARAM_IS_FAVORITE = "isFavorite"
         const val RESULT_BOOKMARK_ID = "bookmarkId"
+        // Held during the entire 60s poll loop for intentional process-global serialization
         private val createMutex = Mutex()
 
         fun enqueue(

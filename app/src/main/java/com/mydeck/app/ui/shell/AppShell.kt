@@ -55,6 +55,7 @@ import com.mydeck.app.ui.navigation.AboutRoute
 import com.mydeck.app.ui.navigation.AccountSettingsRoute
 import com.mydeck.app.ui.navigation.BookmarkDetailRoute
 import com.mydeck.app.ui.navigation.BookmarkListRoute
+import com.mydeck.app.ui.navigation.HighlightsRoute
 import com.mydeck.app.ui.navigation.LogViewRoute
 import com.mydeck.app.ui.navigation.OpenSourceLibrariesRoute
 import com.mydeck.app.ui.navigation.SettingsRoute
@@ -63,6 +64,7 @@ import com.mydeck.app.ui.navigation.UiSettingsRoute
 import com.mydeck.app.ui.navigation.UserGuideRoute
 import com.mydeck.app.ui.navigation.UserGuideSectionRoute
 import com.mydeck.app.ui.navigation.WelcomeRoute
+import com.mydeck.app.ui.highlights.HighlightsScreen
 import com.mydeck.app.ui.settings.AccountSettingsScreen
 import com.mydeck.app.ui.settings.LogViewScreen
 import com.mydeck.app.ui.settings.OpenSourceLibrariesScreen
@@ -114,7 +116,7 @@ fun AppShell(
         it.matchesRoute<BookmarkDetailRoute>() || it.matchesRoute<WelcomeRoute>()
     } ?: true
 
-    val effectiveDrawerPreset = if (currentDestination.matchesRoute<com.mydeck.app.ui.navigation.HighlightsRoute>()) {
+    val effectiveDrawerPreset = if (currentDestination.matchesRoute<HighlightsRoute>()) {
         com.mydeck.app.domain.model.DrawerPreset.HIGHLIGHTS
     } else {
         drawerPreset.value
@@ -250,7 +252,7 @@ private fun CompactAppShell(
                     scope.launch { drawerState.close() }
                 },
                 onClickHighlights = {
-                    navController.navigate(com.mydeck.app.ui.navigation.HighlightsRoute) { launchSingleTop = true }
+                    navController.navigate(HighlightsRoute) { launchSingleTop = true }
                     scope.launch { drawerState.close() }
                 },
                 onClickSettings = {
@@ -301,8 +303,8 @@ private fun CompactAppShell(
                 composable<BookmarkListRoute> {
                     BookmarkListScreen(navController, bookmarkListViewModel, drawerState)
                 }
-                composable<com.mydeck.app.ui.navigation.HighlightsRoute> {
-                    com.mydeck.app.ui.highlights.HighlightsScreen(navController)
+                composable<HighlightsRoute> {
+                    HighlightsScreen(navController)
                 }
                 composable<SettingsRoute> { SettingsScreen(navController) }
                 composable<WelcomeRoute> { WelcomeScreen(navController) }
@@ -442,7 +444,7 @@ private fun MediumAppShell(
                     onClickVideos = { navigateToListAndApply { bookmarkListViewModel.onClickVideos() } },
                     onClickPictures = { navigateToListAndApply { bookmarkListViewModel.onClickPictures() } },
                     onClickLabels = { navigateToListAndApply { bookmarkListViewModel.onOpenLabelsSheet() } },
-                    onClickHighlights = { navController.navigate(com.mydeck.app.ui.navigation.HighlightsRoute) { launchSingleTop = true } },
+                    onClickHighlights = { navController.navigate(HighlightsRoute) { launchSingleTop = true } },
                     onClickSettings = { bookmarkListViewModel.onClickSettings() },
                     onClickUserGuide = { bookmarkListViewModel.onClickUserGuide() },
                     onClickAbout = { bookmarkListViewModel.onClickAbout() },
@@ -491,8 +493,8 @@ private fun MediumAppShell(
                         showNavigationIcon = false,
                     )
                 }
-                composable<com.mydeck.app.ui.navigation.HighlightsRoute> {
-                    com.mydeck.app.ui.highlights.HighlightsScreen(navController, showBackButton = false)
+                composable<HighlightsRoute> {
+                    HighlightsScreen(navController, showBackButton = false)
                 }
                 composable<SettingsRoute> { SettingsScreen(navController, showBackButton = false) }
                 composable<WelcomeRoute> { WelcomeScreen(navController) }
@@ -632,7 +634,7 @@ private fun ExpandedAppShell(
                 onClickVideos = { navigateToListAndApply { bookmarkListViewModel.onClickVideos() } },
                 onClickPictures = { navigateToListAndApply { bookmarkListViewModel.onClickPictures() } },
                 onClickLabels = { navigateToListAndApply { bookmarkListViewModel.onOpenLabelsSheet() } },
-                onClickHighlights = { navController.navigate(com.mydeck.app.ui.navigation.HighlightsRoute) { launchSingleTop = true } },
+                onClickHighlights = { navController.navigate(HighlightsRoute) { launchSingleTop = true } },
                 onClickSettings = { bookmarkListViewModel.onClickSettings() },
                 onClickUserGuide = { bookmarkListViewModel.onClickUserGuide() },
                 onClickAbout = { bookmarkListViewModel.onClickAbout() },
@@ -679,8 +681,8 @@ private fun ExpandedAppShell(
                         showNavigationIcon = false,
                     )
                 }
-                composable<com.mydeck.app.ui.navigation.HighlightsRoute> {
-                    com.mydeck.app.ui.highlights.HighlightsScreen(navController, showBackButton = false)
+                composable<HighlightsRoute> {
+                    HighlightsScreen(navController, showBackButton = false)
                 }
                 composable<SettingsRoute> { SettingsScreen(navController, showBackButton = false) }
                 composable<WelcomeRoute> { WelcomeScreen(navController) }

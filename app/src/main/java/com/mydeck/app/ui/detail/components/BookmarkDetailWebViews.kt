@@ -64,7 +64,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
-import androidx.compose.foundation.ScrollState
 import com.mydeck.app.R
 import com.mydeck.app.ui.detail.BookmarkDetailViewModel
 import com.mydeck.app.ui.detail.VideoFullscreenDismissSource
@@ -117,7 +116,6 @@ fun BookmarkDetailArticle(
     webViewDispatcher: NestedScrollDispatcher,
     articleSearchState: BookmarkDetailViewModel.ArticleSearchState = BookmarkDetailViewModel.ArticleSearchState(),
     onArticleSearchUpdateResults: (Int, Int) -> Unit = { _, _ -> },
-    scrollState: ScrollState,
     onContentReady: (Boolean) -> Unit = {},
     initialReadProgress: Int = 0,
     onScrollProgressChanged: (Int) -> Unit = {},
@@ -429,7 +427,7 @@ fun BookmarkDetailArticle(
     if (content.value != null) {
         if (!LocalInspectionMode.current) {
             AndroidView(
-                modifier = Modifier
+                modifier = modifier
                     .padding(0.dp)
                     .nestedScroll(
                         connection = NoOpNestedScrollConnection,

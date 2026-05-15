@@ -42,7 +42,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.ScrollState
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.material.icons.Icons
@@ -853,7 +852,6 @@ fun BookmarkDetailScreen(
     val topBarState = rememberTopAppBarState()
     val topBarScrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior(state = topBarState)
     val webViewDispatcher = remember { NestedScrollDispatcher() }
-    val scrollState = rememberScrollState()
     var readProgressPercent by remember(uiState.bookmark.bookmarkId) {
         mutableIntStateOf(initialReadProgress.coerceIn(0, 100))
     }
@@ -1058,7 +1056,6 @@ fun BookmarkDetailScreen(
                     onClickToggleFavorite = onClickToggleFavorite,
                     onClickToggleArchive = onClickToggleArchive,
                     onReaderScrollChanged = ::updateTopBarFromReaderScroll,
-                    scrollState = scrollState,
                     annotationId = annotationId,
                     readerContentReloadNonce = readerContentReloadNonce,
                 )
@@ -1327,7 +1324,6 @@ fun BookmarkDetailContent(
     onClickToggleFavorite: (String, Boolean) -> Unit = { _, _ -> },
     onClickToggleArchive: (String, Boolean) -> Unit = { _, _ -> },
     onReaderScrollChanged: (scrollY: Int, deltaY: Int, scrollProgress: Float, userInitiated: Boolean) -> Unit = { _, _, _, _ -> },
-    scrollState: ScrollState = rememberScrollState(),
     annotationId: String? = null,
     readerContentReloadNonce: Int = 0,
 ) {
@@ -1430,7 +1426,6 @@ fun BookmarkDetailContent(
                         webViewDispatcher = webViewDispatcher,
                         articleSearchState = articleSearchState,
                         onArticleSearchUpdateResults = onArticleSearchUpdateResults,
-                        scrollState = scrollState,
                         onContentReady = { ready ->
                             isReaderContentReady = ready
                         },

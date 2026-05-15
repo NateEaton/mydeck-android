@@ -420,7 +420,7 @@ fun BookmarkListScreen(
         DrawerPreset.ARTICLES -> stringResource(id = R.string.articles)
         DrawerPreset.VIDEOS -> stringResource(id = R.string.videos)
         DrawerPreset.PICTURES -> stringResource(id = R.string.pictures)
-        DrawerPreset.HIGHLIGHTS -> stringResource(id = R.string.highlights_title)
+        else -> stringResource(id = R.string.my_list)
     }
     val bookmarkCount = (uiState as? BookmarkListViewModel.UiState.Success)?.bookmarks?.size
     val currentViewTitle = if (!isLabelMode && filterFormState.value.differsFromPreset(drawerPreset.value)) {

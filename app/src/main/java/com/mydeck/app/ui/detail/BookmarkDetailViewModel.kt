@@ -1458,14 +1458,6 @@ class BookmarkDetailViewModel @Inject constructor(
         }
     }
 
-    fun updateAnnotationColor(annotationId: String, color: String) {
-        updateAnnotations(listOf(annotationId), color, note = "")
-    }
-
-    fun updateAnnotationColors(annotationIds: List<String>, color: String) {
-        updateAnnotations(annotationIds, color, note = "")
-    }
-
     fun updateAnnotations(annotationIds: List<String>, color: String, note: String) {
         val bookmarkId = _bookmarkId.value ?: return
         if (!connectivityMonitor.isNetworkAvailable()) {

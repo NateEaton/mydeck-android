@@ -151,7 +151,6 @@ class BookmarkListViewModelTest {
             savedStateHandle,
             contentSyncPolicyEvaluator,
             contentPackageManager,
-            highlightsRepository,
             syncScheduler,
             connectivityMonitor
         )
@@ -176,7 +175,6 @@ class BookmarkListViewModelTest {
             savedStateHandle,
             contentSyncPolicyEvaluator,
             contentPackageManager,
-            highlightsRepository,
             syncScheduler,
             connectivityMonitor
         )
@@ -204,7 +202,6 @@ class BookmarkListViewModelTest {
             savedStateHandle,
             contentSyncPolicyEvaluator,
             contentPackageManager,
-            highlightsRepository,
             syncScheduler,
             connectivityMonitor
         )
@@ -232,7 +229,6 @@ class BookmarkListViewModelTest {
             savedStateHandle,
             contentSyncPolicyEvaluator,
             contentPackageManager,
-            highlightsRepository,
             syncScheduler,
             connectivityMonitor
         )
@@ -255,7 +251,6 @@ class BookmarkListViewModelTest {
             savedStateHandle,
             contentSyncPolicyEvaluator,
             contentPackageManager,
-            highlightsRepository,
             syncScheduler,
             connectivityMonitor
         )
@@ -280,7 +275,6 @@ class BookmarkListViewModelTest {
             savedStateHandle,
             contentSyncPolicyEvaluator,
             contentPackageManager,
-            highlightsRepository,
             syncScheduler,
             connectivityMonitor
         )
@@ -305,7 +299,6 @@ class BookmarkListViewModelTest {
             savedStateHandle,
             contentSyncPolicyEvaluator,
             contentPackageManager,
-            highlightsRepository,
             syncScheduler,
             connectivityMonitor
         )
@@ -338,7 +331,6 @@ class BookmarkListViewModelTest {
             savedStateHandle,
             contentSyncPolicyEvaluator,
             contentPackageManager,
-            highlightsRepository,
             syncScheduler,
             connectivityMonitor
         )
@@ -363,7 +355,6 @@ class BookmarkListViewModelTest {
             savedStateHandle,
             contentSyncPolicyEvaluator,
             contentPackageManager,
-            highlightsRepository,
             syncScheduler,
             connectivityMonitor
         )
@@ -387,7 +378,6 @@ class BookmarkListViewModelTest {
             savedStateHandle,
             contentSyncPolicyEvaluator,
             contentPackageManager,
-            highlightsRepository,
             syncScheduler,
             connectivityMonitor
         )
@@ -411,7 +401,6 @@ class BookmarkListViewModelTest {
             savedStateHandle,
             contentSyncPolicyEvaluator,
             contentPackageManager,
-            highlightsRepository,
             syncScheduler,
             connectivityMonitor
         )
@@ -435,7 +424,6 @@ class BookmarkListViewModelTest {
             savedStateHandle,
             contentSyncPolicyEvaluator,
             contentPackageManager,
-            highlightsRepository,
             syncScheduler,
             connectivityMonitor
         )
@@ -506,7 +494,6 @@ class BookmarkListViewModelTest {
             savedStateHandle,
             contentSyncPolicyEvaluator,
             contentPackageManager,
-            highlightsRepository,
             syncScheduler,
             connectivityMonitor
         )
@@ -538,7 +525,6 @@ class BookmarkListViewModelTest {
             savedStateHandle,
             contentSyncPolicyEvaluator,
             contentPackageManager,
-            highlightsRepository,
             syncScheduler,
             connectivityMonitor
         )
@@ -559,7 +545,6 @@ class BookmarkListViewModelTest {
             savedStateHandle,
             contentSyncPolicyEvaluator,
             contentPackageManager,
-            highlightsRepository,
             syncScheduler,
             connectivityMonitor
         )
@@ -582,7 +567,6 @@ class BookmarkListViewModelTest {
                 savedStateHandle,
                 contentSyncPolicyEvaluator,
                 contentPackageManager,
-                highlightsRepository,
             syncScheduler,
                 connectivityMonitor
             )
@@ -613,7 +597,6 @@ class BookmarkListViewModelTest {
                 savedStateHandle,
                 contentSyncPolicyEvaluator,
                 contentPackageManager,
-                highlightsRepository,
             syncScheduler,
                 connectivityMonitor
             )
@@ -643,7 +626,6 @@ class BookmarkListViewModelTest {
             savedStateHandle,
             contentSyncPolicyEvaluator,
             contentPackageManager,
-            highlightsRepository,
             syncScheduler,
             connectivityMonitor
         )
@@ -671,7 +653,6 @@ class BookmarkListViewModelTest {
             savedStateHandle,
             contentSyncPolicyEvaluator,
             contentPackageManager,
-            highlightsRepository,
             syncScheduler,
             connectivityMonitor
         )
@@ -701,7 +682,6 @@ class BookmarkListViewModelTest {
             savedStateHandle,
             contentSyncPolicyEvaluator,
             contentPackageManager,
-            highlightsRepository,
             syncScheduler,
             connectivityMonitor
         )
@@ -734,7 +714,6 @@ class BookmarkListViewModelTest {
             savedStateHandle,
             contentSyncPolicyEvaluator,
             contentPackageManager,
-            highlightsRepository,
             syncScheduler,
             connectivityMonitor
         )
@@ -763,7 +742,6 @@ class BookmarkListViewModelTest {
                 savedStateHandle,
                 contentSyncPolicyEvaluator,
                 contentPackageManager,
-                highlightsRepository,
             syncScheduler,
                 connectivityMonitor
             )
@@ -804,7 +782,6 @@ class BookmarkListViewModelTest {
                 savedStateHandle,
                 contentSyncPolicyEvaluator,
                 contentPackageManager,
-                highlightsRepository,
             syncScheduler,
                 connectivityMonitor
             )
@@ -869,7 +846,6 @@ class BookmarkListViewModelTest {
                 savedStateHandle,
                 contentSyncPolicyEvaluator,
                 contentPackageManager,
-                highlightsRepository,
             syncScheduler,
                 connectivityMonitor
             )
@@ -934,7 +910,6 @@ class BookmarkListViewModelTest {
                 savedStateHandle,
                 contentSyncPolicyEvaluator,
                 contentPackageManager,
-                highlightsRepository,
             syncScheduler,
                 connectivityMonitor
             )
@@ -998,7 +973,6 @@ class BookmarkListViewModelTest {
                 savedStateHandle,
                 contentSyncPolicyEvaluator,
                 contentPackageManager,
-                highlightsRepository,
             syncScheduler,
                 connectivityMonitor
             )
@@ -1063,7 +1037,6 @@ class BookmarkListViewModelTest {
                 savedStateHandle,
                 contentSyncPolicyEvaluator,
                 contentPackageManager,
-                highlightsRepository,
             syncScheduler,
                 connectivityMonitor
             )
@@ -1128,7 +1101,6 @@ class BookmarkListViewModelTest {
                 savedStateHandle,
                 contentSyncPolicyEvaluator,
                 contentPackageManager,
-                highlightsRepository,
             syncScheduler,
                 connectivityMonitor
             )
@@ -1193,7 +1165,6 @@ class BookmarkListViewModelTest {
                 savedStateHandle,
                 contentSyncPolicyEvaluator,
                 contentPackageManager,
-                highlightsRepository,
             syncScheduler,
                 connectivityMonitor
             )
@@ -1258,7 +1229,6 @@ class BookmarkListViewModelTest {
                 savedStateHandle,
                 contentSyncPolicyEvaluator,
                 contentPackageManager,
-                highlightsRepository,
             syncScheduler,
                 connectivityMonitor
             )
@@ -1323,7 +1293,6 @@ class BookmarkListViewModelTest {
                 savedStateHandle,
                 contentSyncPolicyEvaluator,
                 contentPackageManager,
-                highlightsRepository,
             syncScheduler,
                 connectivityMonitor
             )
@@ -1373,7 +1342,6 @@ class BookmarkListViewModelTest {
             savedStateHandle,
             contentSyncPolicyEvaluator,
             contentPackageManager,
-            highlightsRepository,
             syncScheduler,
             connectivityMonitor
         )
@@ -1400,7 +1368,6 @@ class BookmarkListViewModelTest {
             savedStateHandle,
             contentSyncPolicyEvaluator,
             contentPackageManager,
-            highlightsRepository,
             syncScheduler,
             connectivityMonitor
         )
@@ -1435,7 +1402,6 @@ class BookmarkListViewModelTest {
             savedStateHandle,
             contentSyncPolicyEvaluator,
             contentPackageManager,
-            highlightsRepository,
             syncScheduler,
             connectivityMonitor
         )
@@ -1464,7 +1430,6 @@ class BookmarkListViewModelTest {
             savedStateHandle,
             contentSyncPolicyEvaluator,
             contentPackageManager,
-            highlightsRepository,
             syncScheduler,
             connectivityMonitor
         )

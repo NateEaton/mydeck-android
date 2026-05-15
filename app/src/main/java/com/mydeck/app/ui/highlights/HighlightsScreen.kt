@@ -633,7 +633,6 @@ private fun annotationColor(color: String): Color {
 
 @Composable
 private fun annotationBorderColor(color: String): Color {
-    val isDark = isSystemInDarkTheme()
     val base = when (color) {
         "yellow" -> Color(0xFFFFEB3B)
         "red"    -> Color(0xFFEF5350)
@@ -641,13 +640,7 @@ private fun annotationBorderColor(color: String): Color {
         "green"  -> Color(0xFF66BB6A)
         else     -> MaterialTheme.colorScheme.outline
     }
-    return if (isDark) {
-        // High alpha on dark background makes it lighter
-        base.copy(alpha = 0.60f)
-    } else {
-        // High alpha on light background makes it darker
-        base.copy(alpha = 0.60f)
-    }
+    return base.copy(alpha = 0.60f)
 }
 
 @Composable

@@ -27,7 +27,7 @@ interface CachedAnnotationDao {
             ca.bookmarkId AS bookmarkId,
             ca.text AS text,
             ca.color AS color,
-            ca.note AS note,
+            COALESCE(ca.note, '') AS note,
             ca.created AS created,
             b.title AS bookmarkTitle,
             b.siteName AS bookmarkSiteName

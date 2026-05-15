@@ -6,6 +6,11 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.time.TimeSource
 
+/**
+ * Process-global synchronization gate for bookmark metadata sync operations.
+ * [withExclusiveMetadataSync] and [withStableBookmarks] share a single non-reentrant [Mutex].
+ * Entering one while holding the other would deadlock — callers must not invoke these in nested fashion.
+ */
 @Singleton
 class BookmarkMetadataSyncCoordinator @Inject constructor() {
     private val mutex = Mutex()
