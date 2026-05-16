@@ -133,6 +133,7 @@ fun BookmarkDetailArticle(
     onScrollChanged: (scrollY: Int, deltaY: Int, scrollProgress: Float, userInitiated: Boolean) -> Unit = { _, _, _, _ -> },
     annotationId: String = "",
     contentReloadKey: Int = 0,
+    readerTopClearanceCssPx: Int = 0,
 ) {
     val isSystemInDarkMode = isSystemInDarkTheme()
     val localContext = LocalContext.current
@@ -153,7 +154,8 @@ fun BookmarkDetailArticle(
         uiState.bookmark.bookmarkId,
         uiState.bookmark.articleContent != null,
         uiState.bookmark.embed,
-        contentReloadKey
+        contentReloadKey,
+        readerTopClearanceCssPx
     ) {
         mutableStateOf(
             uiState.bookmark.getContent(
@@ -163,6 +165,7 @@ fun BookmarkDetailArticle(
                 unfavoriteLabel = unfavoriteLabel,
                 archiveLabel = archiveLabel,
                 unarchiveLabel = unarchiveLabel,
+                topClearanceCssPx = readerTopClearanceCssPx,
             )
         )
     }
@@ -188,8 +191,13 @@ fun BookmarkDetailArticle(
     val latestThemeScript = rememberUpdatedState(WebViewThemeBridge.applyTheme(readerThemePalette))
     val latestProgressHandler = rememberUpdatedState(onScrollProgressChanged)
     val latestScrollChangedHandler = rememberUpdatedState(onScrollChanged)
+    val latestVideoEnterFullscreen = rememberUpdatedState(onVideoEnterFullscreen)
+    val latestVideoExitFullscreen = rememberUpdatedState(onVideoExitFullscreen)
     val latestInitialProgress = rememberUpdatedState(initialReadProgress)
     val latestAnnotationId = rememberUpdatedState(annotationId)
+    val latestIsVideo = rememberUpdatedState(
+        uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.VIDEO
+    )
     val lastDeliveredAnnotationTap = remember { mutableStateOf<Pair<String, Long>?>(null) }
     var hasReportedReady by remember(uiState.bookmark.bookmarkId, uiState.bookmark.articleContent != null) { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
@@ -230,7 +238,8 @@ fun BookmarkDetailArticle(
         uiState.bookmark.bookmarkId,
         uiState.bookmark.articleContent != null,
         uiState.bookmark.embed,
-        contentReloadKey
+        contentReloadKey,
+        readerTopClearanceCssPx
     ) {
         content.value = uiState.bookmark.getContent(
             template = uiState.template,
@@ -239,6 +248,7 @@ fun BookmarkDetailArticle(
             unfavoriteLabel = unfavoriteLabel,
             archiveLabel = archiveLabel,
             unarchiveLabel = unarchiveLabel,
+            topClearanceCssPx = readerTopClearanceCssPx,
         )
         webViewRef.value?.let { webView ->
             if (webView.settings.textZoom != uiState.typographySettings.fontSizePercent) {
@@ -530,18 +540,17 @@ fun BookmarkDetailArticle(
                                 view: View?,
                                 callback: CustomViewCallback?
                             ) {
-                                if (!isVideo || view == null) {
+                                if (!latestIsVideo.value || view == null) {
                                     callback?.onCustomViewHidden()
                                     return
                                 }
-                                this@apply.visibility = View.GONE
-                                onVideoEnterFullscreen(view, callback)
+                                latestVideoEnterFullscreen.value(view, callback)
                             }
 
                             override fun onHideCustomView() {
-                                if (isVideo) {
+                                if (latestIsVideo.value) {
                                     this@apply.visibility = View.VISIBLE
-                                    onVideoExitFullscreen(VideoFullscreenDismissSource.WEB_CHROME)
+                                    latestVideoExitFullscreen.value(VideoFullscreenDismissSource.WEB_CHROME)
                                 } else {
                                     super.onHideCustomView()
                                 }
@@ -574,9 +583,9 @@ fun BookmarkDetailArticle(
                                     val network = cm?.activeNetwork
                                     val isOffline = network == null || cm.getNetworkCapabilities(network)
                                         ?.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_VALIDATED) != true
-                                    if (isOffline && isVideo) {
+                                    if (isOffline && latestIsVideo.value) {
                                         val host = url.host?.lowercase() ?: ""
-                                        val embedBaseUrl = extractEmbedBaseUrl(uiState.bookmark.embed)
+                                        val embedBaseUrl = extractEmbedBaseUrl(latestUiState.bookmark.embed)
                                         val embedHost = embedBaseUrl?.let { Uri.parse(it).host?.lowercase() }
                                         val isEmbedHost = embedHost != null && host.contains(embedHost)
                                         val isKnownVideoHost = host.contains("youtube.com") || host.contains("youtube-nocookie.com") || host.contains("youtu.be") || host.contains("vimeo.com")
@@ -813,6 +822,11 @@ fun BookmarkDetailArticle(
             if (it.settings.textZoom != uiState.typographySettings.fontSizePercent) {
                 it.settings.textZoom = uiState.typographySettings.fontSizePercent
             }
+            val isVideo = uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.VIDEO
+            val isArticle = uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.ARTICLE
+            val isPhoto = uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.PHOTO
+            it.settings.javaScriptEnabled = isVideo || isArticle || isPhoto
+            it.settings.domStorageEnabled = isVideo
             // Defensive re-assertion: protects against the rare case where the factory's
             // dispatcher reference is replaced across recompositions.
             if ((it as? HighlightActionWebView)?.nestedScrollDispatcher !== webViewDispatcher) {

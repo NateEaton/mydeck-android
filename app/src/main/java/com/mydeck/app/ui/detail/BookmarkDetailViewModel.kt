@@ -1662,6 +1662,7 @@ class BookmarkDetailViewModel @Inject constructor(
             unfavoriteLabel: String = "",
             archiveLabel: String = "",
             unarchiveLabel: String = "",
+            topClearanceCssPx: Int = 0,
         ): String? {
             val htmlTemplate = when (template) {
                 is Template.SimpleTemplate -> template.template
@@ -1673,7 +1674,7 @@ class BookmarkDetailViewModel @Inject constructor(
                     }
                 }
             }
-            val headerHtml = buildReaderHeaderHtml()
+            val headerHtml = buildReaderHeaderHtml(topClearanceCssPx)
             val footerHtml = buildReaderFooterHtml(
                 favoriteLabel = favoriteLabel,
                 unfavoriteLabel = unfavoriteLabel,
@@ -1734,14 +1735,19 @@ class BookmarkDetailViewModel @Inject constructor(
             }
         }
 
-        private fun buildReaderHeaderHtml(): String {
+        private fun buildReaderHeaderHtml(topClearanceCssPx: Int): String {
+            val clearanceHtml = if (topClearanceCssPx > 0) {
+                "<div class=\"mydeck-top-clearance\" style=\"height:${topClearanceCssPx}px\" aria-hidden=\"true\"></div>"
+            } else {
+                ""
+            }
             val titleHtml = "<h1 class=\"mydeck-title\">${escapeHtml(title)}</h1>"
             val descriptionHtml = if (shouldShowHeaderDescription()) {
                 "<p class=\"mydeck-description\">${escapeHtml(description)}</p>"
             } else {
                 ""
             }
-            return "<header class=\"mydeck-header\">$titleHtml$descriptionHtml</header>"
+            return "$clearanceHtml<header class=\"mydeck-header\">$titleHtml$descriptionHtml</header>"
         }
 
         private fun buildReaderFooterHtml(

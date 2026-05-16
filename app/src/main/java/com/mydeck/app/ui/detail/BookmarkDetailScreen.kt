@@ -136,6 +136,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.Constraints
 import com.mydeck.app.ui.theme.Dimens
@@ -165,6 +166,8 @@ import timber.log.Timber
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.platform.LocalDensity
+import kotlin.math.roundToInt
 
 private const val PendingDeleteFromDetailKey = "pending_delete_bookmark_id"
 private const val VideoFullscreenControlsAutoHideDelayMs = 3_000L
@@ -859,10 +862,18 @@ fun BookmarkDetailScreen(
     var bottomTopBarRevealJob by remember { mutableStateOf<Job?>(null) }
     var isReaderContentReady by remember(uiState.bookmark.bookmarkId, contentMode) { mutableStateOf(false) }
     val fullscreenReaderMode = fullscreenWhileReading && contentMode == ContentMode.READER
-    val immersiveModeEnabled = fullscreenReaderMode || videoFullscreenView != null
+    val immersiveModeEnabled = fullscreenReaderMode
     var showFullscreenTopBar by remember(uiState.bookmark.bookmarkId, fullscreenReaderMode) {
         mutableStateOf(fullscreenReaderMode)
     }
+    val density = LocalDensity.current
+    val topBarClearance = with(density) {
+        TopAppBarDefaults.TopAppBarExpandedHeight + WindowInsets.statusBars.getTop(this).toDp()
+    }
+    val readerTopClearanceCssPx = topBarClearance.value.roundToInt().coerceAtLeast(0)
+    val topBarCanHide =
+        uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.ARTICLE &&
+            contentMode == ContentMode.READER
     val fullscreenTopBarRevealConnection = remember(
         fullscreenReaderMode,
         showFullscreenTopBar,
@@ -943,7 +954,8 @@ fun BookmarkDetailScreen(
             contentMode != ContentMode.READER ||
             articleSearchState.isActive ||
             videoFullscreenView != null ||
-            fullscreenReaderMode
+            fullscreenReaderMode ||
+            !topBarCanHide
         ) {
             return
         }
@@ -985,45 +997,10 @@ fun BookmarkDetailScreen(
     Box(modifier = modifier.fillMaxSize()) {
         Scaffold(
             snackbarHost = { SnackbarHost(snackbarHostState) },
+            contentWindowInsets = WindowInsets(0.dp, 0.dp, 0.dp, 0.dp),
             modifier = Modifier
                 .fillMaxSize()
-                .nestedScroll(fullscreenTopBarRevealConnection),
-            topBar = {
-                if (
-                    videoFullscreenView == null &&
-                    (!fullscreenReaderMode || showFullscreenTopBar || articleSearchState.isActive)
-                ) {
-                    BookmarkDetailTopBar(
-                            articleSearchState = articleSearchState,
-                            onArticleSearchQueryChange = onArticleSearchQueryChange,
-                            onArticleSearchPrevious = onArticleSearchPrevious,
-                            onArticleSearchNext = onArticleSearchNext,
-                            onArticleSearchDeactivate = onArticleSearchDeactivate,
-                            onClickBack = onClickBack,
-                            uiState = uiState,
-                            onClickToggleFavorite = onClickToggleFavorite,
-                            onClickToggleArchive = onClickToggleArchive,
-                            onShowTypographyPanel = onShowTypographyPanel,
-                            onShowDetails = onShowDetails,
-                            onShowHighlights = onShowHighlights,
-                            contentMode = contentMode,
-                            onClickToggleRead = onClickToggleRead,
-                            onClickShareBookmark = onClickShareBookmark,
-                            onClickDeleteBookmark = onClickDeleteBookmark,
-                            onArticleSearchActivate = onArticleSearchActivate,
-                            onClickOpenInBrowser = onClickOpenInBrowser,
-                            onContentModeChange = onContentModeChange,
-                            scrollBehavior = topBarScrollBehavior,
-                            onScrollToTop = {
-                                if (readProgressPercent > 0) {
-                                    readerWebView?.evaluateJavascript(
-                                        "window.scrollTo({top: 0, behavior: 'smooth'});", null
-                                    )
-                                }
-                            },
-                        )
-                }
-            }
+                .nestedScroll(fullscreenTopBarRevealConnection)
         ) { padding ->
             Box(
                 modifier = Modifier
@@ -1058,6 +1035,8 @@ fun BookmarkDetailScreen(
                     onReaderScrollChanged = ::updateTopBarFromReaderScroll,
                     annotationId = annotationId,
                     readerContentReloadNonce = readerContentReloadNonce,
+                    readerTopClearanceCssPx = readerTopClearanceCssPx,
+                    topBarClearance = topBarClearance,
                 )
 
                 if (contentMode == ContentMode.READER && !articleSearchState.isActive) {
@@ -1079,6 +1058,46 @@ fun BookmarkDetailScreen(
                             .clickable { showFullscreenTopBar = true }
                     )
                 }
+            }
+        }
+
+        if (
+            videoFullscreenView == null &&
+            (!fullscreenReaderMode || showFullscreenTopBar || articleSearchState.isActive)
+        ) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .fillMaxWidth()
+            ) {
+                BookmarkDetailTopBar(
+                    articleSearchState = articleSearchState,
+                    onArticleSearchQueryChange = onArticleSearchQueryChange,
+                    onArticleSearchPrevious = onArticleSearchPrevious,
+                    onArticleSearchNext = onArticleSearchNext,
+                    onArticleSearchDeactivate = onArticleSearchDeactivate,
+                    onClickBack = onClickBack,
+                    uiState = uiState,
+                    onClickToggleFavorite = onClickToggleFavorite,
+                    onClickToggleArchive = onClickToggleArchive,
+                    onShowTypographyPanel = onShowTypographyPanel,
+                    onShowDetails = onShowDetails,
+                    onShowHighlights = onShowHighlights,
+                    contentMode = contentMode,
+                    onClickToggleRead = onClickToggleRead,
+                    onClickShareBookmark = onClickShareBookmark,
+                    onClickDeleteBookmark = onClickDeleteBookmark,
+                    onArticleSearchActivate = onArticleSearchActivate,
+                    onClickOpenInBrowser = onClickOpenInBrowser,
+                    onContentModeChange = onContentModeChange,
+                    scrollBehavior = topBarScrollBehavior,
+                    onScrollToTop = {
+                        readerWebView?.evaluateJavascript(
+                            "window.scrollTo({top: 0, behavior: 'smooth'});",
+                            null
+                        )
+                    },
+                )
             }
         }
 
@@ -1326,6 +1345,8 @@ fun BookmarkDetailContent(
     onReaderScrollChanged: (scrollY: Int, deltaY: Int, scrollProgress: Float, userInitiated: Boolean) -> Unit = { _, _, _, _ -> },
     annotationId: String? = null,
     readerContentReloadNonce: Int = 0,
+    readerTopClearanceCssPx: Int = 0,
+    topBarClearance: Dp = 0.dp,
 ) {
     val coroutineScope = rememberCoroutineScope()
     val hasArticleContent = uiState.bookmark.articleContent != null
@@ -1406,7 +1427,9 @@ fun BookmarkDetailContent(
             // Original mode: no outer scroll, WebView handles its own scrolling
             // Header is not shown in Original mode - full content experience
             BookmarkDetailOriginalWebView(
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(top = topBarClearance),
                 url = uiState.bookmark.url
             )
         } else {
@@ -1445,6 +1468,7 @@ fun BookmarkDetailContent(
                         onScrollChanged = onReaderScrollChanged,
                         annotationId = annotationId ?: "",
                         contentReloadKey = readerContentReloadNonce,
+                        readerTopClearanceCssPx = readerTopClearanceCssPx,
                     )
                 }
             }
@@ -1490,6 +1514,7 @@ fun BookmarkDetailContent(
                     progress = { animatedProgress },
                     modifier = Modifier
                         .fillMaxWidth()
+                        .padding(top = topBarClearance)
                         .height(4.dp)
                         .align(Alignment.TopStart)
                 )

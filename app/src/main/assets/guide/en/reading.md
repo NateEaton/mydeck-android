@@ -42,7 +42,7 @@ The top bar provides quick access to essential navigation and reading actions:
 - **🔍 Find in page** — search for text within the content
 - **⋮ More** — overflow menu with additional actions
 
-As you scroll down to read, the top bar hides to give you more screen space. It reappears when you scroll back toward the top.
+As you scroll down through an article, the top bar hides to give you more screen space. It reappears when you scroll back toward the top. Video and picture bookmarks keep the top bar visible so their title, description, and media controls remain easy to reach.
 
 If **Fullscreen while reading** is enabled in **Settings → User Interface**, the reader hides the system bars and top bar after a short delay. Swipe from the edge or tap near the top edge to reveal them temporarily.
 

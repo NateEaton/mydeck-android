@@ -11,6 +11,8 @@ Out of scope: highlights screen, list screen, fullscreen reader mode (it has its
 
 ## Required behaviors
 
+Implementation decision for the next pass: article reader content uses a hideable overlay top bar, while video and picture reader content keep the top bar visible. All extracted-content bookmark types still use the same WebView reader path and get an initial HTML clearance element before the title/description so the header is visible at scrollY=0.
+
 1. **Title and description must be fully visible at scrollY=0 with the bar shown.** When a user opens any bookmark with read progress 0, the article header (`<h1 class="mydeck-title">`, `<p class="mydeck-description">`) sits below the top bar — not partially under it, not below an empty 80–130 dp gap.
 2. **Bar hides on scroll-down, reveals on scroll-up.** Tracks finger naturally (current rate feels right per Codex's implementation).
 3. **No content ghosting at any scroll velocity.** The bar transition must not produce a visible per-frame phase shift between the WebView's content position and the bar's position.
