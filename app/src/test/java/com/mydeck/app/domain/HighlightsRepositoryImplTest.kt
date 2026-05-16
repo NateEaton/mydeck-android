@@ -431,7 +431,11 @@ class HighlightsRepositoryImplTest {
                 Response.success(listOf(remoteAnnotation("remote-1", "bookmark-1", "Remote")))
 
             val result = repository.requestRefresh(HighlightsRefreshReason.USER_RETRY)
-            waitUntil { annotationSummaryCalls.isNotEmpty() && syncMetadata.cacheComplete }
+            waitUntil {
+                annotationSummaryCalls.isNotEmpty() &&
+                    syncMetadata.globalFailureCount == 0 &&
+                    syncMetadata.globalBackoffUntil == null
+            }
 
             assertTrue(result.isSuccess)
             assertEquals(listOf(50 to 0), annotationSummaryCalls)
