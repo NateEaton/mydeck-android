@@ -4,9 +4,9 @@
 **Date:** 2026-05-11
 **Build Context:** Highlights local-first sync refinement
 **Related:**
-- `docs/specs/highlights-nav-drawer-list-spec.md`
-- `docs/specs/highlights-list-local-first-scalability-amendment.md`
-- `docs/specs/highlights-sync-refinement-delta-guided.md`
+- `docs/archive/highlights-nav-drawer-list-spec.md`
+- `docs/archive/highlights-list-local-first-scalability-amendment.md`
+- `docs/archive/highlights-sync-refinement-delta-guided.md`
 
 ## 1. Summary
 

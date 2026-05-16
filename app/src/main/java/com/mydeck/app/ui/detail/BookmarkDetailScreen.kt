@@ -858,6 +858,17 @@ fun BookmarkDetailScreen(
     var readProgressPercent by remember(uiState.bookmark.bookmarkId) {
         mutableIntStateOf(initialReadProgress.coerceIn(0, 100))
     }
+    var canScrollReaderToTop by remember(
+        uiState.bookmark.bookmarkId,
+        contentMode,
+        initialReadProgress,
+        annotationId,
+    ) {
+        mutableStateOf(
+            contentMode == ContentMode.READER &&
+                (initialReadProgress > 0 || annotationId != null)
+        )
+    }
     val coroutineScope = rememberCoroutineScope()
     var bottomTopBarRevealJob by remember { mutableStateOf<Job?>(null) }
     var isReaderContentReady by remember(uiState.bookmark.bookmarkId, contentMode) { mutableStateOf(false) }
@@ -949,6 +960,7 @@ fun BookmarkDetailScreen(
         scrollProgress: Float,
         userInitiated: Boolean
     ) {
+        canScrollReaderToTop = scrollY > 0
         if (
             !userInitiated ||
             contentMode != ContentMode.READER ||
@@ -1091,6 +1103,7 @@ fun BookmarkDetailScreen(
                     onClickOpenInBrowser = onClickOpenInBrowser,
                     onContentModeChange = onContentModeChange,
                     scrollBehavior = topBarScrollBehavior,
+                    canScrollToTop = canScrollReaderToTop,
                     onScrollToTop = {
                         readerWebView?.evaluateJavascript(
                             "window.scrollTo({top: 0, behavior: 'smooth'});",

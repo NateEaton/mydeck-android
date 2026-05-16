@@ -86,7 +86,7 @@ import java.io.ByteArrayInputStream
 // NOTE: READPOS and [LongPress] log statements throughout this file are intentionally
 // retained. They provide diagnostic visibility into WebView scroll position tracking
 // and hit-test behaviour needed for the planned WebView/Compose rearchitecture.
-// See docs/specs/webview-scroll-rearchitecture.md before removing.
+// See docs/archive/webview-scroll-rearchitecture.md before removing.
 private const val ReadPositionLogPrefix = "READPOS"
 private const val UserScrollIdleDelayMs = 160L
 
@@ -362,7 +362,6 @@ fun BookmarkDetailArticle(
                 WebViewSearchBridge.searchAndHighlight(
                     webView = webView,
                     query = articleSearchState.query,
-                    
                 ) { matchCount, preferredIndex ->
                     val targetMatch = when {
                         articleSearchState.currentMatch in 1..matchCount -> articleSearchState.currentMatch
@@ -416,7 +415,6 @@ fun BookmarkDetailArticle(
                 WebViewSearchBridge.searchAndHighlight(
                     webView = webView,
                     query = articleSearchState.query,
-                    
                 ) { matchCount, preferredIndex ->
                     val targetMatch = when {
                         articleSearchState.currentMatch in 1..matchCount -> articleSearchState.currentMatch

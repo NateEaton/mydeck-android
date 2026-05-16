@@ -3,8 +3,8 @@
 **Status:** Draft refinement for implementation
 **Date:** 2026-05-10
 **Refines:**
-- `docs/specs/highlights-list-local-first-scalability-amendment.md`
-- `docs/specs/highlights-list-reactivity-mini-spec.md`
+- `docs/archive/highlights-list-local-first-scalability-amendment.md`
+- `docs/archive/highlights-list-reactivity-mini-spec.md`
 - `docs/specs/offline-annotation-crud-spec.md`
 
 ---
@@ -704,4 +704,3 @@ Also perform a manual sync test:
 - Should WorkManager own all annotation sync work, or should short user-visible
   bookmark checks stay in application-scoped coroutines?
 - Should full IDs be logged only in debug builds?
-

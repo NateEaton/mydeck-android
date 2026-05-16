@@ -211,7 +211,7 @@ fun HighlightsContent(
                         onClearFilters = onClearFilters,
                     )
                 }
-                if (uiState.cachePartial) {
+                if (uiState.cachePartial && uiState.groups.isNotEmpty()) {
                     HighlightsPartialCacheBanner()
                 }
             }
@@ -256,7 +256,7 @@ fun HighlightsContent(
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
-                        if (uiState.refreshFailed && !uiState.cachePartial) {
+                        if (uiState.refreshFailed) {
                             Spacer(Modifier.height(8.dp))
                             Button(onClick = onRetry) {
                                 Text(stringResource(R.string.retry))

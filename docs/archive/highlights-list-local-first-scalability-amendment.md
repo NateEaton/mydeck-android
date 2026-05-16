@@ -3,8 +3,8 @@
 **Status:** Draft amendment for implementation
 **Date:** 2026-05-09
 **Amends:**
-- `docs/specs/highlights-nav-drawer-list-spec.md`
-- `docs/specs/highlights-list-reactivity-mini-spec.md`
+- `docs/archive/highlights-nav-drawer-list-spec.md`
+- `docs/archive/highlights-list-reactivity-mini-spec.md`
 
 ---
 
@@ -625,8 +625,8 @@ Start by reading:
 - `app/src/main/java/com/mydeck/app/io/db/dao/CachedAnnotationDao.kt`
 - `app/src/main/java/com/mydeck/app/ui/list/BookmarkListViewModel.kt`
 - `app/src/main/java/com/mydeck/app/io/db/dao/BookmarkDao.kt`
-- `docs/specs/highlights-nav-drawer-list-spec.md`
-- `docs/specs/highlights-list-reactivity-mini-spec.md`
+- `docs/archive/highlights-nav-drawer-list-spec.md`
+- `docs/archive/highlights-list-reactivity-mini-spec.md`
 
 The key implementation choice is whether to introduce `remote_annotation_ids` now.
 Prefer adding it if doing the migration anyway; it keeps memory bounded and matches

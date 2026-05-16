@@ -48,6 +48,7 @@ fun BookmarkDetailTopBar(
     onClickOpenInBrowser: (String) -> Unit,
     onContentModeChange: (ContentMode) -> Unit,
     scrollBehavior: TopAppBarScrollBehavior,
+    canScrollToTop: Boolean = true,
     onScrollToTop: () -> Unit = {},
 ) {
     if (articleSearchState.isActive) {
@@ -71,7 +72,9 @@ fun BookmarkDetailTopBar(
                             interactionSource = remember { MutableInteractionSource() },
                             indication = null
                         ) {
-                            onScrollToTop()
+                            if (canScrollToTop) {
+                                onScrollToTop()
+                            }
                         }
                 ) { }
             },
