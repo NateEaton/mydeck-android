@@ -4,6 +4,7 @@ import android.content.Context
 import com.mydeck.app.domain.model.BookmarkShareFormat
 import com.mydeck.app.domain.model.DarkAppearance
 import com.mydeck.app.domain.model.LightAppearance
+import com.mydeck.app.domain.model.SwipeConfig
 import com.mydeck.app.domain.model.Theme
 import com.mydeck.app.io.prefs.SettingsDataStore
 import io.mockk.coEvery
@@ -59,6 +60,7 @@ class UiSettingsViewModelTest {
         coEvery { settingsDataStore.saveBookmarkShareFormat(any()) } returns Unit
         coEvery { settingsDataStore.saveKeepScreenOnWhileReading(any()) } returns Unit
         coEvery { settingsDataStore.saveFullscreenWhileReading(any()) } returns Unit
+        every { settingsDataStore.swipeConfigFlow } returns MutableStateFlow(SwipeConfig.Default)
 
         viewModel = UiSettingsViewModel(settingsDataStore, context)
     }

@@ -17,6 +17,7 @@ import com.mydeck.app.domain.sync.OfflinePolicyEvaluator
 import com.mydeck.app.domain.sync.SyncScheduler
 import com.mydeck.app.domain.usecase.FullSyncUseCase
 import com.mydeck.app.domain.usecase.UpdateBookmarkUseCase
+import com.mydeck.app.domain.model.SwipeConfig
 import com.mydeck.app.io.prefs.SettingsDataStore
 import com.mydeck.app.worker.CreateBookmarkWorker
 import com.mydeck.app.worker.LoadBookmarksWorker
@@ -126,6 +127,7 @@ class BookmarkListViewModelTest {
         every { connectivityMonitor.isBatterySaverOn() } returns false
         coEvery { settingsDataStore.getLayoutMode() } returns null
         coEvery { settingsDataStore.getSortOption() } returns null
+        every { settingsDataStore.swipeConfigFlow } returns kotlinx.coroutines.flow.MutableStateFlow(SwipeConfig.Default)
         coEvery { settingsDataStore.getBookmarkShareFormat() } returns BookmarkShareFormat.URL_ONLY
         every { settingsDataStore.urlFlow } returns kotlinx.coroutines.flow.MutableStateFlow(null)
         every { settingsDataStore.tokenFlow } returns kotlinx.coroutines.flow.MutableStateFlow(null)

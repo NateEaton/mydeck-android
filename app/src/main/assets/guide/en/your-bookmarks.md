@@ -77,6 +77,23 @@ Each card has four action buttons:
 
 See [Organizing](./organizing.md) for more on how favorites, archive, labels, and deletion work across your whole collection.
 
+## Swipe Actions on Cards
+
+In single-column layouts you can swipe a bookmark card left or right to archive or delete it without tapping the icon buttons.
+
+- **Swipe right** — archives the bookmark (default)
+- **Swipe left** — deletes the bookmark (default)
+
+The action triggers once you drag the card past its mid-point. Release before that and the card snaps back with no effect.
+
+Deleting via swipe shows the same **"Bookmark deleted — UNDO"** snackbar as the trash icon, so you can reverse an accidental deletion.
+
+**Layout availability:** Swipe is active in the Compact layout and in single-column phone portrait view. It is not available in the multi-column Mosaic or Grid layouts (tablet or landscape) — use the icon buttons in those layouts instead.
+
+**Navigation drawer:** When swipe actions are enabled, the left-edge drag gesture that normally opens the navigation drawer is suppressed to avoid conflicts. Use the hamburger button in the top bar to open the drawer instead. If you disable swipe actions in settings, the drawer edge-swipe returns.
+
+To change which action each direction triggers — or to turn swipe off entirely — go to **Settings → UI Settings → Swipe actions**.
+
 ## Long-press Context Menu
 
 Long-pressing on a bookmark card opens a context menu dialog. The dialog header shows the bookmark URL or image source — tap the header to expand truncated text, tap again to collapse.

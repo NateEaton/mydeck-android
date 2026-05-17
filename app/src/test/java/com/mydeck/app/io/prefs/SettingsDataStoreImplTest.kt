@@ -6,6 +6,8 @@ import androidx.test.core.app.ApplicationProvider
 import com.mydeck.app.domain.model.BookmarkShareFormat
 import com.mydeck.app.domain.model.DarkAppearance
 import com.mydeck.app.domain.model.LightAppearance
+import com.mydeck.app.domain.model.SwipeAction
+import com.mydeck.app.domain.model.SwipeConfig
 import com.mydeck.app.domain.model.TypographySettings
 import com.mydeck.app.domain.model.Theme
 import com.mydeck.app.domain.sync.OfflineContentScope
@@ -233,5 +235,58 @@ class SettingsDataStoreImplTest {
         val dataStore = SettingsDataStoreImpl(context)
 
         assertEquals(250L * 1024 * 1024, dataStore.getOfflinePolicyStorageLimit())
+    }
+
+    @Test
+    fun `swipeConfig defaults match SwipeConfig Default`() = runTest {
+        val dataStore = SettingsDataStoreImpl(context)
+
+        assertEquals(SwipeConfig.Default, dataStore.swipeConfigFlow.value)
+    }
+
+    @Test
+    fun `saveSwipeEnabled round-trips enabled flag`() = runTest {
+        val dataStore = SettingsDataStoreImpl(context)
+
+        dataStore.saveSwipeEnabled(false)
+        assertFalse(dataStore.swipeConfigFlow.value.enabled)
+
+        dataStore.saveSwipeEnabled(true)
+        assertTrue(dataStore.swipeConfigFlow.value.enabled)
+    }
+
+    @Test
+    fun `saveSwipeLeftAction round-trips action`() = runTest {
+        val dataStore = SettingsDataStoreImpl(context)
+
+        dataStore.saveSwipeLeftAction(SwipeAction.ARCHIVE)
+        assertEquals(SwipeAction.ARCHIVE, dataStore.swipeConfigFlow.value.leftAction)
+
+        dataStore.saveSwipeLeftAction(SwipeAction.NONE)
+        assertEquals(SwipeAction.NONE, dataStore.swipeConfigFlow.value.leftAction)
+    }
+
+    @Test
+    fun `saveSwipeRightAction round-trips action`() = runTest {
+        val dataStore = SettingsDataStoreImpl(context)
+
+        dataStore.saveSwipeRightAction(SwipeAction.DELETE)
+        assertEquals(SwipeAction.DELETE, dataStore.swipeConfigFlow.value.rightAction)
+
+        dataStore.saveSwipeRightAction(SwipeAction.FAVORITE)
+        assertEquals(SwipeAction.FAVORITE, dataStore.swipeConfigFlow.value.rightAction)
+    }
+
+    @Test
+    fun `swipeConfig falls back to default when stored action string is corrupted`() = runTest {
+        userPreferences.edit()
+            .putString("swipe_left_action", "INVALID_ACTION")
+            .putString("swipe_right_action", "ALSO_INVALID")
+            .commit()
+
+        val dataStore = SettingsDataStoreImpl(context)
+
+        assertEquals(SwipeConfig.Default.leftAction, dataStore.swipeConfigFlow.value.leftAction)
+        assertEquals(SwipeConfig.Default.rightAction, dataStore.swipeConfigFlow.value.rightAction)
     }
 }

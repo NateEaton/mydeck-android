@@ -18,6 +18,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -32,13 +34,18 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
-import kotlinx.coroutines.flow.collectLatest
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import kotlinx.coroutines.flow.collectLatest
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
@@ -53,6 +60,8 @@ import com.mydeck.app.R
 import com.mydeck.app.domain.model.BookmarkShareFormat
 import com.mydeck.app.domain.model.DarkAppearance
 import com.mydeck.app.domain.model.LightAppearance
+import com.mydeck.app.domain.model.SwipeAction
+import com.mydeck.app.domain.model.SwipeConfig
 import com.mydeck.app.domain.model.Theme
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalPermissionsApi::class)
@@ -62,6 +71,7 @@ fun UiSettingsScreen(
 ) {
     val viewModel: UiSettingsViewModel = hiltViewModel()
     val settingsUiState = viewModel.uiState.collectAsState().value
+    val swipeConfig = viewModel.swipeConfig.collectAsState().value
     val onClickBack: () -> Unit = { viewModel.onClickBack() }
     val onThemeModeSelected: (Theme) -> Unit = { viewModel.onThemeModeSelected(it) }
     val onLightAppearanceSelected: (LightAppearance) -> Unit = { viewModel.onLightAppearanceSelected(it) }
@@ -93,7 +103,11 @@ fun UiSettingsScreen(
         onBookmarkShareFormatSelected = onBookmarkShareFormatSelected,
         onKeepScreenOnWhileReadingToggled = onKeepScreenOnWhileReadingToggled,
         onFullscreenWhileReadingToggled = onFullscreenWhileReadingToggled,
-        settingsUiState = settingsUiState
+        settingsUiState = settingsUiState,
+        swipeConfig = swipeConfig,
+        onSwipeEnabledChange = { viewModel.onSwipeEnabledChange(it) },
+        onSwipeLeftActionChange = { viewModel.onSwipeLeftActionChange(it) },
+        onSwipeRightActionChange = { viewModel.onSwipeRightActionChange(it) },
     )
 }
 
@@ -110,6 +124,10 @@ fun UiSettingsView(
     onKeepScreenOnWhileReadingToggled: (Boolean) -> Unit,
     onFullscreenWhileReadingToggled: (Boolean) -> Unit,
     onClickBack: () -> Unit,
+    swipeConfig: SwipeConfig = SwipeConfig.Default,
+    onSwipeEnabledChange: (Boolean) -> Unit = {},
+    onSwipeLeftActionChange: (SwipeAction) -> Unit = {},
+    onSwipeRightActionChange: (SwipeAction) -> Unit = {},
 ) {
     Scaffold(
         modifier = modifier,
@@ -299,6 +317,45 @@ fun UiSettingsView(
                     )
                 }
             )
+
+            // Swipe actions section
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(0.dp)
+            ) {
+                Text(
+                    text = stringResource(R.string.swipe_settings_section_title),
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.padding(horizontal = 0.dp, vertical = 4.dp)
+                )
+                ListItem(
+                    modifier = Modifier.clickable { onSwipeEnabledChange(!swipeConfig.enabled) },
+                    headlineContent = {
+                        Text(
+                            text = stringResource(R.string.swipe_settings_enable),
+                            style = MaterialTheme.typography.bodyLarge
+                        )
+                    },
+                    trailingContent = {
+                        Switch(
+                            checked = swipeConfig.enabled,
+                            onCheckedChange = onSwipeEnabledChange
+                        )
+                    }
+                )
+                SwipeActionPicker(
+                    label = stringResource(R.string.swipe_settings_left_action),
+                    selected = swipeConfig.leftAction,
+                    enabled = swipeConfig.enabled,
+                    onActionSelected = onSwipeLeftActionChange,
+                )
+                SwipeActionPicker(
+                    label = stringResource(R.string.swipe_settings_right_action),
+                    selected = swipeConfig.rightAction,
+                    enabled = swipeConfig.enabled,
+                    onActionSelected = onSwipeRightActionChange,
+                )
+            }
         }
     }
 }
@@ -328,6 +385,56 @@ fun UiSettingsScreenViewPreview() {
         onKeepScreenOnWhileReadingToggled = {},
         onFullscreenWhileReadingToggled = {},
         settingsUiState = settingsUiState
+    )
+}
+
+@Composable
+private fun SwipeAction.displayName(): String = stringResource(
+    when (this) {
+        SwipeAction.ARCHIVE -> R.string.swipe_action_archive
+        SwipeAction.DELETE -> R.string.swipe_action_delete
+        SwipeAction.FAVORITE -> R.string.swipe_action_favorite
+        SwipeAction.NONE -> R.string.swipe_action_none
+    }
+)
+
+@Composable
+private fun SwipeActionPicker(
+    label: String,
+    selected: SwipeAction,
+    enabled: Boolean,
+    onActionSelected: (SwipeAction) -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    ListItem(
+        modifier = Modifier.alpha(if (enabled) 1f else 0.38f),
+        headlineContent = {
+            Text(text = label, style = MaterialTheme.typography.bodyLarge)
+        },
+        trailingContent = {
+            Box {
+                TextButton(
+                    onClick = { if (enabled) expanded = true },
+                    enabled = enabled,
+                ) {
+                    Text(selected.displayName())
+                }
+                DropdownMenu(
+                    expanded = expanded,
+                    onDismissRequest = { expanded = false }
+                ) {
+                    SwipeAction.entries.forEach { action ->
+                        DropdownMenuItem(
+                            text = { Text(action.displayName()) },
+                            onClick = {
+                                onActionSelected(action)
+                                expanded = false
+                            }
+                        )
+                    }
+                }
+            }
+        }
     )
 }
 
