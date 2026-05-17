@@ -42,9 +42,9 @@ import com.mydeck.app.R
 fun AnnotationEditSheet(
     state: BookmarkDetailViewModel.AnnotationEditState,
     onColorSelected: (String) -> Unit,
+    onNoteChanged: (String) -> Unit,
     onSave: () -> Unit,
     onDelete: () -> Unit,
-    onNoteClicked: () -> Unit,
     onDismiss: () -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -84,25 +84,21 @@ fun AnnotationEditSheet(
                 )
             }
 
-            state.noteText?.let { noteText ->
-                Spacer(modifier = Modifier.height(16.dp))
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable(onClick = onNoteClicked)
-                ) {
-                    OutlinedTextField(
-                        value = noteText,
-                        onValueChange = {},
-                        modifier = Modifier.fillMaxWidth(),
-                        label = { Text(text = stringResource(R.string.highlight_note_label)) },
-                        readOnly = true,
-                        enabled = false,
-                        minLines = 2,
-                        maxLines = 5
-                    )
-                }
-            }
+            Spacer(modifier = Modifier.height(16.dp))
+            OutlinedTextField(
+                value = state.noteText,
+                onValueChange = onNoteChanged,
+                modifier = Modifier.fillMaxWidth(),
+                label = { Text(text = stringResource(R.string.highlight_note_label)) },
+                supportingText = if (state.hasMixedNotes) {
+                    { Text(text = stringResource(R.string.highlight_note_replace_helper)) }
+                } else {
+                    null
+                },
+                enabled = !state.isSaving,
+                minLines = 2,
+                maxLines = 5
+            )
 
             Spacer(modifier = Modifier.height(20.dp))
 

@@ -8,8 +8,12 @@ data class BookmarkListRoute(val sharedText: String? = null)
 @Serializable
 data class BookmarkDetailRoute(
     val bookmarkId: String,
-    val showOriginal: Boolean = false
+    val showOriginal: Boolean = false,
+    val annotationId: String? = null
 )
+
+@Serializable
+object HighlightsRoute
 
 @Serializable
 object WelcomeRoute

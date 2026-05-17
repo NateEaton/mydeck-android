@@ -1,6 +1,5 @@
 package com.mydeck.app.ui.detail.components
 
-import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
@@ -49,7 +48,7 @@ fun BookmarkDetailTopBar(
     onClickOpenInBrowser: (String) -> Unit,
     onContentModeChange: (ContentMode) -> Unit,
     scrollBehavior: TopAppBarScrollBehavior,
-    scrollState: ScrollState? = null,
+    canScrollToTop: Boolean = true,
     onScrollToTop: () -> Unit = {},
 ) {
     if (articleSearchState.isActive) {
@@ -73,7 +72,7 @@ fun BookmarkDetailTopBar(
                             interactionSource = remember { MutableInteractionSource() },
                             indication = null
                         ) {
-                            if (scrollState != null && scrollState.value > 0) {
+                            if (canScrollToTop) {
                                 onScrollToTop()
                             }
                         }

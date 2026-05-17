@@ -29,6 +29,9 @@ import javax.inject.Singleton
 abstract class AppModule {
 
     @Binds
+    abstract fun bindHighlightsRepository(highlightsRepositoryImpl: com.mydeck.app.domain.HighlightsRepositoryImpl): com.mydeck.app.domain.HighlightsRepository
+
+    @Binds
     abstract fun bindBookmarkRepository(bookmarkRepositoryImpl: BookmarkRepositoryImpl): BookmarkRepository
 
     @Binds

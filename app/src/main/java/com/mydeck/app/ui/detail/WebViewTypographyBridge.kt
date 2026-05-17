@@ -12,8 +12,19 @@ object WebViewTypographyBridge {
     /**
      * Generates JavaScript that applies typography settings to the reader content.
      * Call via webView.evaluateJavascript(js, null).
+     *
+     * @param settings Typography settings to apply.
+     * @param contentMaxWidthPercent Percent (1-100) to expose as the
+     *   `--mydeck-content-max-width` CSS variable on the document element so the
+     *   reader stylesheet can constrain the body width without changing the
+     *   WebView's Compose width. Also written to `body.style.maxWidth` so the
+     *   inline style matches the variable.
      */
-    fun applyTypography(settings: TypographySettings): String {
+    fun applyTypography(
+        settings: TypographySettings,
+        contentMaxWidthPercent: Int
+    ): String {
+        val widthPercent = contentMaxWidthPercent.coerceIn(1, 100)
         val fontFaceDeclarations = buildFontFaceCss(settings.fontFamily)
         val fontFaceInjection = if (fontFaceDeclarations.isNotEmpty()) {
             """
@@ -42,22 +53,56 @@ object WebViewTypographyBridge {
             (function() {
                 $fontFaceInjection
 
+                // Expose content max-width to CSS via a custom property so the
+                // reader stylesheet can constrain body width while the WebView
+                // itself remains full-width in Compose.
+                document.documentElement.style.setProperty('--mydeck-content-max-width', '$widthPercent%');
+
+                var desiredHyphens = '${if (settings.hyphenation) "auto" else "manual"}';
+                window.mydeckDesiredHyphens = desiredHyphens;
+
                 // Apply typography to body
                 var body = document.body;
                 body.style.fontFamily = '${settings.fontFamily.cssValue}';
                 body.style.lineHeight = '${TypographySettings.lineSpacingCssValue(settings.lineSpacingPercent)}';
-                body.style.maxWidth = '100%';
+                body.style.maxWidth = '$widthPercent%';
                 body.style.margin = '0 auto';
                 body.style.padding = '0 8px';
                 body.style.textAlign = '${if (settings.justified) "justify" else "left"}';
-                body.style.hyphens = '${if (settings.hyphenation) "auto" else "manual"}';
-                body.style.webkitHyphens = '${if (settings.hyphenation) "auto" else "manual"}';
+                var appliedHyphens = window.mydeckHyphenationSelectionSuspended ? 'manual' : desiredHyphens;
+                body.style.hyphens = appliedHyphens;
+                body.style.webkitHyphens = appliedHyphens;
 
                 // Also apply font-family to headings for consistency
                 var headings = document.querySelectorAll('h1,h2,h3,h4,h5,h6');
                 headings.forEach(function(h) {
                     h.style.fontFamily = '${settings.fontFamily.cssValue}';
                 });
+            })();
+        """.trimIndent()
+    }
+
+    fun suspendHyphenationForSelection(): String {
+        return """
+            (function() {
+                window.mydeckHyphenationSelectionSuspended = true;
+                var body = document.body;
+                if (!body) return;
+                body.style.hyphens = 'manual';
+                body.style.webkitHyphens = 'manual';
+            })();
+        """.trimIndent()
+    }
+
+    fun restoreHyphenationAfterSelection(): String {
+        return """
+            (function() {
+                window.mydeckHyphenationSelectionSuspended = false;
+                var body = document.body;
+                if (!body) return;
+                var desiredHyphens = window.mydeckDesiredHyphens || 'manual';
+                body.style.hyphens = desiredHyphens;
+                body.style.webkitHyphens = desiredHyphens;
             })();
         """.trimIndent()
     }

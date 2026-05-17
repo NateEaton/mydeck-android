@@ -7,4 +7,5 @@ enum class DrawerPreset {
     ARTICLES,
     VIDEOS,
     PICTURES,
+    HIGHLIGHTS,
 }

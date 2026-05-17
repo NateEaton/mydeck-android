@@ -327,4 +327,50 @@ class MyDeckDatabaseMigrationTest {
         dbV3.close()
         db.close()
     }
+
+    @Test
+    @Throws(IOException::class)
+    fun migrate14To15RecreatesRemoteBookmarkIdsWithSyncRunId() {
+        val helper = MigrationTestHelper(
+            InstrumentationRegistry.getInstrumentation(),
+            MyDeckDatabase::class.java,
+            emptyList<AutoMigrationSpec>(), // workaround for https://issuetracker.google.com/issues/298459978
+            FrameworkSQLiteOpenHelperFactory()
+        )
+        val db = helper.createDatabase(TEST_DB, 14).apply {
+            execSQL("INSERT INTO remote_bookmark_ids (id) VALUES ('stale-id')")
+            close()
+        }
+
+        val dbV15 = helper.runMigrationsAndValidate(TEST_DB, 15, true, MyDeckDatabase.MIGRATION_14_15)
+
+        val columns = mutableMapOf<String, ContentValues>()
+        var cursor = dbV15.query("PRAGMA table_info('remote_bookmark_ids')")
+        try {
+            while (cursor.moveToNext()) {
+                val contentValues = ContentValues()
+                DatabaseUtils.cursorRowToContentValues(cursor, contentValues)
+                columns[contentValues.getAsString("name")] = contentValues
+            }
+        } finally {
+            cursor.close()
+        }
+
+        assertEquals(2, columns.size)
+        assertEquals(1, columns.getValue("syncRunId").getAsInteger("notnull"))
+        assertEquals(1, columns.getValue("syncRunId").getAsInteger("pk"))
+        assertEquals(1, columns.getValue("id").getAsInteger("notnull"))
+        assertEquals(2, columns.getValue("id").getAsInteger("pk"))
+
+        cursor = dbV15.query("SELECT COUNT(*) FROM remote_bookmark_ids")
+        try {
+            assertTrue(cursor.moveToFirst())
+            assertEquals(0, cursor.getInt(0))
+        } finally {
+            cursor.close()
+        }
+
+        dbV15.close()
+        db.close()
+    }
 }

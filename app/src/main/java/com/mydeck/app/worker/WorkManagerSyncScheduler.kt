@@ -62,6 +62,31 @@ class WorkManagerSyncScheduler @Inject constructor(
         }
     }
 
+    override fun scheduleBookmarkOrphanRepairFullSync() {
+        try {
+            val constraints = Constraints.Builder()
+                .setRequiredNetworkType(NetworkType.CONNECTED)
+                .build()
+            val inputData = Data.Builder()
+                .putBoolean(FullSyncWorker.INPUT_FORCE_FULL_SYNC, true)
+                .putBoolean(FullSyncWorker.INPUT_IS_ORPHAN_REPAIR, true)
+                .build()
+            val request = OneTimeWorkRequestBuilder<FullSyncWorker>()
+                .setConstraints(constraints)
+                .addTag(FullSyncWorker.TAG)
+                .setInputData(inputData)
+                .build()
+            workManager.enqueueUniqueWork(
+                FullSyncWorker.UNIQUE_NAME_ORPHAN_REPAIR,
+                ExistingWorkPolicy.REPLACE,
+                request
+            )
+            Timber.i("Bookmark orphan repair full sync enqueued")
+        } catch (e: Exception) {
+            Timber.w(e, "Failed to enqueue bookmark orphan repair full sync")
+        }
+    }
+
     override fun scheduleBatchArticleLoadOverridingConstraints() {
         try {
             val constraints = Constraints.Builder()

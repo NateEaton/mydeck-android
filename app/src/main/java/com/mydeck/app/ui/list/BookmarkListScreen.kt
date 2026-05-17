@@ -420,6 +420,7 @@ fun BookmarkListScreen(
         DrawerPreset.ARTICLES -> stringResource(id = R.string.articles)
         DrawerPreset.VIDEOS -> stringResource(id = R.string.videos)
         DrawerPreset.PICTURES -> stringResource(id = R.string.pictures)
+        else -> stringResource(id = R.string.my_list)
     }
     val bookmarkCount = (uiState as? BookmarkListViewModel.UiState.Success)?.bookmarks?.size
     val currentViewTitle = if (!isLabelMode && filterFormState.value.differsFromPreset(drawerPreset.value)) {
@@ -489,6 +490,50 @@ fun BookmarkListScreen(
                     }
                 },
                 actions = {
+                    // Layout button with dropdown — icon reflects current mode
+                    Box {
+                        val currentLayoutIcon = when (layoutMode.value) {
+                            LayoutMode.GRID -> Icons.Filled.Apps
+                            LayoutMode.COMPACT -> Icons.AutoMirrored.Filled.List
+                            LayoutMode.MOSAIC -> Icons.Filled.GridView
+                        }
+                        IconButton(onClick = {
+                            dismissPendingDeleteSnackbar()
+                            showLayoutMenu = true
+                        }) {
+                            Icon(currentLayoutIcon, contentDescription = stringResource(R.string.layout))
+                        }
+                        DropdownMenu(
+                            expanded = showLayoutMenu,
+                            onDismissRequest = { showLayoutMenu = false }
+                        ) {
+                            LayoutMode.entries.forEach { mode ->
+                                DropdownMenuItem(
+                                    leadingIcon = {
+                                        Icon(
+                                            imageVector = when (mode) {
+                                                LayoutMode.GRID -> Icons.Filled.Apps
+                                                LayoutMode.COMPACT -> Icons.AutoMirrored.Filled.List
+                                                LayoutMode.MOSAIC -> Icons.Filled.GridView
+                                            },
+                                            contentDescription = null
+                                        )
+                                    },
+                                    text = {
+                                        Text(
+                                            text = mode.displayName,
+                                            fontWeight = if (mode == layoutMode.value) FontWeight.Bold else FontWeight.Normal
+                                        )
+                                    },
+                                    onClick = {
+                                        viewModel.onLayoutModeSelected(mode)
+                                        showLayoutMenu = false
+                                    }
+                                )
+                            }
+                        }
+                    }
+
                     // Sort button with dropdown — one row per category, arrow shows direction of active sort
                     Box {
                         IconButton(onClick = {
@@ -542,50 +587,6 @@ fun BookmarkListScreen(
                                         }
                                         viewModel.onSortOptionSelected(newOption)
                                         showSortMenu = false
-                                    }
-                                )
-                            }
-                        }
-                    }
-
-                    // Layout button with dropdown — icon reflects current mode
-                    Box {
-                        val currentLayoutIcon = when (layoutMode.value) {
-                            LayoutMode.GRID -> Icons.Filled.Apps
-                            LayoutMode.COMPACT -> Icons.AutoMirrored.Filled.List
-                            LayoutMode.MOSAIC -> Icons.Filled.GridView
-                        }
-                        IconButton(onClick = {
-                            dismissPendingDeleteSnackbar()
-                            showLayoutMenu = true
-                        }) {
-                            Icon(currentLayoutIcon, contentDescription = stringResource(R.string.layout))
-                        }
-                        DropdownMenu(
-                            expanded = showLayoutMenu,
-                            onDismissRequest = { showLayoutMenu = false }
-                        ) {
-                            LayoutMode.entries.forEach { mode ->
-                                DropdownMenuItem(
-                                    leadingIcon = {
-                                        Icon(
-                                            imageVector = when (mode) {
-                                                LayoutMode.GRID -> Icons.Filled.Apps
-                                                LayoutMode.COMPACT -> Icons.AutoMirrored.Filled.List
-                                                LayoutMode.MOSAIC -> Icons.Filled.GridView
-                                            },
-                                            contentDescription = null
-                                        )
-                                    },
-                                    text = {
-                                        Text(
-                                            text = mode.displayName,
-                                            fontWeight = if (mode == layoutMode.value) FontWeight.Bold else FontWeight.Normal
-                                        )
-                                    },
-                                    onClick = {
-                                        viewModel.onLayoutModeSelected(mode)
-                                        showLayoutMenu = false
                                     }
                                 )
                             }

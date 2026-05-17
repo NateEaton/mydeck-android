@@ -6,5 +6,6 @@ data class BookmarkCounts(
     val article: Int = 0,
     val video: Int = 0,
     val picture: Int = 0,
+    val highlights: Int = 0,
     val total: Int = 0
 )

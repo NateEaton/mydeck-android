@@ -13,14 +13,16 @@ import com.mydeck.app.io.db.model.BookmarkEntity
 import com.mydeck.app.io.db.model.ContentPackageEntity
 import com.mydeck.app.io.db.model.ContentResourceEntity
 import com.mydeck.app.io.db.model.RemoteBookmarkIdEntity
+import com.mydeck.app.io.db.model.RemoteAnnotationIdEntity
 import com.mydeck.app.io.db.model.PendingActionEntity
 import com.mydeck.app.io.db.dao.CachedAnnotationDao
 import com.mydeck.app.io.db.dao.PendingActionDao
+import com.mydeck.app.io.db.model.BookmarkAnnotationSyncMetadataEntity
 import com.mydeck.app.io.db.model.CachedAnnotationEntity
 
 @Database(
-    entities = [BookmarkEntity::class, ArticleContentEntity::class, ContentPackageEntity::class, ContentResourceEntity::class, RemoteBookmarkIdEntity::class, PendingActionEntity::class, CachedAnnotationEntity::class],
-    version = 12,
+    entities = [BookmarkEntity::class, ArticleContentEntity::class, ContentPackageEntity::class, ContentResourceEntity::class, RemoteBookmarkIdEntity::class, RemoteAnnotationIdEntity::class, PendingActionEntity::class, CachedAnnotationEntity::class, BookmarkAnnotationSyncMetadataEntity::class],
+    version = 15,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
@@ -231,6 +233,55 @@ abstract class MyDeckDatabase : RoomDatabase() {
                 )
                 database.execSQL(
                     "CREATE INDEX IF NOT EXISTS `index_cached_annotation_bookmarkId` ON `cached_annotation` (`bookmarkId`)"
+                )
+            }
+        }
+
+        val MIGRATION_12_13 = object : Migration(12, 13) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `remote_annotation_ids` (
+                        `id` TEXT NOT NULL,
+                        PRIMARY KEY(`id`)
+                    )
+                    """
+                )
+                database.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_cached_annotation_created` ON `cached_annotation` (`created`)"
+                )
+            }
+        }
+
+        val MIGRATION_13_14 = object : Migration(13, 14) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `bookmark_annotation_sync_metadata` (
+                        `bookmarkId` TEXT NOT NULL,
+                        `lastAttemptAt` INTEGER,
+                        `lastSuccessAt` INTEGER,
+                        `lastFailureAt` INTEGER,
+                        `failureCount` INTEGER NOT NULL DEFAULT 0,
+                        `backoffUntil` INTEGER,
+                        PRIMARY KEY(`bookmarkId`)
+                    )
+                    """
+                )
+            }
+        }
+
+        val MIGRATION_14_15 = object : Migration(14, 15) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL("DROP TABLE IF EXISTS `remote_bookmark_ids`")
+                database.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `remote_bookmark_ids` (
+                        `syncRunId` TEXT NOT NULL,
+                        `id` TEXT NOT NULL,
+                        PRIMARY KEY(`syncRunId`, `id`)
+                    )
+                    """
                 )
             }
         }

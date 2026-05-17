@@ -18,9 +18,12 @@ import androidx.webkit.WebViewAssetLoader
 import com.mydeck.app.domain.content.OfflineContentPathHandler
 import com.mydeck.app.domain.model.ImageGalleryData
 import com.mydeck.app.domain.model.SelectionData
+import com.mydeck.app.ui.detail.WebViewActionsBridge
+import com.mydeck.app.ui.detail.WebViewActionsInjector
 import com.mydeck.app.ui.detail.WebViewAnnotationBridge
 import com.mydeck.app.ui.detail.WebViewImageBridge
 import com.mydeck.app.ui.detail.WebViewAnnotationTapBridge
+import com.mydeck.app.ui.detail.WebViewSelectionScopeBridge
 import com.mydeck.app.ui.detail.WebViewTocBridge
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
@@ -50,22 +53,28 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollDispatcher
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
-import androidx.compose.foundation.ScrollState
 import com.mydeck.app.R
 import com.mydeck.app.ui.detail.BookmarkDetailViewModel
 import com.mydeck.app.ui.detail.VideoFullscreenDismissSource
 import com.mydeck.app.BuildConfig
+import com.mydeck.app.ui.detail.WebViewScrollBridge
 import com.mydeck.app.ui.detail.WebViewSearchBridge
 import com.mydeck.app.ui.detail.WebViewThemeBridge
 import com.mydeck.app.ui.detail.WebViewTypographyBridge
 import com.mydeck.app.ui.theme.resolveReaderThemePalette
 import com.mydeck.app.util.openUrlInCustomTab
+import kotlin.math.roundToInt
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -77,12 +86,18 @@ import java.io.ByteArrayInputStream
 // NOTE: READPOS and [LongPress] log statements throughout this file are intentionally
 // retained. They provide diagnostic visibility into WebView scroll position tracking
 // and hit-test behaviour needed for the planned WebView/Compose rearchitecture.
-// See docs/specs/webview-scroll-rearchitecture.md before removing.
+// See docs/archive/webview-scroll-rearchitecture.md before removing.
 private const val ReadPositionLogPrefix = "READPOS"
+private const val UserScrollIdleDelayMs = 160L
 
 private inline fun logReadPos(message: () -> String) {
     if (BuildConfig.DEBUG) Timber.d(message())
 }
+
+// No-op connection used solely to register a NestedScrollDispatcher in the Compose
+// tree at the WebView's position. The dispatcher itself is what bridges WebView
+// touch/fling deltas into Compose's nested-scroll chain (see HighlightActionWebView).
+private val NoOpNestedScrollConnection = object : NestedScrollConnection {}
 
 @Composable
 fun EmptyBookmarkDetailArticle(
@@ -98,13 +113,12 @@ fun EmptyBookmarkDetailArticle(
 fun BookmarkDetailArticle(
     modifier: Modifier,
     uiState: BookmarkDetailViewModel.UiState.Success,
+    webViewDispatcher: NestedScrollDispatcher,
     articleSearchState: BookmarkDetailViewModel.ArticleSearchState = BookmarkDetailViewModel.ArticleSearchState(),
     onArticleSearchUpdateResults: (Int, Int) -> Unit = { _, _ -> },
-    articleViewportTopPx: Int = 0,
-    articleTopOffsetPx: Float = 0f,
-    viewportHeightPx: Int = 0,
-    scrollState: ScrollState,
     onContentReady: (Boolean) -> Unit = {},
+    initialReadProgress: Int = 0,
+    onScrollProgressChanged: (Int) -> Unit = {},
     onWebViewChanged: (WebView?) -> Unit = {},
     onImageTapped: (ImageGalleryData) -> Unit = {},
     onImageLongPress: (imageUrl: String, linkUrl: String?, linkType: String, imageAlt: String) -> Unit = { _, _, _, _ -> },
@@ -112,9 +126,14 @@ fun BookmarkDetailArticle(
     onIntrapageLinkLongPress: (linkUrl: String, linkText: String) -> Unit = { _, _ -> },
     onTextSelectionCaptured: (SelectionData) -> Unit = {},
     onAnnotationClicked: (String) -> Unit = {},
-    onFragmentScroll: (absoluteY: Int) -> Unit = {},
     onVideoEnterFullscreen: (View, android.webkit.WebChromeClient.CustomViewCallback?) -> Unit = { _, _ -> },
     onVideoExitFullscreen: (VideoFullscreenDismissSource) -> Unit = {},
+    onToggleFavorite: (String, Boolean) -> Unit = { _, _ -> },
+    onToggleArchive: (String, Boolean) -> Unit = { _, _ -> },
+    onScrollChanged: (scrollY: Int, deltaY: Int, scrollProgress: Float, userInitiated: Boolean) -> Unit = { _, _, _, _ -> },
+    annotationId: String = "",
+    contentReloadKey: Int = 0,
+    readerTopClearanceCssPx: Int = 0,
 ) {
     val isSystemInDarkMode = isSystemInDarkTheme()
     val localContext = LocalContext.current
@@ -122,14 +141,33 @@ fun BookmarkDetailArticle(
     val readerThemePalette = remember(localContext, effectiveAppearance) {
         resolveReaderThemePalette(context = localContext, appearance = effectiveAppearance)
     }
+    val favoriteLabel = stringResource(R.string.action_add_to_favorites)
+    val unfavoriteLabel = stringResource(R.string.action_remove_from_favorites)
+    val archiveLabel = stringResource(R.string.action_add_to_archive)
+    val unarchiveLabel = stringResource(R.string.action_remove_from_archive)
+    val latestUiState by rememberUpdatedState(uiState)
+    val latestToggleFavorite by rememberUpdatedState(onToggleFavorite)
+    val latestToggleArchive by rememberUpdatedState(onToggleArchive)
     // Key on articleContent presence (not the full string) so annotation-refresh HTML changes
     // don't trigger a full WebView reload — those are handled via JS innerHTML replacement.
     val content = remember(
         uiState.bookmark.bookmarkId,
         uiState.bookmark.articleContent != null,
-        uiState.bookmark.embed
+        uiState.bookmark.embed,
+        contentReloadKey,
+        readerTopClearanceCssPx
     ) {
-        mutableStateOf(uiState.bookmark.getContent(uiState.template, isSystemInDarkMode))
+        mutableStateOf(
+            uiState.bookmark.getContent(
+                template = uiState.template,
+                isDark = isSystemInDarkMode,
+                favoriteLabel = favoriteLabel,
+                unfavoriteLabel = unfavoriteLabel,
+                archiveLabel = archiveLabel,
+                unarchiveLabel = unarchiveLabel,
+                topClearanceCssPx = readerTopClearanceCssPx,
+            )
+        )
     }
     val webViewRef = remember { mutableStateOf<WebView?>(null) }
     val offlineAssetLoader = remember(uiState.bookmark.offlineBaseUrl) {
@@ -147,11 +185,19 @@ fun BookmarkDetailArticle(
     val json = remember { Json { ignoreUnknownKeys = true } }
     val latestSelectionHandler = rememberUpdatedState(onTextSelectionCaptured)
     val latestAnnotationClickHandler = rememberUpdatedState(onAnnotationClicked)
-    val latestFragmentScrollHandler = rememberUpdatedState(onFragmentScroll)
     val latestIntrapageLinkLongPressHandler = rememberUpdatedState(onIntrapageLinkLongPress)
     val latestTypographySettings = rememberUpdatedState(uiState.typographySettings)
     val latestThemePalette = rememberUpdatedState(readerThemePalette)
     val latestThemeScript = rememberUpdatedState(WebViewThemeBridge.applyTheme(readerThemePalette))
+    val latestProgressHandler = rememberUpdatedState(onScrollProgressChanged)
+    val latestScrollChangedHandler = rememberUpdatedState(onScrollChanged)
+    val latestVideoEnterFullscreen = rememberUpdatedState(onVideoEnterFullscreen)
+    val latestVideoExitFullscreen = rememberUpdatedState(onVideoExitFullscreen)
+    val latestInitialProgress = rememberUpdatedState(initialReadProgress)
+    val latestAnnotationId = rememberUpdatedState(annotationId)
+    val latestIsVideo = rememberUpdatedState(
+        uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.VIDEO
+    )
     val lastDeliveredAnnotationTap = remember { mutableStateOf<Pair<String, Long>?>(null) }
     var hasReportedReady by remember(uiState.bookmark.bookmarkId, uiState.bookmark.articleContent != null) { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
@@ -161,18 +207,14 @@ fun BookmarkDetailArticle(
         webView.evaluateJavascript(latestThemeScript.value, null)
     }
 
-    suspend fun focusSearchMatch(webView: WebView, matchIndex: Int) {
+    fun focusSearchMatch(webView: WebView, matchIndex: Int) {
         if (matchIndex < 0) return
         WebViewSearchBridge.highlightCurrentMatch(webView, matchIndex)
-        if (viewportHeightPx <= 0) return
-        val centerRatio = WebViewSearchBridge.getMatchViewportCenterRatio(webView, matchIndex) ?: return
-        val targetInsideArticle = webView.height.toFloat() * centerRatio
-        val targetScroll = (
-            articleTopOffsetPx +
-                targetInsideArticle -
-                (viewportHeightPx / 2f)
-            ).toInt().coerceIn(0, scrollState.maxValue)
-        scrollState.animateScrollTo(targetScroll)
+        webView.evaluateJavascript(
+            "(function(){ var el = document.querySelector('.mydeck-search-match[data-match-index=\"$matchIndex\"]'); " +
+                "if (el) el.scrollIntoView({block:'center', behavior:'smooth'}); })();",
+            null
+        )
     }
 
     fun deliverAnnotationTap(annotationId: String, source: String) {
@@ -195,9 +237,19 @@ fun BookmarkDetailArticle(
     LaunchedEffect(
         uiState.bookmark.bookmarkId,
         uiState.bookmark.articleContent != null,
-        uiState.bookmark.embed
+        uiState.bookmark.embed,
+        contentReloadKey,
+        readerTopClearanceCssPx
     ) {
-        content.value = uiState.bookmark.getContent(uiState.template, isSystemInDarkMode)
+        content.value = uiState.bookmark.getContent(
+            template = uiState.template,
+            isDark = isSystemInDarkMode,
+            favoriteLabel = favoriteLabel,
+            unfavoriteLabel = unfavoriteLabel,
+            archiveLabel = archiveLabel,
+            unarchiveLabel = unarchiveLabel,
+            topClearanceCssPx = readerTopClearanceCssPx,
+        )
         webViewRef.value?.let { webView ->
             if (webView.settings.textZoom != uiState.typographySettings.fontSizePercent) {
                 webView.settings.textZoom = uiState.typographySettings.fontSizePercent
@@ -248,7 +300,12 @@ fun BookmarkDetailArticle(
             // Small delay to let textZoom take effect before applying CSS typography
             delay(50)
             withContext(Dispatchers.Main) {
-                val js = WebViewTypographyBridge.applyTypography(uiState.typographySettings)
+                val widthPercent =
+                    (uiState.typographySettings.textWidth.widthFraction * 100f).roundToInt()
+                val js = WebViewTypographyBridge.applyTypography(
+                    uiState.typographySettings,
+                    widthPercent
+                )
                 webView.evaluateJavascript(js) {
                     // Force Compose to re-measure after WebView reflows.
                     // Use postVisualStateCallback for reliable timing (API 23+).
@@ -277,6 +334,27 @@ fun BookmarkDetailArticle(
         }
     }
 
+    // Sync the in-page favorite/archive button state when the underlying bookmark
+    // toggles change (e.g., user taps the button and the ViewModel updates the state).
+    LaunchedEffect(uiState.bookmark.isFavorite) {
+        webViewRef.value?.let { webView ->
+            val label = if (uiState.bookmark.isFavorite) unfavoriteLabel else favoriteLabel
+            webView.evaluateJavascript(
+                WebViewActionsInjector.setFavoriteStateScript(uiState.bookmark.isFavorite, label),
+                null
+            )
+        }
+    }
+    LaunchedEffect(uiState.bookmark.isArchived) {
+        webViewRef.value?.let { webView ->
+            val label = if (uiState.bookmark.isArchived) unarchiveLabel else archiveLabel
+            webView.evaluateJavascript(
+                WebViewActionsInjector.setArchiveStateScript(uiState.bookmark.isArchived, label),
+                null
+            )
+        }
+    }
+
     // Handle search query changes
     LaunchedEffect(articleSearchState.query) {
         webViewRef.value?.let { webView ->
@@ -284,7 +362,6 @@ fun BookmarkDetailArticle(
                 WebViewSearchBridge.searchAndHighlight(
                     webView = webView,
                     query = articleSearchState.query,
-                    viewportTopPx = articleViewportTopPx
                 ) { matchCount, preferredIndex ->
                     val targetMatch = when {
                         articleSearchState.currentMatch in 1..matchCount -> articleSearchState.currentMatch
@@ -338,7 +415,6 @@ fun BookmarkDetailArticle(
                 WebViewSearchBridge.searchAndHighlight(
                     webView = webView,
                     query = articleSearchState.query,
-                    viewportTopPx = articleViewportTopPx
                 ) { matchCount, preferredIndex ->
                     val targetMatch = when {
                         articleSearchState.currentMatch in 1..matchCount -> articleSearchState.currentMatch
@@ -359,11 +435,19 @@ fun BookmarkDetailArticle(
     if (content.value != null) {
         if (!LocalInspectionMode.current) {
             AndroidView(
-                modifier = Modifier.padding(0.dp),
+                modifier = modifier
+                    .padding(0.dp)
+                    .nestedScroll(
+                        connection = NoOpNestedScrollConnection,
+                        dispatcher = webViewDispatcher
+                    ),
                 factory = { context ->
                     HighlightActionWebView(
                         context = context,
                         highlightActionLabel = context.getString(R.string.highlight_action),
+                        onReaderScrollChanged = { scrollY, deltaY, scrollProgress, userInitiated ->
+                            latestScrollChangedHandler.value(scrollY, deltaY, scrollProgress, userInitiated)
+                        },
                         onAnnotationTapRequested = { webView ->
                             WebViewAnnotationBridge.consumePendingTappedAnnotation(webView) { annotationId ->
                                 if (annotationId == null) {
@@ -395,6 +479,9 @@ fun BookmarkDetailArticle(
                         settings.defaultTextEncodingName = "utf-8"
                         isVerticalScrollBarEnabled = false
                         isHorizontalScrollBarEnabled = false
+                        isNestedScrollingEnabled = true
+                        overScrollMode = View.OVER_SCROLL_NEVER
+                        nestedScrollDispatcher = webViewDispatcher
                         settings.textZoom = uiState.typographySettings.fontSizePercent
 
                         // Register the JS-to-native image bridge
@@ -413,31 +500,55 @@ fun BookmarkDetailArticle(
                             ),
                             WebViewAnnotationTapBridge.BRIDGE_NAME
                         )
+                        val selfRef = this
                         addJavascriptInterface(
-                            WebViewTocBridge(
-                                onFragmentScroll = { absoluteY ->
-                                    latestFragmentScrollHandler.value(absoluteY)
+                            WebViewSelectionScopeBridge(
+                                onScopeChanged = { inside ->
+                                    selfRef.selectionInsideArticleBody = inside
                                 }
                             ),
-                            WebViewTocBridge.BRIDGE_NAME
+                            WebViewSelectionScopeBridge.BRIDGE_NAME
+                        )
+                        addJavascriptInterface(
+                            WebViewScrollBridge.BookmarkScrollInterface { percentage ->
+                                val progress = Math.round(percentage * 100).coerceIn(0, 100)
+                                Timber.d(
+                                    "$ReadPositionLogPrefix: progress-report bookmark=${uiState.bookmark.bookmarkId} " +
+                                        "progress=$progress source=js-bridge"
+                                )
+                                latestProgressHandler.value(progress)
+                            },
+                            WebViewScrollBridge.BRIDGE_NAME
+                        )
+                        addJavascriptInterface(
+                            WebViewActionsBridge(
+                                onToggleFavorite = {
+                                    val bm = latestUiState.bookmark
+                                    latestToggleFavorite(bm.bookmarkId, !bm.isFavorite)
+                                },
+                                onToggleArchive = {
+                                    val bm = latestUiState.bookmark
+                                    latestToggleArchive(bm.bookmarkId, !bm.isArchived)
+                                }
+                            ),
+                            WebViewActionsBridge.BRIDGE_NAME
                         )
                         webChromeClient = object : android.webkit.WebChromeClient() {
                             override fun onShowCustomView(
                                 view: View?,
                                 callback: CustomViewCallback?
                             ) {
-                                if (!isVideo || view == null) {
+                                if (!latestIsVideo.value || view == null) {
                                     callback?.onCustomViewHidden()
                                     return
                                 }
-                                this@apply.visibility = View.GONE
-                                onVideoEnterFullscreen(view, callback)
+                                latestVideoEnterFullscreen.value(view, callback)
                             }
 
                             override fun onHideCustomView() {
-                                if (isVideo) {
+                                if (latestIsVideo.value) {
                                     this@apply.visibility = View.VISIBLE
-                                    onVideoExitFullscreen(VideoFullscreenDismissSource.WEB_CHROME)
+                                    latestVideoExitFullscreen.value(VideoFullscreenDismissSource.WEB_CHROME)
                                 } else {
                                     super.onHideCustomView()
                                 }
@@ -470,9 +581,9 @@ fun BookmarkDetailArticle(
                                     val network = cm?.activeNetwork
                                     val isOffline = network == null || cm.getNetworkCapabilities(network)
                                         ?.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_VALIDATED) != true
-                                    if (isOffline && isVideo) {
+                                    if (isOffline && latestIsVideo.value) {
                                         val host = url.host?.lowercase() ?: ""
-                                        val embedBaseUrl = extractEmbedBaseUrl(uiState.bookmark.embed)
+                                        val embedBaseUrl = extractEmbedBaseUrl(latestUiState.bookmark.embed)
                                         val embedHost = embedBaseUrl?.let { Uri.parse(it).host?.lowercase() }
                                         val isEmbedHost = embedHost != null && host.contains(embedHost)
                                         val isKnownVideoHost = host.contains("youtube.com") || host.contains("youtube-nocookie.com") || host.contains("youtu.be") || host.contains("vimeo.com")
@@ -507,17 +618,30 @@ fun BookmarkDetailArticle(
                                 return super.shouldInterceptRequest(view, request)
                             }
 
+                            private var imageInterceptorInjected = false
+
                             private fun applyReaderEnhancements(webView: WebView) {
+                                val latestTypography = latestTypographySettings.value
+                                val widthPercent =
+                                    (latestTypography.textWidth.widthFraction * 100f).roundToInt()
                                 val typographyJs =
-                                    WebViewTypographyBridge.applyTypography(latestTypographySettings.value)
+                                    WebViewTypographyBridge.applyTypography(
+                                        latestTypography,
+                                        widthPercent
+                                    )
                                 applyTheme(webView)
                                 webView.evaluateJavascript(typographyJs, null)
-                                val imageJs = WebViewImageBridge.injectImageInterceptor()
-                                webView.evaluateJavascript(imageJs, null)
+                                if (!imageInterceptorInjected) {
+                                    imageInterceptorInjected = true
+                                    webView.evaluateJavascript(WebViewImageBridge.injectImageInterceptor(), null)
+                                }
                                 val annotationJs = WebViewAnnotationBridge.injectAnnotationInteractions()
                                 webView.evaluateJavascript(annotationJs, null)
-                                val tocJs = WebViewTocBridge.injectFragmentLinkInterceptor()
-                                webView.evaluateJavascript(tocJs, null)
+                                webView.evaluateJavascript(
+                                    WebViewSelectionScopeBridge.injectSelectionScopeWatcher(),
+                                    null
+                                )
+                                webView.evaluateJavascript(WebViewActionsInjector.injectActions(), null)
                             }
 
                             private fun reportReadyIfNeeded(webView: WebView?) {
@@ -560,9 +684,24 @@ fun BookmarkDetailArticle(
                                 return false
                             }
 
+                            override fun onPageStarted(view: WebView?, url: String?, favicon: android.graphics.Bitmap?) {
+                                super.onPageStarted(view, url, favicon)
+                                imageInterceptorInjected = false
+                                (view as? HighlightActionWebView)?.selectionInsideArticleBody = false
+                            }
+
                             override fun onPageCommitVisible(view: WebView?, url: String?) {
                                 super.onPageCommitVisible(view, url)
-                                view?.let { applyReaderEnhancements(it) }
+                                view?.let { webView ->
+                                    applyReaderEnhancements(webView)
+                                    val currentAnnotationId = latestAnnotationId.value
+                                    val target = if (currentAnnotationId.isNotEmpty()) 0f
+                                                 else (latestInitialProgress.value / 100f).coerceIn(0f, 1f)
+                                    webView.evaluateJavascript(
+                                        WebViewScrollBridge.injectScrollManager(target, currentAnnotationId),
+                                        null
+                                    )
+                                }
                                 if (!hasReportedReady) {
                                     hasReportedReady = true
                                     logReadPos { "$ReadPositionLogPrefix: ready-true bookmark=${uiState.bookmark.bookmarkId} source=page-commit-visible" }
@@ -681,6 +820,19 @@ fun BookmarkDetailArticle(
             if (it.settings.textZoom != uiState.typographySettings.fontSizePercent) {
                 it.settings.textZoom = uiState.typographySettings.fontSizePercent
             }
+            val isVideo = uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.VIDEO
+            val isArticle = uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.ARTICLE
+            val isPhoto = uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.PHOTO
+            it.settings.javaScriptEnabled = isVideo || isArticle || isPhoto
+            it.settings.domStorageEnabled = isVideo
+            // Defensive re-assertion: protects against the rare case where the factory's
+            // dispatcher reference is replaced across recompositions.
+            if ((it as? HighlightActionWebView)?.nestedScrollDispatcher !== webViewDispatcher) {
+                (it as? HighlightActionWebView)?.nestedScrollDispatcher = webViewDispatcher
+            }
+            (it as? HighlightActionWebView)?.onReaderScrollChanged = { scrollY, deltaY, scrollProgress, userInitiated ->
+                latestScrollChangedHandler.value(scrollY, deltaY, scrollProgress, userInitiated)
+            }
             it.setBackgroundColor(android.graphics.Color.parseColor(readerThemePalette.bodyBackgroundColor))
         }
             )
@@ -694,6 +846,7 @@ fun BookmarkDetailArticle(
 private class HighlightActionWebView(
     context: Context,
     private val highlightActionLabel: String,
+    var onReaderScrollChanged: (scrollY: Int, deltaY: Int, scrollProgress: Float, userInitiated: Boolean) -> Unit,
     private val onAnnotationTapRequested: (WebView) -> Unit,
     private val onHighlightActionRequested: (WebView, finishActionMode: () -> Unit) -> Unit
 ) : WebView(context) {
@@ -702,21 +855,103 @@ private class HighlightActionWebView(
     private var downY = 0f
     private var downTime = 0L
 
+    // Bridges WebView native scroll into Compose's nested-scroll chain. The touch path
+    // dispatches pre/post-scroll synchronously around super.onTouchEvent. The fling
+    // path (no touch events) is handled post-hoc via onScrollChanged — fling fidelity
+    // is post-hoc by design (no pre-scroll for fling).
+    var nestedScrollDispatcher: NestedScrollDispatcher? = null
+
+    private var lastTouchY = 0f
+    private var isInTouchMove = false
+
+    // Touch-slop guard: suppresses nested-scroll dispatch for sub-slop finger jitter
+    // so the top app bar doesn't oscillate at the start of a drag.
+    private var slopCrossed = false
+    private var totalDeltaSinceDownY = 0f
+    private var actionModeDepth = 0
+    private var isUserScrollActive = false
+
+    // Written by WebViewSelectionScopeBridge from the JS thread; read on the UI thread
+    // when populating the selection action menu. Volatile keeps the read fresh without
+    // a lock.
+    @Volatile
+    var selectionInsideArticleBody: Boolean = false
+    private val clearUserScrollActive = Runnable {
+        isUserScrollActive = false
+    }
+
+    // Cumulative shift (in pixels) applied to ACTION_MOVE coordinates via
+    // event.offsetLocation so WebView perceives only the unconsumed portion of the
+    // gesture. Replaces the destructive scrollBy() compensation that caused jitter.
+    private var cumulativeNestedScrollOffsetY = 0f
+
     override fun startActionMode(callback: ActionMode.Callback?, type: Int): ActionMode? {
-        return super.startActionMode(wrapActionModeCallback(callback), type)
+        suspendHyphenationForSelection()
+        val actionMode = super.startActionMode(wrapActionModeCallback(callback), type)
+        if (actionMode == null) {
+            restoreHyphenationAfterSelection()
+        }
+        return actionMode
     }
 
     override fun startActionMode(callback: ActionMode.Callback?): ActionMode? {
-        return super.startActionMode(wrapActionModeCallback(callback))
+        suspendHyphenationForSelection()
+        val actionMode = super.startActionMode(wrapActionModeCallback(callback))
+        if (actionMode == null) {
+            restoreHyphenationAfterSelection()
+        }
+        return actionMode
     }
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
-        val handled = super.onTouchEvent(event)
+        val dispatcher = nestedScrollDispatcher
         when (event.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
                 downX = event.x
                 downY = event.y
                 downTime = event.eventTime
+                lastTouchY = event.y
+                isInTouchMove = false
+                slopCrossed = false
+                totalDeltaSinceDownY = 0f
+                cumulativeNestedScrollOffsetY = 0f
+                return super.onTouchEvent(event)
+            }
+
+            MotionEvent.ACTION_MOVE -> {
+                if (dispatcher != null) {
+                    // Compose convention: finger up (content moving up) → negative availableY.
+                    // Read REAL coords for slop tracking and lastTouchY update before any shift.
+                    val originalY = event.y
+                    val availableY = originalY - lastTouchY
+                    lastTouchY = originalY
+                    isInTouchMove = true
+
+                    if (!slopCrossed) {
+                        totalDeltaSinceDownY += availableY
+                        if (kotlin.math.abs(totalDeltaSinceDownY) >= touchSlop.toFloat()) {
+                            slopCrossed = true
+                            isUserScrollActive = true
+                        }
+                    }
+
+                    if (slopCrossed) {
+                        val available = Offset(0f, availableY)
+                        val consumed = dispatcher.dispatchPreScroll(available, NestedScrollSource.Drag)
+                        // Shift the event so WebView only "sees" the unconsumed portion.
+                        // Negate consumed.y because if Compose ate negative motion, the WebView
+                        // should perceive less negative (i.e. positive shift) finger movement.
+                        cumulativeNestedScrollOffsetY += -consumed.y
+                        event.offsetLocation(0f, cumulativeNestedScrollOffsetY)
+                        val handled = super.onTouchEvent(event)
+                        val remaining = Offset(0f, availableY - consumed.y)
+                        dispatcher.dispatchPostScroll(consumed, remaining, NestedScrollSource.Drag)
+                        return handled
+                    }
+                    // Sub-slop: pass through untouched so the top bar stays still.
+                    return super.onTouchEvent(event)
+                }
+                return super.onTouchEvent(event)
             }
 
             MotionEvent.ACTION_UP -> {
@@ -729,16 +964,90 @@ private class HighlightActionWebView(
                         onAnnotationTapRequested(this)
                     }, 150L)
                 }
+                lastTouchY = 0f
+                isInTouchMove = false
+                slopCrossed = false
+                totalDeltaSinceDownY = 0f
+                cumulativeNestedScrollOffsetY = 0f
+                scheduleUserScrollIdle()
+                return super.onTouchEvent(event)
+            }
+
+            MotionEvent.ACTION_CANCEL -> {
+                lastTouchY = 0f
+                isInTouchMove = false
+                slopCrossed = false
+                totalDeltaSinceDownY = 0f
+                cumulativeNestedScrollOffsetY = 0f
+                scheduleUserScrollIdle()
+                return super.onTouchEvent(event)
             }
         }
 
-        return handled
+        return super.onTouchEvent(event)
+    }
+
+    override fun onGenericMotionEvent(event: MotionEvent): Boolean {
+        if (event.actionMasked == MotionEvent.ACTION_SCROLL) {
+            isUserScrollActive = true
+        }
+        return super.onGenericMotionEvent(event)
+    }
+
+    override fun onScrollChanged(l: Int, t: Int, oldl: Int, oldt: Int) {
+        super.onScrollChanged(l, t, oldl, oldt)
+        val delta = t - oldt
+        if (delta != 0) {
+            val maxScroll = (computeVerticalScrollRange() - computeVerticalScrollExtent())
+                .coerceAtLeast(0)
+            val progress = if (maxScroll > 0) {
+                (t.toFloat() / maxScroll.toFloat()).coerceIn(0f, 1f)
+            } else {
+                0f
+            }
+            onReaderScrollChanged(t, delta, progress, isUserScrollActive)
+            if (isUserScrollActive) {
+                scheduleUserScrollIdle()
+            }
+        }
+        // Avoid double-counting during touch — the touch path already dispatched
+        // pre/post-scroll for these deltas.
+        if (isInTouchMove) return
+        val dispatcher = nestedScrollDispatcher ?: return
+        val deltaFloat = delta.toFloat()
+        if (deltaFloat == 0f) return
+        // Convert WebView scroll-forward (positive delta) to Compose's negative-forward convention.
+        val composeY = -deltaFloat
+        dispatcher.dispatchPostScroll(
+            consumed = Offset(0f, composeY),
+            available = Offset.Zero,
+            source = NestedScrollSource.Fling
+        )
+    }
+
+    private fun scheduleUserScrollIdle() {
+        removeCallbacks(clearUserScrollActive)
+        postDelayed(clearUserScrollActive, UserScrollIdleDelayMs)
     }
 
     private fun wrapActionModeCallback(callback: ActionMode.Callback?): ActionMode.Callback? {
         if (callback == null) return null
         if (callback is HighlightActionModeCallback) return callback
         return HighlightActionModeCallback(callback)
+    }
+
+    private fun suspendHyphenationForSelection() {
+        if (actionModeDepth == 0) {
+            evaluateJavascript(WebViewTypographyBridge.suspendHyphenationForSelection(), null)
+        }
+        actionModeDepth += 1
+    }
+
+    private fun restoreHyphenationAfterSelection() {
+        actionModeDepth = (actionModeDepth - 1).coerceAtLeast(0)
+        if (actionModeDepth == 0) {
+            evaluateJavascript(WebViewTypographyBridge.restoreHyphenationAfterSelection(), null)
+        }
     }
 
     private inner class HighlightActionModeCallback(
@@ -767,7 +1076,11 @@ private class HighlightActionWebView(
         }
 
         override fun onDestroyActionMode(mode: ActionMode) {
-            delegate.onDestroyActionMode(mode)
+            try {
+                delegate.onDestroyActionMode(mode)
+            } finally {
+                restoreHyphenationAfterSelection()
+            }
         }
 
         override fun onGetContentRect(mode: ActionMode, view: View, outRect: android.graphics.Rect) {
@@ -780,6 +1093,14 @@ private class HighlightActionWebView(
 
         private fun addHighlightAction(menu: Menu) {
             menu.removeItem(HIGHLIGHT_ACTION_ID)
+
+            // Suppress "Add Highlight" for selections that originate outside the
+            // article body container (`#rd-article-content`). This naturally covers
+            // header descriptions on ARTICLE/VIDEO/PHOTO bookmarks and the entire
+            // PHOTO reading view, which never wraps its body in that container.
+            if (!this@HighlightActionWebView.selectionInsideArticleBody) {
+                return
+            }
 
             val copyOrder = menu.findItem(android.R.id.copy)?.order
             val shareItem = menu.findItem(android.R.id.shareText)

@@ -291,6 +291,13 @@ private fun ContentSyncStatusIndicator(
                 false
             )
         }
+        contentSyncStatusRes == R.string.sync_content_waiting_network -> {
+            Triple(
+                stringResource(R.string.sync_content_waiting_network),
+                Icons.Filled.WifiOff,
+                false
+            )
+        }
         contentSyncStatusRes == R.string.sync_content_waiting_battery -> {
             Triple(
                 stringResource(R.string.sync_content_waiting_battery),
@@ -340,6 +347,7 @@ private fun ContentSyncStatusIndicator(
                     contentSyncStatusRes == R.string.sync_content_status_up_to_date ->
                         MaterialTheme.colorScheme.onSurfaceVariant
                     contentSyncStatusRes == R.string.sync_content_waiting_wifi ||
+                    contentSyncStatusRes == R.string.sync_content_waiting_network ||
                     contentSyncStatusRes == R.string.sync_content_waiting_battery ->
                         MaterialTheme.colorScheme.error
                     else -> MaterialTheme.colorScheme.primary

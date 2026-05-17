@@ -8,5 +8,6 @@ data class BookmarkCountsEntity(
     @ColumnInfo(name = "article_count") val article: Int,
     @ColumnInfo(name = "video_count") val video: Int,
     @ColumnInfo(name = "picture_count") val picture: Int,
+    @ColumnInfo(name = "highlights_count") val highlights: Int,
     @ColumnInfo(name = "total_count") val total: Int
 )

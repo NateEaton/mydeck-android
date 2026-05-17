@@ -59,6 +59,10 @@ The card is removed from the current list immediately when you archive or unarch
 
 To see all your archived bookmarks, open the navigation drawer and tap **Archive**.
 
+## Highlights
+
+Highlights let you mark passages in articles and transcripts with a color and an optional note. To browse all your highlights across every bookmark in one place, open the navigation drawer and tap **Highlights**. See the [Highlights](./highlights.md) guide for full details.
+
 ## Deleting Bookmarks
 
 To delete a bookmark, tap the **🗑️** button on its card in a list view, or tap **⋮** → **Delete** in the reading view.

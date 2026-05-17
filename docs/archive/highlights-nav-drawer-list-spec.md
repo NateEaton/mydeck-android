@@ -1,6 +1,6 @@
 # Highlights Nav Drawer & List View — Technical Specification
 
-**Status:** Ready for implementation
+**Status:** Implemented, with 2026-05-09 video edit follow-up
 **Date:** 2026-04-04
 **Supersedes:** `_notes/highlights-nav-drawer-list-spec.md`
 
@@ -11,8 +11,12 @@
 Add a "Highlights" item to the navigation drawer that opens a full-screen list of all highlights across all bookmarks, fetched from the `GET /bookmarks/annotations` API endpoint. Tapping a highlight card navigates to the bookmark's reading view and scrolls to the specific annotation.
 
 This spec also covers two prerequisite bug fixes that must land in the same PR:
-- Relax the remaining `ARTICLE`-only annotation UI gates so Video/Photo bookmarks can also use them.
+- Relax the remaining `ARTICLE`-only annotation UI gates so Video bookmarks can show existing highlights.
 - Fix annotation CRUD for video bookmarks (post-mutation HTML refresh currently silently no-ops).
+
+2026-05-09 follow-up: video highlight editing is enabled when the video bookmark has
+Readeck-provided text content, such as a transcript. Embed-only videos remain view-only because
+there is no stable article/transcript DOM for the annotation API selectors to target.
 
 ---
 
@@ -26,13 +30,13 @@ This is the correct pattern because: (a) the user is browsing a cross-bookmark i
 
 ## 3. Prerequisites / Bug Fixes
 
-These bugs are uncovered by the Highlights feature (a user can navigate to a Photo/Video bookmark from the Highlights list and expect annotation UI to work) and must be fixed as part of this PR.
+These bugs are uncovered by the Highlights feature (a user can navigate to a Video bookmark from the Highlights list and expect existing annotation UI to work) and must be fixed as part of this PR. Photo bookmark highlight support is not planned because Photo bookmarks do not appear to expose highlightable reader HTML.
 
 ### 3.1 ARTICLE-only gate on annotation UI
 
 **Files:** `BookmarkDetailMenu.kt` and `BookmarkDetailScreen.kt`
 
-The codebase has already partially relaxed this behaviour: the top bar and end-of-content reader actions already allow `ARTICLE`, `VIDEO`, and `PHOTO`. The remaining `type == ARTICLE` guards below still restrict parts of the annotation UI to articles only. The underlying `HighlightActionWebView` already works for all content types; Readeck's backend supports annotations on photos and videos.
+The codebase has already partially relaxed this behaviour: the top bar and end-of-content reader actions already allow `ARTICLE` and `VIDEO`. The remaining `type == ARTICLE` guards below still restrict parts of the annotation UI to articles only. The underlying `HighlightActionWebView` works for article text and video transcript HTML. Video highlight creation/editing is allowed only when `articleContent` is present; otherwise MyDeck keeps the "editing video highlights isn't supported yet" guard because embed-only videos do not have selectable Readeck article text.
 
 #### `BookmarkDetailMenu.kt` (line 66–67)
 
@@ -44,8 +48,7 @@ if (uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.ARTICLE &&
 To:
 ```kotlin
 if ((uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.ARTICLE ||
-     uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.VIDEO ||
-     uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.PHOTO) &&
+     uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.VIDEO) &&
     contentMode == ContentMode.READER) {
 ```
 
@@ -55,7 +58,7 @@ Same change: replace the `type == ARTICLE` check with the three-way OR.
 
 #### `BookmarkDetailScreen.kt` — `AnnotationEditSheet` guard (line ~704)
 
-Same change.
+Allow `ARTICLE`, and allow `VIDEO` only when the bookmark has nonblank `articleContent`.
 
 ### 3.2 Video bookmark annotation HTML refresh
 
@@ -69,12 +72,12 @@ When a user creates, updates, or deletes an annotation on a video bookmark, `ref
 
 The annotation CRUD API call itself succeeded, but the WebView DOM is not updated, and the cached annotation entity is not refreshed. The annotation will not visually appear until the user closes and re-opens the bookmark.
 
-**Fix:** At the start of `refreshAnnotationHtml`, short-circuit for video bookmarks by re-fetching the per-bookmark annotation list and refreshing the cached entity, then returning without attempting an HTML refresh (since video embeds do not have injectable `<rd-annotation>` DOM elements):
+**Fix:** At the start of `refreshAnnotationHtml`, branch for video bookmarks by re-fetching the per-bookmark annotation list and refreshing the cached entity. When the video has transcript/article HTML, refetch `/bookmarks/{id}/article` with the `hasArticle` guard bypassed and inject only the refreshed `#rd-article-content` content so the video iframe is not clobbered:
 
 ```kotlin
 private suspend fun refreshAnnotationHtml(bookmarkId: String) {
-    // Video bookmarks have no extractable article HTML. Re-fetch the annotation
-    // list from the API to keep the local cache consistent, then return.
+    // Video bookmarks may have transcript HTML even when hasArticle is false.
+    // Re-fetch the annotation list and refresh only the transcript DOM.
     val bookmarkType = (_uiState.value as? UiState.Success)?.bookmark?.type
     if (bookmarkType == Bookmark.Type.VIDEO) {
         try {
@@ -91,16 +94,26 @@ private suspend fun refreshAnnotationHtml(bookmarkId: String) {
         } catch (e: Exception) {
             Timber.w(e, "Failed to refresh video annotation cache for $bookmarkId")
         }
+        val articleHtml = refreshVideoAnnotationHtml(bookmarkId)
+        if (articleHtml != null) {
+            _annotationRefreshEvent.send(AnnotationRefreshEvent.VideoHtmlRefresh(articleHtml))
+        }
         return
     }
 
-    // Existing logic for articles and photos below...
+    // Existing logic for articles below...
     val hasResources = cachedHasResources ?: contentPackageManager.hasResources(bookmarkId) ?: false
     // ... remainder unchanged
 }
 ```
 
 > **Note:** `AnnotationDto.toDomain()` should already exist (used elsewhere in the ViewModel). If the extension doesn't exist as a standalone, inline the mapping. The `_annotationsState` field type and update pattern should match however it is already updated in `loadAnnotations()`.
+
+For create/delete mutations, the video refresh should wait briefly for the server-rendered article
+HTML to converge before caching it. Specifically, after create, verify the refreshed HTML contains
+the new annotation ID (`data-annotation-id-value` or `id="annotation-{id}"`); after delete, verify
+the removed IDs are absent. This prevents caching a stale transcript immediately after the API
+mutation succeeds.
 
 ---
 
@@ -641,7 +654,7 @@ Add to `values/strings.xml` and all 9 language-variant files (with English as pl
 | `ui/shell/AppShell.kt` | Register `HighlightsRoute`; wire `onClickHighlights` in all three shell variants |
 | `ui/detail/BookmarkDetailScreen.kt` | Accept `annotationId` parameter; call `viewModel.scrollToAnnotation()` |
 | `ui/shell/AppShell.kt` | Pass `annotationId` from `BookmarkDetailRoute` into `BookmarkDetailScreen(...)` in all shell variants |
-| `ui/detail/components/BookmarkDetailMenu.kt` | Relax `ARTICLE` gate to include `VIDEO` and `PHOTO` |
+| `ui/detail/components/BookmarkDetailMenu.kt` | Relax `ARTICLE` gate to include `VIDEO` |
 | `ui/detail/BookmarkDetailViewModel.kt` | Fix `refreshAnnotationHtml()` for video bookmarks |
 | `res/values/strings.xml` + 9 language files | Add 5 new strings |
 | Hilt module (existing) | Bind `HighlightsRepositoryImpl` |
@@ -654,7 +667,7 @@ Execute steps in order. Each step builds on the last and leaves the project in a
 
 ### Step 1 — Bug fix: ARTICLE type gates
 
-Edit `BookmarkDetailMenu.kt` and `BookmarkDetailScreen.kt` to relax the three `type == ARTICLE` checks to include `VIDEO` and `PHOTO`. Build and verify annotations UI appears on a video bookmark in reader mode.
+Edit `BookmarkDetailMenu.kt` and `BookmarkDetailScreen.kt` to relax the relevant `type == ARTICLE` checks to include `VIDEO` where existing video highlights can be displayed or navigated. Build and verify the annotations list appears on a video bookmark in reader mode. Keep video highlight editing disabled, and do not add Photo highlight support.
 
 ### Step 2 — Bug fix: video annotation refresh
 

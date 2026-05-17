@@ -15,7 +15,7 @@ class WebViewTypographyBridgeTest {
     @Test
     fun `applyTypography generates valid JavaScript`() {
         val settings = TypographySettings()
-        val js = WebViewTypographyBridge.applyTypography(settings)
+        val js = WebViewTypographyBridge.applyTypography(settings, 100)
         
         // Verify it's wrapped in IIFE
         assertTrue(js.contains("(function() {"))
@@ -25,7 +25,7 @@ class WebViewTypographyBridgeTest {
     @Test
     fun `applyTypography includes font-family CSS`() {
         val settings = TypographySettings(fontFamily = ReaderFontFamily.LITERATA)
-        val js = WebViewTypographyBridge.applyTypography(settings)
+        val js = WebViewTypographyBridge.applyTypography(settings, 100)
         
         assertTrue(js.contains("body.style.fontFamily"))
         assertTrue(js.contains("Literata"))
@@ -34,7 +34,7 @@ class WebViewTypographyBridgeTest {
     @Test
     fun `applyTypography includes line-height CSS`() {
         val settings = TypographySettings(lineSpacingPercent = 100)
-        val js = WebViewTypographyBridge.applyTypography(settings)
+        val js = WebViewTypographyBridge.applyTypography(settings, 100)
         
         assertTrue(js.contains("body.style.lineHeight"))
         assertTrue(js.contains("1.7"))
@@ -43,7 +43,7 @@ class WebViewTypographyBridgeTest {
     @Test
     fun `applyTypography includes adjusted line-height CSS`() {
         val settings = TypographySettings(lineSpacingPercent = 125)
-        val js = WebViewTypographyBridge.applyTypography(settings)
+        val js = WebViewTypographyBridge.applyTypography(settings, 100)
 
         assertTrue(js.contains("body.style.lineHeight"))
         assertTrue(js.contains("2.125"))
@@ -52,34 +52,37 @@ class WebViewTypographyBridgeTest {
     @Test
     fun `applyTypography includes max-width for narrow`() {
         val settings = TypographySettings(textWidth = TextWidth.NARROW)
-        val js = WebViewTypographyBridge.applyTypography(settings)
-        
+        val js = WebViewTypographyBridge.applyTypography(settings, 75)
+
         assertTrue(js.contains("body.style.maxWidth"))
-        assertTrue(js.contains("100%"))
+        assertTrue(js.contains("75%"))
+        assertTrue(js.contains("'--mydeck-content-max-width', '75%'"))
     }
 
     @Test
     fun `applyTypography includes max-width for wide`() {
         val settings = TypographySettings(textWidth = TextWidth.WIDE)
-        val js = WebViewTypographyBridge.applyTypography(settings)
-        
+        val js = WebViewTypographyBridge.applyTypography(settings, 98)
+
         assertTrue(js.contains("body.style.maxWidth"))
-        assertTrue(js.contains("100%"))
+        assertTrue(js.contains("98%"))
+        assertTrue(js.contains("'--mydeck-content-max-width', '98%'"))
     }
 
     @Test
     fun `applyTypography includes max-width for medium`() {
         val settings = TypographySettings(textWidth = TextWidth.MEDIUM)
-        val js = WebViewTypographyBridge.applyTypography(settings)
+        val js = WebViewTypographyBridge.applyTypography(settings, 85)
 
         assertTrue(js.contains("body.style.maxWidth"))
-        assertTrue(js.contains("100%"))
+        assertTrue(js.contains("85%"))
+        assertTrue(js.contains("'--mydeck-content-max-width', '85%'"))
     }
 
     @Test
     fun `applyTypography includes text-align justify when enabled`() {
         val settings = TypographySettings(justified = true)
-        val js = WebViewTypographyBridge.applyTypography(settings)
+        val js = WebViewTypographyBridge.applyTypography(settings, 100)
         
         assertTrue(js.contains("body.style.textAlign"))
         assertTrue(js.contains("justify"))
@@ -88,7 +91,7 @@ class WebViewTypographyBridgeTest {
     @Test
     fun `applyTypography includes text-align left when justify disabled`() {
         val settings = TypographySettings(justified = false)
-        val js = WebViewTypographyBridge.applyTypography(settings)
+        val js = WebViewTypographyBridge.applyTypography(settings, 100)
         
         assertTrue(js.contains("body.style.textAlign"))
         assertTrue(js.contains("left"))
@@ -97,25 +100,45 @@ class WebViewTypographyBridgeTest {
     @Test
     fun `applyTypography includes hyphenation CSS when enabled`() {
         val settings = TypographySettings(hyphenation = true)
-        val js = WebViewTypographyBridge.applyTypography(settings)
+        val js = WebViewTypographyBridge.applyTypography(settings, 100)
         
         assertTrue(js.contains("body.style.hyphens"))
-        assertTrue(js.contains("auto"))
+        assertTrue(js.contains("window.mydeckDesiredHyphens = desiredHyphens"))
+        assertTrue(js.contains("var desiredHyphens = 'auto'"))
     }
 
     @Test
     fun `applyTypography includes hyphenation CSS when disabled`() {
         val settings = TypographySettings(hyphenation = false)
-        val js = WebViewTypographyBridge.applyTypography(settings)
+        val js = WebViewTypographyBridge.applyTypography(settings, 100)
         
         assertTrue(js.contains("body.style.hyphens"))
-        assertTrue(js.contains("manual"))
+        assertTrue(js.contains("var desiredHyphens = 'manual'"))
+    }
+
+    @Test
+    fun `applyTypography keeps hyphenation manual while selection is active`() {
+        val settings = TypographySettings(hyphenation = true)
+        val js = WebViewTypographyBridge.applyTypography(settings, 100)
+
+        assertTrue(js.contains("window.mydeckHyphenationSelectionSuspended ? 'manual' : desiredHyphens"))
+    }
+
+    @Test
+    fun `selection hyphenation scripts suspend and restore desired value`() {
+        val suspendJs = WebViewTypographyBridge.suspendHyphenationForSelection()
+        val restoreJs = WebViewTypographyBridge.restoreHyphenationAfterSelection()
+
+        assertTrue(suspendJs.contains("window.mydeckHyphenationSelectionSuspended = true"))
+        assertTrue(suspendJs.contains("body.style.hyphens = 'manual'"))
+        assertTrue(restoreJs.contains("window.mydeckHyphenationSelectionSuspended = false"))
+        assertTrue(restoreJs.contains("window.mydeckDesiredHyphens || 'manual'"))
     }
 
     @Test
     fun `applyTypography includes font-face for bundled fonts`() {
         val settings = TypographySettings(fontFamily = ReaderFontFamily.LITERATA)
-        val js = WebViewTypographyBridge.applyTypography(settings)
+        val js = WebViewTypographyBridge.applyTypography(settings, 100)
         
         assertTrue(js.contains("@font-face"))
         assertTrue(js.contains("Literata"))
@@ -125,7 +148,7 @@ class WebViewTypographyBridgeTest {
     @Test
     fun `applyTypography does not include font-face declaration for system fonts`() {
         val settings = TypographySettings(fontFamily = ReaderFontFamily.SYSTEM_DEFAULT)
-        val js = WebViewTypographyBridge.applyTypography(settings)
+        val js = WebViewTypographyBridge.applyTypography(settings, 100)
         
         assertFalse(js.contains("@font-face {"))
         assertFalse(js.contains(".woff2"))
@@ -134,7 +157,7 @@ class WebViewTypographyBridgeTest {
     @Test
     fun `applyTypography applies font to headings`() {
         val settings = TypographySettings(fontFamily = ReaderFontFamily.NOTO_SERIF)
-        val js = WebViewTypographyBridge.applyTypography(settings)
+        val js = WebViewTypographyBridge.applyTypography(settings, 100)
         
         assertTrue(js.contains("querySelectorAll('h1,h2,h3,h4,h5,h6')"))
         assertTrue(js.contains("h.style.fontFamily"))
@@ -143,7 +166,7 @@ class WebViewTypographyBridgeTest {
     @Test
     fun `applyTypography generates correct font-face for Noto Serif`() {
         val settings = TypographySettings(fontFamily = ReaderFontFamily.NOTO_SERIF)
-        val js = WebViewTypographyBridge.applyTypography(settings)
+        val js = WebViewTypographyBridge.applyTypography(settings, 100)
         
         assertTrue(js.contains("noto-serif-regular.woff2"))
     }
@@ -151,7 +174,7 @@ class WebViewTypographyBridgeTest {
     @Test
     fun `applyTypography generates correct font-face for Source Serif`() {
         val settings = TypographySettings(fontFamily = ReaderFontFamily.SOURCE_SERIF)
-        val js = WebViewTypographyBridge.applyTypography(settings)
+        val js = WebViewTypographyBridge.applyTypography(settings, 100)
         
         assertTrue(js.contains("source-serif-4-regular.woff2"))
     }
@@ -159,7 +182,7 @@ class WebViewTypographyBridgeTest {
     @Test
     fun `applyTypography generates correct font-face for JetBrains Mono`() {
         val settings = TypographySettings(fontFamily = ReaderFontFamily.JETBRAINS_MONO)
-        val js = WebViewTypographyBridge.applyTypography(settings)
+        val js = WebViewTypographyBridge.applyTypography(settings, 100)
         
         assertTrue(js.contains("jetbrains-mono-regular.woff2"))
     }
@@ -167,7 +190,7 @@ class WebViewTypographyBridgeTest {
     @Test
     fun `applyTypography does not include font-face declaration for Noto Sans`() {
         val settings = TypographySettings(fontFamily = ReaderFontFamily.NOTO_SANS)
-        val js = WebViewTypographyBridge.applyTypography(settings)
+        val js = WebViewTypographyBridge.applyTypography(settings, 100)
         
         // Noto Sans is a system font on most Android devices
         assertFalse(js.contains("@font-face {"))
@@ -177,7 +200,7 @@ class WebViewTypographyBridgeTest {
     @Test
     fun `applyTypography includes margin auto for centering`() {
         val settings = TypographySettings()
-        val js = WebViewTypographyBridge.applyTypography(settings)
+        val js = WebViewTypographyBridge.applyTypography(settings, 100)
         
         assertTrue(js.contains("body.style.margin = '0 auto'"))
     }

@@ -100,6 +100,12 @@ Migrate the existing header (`BookmarkDetailHeader`—containing title, metadata
     )
     ```
 
+#### Phase 3 Status (2026-05-14)
+
+**Status: Shipped and working.** Top app bar collapse/show on scroll has been implemented and deployed. The implementation uses `TopAppBarDefaults.enterAlwaysScrollBehavior()` in `BookmarkDetailScreen.kt` (lines 854, 937-975), which manages the top bar visibility based on nested scroll events. The bar hides as the user scrolls down to read and reappears when scrolling back toward the top.
+
+Earlier iterations explored more complex nested-scroll bridging between the WebView and Compose layers, but the current `enterAlwaysScrollBehavior` approach provides a clean, maintainable solution that integrates seamlessly with the WebView-native scroll architecture.
+
 ### Phase 4: Footer Migration (End-of-Content Reveal)
 Preserve the Readeck UX of action buttons (Favorite, Archive, Delete) appearing at the end of the article by using an unconsumed scroll connection.
 
@@ -148,10 +154,85 @@ Preserve the Readeck UX of action buttons (Favorite, Archive, Delete) appearing 
     ```
 
 ### Phase 5: Search & Annotation Navigation
-Refactor features that navigate to specific areas of the text. 
+Refactor features that navigate to specific areas of the text.
 *   **Old Behavior:** Calculating pixel offset and calling Compose's `scrollState.scrollTo()`.
 *   **New Behavior:** Passing the target pixel or element ID to JS via `webView.evaluateJavascript()`.
     *   *Example:* `webView.evaluateJavascript("window.scrollTo({top: $targetY, behavior: 'smooth'});", null)`
+
+#### 5a. In-article search match navigation
+On selecting a search result, call:
+```kotlin
+webView.evaluateJavascript("window.scrollTo({top: $targetY, behavior: 'smooth'});", null)
+```
+
+#### 5b. In-reader Highlights bottom-sheet — tap a row
+Currently calls `viewModel.scrollToAnnotation(id)` which sets `_pendingAnnotationScrollId`. After rearch, replace with a direct JS call from the screen's tap handler:
+```kotlin
+webView.evaluateJavascript(
+    "(function(){ var el=document.getElementById('annotation-${id}'); " +
+        "if(el) el.scrollIntoView({block:'center', behavior:'smooth'}); })();",
+    null
+)
+```
+The `pendingAnnotationScrollId` StateFlow, `scrollToAnnotation()`, `onAnnotationScrollHandled()`, the scroll-driver `LaunchedEffect`, and `WebViewAnnotationBridge.getAnnotationViewportInfo()` can all be removed once both 5b and 5c are implemented.
+
+#### 5c. Highlights screen deep-link (`BookmarkDetailRoute(annotationId=…)`)
+The Highlights nav-drawer screen passes `annotationId` through the route into the detail screen. After rearch, the deep-link target is folded into the Phase 1 JS scroll manager so it runs once the DOM is ready and is not interrupted by the percentage-based restore.
+
+Add a second placeholder to the Phase 1 injection:
+```javascript
+let targetPercentage = %f;
+let targetAnnotationId = "%s";   // empty string if none
+let isUserScrolling = false;
+let initialPositionApplied = false;
+
+function applyInitialPosition() {
+    if (initialPositionApplied || isUserScrolling) return;
+    if (targetAnnotationId) {
+        const el = document.getElementById('annotation-' + targetAnnotationId);
+        if (el) {
+            el.scrollIntoView({block: 'center', behavior: 'instant'});
+            initialPositionApplied = true;
+            return;
+        }
+        // element not in DOM yet — let the ResizeObserver retry
+        return;
+    }
+    // fall through to percentage restore
+    if (targetPercentage > 0) {
+        const max = getScrollMax();
+        if (max > 0) {
+            window.scrollTo(0, max * targetPercentage);
+            initialPositionApplied = true;
+        }
+    }
+}
+
+applyInitialPosition();
+new ResizeObserver(applyInitialPosition).observe(document.documentElement);
+```
+
+Notes:
+*   Only one of the two placeholders is non-empty at any time. If `annotationId` is present on the route, Kotlin should pass `targetPercentage = 0`. The percentage restore is suppressed in that case so a saved progress at e.g. 100% does not race with the highlight scroll target.
+*   Use `behavior: 'instant'` for the initial position; the entry transition (scale-in from `perf-and-transition-u-enhance-spec.md` if landed) masks the jump.
+*   Once `isUserScrolling` becomes true, both targets are abandoned — manual scrolling takes precedence over any pending restore or deep-link target.
+*   `ResizeObserver` calls `applyInitialPosition` whenever the document height changes (lazy images, font swap). Because `initialPositionApplied` flips to `true` on first success, subsequent reflows do not re-scroll and the user's manual position is preserved.
+
+#### 5d. Migration cleanup (after 5b and 5c land)
+Remove from `BookmarkDetailViewModel`:
+*   `_pendingAnnotationScrollId` StateFlow + `pendingAnnotationScrollId` accessor
+*   `scrollToAnnotation()` and `onAnnotationScrollHandled()` methods
+
+Remove from `BookmarkDetailScreen.kt`:
+*   The `LaunchedEffect(annotationId)` in the entry composable that calls `viewModel.scrollToAnnotation(annotationId)`
+*   The scroll-driver `LaunchedEffect` keyed on `pendingAnnotationScrollId` and the surrounding `articleTopOffset` / `viewportHeight` `remember`s used only for that math
+*   The `pendingAnnotationScrollId` parameter threaded through `BookmarkDetailHost` → `BookmarkDetailScreen` (overload 2) → `BookmarkDetailContent`
+*   The restore-skip guard `if (pendingAnnotationScrollId != null) ... return` in the saved-position restore loop (the loop itself is removed in Phase 1, so this becomes moot)
+
+Remove from `WebViewAnnotationBridge.kt`:
+*   `getAnnotationViewportInfo()` and `AnnotationViewportInfo` — superseded by JS-side `scrollIntoView`
+
+`BookmarkDetailScreen` keeps `annotationId` as a parameter, but its only consumer is the `loadDataWithBaseURL` injection — passed straight into the JS placeholder at Phase 1.
 
 ---
 

@@ -19,6 +19,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.BiasAlignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -129,6 +130,34 @@ fun VerticalScrollbar(
         modifier = modifier,
         isScrollInProgress = lazyGridState.isScrollInProgress,
         isScrollable = isScrollable,
+        progress = progress,
+        width = width,
+        color = color,
+        padding = padding
+    )
+}
+
+@Composable
+fun VerticalScrollbar(
+    modifier: Modifier = Modifier,
+    progress: Float,
+    width: Dp = 4.dp,
+    color: Color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+    padding: Dp = 4.dp
+) {
+    var isScrollInProgress by remember { mutableStateOf(false) }
+    LaunchedEffect(progress) {
+        isScrollInProgress = true
+        // Yield one frame so the recomposition pass observes the `true` value
+        // before we flip it back. Setting `false` synchronously would collapse
+        // both writes and ScrollbarTrack would never see `true`.
+        withFrameNanos { }
+        isScrollInProgress = false
+    }
+    ScrollbarTrack(
+        modifier = modifier,
+        isScrollInProgress = isScrollInProgress,
+        isScrollable = true,
         progress = progress,
         width = width,
         color = color,

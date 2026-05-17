@@ -13,7 +13,10 @@ import androidx.room.PrimaryKey
         childColumns = ["bookmarkId"],
         onDelete = ForeignKey.CASCADE
     )],
-    indices = [Index(value = ["bookmarkId"])]
+    indices = [
+        Index(value = ["bookmarkId"]),
+        Index(value = ["created"])
+    ]
 )
 data class CachedAnnotationEntity(
     @PrimaryKey

@@ -1,9 +1,12 @@
 package com.mydeck.app.io.db.model
 
 import androidx.room.Entity
-import androidx.room.PrimaryKey
 
-@Entity(tableName = "remote_bookmark_ids")
+@Entity(
+    tableName = "remote_bookmark_ids",
+    primaryKeys = ["syncRunId", "id"]
+)
 data class RemoteBookmarkIdEntity(
-    @PrimaryKey val id: String
+    val syncRunId: String,
+    val id: String
 )

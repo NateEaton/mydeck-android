@@ -12,6 +12,7 @@ import com.mydeck.app.domain.model.AutoSyncTimeframe
 import com.mydeck.app.domain.model.BookmarkShareFormat
 import com.mydeck.app.domain.model.CachedServerInfo
 import com.mydeck.app.domain.model.DarkAppearance
+import com.mydeck.app.domain.model.HighlightsSyncMetadata
 import com.mydeck.app.domain.model.LightAppearance
 import com.mydeck.app.domain.model.ReaderFontFamily
 import com.mydeck.app.domain.model.TextWidth
@@ -50,6 +51,26 @@ class SettingsDataStoreImpl @Inject constructor(@ApplicationContext private val 
     private val KEY_LAST_SYNC_TIMESTAMP = stringPreferencesKey("lastSyncTimestamp")
     private val KEY_LAST_CONTENT_SYNC_TIMESTAMP = stringPreferencesKey("lastContentSyncTimestamp")
     private val KEY_LAST_FULL_SYNC_TIMESTAMP = stringPreferencesKey("last_full_sync_timestamp")
+    private val KEY_HIGHLIGHTS_LAST_GLOBAL_ATTEMPT_AT =
+        stringPreferencesKey("highlights_last_global_attempt_at")
+    private val KEY_HIGHLIGHTS_LAST_GLOBAL_SUCCESS_AT =
+        stringPreferencesKey("highlights_last_global_success_at")
+    private val KEY_HIGHLIGHTS_LAST_GLOBAL_FAILURE_AT =
+        stringPreferencesKey("highlights_last_global_failure_at")
+    private val KEY_HIGHLIGHTS_GLOBAL_FAILURE_COUNT =
+        intPreferencesKey("highlights_global_failure_count")
+    private val KEY_HIGHLIGHTS_GLOBAL_BACKOFF_UNTIL =
+        stringPreferencesKey("highlights_global_backoff_until")
+    private val KEY_HIGHLIGHTS_CACHE_COMPLETE =
+        booleanPreferencesKey("highlights_cache_complete")
+    private val KEY_HIGHLIGHTS_SKIPPED_ORPHAN_ANNOTATION_COUNT =
+        intPreferencesKey("highlights_skipped_orphan_annotation_count")
+    private val KEY_HIGHLIGHTS_MISSING_BOOKMARK_COUNT =
+        intPreferencesKey("highlights_missing_bookmark_count")
+    private val KEY_HIGHLIGHTS_FIRST_ORPHAN_OFFSET =
+        intPreferencesKey("highlights_first_orphan_offset")
+    private val KEY_HIGHLIGHTS_LAST_ORPHAN_WARNING_AT =
+        stringPreferencesKey("highlights_last_orphan_warning_at")
     private val KEY_INITIAL_SYNC_PERFORMED = "initial_sync_performed"
     private val KEY_AUTOSYNC_ENABLED = booleanPreferencesKey("autosync_enabled")
     private val KEY_AUTOSYNC_TIMEFRAME = stringPreferencesKey("autosync_timeframe")
@@ -178,6 +199,58 @@ class SettingsDataStoreImpl @Inject constructor(@ApplicationContext private val 
     override suspend fun clearCachedAnnotationSnapshot(bookmarkId: String) {
         encryptedSharedPreferences.edit {
             remove(annotationSnapshotKey(bookmarkId))
+        }
+    }
+
+    override suspend fun saveHighlightsSyncMetadata(metadata: HighlightsSyncMetadata) {
+        encryptedSharedPreferences.edit {
+            putNullableInstant(KEY_HIGHLIGHTS_LAST_GLOBAL_ATTEMPT_AT.name, metadata.lastGlobalAttemptAt)
+            putNullableInstant(KEY_HIGHLIGHTS_LAST_GLOBAL_SUCCESS_AT.name, metadata.lastGlobalSuccessAt)
+            putNullableInstant(KEY_HIGHLIGHTS_LAST_GLOBAL_FAILURE_AT.name, metadata.lastGlobalFailureAt)
+            putInt(KEY_HIGHLIGHTS_GLOBAL_FAILURE_COUNT.name, metadata.globalFailureCount)
+            putNullableInstant(KEY_HIGHLIGHTS_GLOBAL_BACKOFF_UNTIL.name, metadata.globalBackoffUntil)
+            putBoolean(KEY_HIGHLIGHTS_CACHE_COMPLETE.name, metadata.cacheComplete)
+            putInt(KEY_HIGHLIGHTS_SKIPPED_ORPHAN_ANNOTATION_COUNT.name, metadata.skippedOrphanAnnotationCount)
+            putInt(KEY_HIGHLIGHTS_MISSING_BOOKMARK_COUNT.name, metadata.missingBookmarkCount)
+            metadata.firstOrphanOffset?.let {
+                putInt(KEY_HIGHLIGHTS_FIRST_ORPHAN_OFFSET.name, it)
+            } ?: remove(KEY_HIGHLIGHTS_FIRST_ORPHAN_OFFSET.name)
+            putNullableInstant(KEY_HIGHLIGHTS_LAST_ORPHAN_WARNING_AT.name, metadata.lastOrphanWarningAt)
+        }
+    }
+
+    override suspend fun getHighlightsSyncMetadata(): HighlightsSyncMetadata {
+        val firstOrphanOffset = if (encryptedSharedPreferences.contains(KEY_HIGHLIGHTS_FIRST_ORPHAN_OFFSET.name)) {
+            encryptedSharedPreferences.getInt(KEY_HIGHLIGHTS_FIRST_ORPHAN_OFFSET.name, 0)
+        } else {
+            null
+        }
+        return HighlightsSyncMetadata(
+            lastGlobalAttemptAt = encryptedSharedPreferences.readInstant(KEY_HIGHLIGHTS_LAST_GLOBAL_ATTEMPT_AT.name),
+            lastGlobalSuccessAt = encryptedSharedPreferences.readInstant(KEY_HIGHLIGHTS_LAST_GLOBAL_SUCCESS_AT.name),
+            lastGlobalFailureAt = encryptedSharedPreferences.readInstant(KEY_HIGHLIGHTS_LAST_GLOBAL_FAILURE_AT.name),
+            globalFailureCount = encryptedSharedPreferences.getInt(KEY_HIGHLIGHTS_GLOBAL_FAILURE_COUNT.name, 0),
+            globalBackoffUntil = encryptedSharedPreferences.readInstant(KEY_HIGHLIGHTS_GLOBAL_BACKOFF_UNTIL.name),
+            cacheComplete = encryptedSharedPreferences.getBoolean(KEY_HIGHLIGHTS_CACHE_COMPLETE.name, false),
+            skippedOrphanAnnotationCount = encryptedSharedPreferences.getInt(KEY_HIGHLIGHTS_SKIPPED_ORPHAN_ANNOTATION_COUNT.name, 0),
+            missingBookmarkCount = encryptedSharedPreferences.getInt(KEY_HIGHLIGHTS_MISSING_BOOKMARK_COUNT.name, 0),
+            firstOrphanOffset = firstOrphanOffset,
+            lastOrphanWarningAt = encryptedSharedPreferences.readInstant(KEY_HIGHLIGHTS_LAST_ORPHAN_WARNING_AT.name),
+        )
+    }
+
+    override suspend fun clearHighlightsSyncMetadata() {
+        encryptedSharedPreferences.edit(commit = true) {
+            remove(KEY_HIGHLIGHTS_LAST_GLOBAL_ATTEMPT_AT.name)
+            remove(KEY_HIGHLIGHTS_LAST_GLOBAL_SUCCESS_AT.name)
+            remove(KEY_HIGHLIGHTS_LAST_GLOBAL_FAILURE_AT.name)
+            remove(KEY_HIGHLIGHTS_GLOBAL_FAILURE_COUNT.name)
+            remove(KEY_HIGHLIGHTS_GLOBAL_BACKOFF_UNTIL.name)
+            remove(KEY_HIGHLIGHTS_CACHE_COMPLETE.name)
+            remove(KEY_HIGHLIGHTS_SKIPPED_ORPHAN_ANNOTATION_COUNT.name)
+            remove(KEY_HIGHLIGHTS_MISSING_BOOKMARK_COUNT.name)
+            remove(KEY_HIGHLIGHTS_FIRST_ORPHAN_OFFSET.name)
+            remove(KEY_HIGHLIGHTS_LAST_ORPHAN_WARNING_AT.name)
         }
     }
 
@@ -383,6 +456,7 @@ class SettingsDataStoreImpl @Inject constructor(@ApplicationContext private val 
             remove(KEY_URL.name)
             remove(KEY_INITIAL_SYNC_PERFORMED)
         }
+        clearHighlightsSyncMetadata()
         clearServerInfo()
     }
 
@@ -397,6 +471,7 @@ class SettingsDataStoreImpl @Inject constructor(@ApplicationContext private val 
             putString(KEY_USERNAME.name, username)
             putString(KEY_TOKEN.name, token)
         }
+        clearHighlightsSyncMetadata()
     }
 
     private fun getStringFlow(
@@ -807,6 +882,19 @@ class SettingsDataStoreImpl @Inject constructor(@ApplicationContext private val 
 
     private fun annotationSnapshotKey(bookmarkId: String): String {
         return "cached_annotation_snapshot_$bookmarkId"
+    }
+
+    private fun SharedPreferences.readInstant(key: String): Instant? {
+        val value = getString(key, null) ?: return null
+        return runCatching { Instant.parse(value) }.getOrNull()
+    }
+
+    private fun SharedPreferences.Editor.putNullableInstant(key: String, value: Instant?) {
+        if (value == null) {
+            remove(key)
+        } else {
+            putString(key, value.toString())
+        }
     }
 
     private fun migrateLegacySepiaSetting(preferences: SharedPreferences) {

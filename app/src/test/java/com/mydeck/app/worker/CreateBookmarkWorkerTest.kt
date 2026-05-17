@@ -9,9 +9,11 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.fail
 import org.junit.Before
 import org.junit.Test
 import javax.inject.Provider
@@ -146,6 +148,24 @@ class CreateBookmarkWorkerTest {
         val result = worker.doWork()
 
         assertEquals(ListenableWorker.Result.retry(), result)
+    }
+
+    @Test
+    fun `doWork rethrows cancellation instead of retrying create`() = runTest {
+        val inputData = createInputData()
+        every { workerParams.inputData } returns inputData
+        every { workerParams.runAttemptCount } returns 0
+        val worker = CreateBookmarkWorker(context, workerParams, bookmarkRepositoryProvider)
+        coEvery {
+            bookmarkRepository.createBookmark(any(), any(), any())
+        } throws CancellationException("work stopped")
+
+        try {
+            worker.doWork()
+            fail("Expected cancellation to be rethrown")
+        } catch (e: CancellationException) {
+            assertEquals("work stopped", e.message)
+        }
     }
 
     @Test

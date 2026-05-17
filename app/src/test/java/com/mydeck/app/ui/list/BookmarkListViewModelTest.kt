@@ -6,6 +6,7 @@ import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import com.mydeck.app.R
 import com.mydeck.app.domain.BookmarkRepository
+import com.mydeck.app.domain.HighlightsRepository
 import com.mydeck.app.domain.model.Bookmark
 import com.mydeck.app.domain.model.BookmarkShareFormat
 import com.mydeck.app.domain.model.BookmarkCounts
@@ -68,6 +69,7 @@ class BookmarkListViewModelTest {
     private lateinit var connectivityMonitor: ConnectivityMonitor
     private lateinit var contentSyncPolicyEvaluator: OfflinePolicyEvaluator
     private lateinit var contentPackageManager: ContentPackageManager
+    private lateinit var highlightsRepository: HighlightsRepository
     private lateinit var syncScheduler: SyncScheduler
 
     private lateinit var workInfoFlow: MutableStateFlow<List<WorkInfo>>
@@ -86,8 +88,10 @@ class BookmarkListViewModelTest {
         connectivityMonitor = mockk()
         contentSyncPolicyEvaluator = mockk()
         contentPackageManager = mockk()
+        highlightsRepository = mockk()
         syncScheduler = mockk(relaxed = true)
         coEvery { contentSyncPolicyEvaluator.shouldAutoFetchContent() } returns false
+        coEvery { highlightsRepository.requestRefresh(any()) } returns Result.success(Unit)
 
         workInfoFlow = MutableStateFlow(emptyList())
         initialSyncPerformedFlow = MutableStateFlow(false)
@@ -124,6 +128,7 @@ class BookmarkListViewModelTest {
         coEvery { settingsDataStore.getSortOption() } returns null
         coEvery { settingsDataStore.getBookmarkShareFormat() } returns BookmarkShareFormat.URL_ONLY
         every { settingsDataStore.urlFlow } returns kotlinx.coroutines.flow.MutableStateFlow(null)
+        every { settingsDataStore.tokenFlow } returns kotlinx.coroutines.flow.MutableStateFlow(null)
     }
 
     @After
@@ -152,6 +157,30 @@ class BookmarkListViewModelTest {
         // Since we emit empty list by default from mock, and filter/query are empty/default,
         // it should be Loading state.
         assertEquals(BookmarkListViewModel.UiState.Loading, viewModel.uiState.value)
+    }
+
+    @Test
+    fun `app open does not refresh highlights for drawer badge`() = runTest {
+        every { settingsDataStore.urlFlow } returns kotlinx.coroutines.flow.MutableStateFlow("https://example.com/api")
+        every { settingsDataStore.tokenFlow } returns kotlinx.coroutines.flow.MutableStateFlow("token")
+        coEvery { settingsDataStore.isSyncOnAppOpenEnabled() } returns false
+
+        viewModel = BookmarkListViewModel(
+            updateBookmarkUseCase,
+            fullSyncUseCase,
+            workManager,
+            bookmarkRepository,
+            context,
+            settingsDataStore,
+            savedStateHandle,
+            contentSyncPolicyEvaluator,
+            contentPackageManager,
+            syncScheduler,
+            connectivityMonitor
+        )
+        advanceUntilIdle()
+
+        coVerify(exactly = 0) { highlightsRepository.requestRefresh(any()) }
     }
 
     @Test
@@ -538,7 +567,7 @@ class BookmarkListViewModelTest {
                 savedStateHandle,
                 contentSyncPolicyEvaluator,
                 contentPackageManager,
-                syncScheduler,
+            syncScheduler,
                 connectivityMonitor
             )
             viewModel.openCreateBookmarkDialog()
@@ -568,7 +597,7 @@ class BookmarkListViewModelTest {
                 savedStateHandle,
                 contentSyncPolicyEvaluator,
                 contentPackageManager,
-                syncScheduler,
+            syncScheduler,
                 connectivityMonitor
             )
             viewModel.openCreateBookmarkDialog()
@@ -713,7 +742,7 @@ class BookmarkListViewModelTest {
                 savedStateHandle,
                 contentSyncPolicyEvaluator,
                 contentPackageManager,
-                syncScheduler,
+            syncScheduler,
                 connectivityMonitor
             )
 
@@ -753,7 +782,7 @@ class BookmarkListViewModelTest {
                 savedStateHandle,
                 contentSyncPolicyEvaluator,
                 contentPackageManager,
-                syncScheduler,
+            syncScheduler,
                 connectivityMonitor
             )
 
@@ -817,7 +846,7 @@ class BookmarkListViewModelTest {
                 savedStateHandle,
                 contentSyncPolicyEvaluator,
                 contentPackageManager,
-                syncScheduler,
+            syncScheduler,
                 connectivityMonitor
             )
 
@@ -881,7 +910,7 @@ class BookmarkListViewModelTest {
                 savedStateHandle,
                 contentSyncPolicyEvaluator,
                 contentPackageManager,
-                syncScheduler,
+            syncScheduler,
                 connectivityMonitor
             )
 
@@ -944,7 +973,7 @@ class BookmarkListViewModelTest {
                 savedStateHandle,
                 contentSyncPolicyEvaluator,
                 contentPackageManager,
-                syncScheduler,
+            syncScheduler,
                 connectivityMonitor
             )
 
@@ -1008,7 +1037,7 @@ class BookmarkListViewModelTest {
                 savedStateHandle,
                 contentSyncPolicyEvaluator,
                 contentPackageManager,
-                syncScheduler,
+            syncScheduler,
                 connectivityMonitor
             )
 
@@ -1072,7 +1101,7 @@ class BookmarkListViewModelTest {
                 savedStateHandle,
                 contentSyncPolicyEvaluator,
                 contentPackageManager,
-                syncScheduler,
+            syncScheduler,
                 connectivityMonitor
             )
 
@@ -1136,7 +1165,7 @@ class BookmarkListViewModelTest {
                 savedStateHandle,
                 contentSyncPolicyEvaluator,
                 contentPackageManager,
-                syncScheduler,
+            syncScheduler,
                 connectivityMonitor
             )
 
@@ -1200,7 +1229,7 @@ class BookmarkListViewModelTest {
                 savedStateHandle,
                 contentSyncPolicyEvaluator,
                 contentPackageManager,
-                syncScheduler,
+            syncScheduler,
                 connectivityMonitor
             )
 
@@ -1264,7 +1293,7 @@ class BookmarkListViewModelTest {
                 savedStateHandle,
                 contentSyncPolicyEvaluator,
                 contentPackageManager,
-                syncScheduler,
+            syncScheduler,
                 connectivityMonitor
             )
 

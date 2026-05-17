@@ -137,10 +137,17 @@ class ContentPackageManager @Inject constructor(
             var dbCommitted = false
             try {
                 contentPackageDao.replacePackageAndResources(packageEntity, resourceEntities)
-                cachedAnnotationDao.replaceAnnotationsForBookmark(bookmarkId, annotationEntities)
+                val annotationsToPersist = mergeCachedAnnotations(
+                    existingAnnotations = existingAnnotations,
+                    parsedAnnotations = annotationEntities
+                )
+                cachedAnnotationDao.replaceAnnotationsForBookmark(bookmarkId, annotationsToPersist)
                 dbCommitted = true
-                if (annotationEntities.isNotEmpty()) {
-                    Timber.d("Cached ${annotationEntities.size} annotations for $bookmarkId")
+                if (annotationsToPersist.isNotEmpty()) {
+                    Timber.d(
+                        "Cached ${annotationsToPersist.size} annotations for $bookmarkId " +
+                            "(parsed=${annotationEntities.size}, preserved=${annotationsToPersist.size - annotationEntities.size})"
+                    )
                 }
             } catch (e: Exception) {
                 Timber.w(e, "Failed to persist package metadata for $bookmarkId")
@@ -281,6 +288,32 @@ class ContentPackageManager @Inject constructor(
     }
 
     /**
+     * Get the HTML used for reader display, whether it belongs to a full offline
+     * package or an on-demand text cache stored only in Room.
+     */
+    suspend fun getCachedReaderHtml(bookmarkId: String): String? {
+        return getHtmlContent(bookmarkId) ?: bookmarkDao.getArticleContent(bookmarkId)
+    }
+
+    /**
+     * Persist reader HTML for both cache modes. Full packages keep index.html and
+     * Room in sync; text-only caches update the Room article_content row.
+     */
+    suspend fun updateCachedReaderHtml(bookmarkId: String, html: String): Boolean {
+        val dir = File(offlineContentDir, bookmarkId)
+        return try {
+            if (dir.exists()) {
+                File(dir, "index.html").writeText(html)
+            }
+            bookmarkDao.insertArticleContent(ArticleContentEntity(bookmarkId = bookmarkId, content = html))
+            true
+        } catch (e: Exception) {
+            Timber.e(e, "Failed to update cached reader HTML for $bookmarkId")
+            false
+        }
+    }
+
+    /**
      * Delete all offline content for a single bookmark: files, DB metadata,
      * cached annotations, and reset contentState to NOT_ATTEMPTED.
      */
@@ -329,17 +362,7 @@ class ContentPackageManager @Inject constructor(
      * Calculate total size of managed offline packages only (hasResources=true).
      */
     suspend fun calculateManagedOfflineSize(): Long {
-        return bookmarkDao.getBookmarkIdsWithOfflinePackages()
-            .sumOf { bookmarkId ->
-                val dir = File(offlineContentDir, bookmarkId)
-                if (dir.exists()) {
-                    dir.walkTopDown()
-                        .filter { it.isFile }
-                        .sumOf { it.length() }
-                } else {
-                    0L
-                }
-            }
+        return bookmarkDao.getManagedOfflineStorageSize()
     }
 
     /**
@@ -371,6 +394,22 @@ class ContentPackageManager @Inject constructor(
             """<p class="picture-caption">$escapedDesc</p>"""
         } else ""
         return """<figure class="picture-content"><img src="$imagePath" alt="" />${captionHtml}</figure>"""
+    }
+
+    private fun mergeCachedAnnotations(
+        existingAnnotations: List<com.mydeck.app.io.db.model.CachedAnnotationEntity>,
+        parsedAnnotations: List<com.mydeck.app.io.db.model.CachedAnnotationEntity>
+    ): List<com.mydeck.app.io.db.model.CachedAnnotationEntity> {
+        if (existingAnnotations.isEmpty()) {
+            return parsedAnnotations
+        }
+        if (parsedAnnotations.isEmpty()) {
+            return existingAnnotations
+        }
+        return (existingAnnotations + parsedAnnotations)
+            .associateBy { it.id }
+            .values
+            .toList()
     }
 
     private fun moveOrCopy(src: File, dst: File) {

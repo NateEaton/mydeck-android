@@ -23,6 +23,7 @@ import com.mydeck.app.io.db.model.BookmarkCountsEntity
 import com.mydeck.app.io.db.model.BookmarkEntity
 import com.mydeck.app.io.db.model.BookmarkListItemEntity
 import com.mydeck.app.io.db.model.BookmarkWithArticleContent
+import com.mydeck.app.io.db.model.RemoteBookmarkIdEntity
 import com.mydeck.app.io.rest.model.ImageResource
 import com.mydeck.app.io.rest.model.Resource
 import com.mydeck.app.io.rest.model.Resources
@@ -261,7 +262,8 @@ class BookmarkRepositoryImplTest {
             ReadeckApi.Header.CURRENT_PAGE, "3"
         ))
 
-        coEvery { bookmarkDao.removeDeletedBookmars() } returns 10
+        coEvery { bookmarkDao.countDistinctRemoteBookmarkIds(any()) } returns totalCount
+        coEvery { bookmarkDao.removeDeletedBookmars(any()) } returns 10
         coEvery { bookmarkDao.insertRemoteBookmarkIds(any()) } returns Unit
 
         // Act
@@ -275,8 +277,70 @@ class BookmarkRepositoryImplTest {
         coVerify { readeckApi.getBookmarks(limit = pageSize, offset = pageSize, updatedSince = null, ReadeckApi.SortOrder(ReadeckApi.Sort.Created), hasErrors = null) }
         coVerify { readeckApi.getBookmarks(limit = pageSize, offset = 2 * pageSize, updatedSince = null, ReadeckApi.SortOrder(ReadeckApi.Sort.Created), hasErrors = null) }
         coVerify { bookmarkDao.insertRemoteBookmarkIds(any()) }
-        coVerify { bookmarkDao.removeDeletedBookmars() }
-        coVerify { bookmarkDao.clearRemoteBookmarkIds() }
+        coVerify { bookmarkDao.removeDeletedBookmars(any()) }
+        coVerify { bookmarkDao.clearRemoteBookmarkIds(any()) }
+    }
+
+    @Test
+    fun `performFullSync stages IDs and deletes with one sync run ID`() = runTest {
+        val bookmarkList = listOf(
+            bookmarkDto.copy(id = "run-bk-1"),
+            bookmarkDto.copy(id = "run-bk-2")
+        )
+        val insertedBatches = mutableListOf<List<RemoteBookmarkIdEntity>>()
+        val countRunId = slot<String>()
+        val deleteRunId = slot<String>()
+        val clearRunId = slot<String>()
+
+        coEvery {
+            readeckApi.getBookmarks(limit = 50, offset = 0, updatedSince = null, ReadeckApi.SortOrder(ReadeckApi.Sort.Created), hasErrors = null)
+        } returns Response.success(bookmarkList, Headers.headersOf(
+            ReadeckApi.Header.TOTAL_COUNT, "2",
+            ReadeckApi.Header.TOTAL_PAGES, "1",
+            ReadeckApi.Header.CURRENT_PAGE, "1"
+        ))
+        coEvery { bookmarkDao.insertRemoteBookmarkIds(capture(insertedBatches)) } returns Unit
+        coEvery { bookmarkDao.countDistinctRemoteBookmarkIds(capture(countRunId)) } returns 2
+        coEvery { bookmarkDao.removeDeletedBookmars(capture(deleteRunId)) } returns 0
+        coEvery { bookmarkDao.clearRemoteBookmarkIds(capture(clearRunId)) } returns Unit
+
+        val result = bookmarkRepositoryImpl.performFullSync()
+
+        assertTrue(result is BookmarkRepository.SyncResult.Success)
+        val stagedRunId = insertedBatches.single().first().syncRunId
+        assertTrue(stagedRunId.isNotBlank())
+        assertEquals(listOf("run-bk-1", "run-bk-2"), insertedBatches.single().map { it.id })
+        assertTrue(insertedBatches.single().all { it.syncRunId == stagedRunId })
+        assertEquals(stagedRunId, countRunId.captured)
+        assertEquals(stagedRunId, deleteRunId.captured)
+        assertEquals(stagedRunId, clearRunId.captured)
+    }
+
+    @Test
+    fun `performFullSync aborts deletion when staged ID count mismatches total count`() = runTest {
+        val bookmarkList = listOf(
+            bookmarkDto.copy(id = "partial-1"),
+            bookmarkDto.copy(id = "partial-2")
+        )
+
+        coEvery {
+            readeckApi.getBookmarks(limit = 50, offset = 0, updatedSince = null, ReadeckApi.SortOrder(ReadeckApi.Sort.Created), hasErrors = null)
+        } returns Response.success(bookmarkList, Headers.headersOf(
+            ReadeckApi.Header.TOTAL_COUNT, "3",
+            ReadeckApi.Header.TOTAL_PAGES, "1",
+            ReadeckApi.Header.CURRENT_PAGE, "1"
+        ))
+        coEvery { bookmarkDao.countDistinctRemoteBookmarkIds(any()) } returns 2
+
+        val result = bookmarkRepositoryImpl.performFullSync()
+
+        assertTrue(result is BookmarkRepository.SyncResult.NetworkError)
+        assertEquals(
+            "Full sync incomplete; retry later",
+            (result as BookmarkRepository.SyncResult.NetworkError).errorMessage
+        )
+        coVerify(exactly = 0) { bookmarkDao.removeDeletedBookmars(any()) }
+        coVerify(exactly = 1) { bookmarkDao.clearRemoteBookmarkIds(any()) }
     }
 
     @Test
@@ -295,7 +359,8 @@ class BookmarkRepositoryImplTest {
             ReadeckApi.Header.TOTAL_PAGES, "1",
             ReadeckApi.Header.CURRENT_PAGE, "1"
         ))
-        coEvery { bookmarkDao.removeDeletedBookmars() } returns 0
+        coEvery { bookmarkDao.countDistinctRemoteBookmarkIds(any()) } returns 3
+        coEvery { bookmarkDao.removeDeletedBookmars(any()) } returns 0
 
         // Act
         val result = bookmarkRepositoryImpl.performFullSync()
@@ -328,7 +393,8 @@ class BookmarkRepositoryImplTest {
             ReadeckApi.Header.TOTAL_PAGES, "2",
             ReadeckApi.Header.CURRENT_PAGE, "2"
         ))
-        coEvery { bookmarkDao.removeDeletedBookmars() } returns 5
+        coEvery { bookmarkDao.countDistinctRemoteBookmarkIds(any()) } returns 75
+        coEvery { bookmarkDao.removeDeletedBookmars(any()) } returns 5
 
         // Act
         val result = bookmarkRepositoryImpl.performFullSync()
@@ -899,7 +965,7 @@ class BookmarkRepositoryImplTest {
     @Test
     fun `observeAllBookmarkCounts emits mapped counts on DAO emission`() = runTest {
         val entity = BookmarkCountsEntity(
-            archived = 3, favorite = 5, article = 10, video = 2, picture = 1, total = 16
+            archived = 3, favorite = 5, article = 10, video = 2, picture = 1, highlights = 0, total = 16
         )
         every { bookmarkDao.observeAllBookmarkCounts() } returns flowOf(entity)
 

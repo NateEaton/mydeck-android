@@ -63,7 +63,8 @@ fun BookmarkDetailMenu(
             expanded = expanded,
             onDismissRequest = { expanded = false }
         ) {
-            if (uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.ARTICLE &&
+            if ((uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.ARTICLE ||
+                 uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.VIDEO) &&
                 contentMode == ContentMode.READER) {
                 DropdownMenuItem(
                     text = { Text(stringResource(R.string.highlights_menu_item)) },

@@ -96,10 +96,18 @@ class LoadArticleUseCase @Inject constructor(
      *
      * @return The refreshed HTML body, or null if the refresh failed
      */
-    suspend fun refreshHtmlForAnnotations(bookmarkId: String): String? {
+    suspend fun refreshHtmlForAnnotations(
+        bookmarkId: String,
+        skipHasArticleCheck: Boolean = false,
+        expectedPresentAnnotationIds: List<String> = emptyList(),
+        expectedAbsentAnnotationIds: List<String> = emptyList()
+    ): String? {
         val bookmark = bookmarkRepository.getBookmarkById(bookmarkId)
 
-        if (bookmark.contentState == ContentState.PERMANENT_NO_CONTENT || !bookmark.hasArticle) {
+        if (bookmark.contentState == ContentState.PERMANENT_NO_CONTENT) {
+            return null
+        }
+        if (!skipHasArticleCheck && !bookmark.hasArticle) {
             return null
         }
         if (!connectivityMonitor.isNetworkAvailable()) {
@@ -110,6 +118,14 @@ class LoadArticleUseCase @Inject constructor(
             val response = readeckApi.getArticle(bookmarkId)
             if (response.isSuccessful && response.body() != null) {
                 val content = response.body()!!
+                if (!content.matchesAnnotationExpectations(
+                        expectedPresentAnnotationIds = expectedPresentAnnotationIds,
+                        expectedAbsentAnnotationIds = expectedAbsentAnnotationIds
+                    )
+                ) {
+                    Timber.d("Refreshed article HTML for $bookmarkId did not match expected annotation state yet")
+                    return null
+                }
                 storeDownloadedArticle(bookmark = bookmark, articleContent = content)
                 Timber.d("Refreshed cached article HTML after annotation change for $bookmarkId")
                 content
@@ -235,6 +251,22 @@ class LoadArticleUseCase @Inject constructor(
             annotations = annotations,
             snapshot = annotations.toAnnotationCachePayload(json)
         )
+    }
+
+    private fun String.matchesAnnotationExpectations(
+        expectedPresentAnnotationIds: List<String>,
+        expectedAbsentAnnotationIds: List<String>
+    ): Boolean {
+        val expectedPresent = expectedPresentAnnotationIds.distinct()
+        val expectedAbsent = expectedAbsentAnnotationIds.distinct()
+        return expectedPresent.all { containsAnnotationId(it) } &&
+            expectedAbsent.none { containsAnnotationId(it) }
+    }
+
+    private fun String.containsAnnotationId(annotationId: String): Boolean {
+        val escapedId = Regex.escape(annotationId)
+        return Regex("""data-annotation-id-value\s*=\s*["']$escapedId["']""").containsMatchIn(this) ||
+            Regex("""id\s*=\s*["']annotation-$escapedId["']""").containsMatchIn(this)
     }
 
     private sealed class AnnotationSnapshotResult {

@@ -319,13 +319,38 @@
     <string name="action_find_in_page">Find in Page</string>
     <string name="highlights_title">Highlights</string>
     <string name="highlights_empty">No highlights yet</string>
+    <string name="highlights_refreshing">Refreshing highlights...</string>
+    <string name="highlights_refresh_failed">Could not refresh highlights</string>
+    <string name="highlights_refresh_failed_showing_saved">Could not refresh highlights. Showing saved highlights.</string>
+    <string name="highlights_partial_cache_banner">Highlights are partially synced. Pull to refresh now or wait for automatic retry.</string>
     <string name="highlights_menu_item">Highlights</string>
+    <string name="highlights_search_hint">Search highlights</string>
+    <string name="highlights_clear_search">Clear search</string>
+    <string name="highlights_filter">Filter highlights</string>
+    <string name="highlights_no_matches">No matching highlights</string>
+    <string name="highlights_clear_filters">Clear filters</string>
+    <string name="highlights_filter_text">Text</string>
+    <string name="highlights_filter_notes">Notes</string>
+    <string name="highlights_filter_title">Title</string>
+    <string name="highlights_filter_site">Site</string>
+    <string name="highlights_filter_color_any">Any color</string>
+    <string name="highlights_filter_color_yellow">Yellow</string>
+    <string name="highlights_filter_color_red">Red</string>
+    <string name="highlights_filter_color_blue">Blue</string>
+    <string name="highlights_filter_color_green">Green</string>
+    <string name="highlights_filter_color_none">None</string>
+    <string name="highlights_filter_notes_any">Any notes</string>
+    <string name="highlights_filter_with_notes">With notes</string>
+    <string name="highlights_filter_without_notes">Without notes</string>
+    <string name="highlights_grouped_results_count">%1$d highlights in %2$d articles</string>
+    <string name="highlights_sort_newest_first">Newest first</string>
+    <string name="highlights_sort_oldest_first">Oldest first</string>
     <string name="action_refresh_content">Refresh content</string>
     <string name="highlight_create">Create Highlight</string>
     <string name="highlight_edit">Edit Highlight</string>
     <string name="highlight_delete">Delete Highlight</string>
     <string name="highlight_note_label">Note</string>
-    <string name="highlight_note_not_supported">Adding and editing notes is not supported yet</string>
+    <string name="highlight_note_replace_helper">Saving replaces notes on selected highlights.</string>
     <string name="highlight_color_yellow">Yellow</string>
     <string name="highlight_color_red">Red</string>
     <string name="highlight_color_blue">Blue</string>
@@ -360,6 +385,7 @@
     <string name="about_system_info_server_unavailable">No server information available</string>
     <string name="auto_sync_timeframe_15_minutes">Every 15 minutes</string>
     <string name="highlight_offline_unavailable">Highlights can\'t be changed while offline</string>
+    <string name="video_highlight_edit_not_supported">Editing video highlights isn\'t supported yet</string>
     <string name="video_embed_offline">Video unavailable while offline</string>
 
     <!-- Missing translations -->
@@ -406,4 +432,165 @@
     <string name="sync_status_next_sync">Next sync: %1$s</string>
     <string name="sync_status_favorites_label">Favorites</string>
     <string name="account_settings_url_http_warning">Insecure connection — only use on a trusted private network (e.g. Tailscale)</string>
+
+    <string name="app_name">MyDeck</string>
+    <string name="back">Back</string>
+    <string name="settings_topbar_title">Settings</string>
+    <string name="settings_account_title">Account</string>
+    <string name="settings_account_subtitle_default">Not logged in</string>
+    <string name="accountsettings_topbar_title">Account</string>
+    <string name="account_settings_topbar_title">Readeck URL</string>
+    <string name="account_settings_url_placeholder">https://readeck.example.com</string>
+    <string name="account_settings_url_label">Readeck URL</string>
+    <string name="account_settings_username_placeholder">email@example.com</string>
+    <string name="account_settings_username_label">Email Address</string>
+    <string name="account_settings_password_label">Password</string>
+    <string name="account_settings_password_placeholder">password</string>
+    <string name="account_settings_login">Login</string>
+    <string name="account_settings_url_error">Invalid URL</string>
+    <string name="account_settings_username_error">Email address cannot be empty</string>
+    <string name="account_settings_password_error">Password cannot be empty</string>
+    <string name="account_settings_allow_unencrypted">Allow unencrypted connections</string>
+    <string name="account_settings_sign_out_warning">Signing out will clear all local data including saved bookmarks.</string>
+    <string name="account_settings_sign_out">Sign Out</string>
+    <string name="account_settings_sign_out_confirm_title">Sign out?</string>
+    <string name="account_settings_sign_out_confirm_message">This will clear all local data including saved bookmarks.</string>
+    <string name="sync_settings_topbar_title">Synchronization Settings</string>
+    <string name="authors" translatable="true">
+{count, plural,
+zero{}
+one{from {author}}
+many{from {author} et. al.}
+other{}
+}
+    </string>
+    <string name="settings_open_source_libraries">Open Source Libraries</string>
+    <string name="settings_open_source_libraries_subtitle">View the open source libraries used in this app.</string>
+    <string name="bookmarks">Bookmarks</string>
+    <string name="menu">Menu</string>
+    <string name="refresh_bookmarks">Refresh Bookmarks</string>
+    <string name="all">All</string>
+    <string name="my_list">My List</string>
+    <string name="archive">Archive</string>
+    <string name="favorites">Favorites</string>
+    <string name="articles">Articles</string>
+    <string name="videos">Videos</string>
+    <string name="pictures">Pictures</string>
+    <string name="labels">Labels</string>
+    <string name="settings">Settings</string>
+    <string name="an_error_occurred">An error occurred.</string>
+    <string name="no_bookmarks_found">No bookmarks found.</string>
+    <string name="add_bookmark">Add Bookmark</string>
+    <string name="title">Title (Optional)</string>
+    <string name="url">URL</string>
+    <string name="invalid_url">Invalid URL</string>
+    <string name="save">Save</string>
+    <string name="cancel">Cancel</string>
+    <string name="create_bookmark_error">Error creating bookmark: %1$s</string>
+    <string name="add_new_bookmark">Add New Bookmark</string>
+    <string name="create">Create</string>
+    <string name="error">Error</string>
+    <string name="ok">OK</string>
+    <string name="not_valid_url">Not a valid URL</string>
+    <string name="log_view_title">Logs</string>
+    <string name="log_view_send_logs">Send Logs</string>
+    <string name="settings_logs">Logs</string>
+    <string name="settings_logs_subtitle">View &amp; Send</string>
+    <string name="log_view_share_title">Send Logs</string>
+    <string name="log_view_no_log_file_found">No log file found</string>
+    <string name="log_view_refresh">Refresh Logs</string>
+    <string name="log_view_clear_logs">Clear Logs</string>
+    <string name="log_view_logs_cleared">Logs cleared</string>
+    <string name="ui_settings_topbar_title">User Interface Settings</string>
+    <string name="ui_settings_theme_title">Theme</string>
+    <string name="theme_system">System</string>
+    <string name="theme_light">Light</string>
+    <string name="theme_dark">Dark</string>
+    <string name="theme_sepia">Sepia</string>
+    <string name="ui_settings_theme_heading">Theming</string>
+    <string name="ui_settings_theme_dialog_support_text">Which theme should be used?</string>
+    <string name="action_delete">Delete</string>
+    <string name="action_open_in_browser">Open in browser</string>
+    <string name="error_no_article_content">Error, article content not available</string>
+    <string name="update_successful">Update successful</string>
+    <string name="notification_channel_sync_name">Synchronization Errors</string>
+    <string name="notification_channel_sync_description">Errors in synchronization</string>
+    <string name="notification_authentication_error_title">Authentication Required</string>
+    <string name="notification_authentication_error_message">Please validate your credentials.</string>
+    <string name="detail_view_no_content">No article content found</string>
+    <string name="common_bookmark_image_content_description">Bookmark Image</string>
+    <string name="settings_sync_full_sync_heading">Background Synchronization</string>
+    <string name="settings_sync_auto_full_sync_title">Background Synchronization</string>
+    <string name="settings_sync_auto_full_button">Synchronize now</string>
+    <string name="settings_sync_support_text">To keep your bookmark list up-to-date, the app periodically syncs with the Readeck server to detect new, updated, and deleted bookmarks. Article content is downloaded in the background for offline reading.\n\nYou can manually sync on the list page to refresh from server, too, but would need to use \'Synchronize now\' button to sync deletes from the server.</string>
+    <string name="settings_sync_dialog_support_text">How often should the synchronization be performed in the background?</string>
+    <string name="auto_sync_timeframe_label">Schedule</string>
+    <string name="auto_sync_timeframe_manual">Manual</string>
+    <string name="auto_sync_timeframe_01_hours">Every hour</string>
+    <string name="auto_sync_timeframe_06_hours">Every 6 hours</string>
+    <string name="auto_sync_timeframe_12_hours">Every 12 hours</string>
+    <string name="auto_sync_timeframe_07_days">Every 7 days</string>
+    <string name="auto_sync_timeframe_01_days">Once a day</string>
+    <string name="auto_sync_timeframe_14_days">Every 14 days</string>
+    <string name="auto_sync_timeframe_30_days">Every 30 days</string>
+    <string name="auto_sync_next_run">Next synchronization on %1$s</string>
+    <string name="auto_sync_next_run_null">No synchronization scheduled</string>
+    <string name="auto_sync_notification_success">Synchronization successful</string>
+    <string name="auto_sync_notification_failure">Synchronization failed</string>
+    <string name="auto_sync_notification_running">Background synchronization running.</string>
+    <string name="auto_sync_notification_channel">Background Synchronization</string>
+    <string name="auto_sync_notification_rationale_dialog_title">Notification Permission Required</string>
+    <string name="auto_sync_notification_rationale_dialog_text">To notify you about background sync failures, we need permission to send notifications.  Please grant this permission.</string>
+    <string name="auto_sync_notification_rationale_dialog_grant_button">Grant Permission</string>
+    <string name="settings_sync_on_app_open_title">Sync on App Open</string>
+    <string name="settings_sync_on_app_open_subtitle">Automatically sync when the app is opened</string>
+    <string name="settings_sync_notifications_title">Sync Notifications</string>
+    <string name="settings_sync_notifications_subtitle">Show notifications for background sync results</string>
+    <string name="sync_status_heading">Sync Status</string>
+    <string name="sync_status_bookmarks">Bookmarks with content: %1$d / %2$d</string>
+    <string name="sync_status_never">Last sync: Never</string>
+    <string name="list_view_empty_not_loaded_yet">Bookmarks have not been loaded yet.</string>
+    <string name="list_view_empty_nothing_to_see">No bookmarks have been found.</string>
+    <string name="about_title">About</string>
+    <string name="about_version">Version %s</string>
+    <string name="about_description">A read-later app for Readeck with a Pocket-like experience</string>
+    <string name="about_credits_title">Credits</string>
+    <string name="about_credits_app_author">MyDeck by Nate Eaton</string>
+    <string name="about_credits_readeck">Readeck server by François Revol and contributors</string>
+    <string name="about_system_info_version">Version %1$s (%2$d)</string>
+    <string name="about_system_info_build_time">Built: %s</string>
+    <string name="about_system_info_android">Android %1$s (API %2$d)</string>
+    <string name="about_system_info_device">Device: %1$s %2$s</string>
+    <string name="about_project_title">Project</string>
+    <string name="about_project_this_repo">MyDeck Repository (Fork)</string>
+    <string name="about_project_original_repo">Original ReadeckApp Repository</string>
+    <string name="about_project_readeck_repo">Readeck Server (Codeberg.org)</string>
+    <string name="about_license_title">License</string>
+    <string name="about_license_text">MyDeck is licensed under the GNU General Public License v3 (GPLv3). Source code is available on GitHub.</string>
+    <string name="about_license_readeck">Readeck server is licensed under the AGPL-3.0 license.</string>
+    <string name="detail_dialog_title">Details</string>
+    <string name="detail_type">Type</string>
+    <string name="detail_language">Language</string>
+    <string name="detail_word_count">Word Count</string>
+    <string name="detail_minutes_short">min</string>
+    <string name="detail_labels">Labels</string>
+    <string name="detail_label_placeholder">Add label</string>
+    <string name="bookmark_labels">Bookmark labels</string>
+    <string name="select_label">Select Label</string>
+    <string name="labels_description">Select a label to view bookmarks</string>
+    <string name="edit_label">Edit label</string>
+    <string name="delete_label">Delete label</string>
+    <string name="label_deleted">Label %s deleted</string>
+    <string name="search_bookmarks">Search bookmarks</string>
+    <string name="search">Search</string>
+    <string name="close_search">Close search</string>
+    <string name="clear_search">Clear search</string>
+    <string name="search_no_results">No results found</string>
+    <string name="sync_content_waiting_network">Content download waiting for network</string>
+    <string name="font_system_default" translatable="false">System Default</string>
+    <string name="font_noto_serif" translatable="false">Noto Serif</string>
+    <string name="font_literata" translatable="false">Literata</string>
+    <string name="font_source_serif" translatable="false">Source Serif</string>
+    <string name="font_noto_sans" translatable="false">Noto Sans</string>
+    <string name="font_jetbrains_mono" translatable="false">JetBrains Mono</string>
 </resources>

@@ -13,6 +13,7 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toInstant
 import timber.log.Timber
 import javax.inject.Inject
+import kotlin.coroutines.cancellation.CancellationException
 
 class LoadBookmarksUseCase @Inject constructor(
     private val bookmarkRepository: BookmarkRepository,
@@ -36,15 +37,18 @@ class LoadBookmarksUseCase @Inject constructor(
     suspend fun execute(
         updatedIds: List<String>? = null,
         pageSize: Int = DEFAULT_PAGE_SIZE,
-        initialOffset: Int = 0
+        initialOffset: Int = 0,
+        enqueueContentSyncAfterLoad: Boolean = true
     ): UseCaseResult<Unit> {
         return try {
             if (updatedIds != null && updatedIds.isNotEmpty()) {
-                executeMultipart(updatedIds)
+                executeMultipart(updatedIds, enqueueContentSyncAfterLoad)
             } else {
                 // No updated IDs — nothing to reload
                 Timber.d("No updated IDs to reload via multipart")
-                enqueueContentSyncIfNeeded()
+                if (enqueueContentSyncAfterLoad) {
+                    enqueueContentSyncIfNeeded()
+                }
                 UseCaseResult.Success(Unit)
             }
         } catch (e: Exception) {
@@ -56,7 +60,10 @@ class LoadBookmarksUseCase @Inject constructor(
     /**
      * Primary path: fetch metadata for specific bookmark IDs via POST /bookmarks/sync.
      */
-    private suspend fun executeMultipart(updatedIds: List<String>): UseCaseResult<Unit> {
+    private suspend fun executeMultipart(
+        updatedIds: List<String>,
+        enqueueContentSyncAfterLoad: Boolean
+    ): UseCaseResult<Unit> {
         Timber.d("executeMultipart: fetching metadata for ${updatedIds.size} bookmarks")
 
         val result = multipartSyncClient.fetchMetadata(updatedIds)
@@ -98,7 +105,9 @@ class LoadBookmarksUseCase @Inject constructor(
                 }
 
                 refreshServerErrorFlags(DEFAULT_PAGE_SIZE)
-                enqueueContentSyncIfNeeded()
+                if (enqueueContentSyncAfterLoad) {
+                    enqueueContentSyncIfNeeded()
+                }
 
                 return UseCaseResult.Success(Unit)
             }
@@ -129,6 +138,7 @@ class LoadBookmarksUseCase @Inject constructor(
 
     companion object {
         const val DEFAULT_PAGE_SIZE = 50
+        private const val MAX_PAGES = 1000
     }
 
     private fun Instant.truncateToSyncCursor(): Instant = Instant.fromEpochSeconds(epochSeconds)
@@ -137,9 +147,14 @@ class LoadBookmarksUseCase @Inject constructor(
         try {
             var offset = 0
             var hasMorePages = true
+            var pagesFetched = 0
             val serverErrorIds = mutableSetOf<String>()
 
             while (hasMorePages) {
+                if (pagesFetched >= MAX_PAGES) {
+                    Timber.w("refreshServerErrorFlags: reached MAX_PAGES=$MAX_PAGES guard; aborting")
+                    break
+                }
                 val response = readeckApi.getBookmarks(
                     limit = pageSize,
                     offset = offset,
@@ -155,6 +170,7 @@ class LoadBookmarksUseCase @Inject constructor(
 
                 val bookmarkDtos = response.body() ?: emptyList()
                 serverErrorIds += bookmarkDtos.map { it.id }
+                pagesFetched++
 
                 val totalPagesHeader = response.headers()[ReadeckApi.Header.TOTAL_PAGES]
                 val currentPageHeader = response.headers()[ReadeckApi.Header.CURRENT_PAGE]
@@ -173,6 +189,8 @@ class LoadBookmarksUseCase @Inject constructor(
             }
 
             bookmarkRepository.replaceServerErrorFlags(serverErrorIds)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Timber.w(e, "Failed to refresh server error flags")
         }

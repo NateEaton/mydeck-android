@@ -334,11 +334,12 @@ object WebViewAnnotationBridge {
                 }
 
                 function getXPathForElement(element) {
-                    if (!element || !container.contains(element)) return null;
+                    var root = document.getElementById('rd-article-content') || container;
+                    if (!root.contains(element)) return null;
 
                     var segments = [];
                     var current = element;
-                    while (current && current !== container) {
+                    while (current && current !== root) {
                         var tagName = (current.tagName || '').toLowerCase();
                         if (!tagName) return null;
 
@@ -564,59 +565,8 @@ object WebViewAnnotationBridge {
         """.trimIndent()
     }
 
-    suspend fun getAnnotationViewportInfo(
-        webView: WebView,
-        annotationId: String
-    ): AnnotationViewportInfo? = suspendCancellableCoroutine { continuation ->
-        webView.evaluateJavascript(
-            """
-                (function() {
-                    var target = document.getElementById('annotation-${annotationId.escapeForJavascript()}');
-                    if (!target) return null;
 
-                    var rect = target.getBoundingClientRect();
-                    var documentHeight = Math.max(
-                        document.documentElement ? document.documentElement.scrollHeight : 0,
-                        document.body ? document.body.scrollHeight : 0,
-                        1
-                    );
-                    var absoluteCenter = rect.top + window.scrollY + (rect.height / 2);
-                    return JSON.stringify({
-                        centerRatio: Math.max(0, Math.min(1, absoluteCenter / documentHeight))
-                    });
-                })();
-            """.trimIndent()
-        ) { result ->
-            val viewportInfo = try {
-                val decoded = WebViewImageBridge.decodeJsString(result)
-                if (decoded.isBlank() || decoded == "null") {
-                    null
-                } else {
-                    json.decodeFromString<AnnotationViewportInfo>(decoded)
-                }
-            } catch (e: Exception) {
-                Timber.w(e, "Failed to decode annotation viewport info")
-                null
-            }
 
-            if (continuation.isActive) {
-                continuation.resume(viewportInfo)
-            }
-        }
-    }
-
-    private fun String.escapeForJavascript(): String {
-        return replace("\\", "\\\\")
-            .replace("'", "\\'")
-            .replace("\"", "\\\"")
-            .replace("\n", "\\n")
-            .replace("\r", "\\r")
-    }
-
-    @kotlinx.serialization.Serializable
-    data class AnnotationViewportInfo(
-        val centerRatio: Float
-    )
 
     @kotlinx.serialization.Serializable
     private data class AnnotationHitTestResult(
@@ -650,4 +600,12 @@ object WebViewAnnotationBridge {
         val note: String? = null,
         val position: Int = Int.MAX_VALUE
     )
+}
+
+internal fun String.escapeForJavascript(): String {
+    return replace("\\", "\\\\")
+        .replace("'", "\\'")
+        .replace("\"", "\\\"")
+        .replace("\n", "\\n")
+        .replace("\r", "\\r")
 }
