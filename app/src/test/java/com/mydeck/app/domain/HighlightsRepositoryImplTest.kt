@@ -176,7 +176,11 @@ class HighlightsRepositoryImplTest {
             )
 
             val result = repository.requestRefresh(HighlightsRefreshReason.USER_RETRY)
-            waitUntil { syncMetadata.cacheComplete }
+            waitUntil {
+                syncMetadata.cacheComplete &&
+                    repository.observeSyncState().value == HighlightsSyncState.Idle &&
+                    syncScheduler.orphanRepairRequests == 1
+            }
 
             val validRows = database.getCachedAnnotationDao().getAnnotationsForBookmark("bookmark-1")
             val orphanRows = database.getCachedAnnotationDao().getAnnotationsForBookmark("missing-bookmark")
@@ -208,7 +212,11 @@ class HighlightsRepositoryImplTest {
             )
 
             val result = repository.requestRefresh(HighlightsRefreshReason.USER_RETRY)
-            waitUntil { syncMetadata.cacheComplete }
+            waitUntil {
+                syncMetadata.cacheComplete &&
+                    repository.observeSyncState().value == HighlightsSyncState.Idle &&
+                    syncScheduler.orphanRepairRequests == 1
+            }
 
             val bookmarkOneRows = database.getCachedAnnotationDao().getAnnotationsForBookmark("bookmark-1")
             val bookmarkTwoRows = database.getCachedAnnotationDao().getAnnotationsForBookmark("bookmark-2")
