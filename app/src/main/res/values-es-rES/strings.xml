@@ -124,6 +124,17 @@ other{}
     <string name="ui_settings_fullscreen_reading_description">Hides the top bar and system bars while you read</string>
     <string name="ui_settings_keep_screen_on_title">Mantener la pantalla encendida mientras se lee</string>
     <string name="ui_settings_keep_screen_on_description">Evita que la pantalla se apague mientras lees</string>
+    <string name="swipe_settings_section_title">Swipe actions</string>
+    <string name="swipe_settings_enable">Enable swipe actions</string>
+    <string name="swipe_settings_left_action">Swipe left action</string>
+    <string name="swipe_settings_right_action">Swipe right action</string>
+    <string name="swipe_action_archive">Archive</string>
+    <string name="swipe_action_delete">Delete</string>
+    <string name="swipe_action_favorite">Favorite</string>
+    <string name="swipe_action_none">None</string>
+    <string name="swipe_a11y_archive">Archive bookmark</string>
+    <string name="swipe_a11y_delete">Delete bookmark</string>
+    <string name="swipe_a11y_favorite">Toggle favorite</string>
     <string name="action_open_in_browser">Abrir en el navegador</string>
     <string name="detail_view_no_content">No se encontró contenido del artículo</string>
     <string name="auto_sync_notification_rationale_dialog_grant_button">Dar permiso</string>

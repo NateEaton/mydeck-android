@@ -18,6 +18,7 @@ import com.mydeck.app.domain.model.DrawerPreset
 import com.mydeck.app.domain.model.FilterFormState
 import com.mydeck.app.domain.model.LayoutMode
 import com.mydeck.app.domain.model.SortOption
+import com.mydeck.app.domain.model.SwipeConfig
 import com.mydeck.app.domain.sync.ConnectivityMonitor
 import com.mydeck.app.domain.content.ContentPackageManager
 import com.mydeck.app.domain.sync.OfflinePolicyEvaluator
@@ -164,6 +165,8 @@ class BookmarkListViewModel @Inject constructor(
 
     val bookmarkCounts: StateFlow<BookmarkCounts> = bookmarkRepository.observeAllBookmarkCounts()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), BookmarkCounts(0, 0, 0, 0))
+
+    val swipeConfig: StateFlow<SwipeConfig> = settingsDataStore.swipeConfigFlow
 
     private val loadBookmarksWorkInfos: StateFlow<List<WorkInfo>> =
         workManager.getWorkInfosForUniqueWorkFlow(LoadBookmarksWorker.UNIQUE_WORK_NAME)

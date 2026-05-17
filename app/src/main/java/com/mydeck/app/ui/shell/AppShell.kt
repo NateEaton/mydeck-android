@@ -212,10 +212,15 @@ private fun CompactAppShell(
     // Only allow swipe-to-open drawer gesture on BookmarkListScreen (matches original behavior)
     val currentBackStackEntry = navController.currentBackStackEntryAsState().value
     val isOnBookmarkList = currentBackStackEntry?.destination.matchesRoute<BookmarkListRoute>()
+    val swipeConfig = bookmarkListViewModel.swipeConfig.collectAsState()
 
     ModalNavigationDrawer(
         drawerState = drawerState,
-        gesturesEnabled = isOnBookmarkList,
+        // Suppress drawer-swipe-to-open when card swipe is enabled, but keep gestures
+        // live once the drawer is already open so scrim-tap and swipe-close still work.
+        gesturesEnabled = drawerState.isOpen
+            || !isOnBookmarkList
+            || !swipeConfig.value.enabled,
         drawerContent = {
             AppDrawerContent(
                 drawerPreset = drawerPreset,

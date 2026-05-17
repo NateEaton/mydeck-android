@@ -12,6 +12,8 @@ import com.mydeck.app.R
 import com.mydeck.app.domain.model.BookmarkShareFormat
 import com.mydeck.app.domain.model.DarkAppearance
 import com.mydeck.app.domain.model.LightAppearance
+import com.mydeck.app.domain.model.SwipeAction
+import com.mydeck.app.domain.model.SwipeConfig
 import com.mydeck.app.domain.model.Theme
 import com.mydeck.app.io.prefs.SettingsDataStore
 import kotlinx.coroutines.channels.Channel
@@ -147,6 +149,20 @@ class UiSettingsViewModel @Inject constructor(
             settingsDataStore.saveFullscreenWhileReading(enabled)
             fullscreenWhileReading.value = settingsDataStore.isFullscreenWhileReading()
         }
+    }
+
+    val swipeConfig: StateFlow<SwipeConfig> = settingsDataStore.swipeConfigFlow
+
+    fun onSwipeEnabledChange(enabled: Boolean) {
+        viewModelScope.launch { settingsDataStore.saveSwipeEnabled(enabled) }
+    }
+
+    fun onSwipeLeftActionChange(action: SwipeAction) {
+        viewModelScope.launch { settingsDataStore.saveSwipeLeftAction(action) }
+    }
+
+    fun onSwipeRightActionChange(action: SwipeAction) {
+        viewModelScope.launch { settingsDataStore.saveSwipeRightAction(action) }
     }
 
     fun onClickBack() {

@@ -15,6 +15,8 @@ import com.mydeck.app.domain.model.DarkAppearance
 import com.mydeck.app.domain.model.HighlightsSyncMetadata
 import com.mydeck.app.domain.model.LightAppearance
 import com.mydeck.app.domain.model.ReaderFontFamily
+import com.mydeck.app.domain.model.SwipeAction
+import com.mydeck.app.domain.model.SwipeConfig
 import com.mydeck.app.domain.model.TextWidth
 import com.mydeck.app.domain.model.Theme
 import com.mydeck.app.domain.model.TypographySettings
@@ -116,6 +118,10 @@ class SettingsDataStoreImpl @Inject constructor(@ApplicationContext private val 
     private val KEY_SERVER_INFO_RELEASE = stringPreferencesKey("server_info_release")
     private val KEY_SERVER_INFO_BUILD = stringPreferencesKey("server_info_build")
     private val KEY_SERVER_INFO_FEATURES = stringPreferencesKey("server_info_features")
+
+    private val KEY_SWIPE_ENABLED = booleanPreferencesKey("swipe_enabled")
+    private val KEY_SWIPE_LEFT_ACTION = stringPreferencesKey("swipe_left_action")
+    private val KEY_SWIPE_RIGHT_ACTION = stringPreferencesKey("swipe_right_action")
 
     init {
         migrateLegacySepiaSetting(encryptedSharedPreferences)
@@ -390,6 +396,27 @@ class SettingsDataStoreImpl @Inject constructor(@ApplicationContext private val 
 
     override suspend fun isFullscreenWhileReading(): Boolean {
         return userPreferences.getBoolean(KEY_FULLSCREEN_WHILE_READING.name, false)
+    }
+
+    override suspend fun saveSwipeEnabled(enabled: Boolean) {
+        userPreferences.edit {
+            putBoolean(KEY_SWIPE_ENABLED.name, enabled)
+        }
+        _swipeConfigFlow.value = readSwipeConfig()
+    }
+
+    override suspend fun saveSwipeLeftAction(action: SwipeAction) {
+        userPreferences.edit {
+            putString(KEY_SWIPE_LEFT_ACTION.name, action.name)
+        }
+        _swipeConfigFlow.value = readSwipeConfig()
+    }
+
+    override suspend fun saveSwipeRightAction(action: SwipeAction) {
+        userPreferences.edit {
+            putString(KEY_SWIPE_RIGHT_ACTION.name, action.name)
+        }
+        _swipeConfigFlow.value = readSwipeConfig()
     }
 
     override suspend fun setSyncOnAppOpenEnabled(isEnabled: Boolean) {
@@ -826,6 +853,29 @@ class SettingsDataStoreImpl @Inject constructor(@ApplicationContext private val 
         }
         _typographySettingsFlow.value = sanitizedSettings
     }
+
+    private fun readSwipeConfig(): SwipeConfig {
+        val enabled = userPreferences.getBoolean(KEY_SWIPE_ENABLED.name, SwipeConfig.Default.enabled)
+        val leftAction = userPreferences.getString(KEY_SWIPE_LEFT_ACTION.name, null)?.let { value ->
+            try {
+                SwipeAction.valueOf(value)
+            } catch (_: IllegalArgumentException) {
+                SwipeConfig.Default.leftAction
+            }
+        } ?: SwipeConfig.Default.leftAction
+        val rightAction = userPreferences.getString(KEY_SWIPE_RIGHT_ACTION.name, null)?.let { value ->
+            try {
+                SwipeAction.valueOf(value)
+            } catch (_: IllegalArgumentException) {
+                SwipeConfig.Default.rightAction
+            }
+        } ?: SwipeConfig.Default.rightAction
+        return SwipeConfig(enabled = enabled, leftAction = leftAction, rightAction = rightAction)
+    }
+
+    private val _swipeConfigFlow = MutableStateFlow(readSwipeConfig())
+
+    override val swipeConfigFlow: StateFlow<SwipeConfig> = _swipeConfigFlow.asStateFlow()
 
     private fun readLineSpacingPercent(): Int {
         if (userPreferences.contains(KEY_TYPO_LINE_SPACING_PERCENT.name)) {

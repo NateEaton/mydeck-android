@@ -6,6 +6,8 @@ import com.mydeck.app.domain.model.BookmarkShareFormat
 import com.mydeck.app.domain.model.DarkAppearance
 import com.mydeck.app.domain.model.HighlightsSyncMetadata
 import com.mydeck.app.domain.model.LightAppearance
+import com.mydeck.app.domain.model.SwipeAction
+import com.mydeck.app.domain.model.SwipeConfig
 import com.mydeck.app.domain.model.Theme
 import com.mydeck.app.domain.model.TypographySettings
 import com.mydeck.app.domain.sync.ContentSyncConstraints
@@ -118,6 +120,12 @@ interface SettingsDataStore {
     val fullscreenWhileReadingFlow: StateFlow<Boolean>
     suspend fun saveFullscreenWhileReading(enabled: Boolean)
     suspend fun isFullscreenWhileReading(): Boolean
+
+    // Swipe action preferences
+    val swipeConfigFlow: StateFlow<SwipeConfig>
+    suspend fun saveSwipeEnabled(enabled: Boolean)
+    suspend fun saveSwipeLeftAction(action: SwipeAction)
+    suspend fun saveSwipeRightAction(action: SwipeAction)
 
     // Server info caching
     suspend fun saveServerInfo(info: CachedServerInfo)

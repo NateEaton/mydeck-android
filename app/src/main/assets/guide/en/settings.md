@@ -66,6 +66,16 @@ The **User Interface Settings** screen controls the app's appearance.
 - **Fullscreen while reading** — when enabled, article reading view hides the system bars and top bar after a short delay so the page can use the full screen. Swipe from the edge or tap near the top edge to reveal them temporarily.
 - **Keep screen on while reading** — when enabled, the screen stays on while you have a bookmark open in reading view. Enabled by default.
 
+### Swipe actions
+
+Controls the horizontal swipe gesture on bookmark cards.
+
+- **Enable swipe actions** — master switch. When off, swiping cards does nothing and the navigation drawer's left-edge swipe gesture returns.
+- **Swipe right action** — choose what a right swipe does: **Archive**, **Delete**, **Favorite**, or **None** (disables the right direction only).
+- **Swipe left action** — choose what a left swipe does: **Archive**, **Delete**, **Favorite**, or **None** (disables the left direction only).
+
+Setting a direction to **None** leaves the other direction active.
+
 ## Logs
 
 The **Logs** screen shows the app's log output, which can be useful for troubleshooting. From this screen you can:
