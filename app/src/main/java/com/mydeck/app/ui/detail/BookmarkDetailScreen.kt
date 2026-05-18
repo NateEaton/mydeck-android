@@ -882,8 +882,16 @@ fun BookmarkDetailScreen(
         mutableStateOf(fullscreenReaderMode)
     }
     val density = LocalDensity.current
+    var measuredTopBarHeightPx by remember { mutableIntStateOf(0) }
     val topBarClearance = with(density) {
-        TopAppBarDefaults.TopAppBarExpandedHeight + WindowInsets.statusBars.getTop(this).toDp()
+        val baseDp = if (measuredTopBarHeightPx > 0) {
+            measuredTopBarHeightPx.toDp()
+        } else {
+            TopAppBarDefaults.TopAppBarExpandedHeight + WindowInsets.statusBars.getTop(this).toDp()
+        }
+        // Small cushion so the title glyph never visually touches the bar's
+        // bottom edge even with sub-pixel rounding or font half-leading variance.
+        baseDp + 4.dp
     }
     val readerTopClearanceCssPx = topBarClearance.value.roundToInt().coerceAtLeast(0)
     val topBarCanHide =
@@ -1085,6 +1093,7 @@ fun BookmarkDetailScreen(
                 modifier = Modifier
                     .align(Alignment.TopCenter)
                     .fillMaxWidth()
+                    .onSizeChanged { measuredTopBarHeightPx = it.height }
             ) {
                 BookmarkDetailTopBar(
                     articleSearchState = articleSearchState,
