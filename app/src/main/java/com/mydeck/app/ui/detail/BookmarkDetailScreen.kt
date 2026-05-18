@@ -885,12 +885,15 @@ fun BookmarkDetailScreen(
     // Static derivation — keeps readerTopClearanceCssPx stable across the screen's
     // lifetime so the WebView's HTML clearance spacer doesn't get rewritten after
     // initial composition, which would otherwise reload the article and reset scroll.
-    // The 4dp cushion absorbs the sub-pixel rounding that originally motivated the
-    // measured-height approach in 9392327; measurement is no longer needed.
+    // The cushion absorbs any device-specific padding the M3 TopAppBar adds beyond
+    // TopAppBarExpandedHeight + status bars (observed on Pixel Tablet emulator),
+    // plus any sub-pixel rounding. Larger than strictly needed on phones, but the
+    // extra ~8dp at the top of articles is negligible visually compared to the
+    // cost of the measurement-based approach (one-shot WebView reload mid-scroll).
     val topBarClearance = with(density) {
         TopAppBarDefaults.TopAppBarExpandedHeight +
             WindowInsets.statusBars.getTop(this).toDp() +
-            4.dp
+            12.dp
     }
     val readerTopClearanceCssPx = topBarClearance.value.roundToInt().coerceAtLeast(0)
     val topBarCanHide =
