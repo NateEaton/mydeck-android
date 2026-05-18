@@ -5,6 +5,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -14,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -43,7 +45,9 @@ import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material.icons.outlined.Launch
+import androidx.compose.foundation.Image
 import coil3.compose.AsyncImage
+import coil3.compose.rememberAsyncImagePainter
 import coil3.request.ImageRequest
 import coil3.request.crossfade
 import androidx.compose.material3.CircularProgressIndicator
@@ -71,11 +75,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
@@ -149,20 +156,49 @@ fun BookmarkDetailsDialog(
                 )
             }
 
-            // Thumbnail
+            // Thumbnail — three zones based on natural height at full card width:
+            //   < minThumbHeight  → crop up to minThumbHeight (wide/panoramic images)
+            //   minThumbHeight..maxThumbHeight → show full image at natural height
+            //   > maxThumbHeight  → crop down to maxThumbHeight (tall portrait images)
             if (bookmark.thumbnailSrc.isNotBlank()) {
-                AsyncImage(
-                    model = ImageRequest.Builder(LocalContext.current)
-                        .data(bookmark.thumbnailSrc)
-                        .crossfade(true)
-                        .build(),
-                    contentDescription = null,
-                    contentScale = androidx.compose.ui.layout.ContentScale.Crop,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(200.dp)
-                        .padding(bottom = 12.dp)
-                )
+                val minThumbHeight = 180.dp
+                val screenHeight = LocalConfiguration.current.screenHeightDp.dp
+                val maxThumbHeight = screenHeight * 0.5f
+
+                BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+                    val containerWidthPx = constraints.maxWidth.toFloat()
+                    val density = LocalDensity.current
+
+                    val painter = rememberAsyncImagePainter(
+                        model = ImageRequest.Builder(LocalContext.current)
+                            .data(bookmark.thumbnailSrc)
+                            .crossfade(true)
+                            .build()
+                    )
+                    val intrinsic = painter.intrinsicSize
+                    val naturalHeightDp = if (intrinsic.width > 0f && !intrinsic.width.isNaN()) {
+                        with(density) { (containerWidthPx * intrinsic.height / intrinsic.width).toDp() }
+                    } else null
+
+                    val displayHeight: androidx.compose.ui.unit.Dp
+                    val scale: ContentScale
+                    when {
+                        naturalHeightDp == null -> { displayHeight = minThumbHeight; scale = ContentScale.Crop }
+                        naturalHeightDp < minThumbHeight -> { displayHeight = minThumbHeight; scale = ContentScale.Crop }
+                        naturalHeightDp > maxThumbHeight -> { displayHeight = maxThumbHeight; scale = ContentScale.Crop }
+                        else -> { displayHeight = naturalHeightDp; scale = ContentScale.Fit }
+                    }
+
+                    Image(
+                        painter = painter,
+                        contentDescription = null,
+                        contentScale = scale,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(displayHeight)
+                            .padding(bottom = 12.dp)
+                    )
+                }
             }
 
             EditableTitleRow(
