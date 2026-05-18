@@ -259,6 +259,7 @@ fun BookmarkDetailHost(
     val labelsWithCounts = viewModel.labelsWithCounts.collectAsState().value
     val galleryData = viewModel.galleryData.collectAsState().value
     val readerContextMenu = viewModel.readerContextMenu.collectAsState().value
+    val extractionLogState = viewModel.extractionLogState.collectAsState().value
     val readerWebView = remember { mutableStateOf<WebView?>(null) }
     var detailOverlay by remember { mutableStateOf(DetailOverlay.NONE) }
     var showTypographyPanel by remember { mutableStateOf(false) }
@@ -732,7 +733,10 @@ fun BookmarkDetailHost(
                     canRefreshContent = uiState.bookmark.hasContent,
                     onEditMetadata = {
                         detailOverlay = DetailOverlay.METADATA_EDITOR
-                    }
+                    },
+                    extractionLogState = extractionLogState,
+                    onViewExtractionLog = { viewModel.onViewExtractionLog() },
+                    onDismissExtractionLog = { viewModel.onDismissExtractionLog() }
                 )
             }
             if (detailOverlay == DetailOverlay.METADATA_EDITOR) {

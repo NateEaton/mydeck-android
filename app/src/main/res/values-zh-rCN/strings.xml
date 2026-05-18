@@ -62,6 +62,18 @@
     <string name="add">Add</string>
     <string name="bookmark_added">Bookmark added</string>
     <string name="remove_label">Remove label</string>
+    <!-- Extraction Error Box and Log Viewer -->
+    <string name="extraction_error_title">Errors occurred during extraction.</string>
+    <string name="extraction_error_fallback">Extraction failed.</string>
+    <string name="extraction_error_help">Depending on the error, Readeck\'s browser extension may provide a workaround.</string>
+    <string name="extraction_error_learn_more">Learn more</string>
+    <string name="extraction_error_view_log">View log</string>
+    <string name="extraction_log_title">Extraction log</string>
+    <string name="extraction_log_loading">Loading…</string>
+    <string name="extraction_log_unavailable">Log unavailable.</string>
+    <string name="extraction_log_load_failed">Failed to load log.</string>
+    <string name="extraction_log_copy">copy to clipboard</string>
+    <string name="extraction_log_retry">Retry</string>
     <string name="title">标题（可选）</string>
     <string name="invalid_url">无效的 URL</string>
     <string name="save">保存</string>

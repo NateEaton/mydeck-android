@@ -1,6 +1,10 @@
 package com.mydeck.app.ui.detail
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -8,6 +12,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -21,6 +26,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.Error
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Publish
@@ -41,13 +49,16 @@ import coil3.request.crossfade
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -59,9 +70,16 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.window.Dialog
 import kotlinx.coroutines.launch
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
@@ -84,7 +102,10 @@ fun BookmarkDetailsDialog(
     onRefreshContent: () -> Unit = {},
     canRefreshContent: Boolean = false,
     onEditMetadata: () -> Unit = {},
-    onClickOpenInBrowser: (String) -> Unit = {}
+    onClickOpenInBrowser: (String) -> Unit = {},
+    extractionLogState: BookmarkDetailViewModel.ExtractionLogState = BookmarkDetailViewModel.ExtractionLogState(),
+    onViewExtractionLog: () -> Unit = {},
+    onDismissExtractionLog: () -> Unit = {}
 ) {
     var labels by remember { mutableStateOf(bookmark.labels.toMutableList()) }
 
@@ -112,6 +133,22 @@ fun BookmarkDetailsDialog(
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
+            if (bookmark.hasExtractionError) {
+                ExtractionErrorBox(
+                    errors = bookmark.errors,
+                    logSrc = bookmark.logSrc,
+                    onViewLog = onViewExtractionLog
+                )
+            }
+
+            if (extractionLogState.visible) {
+                ExtractionLogDialog(
+                    state = extractionLogState,
+                    onDismiss = onDismissExtractionLog,
+                    onRetry = onViewExtractionLog
+                )
+            }
+
             // Thumbnail
             if (bookmark.thumbnailSrc.isNotBlank()) {
                 AsyncImage(
@@ -603,6 +640,241 @@ fun BookmarkDetailsDialogPreview() {
         onLabelsUpdate = {},
         onEditMetadata = {}
     )
+}
+
+@Composable
+private fun ExtractionErrorBox(
+    errors: List<String>,
+    logSrc: String,
+    onViewLog: () -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val uriHandler = LocalUriHandler.current
+    val errorColor = MaterialTheme.colorScheme.error
+
+    OutlinedCard(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.outlinedCardColors(
+            containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.15f)
+        ),
+        border = androidx.compose.foundation.BorderStroke(1.dp, errorColor)
+    ) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { expanded = !expanded },
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Error,
+                    contentDescription = null,
+                    tint = errorColor,
+                    modifier = Modifier.size(18.dp)
+                )
+                Text(
+                    text = stringResource(R.string.extraction_error_title),
+                    style = MaterialTheme.typography.bodyMedium.copy(
+                        fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
+                    ),
+                    color = errorColor,
+                    modifier = Modifier.weight(1f)
+                )
+                Icon(
+                    imageVector = if (expanded) Icons.Filled.KeyboardArrowDown else Icons.Filled.KeyboardArrowRight,
+                    contentDescription = null,
+                    tint = errorColor,
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+
+            AnimatedVisibility(visible = expanded) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    if (errors.isNotEmpty()) {
+                        errors.forEach { error ->
+                            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Text("•", style = MaterialTheme.typography.bodySmall)
+                                Text(error, style = MaterialTheme.typography.bodySmall)
+                            }
+                        }
+                    } else {
+                        Text(
+                            text = stringResource(R.string.extraction_error_fallback),
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    Text(
+                        text = stringResource(R.string.extraction_error_help),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    Button(
+                        onClick = {
+                            uriHandler.openUri("https://readeck.org/en/extension")
+                        },
+                        modifier = Modifier.align(Alignment.CenterHorizontally)
+                    ) {
+                        Text(stringResource(R.string.extraction_error_learn_more))
+                    }
+
+                    if (logSrc.isNotBlank()) {
+                        Text(
+                            text = stringResource(R.string.extraction_error_view_log),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier
+                                .align(Alignment.End)
+                                .clickable(onClick = onViewLog)
+                                .padding(vertical = 4.dp)
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ExtractionLogDialog(
+    state: BookmarkDetailViewModel.ExtractionLogState,
+    onDismiss: () -> Unit,
+    onRetry: () -> Unit
+) {
+    val clipboardManager = LocalClipboardManager.current
+
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = RoundedCornerShape(12.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .fillMaxHeight(0.8f)
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = stringResource(R.string.extraction_log_title),
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.weight(1f)
+                    )
+                    IconButton(onClick = onDismiss) {
+                        Icon(Icons.Filled.Close, contentDescription = null)
+                    }
+                }
+
+                when {
+                    state.isLoading -> {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .weight(1f),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator()
+                        }
+                    }
+                    state.errorMessage != null -> {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .weight(1f),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.extraction_log_load_failed),
+                                    style = MaterialTheme.typography.bodyMedium
+                                )
+                                TextButton(onClick = onRetry) {
+                                    Text(stringResource(R.string.extraction_log_retry))
+                                }
+                            }
+                        }
+                    }
+                    state.text != null -> {
+                        Row(
+                            modifier = Modifier.padding(bottom = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Icon(
+                                Icons.Filled.ContentCopy,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp),
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                            TextButton(
+                                onClick = { clipboardManager.setText(AnnotatedString(state.text)) },
+                                contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp)
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.extraction_log_copy),
+                                    style = MaterialTheme.typography.bodySmall
+                                )
+                            }
+                        }
+                        val logScrollState = rememberScrollState()
+                        val scrollbarAlpha by animateFloatAsState(
+                            targetValue = if (logScrollState.isScrollInProgress) 0.6f else 0.3f,
+                            animationSpec = tween(durationMillis = 300),
+                            label = "scrollbarAlpha"
+                        )
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .weight(1f)
+                                .drawWithContent {
+                                    drawContent()
+                                    if (logScrollState.maxValue > 0) {
+                                        val barWidth = 4.dp.toPx()
+                                        val trackHeight = size.height
+                                        val thumbHeight = (trackHeight * trackHeight / (trackHeight + logScrollState.maxValue)).coerceAtLeast(24.dp.toPx())
+                                        val thumbTop = (trackHeight - thumbHeight) * logScrollState.value / logScrollState.maxValue
+                                        drawRect(
+                                            color = Color.Gray,
+                                            topLeft = Offset(size.width - barWidth, thumbTop),
+                                            size = Size(barWidth, thumbHeight),
+                                            alpha = scrollbarAlpha
+                                        )
+                                    }
+                                }
+                        ) {
+                            Column(
+                                modifier = Modifier.verticalScroll(logScrollState)
+                            ) {
+                                Text(
+                                    text = state.text,
+                                    style = MaterialTheme.typography.bodySmall.copy(
+                                        fontFamily = FontFamily.Monospace
+                                    ),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(bottom = 8.dp, end = 8.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 
 private fun String.toDomainName(): String {

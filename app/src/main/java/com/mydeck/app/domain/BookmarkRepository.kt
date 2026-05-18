@@ -81,6 +81,15 @@ interface BookmarkRepository {
     suspend fun deleteLabel(label: String): UpdateResult
     suspend fun fetchRawBookmarkJson(bookmarkId: String): String?
     suspend fun refreshBookmarkMetadata(bookmarkId: String)
+    suspend fun fetchExtractionLog(bookmarkId: String): ExtractionLogResult
+
+    sealed class ExtractionLogResult {
+        data class Success(val text: String) : ExtractionLogResult()
+        data class HttpError(val code: Int) : ExtractionLogResult()
+        data object NetworkError : ExtractionLogResult()
+        data object Unavailable : ExtractionLogResult()
+    }
+
     sealed class UpdateResult {
         data object Success: UpdateResult()
         data class Error(val errorMessage: String, val code: Int? = null, val ex: Exception? = null): UpdateResult()

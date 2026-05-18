@@ -131,7 +131,8 @@ fun BookmarkEntity.toDomain(): Bookmark = Bookmark(
     },
     contentFailureReason = contentFailureReason,
     omitDescription = omitDescription,
-    errors = errors
+    errors = errors,
+    hasServerErrors = hasServerErrors
 )
 
 fun ResourceEntity.toDomain(): Bookmark.Resource = Bookmark.Resource(

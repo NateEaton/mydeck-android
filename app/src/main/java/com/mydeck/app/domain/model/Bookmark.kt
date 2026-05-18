@@ -40,7 +40,8 @@ data class Bookmark(
     val contentState: ContentState = ContentState.NOT_ATTEMPTED,
     val contentFailureReason: String? = null,
     val omitDescription: Boolean? = null,
-    val errors: List<String> = emptyList()
+    val errors: List<String> = emptyList(),
+    val hasServerErrors: Boolean = false
 ) {
     fun isRead(): Boolean {
         return readProgress == 100

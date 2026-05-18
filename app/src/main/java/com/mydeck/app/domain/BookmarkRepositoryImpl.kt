@@ -1123,4 +1123,30 @@ class BookmarkRepositoryImpl @Inject constructor(
                 null
             }
         }
+
+    override suspend fun fetchExtractionLog(bookmarkId: String): BookmarkRepository.ExtractionLogResult =
+        withContext(dispatcher) {
+            val logSrc = try {
+                bookmarkDao.getBookmarkById(bookmarkId).log.src
+            } catch (e: Exception) {
+                null
+            }
+            if (logSrc.isNullOrBlank()) return@withContext BookmarkRepository.ExtractionLogResult.Unavailable
+            try {
+                val response = readeckApi.getBookmarkLog(logSrc)
+                if (response.isSuccessful) {
+                    val text = response.body()?.string() ?: ""
+                    BookmarkRepository.ExtractionLogResult.Success(text)
+                } else {
+                    Timber.w("Extraction log fetch failed: ${response.code()}")
+                    BookmarkRepository.ExtractionLogResult.HttpError(response.code())
+                }
+            } catch (e: IOException) {
+                Timber.e(e, "Network error fetching extraction log")
+                BookmarkRepository.ExtractionLogResult.NetworkError
+            } catch (e: Exception) {
+                Timber.e(e, "Unexpected error fetching extraction log")
+                BookmarkRepository.ExtractionLogResult.NetworkError
+            }
+        }
 }
