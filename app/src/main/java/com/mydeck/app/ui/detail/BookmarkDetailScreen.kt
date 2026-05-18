@@ -882,16 +882,15 @@ fun BookmarkDetailScreen(
         mutableStateOf(fullscreenReaderMode)
     }
     val density = LocalDensity.current
-    var measuredTopBarHeightPx by remember { mutableIntStateOf(0) }
+    // Static derivation — keeps readerTopClearanceCssPx stable across the screen's
+    // lifetime so the WebView's HTML clearance spacer doesn't get rewritten after
+    // initial composition, which would otherwise reload the article and reset scroll.
+    // The 4dp cushion absorbs the sub-pixel rounding that originally motivated the
+    // measured-height approach in 9392327; measurement is no longer needed.
     val topBarClearance = with(density) {
-        val baseDp = if (measuredTopBarHeightPx > 0) {
-            measuredTopBarHeightPx.toDp()
-        } else {
-            TopAppBarDefaults.TopAppBarExpandedHeight + WindowInsets.statusBars.getTop(this).toDp()
-        }
-        // Small cushion so the title glyph never visually touches the bar's
-        // bottom edge even with sub-pixel rounding or font half-leading variance.
-        baseDp + 4.dp
+        TopAppBarDefaults.TopAppBarExpandedHeight +
+            WindowInsets.statusBars.getTop(this).toDp() +
+            4.dp
     }
     val readerTopClearanceCssPx = topBarClearance.value.roundToInt().coerceAtLeast(0)
     val topBarCanHide =
@@ -1093,14 +1092,6 @@ fun BookmarkDetailScreen(
                 modifier = Modifier
                     .align(Alignment.TopCenter)
                     .fillMaxWidth()
-                    // Capture max-seen height so the reader's CSS spacer locks to the bar's
-                    // fully-expanded height and doesn't oscillate as enterAlwaysScrollBehavior
-                    // collapses the bar during scroll (which otherwise reflows the WebView).
-                    .onSizeChanged { newSize ->
-                        if (newSize.height > measuredTopBarHeightPx) {
-                            measuredTopBarHeightPx = newSize.height
-                        }
-                    }
             ) {
                 BookmarkDetailTopBar(
                     articleSearchState = articleSearchState,
