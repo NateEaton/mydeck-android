@@ -266,6 +266,12 @@ data class HighlightsSearchState(
     val isSearchActive: Boolean = false,
 )
 
+data class HighlightDateAnchor(
+    val year: Int,
+    val month: Int,
+    val itemIndex: Int,
+)
+
 data class SearchTargets(
     val text: Boolean = true,
     val notes: Boolean = true,
@@ -355,6 +361,28 @@ internal fun filterHighlightGroups(
             }
         }
         .sortGroups(searchState.sortOrder)
+}
+
+internal fun buildHighlightDateAnchors(
+    groups: List<BookmarkHighlightGroup>,
+): List<HighlightDateAnchor> {
+    val anchors = mutableListOf<HighlightDateAnchor>()
+    val seenMonths = mutableSetOf<Pair<Int, Int>>()
+    var itemIndex = 0
+
+    groups.forEach { group ->
+        val key = group.groupDate.year to group.groupDate.monthNumber
+        if (seenMonths.add(key)) {
+            anchors += HighlightDateAnchor(
+                year = group.groupDate.year,
+                month = group.groupDate.monthNumber,
+                itemIndex = itemIndex,
+            )
+        }
+        itemIndex += group.highlights.size + 1
+    }
+
+    return anchors
 }
 
 private fun matchesGroupQuery(
