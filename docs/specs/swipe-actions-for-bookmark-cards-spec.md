@@ -67,6 +67,15 @@ Suggested arbitration:
   movement is not clearly subordinate to horizontal movement.
 * Consume horizontal drag deltas only after swipe lock.
 
+Additionally, the container applies a **vertical-intent fence**: once
+`abs(dy)` crosses a smaller pre-slop threshold AND `abs(dy) >= 1.5 *
+abs(dx)`, swipe is locked out for the rest of that pointer's life — even
+if the user later moves cleanly sideways within the same touch. This
+prevents an accidental commit when a scroll gesture changes direction
+mid-touch. See the architecture spec for details. The symmetric direction
+(horizontal-commit locks out late vertical motion) is already provided by
+Compose's default slop-arbitration once swipe wins the pointer.
+
 ### **3.2 System and Navigation Gestures**
 
 Compact layout currently opens the navigation drawer with a left-to-right
