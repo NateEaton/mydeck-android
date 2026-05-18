@@ -1,5 +1,20 @@
 # Highlights Date Fast Scroll Spec
 
+> **Shelved (2026-05-18).** The implementation that landed in commit
+> `6db1839` ("Add highlights date fast scroll") was reverted shortly after
+> being pushed — a tester with thousands of highlights spanning years
+> could not validate the feature, and we lack a local dataset large enough
+> to iterate on. Rather than ship a feature we can't verify, the change has
+> been backed out. The original commit is preserved at the git tag
+> **`wip/highlights-fast-scroll`** — `git show wip/highlights-fast-scroll`
+> to view, or cherry-pick to revive.
+>
+> **Next step:** build the equivalent fast-scroll pattern for the main
+> bookmark list views first (where we have test data), then mirror the
+> proven pattern back into this spec and re-implement for highlights.
+> This spec stays here as the reference design and as the destination
+> for the eventual back-port.
+
 **Status:** Draft for discussion
 **Date:** 2026-05-18
 **Build Context:** Highlights local-first search/filter/sort is already implemented

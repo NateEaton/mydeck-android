@@ -1,21 +1,15 @@
 package com.mydeck.app.ui.highlights
 
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowDownward
@@ -23,7 +17,6 @@ import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.FilterList
-import androidx.compose.material.icons.filled.UnfoldMore
 import androidx.compose.material.icons.outlined.EditNote
 import androidx.compose.material.icons.outlined.SyncProblem
 import androidx.compose.material3.*
@@ -33,28 +26,17 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.BiasAlignment
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
@@ -67,19 +49,15 @@ import com.mydeck.app.domain.model.BookmarkHighlightGroup
 import com.mydeck.app.domain.model.HighlightSummary
 import com.mydeck.app.ui.navigation.BookmarkDetailRoute
 import kotlinx.datetime.toJavaInstant
-import kotlinx.coroutines.delay
 import java.time.ZoneId
-import java.time.Month
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
-import java.time.format.TextStyle
-import java.util.Locale
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.withStyle
 import com.mydeck.app.ui.components.VerticalScrollbar
 import kotlinx.coroutines.launch
-import kotlin.math.roundToInt
 
 @Composable
 fun HighlightsScreen(
@@ -302,9 +280,6 @@ fun HighlightsContent(
                             modifier = Modifier.fillMaxSize()
                         ) {
                             Box(modifier = Modifier.fillMaxSize()) {
-                                val dateAnchors = remember(uiState.filteredGroups) {
-                                    buildHighlightDateAnchors(uiState.filteredGroups)
-                                }
                                 LazyColumn(
                                     state = lazyListState,
                                     modifier = Modifier.fillMaxSize(),
@@ -326,22 +301,12 @@ fun HighlightsContent(
                                         }
                                     }
                                 }
-                                if (dateAnchors.size > 1) {
-                                    HighlightsDateFastScroller(
-                                        anchors = dateAnchors,
-                                        lazyListState = lazyListState,
-                                        modifier = Modifier
-                                            .align(Alignment.CenterEnd)
-                                            .fillMaxHeight()
-                                    )
-                                } else {
-                                    VerticalScrollbar(
-                                        modifier = Modifier
-                                            .align(Alignment.CenterEnd)
-                                            .fillMaxHeight(),
-                                        lazyListState = lazyListState
-                                    )
-                                }
+                                VerticalScrollbar(
+                                    modifier = Modifier
+                                        .align(Alignment.CenterEnd)
+                                        .fillMaxHeight(),
+                                    lazyListState = lazyListState
+                                )
                             }
                         }
                     }
@@ -375,223 +340,6 @@ private fun HighlightsPartialCacheBanner() {
             )
         }
     }
-}
-
-@Composable
-private fun HighlightsDateFastScroller(
-    anchors: List<HighlightDateAnchor>,
-    lazyListState: LazyListState,
-    modifier: Modifier = Modifier,
-) {
-    if (anchors.isEmpty()) {
-        return
-    }
-
-    val coroutineScope = rememberCoroutineScope()
-    val locale = Locale.getDefault()
-    var containerSize by remember { mutableStateOf(IntSize.Zero) }
-    var isDragging by remember { mutableStateOf(false) }
-    var isVisible by remember { mutableStateOf(false) }
-    var selectedAnchor by remember { mutableStateOf<HighlightDateAnchor?>(null) }
-    var lastScrolledItemIndex by remember { mutableStateOf<Int?>(null) }
-
-    val activeAnchor by remember(anchors, lazyListState, selectedAnchor, isDragging) {
-        derivedStateOf {
-            selectedAnchor
-                ?: anchors.lastOrNull { it.itemIndex <= lazyListState.firstVisibleItemIndex }
-                ?: anchors.first()
-        }
-    }
-    val activeLabel = activeAnchor.monthYearLabel(locale)
-    val fastScrollDescription = stringResource(R.string.highlights_fast_scroll)
-
-    LaunchedEffect(lazyListState.isScrollInProgress, isDragging) {
-        if (lazyListState.isScrollInProgress || isDragging) {
-            isVisible = true
-        } else {
-            delay(1200)
-            isVisible = false
-            selectedAnchor = null
-            lastScrolledItemIndex = null
-        }
-    }
-
-    val alpha by animateFloatAsState(
-        targetValue = if (isVisible || isDragging) 1f else 0f,
-        animationSpec = tween(durationMillis = 180),
-        label = "HighlightsDateFastScrollerAlpha"
-    )
-
-    if (!isVisible && !isDragging && alpha <= 0.01f) {
-        return
-    }
-
-    fun updateAnchorForPosition(y: Float) {
-        val height = containerSize.height
-        if (height <= 0) {
-            return
-        }
-        val progress = (y / height.toFloat()).coerceIn(0f, 1f)
-        val anchorIndex = (progress * anchors.lastIndex).roundToInt()
-            .coerceIn(0, anchors.lastIndex)
-        val anchor = anchors[anchorIndex]
-        selectedAnchor = anchor
-        if (lastScrolledItemIndex != anchor.itemIndex) {
-            lastScrolledItemIndex = anchor.itemIndex
-            coroutineScope.launch {
-                lazyListState.scrollToItem(anchor.itemIndex)
-            }
-        }
-    }
-
-    Box(
-        modifier = modifier
-            .width(128.dp)
-            .alpha(alpha)
-            .onSizeChanged { containerSize = it }
-    ) {
-        val activeAnchorIndex = anchors.indexOfFirst {
-            it.year == activeAnchor.year && it.month == activeAnchor.month
-        }.coerceAtLeast(0)
-        val activeBias = if (anchors.size == 1) {
-            -1f
-        } else {
-            (activeAnchorIndex.toFloat() / anchors.lastIndex.toFloat() * 2f) - 1f
-        }
-
-        Column(
-            modifier = Modifier
-                .align(Alignment.CenterEnd)
-                .padding(end = 48.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-            horizontalAlignment = Alignment.End,
-        ) {
-            visibleYearAnchors(anchors, activeAnchor).forEach { anchor ->
-                FastScrollDateChip(
-                    text = anchor.year.toString(),
-                    selected = anchor.year == activeAnchor.year,
-                )
-            }
-        }
-
-        Box(
-            modifier = Modifier
-                .align(Alignment.CenterEnd)
-                .fillMaxHeight()
-                .width(48.dp)
-                .semantics {
-                    contentDescription = fastScrollDescription
-                    stateDescription = activeLabel
-                }
-                .pointerInput(anchors, containerSize) {
-                    detectVerticalDragGestures(
-                        onDragStart = { offset ->
-                            isDragging = true
-                            updateAnchorForPosition(offset.y)
-                        },
-                        onVerticalDrag = { change, _ ->
-                            change.consume()
-                            updateAnchorForPosition(change.position.y)
-                        },
-                        onDragEnd = {
-                            isDragging = false
-                        },
-                        onDragCancel = {
-                            isDragging = false
-                        }
-                    )
-                }
-        )
-
-        FastScrollDateChip(
-            text = activeLabel,
-            selected = true,
-            modifier = Modifier
-                .align(BiasAlignment(1f, activeBias))
-                .padding(end = 88.dp)
-        )
-
-        Surface(
-            modifier = Modifier
-                .align(BiasAlignment(1f, activeBias))
-                .padding(end = 6.dp)
-                .size(width = 40.dp, height = if (isDragging) 72.dp else 56.dp),
-            shape = RoundedCornerShape(20.dp),
-            color = Color(0xFF202124).copy(alpha = 0.86f),
-            contentColor = Color.White,
-            tonalElevation = 4.dp,
-        ) {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-            ) {
-                Icon(
-                    imageVector = Icons.Filled.UnfoldMore,
-                    contentDescription = null,
-                    modifier = Modifier.align(Alignment.Center)
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun FastScrollDateChip(
-    text: String,
-    selected: Boolean,
-    modifier: Modifier = Modifier,
-) {
-    Surface(
-        modifier = modifier,
-        shape = RoundedCornerShape(50),
-        color = if (selected) {
-            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.96f)
-        } else {
-            Color(0xFF202124).copy(alpha = 0.88f)
-        },
-        contentColor = if (selected) {
-            MaterialTheme.colorScheme.onPrimaryContainer
-        } else {
-            Color.White
-        },
-        tonalElevation = 3.dp,
-    ) {
-        Text(
-            text = text,
-            style = MaterialTheme.typography.labelLarge,
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 5.dp),
-            maxLines = 1,
-        )
-    }
-}
-
-private fun visibleYearAnchors(
-    anchors: List<HighlightDateAnchor>,
-    activeAnchor: HighlightDateAnchor,
-): List<HighlightDateAnchor> {
-    val yearAnchors = anchors.distinctBy { it.year }
-    val maxYearChips = 9
-    if (yearAnchors.size <= maxYearChips) {
-        return yearAnchors
-    }
-
-    val selectedIndices = mutableSetOf<Int>()
-    repeat(maxYearChips) { index ->
-        val sourceIndex = (index * (yearAnchors.lastIndex.toFloat() / (maxYearChips - 1))).roundToInt()
-        selectedIndices += sourceIndex.coerceIn(0, yearAnchors.lastIndex)
-    }
-    val activeIndex = yearAnchors.indexOfFirst { it.year == activeAnchor.year }
-    if (activeIndex >= 0) {
-        selectedIndices += activeIndex
-    }
-
-    return selectedIndices
-        .sorted()
-        .map { yearAnchors[it] }
-}
-
-private fun HighlightDateAnchor.monthYearLabel(locale: Locale): String {
-    val monthLabel = Month.of(month).getDisplayName(TextStyle.SHORT, locale)
-    return "$monthLabel $year"
 }
 
 @Composable

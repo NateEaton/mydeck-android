@@ -22,7 +22,6 @@ keystore.env
 # Ignore transient files
 
 logs/
-docs/readeck-api/__pycache__/
 *.txt
 !metadata/**/*.txt
 *.diff

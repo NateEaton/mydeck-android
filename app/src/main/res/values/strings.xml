@@ -195,7 +195,6 @@ other{}
     <string name="highlights_grouped_results_count">%1$d highlights in %2$d articles</string>
     <string name="highlights_sort_newest_first">Newest first</string>
     <string name="highlights_sort_oldest_first">Oldest first</string>
-    <string name="highlights_fast_scroll">Fast scroll highlights</string>
     <string name="action_refresh_content">Refresh content</string>
     <string name="highlight_create">Create Highlight</string>
     <string name="highlight_edit">Edit Highlight</string>

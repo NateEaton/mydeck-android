@@ -21,8 +21,6 @@ Each highlight card shows:
 - The highlighted text (italicized)
 - Any note you've added to the highlight
 
-When you scroll through a long highlight list, date fast-scroll controls appear at the right edge. Drag the control to jump by month and year. If search or filters are active, fast scroll uses only the matching highlights.
-
 Tapping a highlight card navigates directly to that bookmark's reading view and scrolls automatically to the specific highlight. Tapping the bookmark title below a group of highlights opens that bookmark at your last reading position.
 
 To edit or delete a highlight, tap its card to open the bookmark reader, then tap the highlighted text.
