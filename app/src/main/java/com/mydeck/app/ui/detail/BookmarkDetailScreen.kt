@@ -1093,7 +1093,14 @@ fun BookmarkDetailScreen(
                 modifier = Modifier
                     .align(Alignment.TopCenter)
                     .fillMaxWidth()
-                    .onSizeChanged { measuredTopBarHeightPx = it.height }
+                    // Capture max-seen height so the reader's CSS spacer locks to the bar's
+                    // fully-expanded height and doesn't oscillate as enterAlwaysScrollBehavior
+                    // collapses the bar during scroll (which otherwise reflows the WebView).
+                    .onSizeChanged { newSize ->
+                        if (newSize.height > measuredTopBarHeightPx) {
+                            measuredTopBarHeightPx = newSize.height
+                        }
+                    }
             ) {
                 BookmarkDetailTopBar(
                     articleSearchState = articleSearchState,
