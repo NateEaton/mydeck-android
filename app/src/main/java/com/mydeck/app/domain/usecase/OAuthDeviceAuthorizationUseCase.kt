@@ -1,10 +1,12 @@
 package com.mydeck.app.domain.usecase
 
+import android.content.Context
 import android.os.Build
-import com.mydeck.app.BuildConfig
 import com.mydeck.app.domain.model.OAuthDeviceAuthorizationState
 import com.mydeck.app.io.rest.ReadeckApi
 import com.mydeck.app.io.rest.model.*
+import com.mydeck.app.util.AppVersion
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
 import timber.log.Timber
@@ -19,7 +21,8 @@ import javax.inject.Inject
  */
 class OAuthDeviceAuthorizationUseCase @Inject constructor(
     private val readeckApi: ReadeckApi,
-    private val json: Json
+    private val json: Json,
+    @ApplicationContext private val context: Context
 ) {
     companion object {
         private const val GRANT_TYPE_DEVICE_CODE = "urn:ietf:params:oauth:grant-type:device_code"
@@ -59,7 +62,7 @@ class OAuthDeviceAuthorizationUseCase @Inject constructor(
                 clientName = CLIENT_NAME,
                 clientUri = CLIENT_URI,
                 softwareId = SOFTWARE_ID,
-                softwareVersion = BuildConfig.VERSION_NAME,
+                softwareVersion = AppVersion.versionName(context),
                 grantTypes = listOf(GRANT_TYPE_DEVICE_CODE)
             )
 

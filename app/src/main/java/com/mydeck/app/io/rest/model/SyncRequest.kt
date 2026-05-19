@@ -7,8 +7,9 @@ import kotlinx.serialization.Serializable
 data class SyncRequest(
     val id: List<String>,
     // Boolean fields default to false (= don't include that content type).
-    // The shared Json instance uses encodeDefaults=true so all fields are always serialized;
-    // false values are benign — the server ignores them.
+    // The shared Json instance uses encodeDefaults=false, so a caller passing
+    // an explicit `true` differs from the default and serializes; an unset
+    // field is omitted from the body, which the server treats as false.
     @SerialName("with_json")
     val withJson: Boolean = false,
     @SerialName("with_html")

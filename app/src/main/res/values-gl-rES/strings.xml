@@ -249,6 +249,8 @@ other{}
     <string name="detail_images_downloaded">Images downloaded</string>
     <string name="detail_images_from_network">Images load from network</string>
     <string name="metadata_one_value_per_line">One value per line</string>
+    <string name="metadata_field_required">Required</string>
+    <string name="metadata_title_label">Title</string>
     <string name="metadata_text_direction_auto">Automatic</string>
     <string name="metadata_text_direction_ltr">Left to right</string>
     <string name="metadata_text_direction_rtl">Right to left</string>

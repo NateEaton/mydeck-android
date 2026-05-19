@@ -46,8 +46,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
-import com.mydeck.app.BuildConfig
 import com.mydeck.app.R
+import com.mydeck.app.util.AppVersion
 import com.mydeck.app.domain.model.CachedServerInfo
 import com.mydeck.app.ui.components.MyDeckBrandHeader
 import com.mydeck.app.ui.navigation.OpenSourceLibrariesRoute
@@ -124,13 +124,17 @@ fun AboutScreenContent(
                 .padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            val context = LocalContext.current
+            val versionName = remember(context) { AppVersion.versionName(context) }
+            val versionCode = remember(context) { AppVersion.versionCode(context) }
+
             // App Header
             MyDeckBrandHeader(iconSize = 96.dp)
 
             Spacer(modifier = Modifier.height(24.dp))
 
             Text(
-                text = stringResource(R.string.about_version, BuildConfig.VERSION_NAME),
+                text = stringResource(R.string.about_version, versionName),
                 style = MaterialTheme.typography.bodyLarge,
                 textAlign = TextAlign.Center
             )
@@ -205,17 +209,18 @@ fun AboutScreenContent(
             Spacer(modifier = Modifier.height(12.dp))
 
             // App Info Card
+            //
+            // Read versionName / versionCode / install time from PackageManager rather
+            // than BuildConfig. The Kotlin compiler inlines `static final` constants
+            // from BuildConfig at every call site, and incremental compilation does
+            // not invalidate those sites when BuildConfig.java regenerates with new
+            // values (the ABI is unchanged), so the inlined constants silently go
+            // stale across version bumps until a clean build.
             val appInfoSummary = stringResource(
                 R.string.about_system_info_version,
-                BuildConfig.VERSION_NAME,
-                BuildConfig.VERSION_CODE
+                versionName,
+                versionCode
             )
-            // Use the OS-recorded install time rather than BuildConfig.BUILD_TIME.
-            // The Kotlin compiler inlines `static final long BUILD_TIME` at every
-            // call site, and incremental compilation does not invalidate this file
-            // when BuildConfig.java is regenerated (the ABI is unchanged), so
-            // BuildConfig.BUILD_TIME silently goes stale across rebuilds.
-            val context = LocalContext.current
             val appBuildTime = remember(context) {
                 val installedAt = context.packageManager
                     .getPackageInfo(context.packageName, 0)

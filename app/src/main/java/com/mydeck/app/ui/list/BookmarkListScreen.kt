@@ -6,6 +6,7 @@ package com.mydeck.app.ui.list
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -1065,6 +1066,7 @@ fun BookmarkListView(
                         onClickArchive = onClickArchive,
                         onClickDelete = onClickDelete,
                         onClickFavorite = onClickFavorite,
+                        onPendingDeletionTap = onUserInteraction,
                         modifier = Modifier.animateItem(),
                     ) {
                         when (layoutMode) {
@@ -1163,6 +1165,7 @@ fun BookmarkListView(
                         onClickArchive = onClickArchive,
                         onClickDelete = onClickDelete,
                         onClickFavorite = onClickFavorite,
+                        onPendingDeletionTap = onUserInteraction,
                         modifier = Modifier.animateItem(),
                     ) {
                         when (layoutMode) {
@@ -1269,6 +1272,7 @@ private fun SwipeWrappedBookmark(
     onClickArchive: (String, Boolean) -> Unit,
     onClickDelete: (String) -> Unit,
     onClickFavorite: (String, Boolean) -> Unit,
+    onPendingDeletionTap: () -> Unit,
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit,
 ) {
@@ -1299,8 +1303,27 @@ private fun SwipeWrappedBookmark(
         },
         modifier = modifier,
     ) {
-        Box(modifier = Modifier.alpha(if (isPendingDeletion) 0.38f else 1f)) {
-            content()
+        Box {
+            Box(modifier = Modifier.alpha(if (isPendingDeletion) 0.38f else 1f)) {
+                content()
+            }
+            // While pending deletion, an opaque click-interceptor overlay catches
+            // every tap and long-press on the card before they can reach any of
+            // the inner click surfaces (image, title overlay, body, action icons).
+            // Routes to onPendingDeletionTap, which dismisses the snackbar without
+            // Undo — committing the delete — and ensures the reading view does
+            // NOT also open from a stray click leak.
+            if (isPendingDeletion) {
+                Box(
+                    modifier = Modifier
+                        .matchParentSize()
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                            onClick = onPendingDeletionTap
+                        )
+                )
+            }
         }
     }
 }

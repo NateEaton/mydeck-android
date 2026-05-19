@@ -64,7 +64,16 @@ abstract class AppModule {
             return Json {
                 ignoreUnknownKeys = true // Handle unknown keys gracefully
                 isLenient = true // Allow lenient parsing
-                encodeDefaults = true // Always emit fields even when value == default
+                // Do NOT enable encodeDefaults: it turns every sparse DTO into a
+                // dense JSON object full of explicit nulls / zero values, which
+                // older callers expected the server to ignore. Readeck 0.22.3
+                // started treating bound-but-null fields as "set to empty",
+                // which silently wiped title/site_name/description on every
+                // PATCH /bookmarks/{id} that used EditBookmarkDto with only one
+                // field set (e.g. labels add). explicitNulls=false additionally
+                // drops fields that are explicitly assigned null, so the wire
+                // body contains only the keys the caller actually populated.
+                explicitNulls = false
             }
         }
     }
