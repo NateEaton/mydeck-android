@@ -1,0 +1,13 @@
+<b>Added</b>
+- Highlights: select and save text highlights while reading articles, with support for adding notes to each highlight
+- Global highlights list in the navigation drawer: browse, search, filter, and sort all highlights across your bookmarks
+- Swipe actions on bookmark cards for quick access to favorite, archive, and delete
+
+<b>Changed</b>
+- Reader now uses native WebView scrolling for smoother, more reliable article navigation
+- Picture bookmark reading view layout updated to match Readeck's presentation
+
+<b>Fixed</b>
+- Foreground service crash on Android 14+ devices
+- Reader top bar overlay behavior corrected
+- Sync cancellation and resilience improvements
