@@ -48,6 +48,7 @@ import kotlinx.serialization.json.Json
 import org.junit.After
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -1304,6 +1305,58 @@ class BookmarkDetailViewModelTest {
         )
 
         assertTrue(bookmark.shouldShowHeaderDescription())
+    }
+
+    // ── Extraction error / log ────────────────────────────────────────────────
+
+    @Test
+    fun `uiState exposes extraction errors and logSrc from domain bookmark`() = runTest {
+        val bookmarkWithErrors = sampleBookmark.copy(
+            errors = listOf("could not extract content"),
+            log = Bookmark.Resource("/api/bookmarks/123/log"),
+            state = Bookmark.State.ERROR
+        )
+        coEvery { bookmarkRepository.observeBookmark("123") } returns MutableStateFlow(bookmarkWithErrors)
+        viewModel = createViewModel()
+
+        val uiStates = viewModel.uiState.take(2).toList()
+        val state = uiStates[1] as? BookmarkDetailViewModel.UiState.Success
+
+        assertNotNull(state)
+        assertEquals(listOf("could not extract content"), state!!.bookmark.errors)
+        assertTrue(state.bookmark.hasExtractionError)
+        assertEquals("/api/bookmarks/123/log", state.bookmark.logSrc)
+    }
+
+    @Test
+    fun `onViewExtractionLog transitions through loading to success`() = runTest {
+        coEvery { bookmarkRepository.fetchExtractionLog("123") } returns BookmarkRepository.ExtractionLogResult.Success("INFO: done")
+        viewModel = createViewModel()
+
+        viewModel.uiState.take(2).toList()
+        viewModel.onViewExtractionLog()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        val logState = viewModel.extractionLogState.value
+        assertTrue(logState.visible)
+        assertEquals("INFO: done", logState.text)
+        assertNull(logState.errorMessage)
+    }
+
+    @Test
+    fun `failed log fetch shows error state without disrupting details screen`() = runTest {
+        coEvery { bookmarkRepository.fetchExtractionLog("123") } returns BookmarkRepository.ExtractionLogResult.NetworkError
+        viewModel = createViewModel()
+
+        viewModel.uiState.take(2).toList()
+        viewModel.onViewExtractionLog()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        val logState = viewModel.extractionLogState.value
+        assertTrue(logState.visible)
+        assertNotNull(logState.errorMessage)
+        assertNull(logState.text)
+        assertTrue(viewModel.uiState.value is BookmarkDetailViewModel.UiState.Success)
     }
 
     val sampleBookmark = Bookmark(

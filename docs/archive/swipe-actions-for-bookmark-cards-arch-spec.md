@@ -86,6 +86,64 @@ Rules:
 * Once swipe wins, keep the swipe locked until release/cancel.
 * Use platform touch slop, not a hardcoded pixel value.
 
+### Vertical-intent fence
+
+Touch-slop arbitration (first axis to cross slop wins) is the Compose
+default, but it is insufficient for the "scroll-then-sideways within a
+single touch" case: a user starts moving vertically, doesn't quite cross
+slop, then changes direction and moves horizontally fast enough to cross
+slop first — the draggable then claims the pointer even though the user's
+initial intent was clearly scroll.
+
+The container therefore adds an **intent fence** on top of slop
+arbitration:
+
+```
+intentThresholdPx = viewConfiguration.touchSlop   // platform touch slop, full value
+
+per gesture:
+    intentLocked = false
+    while pointer pressed:
+        dx = abs(change.x - down.x)
+        dy = abs(change.y - down.y)
+        if not intentLocked AND (dx > intentThresholdPx OR dy > intentThresholdPx):
+            intentLocked = true
+            if dy >= dx:
+                verticalIntentVeto = true   // stays set for the rest of the pointer
+            // else: leave veto off; default slop arbitration takes over
+    on pointer up: verticalIntentVeto = false
+    enabled = (effectivelyEnabled && !edgeVeto && !verticalIntentVeto)
+```
+
+Properties:
+
+* The intent decision is locked **exactly once per gesture**, at the
+  moment one of the two axes first crosses platform touch slop. After
+  that, the veto value is fixed for the gesture's life — a swipe in
+  progress with vertical wobble cannot trip the veto mid-drag.
+* This single-shot locking is critical: if the veto could flip during
+  an active drag, `Modifier.draggable` would observe `enabled = false`
+  and call `onDragStopped` immediately with the current offset and
+  velocity. If `|offset| >= commitPx` at that moment, the action would
+  commit through an abnormal code path that can desynchronise the
+  pending-delete snackbar handshake.
+* The boundary is set at 45° (`dy >= dx`). Anything 45° or steeper counts
+  as scroll intent. Setting the boundary here rather than at `dy > dx *
+  1.5` is deliberate: at exactly 45°, leaving the veto off causes both
+  the inner draggable and the outer scrollable to wait indefinitely for
+  axis dominance — neither claims the pointer and the user sees no
+  motion at all. Biasing the equality case toward scroll resolves that
+  deadlock and also matches the user's mental model (as much vertical
+  as horizontal is too much vertical for a swipe).
+* The veto disables the draggable via its `enabled` flag, not by
+  consuming events — the parent `LazyColumn` still receives the vertical
+  motion and scrolls normally.
+
+Symmetric protection (locking out scroll once swipe is committed) is
+already provided for free by Compose: once the horizontal draggable
+crosses its own touch slop and claims the pointer, the parent vertical
+scroller is starved. No additional code is needed for that direction.
+
 Long press:
 
 * Only fires if still in Idle within slop radius

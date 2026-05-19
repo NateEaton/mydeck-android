@@ -80,16 +80,20 @@ class BookmarkRepositoryImplTest {
         syncScheduler = mockk<SyncScheduler>(relaxed = true)
         settingsDataStore = mockk<SettingsDataStore>(relaxed = true)
         
-        // Mock performTransaction catch-all
-        // Mock performTransaction for different return types
+        // Mock performTransaction for different return types. The casts are safe by
+        // construction (mockk wires the matching generic instantiation) but Kotlin
+        // can't prove it through the reflective args lookup.
+        @Suppress("UNCHECKED_CAST")
         coEvery { database.performTransaction<Unit>(any()) } coAnswers {
             val block = it.invocation.args[0] as (suspend () -> Unit)
             block()
         }
+        @Suppress("UNCHECKED_CAST")
         coEvery { database.performTransaction<Long>(any()) } coAnswers {
             val block = it.invocation.args[0] as (suspend () -> Long)
             block()
         }
+        @Suppress("UNCHECKED_CAST")
         coEvery { database.performTransaction<Any?>(any()) } coAnswers {
             val block = it.invocation.args[0] as (suspend () -> Any?)
             block()
@@ -907,6 +911,86 @@ class BookmarkRepositoryImplTest {
         val result = bookmarkRepositoryImpl.fetchRawBookmarkJson("1")
 
         assertNull(result)
+    }
+
+    // ── fetchExtractionLog ────────────────────────────────────────────────────
+
+    private fun makeBookmarkEntityWithLog(logSrc: String) = com.mydeck.app.io.db.model.BookmarkEntity(
+        id = "1",
+        href = "https://example.com",
+        created = Clock.System.now(),
+        updated = Clock.System.now(),
+        state = com.mydeck.app.io.db.model.BookmarkEntity.State.LOADED,
+        loaded = true,
+        url = "https://example.com/article",
+        title = "Test",
+        siteName = "Example",
+        site = "example.com",
+        authors = emptyList(),
+        lang = "en",
+        textDirection = "ltr",
+        documentTpe = "article",
+        type = com.mydeck.app.io.db.model.BookmarkEntity.Type.ARTICLE,
+        hasArticle = false,
+        description = "",
+        isDeleted = false,
+        isMarked = false,
+        isArchived = false,
+        labels = emptyList(),
+        readProgress = 0,
+        wordCount = null,
+        readingTime = null,
+        published = null,
+        embed = null,
+        embedHostname = null,
+        article = com.mydeck.app.io.db.model.ResourceEntity(""),
+        icon = com.mydeck.app.io.db.model.ImageResourceEntity("", 0, 0),
+        image = com.mydeck.app.io.db.model.ImageResourceEntity("", 0, 0),
+        log = com.mydeck.app.io.db.model.ResourceEntity(logSrc),
+        props = com.mydeck.app.io.db.model.ResourceEntity(""),
+        thumbnail = com.mydeck.app.io.db.model.ImageResourceEntity("", 0, 0)
+    )
+
+    @Test
+    fun `fetchExtractionLog returns Unavailable when log src is blank`() = runTest {
+        coEvery { bookmarkDao.getBookmarkById("1") } returns makeBookmarkEntityWithLog("")
+
+        val result = bookmarkRepositoryImpl.fetchExtractionLog("1")
+
+        assertEquals(BookmarkRepository.ExtractionLogResult.Unavailable, result)
+    }
+
+    @Test
+    fun `fetchExtractionLog returns Success for 2xx response`() = runTest {
+        coEvery { bookmarkDao.getBookmarkById("1") } returns makeBookmarkEntityWithLog("api/bookmarks/1/log")
+        val responseBody = mockk<okhttp3.ResponseBody> {
+            every { string() } returns "INFO: extraction started"
+        }
+        coEvery { readeckApi.getBookmarkLog("api/bookmarks/1/log") } returns Response.success(responseBody)
+
+        val result = bookmarkRepositoryImpl.fetchExtractionLog("1")
+
+        assertEquals(BookmarkRepository.ExtractionLogResult.Success("INFO: extraction started"), result)
+    }
+
+    @Test
+    fun `fetchExtractionLog returns HttpError for non-2xx response`() = runTest {
+        coEvery { bookmarkDao.getBookmarkById("1") } returns makeBookmarkEntityWithLog("api/bookmarks/1/log")
+        coEvery { readeckApi.getBookmarkLog("api/bookmarks/1/log") } returns Response.error(404, "".toResponseBody())
+
+        val result = bookmarkRepositoryImpl.fetchExtractionLog("1")
+
+        assertEquals(BookmarkRepository.ExtractionLogResult.HttpError(404), result)
+    }
+
+    @Test
+    fun `fetchExtractionLog returns NetworkError on IOException`() = runTest {
+        coEvery { bookmarkDao.getBookmarkById("1") } returns makeBookmarkEntityWithLog("api/bookmarks/1/log")
+        coEvery { readeckApi.getBookmarkLog("api/bookmarks/1/log") } throws IOException("connection refused")
+
+        val result = bookmarkRepositoryImpl.fetchExtractionLog("1")
+
+        assertEquals(BookmarkRepository.ExtractionLogResult.NetworkError, result)
     }
 
     // ── Bulk operations ───────────────────────────────────────────────────────

@@ -259,6 +259,7 @@ fun BookmarkDetailHost(
     val labelsWithCounts = viewModel.labelsWithCounts.collectAsState().value
     val galleryData = viewModel.galleryData.collectAsState().value
     val readerContextMenu = viewModel.readerContextMenu.collectAsState().value
+    val extractionLogState = viewModel.extractionLogState.collectAsState().value
     val readerWebView = remember { mutableStateOf<WebView?>(null) }
     var detailOverlay by remember { mutableStateOf(DetailOverlay.NONE) }
     var showTypographyPanel by remember { mutableStateOf(false) }
@@ -732,7 +733,10 @@ fun BookmarkDetailHost(
                     canRefreshContent = uiState.bookmark.hasContent,
                     onEditMetadata = {
                         detailOverlay = DetailOverlay.METADATA_EDITOR
-                    }
+                    },
+                    extractionLogState = extractionLogState,
+                    onViewExtractionLog = { viewModel.onViewExtractionLog() },
+                    onDismissExtractionLog = { viewModel.onDismissExtractionLog() }
                 )
             }
             if (detailOverlay == DetailOverlay.METADATA_EDITOR) {
@@ -878,8 +882,18 @@ fun BookmarkDetailScreen(
         mutableStateOf(fullscreenReaderMode)
     }
     val density = LocalDensity.current
+    // Static derivation — keeps readerTopClearanceCssPx stable across the screen's
+    // lifetime so the WebView's HTML clearance spacer doesn't get rewritten after
+    // initial composition, which would otherwise reload the article and reset scroll.
+    // The cushion absorbs any device-specific padding the M3 TopAppBar adds beyond
+    // TopAppBarExpandedHeight + status bars (observed on Pixel Tablet emulator),
+    // plus any sub-pixel rounding. Larger than strictly needed on phones, but the
+    // extra ~8dp at the top of articles is negligible visually compared to the
+    // cost of the measurement-based approach (one-shot WebView reload mid-scroll).
     val topBarClearance = with(density) {
-        TopAppBarDefaults.TopAppBarExpandedHeight + WindowInsets.statusBars.getTop(this).toDp()
+        TopAppBarDefaults.TopAppBarExpandedHeight +
+            WindowInsets.statusBars.getTop(this).toDp() +
+            12.dp
     }
     val readerTopClearanceCssPx = topBarClearance.value.roundToInt().coerceAtLeast(0)
     val topBarCanHide =

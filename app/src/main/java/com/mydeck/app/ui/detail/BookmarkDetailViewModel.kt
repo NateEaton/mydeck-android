@@ -200,6 +200,9 @@ class BookmarkDetailViewModel @Inject constructor(
     private val _annotationRefreshEvent = Channel<AnnotationRefreshEvent>(Channel.BUFFERED)
     val annotationRefreshEvent: Flow<AnnotationRefreshEvent> = _annotationRefreshEvent.receiveAsFlow()
 
+    private val _extractionLogState = MutableStateFlow(ExtractionLogState())
+    val extractionLogState: StateFlow<ExtractionLogState> = _extractionLogState.asStateFlow()
+
     private var searchDebounceJob: Job? = null
     private var annotationSyncJob: Job? = null
     private var contentRefreshJob: Job? = null
@@ -475,7 +478,10 @@ class BookmarkDetailViewModel @Inject constructor(
                             },
                             isContentDownloaded = bookmark.contentState == ContentState.DOWNLOADED || bookmark.contentState == ContentState.DIRTY,
                             offlineBaseUrl = offlineBaseUrl,
-                            hasResources = cachedHasResources ?: contentPackageManager.hasResources(id)
+                            hasResources = cachedHasResources ?: contentPackageManager.hasResources(id),
+                            errors = bookmark.errors,
+                            hasExtractionError = bookmark.errors.isNotEmpty() || bookmark.state == com.mydeck.app.domain.model.Bookmark.State.ERROR || bookmark.hasServerErrors,
+                            logSrc = bookmark.log.src
                         ),
                         updateBookmarkState = updateState,
                         template = template,
@@ -976,6 +982,27 @@ class BookmarkDetailViewModel @Inject constructor(
         } catch (e: Exception) {
             Timber.w(e, "Failed to enqueue priority package download for $bookmarkId")
         }
+    }
+
+    fun onViewExtractionLog() {
+        val bookmarkId = _bookmarkId.value ?: return
+        _extractionLogState.update { it.copy(visible = true, isLoading = true, text = null, errorMessage = null) }
+        viewModelScope.launch {
+            when (val result = bookmarkRepository.fetchExtractionLog(bookmarkId)) {
+                is BookmarkRepository.ExtractionLogResult.Success ->
+                    _extractionLogState.update { it.copy(isLoading = false, text = result.text) }
+                is BookmarkRepository.ExtractionLogResult.HttpError ->
+                    _extractionLogState.update { it.copy(isLoading = false, errorMessage = "HTTP ${result.code}") }
+                BookmarkRepository.ExtractionLogResult.NetworkError ->
+                    _extractionLogState.update { it.copy(isLoading = false, errorMessage = "Network error") }
+                BookmarkRepository.ExtractionLogResult.Unavailable ->
+                    _extractionLogState.update { it.copy(isLoading = false, errorMessage = "Log unavailable") }
+            }
+        }
+    }
+
+    fun onDismissExtractionLog() {
+        _extractionLogState.update { ExtractionLogState() }
     }
 
     fun forceRefreshContent() {
@@ -1635,7 +1662,10 @@ class BookmarkDetailViewModel @Inject constructor(
         val hasContent: Boolean,
         val isContentDownloaded: Boolean = false,
         val offlineBaseUrl: String? = null,
-        val hasResources: Boolean? = null
+        val hasResources: Boolean? = null,
+        val errors: List<String> = emptyList(),
+        val hasExtractionError: Boolean = false,
+        val logSrc: String = ""
     ) {
         enum class Type {
             ARTICLE, PHOTO, VIDEO
@@ -2032,6 +2062,13 @@ class BookmarkDetailViewModel @Inject constructor(
         /** Replace #rd-article-content innerHTML with fresh article HTML for VIDEO bookmarks. Leaves the iframe embed intact. */
         data class VideoHtmlRefresh(val articleHtml: String) : AnnotationRefreshEvent()
     }
+
+    data class ExtractionLogState(
+        val visible: Boolean = false,
+        val isLoading: Boolean = false,
+        val text: String? = null,
+        val errorMessage: String? = null
+    )
 
     companion object {
     }

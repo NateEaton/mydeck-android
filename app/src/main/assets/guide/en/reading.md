@@ -152,6 +152,8 @@ If the current image was originally a hyperlink (linking to another page or site
 
 **Details** (opened from the overflow menu) shows the bookmark's saved metadata:
 
+If Readeck encountered problems saving the bookmark (for example, it could not extract the article text), an **extraction error box** appears at the top of Details. Tap the row to expand it; the expanded view lists any specific error messages, a note that the browser extension may help, a **Learn more** link to the Readeck docs, and a **View log** button (when a log is available) that opens a scrollable diagnostic log in a dialog. You can copy the log text to your clipboard from that dialog.
+
 - Thumbnail
 - Title row with a pencil icon — tap the title or pencil to open the full-screen metadata editor
 - Site name, date added, date published, author, site root URL, reading time, and word count

@@ -32,6 +32,7 @@ import retrofit2.http.Path
 import retrofit2.http.POST
 import retrofit2.http.Query
 import retrofit2.http.Streaming
+import retrofit2.http.Url
 
 interface ReadeckApi {
     @GET("bookmarks")
@@ -115,6 +116,9 @@ interface ReadeckApi {
 
     @GET("bookmarks/{id}")
     suspend fun getBookmarkById(@Path("id") id: String): Response<BookmarkDto>
+
+    @GET
+    suspend fun getBookmarkLog(@Url url: String): Response<ResponseBody>
 
     @POST("bookmarks")
     suspend fun createBookmark(

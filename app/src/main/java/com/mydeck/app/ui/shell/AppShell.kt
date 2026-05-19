@@ -216,11 +216,11 @@ private fun CompactAppShell(
 
     ModalNavigationDrawer(
         drawerState = drawerState,
-        // Suppress drawer-swipe-to-open when card swipe is enabled, but keep gestures
-        // live once the drawer is already open so scrim-tap and swipe-close still work.
+        // Drawer-swipe lives only on the bookmark list (original behavior), and there
+        // only when card swipe is disabled (avoids gesture conflict). Always live when
+        // the drawer is already open so scrim-tap and swipe-close still work.
         gesturesEnabled = drawerState.isOpen
-            || !isOnBookmarkList
-            || !swipeConfig.value.enabled,
+            || (isOnBookmarkList && !swipeConfig.value.enabled),
         drawerContent = {
             AppDrawerContent(
                 drawerPreset = drawerPreset,

@@ -149,6 +149,13 @@ fun SwipeableCardContainer(
         // scroll still receives vertical-drag input from the same pointer.
         var edgeVeto by remember { mutableStateOf(false) }
 
+        // Intent fence: once a touch has demonstrated meaningful vertical-dominant
+        // motion, lock out swipe for the rest of that pointer's life. Prevents
+        // accidental swipe firing on a "scroll then sideways" single-touch gesture.
+        // Detected before the draggable's own slop check by using a smaller threshold,
+        // so we can veto via `enabled` before the draggable claims the pointer.
+        var verticalIntentVeto by remember { mutableStateOf(false) }
+
         val customActionsList = buildList {
             if (rightAction != SwipeAction.NONE) {
                 add(CustomAccessibilityAction(a11yRightLabel) { onCommitRight(); true })
@@ -219,11 +226,43 @@ fun SwipeableCardContainer(
                     .offset { IntOffset(offsetX.roundToInt(), 0) }
                     .pointerInput(startInsetPx, effectivelyEnabled) {
                         if (!effectivelyEnabled) return@pointerInput
+                        // Intent fence: decide which axis the gesture is "about" at the
+                        // moment the first axis crosses full touch slop, then lock that
+                        // decision for the rest of the pointer's life. Locking once (rather
+                        // than re-checking each event) means a swipe with vertical wobble
+                        // cannot trip the veto mid-drag — which would otherwise cause
+                        // draggable's enabled=false to call onDragStopped abnormally and
+                        // sometimes commit an action without the usual snackbar handshake.
+                        val intentThresholdPx = viewConfiguration.touchSlop.toFloat()
                         awaitEachGesture {
                             val down = awaitFirstDown(requireUnconsumed = false)
                             edgeVeto = down.position.x < startInsetPx
-                            waitForUpOrCancellation()
+                            verticalIntentVeto = false
+                            var intentLocked = false
+                            while (true) {
+                                val event = awaitPointerEvent()
+                                val change = event.changes.firstOrNull { it.id == down.id }
+                                if (change == null || !change.pressed) break
+                                if (!intentLocked) {
+                                    val dx = abs(change.position.x - down.position.x)
+                                    val dy = abs(change.position.y - down.position.y)
+                                    if (dx > intentThresholdPx || dy > intentThresholdPx) {
+                                        intentLocked = true
+                                        // 45° or steeper → veto swipe for this pointer.
+                                        // The equality boundary is critical: a perfectly
+                                        // diagonal gesture would otherwise leave both
+                                        // detectors waiting for axis dominance and produce
+                                        // no motion at all. Biasing to scroll here also
+                                        // matches user intent: as much vertical as
+                                        // horizontal is too much vertical for a swipe.
+                                        if (dy >= dx) {
+                                            verticalIntentVeto = true
+                                        }
+                                    }
+                                }
+                            }
                             edgeVeto = false
+                            verticalIntentVeto = false
                         }
                     }
                     .draggable(
@@ -232,7 +271,7 @@ fun SwipeableCardContainer(
                             offsetX += delta
                         },
                         orientation = Orientation.Horizontal,
-                        enabled = effectivelyEnabled && !edgeVeto,
+                        enabled = effectivelyEnabled && !edgeVeto && !verticalIntentVeto,
                         onDragStopped = { velocity ->
                             val off = offsetX
                             val goingLeft = off < 0f
