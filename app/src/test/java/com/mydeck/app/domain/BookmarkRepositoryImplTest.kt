@@ -80,16 +80,20 @@ class BookmarkRepositoryImplTest {
         syncScheduler = mockk<SyncScheduler>(relaxed = true)
         settingsDataStore = mockk<SettingsDataStore>(relaxed = true)
         
-        // Mock performTransaction catch-all
-        // Mock performTransaction for different return types
+        // Mock performTransaction for different return types. The casts are safe by
+        // construction (mockk wires the matching generic instantiation) but Kotlin
+        // can't prove it through the reflective args lookup.
+        @Suppress("UNCHECKED_CAST")
         coEvery { database.performTransaction<Unit>(any()) } coAnswers {
             val block = it.invocation.args[0] as (suspend () -> Unit)
             block()
         }
+        @Suppress("UNCHECKED_CAST")
         coEvery { database.performTransaction<Long>(any()) } coAnswers {
             val block = it.invocation.args[0] as (suspend () -> Long)
             block()
         }
+        @Suppress("UNCHECKED_CAST")
         coEvery { database.performTransaction<Any?>(any()) } coAnswers {
             val block = it.invocation.args[0] as (suspend () -> Any?)
             block()
