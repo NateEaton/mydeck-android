@@ -40,3 +40,6 @@ screenshots/
 app/githubRelease/
 
 _notes/
+
+docs/readeck-api/__pycache__/
+
