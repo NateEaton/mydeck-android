@@ -1,0 +1,3 @@
+<b>Fixed</b>
+- Critical: bookmark metadata (title, site name, description) was being wiped when editing labels
+- Sync progress indicator is now deterministic during initial bookmark load
