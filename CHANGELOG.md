@@ -7,11 +7,101 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.13.0] - 2026-05-18
+
 ### Added
+
+- Highlights: select and save text highlights while reading articles, with support for adding notes to each highlight
+- Global highlights list in the navigation drawer: browse, search, filter, and sort all highlights across your bookmarks
+- Swipe actions on bookmark cards for quick access to favorite, archive, and delete
 
 ### Changed
 
+- Reader now uses native WebView scrolling for smoother, more reliable article navigation
+- Picture bookmark reading view layout updated to match Readeck's presentation
+
 ### Fixed
+
+- Foreground service crash on Android 14+ devices
+- Reader top bar overlay behavior corrected
+- Sync cancellation and resilience improvements
+
+## [0.12.6] - 2026-05-05
+
+### Fixed
+
+- Resolved a critical OutOfMemoryError that caused crashes during offline content synchronization
+
+### Changed
+
+- Cleaned up obsolete code and reduced app footprint
+
+## [0.12.0] - 2026-04-11
+
+### Added
+
+- In-page anchor link support in reader content: table-of-contents and fragment links now navigate correctly within articles
+- Long-press context menu for in-page links to open or copy anchor targets
+- Content download status icon on reading-view bookmark cards
+- Reading progress icon in Compact list view
+
+### Changed
+
+- Sync architecture updated to multipart sync for improved reliability and consistency when refreshing bookmark metadata and content
+- Sync Settings revised with automatic content sync for offline reading using volume, item-count, or date-range policies
+
+### Fixed
+
+- Reader text reflow regression: resolved cases where article text could disappear after layout/font reflow updates
+- Server URL validation now allows http:// endpoints (in addition to https://) for self-hosted/local Readeck setups
+- Offline status indicator now tracks network transitions more accurately and avoids incorrect offline icon states
+
+## [0.11.1] - 2026-03-19
+
+### Added
+
+- Special thanks to Stefan (@Alanon202) in About screen and README for app functionality feedback and testing support
+
+### Changed
+
+- Background sync indicator removed for cleaner UI
+- Filter chip behavior: dismissing synthetic chips restores preset defaults, literal chip removal remains unchanged
+
+### Fixed
+
+- Server error flag propagation: bookmarks with server errors now correctly appear in "With errors" filter after refresh/create operations
+- Text autosizing in reader: fixed 8-12% text size increase when switching from Medium to Wide reader width
+- Filter UI: synthetic filter chips now appear when preset constraints are broadened (e.g., "Is archived: N/A", "Is favorite: N/A", "Type: Any")
+- Sync performance: reduced blocking spinner on app open by showing cached bookmarks immediately during background sync
+- Delete operation: fixed race condition with rapid successive delete actions
+- Layout stability: eliminated theme switching reflow and fixed layout shift in sync indicator
+- Video controls: improved fullscreen discoverability and auto-rotation behavior
+- Missing translations: added localized "Copy to clipboard" text for all languages
+
+## [0.11.0] - 2026-03-14
+
+### Added
+
+- Image gallery lightbox in reading view: tap any article image to open a full-screen gallery with swipe navigation, pinch-to-zoom, double-tap to zoom, and a thumbnail strip
+- Long-press context menus for images and links in reader view and bookmark list (copy, download, share, open in browser)
+- Highlights and annotations: view, create, and edit Readeck highlights directly in the reading view
+- "Keep screen on while reading" toggle in Settings → User Interface
+- Reader appearance settings: curated themes, font size, line spacing, content width, and fullscreen mode
+- Fullscreen reading mode: hides top bar while reading; swipe up to reveal controls
+- Typography and Find in Page now available for Video and Picture bookmark types
+- About screen shows app and server info in collapsible cards (version, build, server name, URL)
+- 15-minute option added to auto-sync schedule
+
+### Changed
+
+- Favorite and Archive actions moved from top bar to overflow menu and inline buttons at end of article content
+- Long-press context menus replaced with centered dialog popups showing a preview header
+- "View original" renamed to "View web page" throughout
+- Menu items and filter labels now use sentence case
+- Bookmark deletion: card stays visible but greyed-out until snackbar is dismissed or undo is pressed
+- Delta sync re-enabled for Readeck 0.22+; deleted bookmarks now detected immediately on pull-to-refresh
+- Navigation drawer and settings screen typography refined for better visual hierarchy
+- User guide gains a "Contents" button for one-tap navigation back to the table of contents
 
 ## [0.10.0] - 2026-02-26
 

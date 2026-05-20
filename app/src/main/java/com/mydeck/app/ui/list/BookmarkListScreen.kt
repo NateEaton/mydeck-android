@@ -42,6 +42,7 @@ import androidx.compose.material.icons.outlined.SearchOff
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.DrawerState
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -70,6 +71,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.collectAsState
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.key
@@ -176,6 +178,7 @@ fun BookmarkListScreen(
     val pullToRefreshState = rememberPullToRefreshState()
     val isInitialLoading by viewModel.isInitialLoading.collectAsState()
     val isUserRefreshing by viewModel.isUserRefreshing.collectAsState()
+    val syncFraction by viewModel.syncFraction.collectAsState()
 
     val isLabelMode = activeLabel.value != null
     val dismissPendingDeleteSnackbar: () -> Unit = {
@@ -397,6 +400,17 @@ fun BookmarkListScreen(
         }
     }
 
+    // Scroll to top when initial sync completes so the list starts at item 0
+    LaunchedEffect(Unit) {
+        var wasLoading = false
+        snapshotFlow { isInitialLoading }.collect { loading ->
+            if (wasLoading && !loading) {
+                scrollToTopTrigger++
+            }
+            wasLoading = loading
+        }
+    }
+
     // Constraint feedback snackbar (fires once after app-open sync if content sync is blocked)
     LaunchedEffect(Unit) {
         viewModel.constraintSnackbarEvent.collect { messageRes ->
@@ -453,6 +467,7 @@ fun BookmarkListScreen(
             }
         },
         topBar = {
+            Column {
             TopAppBar(
                 title = {
                     if (isLabelMode) {
@@ -641,6 +656,14 @@ fun BookmarkListScreen(
                     }
                 }
             )
+            val fraction = syncFraction
+            if (fraction != null) {
+                LinearProgressIndicator(
+                    progress = { fraction },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+            }
         },
         floatingActionButton = {
             val clipboardManager = LocalClipboardManager.current
@@ -688,7 +711,7 @@ fun BookmarkListScreen(
             }
 
             PullToRefreshBox(
-                isRefreshing = isInitialLoading || isUserRefreshing,
+                isRefreshing = isUserRefreshing,
                 onRefresh = { viewModel.onPullToRefresh() },
                 state = pullToRefreshState,
                 modifier = Modifier.fillMaxWidth()

@@ -168,6 +168,14 @@ class BookmarkListViewModel @Inject constructor(
 
     val swipeConfig: StateFlow<SwipeConfig> = settingsDataStore.swipeConfigFlow
 
+    val syncFraction: StateFlow<Float?> = bookmarkRepository.syncProgress
+        .map { progress ->
+            if (progress is BookmarkRepository.BookmarkSyncProgress.Running) {
+                progress.page / progress.totalPages.toFloat()
+            } else null
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
     private val loadBookmarksWorkInfos: StateFlow<List<WorkInfo>> =
         workManager.getWorkInfosForUniqueWorkFlow(LoadBookmarksWorker.UNIQUE_WORK_NAME)
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())

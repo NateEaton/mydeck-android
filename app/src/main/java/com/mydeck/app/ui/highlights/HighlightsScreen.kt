@@ -214,6 +214,9 @@ fun HighlightsContent(
                 if (uiState.cachePartial && uiState.groups.isNotEmpty()) {
                     HighlightsPartialCacheBanner()
                 }
+                if (uiState.isRefreshing && !uiState.isUserRefreshing && !uiState.isInitialLocalLoad) {
+                    LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                }
             }
         }
     ) { paddingValues ->
@@ -246,16 +249,6 @@ fun HighlightsContent(
                                 MaterialTheme.colorScheme.onSurfaceVariant
                             }
                         )
-                        if (uiState.isRefreshing) {
-                            Spacer(Modifier.height(12.dp))
-                            CircularProgressIndicator(modifier = Modifier.size(24.dp))
-                            Spacer(Modifier.height(8.dp))
-                            Text(
-                                text = stringResource(R.string.highlights_refreshing),
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
                         if (uiState.refreshFailed) {
                             Spacer(Modifier.height(8.dp))
                             Button(onClick = onRetry) {
@@ -274,7 +267,7 @@ fun HighlightsContent(
                     } else {
                         val pullToRefreshState = rememberPullToRefreshState()
                         PullToRefreshBox(
-                            isRefreshing = uiState.isRefreshing,
+                            isRefreshing = uiState.isUserRefreshing,
                             onRefresh = onRetry,
                             state = pullToRefreshState,
                             modifier = Modifier.fillMaxSize()
