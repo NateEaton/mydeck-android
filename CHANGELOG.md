@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.13.1] - 2026-05-20
+
+### Fixed
+
+- Critical: bookmark metadata (title, site name, description) was being wiped when editing labels
+- Sync progress indicator is now deterministic during initial bookmark load
+
 ## [0.13.0] - 2026-05-18
 
 ### Added
