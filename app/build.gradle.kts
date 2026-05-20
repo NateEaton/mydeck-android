@@ -152,6 +152,11 @@ android {
     testOptions {
         unitTests {
             isIncludeAndroidResources = true
+            all {
+                it.jvmArgs(
+                    "-XX:CompileCommand=exclude,androidx/room/driver/SupportSQLiteStatement\$SupportAndroidSQLiteStatement.ensureCursor"
+                )
+            }
         }
     }
 
