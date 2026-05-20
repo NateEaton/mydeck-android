@@ -9,6 +9,7 @@ import com.mydeck.app.domain.model.BookmarkHighlightGroup
 import com.mydeck.app.domain.model.HighlightSummary
 import com.mydeck.app.domain.model.HighlightsSyncMetadata
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -30,6 +31,7 @@ class HighlightsViewModel @Inject constructor(
 ) : ViewModel() {
 
     private val searchState = MutableStateFlow(HighlightsSearchState())
+    private val _userRequestedRefresh = MutableStateFlow(false)
 
     val uiState: StateFlow<HighlightsUiState> = combine(
         highlightsRepository.observeHighlights()
@@ -52,8 +54,9 @@ class HighlightsViewModel @Inject constructor(
                 Timber.d("Highlights sync state observed: %s", syncState.toHighlightsLogString())
             },
         highlightsRepository.observeSyncMetadata(),
-        searchState
-    ) { groupsOrNull, syncState, metadata, searchState ->
+        searchState,
+        _userRequestedRefresh
+    ) { groupsOrNull, syncState, metadata, searchState, userRequestedRefresh ->
         val groups = groupsOrNull.orEmpty()
         val filteredGroups = filterHighlightGroups(groups, searchState)
         val state = HighlightsUiState(
@@ -67,6 +70,7 @@ class HighlightsViewModel @Inject constructor(
             isSearchActive = searchState.isSearchActive,
             isInitialLocalLoad = groupsOrNull == null,
             isRefreshing = syncState is HighlightsSyncState.Running,
+            isUserRefreshing = userRequestedRefresh && syncState is HighlightsSyncState.Running,
             refreshFailed = syncState is HighlightsSyncState.Failed,
             loadedCount = (syncState as? HighlightsSyncState.Running)?.loadedCount,
             cachePartial = isCachePartial(metadata),
@@ -94,11 +98,22 @@ class HighlightsViewModel @Inject constructor(
         initialValue = HighlightsUiState()
     )
 
+    init {
+        viewModelScope.launch {
+            highlightsRepository.observeSyncState().collect { state ->
+                if (state !is HighlightsSyncState.Running) {
+                    _userRequestedRefresh.value = false
+                }
+            }
+        }
+    }
+
     fun refreshFromScreenOpen() {
         refresh(HighlightsRefreshReason.SCREEN_OPEN)
     }
 
     fun retry() {
+        _userRequestedRefresh.value = true
         refresh(HighlightsRefreshReason.USER_RETRY)
     }
 
@@ -175,8 +190,17 @@ class HighlightsViewModel @Inject constructor(
             highlightsRepository.requestRefresh(reason)
                 .onSuccess {
                     Timber.d("Highlights VM refresh request completed: reason=%s result=success", reason)
+                    if (reason == HighlightsRefreshReason.USER_RETRY) {
+                        delay(100)
+                        if (highlightsRepository.observeSyncState().value !is HighlightsSyncState.Running) {
+                            _userRequestedRefresh.value = false
+                        }
+                    }
                 }
                 .onFailure { error ->
+                    if (reason == HighlightsRefreshReason.USER_RETRY) {
+                        _userRequestedRefresh.value = false
+                    }
                     Timber.w(error, "Highlights VM refresh request completed: reason=%s result=failure", reason)
                 }
         }
@@ -237,6 +261,7 @@ data class HighlightsUiState(
     val isSearchActive: Boolean = false,
     val isInitialLocalLoad: Boolean = true,
     val isRefreshing: Boolean = false,
+    val isUserRefreshing: Boolean = false,
     val refreshFailed: Boolean = false,
     val loadedCount: Int? = null,
     val cachePartial: Boolean = false,

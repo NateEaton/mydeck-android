@@ -37,6 +37,9 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.NonCancellable
@@ -66,6 +69,10 @@ class BookmarkRepositoryImpl @Inject constructor(
     @IoDispatcher
     private val dispatcher: CoroutineDispatcher = Dispatchers.IO
 ) : BookmarkRepository {
+
+    private val _syncProgress = MutableStateFlow<BookmarkRepository.BookmarkSyncProgress>(BookmarkRepository.BookmarkSyncProgress.Idle)
+    override val syncProgress: StateFlow<BookmarkRepository.BookmarkSyncProgress> = _syncProgress.asStateFlow()
+
     override fun observeBookmarks(
         type: Bookmark.Type?,
         unread: Boolean?,
@@ -755,6 +762,8 @@ class BookmarkRepositoryImpl @Inject constructor(
                         totalInserted += bookmarks.size
                     }
 
+                    _syncProgress.value = BookmarkRepository.BookmarkSyncProgress.Running(currentPage, totalPages)
+
                     if (currentPage < totalPages) {
                         offset += pageSize
                     } else {
@@ -816,6 +825,7 @@ class BookmarkRepositoryImpl @Inject constructor(
             Timber.e(e, "Full sync failed")
             BookmarkRepository.SyncResult.NetworkError(errorMessage = "Network error during full sync", ex = e)
         } finally {
+            _syncProgress.value = BookmarkRepository.BookmarkSyncProgress.Idle
             // NonCancellable ensures cleanup runs even when the coroutine is cancelled.
             withContext(NonCancellable) {
                 try {

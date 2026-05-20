@@ -58,8 +58,9 @@ Runs when a tag starting with `v` is pushed (e.g., `v0.12.0`).
     *   `versionCode`: `(major × 1,000,000) + (minor × 1,000) + patch`
     *   `versionName`: `"X.Y.Z"`
 3.  Add changelog: `metadata/en-US/changelogs/<versionCode>.txt`.
-4.  Commit: `chore(release): bump version to X.Y.Z`.
-5.  Open PR -> Merge to `main`.
+4.  Update `CHANGELOG.md`: move items from `[Unreleased]` into a new `## [X.Y.Z] - YYYY-MM-DD` section.
+5.  Commit: `chore(release): bump version to X.Y.Z`.
+6.  Open PR -> Merge to `main`.
 
 ### Step 2: Tag and Publish
 1.  💻 `git checkout main && git pull`

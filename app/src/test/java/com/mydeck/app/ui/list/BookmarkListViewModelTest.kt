@@ -121,6 +121,7 @@ class BookmarkListViewModelTest {
         every { bookmarkRepository.observeAllBookmarkCounts() } returns flowOf(BookmarkCounts())
         every { bookmarkRepository.observeAllLabelsWithCounts() } returns flowOf(emptyMap())
         every { bookmarkRepository.observePendingActionCount() } returns flowOf(0)
+        every { bookmarkRepository.syncProgress } returns MutableStateFlow(BookmarkRepository.BookmarkSyncProgress.Idle)
         every { connectivityMonitor.observeConnectivity() } returns flowOf(true)
         every { connectivityMonitor.isNetworkAvailable() } returns true
         every { connectivityMonitor.isOnWifi() } returns true

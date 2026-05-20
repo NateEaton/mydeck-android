@@ -51,7 +51,7 @@ object NetworkModule {
                 Timber.tag("OkHttp").d(message)
             }
             val loggingInterceptor = HttpLoggingInterceptor(timberLogger).apply {
-                level = HttpLoggingInterceptor.Level.BODY
+                level = HttpLoggingInterceptor.Level.BASIC
                 redactHeader("Authorization")
                 redactHeader("Cookie")
                 redactHeader("Set-Cookie")

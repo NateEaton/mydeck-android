@@ -32,6 +32,7 @@ abstract class AppModule {
     abstract fun bindHighlightsRepository(highlightsRepositoryImpl: com.mydeck.app.domain.HighlightsRepositoryImpl): com.mydeck.app.domain.HighlightsRepository
 
     @Binds
+    @Singleton
     abstract fun bindBookmarkRepository(bookmarkRepositoryImpl: BookmarkRepositoryImpl): BookmarkRepository
 
     @Binds

@@ -6,6 +6,7 @@ import com.mydeck.app.domain.model.BookmarkListItem
 import com.mydeck.app.domain.model.BookmarkMetadataUpdate
 import com.mydeck.app.domain.model.ProgressFilter
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.StateFlow
 
 interface BookmarkRepository {
     fun observeBookmarks(
@@ -40,6 +41,8 @@ interface BookmarkRepository {
     suspend fun updateBookmark(bookmarkId: String, isFavorite: Boolean?, isArchived: Boolean?, isRead: Boolean?): UpdateResult
     suspend fun updateReadProgress(bookmarkId: String, progress: Int): UpdateResult
     suspend fun updateLabels(bookmarkId: String, labels: List<String>): UpdateResult
+    val syncProgress: StateFlow<BookmarkSyncProgress>
+
     suspend fun performFullSync(): SyncResult
     suspend fun performDeltaSync(since: kotlinx.datetime.Instant?): SyncResult
     suspend fun syncPendingActions(): UpdateResult
@@ -82,6 +85,11 @@ interface BookmarkRepository {
     suspend fun fetchRawBookmarkJson(bookmarkId: String): String?
     suspend fun refreshBookmarkMetadata(bookmarkId: String)
     suspend fun fetchExtractionLog(bookmarkId: String): ExtractionLogResult
+
+    sealed interface BookmarkSyncProgress {
+        data object Idle : BookmarkSyncProgress
+        data class Running(val page: Int, val totalPages: Int) : BookmarkSyncProgress
+    }
 
     sealed class ExtractionLogResult {
         data class Success(val text: String) : ExtractionLogResult()

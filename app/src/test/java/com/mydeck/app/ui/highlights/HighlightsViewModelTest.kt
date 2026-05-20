@@ -405,6 +405,23 @@ class HighlightsViewModelTest {
         assertFalse(state.isInitialLocalLoad)
     }
 
+    @Test
+    fun `skipped user retry does not mark later automatic refresh as user refresh`() = runTest {
+        repository.highlights.value = listOf(highlight("h1"))
+
+        val viewModel = HighlightsViewModel(repository)
+        advanceUntilIdle()
+
+        viewModel.retry()
+        advanceUntilIdle()
+        repository.syncState.value = HighlightsSyncState.Running(loadedCount = 1)
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertTrue(state.isRefreshing)
+        assertFalse(state.isUserRefreshing)
+    }
+
     private fun visibleHighlightIds(state: HighlightsUiState): List<String> {
         return state.filteredGroups.flatMap { group -> group.highlights.map { it.id } }
     }
