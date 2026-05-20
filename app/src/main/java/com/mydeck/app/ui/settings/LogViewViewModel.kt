@@ -73,7 +73,7 @@ class LogViewViewModel @Inject constructor(
     }
 
     fun onShareLogs() {
-        logAppInfo()
+        logAppInfo(context)
         viewModelScope.launch {
             val zipFile = createLogFilesZip(context)
             if (zipFile != null) {
@@ -90,7 +90,7 @@ class LogViewViewModel @Inject constructor(
     }
 
     fun onSaveToDownloads() {
-        logAppInfo()
+        logAppInfo(context)
         viewModelScope.launch {
             val zipFile = createLogFilesZip(context)
             if (zipFile == null) {

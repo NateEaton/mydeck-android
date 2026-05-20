@@ -1,6 +1,7 @@
 package com.mydeck.app.util
 
 
+import android.content.Context
 import com.mydeck.app.BuildConfig
 import com.mydeck.app.LOGDIR
 import fr.bipi.treessence.file.FileLoggerTree
@@ -61,11 +62,11 @@ fun createLogDir(parentDir: File): File? {
     }
 }
 
-fun logAppInfo() {
+fun logAppInfo(context: Context) {
     Timber.tag("APP-INFO")
-    Timber.i("versionName=${BuildConfig.VERSION_NAME}")
+    Timber.i("versionName=${AppVersion.versionName(context)}")
     Timber.tag("APP-INFO")
-    Timber.i("versionCode=${BuildConfig.VERSION_CODE}")
+    Timber.i("versionCode=${AppVersion.versionCode(context)}")
     Timber.tag("APP-INFO")
     Timber.i("flavor=${BuildConfig.FLAVOR}")
 }

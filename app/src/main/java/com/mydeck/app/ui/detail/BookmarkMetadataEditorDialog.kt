@@ -137,7 +137,12 @@ fun BookmarkMetadataEditorDialog(
                         .padding(horizontal = 16.dp, vertical = 12.dp),
                     horizontalArrangement = Arrangement.End
                 ) {
+                    // Server rejects empty title or site_name with 400 "field is required".
+                    // Block the save here so the user gets immediate feedback instead of a
+                    // silent failure followed by an apparent rollback after resync.
+                    val canSave = title.isNotBlank() && siteName.isNotBlank()
                     Button(
+                        enabled = canSave,
                         onClick = {
                             onSave(
                                 BookmarkMetadataUpdate(
@@ -173,8 +178,12 @@ fun BookmarkMetadataEditorDialog(
                     value = title,
                     onValueChange = { title = it },
                     modifier = Modifier.fillMaxWidth(),
-                    label = { Text(stringResource(R.string.title)) },
+                    label = { Text(stringResource(R.string.metadata_title_label)) },
                     singleLine = true,
+                    isError = title.isBlank(),
+                    supportingText = if (title.isBlank()) {
+                        { Text(stringResource(R.string.metadata_field_required)) }
+                    } else null,
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
                     keyboardActions = KeyboardActions(
                         onNext = { descriptionFocusRequester.requestFocus() }
@@ -203,6 +212,10 @@ fun BookmarkMetadataEditorDialog(
                         .focusRequester(siteNameFocusRequester),
                     label = { Text(stringResource(R.string.detail_site_name)) },
                     singleLine = true,
+                    isError = siteName.isBlank(),
+                    supportingText = if (siteName.isBlank()) {
+                        { Text(stringResource(R.string.metadata_field_required)) }
+                    } else null,
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
                     keyboardActions = KeyboardActions(
                         onNext = { authorsFocusRequester.requestFocus() }

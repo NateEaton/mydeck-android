@@ -1,5 +1,8 @@
 package com.mydeck.app.domain.usecase
 
+import android.content.Context
+import android.content.pm.PackageInfo
+import android.content.pm.PackageManager
 import com.mydeck.app.domain.model.OAuthDeviceAuthorizationState
 import com.mydeck.app.io.rest.ReadeckApi
 import com.mydeck.app.io.rest.model.*
@@ -26,7 +29,15 @@ class OAuthDeviceAuthorizationUseCaseTest {
     fun setup() {
         readeckApi = mockk()
         json = Json { ignoreUnknownKeys = true }
-        useCase = OAuthDeviceAuthorizationUseCase(readeckApi, json)
+        val packageInfo = PackageInfo().apply { versionName = "test-version" }
+        val packageManager = mockk<PackageManager> {
+            every { getPackageInfo(any<String>(), 0) } returns packageInfo
+        }
+        val context = mockk<Context> {
+            every { this@mockk.packageManager } returns packageManager
+            every { packageName } returns "com.mydeck.app.test"
+        }
+        useCase = OAuthDeviceAuthorizationUseCase(readeckApi, json, context)
     }
 
     @Test

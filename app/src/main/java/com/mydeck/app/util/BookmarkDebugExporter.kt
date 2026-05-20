@@ -78,8 +78,8 @@ class BookmarkDebugExporter(
         val root = buildJsonObject {
             putJsonObject("exportInfo") {
                 put("exportTimestamp", SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSZ", Locale.US).format(Date()))
-                put("appVersion", BuildConfig.VERSION_NAME)
-                put("appVersionCode", BuildConfig.VERSION_CODE)
+                put("appVersion", AppVersion.versionName(context))
+                put("appVersionCode", AppVersion.versionCode(context))
                 put("buildType", BuildConfig.BUILD_TYPE)
                 put("apiDataAvailable", rawApiJson != null)
                 put("articleHtmlAvailable", rawArticleHtml != null)

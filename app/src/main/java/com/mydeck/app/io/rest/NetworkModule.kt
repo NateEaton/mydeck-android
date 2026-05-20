@@ -22,6 +22,7 @@ import retrofit2.Retrofit
 import retrofit2.converter.kotlinx.serialization.asConverterFactory
 import retrofit2.converter.scalars.ScalarsConverterFactory
 import retrofit2.create
+import timber.log.Timber
 import java.io.File
 import javax.inject.Singleton
 
@@ -41,8 +42,19 @@ object NetworkModule {
             .addInterceptor(baseUrlInterceptor)
 
         if (BuildConfig.DEBUG) {
-            val loggingInterceptor = HttpLoggingInterceptor().apply {
-                level = HttpLoggingInterceptor.Level.BASIC
+            // Route OkHttp wire logs through Timber so they land in the on-device
+            // log file alongside everything else. Default logger writes to logcat
+            // only, which is invisible to the in-app log viewer / share flow.
+            // Use DEBUG (priority 3), not VERBOSE — the FileLoggerTree is
+            // configured at level=3 and would silently drop VERBOSE messages.
+            val timberLogger = HttpLoggingInterceptor.Logger { message ->
+                Timber.tag("OkHttp").d(message)
+            }
+            val loggingInterceptor = HttpLoggingInterceptor(timberLogger).apply {
+                level = HttpLoggingInterceptor.Level.BODY
+                redactHeader("Authorization")
+                redactHeader("Cookie")
+                redactHeader("Set-Cookie")
             }
             builder.addInterceptor(loggingInterceptor)
         }

@@ -150,10 +150,14 @@ fun BookmarkDetailArticle(
     val latestToggleArchive by rememberUpdatedState(onToggleArchive)
     // Key on articleContent presence (not the full string) so annotation-refresh HTML changes
     // don't trigger a full WebView reload — those are handled via JS innerHTML replacement.
+    // Title and description are reader-header inputs, so include them so that an in-app
+    // metadata edit re-renders the reader without requiring a navigate-out / navigate-in.
     val content = remember(
         uiState.bookmark.bookmarkId,
         uiState.bookmark.articleContent != null,
         uiState.bookmark.embed,
+        uiState.bookmark.title,
+        uiState.bookmark.description,
         contentReloadKey,
         readerTopClearanceCssPx
     ) {
@@ -238,6 +242,8 @@ fun BookmarkDetailArticle(
         uiState.bookmark.bookmarkId,
         uiState.bookmark.articleContent != null,
         uiState.bookmark.embed,
+        uiState.bookmark.title,
+        uiState.bookmark.description,
         contentReloadKey,
         readerTopClearanceCssPx
     ) {
