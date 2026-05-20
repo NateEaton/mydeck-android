@@ -9,6 +9,7 @@ import com.mydeck.app.domain.model.BookmarkHighlightGroup
 import com.mydeck.app.domain.model.HighlightSummary
 import com.mydeck.app.domain.model.HighlightsSyncMetadata
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -189,8 +190,17 @@ class HighlightsViewModel @Inject constructor(
             highlightsRepository.requestRefresh(reason)
                 .onSuccess {
                     Timber.d("Highlights VM refresh request completed: reason=%s result=success", reason)
+                    if (reason == HighlightsRefreshReason.USER_RETRY) {
+                        delay(100)
+                        if (highlightsRepository.observeSyncState().value !is HighlightsSyncState.Running) {
+                            _userRequestedRefresh.value = false
+                        }
+                    }
                 }
                 .onFailure { error ->
+                    if (reason == HighlightsRefreshReason.USER_RETRY) {
+                        _userRequestedRefresh.value = false
+                    }
                     Timber.w(error, "Highlights VM refresh request completed: reason=%s result=failure", reason)
                 }
         }

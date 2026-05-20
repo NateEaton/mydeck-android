@@ -657,7 +657,7 @@ fun BookmarkListScreen(
                 }
             )
             val fraction = syncFraction
-            if (fraction != null) {
+            if (isInitialLoading && fraction != null) {
                 LinearProgressIndicator(
                     progress = { fraction },
                     modifier = Modifier.fillMaxWidth()
