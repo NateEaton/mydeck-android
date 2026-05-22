@@ -22,7 +22,7 @@ import com.mydeck.app.io.db.model.CachedAnnotationEntity
 
 @Database(
     entities = [BookmarkEntity::class, ArticleContentEntity::class, ContentPackageEntity::class, ContentResourceEntity::class, RemoteBookmarkIdEntity::class, RemoteAnnotationIdEntity::class, PendingActionEntity::class, CachedAnnotationEntity::class, BookmarkAnnotationSyncMetadataEntity::class],
-    version = 15,
+    version = 16,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
@@ -281,6 +281,22 @@ abstract class MyDeckDatabase : RoomDatabase() {
                         `id` TEXT NOT NULL,
                         PRIMARY KEY(`syncRunId`, `id`)
                     )
+                    """
+                )
+            }
+        }
+
+        // One-shot heal for rows poisoned by the pre-fix bug where opening a
+        // bookmark before the server finished extracting stamped PERMANENT_NO_CONTENT
+        // (state=3) even when the server later reported hasArticle=true. Reset those
+        // rows to NOT_ATTEMPTED so the next open triggers a fresh fetch.
+        val MIGRATION_15_16 = object : Migration(15, 16) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL(
+                    """
+                    UPDATE bookmarks
+                    SET contentState = 0, contentFailureReason = NULL
+                    WHERE contentState = 3 AND hasArticle = 1
                     """
                 )
             }

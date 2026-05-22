@@ -98,8 +98,16 @@ class LoadContentPackageUseCase @Inject constructor(
             return Result.PermanentFailure(bookmark.contentFailureReason ?: "No content available")
         }
 
-        // For articles and videos, check hasArticle
+        // For articles and videos, check hasArticle.
+        // Same guard as LoadArticleUseCase: while the server is still extracting
+        // (state=LOADING), hasArticle=false is transient. Stamping PERMANENT_NO_CONTENT
+        // now would survive subsequent metadata syncs that preserve contentState and
+        // leave the row permanently poisoned.
         if ((bookmark.type is Bookmark.Type.Article || bookmark.type is Bookmark.Type.Video) && !bookmark.hasArticle) {
+            if (bookmark.state == Bookmark.State.LOADING) {
+                Timber.i("Bookmark $bookmarkId still being processed by server (state=LOADING) — treating as transient")
+                return Result.TransientFailure("Bookmark still being processed by server")
+            }
             bookmarkDao.updateContentState(
                 bookmarkId, BookmarkEntity.ContentState.PERMANENT_NO_CONTENT.value,
                 "No article content available (type=${bookmark.type})"

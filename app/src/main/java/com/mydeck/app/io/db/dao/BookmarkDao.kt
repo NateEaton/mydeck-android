@@ -135,14 +135,33 @@ interface BookmarkDao {
 
             val bookmarkToInsert = if (existingState != null &&
                 bookmark.contentState == BookmarkEntity.ContentState.NOT_ATTEMPTED) {
-                // Only preserve existing state when the incoming bookmark has the default
-                // NOT_ATTEMPTED state (i.e., it's a metadata-only sync that doesn't know
-                // the real content state). When the caller explicitly sets a state like
-                // DOWNLOADED, respect it.
-                bookmark.copy(
-                    contentState = existingState.contentState,
-                    contentFailureReason = existingState.contentFailureReason
-                )
+                // Heal: if the existing row is stamped PERMANENT_NO_CONTENT but the
+                // server now reports hasArticle=true and the bookmark's `updated`
+                // timestamp has advanced past what we have locally, the prior stamp
+                // was a false positive (typically from opening a still-extracting
+                // bookmark). Reset to NOT_ATTEMPTED so the next open re-fetches.
+                // The `updated > existingState.updated` guard is the loop-breaker —
+                // re-failure won't re-heal until the server reports another change.
+                val shouldHeal = existingState.contentState == BookmarkEntity.ContentState.PERMANENT_NO_CONTENT &&
+                    bookmark.hasArticle &&
+                    bookmark.state == BookmarkEntity.State.LOADED &&
+                    bookmark.updated > existingState.updated
+                if (shouldHeal) {
+                    Timber.i("Healing PERMANENT_NO_CONTENT for ${bookmark.id} (server now reports hasArticle=true and updated advanced)")
+                    bookmark.copy(
+                        contentState = BookmarkEntity.ContentState.NOT_ATTEMPTED,
+                        contentFailureReason = null
+                    )
+                } else {
+                    // Only preserve existing state when the incoming bookmark has the default
+                    // NOT_ATTEMPTED state (i.e., it's a metadata-only sync that doesn't know
+                    // the real content state). When the caller explicitly sets a state like
+                    // DOWNLOADED, respect it.
+                    bookmark.copy(
+                        contentState = existingState.contentState,
+                        contentFailureReason = existingState.contentFailureReason
+                    )
+                }
             } else {
                 bookmark
             }
@@ -652,10 +671,11 @@ interface BookmarkDao {
 
     data class ContentStateInfo(
         val contentState: BookmarkEntity.ContentState,
-        val contentFailureReason: String?
+        val contentFailureReason: String?,
+        val updated: Instant
     )
 
-    @Query("SELECT contentState, contentFailureReason FROM bookmarks WHERE id = :id")
+    @Query("SELECT contentState, contentFailureReason, updated FROM bookmarks WHERE id = :id")
     suspend fun getContentStateById(id: String): ContentStateInfo?
 
     @Query("UPDATE bookmarks SET contentState = :state, contentFailureReason = :reason WHERE id = :id")

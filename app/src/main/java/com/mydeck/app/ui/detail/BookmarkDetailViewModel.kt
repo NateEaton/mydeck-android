@@ -243,7 +243,13 @@ class BookmarkDetailViewModel @Inject constructor(
         // Load initial progress and handle type-specific behavior
         viewModelScope.launch {
             try {
-                val bookmark = bookmarkRepository.getBookmarkById(id)
+                val initial = bookmarkRepository.getBookmarkById(id)
+                // If the server hasn't finished extracting this bookmark yet, wait
+                // for it before attempting any on-demand content fetch. Without this,
+                // the use cases would interpret hasArticle=false as terminal and
+                // stamp PERMANENT_NO_CONTENT, permanently breaking reader mode for
+                // bookmarks the user opens too early.
+                val bookmark = awaitServerProcessingIfNeeded(id, initial)
                 initialReadProgress = bookmark.readProgress
                 bookmarkType = bookmark.type
 
@@ -852,6 +858,50 @@ class BookmarkDetailViewModel @Inject constructor(
         val timeZone = TimeZone.currentSystemDefault()
         val epochMillis = localDateTime.toInstant(timeZone).toEpochMilliseconds()
         return dateFormat.format(Date(epochMillis))
+    }
+
+    /**
+     * If the bookmark is still being extracted server-side (state=LOADING), poll metadata
+     * on backoff until the server reports a terminal state (LOADED or ERROR). Drives the
+     * determinate progress bar forward while waiting so the user has visible feedback.
+     *
+     * Returns the up-to-date bookmark once the server has finished processing. Continues
+     * polling indefinitely while the ViewModel is alive; cancellation happens naturally
+     * via viewModelScope when the user navigates away.
+     */
+    private suspend fun awaitServerProcessingIfNeeded(
+        bookmarkId: String,
+        initial: com.mydeck.app.domain.model.Bookmark
+    ): com.mydeck.app.domain.model.Bookmark {
+        if (initial.state != com.mydeck.app.domain.model.Bookmark.State.LOADING) return initial
+
+        Timber.i("Bookmark $bookmarkId still being processed by server (state=LOADING) — polling metadata")
+
+        val pollIntervalsMs = longArrayOf(2_000L, 4_000L, 8_000L, 15_000L)
+        var pollIndex = 0
+        var progress = 0.10f
+        _contentLoadState.value = ContentLoadState.Loading(progress)
+
+        while (true) {
+            delay(pollIntervalsMs[pollIndex.coerceAtMost(pollIntervalsMs.lastIndex)])
+            // Tick progress forward modestly, capped at 0.5 so the subsequent
+            // on-demand fetch (if any) has room to advance.
+            progress = (progress + 0.05f).coerceAtMost(0.50f)
+            _contentLoadState.value = ContentLoadState.Loading(progress)
+
+            try {
+                bookmarkRepository.refreshBookmarkMetadata(bookmarkId)
+            } catch (e: Exception) {
+                Timber.w(e, "Metadata refresh failed during server-processing wait for $bookmarkId")
+            }
+
+            val refreshed = bookmarkRepository.getBookmarkById(bookmarkId)
+            if (refreshed.state != com.mydeck.app.domain.model.Bookmark.State.LOADING) {
+                Timber.i("Bookmark $bookmarkId finished server processing (state=${refreshed.state})")
+                return refreshed
+            }
+            pollIndex = (pollIndex + 1).coerceAtMost(pollIntervalsMs.lastIndex)
+        }
     }
 
     private fun fetchContentOnDemand(bookmarkId: String) {
