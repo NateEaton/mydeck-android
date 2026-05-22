@@ -6,3 +6,7 @@
 !en/
 !en/**
 !.gitignore
+
+# Un-ignore screenshots and app store metadata
+!metadata/
+!metadata/**
