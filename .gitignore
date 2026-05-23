@@ -6,6 +6,8 @@
 !en/
 !en/**
 !.gitignore
+!favicon.ico
+!apple-touch-icon.png
 
 # Un-ignore screenshots and app store metadata
 !metadata/
