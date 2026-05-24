@@ -37,7 +37,8 @@ object DatabaseModule {
                 MyDeckDatabase.MIGRATION_11_12,
                 MyDeckDatabase.MIGRATION_12_13,
                 MyDeckDatabase.MIGRATION_13_14,
-                MyDeckDatabase.MIGRATION_14_15
+                MyDeckDatabase.MIGRATION_14_15,
+                MyDeckDatabase.MIGRATION_15_16
             )
             .build()
     }

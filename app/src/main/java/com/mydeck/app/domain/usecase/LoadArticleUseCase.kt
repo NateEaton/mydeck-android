@@ -44,7 +44,15 @@ class LoadArticleUseCase @Inject constructor(
         }
 
         if (!bookmark.hasArticle) {
-            // Server says no article content — mark permanent
+            // While the server is still extracting (state=LOADING), hasArticle=false
+            // is transient — never stamp PERMANENT_NO_CONTENT here, because subsequent
+            // metadata syncs preserve contentState and the row would stay poisoned
+            // even after extraction completes.
+            if (bookmark.state == Bookmark.State.LOADING) {
+                Timber.i("Bookmark $bookmarkId still being processed by server (state=LOADING) — treating as transient")
+                return Result.TransientFailure("Bookmark still being processed by server")
+            }
+            // Server has finished (LOADED or ERROR) and confirmed no article — stamp permanent
             bookmarkDao.updateContentState(
                 bookmarkId, BookmarkEntity.ContentState.PERMANENT_NO_CONTENT.value,
                 "No article content available (type=${bookmark.type})"
