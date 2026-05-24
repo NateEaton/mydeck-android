@@ -84,23 +84,33 @@ architectural pattern applies to a footer.
 - Adding new actions to the footer beyond favorite and archive. Other actions,
   if any, are a follow-up.
 - Touching the original-page WebView, which has no bridge today.
-- Changing the existing read-progress mechanics. The footer-visibility signal
-  is shared with the completion trigger but neither replaces the broader read
-  state machine.
+- Changing the existing read-progress mechanics. `WebViewScrollBridge` remains
+  responsible for intermediate progress, article completion, resume position,
+  and the in-list progress indicator.
 
 ## Design
 
 ### Signal: IntersectionObserver sentinel, not scroll percentage
 
-Add a zero-height sentinel element at the end of the article body in the reader
-HTML template:
+Add a visually inert 1px sentinel element at the end of the article body in the
+reader HTML template:
 
 ```html
 <div id="mydeck-end-sentinel" aria-hidden="true"></div>
 ```
 
+The sentinel is styled with a stable, minimal size rather than zero height:
+
+```css
+#mydeck-end-sentinel {
+  width: 1px;
+  height: 1px;
+  pointer-events: none;
+}
+```
+
 Attach an `IntersectionObserver` in the reader JS that watches this sentinel and
-reports state changes through a new read-only bridge:
+reports state changes through a new low-risk event bridge:
 
 ```kotlin
 class WebViewEndSentinelBridge(
@@ -121,11 +131,12 @@ Rationale for sentinel over scroll percentage:
   sentinel reports when the end of content is in viewport, regardless of layout.
 - **Naturally bidirectional.** Hides when the user scrolls back up.
 - **Cheap.** One observer per page, no `requestAnimationFrame` polling.
-- **Read-only callback.** No state mutation; same shape as `WebViewScrollBridge`
-  today. The bridge-removal goal applies to mutating bridges; event-report
-  bridges are kept.
+- **No bookmark/server mutation.** The callback only updates footer visibility
+  state in Compose. It cannot favorite, archive, delete, edit, or otherwise
+  mutate bookmark data. The bridge-removal goal applies to mutating bridges;
+  event-report bridges are kept.
 
-### Shared signal with auto-mark-as-read (per type)
+### Read-progress behavior remains unchanged
 
 Read-state behavior today, confirmed against `BookmarkDetailViewModel.kt`:
 
@@ -140,19 +151,18 @@ Read-state behavior today, confirmed against `BookmarkDetailViewModel.kt`:
   `isReadLocked = true` and further scroll updates are ignored. On open,
   `isReadLocked` is initialized to `bookmark.isRead()` (line 314).
 
-The sentinel changes the article-completion trigger only. After this spec:
+After this spec:
 
-- Intermediate scroll progress (`0..99`) still flows through
-  `WebViewScrollBridge` and `onScrollProgressChanged` — this is what feeds
-  resume-from-position and the in-list progress indicator. No change.
-- The completion trigger that flips `isReadLocked = true` and sets
-  `currentScrollProgress = 100` moves from "scroll progress reaches 100" to
-  "end sentinel becomes visible." This is more accurate on long articles with
-  embedded media where the scroll-percentage calculation can fail to hit
-  exactly 100. Footer visibility and read-completion now share the same
-  source of truth and cannot drift.
-- For Picture/Video, the existing immediate-100 path is untouched. The sentinel
-  is wired only to the footer-visibility state in the UiState for those types.
+- `WebViewScrollBridge` and `onScrollProgressChanged` stay exactly where they
+  are. Intermediate progress (`0..99`) and completion at `>= 100` continue to
+  feed resume-from-position, auto-mark-as-read, and the in-list progress
+  indicator.
+- The sentinel does not call `updateReadProgress`, does not set
+  `currentScrollProgress`, and does not change `isReadLocked`.
+- For all reader types, the sentinel is wired only to footer visibility state.
+  If a sanitizer bypass ever allowed page JavaScript to call the sentinel bridge,
+  the worst effect would be showing or hiding the native footer, not mutating
+  account data or queued server actions.
 
 ### Bottom clearance
 
@@ -284,11 +294,9 @@ element changes.
 5. Hoist `endVisible: Boolean` into `BookmarkDetailViewModel.UiState`. Add a
    `showFooter: Boolean` derived from `endVisible` AND the layout/type/
    selection gates described in Edge Cases.
-6. Wire the Article completion trigger: when `endVisible` becomes `true` and
-   the bookmark is `Type.ARTICLE` and `isReadLocked == false`, set
-   `currentScrollProgress = 100` and `isReadLocked = true` (the same actions
-   currently performed by `onScrollProgressChanged` at line 570). Picture and
-   Video remain unchanged — they auto-mark on open.
+6. Do not wire the sentinel into read-progress state. Article completion remains
+   driven by `WebViewScrollBridge` and `onScrollProgressChanged`; Picture and
+   Video remain unchanged and still auto-mark on open.
 7. Add `--mydeck-bottom-clearance-px` to the reader CSS in the four template
    files and its injection point in Kotlin (mirror `readerTopClearanceCssPx`).
 8. Build `ReaderActionFooter` composable — a `Row` of two `IconButton`s,
@@ -328,9 +336,10 @@ element changes.
 
 - Unit tests for `endVisible` and `showFooter` state transitions in
   `BookmarkDetailViewModel`.
-- Unit test for the Article completion trigger: setting `endVisible = true`
-  on a not-yet-read article flips `isReadLocked` and `currentScrollProgress`
-  exactly once, and is a no-op when `isReadLocked` is already true.
+- Unit test confirming `endVisible` changes do not alter `currentScrollProgress`,
+  `isReadLocked`, or call read-progress persistence.
+- Unit test confirming the existing Article completion path still runs through
+  `onScrollProgressChanged(progress >= 100)`.
 - Unit test confirming the Picture/Video auto-mark-on-open path at lines
   250–257 is unchanged.
 - Robolectric test for `ReaderActionFooter` rendering with each palette
@@ -340,8 +349,8 @@ element changes.
   - Phone portrait / phone landscape / tablet portrait / tablet landscape
   - Light / dark / sepia themes
   - Short article (sentinel visible at load) vs. long article
-  - Scroll to end, then scroll back up — footer hides for article; stays
-    visible for picture/video where it appeared on open
+  - Scroll to end, then scroll back up — footer visibility follows the sentinel
+    for every reader type
   - Toggle favorite/archive — state persists, no JS reload of WebView
   - Offline state — toggle queues to pending actions, footer reflects pending
     state via the existing UiState path
@@ -360,9 +369,8 @@ element changes.
 - Adding more actions to the footer (share, delete, add label). v1 is
   favorite + archive only.
 - Changing the top app bar.
-- Changing the existing Picture/Video auto-mark-on-open behavior or the
-  Article intermediate-progress tracking. Only the Article completion trigger
-  moves to the sentinel.
+- Changing the existing Picture/Video auto-mark-on-open behavior, Article
+  intermediate-progress tracking, or Article completion tracking.
 
 ## Open questions
 

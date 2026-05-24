@@ -1,4 +1,4 @@
-# Spec: Release Default to HTTPS-Only, with Optional Permissive Variant
+# Spec: Release Default to HTTPS-Only, with Optional HTTP-Enabled Package
 
 ## Status
 
@@ -23,13 +23,13 @@ The build infrastructure already supports an HTTPS-only release:
   Gradle property or env var.
 
 What is missing is (a) a safer default for the artifact distributed from the public
-release page, and (b) a distinct, clearly labeled artifact for users who need HTTP.
+release page, and (b) a distinct, clearly labeled package for users who need HTTP.
 
 ### Why this matters
 
 HTTP support was added specifically for a self-hosted user running Readeck behind
 Tailscale. That use case is real, but it is not the majority case, and shipping
-HTTP-permissive as the default means every user — including the ones connecting to
+HTTP-enabled as the default means every user — including the ones connecting to
 a public-facing HTTPS Readeck — gets a binary that would accept a cleartext URL if
 they entered one.
 
@@ -58,14 +58,17 @@ feature was added:
   proxy (including Tailscale Serve) that does.
 
 Some setups will still require HTTP — users connecting directly to a tailnet IP on
-HTTP, or installations without proxy access. The permissive build serves those.
+HTTP, or installations without proxy access. The HTTP-enabled package serves those.
 
 ## Goals
 
 - The default public release artifact accepts `https://` URLs only.
-- The HTTP-permissive build remains available as a clearly labeled, separately
-  downloaded artifact for users who need it.
-- The in-app warning, when shown in the permissive build, points users at the safer
+- The HTTP-enabled build remains available as a clearly labeled, separately
+  installed package for users who need it.
+- The standard and HTTP-enabled packages have separate application IDs, labels,
+  filenames, workflow artifacts, and release-note sections so users cannot
+  accidentally install one while trying to get the other.
+- The in-app warning, when shown in the HTTP-enabled build, points users at the safer
   alternative (Tailscale Serve + HTTPS) so the HTTP path is the exception rather
   than the default.
 - No silent breakage for existing users already logged in over HTTP. If their URL
@@ -96,22 +99,56 @@ val allowInsecureHttpRelease = booleanBuildFlag(
 The standard release build now resolves to `network_security_config.xml`
 (HTTPS-only, system CAs).
 
-### Permissive build artifact
+### Package identities and artifact names
 
-`release.yml` produces two APKs per release, both distributed from GitHub Releases:
+Both release and snapshot workflows produce two clearly separate packages:
 
-1. `MyDeck-<version>.apk` — standard, HTTPS-only.
-2. `MyDeck-<version>-permissive.apk` — built with `ALLOW_INSECURE_HTTP_RELEASE=true`
-   and `ALLOW_USER_CA_RELEASE=true`.
+| Channel | Application ID | App label | APK filename | Network policy |
+|---|---|---|---|---|
+| Standard release | `com.mydeck.app` | `MyDeck` | `MyDeck-<version>.apk` | HTTPS only; system CAs |
+| HTTP-enabled release | `com.mydeck.app.permissive` | `MyDeck HTTP` | `MyDeck-<version>-http-enabled.apk` | HTTP allowed; system + user CAs |
+| Standard snapshot | `com.mydeck.app.snapshot` | `MyDeck Snapshot` | `MyDeck-<version>-snapshot.apk` | HTTPS only; system CAs |
+| HTTP-enabled snapshot | `com.mydeck.app.snapshot.permissive` | `MyDeck HTTP Snapshot` | `MyDeck-<version>-snapshot-http-enabled.apk` | HTTP allowed; system + user CAs |
 
-Both are signed with the same key and share the same `applicationId`
-(`com.mydeck.app`), so a user can install one over the other in place without
-re-authenticating. The release notes carry a section explaining what the
-permissive variant is for and when not to use it.
+The HTTP-enabled package is built with `ALLOW_INSECURE_HTTP_RELEASE=true` and
+`ALLOW_USER_CA_RELEASE=true`.
 
-### In-app warning copy (permissive build)
+The separate `applicationId` is intentional. The standard package must never
+update over the HTTP-enabled package, and the HTTP-enabled package must never
+update over the standard package. Users can install both side by side, and each
+package keeps its own encrypted credentials and local database.
 
-When the permissive build sees an `http://` URL at the URL-entry screen, the
+### Workflow artifact separation
+
+`.github/workflows/release.yml` uploads standard and HTTP-enabled APKs as
+separate artifacts before creating the GitHub release:
+
+- `app-release-standard-<version>` containing only `MyDeck-<version>.apk`
+- `app-release-http-enabled-<version>` containing only
+  `MyDeck-<version>-http-enabled.apk`
+
+The GitHub Release body has separate sections:
+
+1. **Recommended download** — standard HTTPS-only APK.
+2. **Advanced: HTTP-enabled APK** — for trusted private-network setups that
+   cannot use HTTPS.
+
+`.github/workflows/snapshot.yml` follows the same separation for tester builds.
+For each snapshot build type it uploads two artifacts, for example:
+
+- `tester-snapshot-standard-debug`
+- `tester-snapshot-http-enabled-debug`
+- `tester-snapshot-standard-release`
+- `tester-snapshot-http-enabled-release`
+
+The automated `latest-snapshot` release publishes both APKs and checksums, with
+the same recommended/advanced split in the release notes. The standard artifact
+never contains an HTTP-enabled APK, and the HTTP-enabled artifact never contains
+a standard APK.
+
+### In-app warning copy (HTTP-enabled build)
+
+When the HTTP-enabled build sees an `http://` URL at the URL-entry screen, the
 inline warning is updated to:
 
 1. Explain the cleartext risk in one sentence.
@@ -119,30 +156,38 @@ inline warning is updated to:
    - Tailscale Serve (for Tailscale users)
    - Readeck's reverse-proxy + Forwarded Authentication docs (for Readeck 0.22+
      users behind any proxy)
-3. Identify itself as the permissive build, so the user understands they are in
+3. Identify itself as the HTTP-enabled build, so the user understands they are in
    the opt-in distribution path.
 
 The standard build never shows this warning because `http://` cannot be entered.
 
-### Variant identification at runtime
+### Runtime network-policy identification
 
-A `BuildConfig.IS_PERMISSIVE_BUILD` constant (derived from the existing
-`ALLOW_INSECURE_HTTP` and `ALLOW_USER_CA_CERTIFICATES` flags) drives:
+A `BuildConfig.IS_HTTP_ENABLED_BUILD` constant may still be useful for
+artifact-specific copy, but the UI should not collapse the two security decisions
+into one opaque label. `ALLOW_INSECURE_HTTP` and `ALLOW_USER_CA_CERTIFICATES` are
+different risk knobs and should be surfaced independently.
 
-- Variant-specific copy in the in-app warning.
-- A small variant indicator on the About screen so users can confirm what they
-  installed.
+The About screen shows the effective network policy as separate facts:
+
+- Server URLs: `HTTPS only` or `HTTP allowed`
+- HTTPS trust: `system certificate authorities` or `system + user certificate
+  authorities`
+
+The HTTP warning copy can still identify the installed APK as the HTTP-enabled
+variant, but user-facing diagnostics and support screenshots should expose the
+actual capabilities.
 
 ### Documentation updates
 
 - `SECURITY.md`: replace the "default release allows HTTP with a warning" language
-  with the new model (standard = HTTPS-only; permissive = separately downloaded
+  with the new model (standard = HTTPS-only; HTTP-enabled = separately installed
   opt-in).
-- `release.yml` comments: update to match the new default and the dual-artifact
-  build.
+- `release.yml` and `snapshot.yml` comments: update to match the new default and
+  the dual-package build.
 - `README.md`: add a short "Which APK do I want?" section above the download link.
-- The permissive build's release-notes blurb should be templated so each release's
-  notes carry it consistently.
+- The HTTP-enabled build's release-notes blurb should be templated so each
+  release's notes carry it consistently.
 
 ## Migration
 
@@ -161,8 +206,15 @@ When they install the new standard build over the old one:
 What "hard stop" means here: instead of letting that network failure surface
 through the normal error path (where it would look like a transient connectivity
 problem and the user might retry repeatedly), the app detects the specific
-condition "saved URL is `http://` on a non-permissive build" at startup and
-routes to a dedicated screen explaining it.
+condition "saved URL is `http://` on the standard HTTPS-only build" at startup
+and routes to a dedicated screen explaining it.
+
+The same guard also lives below the UI, close to the network boundary. Any code
+path that can issue Readeck API calls — startup sync, WorkManager jobs, share/add
+flows, settings refresh, and manual pull-to-refresh — must short-circuit before
+OkHttp when the saved URL is `http://` and `ALLOW_INSECURE_HTTP == false`. This
+prevents background workers from repeatedly logging opaque network-security
+failures before the migration screen has a chance to explain the policy change.
 
 That screen offers three paths in order of recommendation:
 
@@ -170,8 +222,11 @@ That screen offers three paths in order of recommendation:
    server is reachable on HTTPS (Tailscale Serve, reverse proxy, native TLS).
    Links to the Tailscale Serve docs and Readeck reverse-proxy docs for users
    who don't already have HTTPS configured.
-2. **Install the permissive APK** — for users who genuinely cannot move to HTTPS
-   (direct tailnet-IP setups, etc.). Token survives the replacement.
+2. **Install the HTTP-enabled APK** — for users who genuinely cannot move to HTTPS
+   (direct tailnet-IP setups, etc.). This is a separate package
+   (`com.mydeck.app.permissive`), so it installs beside the standard app and
+   requires OAuth device authorization again. The old standard app remains
+   installed until the user removes it.
 3. **Log out** — fallback only, presented last. Clears credentials and returns
    to the welcome screen. Required only if the user wants to reconfigure from
    scratch.
@@ -182,22 +237,31 @@ into a state where they think the app is just broken.
 
 This screen ships in the same release as the default flip.
 
-### Users on the permissive build
+### Users on the HTTP-enabled build
 
 No change. Their URL still works.
 
 ## Open questions
 
-1. **Should the welcome/login screen in the standard build mention the permissive
+1. **Should the welcome/login screen in the standard build mention the HTTP-enabled
    variant exists?** Likely yes, in fine print, so users hitting the blocked-HTTP
    path do not conclude the app is broken.
 
 ## Code touch points
 
-- `app/build.gradle.kts` — default flip; optional `IS_PERMISSIVE_BUILD`
-  buildConfigField.
-- `.github/workflows/release.yml` — second build step + artifact upload + release
-  notes templating.
+- `app/build.gradle.kts` — default flip; add a network-policy flavor dimension or
+  equivalent variant wiring for standard vs. HTTP-enabled packages. The
+  HTTP-enabled variants set an application ID suffix of `.permissive`, a distinct
+  app label, and `IS_HTTP_ENABLED_BUILD=true`; keep independent
+  `ALLOW_INSECURE_HTTP` and `ALLOW_USER_CA_CERTIFICATES` fields as the source of
+  truth for runtime policy.
+- `.github/workflows/release.yml` — build both standard and HTTP-enabled release
+  packages; upload them as separate artifacts with unambiguous names; publish both
+  APKs to the release with recommended/advanced release-note sections.
+- `.github/workflows/snapshot.yml` — build both standard and HTTP-enabled snapshot
+  packages for the selected debug/release snapshot mode; upload separate artifacts
+  and publish both to `latest-snapshot` without mixing APK types in the same
+  artifact.
 - `SECURITY.md`, `README.md` — copy updates.
 - `app/src/main/res/values*/strings.xml` — updated warning copy and new
   variant-specific strings (English placeholders in all locales per project
@@ -206,7 +270,13 @@ No change. Their URL still works.
   `AccountSettingsScreen.kt` — warning text and link rendering.
 - New screen for "HTTP URL no longer supported in this build" — wired from
   `MainActivity` startup check on saved-URL scheme.
-- `app/src/main/java/com/mydeck/app/ui/about/AboutScreen.kt` — variant indicator.
+- Network-boundary guard shared by foreground API calls and background workers:
+  if the saved server URL is HTTP and `ALLOW_INSECURE_HTTP == false`, return a
+  typed "HTTP blocked in this build" result before constructing or executing the
+  request.
+- `app/src/main/java/com/mydeck/app/ui/about/AboutScreen.kt` — show effective
+  HTTP and certificate-authority policy separately, not only a standard/HTTP-enabled
+  variant badge.
 
 ## Out of scope
 
