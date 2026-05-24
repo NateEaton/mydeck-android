@@ -69,10 +69,13 @@ architectural pattern applies to a footer.
 
 - Remove `WebViewActionsBridge` entirely.
 - Render favorite and archive as native Compose buttons.
-- The footer is hidden by default and animates in only when the user has
-  scrolled to the end of the article content.
-- The article content never sits underneath the footer when it is visible.
+- The footer is hidden by default and animates in when the user has scrolled to
+  the end of the reader content, for all three bookmark types
+  (article / picture / video).
+- The reader content never sits underneath the footer when it is visible.
 - Reader theme (light / sepia / dark) is honored without JS state injection.
+- The footer's enter/exit animation matches the top-app-bar animation already
+  in place, so the two overlays feel like one system.
 
 ## Non-goals
 
@@ -81,6 +84,9 @@ architectural pattern applies to a footer.
 - Adding new actions to the footer beyond favorite and archive. Other actions,
   if any, are a follow-up.
 - Touching the original-page WebView, which has no bridge today.
+- Changing the existing read-progress mechanics. The footer-visibility signal
+  is shared with the completion trigger but neither replaces the broader read
+  state machine.
 
 ## Design
 
@@ -119,14 +125,34 @@ Rationale for sentinel over scroll percentage:
   today. The bridge-removal goal applies to mutating bridges; event-report
   bridges are kept.
 
-### Shared signal with auto-mark-as-read
+### Shared signal with auto-mark-as-read (per type)
 
-Auto-mark-as-read at end-of-content already exists. The end-sentinel-visible
-signal should also feed that logic, so footer-visibility and read-completion
-are derived from the same source of truth and cannot drift. Practical
-implication: the existing scroll-bridge logic that decides "the user has
-finished the article" should either be replaced by, or call into, the same
-end-visible signal.
+Read-state behavior today, confirmed against `BookmarkDetailViewModel.kt`:
+
+- **Picture and Video bookmarks** are auto-marked to `readProgress = 100`
+  unconditionally on open, in `initializeBookmark()` at lines 250–257. The
+  sentinel does not change this; for these types it drives footer visibility
+  only.
+- **Article bookmarks** track read progress through
+  `onScrollProgressChanged(progress: Int)` (line 561), fed by
+  `WebViewScrollBridge`. The article is treated as completed and the tracker
+  is locked when `progress.coerceIn(0, 100) >= 100` (line 570), at which point
+  `isReadLocked = true` and further scroll updates are ignored. On open,
+  `isReadLocked` is initialized to `bookmark.isRead()` (line 314).
+
+The sentinel changes the article-completion trigger only. After this spec:
+
+- Intermediate scroll progress (`0..99`) still flows through
+  `WebViewScrollBridge` and `onScrollProgressChanged` — this is what feeds
+  resume-from-position and the in-list progress indicator. No change.
+- The completion trigger that flips `isReadLocked = true` and sets
+  `currentScrollProgress = 100` moves from "scroll progress reaches 100" to
+  "end sentinel becomes visible." This is more accurate on long articles with
+  embedded media where the scroll-percentage calculation can fail to hit
+  exactly 100. Footer visibility and read-completion now share the same
+  source of truth and cannot drift.
+- For Picture/Video, the existing immediate-100 path is untouched. The sentinel
+  is wired only to the footer-visibility state in the UiState for those types.
 
 ### Bottom clearance
 
@@ -179,111 +205,167 @@ it harmonises with sepia and reader-dark themes. Material ripple is automatic.
 `uiState.endVisible` is fed from the new bridge. `uiState.showFooter` gates on
 the layout/type conditions in the edge-cases section below.
 
+## Sentinel placement per bookmark type
+
+Each reader type composes its content differently in
+`BookmarkDetailViewModel.Bookmark.getContent()` (lines 1688–1766). The
+sentinel must render at the visual end of each type's content, not at the end
+of the DOM. The recommended placement, expressed against the existing
+composition:
+
+- **Article** (`Type.ARTICLE`, line 1760): the body is
+  `<div id="rd-article-content">$articleContent</div>` followed by the current
+  `footerHtml`. Sentinel goes immediately after the closing
+  `</div>` of `rd-article-content` and replaces the footer.
+- **Picture** (`Type.PHOTO`, line 1715): the body is an image element plus an
+  optional text caption. Sentinel goes after the caption when present, or
+  immediately after the `<img>` when not. Replaces the footer.
+- **Video** (`Type.VIDEO`, line 1737): the body is the embed (in
+  `<div class="video-embed">`) followed by
+  `<div id="rd-article-content">$textPart</div>` (transcript or description).
+  Sentinel goes after the closing `</div>` of `rd-article-content`. Replaces
+  the footer.
+
+The cleanest implementation is to replace `buildReaderFooterHtml(...)` with
+`buildReaderEndSentinelHtml()` returning
+`<div id="mydeck-end-sentinel" aria-hidden="true"></div>`, and remove the
+favorite/archive label parameters from `getContent()`'s signature entirely.
+The three type branches keep the same composition shape; only the trailing
+element changes.
+
 ## Edge cases
 
-1. **Bookmark type variance.** Picture and video reader templates differ from
-   article. The sentinel must render at the visual end of each template's
-   content (not the end of the DOM, which for video may be the embed iframe).
-   For picture bookmarks the sentinel goes after the image caption; for video,
-   after the embed. Alternatively, scope the footer to article-type bookmarks
-   for v1 and let picture/video continue surfacing favorite/archive via the
-   existing metadata view. **Recommendation: scope to article in v1; revisit
-   picture/video in a follow-up.**
-2. **Wide layouts (tablet landscape).** Bookmark details may already be
+1. **Wide layouts (tablet landscape).** Bookmark details may already be
    persistent on the side with favorite/archive controls available there.
    Verify against the current AppShell layout. If duplicate controls would
    result, suppress the floating footer in those layouts
    (`showFooter = false`).
-3. **Original-page WebView.** Do not render the footer there. The
+2. **Original-page WebView.** Do not render the footer there. The
    favorite/archive actions still apply to the underlying bookmark, but mixing
    them with non-extracted content is confusing UX, and the original-page
    WebView has no sentinel injected anyway.
-4. **Annotation / selection toolbars.** If text-selection or
+3. **Annotation / selection toolbars.** If text-selection or
    annotation-creation surfaces appear at the bottom of the reader, the footer
    must yield. Gate `showFooter` on "no active selection toolbar" and "no
    active annotation editor."
-5. **In-article search bar.** Currently at the top, so no collision. Document
+4. **In-article search bar.** Currently at the top, so no collision. Document
    the assumption and revisit if search ever moves to the bottom.
-6. **Embed-heavy pages with delayed layout.** Some video/embed pages finish
+5. **Embed-heavy pages with delayed layout.** Some video/embed pages finish
    layout slowly. The sentinel's first `IntersectionObserver` callback may
    fire late. Acceptable — the footer simply does not appear until the page
    is genuinely scrolled to end. Better than a percentage-based heuristic
    firing too early on slow-loading pages.
+6. **Picture and Video bookmarks where content fits without scrolling.** The
+   sentinel is visible at load time, so the footer appears immediately. That
+   is the right UX — these bookmark types are already auto-marked as read on
+   open, so showing the footer immediately matches the user's mental model
+   ("I can see the whole thing; here are my actions"). Debounce by ~150 ms so
+   the footer does not flash during initial page paint.
 7. **Very short articles where the sentinel is visible immediately on load.**
-   The footer appears right away, which is fine — the user has effectively
-   read the whole article. Optionally debounce by ~150 ms so the footer does
-   not flash during initial page paint.
+   Same as above — footer appears right away. Same ~150 ms debounce.
 8. **Theme changes mid-read.** The CSS clearance variable does not need to
    change with theme. The footer rerenders on palette change automatically.
    No special handling needed.
 
 ## Implementation outline
 
-1. Add sentinel element to article (and picture/video, if scoping wider)
-   reader HTML templates.
-2. Add reader JS: `IntersectionObserver` wiring, calls
-   `MyDeckEndSentinel.onEndVisible(visible)`.
-3. Add `WebViewEndSentinelBridge` Kotlin class. Register on the reader WebView
-   in `BookmarkDetailWebViews.kt`.
-4. Hoist `endVisible: Boolean` into `BookmarkDetailViewModel.UiState`.
-5. Add `--mydeck-bottom-clearance-px` to the article CSS and its injection
-   point in Kotlin (mirror `readerTopClearanceCssPx`).
-6. Build `ReaderActionFooter` composable.
-7. Wrap the existing WebView in the Compose `Box` + `AnimatedVisibility`
-   overlay.
-8. Wire auto-mark-as-read to consume `endVisible` (or share the signal).
-   Remove the old percentage-based trigger if no longer needed.
-9. Remove the in-template footer HTML, CSS, and the bridge wiring.
-10. Delete `WebViewActionsBridge.kt`, `WebViewActionsInjector.kt` (or trim if
-    other code uses parts of it).
-11. Update `SECURITY.md` reader-bridge enumeration to reflect the new set.
+1. Replace `buildReaderFooterHtml(...)` in
+   `BookmarkDetailViewModel.Bookmark` with `buildReaderEndSentinelHtml()`
+   returning `<div id="mydeck-end-sentinel" aria-hidden="true"></div>`. Drop
+   the favorite/archive label parameters from `getContent()`.
+2. Update each of the three type branches in `getContent()` (Article,
+   Picture, Video) so the sentinel is appended at the correct position per
+   the placement section above.
+3. Add reader JS: `IntersectionObserver` wiring on `#mydeck-end-sentinel`,
+   calls `MyDeckEndSentinel.onEndVisible(visible)`.
+4. Add `WebViewEndSentinelBridge` Kotlin class. Register on the reader WebView
+   in `BookmarkDetailWebViews.kt`. Remove the `WebViewActionsBridge`
+   registration.
+5. Hoist `endVisible: Boolean` into `BookmarkDetailViewModel.UiState`. Add a
+   `showFooter: Boolean` derived from `endVisible` AND the layout/type/
+   selection gates described in Edge Cases.
+6. Wire the Article completion trigger: when `endVisible` becomes `true` and
+   the bookmark is `Type.ARTICLE` and `isReadLocked == false`, set
+   `currentScrollProgress = 100` and `isReadLocked = true` (the same actions
+   currently performed by `onScrollProgressChanged` at line 570). Picture and
+   Video remain unchanged — they auto-mark on open.
+7. Add `--mydeck-bottom-clearance-px` to the reader CSS in the four template
+   files and its injection point in Kotlin (mirror `readerTopClearanceCssPx`).
+8. Build `ReaderActionFooter` composable — a `Row` of two `IconButton`s,
+   surfaces from the reader palette.
+9. Wrap the existing WebView in a Compose `Box` and add `AnimatedVisibility`
+   for the footer overlay, using the same enter/exit animation values as the
+   top app bar.
+10. Remove the in-template footer HTML and CSS from the four
+    `html_template_*.html` files.
+11. Delete `WebViewActionsBridge.kt` and `WebViewActionsInjector.kt` (or trim
+    if any non-footer code uses parts of it; on inspection, the icon
+    constants `FAV_ICON_FILLED` / `ARC_ICON_FILLED` etc. are referenced only
+    from `buildReaderFooterHtml`, so the whole file should be deletable).
+12. Update `SECURITY.md` reader-bridge enumeration to reflect the new set
+    (drop Actions, add EndSentinel; the count stays manageable).
 
 ## Code to remove
 
 - `app/src/main/java/com/mydeck/app/ui/detail/WebViewActionsBridge.kt`
-- The action-button HTML/CSS sections of the article/picture/video reader
-  templates under `app/src/main/assets/`.
-- `WebViewActionsInjector.setFavoriteStateScript` and `setArchiveStateScript`
-  (or the entire file, if these are its only uses).
+- `app/src/main/java/com/mydeck/app/ui/detail/WebViewActionsInjector.kt`
+  (the icon constants and state-injection scripts in this file are referenced
+  only from `buildReaderFooterHtml` and the bridge wiring; remove with the
+  rest).
+- `buildReaderFooterHtml(...)` in `BookmarkDetailViewModel.Bookmark`, and the
+  `favoriteLabel` / `unfavoriteLabel` / `archiveLabel` / `unarchiveLabel`
+  parameters from `getContent()`.
+- The footer-button CSS rules in the four `html_template_*.html` files under
+  `app/src/main/assets/`.
 - The bridge registration block for `WebViewActionsBridge` in
   `BookmarkDetailWebViews.kt`.
-- The JS state-sync calls that fire when favorite/archive state changes
-  outside the WebView.
+- The JS state-sync `evaluateJavascript` calls that fire when favorite/archive
+  state changes outside the WebView (the
+  `WebViewActionsInjector.setFavoriteStateScript` / `setArchiveStateScript`
+  call sites).
 
 ## Test plan
 
-- Unit tests for `endVisible` state transitions in
+- Unit tests for `endVisible` and `showFooter` state transitions in
   `BookmarkDetailViewModel`.
+- Unit test for the Article completion trigger: setting `endVisible = true`
+  on a not-yet-read article flips `isReadLocked` and `currentScrollProgress`
+  exactly once, and is a no-op when `isReadLocked` is already true.
+- Unit test confirming the Picture/Video auto-mark-on-open path at lines
+  250–257 is unchanged.
 - Robolectric test for `ReaderActionFooter` rendering with each palette
   variant.
 - Manual test matrix:
-  - Article / picture / video bookmark types
+  - All three bookmark types: article / picture / video
   - Phone portrait / phone landscape / tablet portrait / tablet landscape
   - Light / dark / sepia themes
   - Short article (sentinel visible at load) vs. long article
-  - Scroll to end, then scroll back up — footer hides
+  - Scroll to end, then scroll back up — footer hides for article; stays
+    visible for picture/video where it appeared on open
   - Toggle favorite/archive — state persists, no JS reload of WebView
   - Offline state — toggle queues to pending actions, footer reflects pending
     state via the existing UiState path
   - Original-page WebView — footer never shown
   - Wide layout — footer suppressed if duplicate controls present in side
     panel
+  - Video with iframe embed and long transcript — sentinel after the
+    transcript, not after the embed
+  - Picture with no caption — sentinel directly after the image
+  - Resume from mid-article position (saved `readProgress` < 100) — footer
+    hidden until user scrolls to end; intermediate scroll updates still
+    flow through `WebViewScrollBridge`
 
 ## Out of scope
 
 - Adding more actions to the footer (share, delete, add label). v1 is
   favorite + archive only.
 - Changing the top app bar.
-- Picture/video footer support if v1 is scoped to article only.
-- Auto-mark-as-read behavior changes beyond sharing the signal source.
+- Changing the existing Picture/Video auto-mark-on-open behavior or the
+  Article intermediate-progress tracking. Only the Article completion trigger
+  moves to the sentinel.
 
 ## Open questions
 
-1. **Article-only vs. all reader types in v1?** Scoping to article is simpler
-   and lower risk. Picture/video can adopt the pattern later. Recommendation:
-   article only in v1.
-2. **Animation duration and easing.** Match the top-bar animation, or pick
-   independently? Recommendation: match top-bar for consistency.
-3. **Should the footer auto-hide after N seconds of no interaction?** Probably
+1. **Should the footer auto-hide after N seconds of no interaction?** Probably
    not, but worth a UX call. Default recommendation: no auto-hide; visibility
-   is purely driven by the sentinel.
+   is purely driven by the sentinel and the gate conditions in Edge Cases.

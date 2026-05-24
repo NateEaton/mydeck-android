@@ -98,21 +98,16 @@ The standard release build now resolves to `network_security_config.xml`
 
 ### Permissive build artifact
 
-`release.yml` produces two APKs per release:
+`release.yml` produces two APKs per release, both distributed from GitHub Releases:
 
 1. `MyDeck-<version>.apk` — standard, HTTPS-only.
 2. `MyDeck-<version>-permissive.apk` — built with `ALLOW_INSECURE_HTTP_RELEASE=true`
    and `ALLOW_USER_CA_RELEASE=true`.
 
-Both are signed with the same key. The release notes carry a section explaining
-what the permissive variant is for and when not to use it.
-
-Recommendation: the permissive variant uses the same `applicationId`
-(`com.mydeck.app`) as the standard variant so users can replace one with the other
-in place. The alternative — `applicationIdSuffix = ".permissive"` — allows
-side-by-side installation but forces re-authentication when switching, and creates
-two visible app entries for what is effectively the same product. Same-ID
-in-place replacement is the better default; the trade-off is documented.
+Both are signed with the same key and share the same `applicationId`
+(`com.mydeck.app`), so a user can install one over the other in place without
+re-authenticating. The release notes carry a section explaining what the
+permissive variant is for and when not to use it.
 
 ### In-app warning copy (permissive build)
 
@@ -155,19 +150,35 @@ A `BuildConfig.IS_PERMISSIVE_BUILD` constant (derived from the existing
 
 When they install the new standard build over the old one:
 
-- The encrypted token remains on device.
-- The next network request to their `http://` server URL is blocked by the network
-  security config.
-- The app sees a network failure on first sync.
+- The encrypted token remains on device. **The user does not need to log out or
+  re-authenticate.** OAuth bearer tokens are not bound to URL scheme; the same
+  token works against `https://server` as against `http://server`, provided the
+  server is reachable on HTTPS.
+- The next network request to the saved `http://` URL is blocked by the network
+  security config (cleartext traffic not permitted), and the app sees a network
+  failure on first sync.
 
-This case must be handled cleanly. Proposed handling:
+What "hard stop" means here: instead of letting that network failure surface
+through the normal error path (where it would look like a transient connectivity
+problem and the user might retry repeatedly), the app detects the specific
+condition "saved URL is `http://` on a non-permissive build" at startup and
+routes to a dedicated screen explaining it.
 
-- On startup, if the saved URL has an `http://` scheme and the build is not
-  permissive, route the user to a dedicated screen that explains the situation and
-  offers two paths: download the permissive APK, or reconfigure the server for
-  HTTPS (with a link to Tailscale Serve and Readeck-proxy docs).
-- Do not silently clear credentials. Do not loop on retry. The screen is the
-  endpoint until the user takes action.
+That screen offers three paths in order of recommendation:
+
+1. **Change the server URL to HTTPS** — inline edit, no re-auth needed if the
+   server is reachable on HTTPS (Tailscale Serve, reverse proxy, native TLS).
+   Links to the Tailscale Serve docs and Readeck reverse-proxy docs for users
+   who don't already have HTTPS configured.
+2. **Install the permissive APK** — for users who genuinely cannot move to HTTPS
+   (direct tailnet-IP setups, etc.). Token survives the replacement.
+3. **Log out** — fallback only, presented last. Clears credentials and returns
+   to the welcome screen. Required only if the user wants to reconfigure from
+   scratch.
+
+The screen is the endpoint until the user takes action — it does not silently
+clear credentials, does not loop on retry, and does not let the user fall back
+into a state where they think the app is just broken.
 
 This screen ships in the same release as the default flip.
 
@@ -177,16 +188,9 @@ No change. Their URL still works.
 
 ## Open questions
 
-1. **Distribution channel for the permissive APK.** GitHub Releases is
-   straightforward (a second artifact in the release). F-Droid would require a
-   separate package or flavor. Recommendation: GitHub Releases only for the
-   permissive variant; F-Droid carries only the standard build.
-2. **Should the welcome/login screen in the standard build mention the permissive
+1. **Should the welcome/login screen in the standard build mention the permissive
    variant exists?** Likely yes, in fine print, so users hitting the blocked-HTTP
    path do not conclude the app is broken.
-3. **Should existing HTTP users be offered an in-app one-click "switch to
-   Tailscale Serve URL" guide?** Out of scope for v1; a future polish if demand
-   warrants.
 
 ## Code touch points
 
