@@ -33,9 +33,6 @@ HTTP-enabled as the default means every user — including the ones connecting t
 a public-facing HTTPS Readeck — gets a binary that would accept a cleartext URL if
 they entered one.
 
-A listing on readeck.org would imply some level of endorsement. The default
-artifact for a listed client should be HTTPS-only.
-
 ### Why the inline warning is not sufficient on its own
 
 The current warning informs but does not gate. A user who pastes an `http://` URL,
