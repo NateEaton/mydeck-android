@@ -1,7 +1,37 @@
 # URL Parameter Sanitization — Technical Specification
 
-Status: Draft for review
+Status: **Tier 1 implemented but shelved — validation pending**
 Date: 2026-05-21
+Last Updated: 2026-05-25
+
+## Implementation Status
+
+Tier 1 was fully implemented per §6 of this spec. The implementation is held on the local branch `feat/url-sanitizer-tier1` (not pushed) and includes:
+
+- `UrlSanitizer` utility with 43 hardcoded tracking parameters (utm_*, fbclid, gclid, ref, share, si, t, spm, vero_*, hsCtaTracking, mkt_tok, and the rest of the §6.2 list)
+- 15 unit tests covering the §6.4 acceptance criteria and the §9.3 edge cases (malformed URLs, fragments, repeated params, percent-encoding)
+- `sanitizedUrl` and `removedParams` added to `CreateBookmarkUiState`
+- Advisory composable below the URL field in `AddBookmarkSheet`, wired to both the FAB entry point and `ShareActivity`
+- Reactive trigger so sanitization runs when the dialog opens with a clipboard-prefilled URL, not only on user edit
+- Strings added to all 10 language files; user guide updated
+
+### Why it is shelved
+
+The motivating problem (§1 — Substack share URLs hitting auth/preview walls because of `r=…`, `triedRedirect=true`, and `utm_*` parameters) no longer reproduces in testing as of 2026-05-25. Sanitizing the URL produces the canonical form correctly, but extraction now fails on those canonical URLs as well — the failure mode has moved upstream of anything URL sanitization can fix. Without a reproducible case showing that sanitization improves extraction success, shipping the advisory would add UI surface without demonstrable value.
+
+### What would revive this
+
+Any of the following:
+
+- A reproducible host where sanitization measurably improves extraction success rates
+- A second host class (beyond Substack) exhibiting the original symptom
+- A user request for tracking-parameter stripping as a privacy feature in its own right, independent of extraction reliability
+
+To revive, check out the `feat/url-sanitizer-tier1` branch and re-validate against current Readeck behavior. Tier 2 (host-specific rules) and Tier 3 (user-defined rules) remain unimplemented and would build on this foundation if revived.
+
+### Next review
+
+Revisit this status when one of the revival conditions above is met, or proactively when triaging future v0.x release planning. At that point: either re-validate and merge, or delete the branch and archive this spec to `docs/archive/`.
 
 ## 1. Purpose
 
