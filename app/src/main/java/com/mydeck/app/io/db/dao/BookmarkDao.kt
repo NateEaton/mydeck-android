@@ -239,6 +239,12 @@ interface BookmarkDao {
         isArchived: Boolean? = null,
         isFavorite: Boolean? = null,
         state: BookmarkEntity.State? = null,
+        minReadingTime: Int? = null,
+        maxReadingTime: Int? = null,
+        includeNullReadingTime: Boolean = false,
+        minWordCount: Int? = null,
+        maxWordCount: Int? = null,
+        includeNullWordCount: Boolean = false,
         orderBy: String = "created DESC"
     ): Flow<List<BookmarkEntity>> {
         val args = mutableListOf<Any>()
@@ -270,6 +276,39 @@ interface BookmarkDao {
                 append(" AND isMarked = ?")
                 args.add(it)
             }
+
+            val hasRange = minReadingTime != null || maxReadingTime != null
+            if (hasRange || includeNullReadingTime) {
+                val rangeParts = buildList {
+                    if (hasRange) {
+                        val rangeSql = buildString {
+                            if (minReadingTime != null) { append("readingTime >= ?"); args.add(minReadingTime) }
+                            if (minReadingTime != null && maxReadingTime != null) append(" AND ")
+                            if (maxReadingTime != null) { append("readingTime <= ?"); args.add(maxReadingTime) }
+                        }
+                        add(rangeSql)
+                    }
+                    if (includeNullReadingTime) add("readingTime IS NULL")
+                }
+                append(" AND (${rangeParts.joinToString(" OR ")})")
+            }
+
+            val hasWordRange = minWordCount != null || maxWordCount != null
+            if (hasWordRange || includeNullWordCount) {
+                val rangeParts = buildList {
+                    if (hasWordRange) {
+                        val rangeSql = buildString {
+                            if (minWordCount != null) { append("wordCount >= ?"); args.add(minWordCount) }
+                            if (minWordCount != null && maxWordCount != null) append(" AND ")
+                            if (maxWordCount != null) { append("wordCount <= ?"); args.add(maxWordCount) }
+                        }
+                        add(rangeSql)
+                    }
+                    if (includeNullWordCount) add("wordCount IS NULL")
+                }
+                append(" AND (${rangeParts.joinToString(" OR ")})")
+            }
+
             append(" ORDER BY $orderBy")
         }.let { SimpleSQLiteQuery(it, args.toTypedArray()) }
         Timber.d("query=${sqlQuery.sql}")
@@ -303,6 +342,12 @@ interface BookmarkDao {
         isFavorite: Boolean? = null,
         label: String? = null,
         state: BookmarkEntity.State? = null,
+        minReadingTime: Int? = null,
+        maxReadingTime: Int? = null,
+        includeNullReadingTime: Boolean = false,
+        minWordCount: Int? = null,
+        maxWordCount: Int? = null,
+        includeNullWordCount: Boolean = false,
         orderBy: String = "created DESC"
     ): Flow<List<BookmarkListItemEntity>> {
         val args = mutableListOf<Any>()
@@ -362,6 +407,38 @@ interface BookmarkDao {
             label?.let {
                 append(" AND INSTR(b.labels, ?) > 0")
                 args.add("\"$it\"")
+            }
+
+            val hasRange = minReadingTime != null || maxReadingTime != null
+            if (hasRange || includeNullReadingTime) {
+                val rangeParts = buildList {
+                    if (hasRange) {
+                        val rangeSql = buildString {
+                            if (minReadingTime != null) { append("b.readingTime >= ?"); args.add(minReadingTime) }
+                            if (minReadingTime != null && maxReadingTime != null) append(" AND ")
+                            if (maxReadingTime != null) { append("b.readingTime <= ?"); args.add(maxReadingTime) }
+                        }
+                        add(rangeSql)
+                    }
+                    if (includeNullReadingTime) add("b.readingTime IS NULL")
+                }
+                append(" AND (${rangeParts.joinToString(" OR ")})")
+            }
+
+            val hasWordRange = minWordCount != null || maxWordCount != null
+            if (hasWordRange || includeNullWordCount) {
+                val rangeParts = buildList {
+                    if (hasWordRange) {
+                        val rangeSql = buildString {
+                            if (minWordCount != null) { append("b.wordCount >= ?"); args.add(minWordCount) }
+                            if (minWordCount != null && maxWordCount != null) append(" AND ")
+                            if (maxWordCount != null) { append("b.wordCount <= ?"); args.add(maxWordCount) }
+                        }
+                        add(rangeSql)
+                    }
+                    if (includeNullWordCount) add("b.wordCount IS NULL")
+                }
+                append(" AND (${rangeParts.joinToString(" OR ")})")
             }
 
             append(" ORDER BY b.$orderBy")
@@ -558,6 +635,12 @@ interface BookmarkDao {
         isLoaded: Boolean? = null,
         withLabels: Boolean? = null,
         withErrors: Boolean? = null,
+        minReadingTime: Int? = null,
+        maxReadingTime: Int? = null,
+        includeNullReadingTime: Boolean = false,
+        minWordCount: Int? = null,
+        maxWordCount: Int? = null,
+        includeNullWordCount: Boolean = false,
         orderBy: String = "created DESC"
     ): Flow<List<BookmarkListItemEntity>> {
         val args = mutableListOf<Any>()
@@ -661,6 +744,38 @@ interface BookmarkDao {
                 } else {
                     append(" AND b.state != 1 AND b.hasServerErrors = 0")
                 }
+            }
+
+            val hasRange = minReadingTime != null || maxReadingTime != null
+            if (hasRange || includeNullReadingTime) {
+                val rangeParts = buildList {
+                    if (hasRange) {
+                        val rangeSql = buildString {
+                            if (minReadingTime != null) { append("b.readingTime >= ?"); args.add(minReadingTime) }
+                            if (minReadingTime != null && maxReadingTime != null) append(" AND ")
+                            if (maxReadingTime != null) { append("b.readingTime <= ?"); args.add(maxReadingTime) }
+                        }
+                        add(rangeSql)
+                    }
+                    if (includeNullReadingTime) add("b.readingTime IS NULL")
+                }
+                append(" AND (${rangeParts.joinToString(" OR ")})")
+            }
+
+            val hasWordRange = minWordCount != null || maxWordCount != null
+            if (hasWordRange || includeNullWordCount) {
+                val rangeParts = buildList {
+                    if (hasWordRange) {
+                        val rangeSql = buildString {
+                            if (minWordCount != null) { append("b.wordCount >= ?"); args.add(minWordCount) }
+                            if (minWordCount != null && maxWordCount != null) append(" AND ")
+                            if (maxWordCount != null) { append("b.wordCount <= ?"); args.add(maxWordCount) }
+                        }
+                        add(rangeSql)
+                    }
+                    if (includeNullWordCount) add("b.wordCount IS NULL")
+                }
+                append(" AND (${rangeParts.joinToString(" OR ")})")
             }
 
             append(" ORDER BY b.$orderBy")

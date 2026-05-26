@@ -161,6 +161,46 @@ fun FilterBar(
                 onFilterChanged(filterFormState.copy(withErrors = null))
             })
         }
+        val minRt = filterFormState.minReadingTime
+        val maxRt = filterFormState.maxReadingTime
+        val nullRt = filterFormState.includeNullReadingTime
+        val readTimePrefix = stringResource(R.string.filter_reading_time)
+        if (minRt != null || maxRt != null || nullRt) {
+            val rangeLabel = when {
+                minRt != null && maxRt != null -> "$minRt–$maxRt min"
+                minRt != null -> "≥$minRt min"
+                maxRt != null -> "≤$maxRt min"
+                else -> null
+            }
+            val chipLabel = when {
+                rangeLabel != null && nullRt -> "$readTimePrefix: $rangeLabel + Null"
+                rangeLabel != null -> "$readTimePrefix: $rangeLabel"
+                else -> "$readTimePrefix: Null"
+            }
+            add(Chip(chipLabel) {
+                onFilterChanged(filterFormState.copy(minReadingTime = null, maxReadingTime = null, includeNullReadingTime = false))
+            })
+        }
+        val minWc = filterFormState.minWordCount
+        val maxWc = filterFormState.maxWordCount
+        val nullWc = filterFormState.includeNullWordCount
+        val wordsPrefix = stringResource(R.string.filter_word_count)
+        if (minWc != null || maxWc != null || nullWc) {
+            val rangeLabel = when {
+                minWc != null && maxWc != null -> "$minWc–$maxWc"
+                minWc != null -> "≥$minWc"
+                maxWc != null -> "≤$maxWc"
+                else -> null
+            }
+            val chipLabel = when {
+                rangeLabel != null && nullWc -> "$wordsPrefix: $rangeLabel + Null"
+                rangeLabel != null -> "$wordsPrefix: $rangeLabel"
+                else -> "$wordsPrefix: Null"
+            }
+            add(Chip(chipLabel) {
+                onFilterChanged(filterFormState.copy(minWordCount = null, maxWordCount = null, includeNullWordCount = false))
+            })
+        }
     }
 
     if (chips.isEmpty()) return

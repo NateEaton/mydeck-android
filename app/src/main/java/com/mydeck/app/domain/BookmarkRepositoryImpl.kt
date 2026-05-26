@@ -108,6 +108,12 @@ class BookmarkRepositoryImpl @Inject constructor(
         favorite: Boolean?,
         label: String?,
         state: Bookmark.State?,
+        minReadingTime: Int?,
+        maxReadingTime: Int?,
+        includeNullReadingTime: Boolean,
+        minWordCount: Int?,
+        maxWordCount: Int?,
+        includeNullWordCount: Boolean,
         orderBy: String
     ): Flow<List<BookmarkListItem>> {
         return bookmarkDao.getBookmarkListItemsByFilters(
@@ -129,6 +135,12 @@ class BookmarkRepositoryImpl @Inject constructor(
                     Bookmark.State.LOADING -> BookmarkEntity.State.LOADING
                 }
             },
+            minReadingTime = minReadingTime,
+            maxReadingTime = maxReadingTime,
+            includeNullReadingTime = includeNullReadingTime,
+            minWordCount = minWordCount,
+            maxWordCount = maxWordCount,
+            includeNullWordCount = includeNullWordCount,
             orderBy = orderBy
         ).map { listItems ->
             listItems.map { listItem ->
@@ -238,6 +250,12 @@ class BookmarkRepositoryImpl @Inject constructor(
         isLoaded: Boolean?,
         withLabels: Boolean?,
         withErrors: Boolean?,
+        minReadingTime: Int?,
+        maxReadingTime: Int?,
+        includeNullReadingTime: Boolean,
+        minWordCount: Int?,
+        maxWordCount: Int?,
+        includeNullWordCount: Boolean,
         orderBy: String
     ): Flow<List<BookmarkListItem>> {
         val entityTypes = types.mapTo(mutableSetOf()) {
@@ -269,6 +287,12 @@ class BookmarkRepositoryImpl @Inject constructor(
             isLoaded = isLoaded,
             withLabels = withLabels,
             withErrors = withErrors,
+            minReadingTime = minReadingTime,
+            maxReadingTime = maxReadingTime,
+            includeNullReadingTime = includeNullReadingTime,
+            minWordCount = minWordCount,
+            maxWordCount = maxWordCount,
+            includeNullWordCount = includeNullWordCount,
             orderBy = orderBy
         ).map { listItems ->
             listItems.map { listItem ->

@@ -17,6 +17,12 @@ data class FilterFormState(
     val isLoaded: Boolean? = null,
     val withLabels: Boolean? = null,
     val withErrors: Boolean? = null,
+    val minReadingTime: Int? = null,
+    val maxReadingTime: Int? = null,
+    val includeNullReadingTime: Boolean = false,
+    val minWordCount: Int? = null,
+    val maxWordCount: Int? = null,
+    val includeNullWordCount: Boolean = false,
 ) {
     fun hasActiveFilters(): Boolean =
         search != null ||
@@ -32,7 +38,9 @@ data class FilterFormState(
         isArchived != null ||
         isLoaded != null ||
         withLabels != null ||
-        withErrors != null
+        withErrors != null ||
+        minReadingTime != null || maxReadingTime != null || includeNullReadingTime ||
+        minWordCount != null || maxWordCount != null || includeNullWordCount
 
     fun differsFromPreset(preset: DrawerPreset): Boolean = this != fromPreset(preset)
 
