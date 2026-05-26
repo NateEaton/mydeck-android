@@ -34,6 +34,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SheetValue
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -43,9 +44,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusEvent
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -56,6 +59,7 @@ import com.mydeck.app.domain.model.FilterFormState
 import com.mydeck.app.domain.model.ProgressFilter
 import com.mydeck.app.ui.list.LabelPickerBottomSheet
 import com.mydeck.app.ui.list.LabelPickerMode
+import kotlinx.coroutines.launch
 import kotlinx.datetime.Instant
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -70,7 +74,23 @@ fun FilterBottomSheet(
     onReset: () -> Unit,
     onDismiss: () -> Unit,
 ) {
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val keepExpanded = remember { mutableStateOf(false) }
+    val confirmSheetValue: (SheetValue) -> Boolean = remember {
+        { newValue -> !(keepExpanded.value && newValue == SheetValue.PartiallyExpanded) }
+    }
+    val sheetState = rememberModalBottomSheetState(
+        skipPartiallyExpanded = false,
+        confirmValueChange = confirmSheetValue,
+    )
+    val sheetScope = rememberCoroutineScope()
+    val expandSheetOnFocus = Modifier.onFocusEvent { state ->
+        if (state.isFocused) {
+            keepExpanded.value = true
+            if (sheetState.currentValue != SheetValue.Expanded) {
+                sheetScope.launch { sheetState.expand() }
+            }
+        }
+    }
 
     var search by remember(currentFilter) { mutableStateOf(currentFilter.search ?: "") }
     var title by remember(currentFilter) { mutableStateOf(currentFilter.title ?: "") }
@@ -315,7 +335,7 @@ fun FilterBottomSheet(
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Next),
                     isError = readingTimeError,
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f).then(expandSheetOnFocus)
                 )
                 OutlinedTextField(
                     value = maxReadingTime,
@@ -325,7 +345,7 @@ fun FilterBottomSheet(
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Search),
                     keyboardActions = KeyboardActions(onSearch = { applyFilter() }),
                     isError = readingTimeError,
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f).then(expandSheetOnFocus)
                 )
                 Row(
                     modifier = Modifier.align(Alignment.CenterVertically),
@@ -359,7 +379,7 @@ fun FilterBottomSheet(
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Next),
                     isError = wordCountError,
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f).then(expandSheetOnFocus)
                 )
                 OutlinedTextField(
                     value = maxWordCount,
@@ -369,7 +389,7 @@ fun FilterBottomSheet(
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Search),
                     keyboardActions = KeyboardActions(onSearch = { applyFilter() }),
                     isError = wordCountError,
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f).then(expandSheetOnFocus)
                 )
                 Row(
                     modifier = Modifier.align(Alignment.CenterVertically),
