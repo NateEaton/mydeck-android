@@ -14,12 +14,15 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DatePicker
@@ -34,17 +37,16 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SheetValue
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -59,11 +61,13 @@ import com.mydeck.app.domain.model.FilterFormState
 import com.mydeck.app.domain.model.ProgressFilter
 import com.mydeck.app.ui.list.LabelPickerBottomSheet
 import com.mydeck.app.ui.list.LabelPickerMode
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 import kotlinx.datetime.Instant
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+
+private const val FOCUSED_FIELD_BRING_INTO_VIEW_DELAY_MS = 250L
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -74,23 +78,7 @@ fun FilterBottomSheet(
     onReset: () -> Unit,
     onDismiss: () -> Unit,
 ) {
-    val keepExpanded = remember { mutableStateOf(false) }
-    val confirmSheetValue: (SheetValue) -> Boolean = remember {
-        { newValue -> !(keepExpanded.value && newValue == SheetValue.PartiallyExpanded) }
-    }
-    val sheetState = rememberModalBottomSheetState(
-        skipPartiallyExpanded = false,
-        confirmValueChange = confirmSheetValue,
-    )
-    val sheetScope = rememberCoroutineScope()
-    val expandSheetOnFocus = Modifier.onFocusEvent { state ->
-        if (state.isFocused) {
-            keepExpanded.value = true
-            if (sheetState.currentValue != SheetValue.Expanded) {
-                sheetScope.launch { sheetState.expand() }
-            }
-        }
-    }
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
 
     var search by remember(currentFilter) { mutableStateOf(currentFilter.search ?: "") }
     var title by remember(currentFilter) { mutableStateOf(currentFilter.title ?: "") }
@@ -122,6 +110,7 @@ fun FilterBottomSheet(
     var showLabelPicker by remember { mutableStateOf(false) }
     var showFromDatePicker by remember { mutableStateOf(false) }
     var showToDatePicker by remember { mutableStateOf(false) }
+    var showLengthFilterDialog by remember { mutableStateOf(false) }
 
     val hasActiveFilters = search.isNotBlank() || title.isNotBlank() || author.isNotBlank() ||
         site.isNotBlank() || label != null || fromDate != null || toDate != null ||
@@ -169,6 +158,14 @@ fun FilterBottomSheet(
     )
 
     val dateFormatter = remember { SimpleDateFormat("MMM d, yyyy", Locale.getDefault()) }
+    val lengthSummary = lengthFilterSummary(
+        minReadingTime = minReadingTime.toIntOrNull(),
+        maxReadingTime = maxReadingTime.toIntOrNull(),
+        includeNullReadingTime = includeNullReadingTime,
+        minWordCount = minWordCount.toIntOrNull(),
+        maxWordCount = maxWordCount.toIntOrNull(),
+        includeNullWordCount = includeNullWordCount,
+    )
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -177,12 +174,11 @@ fun FilterBottomSheet(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .imePadding()
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 24.dp)
                 .navigationBarsPadding()
         ) {
-            // ── Search (full width, keyboard entry) ──────────────────────────
+            // -- Search (full width, keyboard entry)
             OutlinedTextField(
                 value = search,
                 onValueChange = { search = it },
@@ -203,7 +199,7 @@ fun FilterBottomSheet(
 
             Spacer(Modifier.height(12.dp))
 
-            // ── Title / Author (side-by-side) ────────────────────────────────
+            // -- Title / Author (side-by-side)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedTextField(
                     value = title,
@@ -241,7 +237,7 @@ fun FilterBottomSheet(
 
             Spacer(Modifier.height(12.dp))
 
-            // ── Site / Label (side-by-side) ──────────────────────────────────
+            // -- Site / Label (side-by-side)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedTextField(
                     value = site,
@@ -282,7 +278,7 @@ fun FilterBottomSheet(
 
             Spacer(Modifier.height(12.dp))
 
-            // ── From Date / To Date (side-by-side) ───────────────────────────
+            // -- From Date / To Date (side-by-side)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedTextField(
                     value = fromDate?.let { dateFormatter.format(Date(it.toEpochMilliseconds())) } ?: "",
@@ -324,95 +320,21 @@ fun FilterBottomSheet(
 
             Spacer(Modifier.height(12.dp))
 
-            // ── Reading Time Est. ─────────────────────────────────────────────
-            Text(stringResource(R.string.filter_reading_time_est), style = MaterialTheme.typography.labelLarge)
-            Spacer(Modifier.height(8.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(
-                    value = minReadingTime,
-                    onValueChange = { v -> if (v.all { it.isDigit() }) minReadingTime = v },
-                    label = { Text(stringResource(R.string.filter_reading_time_min)) },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Next),
-                    isError = readingTimeError,
-                    modifier = Modifier.weight(1f).then(expandSheetOnFocus)
-                )
-                OutlinedTextField(
-                    value = maxReadingTime,
-                    onValueChange = { v -> if (v.all { it.isDigit() }) maxReadingTime = v },
-                    label = { Text(stringResource(R.string.filter_reading_time_max)) },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Search),
-                    keyboardActions = KeyboardActions(onSearch = { applyFilter() }),
-                    isError = readingTimeError,
-                    modifier = Modifier.weight(1f).then(expandSheetOnFocus)
-                )
-                Row(
-                    modifier = Modifier.align(Alignment.CenterVertically),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Checkbox(
-                        checked = includeNullReadingTime,
-                        onCheckedChange = { includeNullReadingTime = it }
-                    )
-                    Text(stringResource(R.string.filter_reading_time_null))
-                }
-            }
-            if (readingTimeError) {
-                Text(
-                    text = stringResource(R.string.filter_reading_time_error),
-                    color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodySmall
-                )
-            }
+            OutlinedTextField(
+                value = lengthSummary,
+                onValueChange = {},
+                readOnly = true,
+                enabled = false,
+                colors = pickerColors,
+                label = { Text(stringResource(R.string.filter_length)) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { showLengthFilterDialog = true }
+            )
 
             Spacer(Modifier.height(12.dp))
 
-            // ── Word Count ─────────────────────────────────────────────────────
-            Text(stringResource(R.string.filter_word_count_est), style = MaterialTheme.typography.labelLarge)
-            Spacer(Modifier.height(8.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(
-                    value = minWordCount,
-                    onValueChange = { v -> if (v.all { it.isDigit() }) minWordCount = v },
-                    label = { Text(stringResource(R.string.filter_reading_time_min)) },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Next),
-                    isError = wordCountError,
-                    modifier = Modifier.weight(1f).then(expandSheetOnFocus)
-                )
-                OutlinedTextField(
-                    value = maxWordCount,
-                    onValueChange = { v -> if (v.all { it.isDigit() }) maxWordCount = v },
-                    label = { Text(stringResource(R.string.filter_reading_time_max)) },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Search),
-                    keyboardActions = KeyboardActions(onSearch = { applyFilter() }),
-                    isError = wordCountError,
-                    modifier = Modifier.weight(1f).then(expandSheetOnFocus)
-                )
-                Row(
-                    modifier = Modifier.align(Alignment.CenterVertically),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Checkbox(
-                        checked = includeNullWordCount,
-                        onCheckedChange = { includeNullWordCount = it }
-                    )
-                    Text(stringResource(R.string.filter_reading_time_null))
-                }
-            }
-            if (wordCountError) {
-                Text(
-                    text = stringResource(R.string.filter_reading_time_error),
-                    color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodySmall
-                )
-            }
-
-            Spacer(Modifier.height(12.dp))
-
-            // ── Type chips ───────────────────────────────────────────────────
+            // -- Type chips
             Text(stringResource(R.string.filter_type), style = MaterialTheme.typography.labelLarge)
             Spacer(Modifier.height(8.dp))
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -435,7 +357,7 @@ fun FilterBottomSheet(
 
             Spacer(Modifier.height(16.dp))
 
-            // ── Progress chips ───────────────────────────────────────────────
+            // -- Progress chips
             Text(stringResource(R.string.filter_progress), style = MaterialTheme.typography.labelLarge)
             Spacer(Modifier.height(8.dp))
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -458,7 +380,7 @@ fun FilterBottomSheet(
 
             Spacer(Modifier.height(16.dp))
 
-            // ── Boolean filters (compact label-beside-control rows) ──────────
+            // -- Boolean filters (compact label-beside-control rows)
             CompactTriStateRow(stringResource(R.string.filter_is_favorite), isFavorite) { isFavorite = it }
             Spacer(Modifier.height(8.dp))
             CompactTriStateRow(stringResource(R.string.filter_is_archived), isArchived) { isArchived = it }
@@ -471,7 +393,7 @@ fun FilterBottomSheet(
 
             Spacer(Modifier.height(20.dp))
 
-            // ── Action buttons ───────────────────────────────────────────────
+            // -- Action buttons
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                 if (hasActiveFilters) {
                     TextButton(onClick = onReset) { Text(stringResource(R.string.filter_reset)) }
@@ -482,6 +404,32 @@ fun FilterBottomSheet(
 
             Spacer(Modifier.height(16.dp))
         }
+    }
+
+    if (showLengthFilterDialog) {
+        LengthFilterDialog(
+            initialMinReadingTime = minReadingTime,
+            initialMaxReadingTime = maxReadingTime,
+            initialIncludeNullReadingTime = includeNullReadingTime,
+            initialMinWordCount = minWordCount,
+            initialMaxWordCount = maxWordCount,
+            initialIncludeNullWordCount = includeNullWordCount,
+            onApply = { newMinReadingTime,
+                    newMaxReadingTime,
+                    newIncludeNullReadingTime,
+                    newMinWordCount,
+                    newMaxWordCount,
+                    newIncludeNullWordCount ->
+                minReadingTime = newMinReadingTime
+                maxReadingTime = newMaxReadingTime
+                includeNullReadingTime = newIncludeNullReadingTime
+                minWordCount = newMinWordCount
+                maxWordCount = newMaxWordCount
+                includeNullWordCount = newIncludeNullWordCount
+                showLengthFilterDialog = false
+            },
+            onDismiss = { showLengthFilterDialog = false }
+        )
     }
 
     // Label picker (selection-only — no rename/delete)
@@ -532,6 +480,239 @@ fun FilterBottomSheet(
             }
         ) { DatePicker(state = state) }
     }
+}
+
+@Composable
+private fun lengthFilterSummary(
+    minReadingTime: Int?,
+    maxReadingTime: Int?,
+    includeNullReadingTime: Boolean,
+    minWordCount: Int?,
+    maxWordCount: Int?,
+    includeNullWordCount: Boolean,
+): String {
+    val nullLabel = stringResource(R.string.filter_reading_time_null)
+    val parts = listOfNotNull(
+        rangeFilterSummary(
+            label = stringResource(R.string.filter_reading_time),
+            min = minReadingTime,
+            max = maxReadingTime,
+            includeNull = includeNullReadingTime,
+            unit = " min",
+            nullLabel = nullLabel,
+        ),
+        rangeFilterSummary(
+            label = stringResource(R.string.filter_word_count),
+            min = minWordCount,
+            max = maxWordCount,
+            includeNull = includeNullWordCount,
+            unit = "",
+            nullLabel = nullLabel,
+        ),
+    )
+
+    return parts.joinToString(" / ").ifBlank {
+        stringResource(R.string.filter_length_summary_none)
+    }
+}
+
+private fun rangeFilterSummary(
+    label: String,
+    min: Int?,
+    max: Int?,
+    includeNull: Boolean,
+    unit: String,
+    nullLabel: String,
+): String? {
+    if (min == null && max == null && !includeNull) return null
+
+    val rangeLabel = when {
+        min != null && max != null -> "$min-$max$unit"
+        min != null -> ">=$min$unit"
+        max != null -> "<=$max$unit"
+        else -> null
+    }
+
+    return when {
+        rangeLabel != null && includeNull -> "$label: $rangeLabel + $nullLabel"
+        rangeLabel != null -> "$label: $rangeLabel"
+        else -> "$label: $nullLabel"
+    }
+}
+
+@Composable
+private fun LengthFilterDialog(
+    initialMinReadingTime: String,
+    initialMaxReadingTime: String,
+    initialIncludeNullReadingTime: Boolean,
+    initialMinWordCount: String,
+    initialMaxWordCount: String,
+    initialIncludeNullWordCount: Boolean,
+    onApply: (String, String, Boolean, String, String, Boolean) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var minReadingTime by remember(initialMinReadingTime) { mutableStateOf(initialMinReadingTime) }
+    var maxReadingTime by remember(initialMaxReadingTime) { mutableStateOf(initialMaxReadingTime) }
+    var includeNullReadingTime by remember(initialIncludeNullReadingTime) {
+        mutableStateOf(initialIncludeNullReadingTime)
+    }
+    var minWordCount by remember(initialMinWordCount) { mutableStateOf(initialMinWordCount) }
+    var maxWordCount by remember(initialMaxWordCount) { mutableStateOf(initialMaxWordCount) }
+    var includeNullWordCount by remember(initialIncludeNullWordCount) {
+        mutableStateOf(initialIncludeNullWordCount)
+    }
+
+    val readingTimeError = minReadingTime.isNotEmpty() && maxReadingTime.isNotEmpty() &&
+        (minReadingTime.toIntOrNull() ?: 0) > (maxReadingTime.toIntOrNull() ?: 0)
+    val wordCountError = minWordCount.isNotEmpty() && maxWordCount.isNotEmpty() &&
+        (minWordCount.toIntOrNull() ?: 0) > (maxWordCount.toIntOrNull() ?: 0)
+    val hasValidationError = readingTimeError || wordCountError
+
+    val applyDialog = {
+        if (!hasValidationError) {
+            onApply(
+                minReadingTime,
+                maxReadingTime,
+                includeNullReadingTime,
+                minWordCount,
+                maxWordCount,
+                includeNullWordCount,
+            )
+        }
+    }
+    val clearDialog = {
+        minReadingTime = ""
+        maxReadingTime = ""
+        includeNullReadingTime = false
+        minWordCount = ""
+        maxWordCount = ""
+        includeNullWordCount = false
+    }
+
+    AlertDialog(
+        modifier = Modifier.imePadding(),
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.filter_length_dialog_title)) },
+        text = {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                LengthRangeSection(
+                    title = stringResource(R.string.filter_reading_time_est),
+                    minValue = minReadingTime,
+                    maxValue = maxReadingTime,
+                    includeNull = includeNullReadingTime,
+                    hasError = readingTimeError,
+                    maxImeAction = ImeAction.Next,
+                    onMinValueChange = { minReadingTime = it },
+                    onMaxValueChange = { maxReadingTime = it },
+                    onIncludeNullChange = { includeNullReadingTime = it },
+                )
+                LengthRangeSection(
+                    title = stringResource(R.string.filter_word_count_est),
+                    minValue = minWordCount,
+                    maxValue = maxWordCount,
+                    includeNull = includeNullWordCount,
+                    hasError = wordCountError,
+                    maxImeAction = ImeAction.Done,
+                    onMinValueChange = { minWordCount = it },
+                    onMaxValueChange = { maxWordCount = it },
+                    onIncludeNullChange = { includeNullWordCount = it },
+                    onDone = applyDialog,
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = applyDialog, enabled = !hasValidationError) {
+                Text(stringResource(R.string.ok))
+            }
+        },
+        dismissButton = {
+            Row {
+                TextButton(onClick = clearDialog) {
+                    Text(stringResource(R.string.filter_length_clear))
+                }
+                TextButton(onClick = onDismiss) {
+                    Text(stringResource(R.string.cancel))
+                }
+            }
+        }
+    )
+}
+
+@Composable
+private fun LengthRangeSection(
+    title: String,
+    minValue: String,
+    maxValue: String,
+    includeNull: Boolean,
+    hasError: Boolean,
+    maxImeAction: ImeAction,
+    onMinValueChange: (String) -> Unit,
+    onMaxValueChange: (String) -> Unit,
+    onIncludeNullChange: (Boolean) -> Unit,
+    onDone: (() -> Unit)? = null,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(title, style = MaterialTheme.typography.labelLarge)
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedTextField(
+                value = minValue,
+                onValueChange = { v -> if (v.all { it.isDigit() }) onMinValueChange(v) },
+                label = { Text(stringResource(R.string.filter_reading_time_min)) },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Next),
+                isError = hasError,
+                modifier = Modifier
+                    .weight(1f)
+                    .bringFocusedFieldIntoView()
+            )
+            OutlinedTextField(
+                value = maxValue,
+                onValueChange = { v -> if (v.all { it.isDigit() }) onMaxValueChange(v) },
+                label = { Text(stringResource(R.string.filter_reading_time_max)) },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = maxImeAction),
+                keyboardActions = KeyboardActions(onDone = { onDone?.invoke() }),
+                isError = hasError,
+                modifier = Modifier
+                    .weight(1f)
+                    .bringFocusedFieldIntoView()
+            )
+        }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Checkbox(
+                checked = includeNull,
+                onCheckedChange = onIncludeNullChange
+            )
+            Text(stringResource(R.string.filter_length_include_unknown))
+        }
+        if (hasError) {
+            Text(
+                text = stringResource(R.string.filter_reading_time_error),
+                color = MaterialTheme.colorScheme.error,
+                style = MaterialTheme.typography.bodySmall
+            )
+        }
+    }
+}
+
+@Composable
+private fun Modifier.bringFocusedFieldIntoView(): Modifier {
+    val bringIntoViewRequester = remember { BringIntoViewRequester() }
+    var isFocused by remember { mutableStateOf(false) }
+
+    LaunchedEffect(isFocused) {
+        if (isFocused) {
+            delay(FOCUSED_FIELD_BRING_INTO_VIEW_DELAY_MS)
+            bringIntoViewRequester.bringIntoView()
+        }
+    }
+
+    return this
+        .bringIntoViewRequester(bringIntoViewRequester)
+        .onFocusEvent { state -> isFocused = state.isFocused }
 }
 
 /** Single-row tri-state control: label on the left, [N/A | Yes | No] on the right. */

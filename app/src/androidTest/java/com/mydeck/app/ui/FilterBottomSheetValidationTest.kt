@@ -2,9 +2,10 @@ package com.mydeck.app.ui
 
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
-import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextClearance
 import androidx.compose.ui.test.performTextInput
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -35,43 +36,46 @@ class FilterBottomSheetValidationTest {
     }
 
     @Test
-    fun searchButtonEnabledWhenNoReadingTimeInput() {
+    fun searchButtonEnabledWhenNoLengthInput() {
         launchSheet()
         composeTestRule.onNodeWithText("Search").assertIsEnabled()
     }
 
     @Test
-    fun errorShownAndSearchDisabledWhenMinExceedsMax() {
+    fun errorShownAndOkDisabledWhenDialogMinExceedsMax() {
         launchSheet()
 
-        composeTestRule.onNode(hasText("Min")).performTextInput("20")
-        composeTestRule.onNode(hasText("Max")).performTextInput("5")
+        composeTestRule.onNodeWithText("Length").performClick()
+        composeTestRule.onAllNodesWithText("Min")[0].performTextInput("20")
+        composeTestRule.onAllNodesWithText("Max")[0].performTextInput("5")
 
         composeTestRule.onNodeWithText("Min must be less than or equal to max").assertExists()
-        composeTestRule.onNodeWithText("Search").assertIsNotEnabled()
+        composeTestRule.onNodeWithText("OK").assertIsNotEnabled()
     }
 
     @Test
-    fun errorClearedWhenMinEqualToMax() {
+    fun errorClearedWhenDialogMinEqualToMax() {
         launchSheet()
 
-        composeTestRule.onNode(hasText("Min")).performTextInput("10")
-        composeTestRule.onNode(hasText("Max")).performTextInput("10")
+        composeTestRule.onNodeWithText("Length").performClick()
+        composeTestRule.onAllNodesWithText("Min")[0].performTextInput("10")
+        composeTestRule.onAllNodesWithText("Max")[0].performTextInput("10")
 
         composeTestRule.onNodeWithText("Min must be less than or equal to max").assertDoesNotExist()
-        composeTestRule.onNodeWithText("Search").assertIsEnabled()
+        composeTestRule.onNodeWithText("OK").assertIsEnabled()
     }
 
     @Test
-    fun errorClearedWhenMaxFieldCleared() {
+    fun errorClearedWhenDialogMaxFieldCleared() {
         launchSheet()
 
-        composeTestRule.onNode(hasText("Min")).performTextInput("20")
-        composeTestRule.onNode(hasText("Max")).performTextInput("5")
+        composeTestRule.onNodeWithText("Length").performClick()
+        composeTestRule.onAllNodesWithText("Min")[0].performTextInput("20")
+        composeTestRule.onAllNodesWithText("Max")[0].performTextInput("5")
         // Now clear max — one field empty means no error
-        composeTestRule.onNode(hasText("Max")).performTextClearance()
+        composeTestRule.onAllNodesWithText("Max")[0].performTextClearance()
 
         composeTestRule.onNodeWithText("Min must be less than or equal to max").assertDoesNotExist()
-        composeTestRule.onNodeWithText("Search").assertIsEnabled()
+        composeTestRule.onNodeWithText("OK").assertIsEnabled()
     }
 }

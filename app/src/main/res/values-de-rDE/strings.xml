@@ -419,6 +419,11 @@ other{}
     <string name="filter_label">Label</string>
     <string name="filter_from_date">From date</string>
     <string name="filter_to_date">To date</string>
+    <string name="filter_length">Length</string>
+    <string name="filter_length_dialog_title">Length filters</string>
+    <string name="filter_length_summary_none">Any reading time / any word count</string>
+    <string name="filter_length_include_unknown">Include unknown</string>
+    <string name="filter_length_clear">Clear</string>
     <string name="filter_reading_time_est">Reading Time Est.</string>
     <string name="filter_reading_time_min">Min</string>
     <string name="filter_reading_time_max">Max</string>
