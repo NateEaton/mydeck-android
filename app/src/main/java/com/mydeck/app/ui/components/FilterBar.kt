@@ -161,6 +161,7 @@ fun FilterBar(
                 onFilterChanged(filterFormState.copy(withErrors = null))
             })
         }
+        val unknownLabel = stringResource(R.string.filter_length_unknown)
         val minRt = filterFormState.minReadingTime
         val maxRt = filterFormState.maxReadingTime
         val nullRt = filterFormState.includeNullReadingTime
@@ -173,9 +174,9 @@ fun FilterBar(
                 else -> null
             }
             val chipLabel = when {
-                rangeLabel != null && nullRt -> "$readTimePrefix: $rangeLabel + Null"
+                rangeLabel != null && nullRt -> "$readTimePrefix: $rangeLabel + $unknownLabel"
                 rangeLabel != null -> "$readTimePrefix: $rangeLabel"
-                else -> "$readTimePrefix: Null"
+                else -> "$readTimePrefix: $unknownLabel"
             }
             add(Chip(chipLabel) {
                 onFilterChanged(filterFormState.copy(minReadingTime = null, maxReadingTime = null, includeNullReadingTime = false))
@@ -193,9 +194,9 @@ fun FilterBar(
                 else -> null
             }
             val chipLabel = when {
-                rangeLabel != null && nullWc -> "$wordsPrefix: $rangeLabel + Null"
+                rangeLabel != null && nullWc -> "$wordsPrefix: $rangeLabel + $unknownLabel"
                 rangeLabel != null -> "$wordsPrefix: $rangeLabel"
-                else -> "$wordsPrefix: Null"
+                else -> "$wordsPrefix: $unknownLabel"
             }
             add(Chip(chipLabel) {
                 onFilterChanged(filterFormState.copy(minWordCount = null, maxWordCount = null, includeNullWordCount = false))

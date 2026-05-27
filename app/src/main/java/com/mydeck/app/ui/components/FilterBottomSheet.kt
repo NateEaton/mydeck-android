@@ -2,6 +2,7 @@ package com.mydeck.app.ui.components
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -52,6 +53,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusEvent
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -321,12 +323,27 @@ fun FilterBottomSheet(
             Spacer(Modifier.height(12.dp))
 
             OutlinedTextField(
-                value = lengthSummary,
+                value = lengthSummary ?: "",
                 onValueChange = {},
                 readOnly = true,
                 enabled = false,
                 colors = pickerColors,
                 label = { Text(stringResource(R.string.filter_length)) },
+                placeholder = { Text(stringResource(R.string.filter_length_summary_none)) },
+                trailingIcon = {
+                    if (lengthSummary != null) {
+                        IconButton(onClick = {
+                            minReadingTime = ""
+                            maxReadingTime = ""
+                            includeNullReadingTime = false
+                            minWordCount = ""
+                            maxWordCount = ""
+                            includeNullWordCount = false
+                        }) {
+                            Icon(Icons.Filled.Clear, contentDescription = null, modifier = Modifier.size(16.dp))
+                        }
+                    }
+                },
                 modifier = Modifier
                     .fillMaxWidth()
                     .clickable { showLengthFilterDialog = true }
@@ -490,8 +507,8 @@ private fun lengthFilterSummary(
     minWordCount: Int?,
     maxWordCount: Int?,
     includeNullWordCount: Boolean,
-): String {
-    val nullLabel = stringResource(R.string.filter_reading_time_null)
+): String? {
+    val unknownLabel = stringResource(R.string.filter_length_unknown)
     val parts = listOfNotNull(
         rangeFilterSummary(
             label = stringResource(R.string.filter_reading_time),
@@ -499,7 +516,7 @@ private fun lengthFilterSummary(
             max = maxReadingTime,
             includeNull = includeNullReadingTime,
             unit = " min",
-            nullLabel = nullLabel,
+            unknownLabel = unknownLabel,
         ),
         rangeFilterSummary(
             label = stringResource(R.string.filter_word_count),
@@ -507,13 +524,11 @@ private fun lengthFilterSummary(
             max = maxWordCount,
             includeNull = includeNullWordCount,
             unit = "",
-            nullLabel = nullLabel,
+            unknownLabel = unknownLabel,
         ),
     )
 
-    return parts.joinToString(" / ").ifBlank {
-        stringResource(R.string.filter_length_summary_none)
-    }
+    return parts.joinToString(" / ").ifBlank { null }
 }
 
 private fun rangeFilterSummary(
@@ -522,21 +537,21 @@ private fun rangeFilterSummary(
     max: Int?,
     includeNull: Boolean,
     unit: String,
-    nullLabel: String,
+    unknownLabel: String,
 ): String? {
     if (min == null && max == null && !includeNull) return null
 
     val rangeLabel = when {
-        min != null && max != null -> "$min-$max$unit"
-        min != null -> ">=$min$unit"
-        max != null -> "<=$max$unit"
+        min != null && max != null -> "$min–$max$unit"
+        min != null -> "≥$min$unit"
+        max != null -> "≤$max$unit"
         else -> null
     }
 
     return when {
-        rangeLabel != null && includeNull -> "$label: $rangeLabel + $nullLabel"
+        rangeLabel != null && includeNull -> "$label: $rangeLabel + $unknownLabel"
         rangeLabel != null -> "$label: $rangeLabel"
-        else -> "$label: $nullLabel"
+        else -> "$label: $unknownLabel"
     }
 }
 
@@ -567,6 +582,10 @@ private fun LengthFilterDialog(
     val wordCountError = minWordCount.isNotEmpty() && maxWordCount.isNotEmpty() &&
         (minWordCount.toIntOrNull() ?: 0) > (maxWordCount.toIntOrNull() ?: 0)
     val hasValidationError = readingTimeError || wordCountError
+
+    val hasAnyValue = minReadingTime.isNotEmpty() || maxReadingTime.isNotEmpty() ||
+        includeNullReadingTime ||
+        minWordCount.isNotEmpty() || maxWordCount.isNotEmpty() || includeNullWordCount
 
     val applyDialog = {
         if (!hasValidationError) {
@@ -621,6 +640,13 @@ private fun LengthFilterDialog(
                     onIncludeNullChange = { includeNullWordCount = it },
                     onDone = applyDialog,
                 )
+                TextButton(
+                    onClick = clearDialog,
+                    enabled = hasAnyValue,
+                    modifier = Modifier.align(Alignment.Start)
+                ) {
+                    Text(stringResource(R.string.filter_length_clear))
+                }
             }
         },
         confirmButton = {
@@ -629,13 +655,8 @@ private fun LengthFilterDialog(
             }
         },
         dismissButton = {
-            Row {
-                TextButton(onClick = clearDialog) {
-                    Text(stringResource(R.string.filter_length_clear))
-                }
-                TextButton(onClick = onDismiss) {
-                    Text(stringResource(R.string.cancel))
-                }
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.cancel))
             }
         }
     )
@@ -681,10 +702,19 @@ private fun LengthRangeSection(
                     .bringFocusedFieldIntoView()
             )
         }
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .fillMaxWidth()
+                .toggleable(
+                    value = includeNull,
+                    onValueChange = onIncludeNullChange,
+                    role = Role.Checkbox,
+                )
+        ) {
             Checkbox(
                 checked = includeNull,
-                onCheckedChange = onIncludeNullChange
+                onCheckedChange = null,
             )
             Text(stringResource(R.string.filter_length_include_unknown))
         }
