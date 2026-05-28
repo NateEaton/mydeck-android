@@ -5,6 +5,10 @@ updates:
     schedule:
       interval: weekly
     groups:
-      github-actions:
-        patterns:
-          - "*"
+      # Batch low-risk minor/patch bumps into one PR. Major version bumps
+      # are intentionally left out of the group so each arrives as its own
+      # PR for individual review.
+      github-actions-minor:
+        update-types:
+          - "minor"
+          - "patch"
