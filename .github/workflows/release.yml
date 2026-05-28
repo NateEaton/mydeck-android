@@ -11,24 +11,25 @@ env:
 jobs:
   build-and-sign:
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     permissions:
       contents: read
 
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4.3.1
 
       - name: Set up JDK 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9  # v4.8.0
         with:
           java-version: '17'
           distribution: 'temurin'
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v4
+        uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a  # v4.4.3
 
       - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
+        uses: android-actions/setup-android@9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407  # v3.2.2
 
       - name: Decode Keystore
         run: |
@@ -61,50 +62,73 @@ jobs:
       # the APK to trust weaker transport settings.
       - name: Build and Sign Release APK
         run: ./gradlew assembleGithubReleaseRelease
-        env: 
+        env:
           KEY_ALIAS: ${{ secrets.ALIAS }}
           KEYSTORE_PASSWORD: ${{ secrets.KEY_STORE_PASSWORD }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
           KEYSTORE: ${{ github.workspace }}/keystore.jks
 
+      - name: Remove keystore
+        if: always()
+        run: rm -f "${{ github.workspace }}/keystore.jks"
+
       - name: Get Version from Tag
         id: get_version
         run: echo "version=${GITHUB_REF/refs\/tags\/v/}" >> $GITHUB_OUTPUT
 
+      - name: Create Checksum
+        id: create_checksum
+        run: |
+          FILENAME=$(echo app/build/outputs/apk/githubRelease/release/*.apk)
+          sha256sum "$FILENAME" > checksums.txt
+          echo "ARTIFACT_FILENAME=$FILENAME" >> "$GITHUB_OUTPUT"
+
       - name: Upload APK to GitHub Release Artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
         with:
           name: app-release-${{ steps.get_version.outputs.version }}
-          path: app/build/outputs/apk/githubRelease/release/*.apk
+          path: |
+            ${{ steps.create_checksum.outputs.ARTIFACT_FILENAME }}
+            checksums.txt
 
   create-release:
     needs: build-and-sign
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: write
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4.3.1
 
       - name: Get Version from Tag
         id: get_version
-        run: echo "version=${GITHUB_REF/refs\/tags\/v/}" >> $GITHUB_OUTPUT
+        run: |
+          TAG="${GITHUB_REF#refs/tags/}"
+          VERSION="${TAG#v}"
+          if [[ "$TAG" == *-* ]]; then
+            IS_PRERELEASE=true
+          else
+            IS_PRERELEASE=false
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "is_prerelease=$IS_PRERELEASE" >> "$GITHUB_OUTPUT"
 
       - name: Download Release Artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4.3.0
         with:
           name: app-release-${{ steps.get_version.outputs.version }}
-          path: ./artifacts # Download to a dedicated directory
+          path: ./artifacts
 
       - name: Create Release
         id: create_release
-        uses: ncipollo/release-action@v1.16.0
+        uses: ncipollo/release-action@440c8c1cb0ed28b9f43e4d1d670870f059653174  # v1.16.0
         with:
           allowUpdates: false
-          prerelease: true
+          prerelease: ${{ steps.get_version.outputs.is_prerelease }}
           draft: true
           name: MyDeck Release v${{ steps.get_version.outputs.version }}
           tag: ${{ github.ref }}
-          artifacts: "./artifacts/*.apk"
+          artifacts: "./artifacts/**/*.apk,./artifacts/checksums.txt"
           token: ${{ secrets.GITHUB_TOKEN }}

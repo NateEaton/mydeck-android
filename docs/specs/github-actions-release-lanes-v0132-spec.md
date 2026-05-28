@@ -5,8 +5,8 @@
 Proposal accepted 2026-05-27. Implementation in progress.
 
 - [x] Phase 1 — Cleanup + PR signing fix (merged 2026-05-27, PR #168)
-- [x] Phase 2 — Snapshot rework (this PR)
-- [ ] Phase 3 — Release candidate handling + SHA pins
+- [x] Phase 2 — Snapshot rework (merged 2026-05-27, PR #169)
+- [x] Phase 3 — Release candidate handling + SHA pins (this PR)
 - [ ] Phase 4 — Branch protection, Dependabot, docs
 
 ## Context
