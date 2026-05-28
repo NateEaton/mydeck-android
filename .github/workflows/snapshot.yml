@@ -183,5 +183,5 @@ jobs:
           tag: latest-snapshot
           removeArtifacts: true
           omitDraftDuringUpdate: true
-          artifacts: "./artifacts/*.apk,./artifacts/checksums.txt"
+          artifacts: "./artifacts/**/*.apk,./artifacts/checksums.txt"
           token: ${{ secrets.GITHUB_TOKEN }}
