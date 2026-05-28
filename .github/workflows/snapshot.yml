@@ -4,24 +4,22 @@ on:
   push:
     branches:
       - main
-      - feature/**
-      - enhancement/**
-      - fix/**
-      - chore/**
-      - claude/**
-      - codex/**
   pull_request:
-    branches: [main]
+    branches:
+      - main
+  schedule:
+    # 07:23 UTC daily. Cron is UTC and does not observe DST shifts.
+    - cron: '23 7 * * *'
   workflow_dispatch:
     inputs:
       build_type:
         description: 'Build type'
         required: false
-        default: 'release'
+        default: 'debug'
         type: choice
         options:
-          - release
           - debug
+          - release
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
@@ -32,11 +30,9 @@ concurrency:
 
 jobs:
   build-snapshot:
-    if: >-
-      github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'pull_request' ||
-      github.ref == 'refs/heads/main'
+    if: github.event_name != 'schedule' || github.repository == 'NateEaton/mydeck-android'
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     permissions:
       contents: read
     steps:
@@ -103,6 +99,10 @@ jobs:
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
           KEYSTORE: ${{ github.workspace }}/keystore.jks
 
+      - name: Remove keystore
+        if: always() && github.event_name != 'pull_request' && steps.build_vars.outputs.APK_DIR == 'release'
+        run: rm -f "${{ github.workspace }}/keystore.jks"
+
       - name: Create Checksum
         id: create_checksum
         run: |
@@ -111,7 +111,20 @@ jobs:
           echo "ARTIFACT_FILENAME=$FILENAME" >> "$GITHUB_OUTPUT"
 
       # Every run produces a tester-downloadable snapshot artifact.
+      # PR runs use 30-day retention so reviewers have time to install and test;
+      # main / schedule / dispatch use 7-day retention.
+      - name: Upload PR Debug APK Artifact
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: tester-snapshot-${{ steps.build_vars.outputs.APK_DIR }}
+          path: |
+            ${{ steps.create_checksum.outputs.ARTIFACT_FILENAME }}
+            checksums.txt
+          retention-days: 30
+
       - name: Upload Snapshot Artifact
+        if: github.event_name != 'pull_request'
         uses: actions/upload-artifact@v4
         with:
           name: tester-snapshot-${{ steps.build_vars.outputs.APK_DIR }}
@@ -121,9 +134,10 @@ jobs:
           retention-days: 7
 
   publish-latest-snapshot:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'schedule'
     needs: build-snapshot
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: write
     steps:
@@ -132,6 +146,18 @@ jobs:
         with:
           name: tester-snapshot-release
           path: ./artifacts
+
+      - name: Compute Source Line
+        id: source
+        run: |
+          SHORT_SHA="${GITHUB_SHA:0:7}"
+          TIMESTAMP="$(date -u '+%Y-%m-%d %H:%M UTC')"
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            LINE="**Source:** scheduled nightly @ \`${SHORT_SHA}\` — ${TIMESTAMP}"
+          else
+            LINE="**Source:** main push @ \`${SHORT_SHA}\` — ${TIMESTAMP}"
+          fi
+          echo "SOURCE_LINE=${LINE}" >> "$GITHUB_OUTPUT"
 
       - name: Update Latest Snapshot Release
         uses: joutvhu/create-tag@v1
@@ -150,9 +176,9 @@ jobs:
           prerelease: true
           name: MyDeck Continuous Snapshot
           body: |
-            This is an automated snapshot build from the `main` branch. It is a **Release-optimized** build but uses a separate package ID so it can be installed alongside your production version.
+            This is an automated snapshot build. It is a **Release-optimized** build but uses a separate package ID so it can be installed alongside your production version.
 
-            **Last updated from:** ${{ github.sha }}
+            ${{ steps.source.outputs.SOURCE_LINE }}
           commit: ${{ github.sha }}
           tag: latest-snapshot
           removeArtifacts: true
