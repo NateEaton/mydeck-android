@@ -159,15 +159,36 @@ jobs:
           fi
           echo "SOURCE_LINE=${LINE}" >> "$GITHUB_OUTPUT"
 
-      - name: Update Latest Snapshot Release
-        uses: joutvhu/create-tag@v1
-        with:
-          tag_name: latest-snapshot
-          tag_sha: ${{ github.sha }}
-          message: latest-snapshot
-          on_tag_exists: update
+      - name: Move latest-snapshot tag
+        # Replaces joutvhu/create-tag@v1, whose ref-probe converted any
+        # getRef error into a create-ref attempt and produced an
+        # intermittent "Reference already exists" failure. This step
+        # fails closed: it only enters the create path on a confirmed
+        # HTTP 404 from the probe. Any other probe error stops the job.
+        # NOTE: the 404 check matches the gh CLI's stderr error format
+        # (`gh: HTTP 404: …`). Revisit if gh changes that format.
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          REF="tags/latest-snapshot"
+          FULL_REF="refs/${REF}"
+          REPO="${{ github.repository }}"
+          SHA="${{ github.sha }}"
+
+          err="${RUNNER_TEMP}/latest-snapshot-ref.err"
+          if gh api "repos/${REPO}/git/ref/${REF}" >/dev/null 2>"${err}"; then
+            echo "latest-snapshot exists; moving to ${SHA}"
+            gh api -X PATCH "repos/${REPO}/git/refs/${REF}" \
+              -f "sha=${SHA}" -F "force=true"
+          elif grep -q "HTTP 404" "${err}"; then
+            echo "latest-snapshot is missing; creating at ${SHA}"
+            gh api -X POST "repos/${REPO}/git/refs" \
+              -f "ref=${FULL_REF}" -f "sha=${SHA}"
+          else
+            cat "${err}" >&2
+            exit 1
+          fi
 
       - name: Publish to GitHub Releases
         uses: ncipollo/release-action@v1.16.0
