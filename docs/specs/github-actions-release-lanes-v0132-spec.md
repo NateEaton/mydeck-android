@@ -669,17 +669,12 @@ Phases 1–3 validated post-merge on `main` at commit `cc638a5`.
 - All SHA-pinned actions resolved (same runner-log pattern as snapshot). ✓
 - Draft release and tag deleted after inspection.
 
-**Open item for Phase 4 agent:** The draft release stored `tag_name:
-"refs/tags/v0.0.0-ci.test"` (the literal value of `${{ github.ref }}`) and
-the draft preview URL appeared as `releases/tag/untagged-...`. Published
-releases (e.g. v0.13.1) show a clean `tag_name: "v0.13.1"`, suggesting the
-prefix is stripped at publish time — but this was not directly verified. This
-is pre-existing behaviour (`tag: ${{ github.ref }}` was in the original
-workflow and was not changed in Phase 3). Before cutting the first RC, verify
-this is acceptable or replace `tag: ${{ github.ref }}` with
-`tag: ${{ github.ref_name }}` in `release.yml`'s `create-release` step.
-`github.ref_name` resolves to just the tag name (e.g. `v0.13.2-rc.1`) without
-the `refs/tags/` prefix.
+**Resolved in Phase 4:** The draft release stored `tag_name:
+"refs/tags/v0.0.0-ci.test"` (the literal value of `${{ github.ref }}`),
+causing a `releases/tag/untagged-...` preview URL on drafts. Fixed by
+replacing `tag: ${{ github.ref }}` with `tag: ${{ github.ref_name }}` in
+`release.yml`'s `create-release` step. `github.ref_name` resolves to just
+the tag name (e.g. `v0.13.2-rc.1`) without the `refs/tags/` prefix.
 
 **Remaining validation (requires real tags):**
 
