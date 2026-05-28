@@ -2,7 +2,8 @@
 
 ## Status
 
-Proposal — written 2026-05-28, not yet implemented.
+Proposal — written 2026-05-28, updated after run 26578706175 showed
+the existing tag action can sometimes move the tag successfully.
 
 ## Context
 
@@ -15,32 +16,35 @@ the same day produced the same outcome. The APK was preserved as the run's
 workflow artifact (Actions tab → `tester-snapshot-release.zip`), so the
 build itself was fine; the asset just never made it onto the Release.
 
-Two independent latent bugs in the publish job are responsible:
+That first visible missing-APK symptom was caused by the
+`ncipollo/release-action` artifacts glob not matching the downloaded APK.
+PR #170 (`fix/ci-snapshot-apk-publish`, merged 2026-05-28) addressed that
+by changing the glob from `./artifacts/*.apk` to `./artifacts/**/*.apk`.
 
-1. **The `ncipollo/release-action` artifacts glob did not match the APK.**
-   Identified and addressed in PR #170 (`fix/ci-snapshot-apk-publish`,
-   merged 2026-05-28). The fix changed the glob from `./artifacts/*.apk`
-   to `./artifacts/**/*.apk`.
-2. **The `joutvhu/create-tag@v1` step refuses to move the
-   `latest-snapshot` tag when the existing ref points at a different
-   commit than the new one.** This is the present spec.
+PR #170 then exposed a separate latent publish fragility: its post-merge
+`main` push run failed before the release-action step, in
+`joutvhu/create-tag@v1`, with `Reference already exists`. That meant the
+new APK glob path was not exercised by that run, and the Release still did
+not visibly change.
 
-The second bug surfaced only after the first was fixed: the PR #170 merge
-into `main` was the first publish-run since 2026-05-28 03:49 UTC that tried
-to move the `latest-snapshot` tag to a commit different from the one the
-tag was already at. That run failed with `Reference already exists`, the
-publish step never executed, and the Release was therefore not updated —
-including the new APK glob path that PR #170 was meant to validate.
+A later `main` push run, 26578706175 at commit `9011613`, succeeded with
+the unchanged `joutvhu/create-tag@v1` step and published both the APK and
+`checksums.txt`. That later success confirms PR #170's recursive glob is
+correct. It also means the tag action failure is not a deterministic "every
+tag move fails" bug. The remaining issue is that the third-party tag action
+has opaque and fragile ref-probe behaviour: when it misclassifies an
+existing tag as missing, it attempts to create a ref that already exists and
+aborts the publish job.
 
-### Why the PR #170 fix is still correct but did not produce a visible
-### change
+### Why the PR #170 fix was correct but did not produce an immediate
+### visible change
 
 The recursive-glob change is sound: with `./artifacts/**/*.apk`, the
 release-action step *would* match the APK at
 `./artifacts/app/build/outputs/apk/githubSnapshot/release/MyDeck-….apk`.
-The reason the change did not produce an observable difference on the
-`latest-snapshot` release is that the publish job aborted **before** the
-release-action step:
+The reason the PR #170 merge run did not produce an observable difference
+on the `latest-snapshot` release is that the publish job aborted **before**
+the release-action step:
 
 - `Set up job` — ok
 - `Download Snapshot Artifact` — ok
@@ -51,7 +55,9 @@ release-action step:
 - `Complete job`
 
 PR #170 should be kept; without it, the publish step would still fail to
-match the APK even once the tag-move step is fixed.
+match the APK. It has now been validated by run 26578706175, which uploaded
+both `MyDeck-20260528T134819-9011613.apk` and `checksums.txt` to the
+moving Release.
 
 ## Current behaviour
 
@@ -87,29 +93,38 @@ Observed behaviour of `joutvhu/create-tag@v1` `on_tag_exists: update`:
 
 - **Tag does not exist** → creates the tag at `tag_sha`. Works.
 - **Tag exists and already points at `tag_sha`** → no-op. Works.
-- **Tag exists and points at a different SHA** → the action attempts to
-  POST a new ref, the GitHub API responds `422 Reference already exists`,
-  and the action fails the step.
+- **Tag exists and points at a different SHA, and the action's existence
+  probe succeeds** → force-updates the ref. This worked in run
+  26578706175, moving `latest-snapshot` from `8addcdc` to `9011613`.
+- **Tag exists, but the action's existence probe fails or misclassifies the
+  state as missing** → the action attempts to create a new ref, the GitHub
+  API responds `422 Reference already exists`, and the action fails the
+  step.
 
-The third case is exactly the one we hit every time `main` advances and the
-`latest-snapshot` tag needs to follow. We hit it cleanly on PR #170's
-post-merge run (run 26576183210): the tag was at `8addcdc` from the
-previous publish, the new merge commit was `12d30b2`, and the action
-errored on the move.
+The last case is exactly what the PR #170 post-merge run hit. The failure
+was not PR-mode specific: PR workflows never execute `publish-latest-snapshot`.
+A PR merge creates a normal `push` event on `main`, and that publish path is
+shared with scheduled nightly runs. Any publish run that hits the action's
+bad ref-probe path while `latest-snapshot` already exists can fail the same
+way.
 
-The 2026-05-28 03:49 UTC `docs:` commit publish run is the only one today
-that observed the action doing a successful tag move (from a stale 2026-04
-commit to `30f82dd`). That single success appears to have been because the
-prior tag state had not been refreshed by an earlier publish run on the
-same day, and the action's update path happens to work in that
-configuration. The behaviour is inconsistent enough that it cannot be
-relied on.
+The action source explains why this failure mode is plausible: its
+existence check catches all `getRef` errors and returns `false`. The caller
+then follows the create path. If the underlying error was anything other
+than a true 404/not-found response, the action turns an unknown probe
+failure into a create-ref attempt against an existing ref.
+
+Because the same action also moved the tag successfully on a later `main`
+push, the safest conclusion is not that `joutvhu/create-tag@v1` cannot move
+tags. It can. The problem is that its failure handling is too opaque for a
+publish-critical moving tag, and a single intermittent probe failure aborts
+the Release update.
 
 ## Goals
 
 - Restore reliable tag movement for the moving `latest-snapshot` ref so
-  that every post-merge and scheduled publish run lands the new APK on the
-  Release.
+  that post-merge `main` pushes and scheduled publish runs land the new APK
+  on the Release.
 - Keep the publish job small, explicit, and free of third-party actions
   whose behaviour we cannot reason about from the workflow alone.
 - Avoid relying on `ncipollo/release-action`'s tag-handling behaviour
@@ -128,31 +143,47 @@ relied on.
 ## Proposed change
 
 Replace the `joutvhu/create-tag@v1` step with an inline shell step that
-calls the GitHub REST API directly using `gh api`. The new step does
-exactly two things:
+calls the GitHub REST API directly using `gh api`. The new step does three
+explicit things:
 
-1. If `refs/tags/latest-snapshot` does not exist, create it pointing at
-   `github.sha`.
-2. If it does exist, force-update it to point at `github.sha`.
+1. Probe `latest-snapshot`.
+2. If the ref exists, force-update it to point at `github.sha`.
+3. If and only if the probe confirms a 404/not-found state, create
+   `refs/tags/latest-snapshot` pointing at `github.sha`.
+
+Any other probe failure is treated as a real failure and stops the job.
+This is the important behaviour change from `joutvhu/create-tag@v1`: an
+auth, network, rate-limit, or unexpected API error must not be converted
+into a create-ref attempt that obscures the actual state.
 
 This is the behaviour the `joutvhu/create-tag@v1` step was supposed to
-provide. Doing it inline removes the third-party action and makes the
-semantics explicit in the workflow file.
+provide for the happy path, with stricter failure handling. Doing it inline
+removes the third-party action and makes the semantics explicit in the
+workflow file.
 
 ```yaml
 - name: Move latest-snapshot tag
   env:
     GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   run: |
-    REF="refs/tags/latest-snapshot"
+    set -euo pipefail
+    REF="tags/latest-snapshot"
+    FULL_REF="refs/${REF}"
     REPO="${{ github.repository }}"
     SHA="${{ github.sha }}"
-    if gh api "repos/${REPO}/git/${REF}" >/dev/null 2>&1; then
-      gh api -X PATCH "repos/${REPO}/git/${REF}" \
+
+    err="${RUNNER_TEMP}/latest-snapshot-ref.err"
+    if gh api "repos/${REPO}/git/ref/${REF}" >/dev/null 2>"${err}"; then
+      echo "latest-snapshot exists; moving to ${SHA}"
+      gh api -X PATCH "repos/${REPO}/git/refs/${REF}" \
         -f "sha=${SHA}" -F "force=true"
-    else
+    elif grep -q "HTTP 404" "${err}"; then
+      echo "latest-snapshot is missing; creating at ${SHA}"
       gh api -X POST "repos/${REPO}/git/refs" \
-        -f "ref=${REF}" -f "sha=${SHA}"
+        -f "ref=${FULL_REF}" -f "sha=${SHA}"
+    else
+      cat "${err}" >&2
+      exit 1
     fi
 ```
 
@@ -170,14 +201,14 @@ Notes on the implementation:
 - `gh api -X POST .../git/refs` with `ref=refs/tags/latest-snapshot` and
   `sha=<commit>` is the documented call for creating a new tag ref
   ([Create a reference](https://docs.github.com/en/rest/git/refs#create-a-reference)).
-- The probe (`gh api .../git/${REF}`) returns 200 if the ref exists and
-  404 otherwise. The conditional avoids attempting a PATCH against a
-  non-existent ref (which would return 422 and obscure the actual state).
-- No annotated tag object is created. `joutvhu/create-tag@v1` was
-  optionally creating an annotated tag with `message: latest-snapshot`,
-  but for a moving prerelease marker, a lightweight ref is enough and
-  matches the semantics of the snapshot model (there is no per-release
-  changelog to embed in the tag).
+- The probe (`gh api .../git/ref/tags/latest-snapshot`) returns 200 if the
+  ref exists and 404 if it does not. Only the 404 case enters the create
+  path. Any other failed probe is surfaced as the real failure.
+- No annotated tag object is created. `joutvhu/create-tag@v1` creates a tag
+  object on its missing-tag path, but its ref creation still points directly
+  at `tag_sha`. The public `latest-snapshot` ref is therefore already a
+  lightweight moving marker; the inline step just avoids creating an unused
+  tag object.
 
 The step replaces `Update Latest Snapshot Release` in `snapshot.yml`. The
 `Publish to GitHub Releases` step (`ncipollo/release-action`) is left
@@ -200,18 +231,19 @@ Post-merge:
 1. The fix-PR merge to `main` creates a new commit; the publish run for
    that commit should:
    - Complete `Move latest-snapshot tag` without error. The run log
-     should show either `gh api -X PATCH …` (tag move) or `gh api -X
-     POST …` (first-time create) followed by a 200/201 response payload.
+     should show either `latest-snapshot exists; moving to <sha>` or
+     `latest-snapshot is missing; creating at <sha>`, followed by the
+     corresponding API response.
    - Reach `Publish to GitHub Releases` and exit 0.
    - Not log `##[warning]Artifact pattern :./artifacts/**/*.apk did not
      match any files`.
 2. `gh api repos/NateEaton/mydeck-android/git/refs/tags/latest-snapshot`
-   should return the fix-PR merge commit SHA, not `8addcdc` or any
-   earlier commit.
+   should return the fix-PR merge commit SHA.
 3. `gh release view latest-snapshot --json assets` should show **two**
-   assets: a `MyDeck-<timestamp>-<sha>.apk` and `checksums.txt`. Both
-   should have `created_at` timestamps within seconds of the run's
-   `Publish to GitHub Releases` step.
+   assets: a `MyDeck-<timestamp>-<sha>.apk` whose short SHA matches the
+   fix-PR merge commit, and `checksums.txt`. Both should have `created_at`
+   timestamps within seconds of the run's `Publish to GitHub Releases`
+   step.
 4. The release body's source line should identify the fix-PR merge:
    `**Source:** main push @ <short-sha> — <UTC timestamp>`.
 5. The next scheduled nightly run (07:23 UTC the following day) should
@@ -221,25 +253,27 @@ Post-merge:
    step will hit the PATCH path with `sha == current ref.object.sha` —
    this is still a valid PATCH and should no-op cleanly on the API side.
 
-If post-merge step 3 still shows only `checksums.txt`, the
-`ncipollo/release-action` glob path needs further investigation. The
-current hypothesis is that PR #170's recursive glob is sufficient and was
-simply never exercised due to the upstream tag-move failure.
+If post-merge step 3 regresses to only `checksums.txt`, that is a new
+release-action/artifact-path problem. The current baseline already proves
+PR #170's recursive glob is sufficient: run 26578706175 published both the
+APK and checksum assets.
 
 ## Risks and notes
 
 - **Third-party action removed.** This removes `joutvhu/create-tag@v1`
   from `snapshot.yml`. Phase 3's SHA-pinning list shrinks by one entry.
   No other workflow uses it.
-- **Lightweight vs. annotated tag.** The new ref is lightweight (no tag
-  object, no message body). Anyone running `git show latest-snapshot`
-  will see the underlying commit directly rather than a tag object with
-  the `latest-snapshot` message. This matches normal CI moving-tag
-  practice and has no functional consequence for the Release.
+- **No annotated tag object.** The inline step only creates or updates the
+  ref. This matches the effective current behaviour of `latest-snapshot`,
+  whose ref points directly at the commit SHA rather than at the annotated
+  tag object created by the action's missing-tag path.
 - **Force-move is intentional.** The `force=true` on PATCH is required
   for any non-fast-forward move, which is the common case here whenever
   `main` advances. Restricting this would prevent the publish job from
   doing its job.
+- **Fail closed on unknown probe errors.** The create path is only valid
+  after a confirmed 404. This prevents a transient `getRef` failure from
+  becoming another `Reference already exists` failure.
 - **No keystore exposure change.** This step is in
   `publish-latest-snapshot`, which has never had access to signing
   secrets. The §3/§8 Phase 2 protections are not affected.
