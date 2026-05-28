@@ -80,6 +80,18 @@ The English text serves as a placeholder until professional translators provide 
 
 ---
 
+## GitHub Interactions
+
+The `gh` CLI is installed and authenticated locally. Use it freely for **read-only** inspection — `gh pr view`, `gh pr list`, `gh pr diff`, `gh run view`, `gh api` GETs, etc. This is the preferred way to verify PR/CI state instead of guessing from local git.
+
+**Do not run `gh` commands that change state in GitHub.** That includes (non-exhaustive): creating, merging, closing, or commenting on PRs and issues; pushing or deleting branches/tags via `gh`; editing releases; running workflows; changing labels/assignees/reviewers.
+
+For any state-changing action, **list the exact command(s) for the user to run**, with a brief note on what each does. The user performs them.
+
+This applies to `git push`, branch/tag deletions, and force pushes as well — propose, don't execute.
+
+---
+
 ## Other Guidelines
 
 - Follow existing code style and patterns
