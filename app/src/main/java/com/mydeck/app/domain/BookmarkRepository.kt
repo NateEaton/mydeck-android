@@ -24,6 +24,12 @@ interface BookmarkRepository {
         favorite: Boolean? = null,
         label: String? = null,
         state: Bookmark.State? = null,
+        minReadingTime: Int? = null,
+        maxReadingTime: Int? = null,
+        includeNullReadingTime: Boolean = false,
+        minWordCount: Int? = null,
+        maxWordCount: Int? = null,
+        includeNullWordCount: Boolean = false,
         orderBy: String = "created DESC"
     ): Flow<List<BookmarkListItem>>
 
@@ -72,6 +78,12 @@ interface BookmarkRepository {
         isLoaded: Boolean? = null,
         withLabels: Boolean? = null,
         withErrors: Boolean? = null,
+        minReadingTime: Int? = null,
+        maxReadingTime: Int? = null,
+        includeNullReadingTime: Boolean = false,
+        minWordCount: Int? = null,
+        maxWordCount: Int? = null,
+        includeNullWordCount: Boolean = false,
         orderBy: String = "created DESC"
     ): Flow<List<BookmarkListItem>>
 

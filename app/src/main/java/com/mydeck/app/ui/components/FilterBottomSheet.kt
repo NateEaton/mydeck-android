@@ -2,6 +2,7 @@ package com.mydeck.app.ui.components
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -9,17 +10,22 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -38,14 +44,18 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusEvent
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.mydeck.app.R
 import com.mydeck.app.domain.model.Bookmark
@@ -53,10 +63,13 @@ import com.mydeck.app.domain.model.FilterFormState
 import com.mydeck.app.domain.model.ProgressFilter
 import com.mydeck.app.ui.list.LabelPickerBottomSheet
 import com.mydeck.app.ui.list.LabelPickerMode
+import kotlinx.coroutines.delay
 import kotlinx.datetime.Instant
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+
+private const val FOCUSED_FIELD_BRING_INTO_VIEW_DELAY_MS = 250L
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -83,33 +96,56 @@ fun FilterBottomSheet(
     var isLoaded by remember(currentFilter) { mutableStateOf(currentFilter.isLoaded) }
     var withLabels by remember(currentFilter) { mutableStateOf(currentFilter.withLabels) }
     var withErrors by remember(currentFilter) { mutableStateOf(currentFilter.withErrors) }
+    var minReadingTime by remember(currentFilter) { mutableStateOf(currentFilter.minReadingTime?.toString() ?: "") }
+    var maxReadingTime by remember(currentFilter) { mutableStateOf(currentFilter.maxReadingTime?.toString() ?: "") }
+    var includeNullReadingTime by remember(currentFilter) { mutableStateOf(currentFilter.includeNullReadingTime) }
+    var minWordCount by remember(currentFilter) { mutableStateOf(currentFilter.minWordCount?.toString() ?: "") }
+    var maxWordCount by remember(currentFilter) { mutableStateOf(currentFilter.maxWordCount?.toString() ?: "") }
+    var includeNullWordCount by remember(currentFilter) { mutableStateOf(currentFilter.includeNullWordCount) }
+
+    val readingTimeError = minReadingTime.isNotEmpty() && maxReadingTime.isNotEmpty() &&
+        (minReadingTime.toIntOrNull() ?: 0) > (maxReadingTime.toIntOrNull() ?: 0)
+    val wordCountError = minWordCount.isNotEmpty() && maxWordCount.isNotEmpty() &&
+        (minWordCount.toIntOrNull() ?: 0) > (maxWordCount.toIntOrNull() ?: 0)
+    val hasValidationError = readingTimeError || wordCountError
 
     var showLabelPicker by remember { mutableStateOf(false) }
     var showFromDatePicker by remember { mutableStateOf(false) }
     var showToDatePicker by remember { mutableStateOf(false) }
+    var showLengthFilterDialog by remember { mutableStateOf(false) }
 
     val hasActiveFilters = search.isNotBlank() || title.isNotBlank() || author.isNotBlank() ||
         site.isNotBlank() || label != null || fromDate != null || toDate != null ||
         types.isNotEmpty() || progress.isNotEmpty() || isFavorite != null ||
-        isArchived != null || isLoaded != null || withLabels != null || withErrors != null
+        isArchived != null || isLoaded != null || withLabels != null || withErrors != null ||
+        minReadingTime.isNotBlank() || maxReadingTime.isNotBlank() || includeNullReadingTime ||
+        minWordCount.isNotBlank() || maxWordCount.isNotBlank() || includeNullWordCount
 
     val applyFilter = {
-        onApply(FilterFormState(
-            search = search.ifBlank { null },
-            title = title.ifBlank { null },
-            author = author.ifBlank { null },
-            site = site.ifBlank { null },
-            label = label,
-            fromDate = fromDate,
-            toDate = toDate,
-            types = types,
-            progress = progress,
-            isFavorite = isFavorite,
-            isArchived = isArchived,
-            isLoaded = isLoaded,
-            withLabels = withLabels,
-            withErrors = withErrors,
-        ))
+        if (!hasValidationError) {
+            onApply(FilterFormState(
+                search = search.ifBlank { null },
+                title = title.ifBlank { null },
+                author = author.ifBlank { null },
+                site = site.ifBlank { null },
+                label = label,
+                fromDate = fromDate,
+                toDate = toDate,
+                types = types,
+                progress = progress,
+                isFavorite = isFavorite,
+                isArchived = isArchived,
+                isLoaded = isLoaded,
+                withLabels = withLabels,
+                withErrors = withErrors,
+                minReadingTime = minReadingTime.toIntOrNull(),
+                maxReadingTime = maxReadingTime.toIntOrNull(),
+                includeNullReadingTime = includeNullReadingTime,
+                minWordCount = minWordCount.toIntOrNull(),
+                maxWordCount = maxWordCount.toIntOrNull(),
+                includeNullWordCount = includeNullWordCount,
+            ))
+        }
     }
 
     // Colors that make a disabled OutlinedTextField look like an enabled one.
@@ -124,6 +160,14 @@ fun FilterBottomSheet(
     )
 
     val dateFormatter = remember { SimpleDateFormat("MMM d, yyyy", Locale.getDefault()) }
+    val lengthSummary = lengthFilterSummary(
+        minReadingTime = minReadingTime.toIntOrNull(),
+        maxReadingTime = maxReadingTime.toIntOrNull(),
+        includeNullReadingTime = includeNullReadingTime,
+        minWordCount = minWordCount.toIntOrNull(),
+        maxWordCount = maxWordCount.toIntOrNull(),
+        includeNullWordCount = includeNullWordCount,
+    )
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -136,7 +180,7 @@ fun FilterBottomSheet(
                 .padding(horizontal = 24.dp)
                 .navigationBarsPadding()
         ) {
-            // ── Search (full width, keyboard entry) ──────────────────────────
+            // -- Search (full width, keyboard entry)
             OutlinedTextField(
                 value = search,
                 onValueChange = { search = it },
@@ -157,7 +201,7 @@ fun FilterBottomSheet(
 
             Spacer(Modifier.height(12.dp))
 
-            // ── Title / Author (side-by-side) ────────────────────────────────
+            // -- Title / Author (side-by-side)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedTextField(
                     value = title,
@@ -195,7 +239,7 @@ fun FilterBottomSheet(
 
             Spacer(Modifier.height(12.dp))
 
-            // ── Site / Label (side-by-side) ──────────────────────────────────
+            // -- Site / Label (side-by-side)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedTextField(
                     value = site,
@@ -236,7 +280,7 @@ fun FilterBottomSheet(
 
             Spacer(Modifier.height(12.dp))
 
-            // ── From Date / To Date (side-by-side) ───────────────────────────
+            // -- From Date / To Date (side-by-side)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedTextField(
                     value = fromDate?.let { dateFormatter.format(Date(it.toEpochMilliseconds())) } ?: "",
@@ -276,9 +320,38 @@ fun FilterBottomSheet(
                 )
             }
 
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(12.dp))
 
-            // ── Type chips ───────────────────────────────────────────────────
+            OutlinedTextField(
+                value = lengthSummary ?: "",
+                onValueChange = {},
+                readOnly = true,
+                enabled = false,
+                colors = pickerColors,
+                label = { Text(stringResource(R.string.filter_length)) },
+                placeholder = { Text(stringResource(R.string.filter_length_summary_none)) },
+                trailingIcon = {
+                    if (lengthSummary != null) {
+                        IconButton(onClick = {
+                            minReadingTime = ""
+                            maxReadingTime = ""
+                            includeNullReadingTime = false
+                            minWordCount = ""
+                            maxWordCount = ""
+                            includeNullWordCount = false
+                        }) {
+                            Icon(Icons.Filled.Clear, contentDescription = null, modifier = Modifier.size(16.dp))
+                        }
+                    }
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { showLengthFilterDialog = true }
+            )
+
+            Spacer(Modifier.height(12.dp))
+
+            // -- Type chips
             Text(stringResource(R.string.filter_type), style = MaterialTheme.typography.labelLarge)
             Spacer(Modifier.height(8.dp))
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -301,7 +374,7 @@ fun FilterBottomSheet(
 
             Spacer(Modifier.height(16.dp))
 
-            // ── Progress chips ───────────────────────────────────────────────
+            // -- Progress chips
             Text(stringResource(R.string.filter_progress), style = MaterialTheme.typography.labelLarge)
             Spacer(Modifier.height(8.dp))
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -324,7 +397,7 @@ fun FilterBottomSheet(
 
             Spacer(Modifier.height(16.dp))
 
-            // ── Boolean filters (compact label-beside-control rows) ──────────
+            // -- Boolean filters (compact label-beside-control rows)
             CompactTriStateRow(stringResource(R.string.filter_is_favorite), isFavorite) { isFavorite = it }
             Spacer(Modifier.height(8.dp))
             CompactTriStateRow(stringResource(R.string.filter_is_archived), isArchived) { isArchived = it }
@@ -337,17 +410,43 @@ fun FilterBottomSheet(
 
             Spacer(Modifier.height(20.dp))
 
-            // ── Action buttons ───────────────────────────────────────────────
+            // -- Action buttons
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                 if (hasActiveFilters) {
                     TextButton(onClick = onReset) { Text(stringResource(R.string.filter_reset)) }
                     Spacer(Modifier.width(8.dp))
                 }
-                Button(onClick = { applyFilter() }) { Text(stringResource(R.string.search)) }
+                Button(onClick = { applyFilter() }, enabled = !hasValidationError) { Text(stringResource(R.string.search)) }
             }
 
             Spacer(Modifier.height(16.dp))
         }
+    }
+
+    if (showLengthFilterDialog) {
+        LengthFilterDialog(
+            initialMinReadingTime = minReadingTime,
+            initialMaxReadingTime = maxReadingTime,
+            initialIncludeNullReadingTime = includeNullReadingTime,
+            initialMinWordCount = minWordCount,
+            initialMaxWordCount = maxWordCount,
+            initialIncludeNullWordCount = includeNullWordCount,
+            onApply = { newMinReadingTime,
+                    newMaxReadingTime,
+                    newIncludeNullReadingTime,
+                    newMinWordCount,
+                    newMaxWordCount,
+                    newIncludeNullWordCount ->
+                minReadingTime = newMinReadingTime
+                maxReadingTime = newMaxReadingTime
+                includeNullReadingTime = newIncludeNullReadingTime
+                minWordCount = newMinWordCount
+                maxWordCount = newMaxWordCount
+                includeNullWordCount = newIncludeNullWordCount
+                showLengthFilterDialog = false
+            },
+            onDismiss = { showLengthFilterDialog = false }
+        )
     }
 
     // Label picker (selection-only — no rename/delete)
@@ -398,6 +497,252 @@ fun FilterBottomSheet(
             }
         ) { DatePicker(state = state) }
     }
+}
+
+@Composable
+private fun lengthFilterSummary(
+    minReadingTime: Int?,
+    maxReadingTime: Int?,
+    includeNullReadingTime: Boolean,
+    minWordCount: Int?,
+    maxWordCount: Int?,
+    includeNullWordCount: Boolean,
+): String? {
+    val unknownLabel = stringResource(R.string.filter_length_unknown)
+    val parts = listOfNotNull(
+        rangeFilterSummary(
+            label = stringResource(R.string.filter_reading_time),
+            min = minReadingTime,
+            max = maxReadingTime,
+            includeNull = includeNullReadingTime,
+            unit = " min",
+            unknownLabel = unknownLabel,
+        ),
+        rangeFilterSummary(
+            label = stringResource(R.string.filter_word_count),
+            min = minWordCount,
+            max = maxWordCount,
+            includeNull = includeNullWordCount,
+            unit = "",
+            unknownLabel = unknownLabel,
+        ),
+    )
+
+    return parts.joinToString(" / ").ifBlank { null }
+}
+
+private fun rangeFilterSummary(
+    label: String,
+    min: Int?,
+    max: Int?,
+    includeNull: Boolean,
+    unit: String,
+    unknownLabel: String,
+): String? {
+    if (min == null && max == null && !includeNull) return null
+
+    val rangeLabel = when {
+        min != null && max != null -> "$min–$max$unit"
+        min != null -> "≥$min$unit"
+        max != null -> "≤$max$unit"
+        else -> null
+    }
+
+    return when {
+        rangeLabel != null && includeNull -> "$label: $rangeLabel + $unknownLabel"
+        rangeLabel != null -> "$label: $rangeLabel"
+        else -> "$label: $unknownLabel"
+    }
+}
+
+@Composable
+private fun LengthFilterDialog(
+    initialMinReadingTime: String,
+    initialMaxReadingTime: String,
+    initialIncludeNullReadingTime: Boolean,
+    initialMinWordCount: String,
+    initialMaxWordCount: String,
+    initialIncludeNullWordCount: Boolean,
+    onApply: (String, String, Boolean, String, String, Boolean) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var minReadingTime by remember(initialMinReadingTime) { mutableStateOf(initialMinReadingTime) }
+    var maxReadingTime by remember(initialMaxReadingTime) { mutableStateOf(initialMaxReadingTime) }
+    var includeNullReadingTime by remember(initialIncludeNullReadingTime) {
+        mutableStateOf(initialIncludeNullReadingTime)
+    }
+    var minWordCount by remember(initialMinWordCount) { mutableStateOf(initialMinWordCount) }
+    var maxWordCount by remember(initialMaxWordCount) { mutableStateOf(initialMaxWordCount) }
+    var includeNullWordCount by remember(initialIncludeNullWordCount) {
+        mutableStateOf(initialIncludeNullWordCount)
+    }
+
+    val readingTimeError = minReadingTime.isNotEmpty() && maxReadingTime.isNotEmpty() &&
+        (minReadingTime.toIntOrNull() ?: 0) > (maxReadingTime.toIntOrNull() ?: 0)
+    val wordCountError = minWordCount.isNotEmpty() && maxWordCount.isNotEmpty() &&
+        (minWordCount.toIntOrNull() ?: 0) > (maxWordCount.toIntOrNull() ?: 0)
+    val hasValidationError = readingTimeError || wordCountError
+
+    val hasAnyValue = minReadingTime.isNotEmpty() || maxReadingTime.isNotEmpty() ||
+        includeNullReadingTime ||
+        minWordCount.isNotEmpty() || maxWordCount.isNotEmpty() || includeNullWordCount
+
+    val applyDialog = {
+        if (!hasValidationError) {
+            onApply(
+                minReadingTime,
+                maxReadingTime,
+                includeNullReadingTime,
+                minWordCount,
+                maxWordCount,
+                includeNullWordCount,
+            )
+        }
+    }
+    val clearDialog = {
+        minReadingTime = ""
+        maxReadingTime = ""
+        includeNullReadingTime = false
+        minWordCount = ""
+        maxWordCount = ""
+        includeNullWordCount = false
+    }
+
+    AlertDialog(
+        modifier = Modifier.imePadding(),
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.filter_length_dialog_title)) },
+        text = {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                LengthRangeSection(
+                    title = stringResource(R.string.filter_reading_time_est),
+                    minValue = minReadingTime,
+                    maxValue = maxReadingTime,
+                    includeNull = includeNullReadingTime,
+                    hasError = readingTimeError,
+                    maxImeAction = ImeAction.Next,
+                    onMinValueChange = { minReadingTime = it },
+                    onMaxValueChange = { maxReadingTime = it },
+                    onIncludeNullChange = { includeNullReadingTime = it },
+                )
+                LengthRangeSection(
+                    title = stringResource(R.string.filter_word_count_est),
+                    minValue = minWordCount,
+                    maxValue = maxWordCount,
+                    includeNull = includeNullWordCount,
+                    hasError = wordCountError,
+                    maxImeAction = ImeAction.Done,
+                    onMinValueChange = { minWordCount = it },
+                    onMaxValueChange = { maxWordCount = it },
+                    onIncludeNullChange = { includeNullWordCount = it },
+                    onDone = applyDialog,
+                )
+                TextButton(
+                    onClick = clearDialog,
+                    enabled = hasAnyValue,
+                    modifier = Modifier.align(Alignment.Start)
+                ) {
+                    Text(stringResource(R.string.filter_length_clear))
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = applyDialog, enabled = !hasValidationError) {
+                Text(stringResource(R.string.ok))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.cancel))
+            }
+        }
+    )
+}
+
+@Composable
+private fun LengthRangeSection(
+    title: String,
+    minValue: String,
+    maxValue: String,
+    includeNull: Boolean,
+    hasError: Boolean,
+    maxImeAction: ImeAction,
+    onMinValueChange: (String) -> Unit,
+    onMaxValueChange: (String) -> Unit,
+    onIncludeNullChange: (Boolean) -> Unit,
+    onDone: (() -> Unit)? = null,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(title, style = MaterialTheme.typography.labelLarge)
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedTextField(
+                value = minValue,
+                onValueChange = { v -> if (v.all { it.isDigit() }) onMinValueChange(v) },
+                label = { Text(stringResource(R.string.filter_reading_time_min)) },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Next),
+                isError = hasError,
+                modifier = Modifier
+                    .weight(1f)
+                    .bringFocusedFieldIntoView()
+            )
+            OutlinedTextField(
+                value = maxValue,
+                onValueChange = { v -> if (v.all { it.isDigit() }) onMaxValueChange(v) },
+                label = { Text(stringResource(R.string.filter_reading_time_max)) },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = maxImeAction),
+                keyboardActions = KeyboardActions(onDone = { onDone?.invoke() }),
+                isError = hasError,
+                modifier = Modifier
+                    .weight(1f)
+                    .bringFocusedFieldIntoView()
+            )
+        }
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .fillMaxWidth()
+                .toggleable(
+                    value = includeNull,
+                    onValueChange = onIncludeNullChange,
+                    role = Role.Checkbox,
+                )
+        ) {
+            Checkbox(
+                checked = includeNull,
+                onCheckedChange = null,
+            )
+            Text(stringResource(R.string.filter_length_include_unknown))
+        }
+        if (hasError) {
+            Text(
+                text = stringResource(R.string.filter_reading_time_error),
+                color = MaterialTheme.colorScheme.error,
+                style = MaterialTheme.typography.bodySmall
+            )
+        }
+    }
+}
+
+@Composable
+private fun Modifier.bringFocusedFieldIntoView(): Modifier {
+    val bringIntoViewRequester = remember { BringIntoViewRequester() }
+    var isFocused by remember { mutableStateOf(false) }
+
+    LaunchedEffect(isFocused) {
+        if (isFocused) {
+            delay(FOCUSED_FIELD_BRING_INTO_VIEW_DELAY_MS)
+            bringIntoViewRequester.bringIntoView()
+        }
+    }
+
+    return this
+        .bringIntoViewRequester(bringIntoViewRequester)
+        .onFocusEvent { state -> isFocused = state.isFocused }
 }
 
 /** Single-row tri-state control: label on the left, [N/A | Yes | No] on the right. */

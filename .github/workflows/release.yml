@@ -11,6 +11,8 @@ env:
 jobs:
   build-and-sign:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
 
     steps:
       - name: Checkout Code

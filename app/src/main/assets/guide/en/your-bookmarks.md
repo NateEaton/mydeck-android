@@ -146,6 +146,12 @@ When no bookmarks match the current filters, the list shows a "No bookmarks matc
 **Date range:**
 - **From Date / To Date** — filter by when the bookmark was added
 
+**Length:**
+- **Length** — opens a dialog for reading time and word count filters
+- **Min / Max** — filter by estimated reading time in minutes or by article word count. Enter a whole number in either or both fields; leaving a field blank means no bound in that direction.
+- **Include unknown** — when checked, bookmarks with no reading time estimate or no word count are included in results. If you check Include unknown with both Min and Max left blank, only bookmarks with unknown values are shown.
+- Active reading time and word count filters are shown as chips in the filter bar (e.g. *Read time: 5–15 min* or *Words: 100–500*). Dismissing a chip clears that range and its unknown-value setting.
+
 **Type** (choose one or more):
 - Article, Video, Picture
 

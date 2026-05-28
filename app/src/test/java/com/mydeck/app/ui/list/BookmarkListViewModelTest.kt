@@ -114,7 +114,7 @@ class BookmarkListViewModelTest {
         coEvery { settingsDataStore.isSyncOnAppOpenEnabled() } returns false // Disable sync on app open by default
         every { fullSyncUseCase.performFullSync() } returns Unit
         // Use any() for all arguments to be safe, then specialize
-        every { bookmarkRepository.observeFilteredBookmarkListItems(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()) } returns flowOf(emptyList())
+        every { bookmarkRepository.observeFilteredBookmarkListItems(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()) } returns flowOf(emptyList())
 
         every { savedStateHandle.get<String>(any()) } returns null // no sharedUrl initially
         every { workManager.getWorkInfosForUniqueWorkFlow(any()) } returns workInfoFlow
@@ -482,6 +482,12 @@ class BookmarkListViewModelTest {
                 isLoaded = any(),
                 withLabels = any(),
                 withErrors = any(),
+                minReadingTime = any(),
+                maxReadingTime = any(),
+                includeNullReadingTime = any(),
+                minWordCount = any(),
+                maxWordCount = any(),
+                includeNullWordCount = any(),
                 orderBy = any()
             )
         } returns bookmarkFlow
@@ -765,7 +771,7 @@ class BookmarkListViewModelTest {
 
             val bookmarkFlow = MutableStateFlow(bookmarks)
             every {
-                bookmarkRepository.observeFilteredBookmarkListItems(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any())
+                bookmarkRepository.observeFilteredBookmarkListItems(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any())
             } returns bookmarkFlow
 
             coEvery {
@@ -836,7 +842,7 @@ class BookmarkListViewModelTest {
 
             val bookmarkFlow = MutableStateFlow(bookmarks)
             every {
-                bookmarkRepository.observeFilteredBookmarkListItems(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any())
+                bookmarkRepository.observeFilteredBookmarkListItems(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any())
             } returns bookmarkFlow
 
             viewModel = BookmarkListViewModel(
@@ -893,7 +899,7 @@ class BookmarkListViewModelTest {
 
             val bookmarkFlow = MutableStateFlow(bookmarks)
             every {
-                bookmarkRepository.observeFilteredBookmarkListItems(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any())
+                bookmarkRepository.observeFilteredBookmarkListItems(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any())
             } returns bookmarkFlow
 
             coEvery {
@@ -956,7 +962,7 @@ class BookmarkListViewModelTest {
 
             val bookmarkFlow = MutableStateFlow(bookmarks)
             every {
-                bookmarkRepository.observeFilteredBookmarkListItems(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any())
+                bookmarkRepository.observeFilteredBookmarkListItems(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any())
             } returns bookmarkFlow
 
             coEvery {
@@ -1027,7 +1033,7 @@ class BookmarkListViewModelTest {
 
             val bookmarkFlow = MutableStateFlow(bookmarks)
             every {
-                bookmarkRepository.observeFilteredBookmarkListItems(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any())
+                bookmarkRepository.observeFilteredBookmarkListItems(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any())
             } returns bookmarkFlow
 
             viewModel = BookmarkListViewModel(
@@ -1084,7 +1090,7 @@ class BookmarkListViewModelTest {
 
             val bookmarkFlow = MutableStateFlow(bookmarks)
             every {
-                bookmarkRepository.observeFilteredBookmarkListItems(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any())
+                bookmarkRepository.observeFilteredBookmarkListItems(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any())
             } returns bookmarkFlow
 
             coEvery {
@@ -1148,7 +1154,7 @@ class BookmarkListViewModelTest {
 
             val bookmarkFlow = MutableStateFlow(bookmarks)
             every {
-                bookmarkRepository.observeFilteredBookmarkListItems(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any())
+                bookmarkRepository.observeFilteredBookmarkListItems(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any())
             } returns bookmarkFlow
 
             coEvery {
@@ -1219,7 +1225,7 @@ class BookmarkListViewModelTest {
 
             val bookmarkFlow = MutableStateFlow(bookmarks)
             every {
-                bookmarkRepository.observeFilteredBookmarkListItems(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any())
+                bookmarkRepository.observeFilteredBookmarkListItems(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any())
             } returns bookmarkFlow
 
             viewModel = BookmarkListViewModel(
@@ -1276,7 +1282,7 @@ class BookmarkListViewModelTest {
 
             val bookmarkFlow = MutableStateFlow(bookmarks)
             every {
-                bookmarkRepository.observeFilteredBookmarkListItems(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any())
+                bookmarkRepository.observeFilteredBookmarkListItems(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any())
             } returns bookmarkFlow
 
             coEvery {
@@ -1333,7 +1339,7 @@ class BookmarkListViewModelTest {
     @Test
     fun `onClickLabel updates activeLabel with selected label`() = runTest {
         coEvery { settingsDataStore.isInitialSyncPerformed() } returns false
-        every { bookmarkRepository.observeFilteredBookmarkListItems(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()) } returns flowOf(bookmarks)
+        every { bookmarkRepository.observeFilteredBookmarkListItems(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()) } returns flowOf(bookmarks)
 
         viewModel = BookmarkListViewModel(
             updateBookmarkUseCase,
@@ -1358,7 +1364,7 @@ class BookmarkListViewModelTest {
     @Test
     fun `onRenameLabel calls repository and updates activeLabel if label was active`() = runTest {
         coEvery { settingsDataStore.isInitialSyncPerformed() } returns false
-        every { bookmarkRepository.observeFilteredBookmarkListItems(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()) } returns flowOf(bookmarks)
+        every { bookmarkRepository.observeFilteredBookmarkListItems(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()) } returns flowOf(bookmarks)
         coEvery { bookmarkRepository.renameLabel(any(), any()) } returns BookmarkRepository.UpdateResult.Success
 
         viewModel = BookmarkListViewModel(
@@ -1392,7 +1398,7 @@ class BookmarkListViewModelTest {
     @Test
     fun `onLayoutModeSelected persists to settings and updates flow`() = runTest {
         coEvery { settingsDataStore.isInitialSyncPerformed() } returns false
-        every { bookmarkRepository.observeFilteredBookmarkListItems(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()) } returns flowOf(bookmarks)
+        every { bookmarkRepository.observeFilteredBookmarkListItems(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()) } returns flowOf(bookmarks)
         coEvery { settingsDataStore.saveLayoutMode(any()) } returns Unit
 
         viewModel = BookmarkListViewModel(
@@ -1420,7 +1426,7 @@ class BookmarkListViewModelTest {
     @Test
     fun `onSortOptionSelected persists to settings and updates flow`() = runTest {
         coEvery { settingsDataStore.isInitialSyncPerformed() } returns false
-        every { bookmarkRepository.observeFilteredBookmarkListItems(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()) } returns flowOf(bookmarks)
+        every { bookmarkRepository.observeFilteredBookmarkListItems(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()) } returns flowOf(bookmarks)
         coEvery { settingsDataStore.saveSortOption(any()) } returns Unit
 
         viewModel = BookmarkListViewModel(

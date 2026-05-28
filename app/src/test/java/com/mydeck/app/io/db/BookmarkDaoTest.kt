@@ -503,4 +503,232 @@ class BookmarkDaoTest {
             assertTrue(list.none { it.id == "test-29" })
         }
     }
+
+    // Null-checkbox truth table (8 rows from the reading-time-filter spec)
+    @RunWith(RobolectricTestRunner::class)
+    internal class ReadingTimeFilterTest : BaseTest() {
+
+        // Base data: 30 bookmarks, readingTime = 5+index (5..34), all non-null.
+        // We supplement with 3 null-readingTime bookmarks so every truth-table branch is reachable.
+        private val nullIds = listOf("rt-null-0", "rt-null-1", "rt-null-2")
+
+        @Before
+        fun insertNullReadingTimeBookmarks() = runTest {
+            val base = BookmarkEntity(
+                id = "rt-null-0",
+                href = "http://example.com/rtnull",
+                created = kotlinx.datetime.Instant.parse("2025-06-01T00:00:00Z"),
+                updated = kotlinx.datetime.Instant.parse("2025-06-01T00:00:00Z"),
+                state = BookmarkEntity.State.LOADED,
+                loaded = true,
+                url = "http://example.com/rtnull",
+                title = "Null RT Bookmark",
+                siteName = "Example",
+                site = "example.com",
+                authors = emptyList(),
+                lang = "en",
+                textDirection = "ltr",
+                documentTpe = "article",
+                type = BookmarkEntity.Type.ARTICLE,
+                hasArticle = false,
+                description = "",
+                isDeleted = false,
+                isMarked = false,
+                isArchived = false,
+                labels = emptyList(),
+                readProgress = 0,
+                wordCount = null,
+                readingTime = null,
+                published = null,
+                embed = null,
+                embedHostname = null,
+                article = com.mydeck.app.io.db.model.ResourceEntity(""),
+                icon = com.mydeck.app.io.db.model.ImageResourceEntity("", 0, 0),
+                image = com.mydeck.app.io.db.model.ImageResourceEntity("", 0, 0),
+                log = com.mydeck.app.io.db.model.ResourceEntity(""),
+                props = com.mydeck.app.io.db.model.ResourceEntity(""),
+                thumbnail = com.mydeck.app.io.db.model.ImageResourceEntity("", 0, 0),
+            )
+            bookmarkDao.insertBookmarks(nullIds.mapIndexed { i, id -> base.copy(id = id, href = "${base.href}/$i", url = "${base.url}/$i") })
+        }
+
+        // Row 1 — no reading-time filter → all rows returned
+        @Test
+        fun `no reading time filter returns all bookmarks`() = runTest(testDispatcher) {
+            val list = bookmarkDao.getFilteredBookmarkListItems().first()
+            assertEquals(33, list.size)
+        }
+
+        // Row 2 — min=10 max=20 null=false → range only, nulls excluded
+        @Test
+        fun `min and max set null false returns range only`() = runTest(testDispatcher) {
+            val list = bookmarkDao.getFilteredBookmarkListItems(minReadingTime = 10, maxReadingTime = 20).first()
+            // readingTime = 5+index, so 10<=5+index<=20 → 5<=index<=15 → 11 bookmarks
+            assertEquals(11, list.size)
+            assertTrue(list.all { (it.readingTime ?: -1) in 10..20 })
+            assertTrue(list.none { it.id in nullIds })
+        }
+
+        // Row 3 — min=30 only, null=false → lower bound only
+        @Test
+        fun `min only set null false returns bookmarks with readingTime gte min`() = runTest(testDispatcher) {
+            val list = bookmarkDao.getFilteredBookmarkListItems(minReadingTime = 30).first()
+            // 5+index >= 30 → index >= 25 → 5 bookmarks (test-25..test-29)
+            assertEquals(5, list.size)
+            assertTrue(list.all { (it.readingTime ?: -1) >= 30 })
+        }
+
+        // Row 4 — max=7 only, null=false → upper bound only
+        @Test
+        fun `max only set null false returns bookmarks with readingTime lte max`() = runTest(testDispatcher) {
+            val list = bookmarkDao.getFilteredBookmarkListItems(maxReadingTime = 7).first()
+            // 5+index <= 7 → index <= 2 → 3 bookmarks (test-0..test-2)
+            assertEquals(3, list.size)
+            assertTrue(list.all { (it.readingTime ?: Int.MAX_VALUE) <= 7 })
+        }
+
+        // Row 5 — null=true, no min/max → only null-readingTime bookmarks
+        @Test
+        fun `null only returns only null reading time bookmarks`() = runTest(testDispatcher) {
+            val list = bookmarkDao.getFilteredBookmarkListItems(includeNullReadingTime = true).first()
+            assertEquals(3, list.size)
+            assertTrue(list.all { it.id in nullIds })
+        }
+
+        // Row 6 — min=10 max=20 null=true → range OR null
+        @Test
+        fun `min and max set null true returns range plus null bookmarks`() = runTest(testDispatcher) {
+            val list = bookmarkDao.getFilteredBookmarkListItems(minReadingTime = 10, maxReadingTime = 20, includeNullReadingTime = true).first()
+            assertEquals(14, list.size) // 11 in range + 3 null
+            assertTrue(list.filter { it.id !in nullIds }.all { (it.readingTime ?: -1) in 10..20 })
+            assertTrue(list.filter { it.id in nullIds }.all { it.readingTime == null })
+        }
+
+        // Row 7 — min=30 null=true → readingTime >= 30 OR null
+        @Test
+        fun `min only set null true returns gte min plus null bookmarks`() = runTest(testDispatcher) {
+            val list = bookmarkDao.getFilteredBookmarkListItems(minReadingTime = 30, includeNullReadingTime = true).first()
+            assertEquals(8, list.size) // 5 in range + 3 null
+        }
+
+        // Row 8 — max=7 null=true → readingTime <= 7 OR null
+        @Test
+        fun `max only set null true returns lte max plus null bookmarks`() = runTest(testDispatcher) {
+            val list = bookmarkDao.getFilteredBookmarkListItems(maxReadingTime = 7, includeNullReadingTime = true).first()
+            assertEquals(6, list.size) // 3 in range + 3 null
+        }
+    }
+
+    // Word-count null-checkbox truth table — mirrors the reading-time filter spec
+    @RunWith(RobolectricTestRunner::class)
+    internal class WordCountFilterTest : BaseTest() {
+
+        // Base data: 30 bookmarks, wordCount = 100 + index*10 (100..390), all non-null.
+        // Supplement with 3 null-wordCount bookmarks.
+        private val nullIds = listOf("wc-null-0", "wc-null-1", "wc-null-2")
+
+        @Before
+        fun insertNullWordCountBookmarks() = runTest {
+            val base = BookmarkEntity(
+                id = "wc-null-0",
+                href = "http://example.com/wcnull",
+                created = kotlinx.datetime.Instant.parse("2025-07-01T00:00:00Z"),
+                updated = kotlinx.datetime.Instant.parse("2025-07-01T00:00:00Z"),
+                state = BookmarkEntity.State.LOADED,
+                loaded = true,
+                url = "http://example.com/wcnull",
+                title = "Null WC Bookmark",
+                siteName = "Example",
+                site = "example.com",
+                authors = emptyList(),
+                lang = "en",
+                textDirection = "ltr",
+                documentTpe = "article",
+                type = BookmarkEntity.Type.ARTICLE,
+                hasArticle = false,
+                description = "",
+                isDeleted = false,
+                isMarked = false,
+                isArchived = false,
+                labels = emptyList(),
+                readProgress = 0,
+                wordCount = null,
+                readingTime = 5,
+                published = null,
+                embed = null,
+                embedHostname = null,
+                article = com.mydeck.app.io.db.model.ResourceEntity(""),
+                icon = com.mydeck.app.io.db.model.ImageResourceEntity("", 0, 0),
+                image = com.mydeck.app.io.db.model.ImageResourceEntity("", 0, 0),
+                log = com.mydeck.app.io.db.model.ResourceEntity(""),
+                props = com.mydeck.app.io.db.model.ResourceEntity(""),
+                thumbnail = com.mydeck.app.io.db.model.ImageResourceEntity("", 0, 0),
+            )
+            bookmarkDao.insertBookmarks(nullIds.mapIndexed { i, id -> base.copy(id = id, href = "${base.href}/$i", url = "${base.url}/$i") })
+        }
+
+        // Row 1 — no word-count filter → all rows returned
+        @Test
+        fun `no word count filter returns all bookmarks`() = runTest(testDispatcher) {
+            val list = bookmarkDao.getFilteredBookmarkListItems().first()
+            assertEquals(33, list.size)
+        }
+
+        // Row 2 — min=200 max=300 null=false → range only, nulls excluded
+        @Test
+        fun `min and max set null false returns range only`() = runTest(testDispatcher) {
+            val list = bookmarkDao.getFilteredBookmarkListItems(minWordCount = 200, maxWordCount = 300).first()
+            // wordCount = 100+index*10; 200<=100+index*10<=300 → 10<=index<=20 → 11 bookmarks
+            assertEquals(11, list.size)
+            assertTrue(list.all { (it.wordCount ?: -1) in 200..300 })
+            assertTrue(list.none { it.id in nullIds })
+        }
+
+        // Row 3 — min=300 only, null=false → lower bound only
+        @Test
+        fun `min only set null false returns bookmarks with wordCount gte min`() = runTest(testDispatcher) {
+            val list = bookmarkDao.getFilteredBookmarkListItems(minWordCount = 300).first()
+            // 100+index*10 >= 300 → index >= 20 → 10 bookmarks (test-20..test-29)
+            assertEquals(10, list.size)
+            assertTrue(list.all { (it.wordCount ?: -1) >= 300 })
+        }
+
+        // Row 4 — max=150 only, null=false → upper bound only
+        @Test
+        fun `max only set null false returns bookmarks with wordCount lte max`() = runTest(testDispatcher) {
+            val list = bookmarkDao.getFilteredBookmarkListItems(maxWordCount = 150).first()
+            // 100+index*10 <= 150 → index <= 5 → 6 bookmarks
+            assertEquals(6, list.size)
+            assertTrue(list.all { (it.wordCount ?: Int.MAX_VALUE) <= 150 })
+        }
+
+        // Row 5 — null=true, no min/max → only null-wordCount bookmarks
+        @Test
+        fun `null only returns only null word count bookmarks`() = runTest(testDispatcher) {
+            val list = bookmarkDao.getFilteredBookmarkListItems(includeNullWordCount = true).first()
+            assertEquals(3, list.size)
+            assertTrue(list.all { it.id in nullIds })
+        }
+
+        // Row 6 — min=200 max=300 null=true → range OR null
+        @Test
+        fun `min and max set null true returns range plus null bookmarks`() = runTest(testDispatcher) {
+            val list = bookmarkDao.getFilteredBookmarkListItems(minWordCount = 200, maxWordCount = 300, includeNullWordCount = true).first()
+            assertEquals(14, list.size) // 11 in range + 3 null
+        }
+
+        // Row 7 — min=300 null=true → wordCount >= 300 OR null
+        @Test
+        fun `min only set null true returns gte min plus null bookmarks`() = runTest(testDispatcher) {
+            val list = bookmarkDao.getFilteredBookmarkListItems(minWordCount = 300, includeNullWordCount = true).first()
+            assertEquals(13, list.size) // 10 in range + 3 null
+        }
+
+        // Row 8 — max=150 null=true → wordCount <= 150 OR null
+        @Test
+        fun `max only set null true returns lte max plus null bookmarks`() = runTest(testDispatcher) {
+            val list = bookmarkDao.getFilteredBookmarkListItems(maxWordCount = 150, includeNullWordCount = true).first()
+            assertEquals(9, list.size) // 6 in range + 3 null
+        }
+    }
 }

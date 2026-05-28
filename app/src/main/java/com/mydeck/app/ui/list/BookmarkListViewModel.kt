@@ -270,6 +270,12 @@ class BookmarkListViewModel @Inject constructor(
                         isLoaded = filter.isLoaded,
                         withLabels = filter.withLabels,
                         withErrors = filter.withErrors,
+                        minReadingTime = filter.minReadingTime,
+                        maxReadingTime = filter.maxReadingTime,
+                        includeNullReadingTime = filter.includeNullReadingTime,
+                        minWordCount = filter.minWordCount,
+                        maxWordCount = filter.maxWordCount,
+                        includeNullWordCount = filter.includeNullWordCount,
                         orderBy = sort.sqlOrderBy
                     )
                 }
