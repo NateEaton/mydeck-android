@@ -4,12 +4,6 @@ on:
   push:
     branches:
       - main
-      - feature/**
-      - enhancement/**
-      - fix/**
-      - chore/**
-      - claude/**
-      - codex/**
   pull_request:
     branches:
       - main
@@ -24,11 +18,10 @@ concurrency:
 
 jobs:
   verify:
-    if: >-
-      github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'pull_request' ||
-      github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    timeout-minutes: 45
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
