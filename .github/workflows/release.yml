@@ -129,6 +129,6 @@ jobs:
           prerelease: ${{ steps.get_version.outputs.is_prerelease }}
           draft: true
           name: MyDeck Release v${{ steps.get_version.outputs.version }}
-          tag: ${{ github.ref }}
+          tag: ${{ github.ref_name }}
           artifacts: "./artifacts/**/*.apk,./artifacts/checksums.txt"
           token: ${{ secrets.GITHUB_TOKEN }}

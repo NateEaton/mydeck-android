@@ -24,29 +24,106 @@ We use a **Main-First** (Trunk-based) workflow.
 
 We use GitHub Actions to automate testing and build delivery.
 
-### Automated Checks (`checks.yml`)
-Runs on pushes to `main`, `feature/**`, `enhancement/**`, `fix/**`, `chore/**`, `claude/**`, and `codex/**`, plus Pull Requests targeting `main`.
+### Quality Checks (`checks.yml`)
+Runs on pushes to `main`, Pull Requests targeting `main`, and manual dispatch.
 *   **Tasks:** Runs `:app:assembleDebugAll`, `:app:lintDebugAll`, and `:app:testDebugUnitTestAll` in sequence.
 *   **Goal:** Catch compile, lint, and unit-test regressions early without waiting for release packaging.
+*   Plain development branch pushes (e.g., `feature/*`, `fix/*`) do **not** trigger this workflow automatically — use a PR or manual dispatch.
 
-### Tester Builds & Snapshots (`snapshot.yml`)
-To provide a production-like, side-by-side installable APK for functional testing without overwriting your daily-driver app.
+### Snapshots (`snapshot.yml`)
+Provides a side-by-side installable APK (`com.mydeck.app.snapshot`) for functional testing without overwriting the production app. Four trigger paths:
 
-1.  **Development Branch Pushes**: Automatically builds a **Release Snapshot** (minified/optimized) and uploads it as a GitHub Actions artifact.
-    *   **Use case:** Share the latest branch build with a tester before opening or updating a PR.
-2.  **Pull Requests to `main`**: Automatically builds the same **Release Snapshot** and uploads it as a GitHub Actions artifact.
-    *   **Side-by-Side:** Installs as `com.mydeck.app.snapshot`.
-    *   **Behavior:** Uses the Release build type, so performance and shrinking are closer to production than a Debug APK.
-    *   **Usage:** Download from the workflow run's "Artifacts" section, unzip, and install.
-3.  **Pushes to `main`**: Automatically rebuilds the Release Snapshot and updates the revolving **"MyDeck Continuous Snapshot"** GitHub release with the latest merged code.
-    *   **Direct pushes to `main`:** Treated the same as a post-merge `main` update. The same checks and snapshot packaging still run.
-4.  **Manual Trigger**: You can trigger a Snapshot build on any branch from the Actions tab.
+1.  **Pull Requests to `main`**: Builds a **debug-signed APK** (`assembleGithubSnapshotDebug`) and uploads it as a workflow artifact with 30-day retention. No release keystore is decoded; no signing secrets are in scope for PR runs.
+    *   **Install limitation:** The PR debug APK and the `latest-snapshot` release-signed APK share the same `applicationId` but different signing keys. They cannot coexist on a device — uninstall the existing snapshot first. Both install alongside the production app.
+2.  **Push to `main`**: Builds a **release-signed snapshot** and updates the single moving `latest-snapshot` GitHub prerelease. The release body identifies the source commit.
+3.  **Scheduled nightly** (07:23 UTC daily): Same as a main push — updates `latest-snapshot`. Only runs in `NateEaton/mydeck-android`; forks do not inherit this schedule.
+4.  **Manual dispatch** (Actions → Snapshot Build → Run workflow): Build any branch with `build_type: debug` (default) or `release`. The APK appears in the workflow run's Artifacts section with 7-day retention.
 
-### Official Releases (`release.yml`)
-Runs when a tag starting with `v` is pushed (e.g., `v0.12.0`).
-*   **Build Type:** Official Release (non-debug).
-*   **Package ID:** `com.mydeck.app` (standard).
-*   **Distribution:** Creates a GitHub Release draft for publication.
+### Releases (`release.yml`)
+Runs when a tag matching `v*` is pushed.
+*   **Build Type:** Release-signed, `com.mydeck.app`.
+*   **Pre-release detection:** Tags containing a hyphen (e.g., `v0.13.2-rc.1`, `v0.13.2-beta.1`) create a draft GitHub Release marked `prerelease: true`. Tags without a hyphen (e.g., `v0.13.2`) create a draft marked `prerelease: false`.
+*   **Artifacts:** APK + `checksums.txt` attached to the draft release.
+*   All draft releases require a manual **Publish release** click after review.
+
+### CI/CD Scenarios
+
+Every common situation, what CI does, and where to find the artifact.
+
+#### Local feature work, no PR yet
+
+You're iterating on a `feature/*` (or `enhancement/*`, `fix/*`, `chore/*`) branch and want a tester to install your build.
+
+1. Commit and push the branch. **Nothing in CI runs automatically.** This is intentional — branch pushes used to create skipped workflow runs that cluttered the Actions page.
+2. Go to **Actions → Snapshot Build → Run workflow** and select your branch.
+3. Choose `build_type`: `debug` (default, debug-signed) or `release` (release-signed snapshot APK).
+4. When the run finishes, the APK is in the workflow run's **Artifacts** section. Download, unzip, install. Retention: 7 days (manual dispatch path). PR-triggered builds use 30 days — see "Opening a PR" below.
+
+#### Opening (or updating) a PR to `main`
+
+Includes draft PRs.
+
+- **`Quality Checks` runs**: assembles all debug variants, lint, unit tests.
+- **`Snapshot Build` runs in PR mode**: builds the **debug-signed APK** (`assembleGithubSnapshotDebug`, signed with the auto-generated Android debug keystore) and uploads it as a workflow artifact. No release keystore is decoded; no release-signing secrets are exposed. Retention: 30 days.
+- Where to find the APK: the PR's **Checks** tab or the workflow run's **Artifacts** section.
+- **Install limitation:** the PR debug APK and the `latest-snapshot` release-signed APK share the same `applicationId` (`com.mydeck.app.snapshot`) but use different signing keys. They cannot coexist on a device. To install a PR APK, first uninstall any existing `latest-snapshot` install. Both still install alongside the production app (`com.mydeck.app`).
+
+#### PR from a fork
+
+Same as above. Forked PRs do not receive repository secrets from GitHub by default; since we are not signing on PRs anyway, this is safe. Debug APK shows up as a workflow artifact like any other PR.
+
+#### PR merges to `main`
+
+- **`Snapshot Build` runs in main-push mode**: builds a **signed release snapshot** APK and updates the single moving `latest-snapshot` GitHub prerelease.
+- Release body identifies the source, e.g. `**Source:** main push @ abc1234 — 2026-05-27 14:02 UTC`.
+- Where to find the APK: Releases tab → `latest-snapshot`.
+
+#### Scheduled nightly build
+
+- Runs daily at **07:23 UTC**. GitHub Actions cron is UTC and does not follow DST, so the local equivalent shifts by an hour twice a year (≈ 01:23 CST / 02:23 CDT). The UTC time is the stable one.
+- Builds a signed release snapshot from `main` and updates the same `latest-snapshot` prerelease.
+- Release body identifies the source as nightly, e.g. `**Source:** nightly @ abc1234 — 2026-05-27 07:23 UTC`.
+- The release name and tag do not change. There is **no** separate `latest-nightly` release — `latest-snapshot` is the one moving prerelease.
+- Only runs in `NateEaton/mydeck-android`. Forks that enable Actions do not inherit the scheduled build.
+
+#### Pushing a pre-release tag
+
+Tag pattern: `vX.Y.Z-<anything>`, e.g. `v0.13.2-rc.1`, `v0.13.2-beta.1`.
+
+- **`Release Build` runs**: builds a signed release APK, computes `prerelease: true` from the tag (any hyphen after the version), creates a **draft GitHub Release** named `MyDeck Release vX.Y.Z-...`.
+- Artifacts attached to the release: APK + `checksums.txt`.
+- The release is created as a **draft**. Review the release notes, then click **Publish release** when ready.
+
+#### Pushing a final release tag
+
+Tag pattern: `vX.Y.Z` with no hyphen, e.g. `v0.13.2`.
+
+- Same as the pre-release flow, but the draft release is marked `prerelease: false` (final).
+- Still a draft until you publish.
+
+#### Tagging the wrong commit
+
+`Release Build` will still run — the workflow trusts the tag. Catch it during the draft review and either delete the tag (and re-push to the correct commit) or edit the draft release.
+
+If you re-push a tag after deleting it, the workflow runs again, but the release-creation step is configured with `allowUpdates: false`, so it will fail rather than silently overwrite the existing draft. Delete the previous draft first.
+
+#### Force-pushing a feature branch
+
+Allowed. Branch protection only protects `main`. Under the new trigger model, plain branch pushes do not start any CI run, so there is usually nothing to cancel. The `concurrency` block only matters when a run is already in flight from another trigger on the same ref — typically an open PR (pushes to a branch with an open PR re-trigger `pull_request` runs that share a concurrency group keyed on the PR number) or a manual `workflow_dispatch`. In those cases the in-flight run is cancelled in favor of the new commit.
+
+#### Pushing directly to `main`
+
+Blocked by the branch protection ruleset. All changes to `main` go through a PR (squash-and-merge). If you genuinely need to bypass — emergency hotfix, broken CI, etc. — and you've added yourself to the ruleset's bypass list, the push is allowed but logged in the audit log.
+
+#### AI agent (Claude Code, Codex cloud) cannot trigger a workflow itself
+
+If the agent's sandbox does not allow `gh workflow run`, the convention is:
+
+1. The agent pushes its branch and opens a PR as normal.
+2. The agent notes in the PR description that a snapshot build is needed and names the branch.
+3. A maintainer dispatches **Snapshot Build** against that branch manually.
+
+This is documented in `AGENTS.md` and `CLAUDE.md` so the agent knows to ask rather than fail silently.
 
 ---
 

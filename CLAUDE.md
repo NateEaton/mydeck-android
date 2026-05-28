@@ -98,6 +98,20 @@ For any state-changing action, **list the exact command(s) for the user to run**
 
 This applies to `git push`, branch/tag deletions, and force pushes as well — propose, don't execute.
 
+**`gh` default repo.** This working copy has both `origin` (`NateEaton/mydeck-android`) and `upstream` (`jensomato/ReadeckApp`). `gh` may resolve the default to the upstream, which causes `gh pr view`, `gh pr list`, `gh run view`, and `gh api repos/...` calls to silently return data from the wrong repo. Always pass `--repo NateEaton/mydeck-android` (or rely on `gh repo set-default NateEaton/mydeck-android` having been run in this working copy). When in doubt, run `gh repo view --json nameWithOwner` and confirm it says `NateEaton/mydeck-android` before trusting `gh` output.
+
+---
+
+## CI/CD — Triggering Snapshot Builds
+
+If your environment does not allow `gh workflow run` (authentication scope, network restrictions, etc.):
+
+1. Push your branch and open a PR as normal.
+2. Note in the PR description that a snapshot build is needed and name the branch.
+3. The repo maintainer will dispatch **Snapshot Build** against that branch manually from the Actions tab.
+
+Do not fail silently — surface the request in the PR description so the maintainer can act.
+
 ---
 
 ## Other Guidelines
