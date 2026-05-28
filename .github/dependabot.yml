@@ -12,3 +12,10 @@ updates:
         update-types:
           - "minor"
           - "patch"
+    ignore:
+      # gradle/actions v6 moved the caching engine to a proprietary,
+      # commercially-licensed component (Gradle Terms of Use). Stay on the
+      # last fully-MIT major (v5.x). Revisit only as a deliberate decision.
+      - dependency-name: "gradle/actions"
+        update-types:
+          - "version-update:semver-major"
