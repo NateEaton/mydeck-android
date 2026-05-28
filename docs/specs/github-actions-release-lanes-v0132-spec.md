@@ -2,12 +2,12 @@
 
 ## Status
 
-Proposal accepted 2026-05-27. Implementation in progress.
+Proposal accepted 2026-05-27. Implementation complete.
 
 - [x] Phase 1 — Cleanup + PR signing fix (merged 2026-05-27, PR #168)
 - [x] Phase 2 — Snapshot rework (merged 2026-05-27, PR #169)
-- [x] Phase 3 — Release candidate handling + SHA pins (this PR)
-- [ ] Phase 4 — Branch protection, Dependabot, docs
+- [x] Phase 3 — Release candidate handling + SHA pins (merged 2026-05-28, PR #172)
+- [x] Phase 4 — Branch protection, Dependabot, docs (this PR)
 
 ## Context
 
@@ -644,6 +644,47 @@ behavior rather than local Gradle execution alone:
   `prerelease: false`.
 - Confirm APK checksums are uploaded for snapshot, prerelease, and final
   release artifacts.
+
+### Validation Results (2026-05-28)
+
+Phases 1–3 validated post-merge on `main` at commit `cc638a5`.
+
+**Phase 1 + 2 (checks.yml, snapshot.yml) — confirmed via PR #172 CI run:**
+
+- `Quality Checks` and `Snapshot Build` both ran on the PR with all SHA-pinned
+  actions resolving cleanly. Runner logs confirmed every action was downloaded
+  by exact commit SHA (e.g. `actions/checkout@34e114876b...`).
+- Post-merge main push (run 26587177877): `build-snapshot` succeeded, keystore
+  cleanup ran, `publish-latest-snapshot` updated `latest-snapshot` release. All
+  steps green.
+
+**Phase 3 (release.yml) — confirmed via throwaway tag `v0.0.0-ci.test`:**
+
+- Tag pushed to `cc638a5`; `release.yml` triggered (run 26589287125), both
+  `build-and-sign` and `create-release` jobs succeeded.
+- Draft release produced: `draft: true`, `prerelease: true` (hyphen in tag
+  → IS_PRERELEASE=true rule fired correctly), name `MyDeck Release v0.0.0-ci.test`.
+- Assets attached: signed APK (~5.2 MB) + `checksums.txt` (128 B). ✓
+- New `Remove keystore` step (`if: always()`) ran successfully. ✓
+- All SHA-pinned actions resolved (same runner-log pattern as snapshot). ✓
+- Draft release and tag deleted after inspection.
+
+**Open item for Phase 4 agent:** The draft release stored `tag_name:
+"refs/tags/v0.0.0-ci.test"` (the literal value of `${{ github.ref }}`) and
+the draft preview URL appeared as `releases/tag/untagged-...`. Published
+releases (e.g. v0.13.1) show a clean `tag_name: "v0.13.1"`, suggesting the
+prefix is stripped at publish time — but this was not directly verified. This
+is pre-existing behaviour (`tag: ${{ github.ref }}` was in the original
+workflow and was not changed in Phase 3). Before cutting the first RC, verify
+this is acceptable or replace `tag: ${{ github.ref }}` with
+`tag: ${{ github.ref_name }}` in `release.yml`'s `create-release` step.
+`github.ref_name` resolves to just the tag name (e.g. `v0.13.2-rc.1`) without
+the `refs/tags/` prefix.
+
+**Remaining validation (requires real tags):**
+
+- Final-release (no-hyphen) `prerelease: false` path — deferred to `v0.13.2` cut.
+- Scheduled nightly `latest-snapshot` source line — deferred to next nightly run.
 
 ## Resolved Decisions (2026-05-27)
 
