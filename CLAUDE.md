@@ -80,6 +80,14 @@ The English text serves as a placeholder until professional translators provide 
 
 ---
 
+## Branching
+
+- **Always verify the current branch before creating a new one.** Run `git branch --show-current` (or `git status`) first. Do not assume the branch the session started on, or the branch a previous task left you on, is the right base.
+- **Always branch from `main` (after `git pull`) unless the user has explicitly told you to branch from something else for this task.** Branching off the wrong ref silently inherits whatever is on it — unmerged PR commits, abandoned work, or a stale tip. If a task seems to require branching off something other than `main` (e.g., stacking work on top of an unmerged PR), confirm with the user first before creating the branch.
+- This applies whether the new branch is for code, docs, specs, or workflow changes — there is no "small enough to skip the check" case.
+
+---
+
 ## GitHub Interactions
 
 The `gh` CLI is installed and authenticated locally. Use it freely for **read-only** inspection — `gh pr view`, `gh pr list`, `gh pr diff`, `gh run view`, `gh api` GETs, etc. This is the preferred way to verify PR/CI state instead of guessing from local git.
