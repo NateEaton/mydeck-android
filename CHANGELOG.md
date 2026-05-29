@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.13.2] - 2026-05-29
+
+### Added
+
+- Reading time and word count filters in the bookmark list, including Min/Max ranges and an option to include bookmarks with no estimate
+
+### Fixed
+
+- Reader no longer shows stale extracted content for bookmarks opened immediately after adding, before server-side extraction completes
+
 ## [0.13.1] - 2026-05-20
 
 ### Fixed

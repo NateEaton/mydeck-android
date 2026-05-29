@@ -48,8 +48,8 @@ android {
         applicationId = "com.mydeck.app"
         minSdk = 24
         targetSdk = 35
-        versionCode = 13001
-        versionName = "0.13.1"
+        versionCode = 13002
+        versionName = "0.13.2"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
