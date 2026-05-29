@@ -20,8 +20,9 @@ It began as a fork of [ReadeckApp](https://github.com/jensomato/ReadeckApp) and 
 - Full label management: add, rename, delete, and filter by labels
 - Dual reading modes: Readeck-extracted Article view and embedded Original webview
 - Article, photo, and video bookmark support with embedded media
+- Sort and filter bookmark list views on things like title, author, site, labels, etc.
 - Reading progress tracking with per-card visual indicators
-- Readeck highlight and annotation support — view, create, edit, and delete highlights in the reader
+- Readeck highlight and annotation support — view, create, edit, and delete highlights in the reader, and access to all highlights from the navigation drawer
 - Reading typography customization (font family, size, line spacing, content width)
 - In-article text search with highlighted match navigation
 - Bookmark metadata editor for title, description, site name, authors, and more
