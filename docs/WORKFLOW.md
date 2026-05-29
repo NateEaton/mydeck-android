@@ -145,6 +145,42 @@ This is documented in `AGENTS.md` and `CLAUDE.md` so the agent knows to ask rath
 3.  💻 `git push origin vX.Y.Z`
 4.  ☁️ Finish the draft release on GitHub.
 
+`release.yml` derives prerelease vs. final from the tag: any hyphen after the version (e.g. `v0.13.2-rc.1`) creates a draft **prerelease**; a plain `vX.Y.Z` creates a draft **final release**. Both are drafts until you publish them by hand.
+
+### Optional: Release Candidate Process
+
+Most releases skip RCs. Cut one when:
+*   You have testers other than yourself who need a stable build to validate against.
+*   The release is large or risky (schema migration, sync rework, multi-feature drop).
+*   You want a soak period — let the build run on real devices for days before locking it in.
+
+If none of those apply, tag final and ship. `latest-snapshot` already acts as a continuous candidate for solo testing.
+
+**The RC process is a modification of the standard flow, not a replacement.** Steps that change:
+
+*   **Step 1 (Prep the Release):** unchanged. Bump to the **target** version (e.g. `versionName = "0.13.2"`, `versionCode = 13002`). The `-rc.N` suffix lives only in the git tag, never in `build.gradle.kts` or the changelog.
+
+*   **Step 2 (Tag and Publish):** replaced with the loop below.
+
+#### Step 2 (RC variant): Iterate, Then Promote
+
+1.  💻 `git checkout main && git pull`
+2.  💻 `git tag vX.Y.Z-rc.1`
+3.  💻 `git push origin vX.Y.Z-rc.1` — `release.yml` produces a draft **prerelease** with the APK and `checksums.txt`.
+4.  📱 Install the RC APK. Smoke test.
+5.  If issues are found: fix on `main` via the normal PR flow, then cut the next RC from the new tip (`vX.Y.Z-rc.2`, push, retest). Each RC produces its own independent draft prerelease.
+6.  When an RC is accepted, **tag the final from the same commit as that RC**:
+    *   💻 `git tag vX.Y.Z <commit-sha-of-accepted-rc>`
+    *   💻 `git push origin vX.Y.Z`
+    *   This produces a final-release draft that is byte-identical to the tested RC.
+7.  ☁️ Finish the final draft on GitHub. Delete or leave the RC prerelease drafts as preferred.
+
+**Caveat — versionCode across RCs.** All RCs and the final release built from a single version bump report the same `versionCode` (e.g. `13002`) on the device. Practical consequences:
+*   `rc.2` will not install as an upgrade over `rc.1` — Android refuses (same versionCode). Testers must uninstall the prior RC first.
+*   Testers cannot distinguish RC builds from the final in the app's "About" screen; they look identical except by install date or APK checksum.
+
+For a small tester pool this is friction, not a blocker. If RC iteration becomes painful for a larger pool, bump `versionCode` manually per RC in a short version-bump PR before each RC tag.
+
 ---
 
 ## 4. Local Verification
