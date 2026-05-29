@@ -1,0 +1,5 @@
+<b>Added</b>
+- Reading time and word count filters: filter the bookmark list by length, with Min/Max ranges and an option to include items that have no estimate
+
+<b>Fixed</b>
+- Bookmarks opened right after adding no longer show stale extracted content; the reader now waits for server-side extraction to complete
