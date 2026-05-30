@@ -13,7 +13,7 @@ The **Account** option in the drawer shows your username. Tapping it opens the *
 
 ## Server URL Security
 
-The standard MyDeck app accepts HTTPS Readeck server URLs only. If an older install was already signed in to an `http://` server URL, MyDeck shows a startup screen with three choices: change the saved server URL to HTTPS, install the separate HTTP-enabled APK, or sign out.
+The standard MyDeck app accepts HTTPS Readeck server URLs only. If an older install was already signed in to an `http://` server URL, MyDeck shows a startup screen with two choices: switch to an HTTPS URL and sign in again, or install the separate HTTP-enabled APK.
 
 The HTTP-enabled APK is for trusted private-network setups that cannot use HTTPS. It installs beside the standard app and keeps separate credentials and local data.
 

@@ -29,7 +29,7 @@ HTTP support uses two separate distribution paths:
 - **Standard APK**: HTTPS-only server URLs; system CA trust only.
 - **HTTP-enabled APK**: HTTP allowed; system + user CA trust. The URL-entry warning explains the cleartext-token risk and points users toward HTTPS alternatives such as Tailscale Serve or a reverse proxy.
 
-If a user installs the new standard APK over an older standard build that was already signed in to an `http://` server URL, MyDeck stops at startup on a migration screen. The screen offers switching to an HTTPS URL and signing in again, installing the separate HTTP-enabled APK, or signing out locally.
+If a user installs the new standard APK over an older standard build that was already signed in to an `http://` server URL, MyDeck stops at startup on a migration screen. The screen offers switching to an HTTPS URL and signing in again, or installing the separate HTTP-enabled APK.
 
 ### Self-hosted HTTP use case
 

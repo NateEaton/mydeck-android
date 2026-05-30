@@ -34,8 +34,9 @@ class HttpUrlMigrationViewModelTest {
         userRepository = mockk()
 
         every { settingsDataStore.urlFlow } returns MutableStateFlow("http://192.168.1.10/api")
-        coEvery { settingsDataStore.clearCredentials() } coAnswers {
-            calls += "clearCredentials"
+        coEvery { userRepository.logout() } coAnswers {
+            calls += "revokeThenClearCredentials"
+            UserRepository.LogoutResult.Success
         }
         every { settingsDataStore.saveUrl(any()) } answers {
             calls += "saveUrl:${firstArg<String>()}"
@@ -48,7 +49,7 @@ class HttpUrlMigrationViewModelTest {
     }
 
     @Test
-    fun `saveReplacementUrl clears credentials before saving HTTPS URL`() = runTest {
+    fun `saveReplacementUrl logs out before saving HTTPS URL`() = runTest {
         val viewModel = HttpUrlMigrationViewModel(
             settingsDataStore = settingsDataStore,
             userRepository = userRepository
@@ -60,7 +61,7 @@ class HttpUrlMigrationViewModelTest {
 
         assertEquals(
             listOf(
-                "clearCredentials",
+                "revokeThenClearCredentials",
                 "saveUrl:https://readeck.example/api"
             ),
             calls

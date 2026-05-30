@@ -56,27 +56,21 @@ class HttpUrlMigrationViewModel @Inject constructor(
             _uiState.update { it.copy(isBusy = true, actionError = null) }
             try {
                 val normalizedUrl = normalizeApiUrl(value)
-                settingsDataStore.clearCredentials()
+                val logoutResult = userRepository.logout()
+                if (logoutResult is UserRepository.LogoutResult.Error) {
+                    _uiState.update {
+                        it.copy(
+                            isBusy = false,
+                            actionError = R.string.http_migration_save_error
+                        )
+                    }
+                    return@launch
+                }
                 settingsDataStore.saveUrl(normalizedUrl)
             } catch (_: Exception) {
                 _uiState.update { it.copy(actionError = R.string.http_migration_save_error) }
             } finally {
                 _uiState.update { it.copy(isBusy = false) }
-            }
-        }
-    }
-
-    fun logOut() {
-        viewModelScope.launch {
-            _uiState.update { it.copy(isBusy = true, actionError = null) }
-            val result = userRepository.logout()
-            if (result is UserRepository.LogoutResult.Error) {
-                _uiState.update {
-                    it.copy(
-                        isBusy = false,
-                        actionError = R.string.http_migration_logout_error
-                    )
-                }
             }
         }
     }

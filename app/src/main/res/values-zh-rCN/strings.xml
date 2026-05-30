@@ -334,18 +334,15 @@
     <string name="welcome_connect_button">Connect</string>
     <string name="http_migration_title">HTTP server URL blocked</string>
     <string name="http_migration_body">This MyDeck build now allows HTTPS Readeck server URLs only. Your saved server URL is %1$s, so MyDeck has stopped before syncing.</string>
-    <string name="http_migration_https_title">1. Change the server URL to HTTPS</string>
+    <string name="http_migration_https_title">Switch to HTTPS</string>
     <string name="http_migration_https_body">Enter the HTTPS URL you want to use. MyDeck will clear the old credentials first, then ask you to sign in again.</string>
     <string name="http_migration_https_action">Use HTTPS and sign in again</string>
     <string name="http_migration_tailscale_link">Tailscale Serve HTTPS docs</string>
     <string name="http_migration_readeck_proxy_link">Readeck proxy configuration docs</string>
-    <string name="http_migration_http_apk_title">2. Install the HTTP-enabled APK</string>
+    <string name="http_migration_http_apk_title">Install the HTTP-enabled APK</string>
     <string name="http_migration_http_apk_body">Use this separate package only for trusted private-network setups that cannot use HTTPS. It installs beside this app and requires OAuth authorization again.</string>
     <string name="http_migration_http_apk_action">Open latest release</string>
-    <string name="http_migration_logout_title">3. Sign out</string>
-    <string name="http_migration_logout_body">Use this only if you want to clear local credentials and configure MyDeck again from the welcome screen.</string>
     <string name="http_migration_save_error">Could not switch to the HTTPS URL. Please try again.</string>
-    <string name="http_migration_logout_error">Could not finish sign out. Please try again.</string>
 
     <!-- Share Intent / Quick Save -->
     <string name="save_to_mydeck">保存到 MyDeck</string>

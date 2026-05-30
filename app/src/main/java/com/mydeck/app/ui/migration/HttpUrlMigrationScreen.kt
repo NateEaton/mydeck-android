@@ -5,10 +5,8 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -54,7 +52,6 @@ fun HttpUrlMigrationScreen(
         onInstallHttpEnabled = { openUrlInCustomTab(context, MYDECK_RELEASES_URL) },
         onOpenTailscaleServe = { openUrlInCustomTab(context, TAILSCALE_SERVE_URL) },
         onOpenReadeckProxyDocs = { openUrlInCustomTab(context, READECK_PROXY_DOCS_URL) },
-        onLogOut = viewModel::logOut,
     )
 }
 
@@ -66,7 +63,6 @@ fun HttpUrlMigrationScreenContent(
     onInstallHttpEnabled: () -> Unit,
     onOpenTailscaleServe: () -> Unit,
     onOpenReadeckProxyDocs: () -> Unit,
-    onLogOut: () -> Unit,
 ) {
     val keyboardController = LocalSoftwareKeyboardController.current
 
@@ -142,21 +138,6 @@ fun HttpUrlMigrationScreenContent(
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text(stringResource(R.string.http_migration_http_apk_action))
-                    }
-                }
-            }
-
-            item {
-                MigrationSection(
-                    title = stringResource(R.string.http_migration_logout_title),
-                    body = stringResource(R.string.http_migration_logout_body)
-                ) {
-                    OutlinedButton(
-                        onClick = onLogOut,
-                        enabled = !uiState.isBusy,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text(stringResource(R.string.account_settings_sign_out))
                     }
                 }
             }
