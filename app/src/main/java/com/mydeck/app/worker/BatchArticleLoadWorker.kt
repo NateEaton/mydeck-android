@@ -17,6 +17,7 @@ import com.mydeck.app.domain.sync.OfflinePolicyEvaluator.Companion.avgArticleByt
 import com.mydeck.app.domain.usecase.LoadContentPackageUseCase
 import com.mydeck.app.io.db.dao.BookmarkDao
 import com.mydeck.app.io.prefs.SettingsDataStore
+import com.mydeck.app.io.rest.isHttpBlockedByBuildPolicy
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import kotlinx.coroutines.async
@@ -215,7 +216,7 @@ class BatchArticleLoadWorker @AssistedInject constructor(
             return Result.success()
         } catch (e: Exception) {
             Timber.e(e, "BatchArticleLoadWorker failed")
-            return Result.retry()
+            return if (e.isHttpBlockedByBuildPolicy()) Result.failure() else Result.retry()
         }
     }
 
@@ -240,7 +241,7 @@ class BatchArticleLoadWorker @AssistedInject constructor(
             Result.success()
         } catch (e: Exception) {
             Timber.e(e, "BatchArticleLoadWorker: priority download failed for $bookmarkId")
-            Result.retry()
+            if (e.isHttpBlockedByBuildPolicy()) Result.failure() else Result.retry()
         }
     }
 

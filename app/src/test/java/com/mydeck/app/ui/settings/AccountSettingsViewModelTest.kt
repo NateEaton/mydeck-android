@@ -1,6 +1,7 @@
 package com.mydeck.app.ui.settings
 
 import com.mydeck.app.R
+import com.mydeck.app.BuildConfig
 import com.mydeck.app.domain.BookmarkRepository
 import com.mydeck.app.domain.UserRepository
 import com.mydeck.app.domain.model.OAuthDeviceAuthorizationState
@@ -374,17 +375,21 @@ class AccountSettingsViewModelTest {
     }
 
     @Test
-    fun `updateUrl with http URL should not set urlError`() = runTest {
+    fun `updateUrl with http URL should follow build policy`() = runTest {
         viewModel.updateUrl("http://validurl.com")
         advanceUntilIdle()
         val uiState = viewModel.uiState.first()
-        assertNull(uiState.urlError)
+        if (BuildConfig.ALLOW_INSECURE_HTTP) {
+            assertNull(uiState.urlError)
+        } else {
+            assertEquals(R.string.account_settings_url_error, uiState.urlError)
+        }
     }
 
     @Test
-    fun `loginEnabled should be true when url is http`() = runTest {
+    fun `loginEnabled should follow build policy when url is http`() = runTest {
         viewModel.updateUrl("http://validurl.com")
         advanceUntilIdle()
-        assertTrue(viewModel.uiState.first().loginEnabled)
+        assertEquals(BuildConfig.ALLOW_INSECURE_HTTP, viewModel.uiState.first().loginEnabled)
     }
 }

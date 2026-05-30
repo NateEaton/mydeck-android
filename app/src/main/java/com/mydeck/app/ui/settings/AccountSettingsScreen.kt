@@ -97,7 +97,7 @@ fun AccountSettingsScreen(
                         settingsUiState.urlError != null ->
                             Text(text = stringResource(settingsUiState.urlError))
                         settingsUiState.urlWarning != null ->
-                            Text(text = stringResource(settingsUiState.urlWarning))
+                            HttpUrlWarningText()
                     }
                 }
             )

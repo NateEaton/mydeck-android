@@ -9,6 +9,7 @@ import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import com.mydeck.app.BuildConfig
 import com.mydeck.app.R
 import com.mydeck.app.domain.BookmarkRepository
 import com.mydeck.app.domain.model.Bookmark
@@ -25,6 +26,7 @@ import com.mydeck.app.domain.sync.OfflinePolicyEvaluator
 import com.mydeck.app.domain.usecase.FullSyncUseCase
 import com.mydeck.app.domain.usecase.UpdateBookmarkUseCase
 import com.mydeck.app.io.prefs.SettingsDataStore
+import com.mydeck.app.io.rest.ReadeckNetworkPolicy
 import com.mydeck.app.util.extractUrlAndTitle
 import com.mydeck.app.util.formatBookmarkShareText
 import com.mydeck.app.util.isValidUrl
@@ -137,6 +139,10 @@ class BookmarkListViewModel @Inject constructor(
         viewModelScope.launch {
             val url = settingsDataStore.urlFlow.first()
             val syncOnAppOpenEnabled = settingsDataStore.isSyncOnAppOpenEnabled()
+            if (ReadeckNetworkPolicy.isSavedHttpUrlBlocked(url, BuildConfig.ALLOW_INSECURE_HTTP)) {
+                Timber.i("Skipping app-open sync because HTTP is blocked in this build")
+                return@launch
+            }
             if (!url.isNullOrBlank() && syncOnAppOpenEnabled) {
                 loadBookmarks(LoadTrigger.APP_OPEN)
             }

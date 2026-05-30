@@ -29,6 +29,7 @@ interface UserRepository {
             val ex: Exception? = null
         ) : LoginResult()
         data class NetworkError(val errorMessage: String) : LoginResult()
+        data object HttpBlockedByBuildPolicy : LoginResult()
     }
 
     sealed class LogoutResult {

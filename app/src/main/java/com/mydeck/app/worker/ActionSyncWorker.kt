@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.hilt.work.HiltWorker
 import androidx.work.*
 import com.mydeck.app.domain.BookmarkRepository
+import com.mydeck.app.io.rest.isHttpBlockedByBuildPolicy
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import javax.inject.Provider
@@ -17,9 +18,15 @@ class ActionSyncWorker @AssistedInject constructor(
 ) : CoroutineWorker(appContext, workerParams) {
 
     override suspend fun doWork(): Result {
-        return when (bookmarkRepositoryProvider.get().syncPendingActions()) {
+        return when (val result = bookmarkRepositoryProvider.get().syncPendingActions()) {
             is BookmarkRepository.UpdateResult.Success -> Result.success()
-            is BookmarkRepository.UpdateResult.NetworkError -> Result.retry()
+            is BookmarkRepository.UpdateResult.NetworkError -> {
+                if (result.ex?.isHttpBlockedByBuildPolicy() == true) {
+                    Result.failure()
+                } else {
+                    Result.retry()
+                }
+            }
             is BookmarkRepository.UpdateResult.Error -> Result.failure()
         }
     }

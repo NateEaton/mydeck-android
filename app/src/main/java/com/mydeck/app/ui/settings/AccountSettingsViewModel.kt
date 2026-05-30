@@ -131,6 +131,11 @@ class AccountSettingsViewModel @Inject constructor(
                     Timber.e("Login network error: ${result.errorMessage}")
                     _uiState.update { it.copy(authStatus = AuthStatus.Error(result.errorMessage)) }
                 }
+
+                UserRepository.LoginResult.HttpBlockedByBuildPolicy -> {
+                    Timber.w("Login blocked because HTTP is disabled in this build")
+                    _uiState.update { it.copy(authStatus = AuthStatus.Error(context.getString(R.string.account_settings_http_blocked_error))) }
+                }
             }
         }
     }
@@ -171,6 +176,9 @@ class AccountSettingsViewModel @Inject constructor(
                             is UserRepository.LoginResult.Error -> {
                                 _uiState.update { it.copy(authStatus = AuthStatus.Error(loginResult.errorMessage)) }
                             }
+                            UserRepository.LoginResult.HttpBlockedByBuildPolicy -> {
+                                _uiState.update { it.copy(authStatus = AuthStatus.Error(context.getString(R.string.account_settings_http_blocked_error))) }
+                            }
                             else -> {
                                 _uiState.update { it.copy(authStatus = AuthStatus.Error("Unexpected error")) }
                             }
@@ -204,6 +212,13 @@ class AccountSettingsViewModel @Inject constructor(
                     is OAuthDeviceAuthorizationUseCase.TokenPollResult.NetworkError -> {
                         Timber.w("Network error during polling, will retry: ${result.message}")
                         // Don't break — transient network errors are retryable
+                    }
+
+                    OAuthDeviceAuthorizationUseCase.TokenPollResult.HttpBlockedByBuildPolicy -> {
+                        _uiState.update {
+                            it.copy(authStatus = AuthStatus.Error(context.getString(R.string.account_settings_http_blocked_error)), deviceAuthState = null)
+                        }
+                        break
                     }
 
                     is OAuthDeviceAuthorizationUseCase.TokenPollResult.Error -> {

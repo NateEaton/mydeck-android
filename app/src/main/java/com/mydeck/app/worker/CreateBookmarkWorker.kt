@@ -12,6 +12,7 @@ import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import com.mydeck.app.domain.BookmarkRepository
 import com.mydeck.app.domain.model.Bookmark
+import com.mydeck.app.io.rest.isHttpBlockedByBuildPolicy
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import kotlinx.coroutines.CancellationException
@@ -76,7 +77,9 @@ class CreateBookmarkWorker @AssistedInject constructor(
             throw e
         } catch (e: Exception) {
             Timber.e(e, "CreateBookmarkWorker: Failed to create bookmark")
-            if (runAttemptCount < 3) {
+            if (e.isHttpBlockedByBuildPolicy()) {
+                Result.failure()
+            } else if (runAttemptCount < 3) {
                 Result.retry()
             } else {
                 Result.failure()

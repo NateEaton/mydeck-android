@@ -4,6 +4,7 @@ import android.content.Context
 import android.os.Build
 import com.mydeck.app.domain.model.OAuthDeviceAuthorizationState
 import com.mydeck.app.io.rest.ReadeckApi
+import com.mydeck.app.io.rest.isHttpBlockedByBuildPolicy
 import com.mydeck.app.io.rest.model.*
 import com.mydeck.app.util.AppVersion
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -35,6 +36,7 @@ class OAuthDeviceAuthorizationUseCase @Inject constructor(
 
     sealed class DeviceAuthResult {
         data class AuthorizationRequired(val state: OAuthDeviceAuthorizationState) : DeviceAuthResult()
+        data object HttpBlockedByBuildPolicy : DeviceAuthResult()
         data class Error(val message: String, val exception: Exception? = null) : DeviceAuthResult()
     }
 
@@ -45,6 +47,7 @@ class OAuthDeviceAuthorizationUseCase @Inject constructor(
         data class Expired(val message: String) : TokenPollResult()
         data class SlowDown(val newInterval: Int) : TokenPollResult()
         data class NetworkError(val message: String, val exception: Exception? = null) : TokenPollResult()
+        data object HttpBlockedByBuildPolicy : TokenPollResult()
         data class Error(val message: String, val exception: Exception? = null) : TokenPollResult()
     }
 
@@ -113,6 +116,10 @@ class OAuthDeviceAuthorizationUseCase @Inject constructor(
             return DeviceAuthResult.AuthorizationRequired(state)
 
         } catch (e: IOException) {
+            if (e.isHttpBlockedByBuildPolicy()) {
+                Timber.w(e, "HTTP blocked during device authorization")
+                return DeviceAuthResult.HttpBlockedByBuildPolicy
+            }
             Timber.e(e, "Network error during device authorization")
             return DeviceAuthResult.Error("Network error: ${e.message}", e)
         } catch (e: SerializationException) {
@@ -208,6 +215,10 @@ class OAuthDeviceAuthorizationUseCase @Inject constructor(
             }
 
         } catch (e: IOException) {
+            if (e.isHttpBlockedByBuildPolicy()) {
+                Timber.w(e, "HTTP blocked while polling for token")
+                return TokenPollResult.HttpBlockedByBuildPolicy
+            }
             Timber.w(e, "Network error while polling for token (retryable)")
             return TokenPollResult.NetworkError("Network error: ${e.message}", e)
         } catch (e: SerializationException) {

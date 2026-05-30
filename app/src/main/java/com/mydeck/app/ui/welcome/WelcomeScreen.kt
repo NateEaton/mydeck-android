@@ -21,6 +21,7 @@ import com.mydeck.app.ui.login.DeviceAuthorizationScreen
 import com.mydeck.app.ui.navigation.BookmarkListRoute
 import com.mydeck.app.ui.navigation.WelcomeRoute
 import com.mydeck.app.ui.settings.AccountSettingsViewModel
+import com.mydeck.app.ui.settings.HttpUrlWarningText
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -103,7 +104,7 @@ fun WelcomeScreen(
                             settingsUiState.urlError != null ->
                                 Text(text = stringResource(settingsUiState.urlError))
                             settingsUiState.urlWarning != null ->
-                                Text(text = stringResource(settingsUiState.urlWarning))
+                                HttpUrlWarningText()
                         }
                     }
                 )

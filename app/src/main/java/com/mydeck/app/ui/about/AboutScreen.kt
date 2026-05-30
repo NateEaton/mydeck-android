@@ -46,6 +46,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
+import com.mydeck.app.BuildConfig
 import com.mydeck.app.R
 import com.mydeck.app.util.AppVersion
 import com.mydeck.app.domain.model.CachedServerInfo
@@ -238,11 +239,23 @@ fun AboutScreenContent(
                 Build.MANUFACTURER,
                 Build.MODEL
             )
+            val serverUrlPolicy = if (BuildConfig.ALLOW_INSECURE_HTTP) {
+                stringResource(R.string.about_network_policy_server_urls_http_allowed)
+            } else {
+                stringResource(R.string.about_network_policy_server_urls_https_only)
+            }
+            val certificatePolicy = if (BuildConfig.ALLOW_USER_CA_CERTIFICATES) {
+                stringResource(R.string.about_network_policy_https_trust_system_user)
+            } else {
+                stringResource(R.string.about_network_policy_https_trust_system)
+            }
             val appDetailLines = listOf(
                 appInfoSummary,
                 stringResource(R.string.about_system_info_build_time, appBuildTime),
                 appAndroid,
-                appDevice
+                appDevice,
+                stringResource(R.string.about_network_policy_server_urls, serverUrlPolicy),
+                stringResource(R.string.about_network_policy_https_trust, certificatePolicy)
             )
 
             CollapsibleInfoCard(

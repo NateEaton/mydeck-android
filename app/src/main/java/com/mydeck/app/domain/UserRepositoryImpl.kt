@@ -4,8 +4,11 @@ import com.mydeck.app.domain.model.AuthenticationDetails
 import com.mydeck.app.domain.model.CachedServerInfo
 import com.mydeck.app.domain.model.User
 import com.mydeck.app.domain.usecase.OAuthDeviceAuthorizationUseCase
+import com.mydeck.app.BuildConfig
 import com.mydeck.app.io.prefs.SettingsDataStore
 import com.mydeck.app.io.rest.ReadeckApi
+import com.mydeck.app.io.rest.ReadeckNetworkPolicy
+import com.mydeck.app.io.rest.isHttpBlockedByBuildPolicy
 import com.mydeck.app.io.rest.model.OAuthRevokeRequestDto
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -86,6 +89,10 @@ class UserRepositoryImpl @Inject constructor(
                         Timber.d("Device authorization required")
                         UserRepository.LoginResult.DeviceAuthorizationRequired(result.state)
                     }
+                    is OAuthDeviceAuthorizationUseCase.DeviceAuthResult.HttpBlockedByBuildPolicy -> {
+                        settingsDataStore.clearCredentials()
+                        UserRepository.LoginResult.HttpBlockedByBuildPolicy
+                    }
                     is OAuthDeviceAuthorizationUseCase.DeviceAuthResult.Error -> {
                         Timber.e("Device authorization failed: ${result.message}")
                         settingsDataStore.clearCredentials()
@@ -94,7 +101,11 @@ class UserRepositoryImpl @Inject constructor(
                 }
             } catch (e: IOException) {
                 settingsDataStore.clearCredentials()
-                UserRepository.LoginResult.NetworkError("Network error: ${e.message}")
+                if (e.isHttpBlockedByBuildPolicy()) {
+                    UserRepository.LoginResult.HttpBlockedByBuildPolicy
+                } else {
+                    UserRepository.LoginResult.NetworkError("Network error: ${e.message}")
+                }
             } catch (e: Exception) {
                 settingsDataStore.clearCredentials()
                 UserRepository.LoginResult.Error(
@@ -143,10 +154,14 @@ class UserRepositoryImpl @Inject constructor(
             } catch (e: Exception) {
                 Timber.e(e, "Failed to complete login")
                 settingsDataStore.clearCredentials()
-                UserRepository.LoginResult.Error(
-                    "Failed to complete login: ${e.message}",
-                    ex = e
-                )
+                if (e.isHttpBlockedByBuildPolicy()) {
+                    UserRepository.LoginResult.HttpBlockedByBuildPolicy
+                } else {
+                    UserRepository.LoginResult.Error(
+                        "Failed to complete login: ${e.message}",
+                        ex = e
+                    )
+                }
             }
         }
     }
@@ -159,8 +174,9 @@ class UserRepositoryImpl @Inject constructor(
         return withContext(Dispatchers.IO) {
             try {
                 val token = settingsDataStore.tokenFlow.first()
+                val url = settingsDataStore.urlFlow.first()
 
-                if (token != null) {
+                if (token != null && !ReadeckNetworkPolicy.isSavedHttpUrlBlocked(url, BuildConfig.ALLOW_INSECURE_HTTP)) {
                     try {
                         val response = readeckApi.revokeToken(
                             OAuthRevokeRequestDto(token = token)
@@ -174,6 +190,8 @@ class UserRepositoryImpl @Inject constructor(
                         Timber.e(e, "Failed to revoke token")
                         // Continue with local logout (fail open)
                     }
+                } else if (token != null) {
+                    Timber.i("Skipping token revocation because HTTP is blocked in this build")
                 }
 
                 settingsDataStore.clearCredentials()

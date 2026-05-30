@@ -22,6 +22,7 @@ import com.mydeck.app.ui.navigation.BookmarkDetailRoute
 import com.mydeck.app.ui.shell.AppShell
 import com.mydeck.app.ui.theme.MyDeckTheme
 import com.mydeck.app.io.prefs.SettingsDataStore
+import com.mydeck.app.ui.migration.HttpUrlMigrationScreen
 import timber.log.Timber
 import javax.inject.Inject
 
@@ -45,6 +46,7 @@ class MainActivity : ComponentActivity() {
             val theme = viewModel.theme.collectAsState()
             val lightAppearance = viewModel.lightAppearance.collectAsState()
             val darkAppearance = viewModel.darkAppearance.collectAsState()
+            val httpUrlMigrationState = viewModel.httpUrlMigrationState.collectAsState()
             val navController = rememberNavController()
             intentState = remember { mutableStateOf(intent) }
 
@@ -76,7 +78,11 @@ class MainActivity : ComponentActivity() {
             )
 
             MyDeckTheme(appearance = effectiveAppearance) {
-                AppShell(navController, settingsDataStore)
+                if (httpUrlMigrationState.value is MainViewModel.HttpUrlMigrationState.Required) {
+                    HttpUrlMigrationScreen()
+                } else {
+                    AppShell(navController, settingsDataStore)
+                }
             }
         }
     }

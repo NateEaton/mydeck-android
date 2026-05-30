@@ -11,6 +11,11 @@ It began as a fork of [ReadeckApp](https://github.com/jensomato/ReadeckApp) and 
 
 ## Download
 
+### Which APK do I want?
+
+- **Standard APK** (`MyDeck-<version>.apk`) is recommended. It accepts HTTPS Readeck server URLs only and uses system-trusted certificate authorities.
+- **HTTP-enabled APK** (`MyDeck-<version>-http-enabled.apk`) is for trusted private-network setups that cannot use HTTPS. It installs as a separate app (`com.mydeck.app.permissive`), keeps separate app data, and requires OAuth authorization again.
+
 - **GitHub Releases:** [Latest release](https://github.com/NateEaton/mydeck-android/releases/latest)
 
 ## Key Features
@@ -41,9 +46,9 @@ cd mydeck-android
 ./gradlew assembleDebug
 ```
 
-The debug APK will be at `app/build/outputs/apk/githubSnapshot/debug/`. Release builds require signing configuration — refer to the GitHub Actions workflow in `.github/workflows/release.yml`.
+The debug APKs will be at `app/build/outputs/apk/githubSnapshot/debug/` and `app/build/outputs/apk/githubSnapshotHttp/debug/`. Release builds require signing configuration — refer to the GitHub Actions workflow in `.github/workflows/release.yml`.
 
-Standard release builds permit `http://` server URLs (with an in-app warning). If you need to prohibit HTTP entirely in a custom build — for example, to enforce HTTPS in an organisational deployment — set `allowInsecureHttpRelease=false` as a Gradle property or `ALLOW_INSECURE_HTTP_RELEASE=false` as an environment variable. To trust HTTPS servers signed by a private CA, use `ALLOW_USER_CA_RELEASE=true`.
+Standard release builds are HTTPS-only by default. The HTTP-enabled flavors (`githubReleaseHttp`, `githubSnapshotHttp`) use separate application IDs and enable both cleartext HTTP and user-installed certificate authorities for users who explicitly need that package.
 
 ## Contributing
 
