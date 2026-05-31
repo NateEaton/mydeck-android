@@ -5,6 +5,7 @@ import com.mydeck.app.io.prefs.SettingsDataStore
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.verify
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -24,6 +25,7 @@ class HttpUrlMigrationViewModelTest {
     private val testDispatcher = StandardTestDispatcher()
     private lateinit var settingsDataStore: SettingsDataStore
     private lateinit var userRepository: UserRepository
+    private lateinit var loginCoordinator: HttpUrlMigrationLoginCoordinator
     private lateinit var calls: MutableList<String>
 
     @Before
@@ -32,6 +34,7 @@ class HttpUrlMigrationViewModelTest {
         calls = mutableListOf()
         settingsDataStore = mockk()
         userRepository = mockk()
+        loginCoordinator = mockk(relaxed = true)
 
         every { settingsDataStore.urlFlow } returns MutableStateFlow("http://192.168.1.10/api")
         coEvery { userRepository.logout() } coAnswers {
@@ -52,7 +55,8 @@ class HttpUrlMigrationViewModelTest {
     fun `saveReplacementUrl logs out before saving HTTPS URL`() = runTest {
         val viewModel = HttpUrlMigrationViewModel(
             settingsDataStore = settingsDataStore,
-            userRepository = userRepository
+            userRepository = userRepository,
+            loginCoordinator = loginCoordinator
         )
 
         viewModel.updateReplacementUrl("https://readeck.example")
@@ -66,5 +70,6 @@ class HttpUrlMigrationViewModelTest {
             ),
             calls
         )
+        verify { loginCoordinator.requestLogin("https://readeck.example/api") }
     }
 }

@@ -18,6 +18,7 @@ import javax.inject.Inject
 class HttpUrlMigrationViewModel @Inject constructor(
     private val settingsDataStore: SettingsDataStore,
     private val userRepository: UserRepository,
+    private val loginCoordinator: HttpUrlMigrationLoginCoordinator,
 ) : ViewModel() {
     data class UiState(
         val savedUrl: String = "",
@@ -54,10 +55,12 @@ class HttpUrlMigrationViewModel @Inject constructor(
 
         viewModelScope.launch {
             _uiState.update { it.copy(isBusy = true, actionError = null) }
+            val normalizedUrl = normalizeApiUrl(value)
+            loginCoordinator.requestLogin(normalizedUrl)
             try {
-                val normalizedUrl = normalizeApiUrl(value)
                 val logoutResult = userRepository.logout()
                 if (logoutResult is UserRepository.LogoutResult.Error) {
+                    loginCoordinator.cancelLogin(normalizedUrl)
                     _uiState.update {
                         it.copy(
                             isBusy = false,
@@ -68,6 +71,7 @@ class HttpUrlMigrationViewModel @Inject constructor(
                 }
                 settingsDataStore.saveUrl(normalizedUrl)
             } catch (_: Exception) {
+                loginCoordinator.cancelLogin(normalizedUrl)
                 _uiState.update { it.copy(actionError = R.string.http_migration_save_error) }
             } finally {
                 _uiState.update { it.copy(isBusy = false) }

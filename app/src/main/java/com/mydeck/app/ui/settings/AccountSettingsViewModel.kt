@@ -10,6 +10,7 @@ import com.mydeck.app.domain.UserRepository
 import com.mydeck.app.domain.model.OAuthDeviceAuthorizationState
 import com.mydeck.app.domain.usecase.OAuthDeviceAuthorizationUseCase
 import com.mydeck.app.io.prefs.SettingsDataStore
+import com.mydeck.app.ui.migration.HttpUrlMigrationLoginCoordinator
 import com.mydeck.app.worker.LoadBookmarksWorker
 import com.mydeck.app.util.isValidUrl
 import com.mydeck.app.coroutine.ApplicationScope
@@ -45,7 +46,8 @@ class AccountSettingsViewModel @Inject constructor(
     private val oauthDeviceAuthUseCase: OAuthDeviceAuthorizationUseCase,
     private val workManager: WorkManager,
     @ApplicationContext private val context: Context,
-    @ApplicationScope private val applicationScope: CoroutineScope
+    @ApplicationScope private val applicationScope: CoroutineScope,
+    private val httpUrlMigrationLoginCoordinator: HttpUrlMigrationLoginCoordinator
 ) : ViewModel() {
 
     data class AccountSettingsUiState(
@@ -81,13 +83,17 @@ class AccountSettingsViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
+            val pendingMigrationLoginUrl = httpUrlMigrationLoginCoordinator.consumePendingLoginUrl()
             val token = settingsDataStore.tokenFlow.value
-            val url = settingsDataStore.urlFlow.value
+            val url = pendingMigrationLoginUrl ?: settingsDataStore.urlFlow.value
             _uiState.update {
                 it.copy(
                     isLoggedIn = !token.isNullOrBlank(),
                     url = toDisplayUrl(url)
                 )
+            }
+            if (pendingMigrationLoginUrl != null) {
+                startLogin(pendingMigrationLoginUrl)
             }
         }
     }
@@ -101,41 +107,45 @@ class AccountSettingsViewModel @Inject constructor(
         Timber.d("login() called with normalized URL: $url")
 
         viewModelScope.launch {
-            _uiState.update { it.copy(authStatus = AuthStatus.Loading) }
+            startLogin(url)
+        }
+    }
 
-            val result = userRepository.initiateLogin(url)
-            Timber.d("initiateLogin result: $result")
-            when (result) {
-                is UserRepository.LoginResult.DeviceAuthorizationRequired -> {
-                    val state = result.state
-                    _uiState.update {
-                        it.copy(
-                            authStatus = AuthStatus.WaitingForAuthorization,
-                            deviceAuthState = state
-                        )
-                    }
-                    startPolling(url, state)
-                }
+    private suspend fun startLogin(url: String) {
+        _uiState.update { it.copy(authStatus = AuthStatus.Loading) }
 
-                is UserRepository.LoginResult.Success -> {
-                    // Shouldn't happen from initiateLogin, but handle it
-                    onLoginSuccess()
+        val result = userRepository.initiateLogin(url)
+        Timber.d("initiateLogin result: $result")
+        when (result) {
+            is UserRepository.LoginResult.DeviceAuthorizationRequired -> {
+                val state = result.state
+                _uiState.update {
+                    it.copy(
+                        authStatus = AuthStatus.WaitingForAuthorization,
+                        deviceAuthState = state
+                    )
                 }
+                startPolling(url, state)
+            }
 
-                is UserRepository.LoginResult.Error -> {
-                    Timber.e("Login error (code=${result.code}): ${result.errorMessage}")
-                    _uiState.update { it.copy(authStatus = AuthStatus.Error(result.errorMessage)) }
-                }
+            is UserRepository.LoginResult.Success -> {
+                // Shouldn't happen from initiateLogin, but handle it
+                onLoginSuccess()
+            }
 
-                is UserRepository.LoginResult.NetworkError -> {
-                    Timber.e("Login network error: ${result.errorMessage}")
-                    _uiState.update { it.copy(authStatus = AuthStatus.Error(result.errorMessage)) }
-                }
+            is UserRepository.LoginResult.Error -> {
+                Timber.e("Login error (code=${result.code}): ${result.errorMessage}")
+                _uiState.update { it.copy(authStatus = AuthStatus.Error(result.errorMessage)) }
+            }
 
-                UserRepository.LoginResult.HttpBlockedByBuildPolicy -> {
-                    Timber.w("Login blocked because HTTP is disabled in this build")
-                    _uiState.update { it.copy(authStatus = AuthStatus.Error(context.getString(R.string.account_settings_http_blocked_error))) }
-                }
+            is UserRepository.LoginResult.NetworkError -> {
+                Timber.e("Login network error: ${result.errorMessage}")
+                _uiState.update { it.copy(authStatus = AuthStatus.Error(result.errorMessage)) }
+            }
+
+            UserRepository.LoginResult.HttpBlockedByBuildPolicy -> {
+                Timber.w("Login blocked because HTTP is disabled in this build")
+                _uiState.update { it.copy(authStatus = AuthStatus.Error(context.getString(R.string.account_settings_http_blocked_error))) }
             }
         }
     }
