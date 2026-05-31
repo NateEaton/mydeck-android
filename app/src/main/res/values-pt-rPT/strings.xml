@@ -211,6 +211,17 @@
     <string name="welcome_title">Welcome to MyDeck</string>
     <string name="welcome_message">MyDeck is a read-later app for Readeck. Enter your Readeck server address below to get started. You\'ll be guided through a quick authorization process to connect your account.</string>
     <string name="welcome_connect_button">Connect</string>
+    <string name="http_migration_title">HTTP server URL blocked</string>
+    <string name="http_migration_body">This MyDeck build now allows HTTPS Readeck server URLs only. Your saved server URL is %1$s, so MyDeck has stopped before syncing.</string>
+    <string name="http_migration_https_title">Switch to HTTPS</string>
+    <string name="http_migration_https_body">Enter the HTTPS URL you want to use. MyDeck will clear the old credentials first, then ask you to sign in again.</string>
+    <string name="http_migration_https_action">Use HTTPS and sign in again</string>
+    <string name="http_migration_tailscale_link">Tailscale Serve HTTPS docs</string>
+    <string name="http_migration_readeck_proxy_link">Readeck proxy configuration docs</string>
+    <string name="http_migration_http_apk_title">Install the HTTP-enabled APK</string>
+    <string name="http_migration_http_apk_body">Use this separate package only for trusted private-network setups that cannot use HTTPS. It installs beside this app and requires OAuth authorization again.</string>
+    <string name="http_migration_http_apk_action">Open latest release</string>
+    <string name="http_migration_save_error">Could not switch to the HTTPS URL. Please try again.</string>
 
     <!-- Share Intent / Quick Save -->
     <string name="save_to_mydeck">Guardar no MyDeck</string>
@@ -422,6 +433,12 @@
     <string name="about_system_info_server_loading">Loading…</string>
     <string name="about_system_info_server_error">Could not load server information</string>
     <string name="about_system_info_server_unavailable">No server information available</string>
+    <string name="about_network_policy_server_urls">Server URLs: %s</string>
+    <string name="about_network_policy_server_urls_https_only">HTTPS only</string>
+    <string name="about_network_policy_server_urls_http_allowed">HTTP allowed</string>
+    <string name="about_network_policy_https_trust">HTTPS trust: %s</string>
+    <string name="about_network_policy_https_trust_system">system certificate authorities</string>
+    <string name="about_network_policy_https_trust_system_user">system + user certificate authorities</string>
     <string name="auto_sync_timeframe_15_minutes">Every 15 minutes</string>
     <string name="highlight_offline_unavailable">Highlights can\'t be changed while offline</string>
     <string name="video_highlight_edit_not_supported">Editing video highlights isn\'t supported yet</string>
@@ -470,7 +487,8 @@
     <string name="sync_status_last_content_sync_label">Last content sync</string>
     <string name="sync_status_next_sync">Next sync: %1$s</string>
     <string name="sync_status_favorites_label">Favorites</string>
-    <string name="account_settings_url_http_warning">Insecure connection — only use on a trusted private network (e.g. Tailscale)</string>
+    <string name="account_settings_url_http_warning">This HTTP URL sends OAuth tokens without TLS. You are using the HTTP-enabled MyDeck build; prefer a Tailscale Serve HTTPS URL or a reverse proxy with HTTPS when possible.</string>
+    <string name="account_settings_http_blocked_error">HTTP Readeck server URLs are not allowed in this MyDeck build.</string>
 
     <string name="app_name">MyDeck</string>
     <string name="back">Back</string>

@@ -24,6 +24,7 @@ import retrofit2.converter.scalars.ScalarsConverterFactory
 import retrofit2.create
 import timber.log.Timber
 import java.io.File
+import javax.inject.Named
 import javax.inject.Singleton
 
 @Module
@@ -32,7 +33,8 @@ object NetworkModule {
 
     @Provides
     @Singleton
-    fun provideOkHttpClient(
+    @Named("readeckApi")
+    fun provideReadeckOkHttpClient(
         authInterceptor: AuthInterceptor,
         baseUrlInterceptor: UrlInterceptor
     ): OkHttpClient {
@@ -40,6 +42,7 @@ object NetworkModule {
             .connectTimeout(3, java.util.concurrent.TimeUnit.SECONDS)
             .addInterceptor(authInterceptor)
             .addInterceptor(baseUrlInterceptor)
+            .addInterceptor(ReadeckHttpPolicyInterceptor(BuildConfig.ALLOW_INSECURE_HTTP))
 
         if (BuildConfig.DEBUG) {
             // Route OkHttp wire logs through Timber so they land in the on-device
@@ -65,6 +68,7 @@ object NetworkModule {
     @Provides
     @Singleton
     fun provideRetrofit(
+        @Named("readeckApi")
         okHttpClient: OkHttpClient,
         json: Json
     ): Retrofit {

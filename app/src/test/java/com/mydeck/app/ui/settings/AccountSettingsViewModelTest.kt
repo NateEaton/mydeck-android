@@ -1,11 +1,13 @@
 package com.mydeck.app.ui.settings
 
 import com.mydeck.app.R
+import com.mydeck.app.BuildConfig
 import com.mydeck.app.domain.BookmarkRepository
 import com.mydeck.app.domain.UserRepository
 import com.mydeck.app.domain.model.OAuthDeviceAuthorizationState
 import com.mydeck.app.domain.usecase.OAuthDeviceAuthorizationUseCase
 import com.mydeck.app.io.prefs.SettingsDataStore
+import com.mydeck.app.ui.migration.HttpUrlMigrationLoginCoordinator
 import com.mydeck.app.worker.LoadBookmarksWorker
 import android.content.Context
 import androidx.work.WorkInfo
@@ -53,6 +55,7 @@ class AccountSettingsViewModelTest {
     private lateinit var workManager: WorkManager
     private lateinit var context: Context
     private lateinit var applicationScope: CoroutineScope
+    private lateinit var httpUrlMigrationLoginCoordinator: HttpUrlMigrationLoginCoordinator
     private lateinit var viewModel: AccountSettingsViewModel
 
     @Before
@@ -66,6 +69,7 @@ class AccountSettingsViewModelTest {
         workManager = mockk()
         context = mockk()
         applicationScope = TestScope(testDispatcher)
+        httpUrlMigrationLoginCoordinator = HttpUrlMigrationLoginCoordinator()
         mockkObject(LoadBookmarksWorker.Companion)
         
         every { settingsDataStore.urlFlow } returns MutableStateFlow("")
@@ -87,7 +91,8 @@ class AccountSettingsViewModelTest {
             oauthDeviceAuthUseCase = oauthDeviceAuthUseCase,
             workManager = workManager,
             context = context,
-            applicationScope = applicationScope
+            applicationScope = applicationScope,
+            httpUrlMigrationLoginCoordinator = httpUrlMigrationLoginCoordinator
         )
     }
 
@@ -108,7 +113,8 @@ class AccountSettingsViewModelTest {
             oauthDeviceAuthUseCase = oauthDeviceAuthUseCase,
             workManager = workManager,
             context = context,
-            applicationScope = applicationScope
+            applicationScope = applicationScope,
+            httpUrlMigrationLoginCoordinator = httpUrlMigrationLoginCoordinator
         )
         
         advanceUntilIdle() // Wait for init block to complete
@@ -131,12 +137,59 @@ class AccountSettingsViewModelTest {
             oauthDeviceAuthUseCase = oauthDeviceAuthUseCase,
             workManager = workManager,
             context = context,
-            applicationScope = applicationScope
+            applicationScope = applicationScope,
+            httpUrlMigrationLoginCoordinator = httpUrlMigrationLoginCoordinator
         )
 
         advanceUntilIdle()
 
         assertEquals("https://example.com", viewModel.uiState.value.url)
+    }
+
+    @Test
+    fun `pending HTTP migration login prepopulates URL and starts OAuth`() = runTest {
+        httpUrlMigrationLoginCoordinator.requestLogin("https://example.com/api")
+        coEvery { userRepository.initiateLogin("https://example.com/api") } returns
+            UserRepository.LoginResult.DeviceAuthorizationRequired(
+                OAuthDeviceAuthorizationState(
+                    clientId = "test-client",
+                    deviceCode = "TEST-CODE",
+                    userCode = "TEST-USER-CODE",
+                    verificationUri = "https://example.com/auth",
+                    verificationUriComplete = "https://example.com/auth?code=TEST-USER-CODE",
+                    expiresAt = System.currentTimeMillis() + 1800_000,
+                    pollingInterval = 5
+                )
+            )
+        coEvery {
+            oauthDeviceAuthUseCase.pollForToken(
+                clientId = any(),
+                deviceCode = any(),
+                currentInterval = any()
+            )
+        } returns OAuthDeviceAuthorizationUseCase.TokenPollResult.StillPending
+
+        viewModel = AccountSettingsViewModel(
+            settingsDataStore = settingsDataStore,
+            bookmarkRepository = bookmarkRepository,
+            userRepository = userRepository,
+            oauthDeviceAuthUseCase = oauthDeviceAuthUseCase,
+            workManager = workManager,
+            context = context,
+            applicationScope = applicationScope,
+            httpUrlMigrationLoginCoordinator = httpUrlMigrationLoginCoordinator
+        )
+
+        runCurrent()
+
+        val uiState = viewModel.uiState.value
+        assertEquals("https://example.com", uiState.url)
+        assertEquals(AccountSettingsViewModel.AuthStatus.WaitingForAuthorization, uiState.authStatus)
+        assertNotNull(uiState.deviceAuthState)
+        coVerify { userRepository.initiateLogin("https://example.com/api") }
+
+        viewModel.cancelAuthorization()
+        runCurrent()
     }
 
     private fun assertInitialUiState(settingsUiState: AccountSettingsViewModel.AccountSettingsUiState) {
@@ -374,17 +427,21 @@ class AccountSettingsViewModelTest {
     }
 
     @Test
-    fun `updateUrl with http URL should not set urlError`() = runTest {
+    fun `updateUrl with http URL should follow build policy`() = runTest {
         viewModel.updateUrl("http://validurl.com")
         advanceUntilIdle()
         val uiState = viewModel.uiState.first()
-        assertNull(uiState.urlError)
+        if (BuildConfig.ALLOW_INSECURE_HTTP) {
+            assertNull(uiState.urlError)
+        } else {
+            assertEquals(R.string.account_settings_url_error, uiState.urlError)
+        }
     }
 
     @Test
-    fun `loginEnabled should be true when url is http`() = runTest {
+    fun `loginEnabled should follow build policy when url is http`() = runTest {
         viewModel.updateUrl("http://validurl.com")
         advanceUntilIdle()
-        assertTrue(viewModel.uiState.first().loginEnabled)
+        assertEquals(BuildConfig.ALLOW_INSECURE_HTTP, viewModel.uiState.first().loginEnabled)
     }
 }

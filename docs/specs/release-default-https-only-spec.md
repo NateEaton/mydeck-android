@@ -2,7 +2,41 @@
 
 ## Status
 
-Proposal — not yet scheduled for implementation.
+Implemented in v0.14 (branch `feat/https-only-release-default`). The default flip,
+dual-package build/workflow split, network-boundary enforcement, migration screen,
+and About-screen policy display all shipped. Two designs diverged from this spec
+during implementation — see **Implementation notes** below. Archive to
+`docs/archive/` at v0.14 release time.
+
+## Implementation notes
+
+Two designs diverged from the description below during implementation. They are the
+authoritative record of what shipped:
+
+1. **Central network-boundary interceptor, not a per-call-site guard.** The
+   §Migration and §Code touch points sections describe a guard "shared by foreground
+   API calls and background workers," implying an enumerated list of call sites that
+   each short-circuit before OkHttp. That named list proved incomplete (it missed the
+   annotation flows, `HighlightsViewModel`/repository, `AboutViewModel`, the logout
+   token revoke, and `getBookmarkLog(@Url)`). Instead a single
+   `ReadeckHttpPolicyInterceptor` sits on the ReadeckApi OkHttp client and keys on the
+   actual outbound request scheme — which also resolves the Retrofit `@Url`
+   relative/absolute ambiguity and the login request that has no saved URL yet. The
+   interceptor is scoped to the ReadeckApi client only, deliberately not installed
+   globally, so it never blocks Coil image traffic. It returns a typed result that the
+   UI can distinguish from a generic network failure. Local logout always succeeds; the
+   remote token revoke is best-effort and skipped when HTTP-blocked.
+
+2. **Migration UX collapsed three options to two.** §Migration lists three paths:
+   change the URL to HTTPS, install the HTTP-enabled APK, and log out. Options 1 and 3
+   functionally converged — the app cannot verify that a new HTTPS URL points at the
+   same Readeck instance, and a base-URL change cannot preserve the existing session —
+   so both end in "clear credentials and re-authenticate." They were merged into a
+   single **"Use HTTPS and sign in again"** action: best-effort token revoke → clear
+   credentials → save the normalized HTTPS URL → return to the account/login screen with
+   the HTTPS URL prefilled and OAuth device authorization started automatically. The
+   standalone "Sign out" section (and its `http_migration_logout_*` strings across all
+   locales) was removed. "Install the HTTP-enabled APK" remains as the second path.
 
 ## Context
 

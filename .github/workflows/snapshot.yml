@@ -63,11 +63,13 @@ jobs:
             BUILD_TYPE="${{ github.event.inputs.build_type || 'release' }}"
           fi
           if [ "$BUILD_TYPE" = "debug" ]; then
-            echo "GRADLE_TASK=assembleGithubSnapshotDebug" >> "$GITHUB_OUTPUT"
+            echo "STANDARD_GRADLE_TASK=assembleGithubSnapshotDebug" >> "$GITHUB_OUTPUT"
+            echo "HTTP_GRADLE_TASK=assembleGithubSnapshotHttpDebug" >> "$GITHUB_OUTPUT"
             echo "APK_DIR=debug" >> "$GITHUB_OUTPUT"
             echo "VERSION_SUFFIX=-debug" >> "$GITHUB_OUTPUT"
           else
-            echo "GRADLE_TASK=assembleGithubSnapshotRelease" >> "$GITHUB_OUTPUT"
+            echo "STANDARD_GRADLE_TASK=assembleGithubSnapshotRelease" >> "$GITHUB_OUTPUT"
+            echo "HTTP_GRADLE_TASK=assembleGithubSnapshotHttpRelease" >> "$GITHUB_OUTPUT"
             echo "APK_DIR=release" >> "$GITHUB_OUTPUT"
             echo "VERSION_SUFFIX=" >> "$GITHUB_OUTPUT"
           fi
@@ -83,17 +85,33 @@ jobs:
           echo "TIMESTAMP=$(date +%Y%m%dT%H%M%S)" >> "$GITHUB_OUTPUT"
           echo "COMMIT_SHA=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
 
-      - name: Build Snapshot APK (debug, no signing env)
+      - name: Build Standard Snapshot APK (debug, no signing env)
         if: github.event_name == 'pull_request' || steps.build_vars.outputs.APK_DIR == 'debug'
-        run: ./gradlew assembleGithubSnapshotDebug
+        run: ./gradlew ${{ steps.build_vars.outputs.STANDARD_GRADLE_TASK }}
         env:
-          SNAPSHOT_VERSION_NAME: ${{ steps.set_env.outputs.TIMESTAMP }}-${{ steps.set_env.outputs.COMMIT_SHA }}-debug
+          SNAPSHOT_VERSION_NAME: ${{ steps.set_env.outputs.TIMESTAMP }}-${{ steps.set_env.outputs.COMMIT_SHA }}-snapshot-debug
 
-      - name: Build Snapshot APK (signed release)
-        if: github.event_name != 'pull_request' && steps.build_vars.outputs.APK_DIR == 'release'
-        run: ./gradlew assembleGithubSnapshotRelease
+      - name: Build HTTP-enabled Snapshot APK (debug, no signing env)
+        if: github.event_name == 'pull_request' || steps.build_vars.outputs.APK_DIR == 'debug'
+        run: ./gradlew ${{ steps.build_vars.outputs.HTTP_GRADLE_TASK }}
         env:
-          SNAPSHOT_VERSION_NAME: ${{ steps.set_env.outputs.TIMESTAMP }}-${{ steps.set_env.outputs.COMMIT_SHA }}
+          SNAPSHOT_VERSION_NAME: ${{ steps.set_env.outputs.TIMESTAMP }}-${{ steps.set_env.outputs.COMMIT_SHA }}-snapshot-debug
+
+      - name: Build Standard Snapshot APK (signed release)
+        if: github.event_name != 'pull_request' && steps.build_vars.outputs.APK_DIR == 'release'
+        run: ./gradlew ${{ steps.build_vars.outputs.STANDARD_GRADLE_TASK }}
+        env:
+          SNAPSHOT_VERSION_NAME: ${{ steps.set_env.outputs.TIMESTAMP }}-${{ steps.set_env.outputs.COMMIT_SHA }}-snapshot
+          KEY_ALIAS: ${{ secrets.ALIAS }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEY_STORE_PASSWORD }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          KEYSTORE: ${{ github.workspace }}/keystore.jks
+
+      - name: Build HTTP-enabled Snapshot APK (signed release)
+        if: github.event_name != 'pull_request' && steps.build_vars.outputs.APK_DIR == 'release'
+        run: ./gradlew ${{ steps.build_vars.outputs.HTTP_GRADLE_TASK }}
+        env:
+          SNAPSHOT_VERSION_NAME: ${{ steps.set_env.outputs.TIMESTAMP }}-${{ steps.set_env.outputs.COMMIT_SHA }}-snapshot
           KEY_ALIAS: ${{ secrets.ALIAS }}
           KEYSTORE_PASSWORD: ${{ secrets.KEY_STORE_PASSWORD }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
@@ -103,34 +121,61 @@ jobs:
         if: always() && github.event_name != 'pull_request' && steps.build_vars.outputs.APK_DIR == 'release'
         run: rm -f "${{ github.workspace }}/keystore.jks"
 
-      - name: Create Checksum
-        id: create_checksum
+      - name: Create Standard Checksum
+        id: standard_checksum
         run: |
           FILENAME=$(echo app/build/outputs/apk/githubSnapshot/${{ steps.build_vars.outputs.APK_DIR }}/*.apk)
-          sha256sum $FILENAME > checksums.txt
+          sha256sum "$FILENAME" > checksums-standard.txt
+          echo "ARTIFACT_FILENAME=$FILENAME" >> "$GITHUB_OUTPUT"
+
+      - name: Create HTTP-enabled Checksum
+        id: http_checksum
+        run: |
+          FILENAME=$(echo app/build/outputs/apk/githubSnapshotHttp/${{ steps.build_vars.outputs.APK_DIR }}/*.apk)
+          sha256sum "$FILENAME" > checksums-http-enabled.txt
           echo "ARTIFACT_FILENAME=$FILENAME" >> "$GITHUB_OUTPUT"
 
       # Every run produces a tester-downloadable snapshot artifact.
       # PR runs use 30-day retention so reviewers have time to install and test;
       # main / schedule / dispatch use 7-day retention.
-      - name: Upload PR Debug APK Artifact
+      - name: Upload PR Standard Debug APK Artifact
         if: github.event_name == 'pull_request'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
         with:
-          name: tester-snapshot-${{ steps.build_vars.outputs.APK_DIR }}
+          name: tester-snapshot-standard-${{ steps.build_vars.outputs.APK_DIR }}
           path: |
-            ${{ steps.create_checksum.outputs.ARTIFACT_FILENAME }}
-            checksums.txt
+            ${{ steps.standard_checksum.outputs.ARTIFACT_FILENAME }}
+            checksums-standard.txt
           retention-days: 30
 
-      - name: Upload Snapshot Artifact
+      - name: Upload PR HTTP-enabled Debug APK Artifact
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        with:
+          name: tester-snapshot-http-enabled-${{ steps.build_vars.outputs.APK_DIR }}
+          path: |
+            ${{ steps.http_checksum.outputs.ARTIFACT_FILENAME }}
+            checksums-http-enabled.txt
+          retention-days: 30
+
+      - name: Upload Standard Snapshot Artifact
         if: github.event_name != 'pull_request'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
         with:
-          name: tester-snapshot-${{ steps.build_vars.outputs.APK_DIR }}
+          name: tester-snapshot-standard-${{ steps.build_vars.outputs.APK_DIR }}
           path: |
-            ${{ steps.create_checksum.outputs.ARTIFACT_FILENAME }}
-            checksums.txt
+            ${{ steps.standard_checksum.outputs.ARTIFACT_FILENAME }}
+            checksums-standard.txt
+          retention-days: 7
+
+      - name: Upload HTTP-enabled Snapshot Artifact
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        with:
+          name: tester-snapshot-http-enabled-${{ steps.build_vars.outputs.APK_DIR }}
+          path: |
+            ${{ steps.http_checksum.outputs.ARTIFACT_FILENAME }}
+            checksums-http-enabled.txt
           retention-days: 7
 
   publish-latest-snapshot:
@@ -141,11 +186,17 @@ jobs:
     permissions:
       contents: write
     steps:
-      - name: Download Snapshot Artifact
+      - name: Download Standard Snapshot Artifact
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4.3.0
         with:
-          name: tester-snapshot-release
-          path: ./artifacts
+          name: tester-snapshot-standard-release
+          path: ./artifacts/standard
+
+      - name: Download HTTP-enabled Snapshot Artifact
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4.3.0
+        with:
+          name: tester-snapshot-http-enabled-release
+          path: ./artifacts/http-enabled
 
       - name: Compute Source Line
         id: source
@@ -200,9 +251,17 @@ jobs:
             This is an automated snapshot build. It is a **Release-optimized** build but uses a separate package ID so it can be installed alongside your production version.
 
             ${{ steps.source.outputs.SOURCE_LINE }}
+
+            ## Recommended download
+
+            Download the standard snapshot APK for HTTPS-only Readeck server URLs.
+
+            ## Advanced: HTTP-enabled APK
+
+            Download the HTTP-enabled snapshot APK only for trusted private-network setups that cannot use HTTPS. It uses a separate package ID and separate app data.
           commit: ${{ github.sha }}
           tag: latest-snapshot
           removeArtifacts: true
           omitDraftDuringUpdate: true
-          artifacts: "./artifacts/**/*.apk,./artifacts/checksums.txt"
+          artifacts: "./artifacts/**/*.apk,./artifacts/**/*.txt"
           token: ${{ secrets.GITHUB_TOKEN }}

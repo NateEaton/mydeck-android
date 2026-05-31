@@ -35,33 +35,20 @@ jobs:
         run: |
           echo "${{ secrets.SIGNING_KEY }}" | base64 --decode > ${{ github.workspace }}/keystore.jks
 
-      # Release APKs are intentionally secure by default:
-      # - HTTPS only
-      # - system CA trust only
-      #
-      # Self-hosters who need a custom less-secure release can opt in at build time
-      # by setting one or both environment variables below on the Gradle step.
-      #
-      # When you might need this:
-      # - ALLOW_INSECURE_HTTP_RELEASE=true
-      #   Example: your Readeck server is only reachable on a trusted local network
-      #   over plain HTTP, such as http://192.168.1.50:8000, and you do not have TLS
-      #   configured for that host.
-      #
-      # - ALLOW_USER_CA_RELEASE=true
-      #   Example: your Readeck server uses HTTPS, but its certificate chains to a
-      #   private or user-installed CA rather than a public system-trusted CA.
-      #
-      # To build such a custom release in GitHub Actions, add one or both of these
-      # env vars under the Gradle step:
-      #
-      #   ALLOW_INSECURE_HTTP_RELEASE: 'true'
-      #   ALLOW_USER_CA_RELEASE: 'true'
-      #
-      # Do not enable these for official/public releases unless you explicitly want
-      # the APK to trust weaker transport settings.
-      - name: Build and Sign Release APK
+      # Official release packaging produces two separately installable APKs:
+      # - Standard: HTTPS-only server URLs; system CA trust only.
+      # - HTTP-enabled: opt-in package for trusted private-network HTTP setups;
+      #   separate application ID and system + user CA trust.
+      - name: Build and Sign Standard Release APK
         run: ./gradlew assembleGithubReleaseRelease
+        env:
+          KEY_ALIAS: ${{ secrets.ALIAS }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEY_STORE_PASSWORD }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          KEYSTORE: ${{ github.workspace }}/keystore.jks
+
+      - name: Build and Sign HTTP-enabled Release APK
+        run: ./gradlew assembleGithubReleaseHttpRelease
         env:
           KEY_ALIAS: ${{ secrets.ALIAS }}
           KEYSTORE_PASSWORD: ${{ secrets.KEY_STORE_PASSWORD }}
@@ -76,20 +63,35 @@ jobs:
         id: get_version
         run: echo "version=${GITHUB_REF/refs\/tags\/v/}" >> $GITHUB_OUTPUT
 
-      - name: Create Checksum
-        id: create_checksum
+      - name: Create Standard Checksum
+        id: standard_checksum
         run: |
           FILENAME=$(echo app/build/outputs/apk/githubRelease/release/*.apk)
-          sha256sum "$FILENAME" > checksums.txt
+          sha256sum "$FILENAME" > checksums-standard.txt
           echo "ARTIFACT_FILENAME=$FILENAME" >> "$GITHUB_OUTPUT"
 
-      - name: Upload APK to GitHub Release Artifacts
+      - name: Create HTTP-enabled Checksum
+        id: http_checksum
+        run: |
+          FILENAME=$(echo app/build/outputs/apk/githubReleaseHttp/release/*.apk)
+          sha256sum "$FILENAME" > checksums-http-enabled.txt
+          echo "ARTIFACT_FILENAME=$FILENAME" >> "$GITHUB_OUTPUT"
+
+      - name: Upload Standard APK to GitHub Release Artifacts
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
         with:
-          name: app-release-${{ steps.get_version.outputs.version }}
+          name: app-release-standard-${{ steps.get_version.outputs.version }}
           path: |
-            ${{ steps.create_checksum.outputs.ARTIFACT_FILENAME }}
-            checksums.txt
+            ${{ steps.standard_checksum.outputs.ARTIFACT_FILENAME }}
+            checksums-standard.txt
+
+      - name: Upload HTTP-enabled APK to GitHub Release Artifacts
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        with:
+          name: app-release-http-enabled-${{ steps.get_version.outputs.version }}
+          path: |
+            ${{ steps.http_checksum.outputs.ARTIFACT_FILENAME }}
+            checksums-http-enabled.txt
 
   create-release:
     needs: build-and-sign
@@ -115,11 +117,17 @@ jobs:
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "is_prerelease=$IS_PRERELEASE" >> "$GITHUB_OUTPUT"
 
-      - name: Download Release Artifact
+      - name: Download Standard Release Artifact
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4.3.0
         with:
-          name: app-release-${{ steps.get_version.outputs.version }}
-          path: ./artifacts
+          name: app-release-standard-${{ steps.get_version.outputs.version }}
+          path: ./artifacts/standard
+
+      - name: Download HTTP-enabled Release Artifact
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4.3.0
+        with:
+          name: app-release-http-enabled-${{ steps.get_version.outputs.version }}
+          path: ./artifacts/http-enabled
 
       - name: Create Release
         id: create_release
@@ -130,5 +138,13 @@ jobs:
           draft: true
           name: MyDeck Release v${{ steps.get_version.outputs.version }}
           tag: ${{ github.ref_name }}
-          artifacts: "./artifacts/**/*.apk,./artifacts/checksums.txt"
+          body: |
+            ## Recommended download
+
+            Download `MyDeck-${{ steps.get_version.outputs.version }}.apk` for the standard HTTPS-only MyDeck app.
+
+            ## Advanced: HTTP-enabled APK
+
+            Download `MyDeck-${{ steps.get_version.outputs.version }}-http-enabled.apk` only for trusted private-network setups that cannot use HTTPS. This is a separate package (`com.mydeck.app.permissive`) that can be installed beside the standard app and uses separate app data.
+          artifacts: "./artifacts/**/*.apk,./artifacts/**/*.txt"
           token: ${{ secrets.GITHUB_TOKEN }}

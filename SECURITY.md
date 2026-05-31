@@ -14,33 +14,35 @@ MyDeck authenticates with the Readeck server using the **OAuth 2.0 Device Author
 
 ### Default configuration
 
-Release builds permit both `https://` and `http://` server URLs:
+The standard release APK accepts HTTPS Readeck server URLs only:
 
 - `https://` connections use system-trusted certificate authorities only
-- `http://` connections are permitted but trigger an in-app warning at the URL entry screen
-- OAuth operates over whatever scheme the user configures; no HTTPS is enforced at the protocol level
+- `http://` Readeck API requests are blocked before network I/O
+- OAuth bearer tokens are not sent over cleartext HTTP in the standard APK
 
-The inline warning is the primary user-facing safeguard for HTTP connections. It is displayed as soon as an `http://` URL is entered and remains visible until the URL is changed to `https://`.
+The HTTP-enabled APK is a separate opt-in package (`com.mydeck.app.permissive`). It can be installed beside the standard app, keeps separate encrypted credentials and local data, and is intended only for trusted private-network deployments that cannot use HTTPS.
 
-### Two-layer HTTP policy
+### HTTP policy
 
-HTTP support uses two independent controls with different audiences:
+HTTP support uses two separate distribution paths:
 
-- **Build gate** (`ALLOW_INSECURE_HTTP_RELEASE` / `allowInsecureHttpRelease`): a distribution-policy control. Defaults to `true` in standard release builds. Set to `false` to produce a binary that rejects `http://` URLs entirely — suitable for organisational deployments that mandate HTTPS. When set to `false`, no inline warning is shown because HTTP cannot be entered.
-- **Inline warning**: user-awareness in the distributed APK. Shown whenever a valid `http://` URL is entered; does not block login.
+- **Standard APK**: HTTPS-only server URLs; system CA trust only.
+- **HTTP-enabled APK**: HTTP allowed; system + user CA trust. The URL-entry warning explains the cleartext-token risk and points users toward HTTPS alternatives such as Tailscale Serve or a reverse proxy.
+
+If a user installs the new standard APK over an older standard build that was already signed in to an `http://` server URL, MyDeck stops at startup on a migration screen. The screen offers switching to an HTTPS URL and signing in again, or installing the separate HTTP-enabled APK.
 
 ### Self-hosted HTTP use case
 
-The primary supported scenario for HTTP is a self-hosted Readeck instance accessed over [Tailscale](https://tailscale.com/), which provides WireGuard-based network-layer encryption. Traffic over Tailscale is encrypted in transit even without TLS, making the confidentiality risk comparable to HTTPS on a private network.
+The primary remaining scenario for HTTP is a self-hosted Readeck instance accessed on a trusted private network that cannot expose HTTPS. Tailscale users should prefer [Tailscale Serve](https://tailscale.com/docs/features/tailscale-serve), which can present a private tailnet HTTPS URL while proxying to a local HTTP service.
 
-### Build flags
+### Build variants
 
-Two build flags control network policy in custom builds. Both are set via Gradle property or matching environment variable:
+Network policy is selected by build variant:
 
-- `ALLOW_INSECURE_HTTP_RELEASE` / `allowInsecureHttpRelease` — controls whether `http://` URLs are accepted (default: `true`)
-- `ALLOW_USER_CA_RELEASE` / `allowUserCaRelease` — trusts user-installed certificate authorities for HTTPS servers signed by a private CA (default: `false`)
+- Standard variants (`githubRelease`, `githubSnapshot`) are HTTPS-only and trust system certificate authorities.
+- HTTP-enabled variants (`githubReleaseHttp`, `githubSnapshotHttp`) allow `http://` server URLs and trust system + user certificate authorities.
 
-These flags are documented in `.github/workflows/release.yml`.
+Official release workflows publish the standard HTTPS-only APK and a separately labeled HTTP-enabled APK instead of changing the standard artifact policy.
 
 ## Credential Storage
 

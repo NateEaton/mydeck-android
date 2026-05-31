@@ -8,6 +8,7 @@ import com.mydeck.app.domain.sync.OfflinePolicyEvaluator
 import com.mydeck.app.domain.usecase.LoadContentPackageUseCase
 import com.mydeck.app.io.db.dao.BookmarkDao
 import com.mydeck.app.io.prefs.SettingsDataStore
+import com.mydeck.app.io.rest.isHttpBlockedByBuildPolicy
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import kotlinx.datetime.Clock
@@ -59,6 +60,10 @@ class DateRangeContentSyncWorker @AssistedInject constructor(
                     }
                 }
             } catch (e: Exception) {
+                if (e.isHttpBlockedByBuildPolicy()) {
+                    Timber.w(e, "Date range content sync blocked by HTTP policy")
+                    return Result.failure()
+                }
                 Timber.w(e, "Batch failed in date range sync; continuing with next batch")
             }
         }

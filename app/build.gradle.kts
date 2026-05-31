@@ -9,30 +9,12 @@ plugins {
     alias(libs.plugins.aboutLibraries)
 }
 
-fun booleanBuildFlag(propertyName: String, envName: String, default: Boolean = false): Boolean {
-    val configuredValue = providers.gradleProperty(propertyName).orNull ?: System.getenv(envName)
-    return if (configuredValue == null) default
-    else configuredValue.equals("true", ignoreCase = true)
-}
-
 fun networkSecurityConfigRef(allowHttp: Boolean, allowUserCa: Boolean): String = when {
     allowHttp && allowUserCa -> "@xml/network_security_config_insecure"
     allowHttp -> "@xml/network_security_config_http"
     allowUserCa -> "@xml/network_security_config_user_ca"
     else -> "@xml/network_security_config"
 }
-
-// Release builds stay secure by default. Self-hosted users can opt into weaker
-// network policy in custom builds via Gradle properties or matching env vars.
-val allowInsecureHttpRelease = booleanBuildFlag(
-    propertyName = "allowInsecureHttpRelease",
-    envName = "ALLOW_INSECURE_HTTP_RELEASE",
-    default = true
-)
-val allowUserCaRelease = booleanBuildFlag(
-    propertyName = "allowUserCaRelease",
-    envName = "ALLOW_USER_CA_RELEASE"
-)
 
 android {
     namespace = "com.mydeck.app"
@@ -77,12 +59,6 @@ android {
             isMinifyEnabled = true
             isShrinkResources = true
             isDebuggable = false
-            manifestPlaceholders["networkSecurityConfig"] = networkSecurityConfigRef(
-                allowHttp = allowInsecureHttpRelease,
-                allowUserCa = allowUserCaRelease
-            )
-            buildConfigField("boolean", "ALLOW_INSECURE_HTTP", allowInsecureHttpRelease.toString())
-            buildConfigField("boolean", "ALLOW_USER_CA_CERTIFICATES", allowUserCaRelease.toString())
             buildConfigField("boolean", "SHOW_CARD_INDEX_OVERLAY", "false")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
@@ -98,12 +74,6 @@ android {
             isMinifyEnabled = false
             isShrinkResources = false
             isDebuggable = true
-            manifestPlaceholders["networkSecurityConfig"] = networkSecurityConfigRef(
-                allowHttp = true,
-                allowUserCa = true
-            )
-            buildConfigField("boolean", "ALLOW_INSECURE_HTTP", "true")
-            buildConfigField("boolean", "ALLOW_USER_CA_CERTIFICATES", "true")
             buildConfigField("boolean", "SHOW_CARD_INDEX_OVERLAY", "false")
         }
     }
@@ -115,6 +85,31 @@ android {
             applicationIdSuffix = ".snapshot"
             versionName = System.getenv("SNAPSHOT_VERSION_NAME") ?: "${defaultConfig.versionName}-snapshot"
             versionCode = System.getenv("SNAPSHOT_VERSION_CODE")?.toInt() ?: defaultConfig.versionCode
+            manifestPlaceholders["appLabel"] = "MyDeck Snapshot"
+            manifestPlaceholders["networkSecurityConfig"] = networkSecurityConfigRef(
+                allowHttp = false,
+                allowUserCa = false
+            )
+            buildConfigField("boolean", "ALLOW_INSECURE_HTTP", "false")
+            buildConfigField("boolean", "ALLOW_USER_CA_CERTIFICATES", "false")
+            buildConfigField("boolean", "IS_HTTP_ENABLED_BUILD", "false")
+            if (signingConfigs.getByName("release").storeFile != null) {
+                signingConfig = signingConfigs.getByName("release")
+            }
+        }
+        create("githubSnapshotHttp") {
+            dimension = "version"
+            applicationIdSuffix = ".snapshot.permissive"
+            versionName = System.getenv("SNAPSHOT_VERSION_NAME") ?: "${defaultConfig.versionName}-snapshot"
+            versionCode = System.getenv("SNAPSHOT_VERSION_CODE")?.toInt() ?: defaultConfig.versionCode
+            manifestPlaceholders["appLabel"] = "MyDeck HTTP Snapshot"
+            manifestPlaceholders["networkSecurityConfig"] = networkSecurityConfigRef(
+                allowHttp = true,
+                allowUserCa = true
+            )
+            buildConfigField("boolean", "ALLOW_INSECURE_HTTP", "true")
+            buildConfigField("boolean", "ALLOW_USER_CA_CERTIFICATES", "true")
+            buildConfigField("boolean", "IS_HTTP_ENABLED_BUILD", "true")
             if (signingConfigs.getByName("release").storeFile != null) {
                 signingConfig = signingConfigs.getByName("release")
             }
@@ -123,6 +118,31 @@ android {
             dimension = "version"
             versionName = System.getenv("RELEASE_VERSION_NAME") ?: defaultConfig.versionName
             versionCode = System.getenv("RELEASE_VERSION_CODE")?.toInt() ?: defaultConfig.versionCode
+            manifestPlaceholders["appLabel"] = "MyDeck"
+            manifestPlaceholders["networkSecurityConfig"] = networkSecurityConfigRef(
+                allowHttp = false,
+                allowUserCa = false
+            )
+            buildConfigField("boolean", "ALLOW_INSECURE_HTTP", "false")
+            buildConfigField("boolean", "ALLOW_USER_CA_CERTIFICATES", "false")
+            buildConfigField("boolean", "IS_HTTP_ENABLED_BUILD", "false")
+            if (signingConfigs.getByName("release").storeFile != null) {
+                signingConfig = signingConfigs.getByName("release")
+            }
+        }
+        create("githubReleaseHttp") {
+            dimension = "version"
+            applicationIdSuffix = ".permissive"
+            versionName = System.getenv("RELEASE_VERSION_NAME") ?: defaultConfig.versionName
+            versionCode = System.getenv("RELEASE_VERSION_CODE")?.toInt() ?: defaultConfig.versionCode
+            manifestPlaceholders["appLabel"] = "MyDeck HTTP"
+            manifestPlaceholders["networkSecurityConfig"] = networkSecurityConfigRef(
+                allowHttp = true,
+                allowUserCa = true
+            )
+            buildConfigField("boolean", "ALLOW_INSECURE_HTTP", "true")
+            buildConfigField("boolean", "ALLOW_USER_CA_CERTIFICATES", "true")
+            buildConfigField("boolean", "IS_HTTP_ENABLED_BUILD", "true")
             if (signingConfigs.getByName("release").storeFile != null) {
                 signingConfig = signingConfigs.getByName("release")
             }
@@ -174,7 +194,12 @@ android {
         outputs.all {
             val output = this
             if (output is com.android.build.gradle.internal.api.ApkVariantOutputImpl) {
-                val newName = "MyDeck-${variant.versionName}.apk"
+                val httpSuffix = if (variant.productFlavors.any { it.name.endsWith("Http") }) {
+                    "-http-enabled"
+                } else {
+                    ""
+                }
+                val newName = "MyDeck-${variant.versionName}$httpSuffix.apk"
                 output.outputFileName = newName
             }
         }
@@ -284,7 +309,9 @@ tasks.register("assembleDebugAll") {
     description = "Assembles all debug flavor variants."
     dependsOn(
         ":app:assembleGithubReleaseDebug",
-        ":app:assembleGithubSnapshotDebug"
+        ":app:assembleGithubReleaseHttpDebug",
+        ":app:assembleGithubSnapshotDebug",
+        ":app:assembleGithubSnapshotHttpDebug"
     )
 }
 
@@ -293,7 +320,9 @@ tasks.register("testDebugUnitTestAll") {
     description = "Runs unit tests for all debug flavor variants."
     dependsOn(
         ":app:testGithubReleaseDebugUnitTest",
-        ":app:testGithubSnapshotDebugUnitTest"
+        ":app:testGithubReleaseHttpDebugUnitTest",
+        ":app:testGithubSnapshotDebugUnitTest",
+        ":app:testGithubSnapshotHttpDebugUnitTest"
     )
 }
 
@@ -302,7 +331,9 @@ tasks.register("lintDebugAll") {
     description = "Runs lint for all debug flavor variants."
     dependsOn(
         ":app:lintGithubReleaseDebug",
-        ":app:lintGithubSnapshotDebug"
+        ":app:lintGithubReleaseHttpDebug",
+        ":app:lintGithubSnapshotDebug",
+        ":app:lintGithubSnapshotHttpDebug"
     )
 }
 

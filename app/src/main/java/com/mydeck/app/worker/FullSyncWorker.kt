@@ -24,6 +24,7 @@ import com.mydeck.app.domain.sync.BookmarkMetadataSyncCoordinator
 import com.mydeck.app.domain.usecase.LoadBookmarksUseCase
 import com.mydeck.app.domain.usecase.FreshnessMarkerUseCase
 import com.mydeck.app.io.prefs.SettingsDataStore
+import com.mydeck.app.io.rest.isHttpBlockedByBuildPolicy
 import kotlinx.datetime.Clock
 import timber.log.Timber
 import kotlin.coroutines.cancellation.CancellationException
@@ -99,7 +100,14 @@ class FullSyncWorker @AssistedInject constructor(
 
     private suspend fun runMetadataSync(forceFullSync: Boolean): MetadataSyncOutcome {
         // Drain the action queue before starting sync to ensure local changes are sent first
-        bookmarkRepository.syncPendingActions()
+        when (val actionResult = bookmarkRepository.syncPendingActions()) {
+            is BookmarkRepository.UpdateResult.NetworkError -> {
+                if (actionResult.ex?.isHttpBlockedByBuildPolicy() == true) {
+                    return MetadataSyncOutcome(Result.failure())
+                }
+            }
+            else -> Unit
+        }
         val lastSyncTimestamp = settingsDataStore.getLastSyncTimestamp()
         val lastFullSyncTimestamp = settingsDataStore.getLastFullSyncTimestamp()
 
@@ -140,7 +148,7 @@ class FullSyncWorker @AssistedInject constructor(
                 return MetadataSyncOutcome(Result.failure())
             }
             is SyncResult.NetworkError -> {
-                return MetadataSyncOutcome(Result.retry())
+                return MetadataSyncOutcome(if (syncResult.ex?.isHttpBlockedByBuildPolicy() == true) Result.failure() else Result.retry())
             }
             is SyncResult.Success -> {
                 Timber.d("Deletion sync successful: ${syncResult.countDeleted} deleted")

@@ -7,6 +7,7 @@ import com.mydeck.app.domain.model.DarkAppearance
 import com.mydeck.app.domain.model.LightAppearance
 import com.mydeck.app.domain.model.Theme
 import com.mydeck.app.io.prefs.SettingsDataStore
+import com.mydeck.app.io.rest.ReadeckNetworkPolicy
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
@@ -18,11 +19,35 @@ import javax.inject.Inject
 class MainViewModel @Inject constructor(
     val settingsDataStore: SettingsDataStore
 ): ViewModel() {
+    sealed interface HttpUrlMigrationState {
+        data object Checking : HttpUrlMigrationState
+        data object NotRequired : HttpUrlMigrationState
+        data class Required(val savedUrl: String) : HttpUrlMigrationState
+    }
+
+    val httpUrlMigrationState: StateFlow<HttpUrlMigrationState> = combine(
+        settingsDataStore.tokenFlow,
+        settingsDataStore.urlFlow
+    ) { token, url ->
+        if (!token.isNullOrBlank() &&
+            ReadeckNetworkPolicy.isSavedHttpUrlBlocked(url, BuildConfig.ALLOW_INSECURE_HTTP)
+        ) {
+            HttpUrlMigrationState.Required(url.orEmpty())
+        } else {
+            HttpUrlMigrationState.NotRequired
+        }
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.Eagerly,
+        initialValue = HttpUrlMigrationState.Checking
+    )
+
     val isReady: StateFlow<Boolean> = combine(
         settingsDataStore.themeFlow,
         settingsDataStore.lightAppearanceFlow,
         settingsDataStore.darkAppearanceFlow,
-    ) { _, _, _ -> true }
+        httpUrlMigrationState,
+    ) { _, _, _, migrationState -> migrationState !is HttpUrlMigrationState.Checking }
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.Eagerly,

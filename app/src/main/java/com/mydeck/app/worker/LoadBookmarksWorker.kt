@@ -25,6 +25,7 @@ import com.mydeck.app.domain.SyncPriority
 import com.mydeck.app.domain.sync.BookmarkMetadataSyncCoordinator
 import com.mydeck.app.domain.usecase.LoadBookmarksUseCase
 import com.mydeck.app.io.prefs.SettingsDataStore
+import com.mydeck.app.io.rest.isHttpBlockedByBuildPolicy
 import com.mydeck.app.MainActivity
 import com.mydeck.app.R
 import kotlin.coroutines.cancellation.CancellationException
@@ -104,7 +105,7 @@ class LoadBookmarksWorker @AssistedInject constructor(
                 }
                 is BookmarkRepository.SyncResult.NetworkError -> {
                     Timber.e(result.ex, "Network error during initial full sync")
-                    MetadataSyncOutcome(Result.retry())
+                    MetadataSyncOutcome(if (result.ex?.isHttpBlockedByBuildPolicy() == true) Result.failure() else Result.retry())
                 }
                 is BookmarkRepository.SyncResult.Error -> {
                     Timber.e("Initial full sync failed: ${result.errorMessage}")
@@ -167,7 +168,7 @@ class LoadBookmarksWorker @AssistedInject constructor(
                 }
                 is BookmarkRepository.SyncResult.NetworkError -> {
                     Timber.e(result.ex, "Network error during full sync fallback")
-                    MetadataSyncOutcome(Result.retry())
+                    MetadataSyncOutcome(if (result.ex?.isHttpBlockedByBuildPolicy() == true) Result.failure() else Result.retry())
                 }
                 is BookmarkRepository.SyncResult.Error -> {
                     Timber.e("Full sync fallback failed: ${result.errorMessage}")
@@ -198,7 +199,9 @@ class LoadBookmarksWorker @AssistedInject constructor(
                     "Bookmark delta annotation checks skipped: metadata reload failed [updatedIds=%d path=LoadBookmarksWorker]",
                     deltaUpdatedIds.orEmpty().size
                 )
-                if (result.exception is IOException) {
+                if (result.exception.isHttpBlockedByBuildPolicy()) {
+                    MetadataSyncOutcome(Result.failure())
+                } else if (result.exception is IOException) {
                     MetadataSyncOutcome(Result.retry())
                 } else {
                     MetadataSyncOutcome(Result.failure())
