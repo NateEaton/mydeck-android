@@ -200,8 +200,30 @@
     <string name="action_exit_selection_mode">Exit selection mode</string>
     <string name="action_select_bookmark">Select bookmark</string>
     <string name="action_deselect_bookmark">Deselect bookmark</string>
+    <string name="action_select_all">Select all</string>
+    <string name="action_deselect_all">Deselect all</string>
+    <string name="bookmark_state_favorited">Favorited</string>
+    <string name="bookmark_state_not_favorited">Not favorited</string>
+    <string name="bookmark_state_archived">Archived</string>
+    <string name="bookmark_state_not_archived">Not archived</string>
     <string name="selected_bookmark_count">%1$d selected</string>
-    <string name="action_add_to_favorites">Ajouter aux favoris</string>
+    <plurals name="multi_select_set_as_favorite">
+        <item quantity="one">%d set as favorite</item>
+        <item quantity="other">%d set as favorites</item>
+    </plurals>
+    <plurals name="multi_select_unset_as_favorite">
+        <item quantity="one">%d unset as favorite</item>
+        <item quantity="other">%d unset as favorites</item>
+    </plurals>
+    <plurals name="multi_select_set_as_archived">
+        <item quantity="one">%d set as archived</item>
+        <item quantity="other">%d set as archived</item>
+    </plurals>
+    <plurals name="multi_select_unset_as_archived">
+        <item quantity="one">%d unset as archived</item>
+        <item quantity="other">%d unset as archived</item>
+    </plurals>
+    <string name="action_add_to_favorites">Add favorite</string>
     <string name="action_remove_from_favorites">Retirer le favori</string>
     <string name="action_add_to_archive">Archiver</string>
     <string name="action_remove_from_archive">Désarchiver</string>

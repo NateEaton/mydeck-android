@@ -1,6 +1,22 @@
 # List Multi-Select Actions — Feasibility and Design Specification
 
-Status: Draft for implementation. Phase 1 (selection mode plus batch favorite/archive) is implemented on branch `feat/multi-select-phase-1`; Phase 2 (delete/undo plus confirmation) remains.
+Status: Draft for implementation. Phase 1 (selection mode plus batch favorite/archive) is implemented on branch `feat/multi-select-phase-1`. A Phase 1 follow-up on the same branch lands the batch favorite/archive UX as **explicit dual actions with contextual elevation** (MD3 Pattern B, refined):
+
+- Each of the two action axes — favorite and archive — is computed independently from the current selection. For each axis the system promotes the single most useful action to the top app bar; the inverse goes into the overflow menu, greyed-out when it would be a no-op.
+  - **All selected are already in the target state** → the inverse action (Remove favorite / Unarchive) is elevated to the bar with the Outlined icon variant. The overflow holds the matching Add action, disabled.
+  - **None or some are in the target state** → the additive action (Add favorite / Archive) sits on the bar with the Filled icon variant. The overflow holds the Remove/Unarchive action, enabled iff at least one selected item is in the matching state.
+- Terminology is aligned with the Reading-view overflow: **Add favorite**, **Remove favorite**, **Archive**, **Unarchive**.
+- Select all / Deselect all is a single toggle item in the overflow that swaps label and leading icon based on whether all visible bookmarks are selected.
+- Every batch action emits a confirmation Snackbar describing the post-state of the full selection using a uniform "N set/unset as X" copy pattern: "%d set as favorite(s)", "%d unset as favorite(s)", "%d set as archived", "%d unset as archived" (plurals from `multi_select_set_as_*` / `multi_select_unset_as_*`). The count is the selected count.
+- DB writes only go to items whose state would actually change; the Snackbar fires regardless, so a uniform-state tap still confirms the user's intent landed.
+
+The favorite/archive icons on each card remain visible in select mode as **non-interactive state indicators** at 38% alpha so the user can see per-card state at a glance.
+
+Phase 3 remains. It bundles two related workstreams that both touch the bookmark-list top app bar and should land together to avoid two consecutive bar reshuffles for users:
+
+1. **Batch delete + Snackbar Undo** (this spec, §6.7) — extends the delete path to the batch case and adds Undo affordances to the favorite/archive/delete Snackbars. The Snackbar+Undo pattern supersedes the previously-planned "Confirm multi-select actions" Settings switch — §7 is no longer planned.
+2. **List view top app bar overflow refactor** — relocates the multi-select entry icon from a dedicated bar slot into a list-view top app bar overflow menu and addresses the current label-mode bar gap. Specified in [`list-top-app-bar-overflow-spec.md`](./list-top-app-bar-overflow-spec.md). Selection-mode bar contents (X, count, primary actions, selection-mode overflow) are unaffected by that refactor.
+
 Date: 2026-05-12
 
 ## 1. Purpose
@@ -82,8 +98,12 @@ Multi-select mode is list-local and transient. It should reset when:
 - No replacement of existing per-card single actions in normal mode.
 - No change to bookmark filters, sorting, labels, or detail navigation behavior
   outside multi-select mode.
-- No "select all" action in v1.
 - No long-press entry point in v1.
+
+A Phase 1 follow-up adds a **Select all / Deselect all** toggle in the
+selection-mode overflow menu. It applies only to the reversible
+favorite/archive actions; select-all-for-delete is deferred to Phase 3 along
+with the Undo design.
 
 ## 5. Material Design and Android Pattern Alignment
 
@@ -124,6 +144,11 @@ Preferred icon:
 - Although the visual is a circle, this must behave as a multi-select control,
   not a radio button.
 
+> **Phase 3 follow-on:** the multi-select entry point relocates from a
+> dedicated bar icon into a list-view top app bar overflow menu. See
+> `list-top-app-bar-overflow-spec.md`. Selection-mode bar contents (X, count,
+> primary actions, selection-mode overflow) are unaffected.
+
 Top app bar action ordering in normal mode:
 
 - Preserve existing actions.
@@ -140,15 +165,33 @@ When selected:
 
 ### 6.2 Multi-select top app bar
 
-When multi-select mode is active:
+When multi-select mode is active (Phase 1 follow-up — **explicit dual actions with contextual elevation**):
 
 - Left navigation icon becomes `X`.
 - Title becomes the selected count, initially `0`.
-- If no cards are selected, no batch action icons are shown on the right.
-- When one or more cards are selected, show right-side action icons:
-  - Favorite
-  - Archive
-  - Delete
+- A 3-dot **overflow** menu (`MoreVert`) is always shown on the right and
+  contains, at minimum, **Select all / Deselect all** (a single toggle item
+  whose label and leading icon swap between the two states based on whether all
+  visible items are already selected).
+- When one or more cards are selected, the bar gains two action icons (one per
+  axis) and the overflow gains two corresponding items (the inverse per axis).
+  Each axis is computed independently from the current selection:
+  - **Favorite axis**:
+    - If every selected item is already favorited → bar = **Remove favorite**
+      (`Icons.Outlined.FavoriteBorder`, cd `action_remove_from_favorites`).
+      Overflow entry = **Add favorite** (`Icons.Filled.Favorite`), disabled.
+    - Otherwise → bar = **Add favorite** (`Icons.Filled.Favorite`, cd
+      `action_add_to_favorites`). Overflow entry = **Remove favorite**
+      (`Icons.Outlined.FavoriteBorder`), enabled iff at least one selected item
+      is currently favorited.
+  - **Archive axis**: mirrors favorite, using `Icons.Filled.Inventory2` /
+    `Icons.Outlined.Inventory2`, `action_add_to_archive` /
+    `action_remove_from_archive`.
+  - Delete remains on the bar (Phase 3 will add Undo to its Snackbar).
+
+The promotion logic guarantees one-tap reversal for uniform-state selections
+(you don't have to dig into the overflow to undo a uniform state) while keeping
+mixed-state selections additive-by-default and reversible via the overflow.
 
 The `X` action exits multi-select mode and clears the selection.
 
@@ -159,7 +202,12 @@ string. Prefer the shortest form that fits compact phones.
 
 When multi-select mode is active:
 
-- Per-card action icons are hidden.
+- Per-card interactive action icons (overflow/delete/open URL) are hidden.
+- The favorite and archive icons on each card remain visible as
+  **non-interactive state indicators** at 38% alpha (Phase 1 follow-up): the
+  filled/outline variant reflects each bookmark's current favorite/archive
+  state, and the content description announces state (e.g. "Favorited" / "Not
+  favorited") rather than an action. They are not tappable in select mode.
 - The far-right action slot where Delete normally appears is replaced by the
   multi-select indicator.
 - Tapping anywhere on a card toggles selection for that card.
@@ -189,30 +237,42 @@ matches the requested initial-count behavior.
 Batch actions are hidden or disabled until at least one card is selected. Prefer
 hidden to reduce clutter, matching the requested behavior.
 
-### 6.5 Batch Favorite
+### 6.5 Batch Favorite (Contextual Elevation)
 
-When Favorite is selected:
+Two explicit actions, surfaced according to the selection's current favorite
+uniformity (computed independently from archive):
 
-- For each selected bookmark, toggle its current favorite state.
-- A favorite bookmark becomes not favorite.
-- A non-favorite bookmark becomes favorite.
-- Apply the action to the selected bookmark snapshot captured at action time.
+- **Add favorite** (Filled heart) sets `isMarked = true` on every selected
+  item. It lives on the bar by default and slides into the overflow (disabled)
+  when every selected item is already favorited.
+- **Remove favorite** (Outlined heart) sets `isMarked = false`. It lives in
+  the overflow and is promoted to the bar when every selected item is already
+  favorited.
+
+Behavior:
+
+- Filter the selection to items whose current state differs from the target;
+  issue a single batch DB update for that subset only. Items already in the
+  target state get no DB write and no sync churn.
+- Always emit a Snackbar describing the post-state of the **full selection**,
+  using "set/unset as X" copy and the selected count:
+  - After Add favorite → `multi_select_set_as_favorite` ("%d set as
+    favorite" / "%d set as favorites").
+  - After Remove favorite → `multi_select_unset_as_favorite` ("%d unset as
+    favorite" / "%d unset as favorites").
 - Reset the list to non-multi-select mode after the action is accepted.
 
-Important:
+### 6.6 Batch Archive (Contextual Elevation)
 
-- Do not apply a single uniform favorite value to all selected items unless a
-  future design explicitly changes this behavior.
+Mirrors §6.5 on the archive axis using `Icons.Filled.Inventory2` /
+`Icons.Outlined.Inventory2`. **Archive** is the additive default;
+**Unarchive** lives in the overflow until every selected item is already
+archived, at which point it is promoted to the bar. The Snackbar uses
+`multi_select_set_as_archived` ("%d set as archived") or
+`multi_select_unset_as_archived` ("%d unset as archived").
 
-### 6.6 Batch Archive
-
-When Archive is selected:
-
-- For each selected bookmark, toggle its current archived state.
-- An archived bookmark becomes unarchived.
-- An unarchived bookmark becomes archived.
-- Apply the action to the selected bookmark snapshot captured at action time.
-- Reset the list to non-multi-select mode after the action is accepted.
+Favorite and archive uniformity are computed independently — promoting one axis
+to its inverse does not affect the other axis's slot.
 
 List removal should be controlled by existing filters:
 
@@ -222,6 +282,13 @@ List removal should be controlled by existing filters:
   current filter.
 
 ### 6.7 Batch Delete
+
+> **Phase 3 bundling:** this section is one of two Phase 3 workstreams that
+> reshape the bookmark-list top app bar. The companion refactor —
+> [`list-top-app-bar-overflow-spec.md`](./list-top-app-bar-overflow-spec.md) —
+> relocates the multi-select entry icon into a normal-mode overflow menu and
+> closes the current label-mode bar gap. Ship the two together so users see a
+> single bar reshuffle, not two.
 
 When Delete is selected:
 
@@ -251,40 +318,23 @@ Recommended snackbar copy:
 - Multiple items: `N bookmarks deleted`.
 - Action: `Undo`.
 
-## 7. Confirmation Setting
+## 7. Confirmation — Snackbar, Not a Setting
 
-Add a setting under User Interface:
+_Originally a "Confirm multi-select actions" Settings toggle. Superseded
+during the Phase 1 follow-up by the MD3 Snackbar + Undo pattern._
 
-- Label: `Confirm multi-select actions`
-- Type: switch
-- Default: off
+Every batch action — favorite, unfavorite, archive, unarchive, delete —
+displays an MD3 Snackbar on completion summarizing the operation. The Snackbar
+text reflects the post-state of the full selection sized by the selected count
+(e.g. "Added 3 to favorites", "Moved 5 to My List", "3 bookmarks deleted").
 
-When enabled, selecting any multi-select batch action opens a confirmation
-bottom sheet before mutation.
+The Snackbar is the confirmation surface: explicit, low-friction, reversible
+via Undo (Phase 3 for favorite/archive; already implemented for single-item
+delete). No pre-action confirmation dialog or bottom sheet is shown.
 
-The bottom sheet should include:
-
-- Action-specific title.
-- Count of selected bookmarks.
-- Clear confirm and cancel actions.
-- Destructive styling for Delete confirmation.
-
-Recommended copy examples:
-
-- Favorite: `Toggle favorite for N bookmarks?`
-- Archive: `Toggle archive for N bookmarks?`
-- Delete: `Delete N bookmarks?`
-- Helper for Delete: `You can undo this from the snackbar.`
-
-Cancel:
-
-- Dismisses the bottom sheet.
-- Keeps multi-select mode and current selection.
-
-Confirm:
-
-- Performs the chosen action.
-- Resets multi-select mode after the action is accepted.
+This eliminates the need for a Settings toggle: there is nothing for the user
+to configure, because every action provides immediate visible feedback and
+(eventually) an undo path.
 
 ## 8. State Model
 
@@ -572,10 +622,24 @@ Resolved for this spec:
   yes.
 - Disable long press in multi-select mode: yes.
 - Disable swipe in multi-select mode: yes.
+- Select-all (favorite/archive only) included in Phase 1 follow-up: yes;
+  lives in the overflow menu as a single toggle item.
+- Batch favorite/archive UX: **explicit dual actions with contextual
+  elevation** (Phase 1 follow-up). Each axis (favorite, archive) independently
+  promotes the most useful action to the bar; the inverse lives in the
+  overflow and is greyed-out when it would be a no-op. The bar icon swaps
+  Filled↔Outlined to reflect which action is currently elevated.
+- Favorite/archive remain visible on cards in select mode as dimmed,
+  non-interactive state indicators: yes (Phase 1 follow-up).
+- Batch favorite/archive show a completion Snackbar (Phase 1 follow-up).
+  Snackbar uses the uniform **"N set/unset as X"** copy pattern with the
+  selected count, reflecting the post-state of the full selection, not the
+  diff.
+- Settings-based confirmation switch: **dropped**. Superseded by the
+  Snackbar + Undo pattern (Phase 3 will add Undo).
 
 Remaining implementation choices:
 
 - Whether selected count uses a bare number or localized "N selected" text.
-- Whether v1 includes a Select All overflow action.
-- Whether batch Favorite/Archive show a completion snackbar. This spec does not
-  require one.
+- Whether select-all applies to batch delete in Phase 3 — pending the undo
+  design.

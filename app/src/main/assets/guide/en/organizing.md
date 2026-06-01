@@ -39,11 +39,16 @@ There are two ways to access these actions:
 
 Tap the **❤️** button on any bookmark card in a list view to mark a bookmark as a favorite. Tap again to remove it. The heart fills when a bookmark is a favorite.
 
-To favorite or unfavorite several bookmarks at once, tap the **select icon** in the bookmark list top bar, select the cards you want, then tap the **Favorite** action in the top bar. Each selected bookmark toggles from its current favorite state.
+To favorite or unfavorite several bookmarks at once, tap the **select icon** in the bookmark list top bar and choose the cards you want (or tap **⋮ → Select all** to choose every bookmark in the current view). The top bar exposes the most useful favorite action for your current selection:
+
+- If any selected bookmark is **not** yet a favorite, the bar shows **❤️ Add favorite**. The overflow has **Remove favorite**.
+- If **all** selected bookmarks are already favorites, the bar promotes **Remove favorite** for one-tap reversal; the overflow's **Add favorite** is greyed out.
+
+A snackbar confirms the post-state of the selection (e.g. "3 set as favorites", "3 unset as favorites").
 
 In the reading view, you can toggle favorites using:
 - The **❤️ Favorite / Remove favorite** button at the end of the content
-- The **⋮** overflow menu → **Add to favorites / Remove favorite**
+- The **⋮** overflow menu → **Add favorite / Remove favorite**
 
 Favorites are independent of My List and Archive — a favorite can be in either. To see all your favorites in one place, open the navigation drawer and tap **Favorites**.
 
@@ -54,7 +59,7 @@ Archiving moves a bookmark out of **My List** into the **Archive**. Archived boo
 You can archive a bookmark from several places:
 
 - **Card action** — tap the Archive button on a bookmark card in any list view
-- **Multi-select** — tap the **select icon** in the bookmark list top bar, choose several cards, then tap the **Archive** action. Each selected bookmark toggles from its current archive state.
+- **Multi-select** — tap the **select icon** in the bookmark list top bar, choose the cards you want (or tap **⋮ → Select all**). The top bar exposes whichever archive action is most useful: **Archive** when any selected bookmark is not yet archived (overflow holds **Unarchive**), or **Unarchive** promoted to the bar when all selected bookmarks are already archived (overflow's Archive is greyed out). A snackbar confirms the post-state of the selection (e.g. "5 set as archived", "5 unset as archived").
 - **Reading view** — use the **📦 Archive / Unarchive** button at the end of the content or **⋮** → **Archive / Unarchive**
 - **Add Link sheet** — tap **Archive** to save a new bookmark directly to the Archive
 

@@ -1543,7 +1543,7 @@ class BookmarkListViewModelTest {
     }
 
     @Test
-    fun `batch favorite toggles from captured selected bookmark state`() = runTest {
+    fun `onFavoriteSelectedBookmarks sets favorited on items that need it and emits snackbar with selected count`() = runTest {
         val visibleBookmarks = listOf(
             bookmarkListItem("not-favorite", isMarked = false),
             bookmarkListItem("favorite", isMarked = true),
@@ -1559,25 +1559,95 @@ class BookmarkListViewModelTest {
         viewModel = createViewModel()
         advanceUntilIdle()
 
+        val events = mutableListOf<BatchActionSnackbarEvent>()
+        val job = launch { viewModel.batchActionSnackbarEvent.toList(events) }
+
         viewModel.onEnterMultiSelectMode()
         viewModel.onToggleBookmarkSelected("not-favorite")
         viewModel.onToggleBookmarkSelected("favorite")
         viewModel.onFavoriteSelectedBookmarks()
         advanceUntilIdle()
 
-        coVerify {
+        coVerify(exactly = 1) {
             updateBookmarkUseCase.updateBookmarks(
-                listOf(
-                    BookmarkBatchUpdate(bookmarkId = "not-favorite", isFavorite = true),
-                    BookmarkBatchUpdate(bookmarkId = "favorite", isFavorite = false)
-                )
+                listOf(BookmarkBatchUpdate(bookmarkId = "not-favorite", isFavorite = true))
             )
         }
         assertEquals(MultiSelectState(), viewModel.multiSelectState.value)
+        assertEquals(listOf(BatchActionSnackbarEvent.FavoritesAdded(2)), events)
+        job.cancel()
     }
 
     @Test
-    fun `batch archive toggles from captured selected bookmark state`() = runTest {
+    fun `onFavoriteSelectedBookmarks emits snackbar even when no DB updates are needed`() = runTest {
+        val visibleBookmarks = listOf(
+            bookmarkListItem("fav-a", isMarked = true),
+            bookmarkListItem("fav-b", isMarked = true)
+        )
+        every {
+            bookmarkRepository.observeFilteredBookmarkListItems(
+                any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(),
+                any(), any(), any(), any(), any(), any(), any(), any(), any(), any()
+            )
+        } returns flowOf(visibleBookmarks)
+        viewModel = createViewModel()
+        advanceUntilIdle()
+
+        val events = mutableListOf<BatchActionSnackbarEvent>()
+        val job = launch { viewModel.batchActionSnackbarEvent.toList(events) }
+
+        viewModel.onEnterMultiSelectMode()
+        viewModel.onToggleBookmarkSelected("fav-a")
+        viewModel.onToggleBookmarkSelected("fav-b")
+        viewModel.onFavoriteSelectedBookmarks()
+        advanceUntilIdle()
+
+        coVerify(exactly = 0) { updateBookmarkUseCase.updateBookmarks(any()) }
+        assertEquals(listOf(BatchActionSnackbarEvent.FavoritesAdded(2)), events)
+        job.cancel()
+    }
+
+    @Test
+    fun `onUnfavoriteSelectedBookmarks sets unfavorited on items that need it and emits snackbar`() = runTest {
+        val visibleBookmarks = listOf(
+            bookmarkListItem("fav-a", isMarked = true),
+            bookmarkListItem("fav-b", isMarked = true),
+            bookmarkListItem("not-favorite", isMarked = false)
+        )
+        every {
+            bookmarkRepository.observeFilteredBookmarkListItems(
+                any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(),
+                any(), any(), any(), any(), any(), any(), any(), any(), any(), any()
+            )
+        } returns flowOf(visibleBookmarks)
+        coEvery { updateBookmarkUseCase.updateBookmarks(any()) } returns UpdateBookmarkUseCase.Result.Success
+        viewModel = createViewModel()
+        advanceUntilIdle()
+
+        val events = mutableListOf<BatchActionSnackbarEvent>()
+        val job = launch { viewModel.batchActionSnackbarEvent.toList(events) }
+
+        viewModel.onEnterMultiSelectMode()
+        viewModel.onToggleBookmarkSelected("fav-a")
+        viewModel.onToggleBookmarkSelected("fav-b")
+        viewModel.onToggleBookmarkSelected("not-favorite")
+        viewModel.onUnfavoriteSelectedBookmarks()
+        advanceUntilIdle()
+
+        coVerify(exactly = 1) {
+            updateBookmarkUseCase.updateBookmarks(
+                listOf(
+                    BookmarkBatchUpdate(bookmarkId = "fav-a", isFavorite = false),
+                    BookmarkBatchUpdate(bookmarkId = "fav-b", isFavorite = false)
+                )
+            )
+        }
+        assertEquals(listOf(BatchActionSnackbarEvent.FavoritesRemoved(3)), events)
+        job.cancel()
+    }
+
+    @Test
+    fun `onArchiveSelectedBookmarks sets archived on items that need it and emits snackbar`() = runTest {
         val visibleBookmarks = listOf(
             bookmarkListItem("not-archived", isArchived = false),
             bookmarkListItem("archived", isArchived = true),
@@ -1593,21 +1663,236 @@ class BookmarkListViewModelTest {
         viewModel = createViewModel()
         advanceUntilIdle()
 
+        val events = mutableListOf<BatchActionSnackbarEvent>()
+        val job = launch { viewModel.batchActionSnackbarEvent.toList(events) }
+
         viewModel.onEnterMultiSelectMode()
         viewModel.onToggleBookmarkSelected("not-archived")
         viewModel.onToggleBookmarkSelected("archived")
         viewModel.onArchiveSelectedBookmarks()
         advanceUntilIdle()
 
-        coVerify {
+        coVerify(exactly = 1) {
             updateBookmarkUseCase.updateBookmarks(
-                listOf(
-                    BookmarkBatchUpdate(bookmarkId = "not-archived", isArchived = true),
-                    BookmarkBatchUpdate(bookmarkId = "archived", isArchived = false)
-                )
+                listOf(BookmarkBatchUpdate(bookmarkId = "not-archived", isArchived = true))
             )
         }
         assertEquals(MultiSelectState(), viewModel.multiSelectState.value)
+        assertEquals(listOf(BatchActionSnackbarEvent.Archived(2)), events)
+        job.cancel()
+    }
+
+    @Test
+    fun `onUnarchiveSelectedBookmarks sets unarchived on items that need it and emits snackbar`() = runTest {
+        val visibleBookmarks = listOf(
+            bookmarkListItem("a-a", isArchived = true),
+            bookmarkListItem("a-b", isArchived = true)
+        )
+        every {
+            bookmarkRepository.observeFilteredBookmarkListItems(
+                any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(),
+                any(), any(), any(), any(), any(), any(), any(), any(), any(), any()
+            )
+        } returns flowOf(visibleBookmarks)
+        coEvery { updateBookmarkUseCase.updateBookmarks(any()) } returns UpdateBookmarkUseCase.Result.Success
+        viewModel = createViewModel()
+        advanceUntilIdle()
+
+        val events = mutableListOf<BatchActionSnackbarEvent>()
+        val job = launch { viewModel.batchActionSnackbarEvent.toList(events) }
+
+        viewModel.onEnterMultiSelectMode()
+        viewModel.onToggleBookmarkSelected("a-a")
+        viewModel.onToggleBookmarkSelected("a-b")
+        viewModel.onUnarchiveSelectedBookmarks()
+        advanceUntilIdle()
+
+        coVerify(exactly = 1) {
+            updateBookmarkUseCase.updateBookmarks(
+                listOf(
+                    BookmarkBatchUpdate(bookmarkId = "a-a", isArchived = false),
+                    BookmarkBatchUpdate(bookmarkId = "a-b", isArchived = false)
+                )
+            )
+        }
+        assertEquals(listOf(BatchActionSnackbarEvent.Unarchived(2)), events)
+        job.cancel()
+    }
+
+    @Test
+    fun `multiSelectTargets reflects mixed selection as no uniform state`() = runTest {
+        val visibleBookmarks = listOf(
+            bookmarkListItem("fav", isMarked = true, isArchived = false),
+            bookmarkListItem("arc", isMarked = false, isArchived = true)
+        )
+        every {
+            bookmarkRepository.observeFilteredBookmarkListItems(
+                any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(),
+                any(), any(), any(), any(), any(), any(), any(), any(), any(), any()
+            )
+        } returns flowOf(visibleBookmarks)
+        viewModel = createViewModel()
+        advanceUntilIdle()
+
+        viewModel.onEnterMultiSelectMode()
+        viewModel.onToggleBookmarkSelected("fav")
+        viewModel.onToggleBookmarkSelected("arc")
+        advanceUntilIdle()
+
+        val targets = viewModel.multiSelectTargets.value
+        assertFalse(targets.selectedAllFavorited)
+        assertFalse(targets.selectedAllUnfavorited)
+        assertFalse(targets.selectedAllArchived)
+        assertFalse(targets.selectedAllUnarchived)
+    }
+
+    @Test
+    fun `multiSelectTargets reflects all-favorited selection`() = runTest {
+        val visibleBookmarks = listOf(
+            bookmarkListItem("a", isMarked = true),
+            bookmarkListItem("b", isMarked = true),
+            bookmarkListItem("c", isMarked = false)
+        )
+        every {
+            bookmarkRepository.observeFilteredBookmarkListItems(
+                any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(),
+                any(), any(), any(), any(), any(), any(), any(), any(), any(), any()
+            )
+        } returns flowOf(visibleBookmarks)
+        viewModel = createViewModel()
+        advanceUntilIdle()
+
+        viewModel.onEnterMultiSelectMode()
+        viewModel.onToggleBookmarkSelected("a")
+        viewModel.onToggleBookmarkSelected("b")
+        advanceUntilIdle()
+
+        val targets = viewModel.multiSelectTargets.value
+        assertTrue(targets.selectedAllFavorited)
+        assertFalse(targets.selectedAllUnfavorited)
+        // archive axis is independent: both items are not archived
+        assertFalse(targets.selectedAllArchived)
+        assertTrue(targets.selectedAllUnarchived)
+    }
+
+    @Test
+    fun `multiSelectTargets reflects all-archived selection`() = runTest {
+        val visibleBookmarks = listOf(
+            bookmarkListItem("a", isArchived = true),
+            bookmarkListItem("b", isArchived = true)
+        )
+        every {
+            bookmarkRepository.observeFilteredBookmarkListItems(
+                any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(),
+                any(), any(), any(), any(), any(), any(), any(), any(), any(), any()
+            )
+        } returns flowOf(visibleBookmarks)
+        viewModel = createViewModel()
+        advanceUntilIdle()
+
+        viewModel.onEnterMultiSelectMode()
+        viewModel.onToggleBookmarkSelected("a")
+        viewModel.onToggleBookmarkSelected("b")
+        advanceUntilIdle()
+
+        val targets = viewModel.multiSelectTargets.value
+        assertTrue(targets.selectedAllArchived)
+        assertFalse(targets.selectedAllUnarchived)
+        // favorite axis is independent: neither is favorited
+        assertFalse(targets.selectedAllFavorited)
+        assertTrue(targets.selectedAllUnfavorited)
+    }
+
+    @Test
+    fun `multiSelectTargets returns false on all uniformity flags when selection is empty`() = runTest {
+        val visibleBookmarks = listOf(bookmarkListItem("a", isMarked = true, isArchived = true))
+        every {
+            bookmarkRepository.observeFilteredBookmarkListItems(
+                any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(),
+                any(), any(), any(), any(), any(), any(), any(), any(), any(), any()
+            )
+        } returns flowOf(visibleBookmarks)
+        viewModel = createViewModel()
+        advanceUntilIdle()
+
+        viewModel.onEnterMultiSelectMode()
+        advanceUntilIdle()
+
+        val targets = viewModel.multiSelectTargets.value
+        assertFalse(targets.selectedAllFavorited)
+        assertFalse(targets.selectedAllUnfavorited)
+        assertFalse(targets.selectedAllArchived)
+        assertFalse(targets.selectedAllUnarchived)
+    }
+
+    @Test
+    fun `select all toggles between selecting all visible and clearing`() = runTest {
+        val visibleBookmarks = listOf(
+            bookmarkListItem("a"),
+            bookmarkListItem("b"),
+            bookmarkListItem("c")
+        )
+        every {
+            bookmarkRepository.observeFilteredBookmarkListItems(
+                any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(),
+                any(), any(), any(), any(), any(), any(), any(), any(), any(), any()
+            )
+        } returns flowOf(visibleBookmarks)
+        viewModel = createViewModel()
+        advanceUntilIdle()
+
+        viewModel.onEnterMultiSelectMode()
+        viewModel.onToggleSelectAllBookmarks()
+        advanceUntilIdle()
+
+        assertEquals(setOf("a", "b", "c"), viewModel.multiSelectState.value.selectedIds)
+        assertTrue(viewModel.multiSelectTargets.value.allVisibleSelected)
+
+        viewModel.onToggleSelectAllBookmarks()
+        advanceUntilIdle()
+        assertEquals(emptySet<String>(), viewModel.multiSelectState.value.selectedIds)
+        assertFalse(viewModel.multiSelectTargets.value.allVisibleSelected)
+    }
+
+    @Test
+    fun `select all from partial selection completes to all visible`() = runTest {
+        val visibleBookmarks = listOf(
+            bookmarkListItem("a"),
+            bookmarkListItem("b"),
+            bookmarkListItem("c")
+        )
+        every {
+            bookmarkRepository.observeFilteredBookmarkListItems(
+                any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(),
+                any(), any(), any(), any(), any(), any(), any(), any(), any(), any()
+            )
+        } returns flowOf(visibleBookmarks)
+        viewModel = createViewModel()
+        advanceUntilIdle()
+
+        viewModel.onEnterMultiSelectMode()
+        viewModel.onToggleBookmarkSelected("a")
+        viewModel.onToggleSelectAllBookmarks()
+
+        assertEquals(setOf("a", "b", "c"), viewModel.multiSelectState.value.selectedIds)
+    }
+
+    @Test
+    fun `select all is a no-op when multi-select is not active`() = runTest {
+        val visibleBookmarks = listOf(bookmarkListItem("a"))
+        every {
+            bookmarkRepository.observeFilteredBookmarkListItems(
+                any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(),
+                any(), any(), any(), any(), any(), any(), any(), any(), any(), any()
+            )
+        } returns flowOf(visibleBookmarks)
+        viewModel = createViewModel()
+        advanceUntilIdle()
+
+        viewModel.onToggleSelectAllBookmarks()
+
+        assertFalse(viewModel.multiSelectState.value.active)
+        assertEquals(emptySet<String>(), viewModel.multiSelectState.value.selectedIds)
     }
 
     private fun bookmarkListItem(

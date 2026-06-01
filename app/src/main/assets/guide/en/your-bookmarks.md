@@ -79,11 +79,22 @@ See [Organizing](./organizing.md) for more on how favorites, archive, labels, an
 
 ## Selecting Multiple Bookmarks
 
-Tap the **select icon** (empty circle) on the right side of the top bar to enter selection mode. The top bar changes to show an **X** button and the number of selected bookmarks.
+Tap the **select icon** (empty circle) on the right side of the top bar to enter selection mode. The top bar changes to show an **X** button on the left, the number of selected bookmarks as the title, and a **⋮ overflow** button on the right.
 
-While selection mode is active, tap any bookmark card to select or deselect it. The card's usual action buttons are hidden, and the far-right action area shows a circular selection indicator instead. Tapping the **X** exits selection mode and clears the current selection.
+While selection mode is active, tap any bookmark card to select or deselect it. The card's interactive action buttons are replaced by dimmed status icons that show each bookmark's current **favorite** and **archive** state, and the far-right action area shows a circular selection indicator. Tapping the **X** exits selection mode and clears the current selection.
 
-After selecting one or more bookmarks, use the top-bar **Favorite** or **Archive** buttons to apply that action to all selected cards. Each selected bookmark is toggled from its current state: favorites become not favorite, non-favorites become favorite, archived bookmarks become unarchived, and unarchived bookmarks become archived.
+Tap the **⋮ overflow** button to open the selection menu, which always offers:
+
+- **Select all / Deselect all** — selects every bookmark in the current view. If all visible bookmarks are already selected, the same item becomes **Deselect all** and clears the selection.
+
+Once you have at least one bookmark selected, two action icons appear in the top bar (one for favorite, one for archive) and two corresponding items appear in the overflow. Each axis works independently and the bar promotes the most useful action based on what you've selected:
+
+- **Favorite**:
+  - If any selected bookmark is **not** yet a favorite, the bar shows **❤️ Add favorite** (filled heart). Tapping it favorites the whole selection. The overflow has **Remove favorite** as the inverse.
+  - If **all** selected bookmarks are already favorites, the bar promotes **Remove favorite** (outline heart) for a one-tap reversal. The overflow's **Add favorite** is greyed out since there's nothing left to favorite.
+- **Archive**: same pattern with **Archive** (filled box) and **Unarchive** (outline box).
+
+After the action runs, a snackbar at the bottom confirms the post-state of the selection — for example "3 set as favorites", "3 unset as favorites", "5 set as archived", "5 unset as archived" — and selection mode exits automatically.
 
 ## Swipe Actions on Cards
 

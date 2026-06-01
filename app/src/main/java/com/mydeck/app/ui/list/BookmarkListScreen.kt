@@ -37,6 +37,10 @@ import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
+import androidx.compose.material.icons.filled.SelectAll
+import androidx.compose.material.icons.filled.Deselect
+import androidx.compose.material.icons.outlined.FavoriteBorder
+import androidx.compose.material.icons.outlined.Inventory2
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.automirrored.outlined.Label
 import androidx.compose.material.icons.outlined.Bookmarks
@@ -163,11 +167,13 @@ fun BookmarkListScreen(
     val isLabelsSheetOpen = viewModel.isLabelsSheetOpen.collectAsState()
     val pendingDeletionBookmarkIds = viewModel.pendingDeletionBookmarkIds.collectAsState()
     val multiSelectState = viewModel.multiSelectState.collectAsState()
+    val multiSelectTargets = viewModel.multiSelectTargets.collectAsState()
     val swipeConfig = viewModel.swipeConfig.collectAsState()
 
     var showLayoutMenu by remember { mutableStateOf(false) }
     var showSortMenu by remember { mutableStateOf(false) }
     var showOverflowMenu by remember { mutableStateOf(false) }
+    var showSelectionOverflowMenu by remember { mutableStateOf(false) }
     var showRenameLabelDialog by remember { mutableStateOf(false) }
     var showDeleteLabelDialog by remember { mutableStateOf(false) }
     var scrollToTopTrigger by remember { mutableStateOf(0) }
@@ -426,6 +432,27 @@ fun BookmarkListScreen(
         }
     }
 
+    val resources = context.resources
+    LaunchedEffect(Unit) {
+        viewModel.batchActionSnackbarEvent.collect { event ->
+            snackbarHostState.currentSnackbarData?.dismiss()
+            val (pluralRes, count) = when (event) {
+                is BatchActionSnackbarEvent.FavoritesAdded ->
+                    R.plurals.multi_select_set_as_favorite to event.count
+                is BatchActionSnackbarEvent.FavoritesRemoved ->
+                    R.plurals.multi_select_unset_as_favorite to event.count
+                is BatchActionSnackbarEvent.Archived ->
+                    R.plurals.multi_select_set_as_archived to event.count
+                is BatchActionSnackbarEvent.Unarchived ->
+                    R.plurals.multi_select_unset_as_archived to event.count
+            }
+            snackbarHostState.showSnackbar(
+                message = resources.getQuantityString(pluralRes, count, count),
+                duration = SnackbarDuration.Short
+            )
+        }
+    }
+
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_STOP) {
@@ -544,29 +571,148 @@ fun BookmarkListScreen(
                 },
                 actions = {
                     if (isMultiSelectMode) {
+                        val targets = multiSelectTargets.value
                         if (multiSelectState.value.hasSelection) {
+                            // Favorite slot: shows Remove-favorite when all selected are already
+                            // favorited (one-tap reversal); otherwise shows Add-favorite.
+                            val favoriteBarIsRemove = targets.selectedAllFavorited
                             IconButton(
                                 onClick = {
                                     dismissPendingDeleteSnackbar()
                                     hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
-                                    viewModel.onFavoriteSelectedBookmarks()
+                                    if (favoriteBarIsRemove) {
+                                        viewModel.onUnfavoriteSelectedBookmarks()
+                                    } else {
+                                        viewModel.onFavoriteSelectedBookmarks()
+                                    }
                                 }
                             ) {
                                 Icon(
-                                    Icons.Filled.Favorite,
-                                    contentDescription = stringResource(R.string.action_favorite)
+                                    imageVector = if (favoriteBarIsRemove) Icons.Outlined.FavoriteBorder else Icons.Filled.Favorite,
+                                    contentDescription = stringResource(
+                                        if (favoriteBarIsRemove) R.string.action_remove_from_favorites
+                                        else R.string.action_add_to_favorites
+                                    )
                                 )
                             }
+                            val archiveBarIsRemove = targets.selectedAllArchived
                             IconButton(
                                 onClick = {
                                     dismissPendingDeleteSnackbar()
                                     hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
-                                    viewModel.onArchiveSelectedBookmarks()
+                                    if (archiveBarIsRemove) {
+                                        viewModel.onUnarchiveSelectedBookmarks()
+                                    } else {
+                                        viewModel.onArchiveSelectedBookmarks()
+                                    }
                                 }
                             ) {
                                 Icon(
-                                    Icons.Filled.Inventory2,
-                                    contentDescription = stringResource(R.string.action_archive)
+                                    imageVector = if (archiveBarIsRemove) Icons.Outlined.Inventory2 else Icons.Filled.Inventory2,
+                                    contentDescription = stringResource(
+                                        if (archiveBarIsRemove) R.string.action_remove_from_archive
+                                        else R.string.action_add_to_archive
+                                    )
+                                )
+                            }
+                        }
+                        Box {
+                            IconButton(onClick = { showSelectionOverflowMenu = true }) {
+                                Icon(
+                                    Icons.Filled.MoreVert,
+                                    contentDescription = stringResource(R.string.more_options)
+                                )
+                            }
+                            DropdownMenu(
+                                expanded = showSelectionOverflowMenu,
+                                onDismissRequest = { showSelectionOverflowMenu = false }
+                            ) {
+                                if (multiSelectState.value.hasSelection) {
+                                    // Overflow slot is the OPPOSITE of the bar's favorite action.
+                                    val overflowFavoriteIsRemove = !targets.selectedAllFavorited
+                                    val overflowFavoriteEnabled = if (overflowFavoriteIsRemove) {
+                                        // Removing favorites only does something if some are favorited.
+                                        !targets.selectedAllUnfavorited
+                                    } else {
+                                        // Adding favorites only does something if some are NOT favorited.
+                                        !targets.selectedAllFavorited
+                                    }
+                                    DropdownMenuItem(
+                                        leadingIcon = {
+                                            Icon(
+                                                imageVector = if (overflowFavoriteIsRemove) Icons.Outlined.FavoriteBorder else Icons.Filled.Favorite,
+                                                contentDescription = null
+                                            )
+                                        },
+                                        text = {
+                                            Text(stringResource(
+                                                if (overflowFavoriteIsRemove) R.string.action_remove_from_favorites
+                                                else R.string.action_add_to_favorites
+                                            ))
+                                        },
+                                        enabled = overflowFavoriteEnabled,
+                                        onClick = {
+                                            showSelectionOverflowMenu = false
+                                            dismissPendingDeleteSnackbar()
+                                            hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                                            if (overflowFavoriteIsRemove) {
+                                                viewModel.onUnfavoriteSelectedBookmarks()
+                                            } else {
+                                                viewModel.onFavoriteSelectedBookmarks()
+                                            }
+                                        }
+                                    )
+                                    val overflowArchiveIsRemove = !targets.selectedAllArchived
+                                    val overflowArchiveEnabled = if (overflowArchiveIsRemove) {
+                                        !targets.selectedAllUnarchived
+                                    } else {
+                                        !targets.selectedAllArchived
+                                    }
+                                    DropdownMenuItem(
+                                        leadingIcon = {
+                                            Icon(
+                                                imageVector = if (overflowArchiveIsRemove) Icons.Outlined.Inventory2 else Icons.Filled.Inventory2,
+                                                contentDescription = null
+                                            )
+                                        },
+                                        text = {
+                                            Text(stringResource(
+                                                if (overflowArchiveIsRemove) R.string.action_remove_from_archive
+                                                else R.string.action_add_to_archive
+                                            ))
+                                        },
+                                        enabled = overflowArchiveEnabled,
+                                        onClick = {
+                                            showSelectionOverflowMenu = false
+                                            dismissPendingDeleteSnackbar()
+                                            hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                                            if (overflowArchiveIsRemove) {
+                                                viewModel.onUnarchiveSelectedBookmarks()
+                                            } else {
+                                                viewModel.onArchiveSelectedBookmarks()
+                                            }
+                                        }
+                                    )
+                                }
+                                val allSelected = targets.allVisibleSelected
+                                DropdownMenuItem(
+                                    leadingIcon = {
+                                        Icon(
+                                            imageVector = if (allSelected) Icons.Filled.Deselect else Icons.Filled.SelectAll,
+                                            contentDescription = null
+                                        )
+                                    },
+                                    text = {
+                                        Text(stringResource(
+                                            if (allSelected) R.string.action_deselect_all
+                                            else R.string.action_select_all
+                                        ))
+                                    },
+                                    onClick = {
+                                        showSelectionOverflowMenu = false
+                                        dismissPendingDeleteSnackbar()
+                                        viewModel.onToggleSelectAllBookmarks()
+                                    }
                                 )
                             }
                         }

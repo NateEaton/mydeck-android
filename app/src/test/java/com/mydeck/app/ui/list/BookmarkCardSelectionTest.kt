@@ -28,9 +28,11 @@ class BookmarkCardSelectionTest {
     val composeTestRule = createComposeRule()
 
     @Test
-    fun `selection mode hides favorite and archive actions and shows select indicator`() {
+    fun `selection mode shows favorite and archive state indicators alongside select indicator`() {
         val toggles = AtomicInteger(0)
         val navigations = AtomicInteger(0)
+        val favoriteToggles = AtomicInteger(0)
+        val archiveToggles = AtomicInteger(0)
 
         composeTestRule.setContent {
             MaterialTheme {
@@ -38,8 +40,8 @@ class BookmarkCardSelectionTest {
                     bookmark = bookmarkListItem(),
                     onClickCard = { navigations.incrementAndGet() },
                     onClickDelete = {},
-                    onClickFavorite = { _, _ -> },
-                    onClickArchive = { _, _ -> },
+                    onClickFavorite = { _, _ -> favoriteToggles.incrementAndGet() },
+                    onClickArchive = { _, _ -> archiveToggles.incrementAndGet() },
                     isSelectionMode = true,
                     isSelected = false,
                     onToggleSelection = { toggles.incrementAndGet() }
@@ -49,12 +51,37 @@ class BookmarkCardSelectionTest {
 
         composeTestRule.onNodeWithContentDescription("Favorite").assertDoesNotExist()
         composeTestRule.onNodeWithContentDescription("Archive").assertDoesNotExist()
+        composeTestRule.onNodeWithContentDescription("Not favorited").assertExists()
+        composeTestRule.onNodeWithContentDescription("Not archived").assertExists()
         composeTestRule.onNodeWithContentDescription("Select bookmark").assertExists()
 
         composeTestRule.onNodeWithText("Test Bookmark").performClick()
 
+        assertEquals(0, favoriteToggles.get())
+        assertEquals(0, archiveToggles.get())
         assertEquals(1, toggles.get())
         assertEquals(0, navigations.get())
+    }
+
+    @Test
+    fun `selection mode reflects favorited and archived state`() {
+        composeTestRule.setContent {
+            MaterialTheme {
+                BookmarkGridCard(
+                    bookmark = bookmarkListItem(isMarked = true, isArchived = true),
+                    onClickCard = {},
+                    onClickDelete = {},
+                    onClickFavorite = { _, _ -> },
+                    onClickArchive = { _, _ -> },
+                    isSelectionMode = true,
+                    isSelected = false,
+                    onToggleSelection = {}
+                )
+            }
+        }
+
+        composeTestRule.onNodeWithContentDescription("Favorited").assertExists()
+        composeTestRule.onNodeWithContentDescription("Archived").assertExists()
     }
 
     @Test
@@ -103,14 +130,17 @@ class BookmarkCardSelectionTest {
         assertEquals(0, navigations.get())
     }
 
-    private fun bookmarkListItem() = BookmarkListItem(
+    private fun bookmarkListItem(
+        isMarked: Boolean = false,
+        isArchived: Boolean = false
+    ) = BookmarkListItem(
         id = "bookmark-1",
         href = "https://example.com/api/bookmarks/bookmark-1",
         url = "https://example.com/bookmark-1",
         title = "Test Bookmark",
         siteName = "Example",
-        isMarked = false,
-        isArchived = false,
+        isMarked = isMarked,
+        isArchived = isArchived,
         isRead = false,
         readProgress = 0,
         thumbnailSrc = "",

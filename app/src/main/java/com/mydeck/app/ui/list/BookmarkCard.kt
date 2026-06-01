@@ -59,6 +59,7 @@ import androidx.compose.material3.CardDefaults.outlinedCardBorder
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SuggestionChip
 import androidx.compose.material3.Text
@@ -81,9 +82,11 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
@@ -375,6 +378,29 @@ private fun BookmarkSelectionIndicator(
     }
 }
 
+@Composable
+private fun BookmarkSelectStateIcon(
+    imageVector: ImageVector,
+    contentDescription: String,
+    tint: Color = LocalContentColor.current,
+    boxSize: Dp = 36.dp,
+    iconSize: Dp = 20.dp,
+) {
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier = Modifier.size(boxSize)
+    ) {
+        Icon(
+            imageVector = imageVector,
+            contentDescription = contentDescription,
+            tint = tint,
+            modifier = Modifier
+                .size(iconSize)
+                .alpha(0.38f)
+        )
+    }
+}
+
 @OptIn(ExperimentalLayoutApi::class, ExperimentalFoundationApi::class)
 @Composable
 fun BookmarkMosaicCard(
@@ -570,7 +596,24 @@ fun BookmarkMosaicCard(
                             }
                         }
                         } else {
-                            Spacer(Modifier.width(1.dp))
+                            Row(horizontalArrangement = Arrangement.Start) {
+                                BookmarkSelectStateIcon(
+                                    imageVector = if (bookmark.isMarked) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
+                                    contentDescription = stringResource(
+                                        if (bookmark.isMarked) R.string.bookmark_state_favorited
+                                        else R.string.bookmark_state_not_favorited
+                                    ),
+                                    tint = Color.White
+                                )
+                                BookmarkSelectStateIcon(
+                                    imageVector = if (bookmark.isArchived) Icons.Filled.Inventory2 else Icons.Outlined.Inventory2,
+                                    contentDescription = stringResource(
+                                        if (bookmark.isArchived) R.string.bookmark_state_archived
+                                        else R.string.bookmark_state_not_archived
+                                    ),
+                                    tint = Color.White
+                                )
+                            }
                         }
                         if (isSelectionMode) {
                             BookmarkSelectionIndicator(
@@ -1013,7 +1056,26 @@ private fun BookmarkGridCardMobilePortrait(
                             }
                         }
                         } else {
-                            Spacer(Modifier.width(1.dp))
+                            Row(horizontalArrangement = Arrangement.Start) {
+                                BookmarkSelectStateIcon(
+                                    imageVector = if (bookmark.isMarked) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
+                                    contentDescription = stringResource(
+                                        if (bookmark.isMarked) R.string.bookmark_state_favorited
+                                        else R.string.bookmark_state_not_favorited
+                                    ),
+                                    boxSize = 48.dp,
+                                    iconSize = 24.dp
+                                )
+                                BookmarkSelectStateIcon(
+                                    imageVector = if (bookmark.isArchived) Icons.Filled.Inventory2 else Icons.Outlined.Inventory2,
+                                    contentDescription = stringResource(
+                                        if (bookmark.isArchived) R.string.bookmark_state_archived
+                                        else R.string.bookmark_state_not_archived
+                                    ),
+                                    boxSize = 48.dp,
+                                    iconSize = 24.dp
+                                )
+                            }
                         }
                         if (isSelectionMode) {
                             BookmarkSelectionIndicator(
@@ -1337,7 +1399,22 @@ private fun BookmarkGridCardNarrow(
                         }
                     }
                     } else {
-                        Spacer(Modifier.width(1.dp))
+                        Row(horizontalArrangement = Arrangement.Start) {
+                            BookmarkSelectStateIcon(
+                                imageVector = if (bookmark.isMarked) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
+                                contentDescription = stringResource(
+                                    if (bookmark.isMarked) R.string.bookmark_state_favorited
+                                    else R.string.bookmark_state_not_favorited
+                                )
+                            )
+                            BookmarkSelectStateIcon(
+                                imageVector = if (bookmark.isArchived) Icons.Filled.Inventory2 else Icons.Outlined.Inventory2,
+                                contentDescription = stringResource(
+                                    if (bookmark.isArchived) R.string.bookmark_state_archived
+                                    else R.string.bookmark_state_not_archived
+                                )
+                            )
+                        }
                     }
                     if (isSelectionMode) {
                         BookmarkSelectionIndicator(
@@ -1667,7 +1744,22 @@ private fun BookmarkGridCardWide(
                         }
                     }
                     } else {
-                        Spacer(Modifier.width(1.dp))
+                        Row(horizontalArrangement = Arrangement.Start) {
+                            BookmarkSelectStateIcon(
+                                imageVector = if (bookmark.isMarked) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
+                                contentDescription = stringResource(
+                                    if (bookmark.isMarked) R.string.bookmark_state_favorited
+                                    else R.string.bookmark_state_not_favorited
+                                )
+                            )
+                            BookmarkSelectStateIcon(
+                                imageVector = if (bookmark.isArchived) Icons.Filled.Inventory2 else Icons.Outlined.Inventory2,
+                                contentDescription = stringResource(
+                                    if (bookmark.isArchived) R.string.bookmark_state_archived
+                                    else R.string.bookmark_state_not_archived
+                                )
+                            )
+                        }
                     }
                     if (isSelectionMode) {
                         BookmarkSelectionIndicator(
@@ -2025,7 +2117,24 @@ private fun BookmarkCompactCardNarrow(
                 }
             }
             } else {
-                Spacer(Modifier.width(1.dp))
+                Row(horizontalArrangement = Arrangement.Start) {
+                    BookmarkSelectStateIcon(
+                        imageVector = if (bookmark.isMarked) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
+                        contentDescription = stringResource(
+                            if (bookmark.isMarked) R.string.bookmark_state_favorited
+                            else R.string.bookmark_state_not_favorited
+                        ),
+                        boxSize = 32.dp,
+                        iconSize = 18.dp
+                    )
+                    BookmarkSelectStateIcon(
+                        imageVector = if (bookmark.isArchived) Icons.Filled.Inventory2 else Icons.Outlined.Inventory2,
+                        contentDescription = stringResource(
+                            if (bookmark.isArchived) R.string.bookmark_state_archived
+                            else R.string.bookmark_state_not_archived
+                        )
+                    )
+                }
             }
             if (isSelectionMode) {
                 BookmarkSelectionIndicator(
@@ -2178,6 +2287,20 @@ private fun BookmarkCompactCardWide(
                 Spacer(Modifier.width(4.dp))
 
                 if (isSelectionMode) {
+                    BookmarkSelectStateIcon(
+                        imageVector = if (bookmark.isMarked) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
+                        contentDescription = stringResource(
+                            if (bookmark.isMarked) R.string.bookmark_state_favorited
+                            else R.string.bookmark_state_not_favorited
+                        )
+                    )
+                    BookmarkSelectStateIcon(
+                        imageVector = if (bookmark.isArchived) Icons.Filled.Inventory2 else Icons.Outlined.Inventory2,
+                        contentDescription = stringResource(
+                            if (bookmark.isArchived) R.string.bookmark_state_archived
+                            else R.string.bookmark_state_not_archived
+                        )
+                    )
                     BookmarkSelectionIndicator(
                         isSelected = isSelected,
                         onClick = { onToggleSelection(bookmark.id) }

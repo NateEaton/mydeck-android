@@ -63,6 +63,22 @@ data class MultiSelectState(
     fun isSelected(bookmarkId: String): Boolean = bookmarkId in selectedIds
 }
 
+data class MultiSelectTargets(
+    val allVisibleSelected: Boolean = false,
+    val selectedAllFavorited: Boolean = false,
+    val selectedAllUnfavorited: Boolean = false,
+    val selectedAllArchived: Boolean = false,
+    val selectedAllUnarchived: Boolean = false
+)
+
+sealed class BatchActionSnackbarEvent {
+    abstract val count: Int
+    data class FavoritesAdded(override val count: Int) : BatchActionSnackbarEvent()
+    data class FavoritesRemoved(override val count: Int) : BatchActionSnackbarEvent()
+    data class Archived(override val count: Int) : BatchActionSnackbarEvent()
+    data class Unarchived(override val count: Int) : BatchActionSnackbarEvent()
+}
+
 private data class SelectedBookmarkActionState(
     val id: String,
     val isMarked: Boolean,
@@ -246,6 +262,28 @@ class BookmarkListViewModel @Inject constructor(
 
     private val _uiState = MutableStateFlow<UiState>(UiState.Loading)
     val uiState = _uiState.asStateFlow()
+
+    val multiSelectTargets: StateFlow<MultiSelectTargets> = combine(
+        _multiSelectState,
+        _uiState
+    ) { selection, ui ->
+        val bookmarks = (ui as? UiState.Success)?.bookmarks.orEmpty()
+        val allVisibleSelected = bookmarks.isNotEmpty() &&
+            bookmarks.all { it.id in selection.selectedIds }
+        val selectedItems = bookmarks.filter { it.id in selection.selectedIds }
+        val hasSelection = selectedItems.isNotEmpty()
+        MultiSelectTargets(
+            allVisibleSelected = allVisibleSelected,
+            selectedAllFavorited = hasSelection && selectedItems.all { it.isMarked },
+            selectedAllUnfavorited = hasSelection && selectedItems.none { it.isMarked },
+            selectedAllArchived = hasSelection && selectedItems.all { it.isArchived },
+            selectedAllUnarchived = hasSelection && selectedItems.none { it.isArchived }
+        )
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, MultiSelectTargets())
+
+    private val _batchActionSnackbarEvent = Channel<BatchActionSnackbarEvent>(Channel.BUFFERED)
+    val batchActionSnackbarEvent: Flow<BatchActionSnackbarEvent> =
+        _batchActionSnackbarEvent.receiveAsFlow()
 
     init {
         viewModelScope.launch {
@@ -634,37 +672,83 @@ class BookmarkListViewModel @Inject constructor(
         }
     }
 
-    fun onFavoriteSelectedBookmarks() {
+    fun onFavoriteSelectedBookmarks() = applyBatchFavorite(targetFavorite = true)
+
+    fun onUnfavoriteSelectedBookmarks() = applyBatchFavorite(targetFavorite = false)
+
+    fun onArchiveSelectedBookmarks() = applyBatchArchive(targetArchived = true)
+
+    fun onUnarchiveSelectedBookmarks() = applyBatchArchive(targetArchived = false)
+
+    private fun applyBatchFavorite(targetFavorite: Boolean) {
         val snapshots = selectedBookmarkActionSnapshots()
         if (snapshots.isEmpty()) return
 
+        val selectedCount = snapshots.size
+        val itemsToUpdate = snapshots.filter { it.isMarked != targetFavorite }
         clearMultiSelectState()
-        updateBookmark {
-            updateBookmarkUseCase.updateBookmarks(
-                snapshots.map { snapshot ->
-                    BookmarkBatchUpdate(
-                        bookmarkId = snapshot.id,
-                        isFavorite = !snapshot.isMarked
-                    )
-                }
-            )
+
+        if (itemsToUpdate.isNotEmpty()) {
+            updateBookmark {
+                updateBookmarkUseCase.updateBookmarks(
+                    itemsToUpdate.map { snapshot ->
+                        BookmarkBatchUpdate(
+                            bookmarkId = snapshot.id,
+                            isFavorite = targetFavorite
+                        )
+                    }
+                )
+            }
         }
+        val event = if (targetFavorite) {
+            BatchActionSnackbarEvent.FavoritesAdded(selectedCount)
+        } else {
+            BatchActionSnackbarEvent.FavoritesRemoved(selectedCount)
+        }
+        _batchActionSnackbarEvent.trySend(event)
     }
 
-    fun onArchiveSelectedBookmarks() {
+    private fun applyBatchArchive(targetArchived: Boolean) {
         val snapshots = selectedBookmarkActionSnapshots()
         if (snapshots.isEmpty()) return
 
+        val selectedCount = snapshots.size
+        val itemsToUpdate = snapshots.filter { it.isArchived != targetArchived }
         clearMultiSelectState()
-        updateBookmark {
-            updateBookmarkUseCase.updateBookmarks(
-                snapshots.map { snapshot ->
-                    BookmarkBatchUpdate(
-                        bookmarkId = snapshot.id,
-                        isArchived = !snapshot.isArchived
-                    )
-                }
-            )
+
+        if (itemsToUpdate.isNotEmpty()) {
+            updateBookmark {
+                updateBookmarkUseCase.updateBookmarks(
+                    itemsToUpdate.map { snapshot ->
+                        BookmarkBatchUpdate(
+                            bookmarkId = snapshot.id,
+                            isArchived = targetArchived
+                        )
+                    }
+                )
+            }
+        }
+        val event = if (targetArchived) {
+            BatchActionSnackbarEvent.Archived(selectedCount)
+        } else {
+            BatchActionSnackbarEvent.Unarchived(selectedCount)
+        }
+        _batchActionSnackbarEvent.trySend(event)
+    }
+
+    fun onToggleSelectAllBookmarks() {
+        val visibleIds = (_uiState.value as? UiState.Success)
+            ?.bookmarks
+            ?.mapTo(linkedSetOf<String>()) { it.id }
+            ?: linkedSetOf()
+        _multiSelectState.update { state ->
+            if (!state.active) {
+                state
+            } else if (visibleIds.isNotEmpty() && state.selectedIds == visibleIds) {
+                state.copy(selectedIds = emptySet())
+            } else {
+                state.copy(selectedIds = visibleIds)
+            }
         }
     }
 
