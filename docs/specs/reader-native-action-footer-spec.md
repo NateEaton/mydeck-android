@@ -2,7 +2,12 @@
 
 ## Status
 
-Proposal — not yet scheduled for implementation.
+Implemented in `feat/reader-native-footer`.
+
+Divergence: bottom clearance is applied through the existing runtime CSS-variable
+path rather than by reloading reader HTML when footer gates change. This keeps
+the footer animation from reflowing WebView content and preserves reader scroll
+position.
 
 ## Context
 

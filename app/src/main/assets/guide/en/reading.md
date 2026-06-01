@@ -84,7 +84,7 @@ The main **Highlights** destination in the navigation drawer opens a global list
 
 ## End-of-content Actions
 
-At the bottom of the article or transcript, two buttons let you act on the bookmark without opening a menu:
+When you reach the end of extracted content, a small footer floats in with two actions so you can update the bookmark without opening a menu. It hides again when you scroll back up, is not shown in web view, and is suppressed on wider layouts where the same actions are already available elsewhere.
 
 - **Add to favorites / Remove favorite** — toggle the favorite status
 - **Archive / Unarchive** — move the bookmark to the archive (or back to My List)
