@@ -11,6 +11,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import com.mydeck.app.BuildConfig
 import com.mydeck.app.R
+import com.mydeck.app.domain.BookmarkBatchUpdate
 import com.mydeck.app.domain.BookmarkRepository
 import com.mydeck.app.domain.model.Bookmark
 import com.mydeck.app.domain.model.BookmarkCounts
@@ -52,6 +53,21 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 import timber.log.Timber
 import javax.inject.Inject
+
+data class MultiSelectState(
+    val active: Boolean = false,
+    val selectedIds: Set<String> = emptySet()
+) {
+    val selectedCount: Int get() = selectedIds.size
+    val hasSelection: Boolean get() = selectedIds.isNotEmpty()
+    fun isSelected(bookmarkId: String): Boolean = bookmarkId in selectedIds
+}
+
+private data class SelectedBookmarkActionState(
+    val id: String,
+    val isMarked: Boolean,
+    val isArchived: Boolean
+)
 
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
@@ -100,6 +116,9 @@ class BookmarkListViewModel @Inject constructor(
     // Pending deletion IDs tracked per staged snackbar so rapid deletes keep item identity.
     private val _pendingDeletionBookmarkIds = MutableStateFlow<List<String>>(emptyList())
     val pendingDeletionBookmarkIds = _pendingDeletionBookmarkIds.asStateFlow()
+
+    private val _multiSelectState = MutableStateFlow(MultiSelectState())
+    val multiSelectState = _multiSelectState.asStateFlow()
 
     // Constraint feedback: one-shot snackbar message when content sync is blocked
     private val _constraintSnackbarEvent = Channel<Int>(Channel.BUFFERED)
@@ -290,6 +309,7 @@ class BookmarkListViewModel @Inject constructor(
             }.combine(loadBookmarksHasFailed) { (visibleBookmarks, initialSyncPerformed), hasLoadFailed ->
                 Triple(visibleBookmarks, initialSyncPerformed, hasLoadFailed)
             }.collectLatest { (visibleBookmarks, initialSyncPerformed, hasLoadFailed) ->
+                dropSelectedIdsMissingFrom(visibleBookmarks)
                 _uiState.update { currentState ->
                     val updateBookmarkState = (currentState as? UiState.Success)?.updateBookmarkState
                     when {
@@ -310,6 +330,7 @@ class BookmarkListViewModel @Inject constructor(
     // --- Drawer preset navigation ---
 
     fun onSelectDrawerPreset(preset: DrawerPreset) {
+        clearMultiSelectState()
         _drawerPreset.value = preset
         _filterFormState.value = FilterFormState.fromPreset(preset)
         _activeLabel.value = null
@@ -325,6 +346,7 @@ class BookmarkListViewModel @Inject constructor(
     // --- Label mode ---
 
     fun onClickLabel(label: String) {
+        clearMultiSelectState()
         if (_activeLabel.value == label) {
             // Toggle off label mode, return to previous drawer preset
             _activeLabel.value = null
@@ -381,11 +403,13 @@ class BookmarkListViewModel @Inject constructor(
     }
 
     fun onApplyFilter(filterFormState: FilterFormState) {
+        clearMultiSelectState()
         _filterFormState.value = filterFormState
         _isFilterSheetOpen.value = false
     }
 
     fun onResetFilter() {
+        clearMultiSelectState()
         _filterFormState.value = FilterFormState.fromPreset(_drawerPreset.value)
         _isFilterSheetOpen.value = false
     }
@@ -584,6 +608,95 @@ class BookmarkListViewModel @Inject constructor(
                 bookmarkId = bookmarkId,
                 isArchived = isArchived
             )
+        }
+    }
+
+    fun onEnterMultiSelectMode() {
+        _multiSelectState.value = MultiSelectState(active = true)
+    }
+
+    fun onExitMultiSelectMode() {
+        clearMultiSelectState()
+    }
+
+    fun onToggleBookmarkSelected(bookmarkId: String) {
+        _multiSelectState.update { state ->
+            if (!state.active) {
+                state
+            } else {
+                val selectedIds = if (bookmarkId in state.selectedIds) {
+                    state.selectedIds - bookmarkId
+                } else {
+                    state.selectedIds + bookmarkId
+                }
+                state.copy(selectedIds = selectedIds)
+            }
+        }
+    }
+
+    fun onFavoriteSelectedBookmarks() {
+        val snapshots = selectedBookmarkActionSnapshots()
+        if (snapshots.isEmpty()) return
+
+        clearMultiSelectState()
+        updateBookmark {
+            updateBookmarkUseCase.updateBookmarks(
+                snapshots.map { snapshot ->
+                    BookmarkBatchUpdate(
+                        bookmarkId = snapshot.id,
+                        isFavorite = !snapshot.isMarked
+                    )
+                }
+            )
+        }
+    }
+
+    fun onArchiveSelectedBookmarks() {
+        val snapshots = selectedBookmarkActionSnapshots()
+        if (snapshots.isEmpty()) return
+
+        clearMultiSelectState()
+        updateBookmark {
+            updateBookmarkUseCase.updateBookmarks(
+                snapshots.map { snapshot ->
+                    BookmarkBatchUpdate(
+                        bookmarkId = snapshot.id,
+                        isArchived = !snapshot.isArchived
+                    )
+                }
+            )
+        }
+    }
+
+    private fun selectedBookmarkActionSnapshots(): List<SelectedBookmarkActionState> {
+        val selectedIds = _multiSelectState.value.selectedIds
+        if (selectedIds.isEmpty()) return emptyList()
+
+        val bookmarks = (_uiState.value as? UiState.Success)?.bookmarks.orEmpty()
+        return bookmarks
+            .asSequence()
+            .filter { it.id in selectedIds }
+            .map {
+                SelectedBookmarkActionState(
+                    id = it.id,
+                    isMarked = it.isMarked,
+                    isArchived = it.isArchived
+                )
+            }
+            .toList()
+    }
+
+    private fun clearMultiSelectState() {
+        _multiSelectState.value = MultiSelectState()
+    }
+
+    private fun dropSelectedIdsMissingFrom(visibleBookmarks: List<BookmarkListItem>) {
+        if (!_multiSelectState.value.active) return
+
+        val visibleIds = visibleBookmarks.mapTo(mutableSetOf()) { it.id }
+        _multiSelectState.update { state ->
+            val retainedIds = state.selectedIds.intersect(visibleIds)
+            if (retainedIds == state.selectedIds) state else state.copy(selectedIds = retainedIds)
         }
     }
 

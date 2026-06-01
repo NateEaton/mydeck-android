@@ -218,6 +218,54 @@ class BookmarkRepositoryImplTest {
     }
 
     @Test
+    fun `updateBookmarks favorite updates local rows queues actions and schedules sync once`() = runTest {
+        val updates = listOf(
+            BookmarkBatchUpdate(bookmarkId = "bookmark-1", isFavorite = true),
+            BookmarkBatchUpdate(bookmarkId = "bookmark-2", isFavorite = false)
+        )
+
+        bookmarkRepositoryImpl.updateBookmarks(updates)
+
+        coVerify { bookmarkDao.updateIsMarked("bookmark-1", true) }
+        coVerify { bookmarkDao.updateIsMarked("bookmark-2", false) }
+        coVerify {
+            pendingActionDao.insert(match {
+                it.bookmarkId == "bookmark-1" && it.actionType == ActionType.TOGGLE_FAVORITE
+            })
+        }
+        coVerify {
+            pendingActionDao.insert(match {
+                it.bookmarkId == "bookmark-2" && it.actionType == ActionType.TOGGLE_FAVORITE
+            })
+        }
+        verify(exactly = 1) { syncScheduler.scheduleActionSync() }
+    }
+
+    @Test
+    fun `updateBookmarks archive updates local rows queues actions and schedules sync once`() = runTest {
+        val updates = listOf(
+            BookmarkBatchUpdate(bookmarkId = "bookmark-1", isArchived = true),
+            BookmarkBatchUpdate(bookmarkId = "bookmark-2", isArchived = false)
+        )
+
+        bookmarkRepositoryImpl.updateBookmarks(updates)
+
+        coVerify { bookmarkDao.updateIsArchived("bookmark-1", true) }
+        coVerify { bookmarkDao.updateIsArchived("bookmark-2", false) }
+        coVerify {
+            pendingActionDao.insert(match {
+                it.bookmarkId == "bookmark-1" && it.actionType == ActionType.TOGGLE_ARCHIVE
+            })
+        }
+        coVerify {
+            pendingActionDao.insert(match {
+                it.bookmarkId == "bookmark-2" && it.actionType == ActionType.TOGGLE_ARCHIVE
+            })
+        }
+        verify(exactly = 1) { syncScheduler.scheduleActionSync() }
+    }
+
+    @Test
     fun `deleteBookmark performs soft delete and queues action`() = runTest {
         // Arrange
         val bookmarkId = "123"

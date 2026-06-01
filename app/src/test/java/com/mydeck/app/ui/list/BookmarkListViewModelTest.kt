@@ -5,6 +5,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import com.mydeck.app.R
+import com.mydeck.app.domain.BookmarkBatchUpdate
 import com.mydeck.app.domain.BookmarkRepository
 import com.mydeck.app.domain.HighlightsRepository
 import com.mydeck.app.domain.model.Bookmark
@@ -133,6 +134,20 @@ class BookmarkListViewModelTest {
         every { settingsDataStore.urlFlow } returns kotlinx.coroutines.flow.MutableStateFlow(null)
         every { settingsDataStore.tokenFlow } returns kotlinx.coroutines.flow.MutableStateFlow(null)
     }
+
+    private fun createViewModel() = BookmarkListViewModel(
+        updateBookmarkUseCase,
+        fullSyncUseCase,
+        workManager,
+        bookmarkRepository,
+        context,
+        settingsDataStore,
+        savedStateHandle,
+        contentSyncPolicyEvaluator,
+        contentPackageManager,
+        syncScheduler,
+        connectivityMonitor
+    )
 
     @After
     fun tearDown() {
@@ -1450,6 +1465,177 @@ class BookmarkListViewModelTest {
         assertEquals(option, viewModel.sortOption.value)
         coVerify { settingsDataStore.saveSortOption(option.name) }
     }
+
+    @Test
+    fun `enter multi-select starts active with zero selected`() = runTest {
+        viewModel = createViewModel()
+        advanceUntilIdle()
+
+        viewModel.onEnterMultiSelectMode()
+
+        assertTrue(viewModel.multiSelectState.value.active)
+        assertEquals(0, viewModel.multiSelectState.value.selectedCount)
+        assertFalse(viewModel.multiSelectState.value.hasSelection)
+    }
+
+    @Test
+    fun `toggle bookmark selection adds and removes selected id`() = runTest {
+        viewModel = createViewModel()
+        advanceUntilIdle()
+
+        viewModel.onEnterMultiSelectMode()
+        viewModel.onToggleBookmarkSelected("bookmark-1")
+        assertEquals(setOf("bookmark-1"), viewModel.multiSelectState.value.selectedIds)
+
+        viewModel.onToggleBookmarkSelected("bookmark-1")
+        assertTrue(viewModel.multiSelectState.value.active)
+        assertEquals(emptySet<String>(), viewModel.multiSelectState.value.selectedIds)
+    }
+
+    @Test
+    fun `exit multi-select clears selected ids`() = runTest {
+        viewModel = createViewModel()
+        advanceUntilIdle()
+
+        viewModel.onEnterMultiSelectMode()
+        viewModel.onToggleBookmarkSelected("bookmark-1")
+        viewModel.onExitMultiSelectMode()
+
+        assertFalse(viewModel.multiSelectState.value.active)
+        assertEquals(emptySet<String>(), viewModel.multiSelectState.value.selectedIds)
+    }
+
+    @Test
+    fun `context change clears multi-select state`() = runTest {
+        viewModel = createViewModel()
+        advanceUntilIdle()
+
+        viewModel.onEnterMultiSelectMode()
+        viewModel.onToggleBookmarkSelected("bookmark-1")
+        viewModel.onApplyFilter(com.mydeck.app.domain.model.FilterFormState(search = "updated"))
+
+        assertEquals(MultiSelectState(), viewModel.multiSelectState.value)
+    }
+
+    @Test
+    fun `visible list refresh drops selected ids that are no longer visible`() = runTest {
+        val bookmarkFlow = MutableStateFlow(
+            listOf(bookmarkListItem("bookmark-1"), bookmarkListItem("bookmark-2"))
+        )
+        every {
+            bookmarkRepository.observeFilteredBookmarkListItems(
+                any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(),
+                any(), any(), any(), any(), any(), any(), any(), any(), any(), any()
+            )
+        } returns bookmarkFlow
+        viewModel = createViewModel()
+        advanceUntilIdle()
+
+        viewModel.onEnterMultiSelectMode()
+        viewModel.onToggleBookmarkSelected("bookmark-1")
+        viewModel.onToggleBookmarkSelected("bookmark-2")
+
+        bookmarkFlow.value = listOf(bookmarkListItem("bookmark-2"))
+        advanceUntilIdle()
+
+        assertTrue(viewModel.multiSelectState.value.active)
+        assertEquals(setOf("bookmark-2"), viewModel.multiSelectState.value.selectedIds)
+    }
+
+    @Test
+    fun `batch favorite toggles from captured selected bookmark state`() = runTest {
+        val visibleBookmarks = listOf(
+            bookmarkListItem("not-favorite", isMarked = false),
+            bookmarkListItem("favorite", isMarked = true),
+            bookmarkListItem("unselected", isMarked = false)
+        )
+        every {
+            bookmarkRepository.observeFilteredBookmarkListItems(
+                any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(),
+                any(), any(), any(), any(), any(), any(), any(), any(), any(), any()
+            )
+        } returns flowOf(visibleBookmarks)
+        coEvery { updateBookmarkUseCase.updateBookmarks(any()) } returns UpdateBookmarkUseCase.Result.Success
+        viewModel = createViewModel()
+        advanceUntilIdle()
+
+        viewModel.onEnterMultiSelectMode()
+        viewModel.onToggleBookmarkSelected("not-favorite")
+        viewModel.onToggleBookmarkSelected("favorite")
+        viewModel.onFavoriteSelectedBookmarks()
+        advanceUntilIdle()
+
+        coVerify {
+            updateBookmarkUseCase.updateBookmarks(
+                listOf(
+                    BookmarkBatchUpdate(bookmarkId = "not-favorite", isFavorite = true),
+                    BookmarkBatchUpdate(bookmarkId = "favorite", isFavorite = false)
+                )
+            )
+        }
+        assertEquals(MultiSelectState(), viewModel.multiSelectState.value)
+    }
+
+    @Test
+    fun `batch archive toggles from captured selected bookmark state`() = runTest {
+        val visibleBookmarks = listOf(
+            bookmarkListItem("not-archived", isArchived = false),
+            bookmarkListItem("archived", isArchived = true),
+            bookmarkListItem("unselected", isArchived = false)
+        )
+        every {
+            bookmarkRepository.observeFilteredBookmarkListItems(
+                any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(),
+                any(), any(), any(), any(), any(), any(), any(), any(), any(), any()
+            )
+        } returns flowOf(visibleBookmarks)
+        coEvery { updateBookmarkUseCase.updateBookmarks(any()) } returns UpdateBookmarkUseCase.Result.Success
+        viewModel = createViewModel()
+        advanceUntilIdle()
+
+        viewModel.onEnterMultiSelectMode()
+        viewModel.onToggleBookmarkSelected("not-archived")
+        viewModel.onToggleBookmarkSelected("archived")
+        viewModel.onArchiveSelectedBookmarks()
+        advanceUntilIdle()
+
+        coVerify {
+            updateBookmarkUseCase.updateBookmarks(
+                listOf(
+                    BookmarkBatchUpdate(bookmarkId = "not-archived", isArchived = true),
+                    BookmarkBatchUpdate(bookmarkId = "archived", isArchived = false)
+                )
+            )
+        }
+        assertEquals(MultiSelectState(), viewModel.multiSelectState.value)
+    }
+
+    private fun bookmarkListItem(
+        id: String,
+        isMarked: Boolean = false,
+        isArchived: Boolean = false
+    ) = BookmarkListItem(
+        id = id,
+        href = "https://example.com/api/bookmarks/$id",
+        url = "https://example.com/$id",
+        title = "Bookmark $id",
+        siteName = "Example Site",
+        type = Bookmark.Type.Article,
+        isMarked = isMarked,
+        isArchived = isArchived,
+        labels = emptyList(),
+        isRead = false,
+        readProgress = 0,
+        thumbnailSrc = "",
+        iconSrc = "",
+        imageSrc = "",
+        readingTime = null,
+        created = kotlinx.datetime.Clock.System.now()
+            .toLocalDateTime(kotlinx.datetime.TimeZone.currentSystemDefault()),
+        wordCount = null,
+        published = null
+    )
+
     private val bookmarks = listOf(
         BookmarkListItem(
             id = "1",

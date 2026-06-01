@@ -525,37 +525,66 @@ class BookmarkRepositoryImpl @Inject constructor(
     ): BookmarkRepository.UpdateResult {
         withContext(dispatcher) {
             database.performTransaction {
-                isFavorite?.let {
-                    bookmarkDao.updateIsMarked(bookmarkId, it)
-                    upsertPendingAction(bookmarkId, ActionType.TOGGLE_FAVORITE, TogglePayload(it))
-                }
-                isArchived?.let {
-                    bookmarkDao.updateIsArchived(bookmarkId, it)
-                    upsertPendingAction(bookmarkId, ActionType.TOGGLE_ARCHIVE, TogglePayload(it))
-                    if (it) {
-                        applicationScope.launch {
-                            try {
-                                val scope = settingsDataStore.getOfflineContentScope()
-                                if (scope == OfflineContentScope.MY_LIST &&
-                                    contentPackageManager.hasResources(bookmarkId) == true
-                                ) {
-                                    contentPackageManager.deletePackage(bookmarkId)
-                                    Timber.d("Purged managed offline content on archive for $bookmarkId")
-                                }
-                            } catch (e: Exception) {
-                                Timber.w(e, "Failed to purge managed offline content on archive for $bookmarkId")
-                            }
-                        }
-                    }
-                }
-                isRead?.let {
-                    bookmarkDao.updateReadProgress(bookmarkId, if (it) 100 else 0)
-                    upsertPendingAction(bookmarkId, ActionType.TOGGLE_READ, TogglePayload(it))
-                }
+                applyBookmarkUpdate(
+                    BookmarkBatchUpdate(
+                        bookmarkId = bookmarkId,
+                        isFavorite = isFavorite,
+                        isArchived = isArchived,
+                        isRead = isRead
+                    )
+                )
             }
             syncScheduler.scheduleActionSync()
         }
         return BookmarkRepository.UpdateResult.Success
+    }
+
+    override suspend fun updateBookmarks(
+        updates: List<BookmarkBatchUpdate>
+    ): BookmarkRepository.UpdateResult {
+        if (updates.isEmpty()) return BookmarkRepository.UpdateResult.Success
+
+        withContext(dispatcher) {
+            database.performTransaction {
+                updates.forEach { applyBookmarkUpdate(it) }
+            }
+            syncScheduler.scheduleActionSync()
+        }
+        return BookmarkRepository.UpdateResult.Success
+    }
+
+    private suspend fun applyBookmarkUpdate(update: BookmarkBatchUpdate) {
+        update.isFavorite?.let {
+            bookmarkDao.updateIsMarked(update.bookmarkId, it)
+            upsertPendingAction(update.bookmarkId, ActionType.TOGGLE_FAVORITE, TogglePayload(it))
+        }
+        update.isArchived?.let {
+            bookmarkDao.updateIsArchived(update.bookmarkId, it)
+            upsertPendingAction(update.bookmarkId, ActionType.TOGGLE_ARCHIVE, TogglePayload(it))
+            if (it) {
+                purgeManagedOfflineContentOnArchive(update.bookmarkId)
+            }
+        }
+        update.isRead?.let {
+            bookmarkDao.updateReadProgress(update.bookmarkId, if (it) 100 else 0)
+            upsertPendingAction(update.bookmarkId, ActionType.TOGGLE_READ, TogglePayload(it))
+        }
+    }
+
+    private fun purgeManagedOfflineContentOnArchive(bookmarkId: String) {
+        applicationScope.launch {
+            try {
+                val scope = settingsDataStore.getOfflineContentScope()
+                if (scope == OfflineContentScope.MY_LIST &&
+                    contentPackageManager.hasResources(bookmarkId) == true
+                ) {
+                    contentPackageManager.deletePackage(bookmarkId)
+                    Timber.d("Purged managed offline content on archive for $bookmarkId")
+                }
+            } catch (e: Exception) {
+                Timber.w(e, "Failed to purge managed offline content on archive for $bookmarkId")
+            }
+        }
     }
 
     override suspend fun deleteBookmark(id: String): BookmarkRepository.UpdateResult {

@@ -8,6 +8,13 @@ import com.mydeck.app.domain.model.ProgressFilter
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 
+data class BookmarkBatchUpdate(
+    val bookmarkId: String,
+    val isFavorite: Boolean? = null,
+    val isArchived: Boolean? = null,
+    val isRead: Boolean? = null
+)
+
 interface BookmarkRepository {
     fun observeBookmarks(
         type: Bookmark.Type? = null,
@@ -45,6 +52,7 @@ interface BookmarkRepository {
         labels: List<String> = emptyList()
     ): String
     suspend fun updateBookmark(bookmarkId: String, isFavorite: Boolean?, isArchived: Boolean?, isRead: Boolean?): UpdateResult
+    suspend fun updateBookmarks(updates: List<BookmarkBatchUpdate>): UpdateResult
     suspend fun updateReadProgress(bookmarkId: String, progress: Int): UpdateResult
     suspend fun updateLabels(bookmarkId: String, labels: List<String>): UpdateResult
     val syncProgress: StateFlow<BookmarkSyncProgress>

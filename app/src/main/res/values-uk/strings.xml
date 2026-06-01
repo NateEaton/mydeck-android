@@ -196,6 +196,11 @@
     <!-- Bookmark Card Actions -->
     <string name="action_favorite">Обране</string>
     <string name="action_archive">Архів</string>
+    <string name="action_select_bookmarks">Select bookmarks</string>
+    <string name="action_exit_selection_mode">Exit selection mode</string>
+    <string name="action_select_bookmark">Select bookmark</string>
+    <string name="action_deselect_bookmark">Deselect bookmark</string>
+    <string name="selected_bookmark_count">%1$d selected</string>
     <string name="action_add_to_favorites">Додати до обраних</string>
     <string name="action_remove_from_favorites">Видалити з обраних</string>
     <string name="action_add_to_archive">Архівувати</string>

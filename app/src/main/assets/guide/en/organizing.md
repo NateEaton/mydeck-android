@@ -39,6 +39,8 @@ There are two ways to access these actions:
 
 Tap the **❤️** button on any bookmark card in a list view to mark a bookmark as a favorite. Tap again to remove it. The heart fills when a bookmark is a favorite.
 
+To favorite or unfavorite several bookmarks at once, tap the **select icon** in the bookmark list top bar, select the cards you want, then tap the **Favorite** action in the top bar. Each selected bookmark toggles from its current favorite state.
+
 In the reading view, you can toggle favorites using:
 - The **❤️ Favorite / Remove favorite** button at the end of the content
 - The **⋮** overflow menu → **Add to favorites / Remove favorite**
@@ -52,6 +54,7 @@ Archiving moves a bookmark out of **My List** into the **Archive**. Archived boo
 You can archive a bookmark from several places:
 
 - **Card action** — tap the Archive button on a bookmark card in any list view
+- **Multi-select** — tap the **select icon** in the bookmark list top bar, choose several cards, then tap the **Archive** action. Each selected bookmark toggles from its current archive state.
 - **Reading view** — use the **📦 Archive / Unarchive** button at the end of the content or **⋮** → **Archive / Unarchive**
 - **Add Link sheet** — tap **Archive** to save a new bookmark directly to the Archive
 

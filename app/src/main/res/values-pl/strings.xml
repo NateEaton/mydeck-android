@@ -196,6 +196,11 @@
     <!-- Bookmark Card Actions -->
     <string name="action_favorite">Ulubione</string>
     <string name="action_archive">Archiwum</string>
+    <string name="action_select_bookmarks">Select bookmarks</string>
+    <string name="action_exit_selection_mode">Exit selection mode</string>
+    <string name="action_select_bookmark">Select bookmark</string>
+    <string name="action_deselect_bookmark">Deselect bookmark</string>
+    <string name="selected_bookmark_count">%1$d selected</string>
     <string name="action_add_to_favorites">Dodaj do ulubionych</string>
     <string name="action_remove_from_favorites">Usuń ulubiony</string>
     <string name="action_add_to_archive">Archiwizuj</string>

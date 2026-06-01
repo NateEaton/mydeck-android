@@ -1,6 +1,6 @@
 # List Multi-Select Actions — Feasibility and Design Specification
 
-Status: Draft for implementation  
+Status: Draft for implementation. Phase 1 (selection mode plus batch favorite/archive) is implemented on branch `feat/multi-select-phase-1`; Phase 2 (delete/undo plus confirmation) remains.
 Date: 2026-05-12
 
 ## 1. Purpose

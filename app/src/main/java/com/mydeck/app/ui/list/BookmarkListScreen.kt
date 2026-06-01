@@ -26,14 +26,17 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.SwapVert
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.Apps
+import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
+import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.automirrored.outlined.Label
 import androidx.compose.material.icons.outlined.Bookmarks
@@ -159,6 +162,7 @@ fun BookmarkListScreen(
     val labelsWithCounts = viewModel.labelsWithCounts.collectAsState()
     val isLabelsSheetOpen = viewModel.isLabelsSheetOpen.collectAsState()
     val pendingDeletionBookmarkIds = viewModel.pendingDeletionBookmarkIds.collectAsState()
+    val multiSelectState = viewModel.multiSelectState.collectAsState()
     val swipeConfig = viewModel.swipeConfig.collectAsState()
 
     var showLayoutMenu by remember { mutableStateOf(false) }
@@ -181,6 +185,7 @@ fun BookmarkListScreen(
     val syncFraction by viewModel.syncFraction.collectAsState()
 
     val isLabelMode = activeLabel.value != null
+    val isMultiSelectMode = multiSelectState.value.active
     val dismissPendingDeleteSnackbar: () -> Unit = {
         snackbarHostState.currentSnackbarData?.dismiss()
     }
@@ -434,6 +439,12 @@ fun BookmarkListScreen(
         }
     }
 
+    DisposableEffect(viewModel) {
+        onDispose {
+            viewModel.onExitMultiSelectMode()
+        }
+    }
+
     // Determine the current view title based on drawer preset
     val currentPresetTitle = when (drawerPreset.value) {
         DrawerPreset.MY_LIST -> stringResource(id = R.string.my_list)
@@ -470,7 +481,14 @@ fun BookmarkListScreen(
             Column {
             TopAppBar(
                 title = {
-                    if (isLabelMode) {
+                    if (isMultiSelectMode) {
+                        Text(
+                            text = stringResource(
+                                R.string.selected_bookmark_count,
+                                multiSelectState.value.selectedCount
+                            )
+                        )
+                    } else if (isLabelMode) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier.clickable {
@@ -498,7 +516,19 @@ fun BookmarkListScreen(
                     }
                 },
                 navigationIcon = {
-                    if (showNavigationIcon) {
+                    if (isMultiSelectMode) {
+                        IconButton(
+                            onClick = {
+                                dismissPendingDeleteSnackbar()
+                                viewModel.onExitMultiSelectMode()
+                            }
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Clear,
+                                contentDescription = stringResource(R.string.action_exit_selection_mode)
+                            )
+                        }
+                    } else if (showNavigationIcon) {
                         IconButton(
                             onClick = {
                                 dismissPendingDeleteSnackbar()
@@ -513,6 +543,34 @@ fun BookmarkListScreen(
                     }
                 },
                 actions = {
+                    if (isMultiSelectMode) {
+                        if (multiSelectState.value.hasSelection) {
+                            IconButton(
+                                onClick = {
+                                    dismissPendingDeleteSnackbar()
+                                    hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    viewModel.onFavoriteSelectedBookmarks()
+                                }
+                            ) {
+                                Icon(
+                                    Icons.Filled.Favorite,
+                                    contentDescription = stringResource(R.string.action_favorite)
+                                )
+                            }
+                            IconButton(
+                                onClick = {
+                                    dismissPendingDeleteSnackbar()
+                                    hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    viewModel.onArchiveSelectedBookmarks()
+                                }
+                            ) {
+                                Icon(
+                                    Icons.Filled.Inventory2,
+                                    contentDescription = stringResource(R.string.action_archive)
+                                )
+                            }
+                        }
+                    } else {
                     // Layout button with dropdown — icon reflects current mode
                     Box {
                         val currentLayoutIcon = when (layoutMode.value) {
@@ -654,6 +712,19 @@ fun BookmarkListScreen(
                             Icon(Icons.Filled.FilterList, contentDescription = stringResource(R.string.filter_bookmarks))
                         }
                     }
+                    IconButton(onClick = {
+                        dismissPendingDeleteSnackbar()
+                        showLayoutMenu = false
+                        showSortMenu = false
+                        showOverflowMenu = false
+                        viewModel.onEnterMultiSelectMode()
+                    }) {
+                        Icon(
+                            Icons.Filled.RadioButtonUnchecked,
+                            contentDescription = stringResource(R.string.action_select_bookmarks)
+                        )
+                    }
+                    }
                 }
             )
             val fraction = syncFraction
@@ -666,18 +737,20 @@ fun BookmarkListScreen(
             }
         },
         floatingActionButton = {
-            val clipboardManager = LocalClipboardManager.current
-            FloatingActionButton(
-                onClick = {
-                    dismissPendingDeleteSnackbar()
-                    val clipboardText = clipboardManager.getText()?.text
-                    viewModel.openCreateBookmarkDialog(clipboardText)
+            if (!isMultiSelectMode) {
+                val clipboardManager = LocalClipboardManager.current
+                FloatingActionButton(
+                    onClick = {
+                        dismissPendingDeleteSnackbar()
+                        val clipboardText = clipboardManager.getText()?.text
+                        viewModel.openCreateBookmarkDialog(clipboardText)
+                    }
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Add,
+                        contentDescription = stringResource(id = R.string.add_bookmark)
+                    )
                 }
-            ) {
-                Icon(
-                    imageVector = Icons.Filled.Add,
-                    contentDescription = stringResource(id = R.string.add_bookmark)
-                )
             }
         }
     ) { padding ->
@@ -701,7 +774,7 @@ fun BookmarkListScreen(
                 }
         ) {
             // FilterBar: visible when filters are active beyond preset defaults, not in label mode
-            if (!isLabelMode) {
+            if (!isLabelMode && !isMultiSelectMode) {
                 FilterBar(
                     filterFormState = filterFormState.value,
                     drawerPreset = drawerPreset.value,
@@ -741,8 +814,11 @@ fun BookmarkListScreen(
                                 layoutMode = layoutMode.value,
                                 bookmarks = uiState.bookmarks,
                                 pendingDeletionBookmarkIds = pendingDeletionBookmarkIds.value.toSet(),
+                                isMultiSelectMode = isMultiSelectMode,
+                                selectedBookmarkIds = multiSelectState.value.selectedIds,
                                 swipeConfig = swipeConfig.value,
                                 onClickBookmark = onClickBookmark,
+                                onToggleBookmarkSelection = { viewModel.onToggleBookmarkSelected(it) },
                                 onClickDelete = onClickDelete,
                                 onClickArchive = onClickArchive,
                                 onClickFavorite = onClickFavorite,
@@ -1023,9 +1099,12 @@ fun BookmarkListView(
     layoutMode: LayoutMode = LayoutMode.GRID,
     bookmarks: List<BookmarkListItem>,
     pendingDeletionBookmarkIds: Set<String> = emptySet(),
+    isMultiSelectMode: Boolean = false,
+    selectedBookmarkIds: Set<String> = emptySet(),
     swipeConfig: SwipeConfig = SwipeConfig.Default,
     isMultiColumn: Boolean = LocalIsWideLayout.current,
     onClickBookmark: (String) -> Unit,
+    onToggleBookmarkSelection: (String) -> Unit = {},
     onClickDelete: (String) -> Unit,
     onClickFavorite: (String, Boolean) -> Unit,
     onClickArchive: (String, Boolean) -> Unit,
@@ -1082,6 +1161,15 @@ fun BookmarkListView(
                     val noop2: (String, Boolean) -> Unit = { _, _ -> }
                     val noop2s: (String, String) -> Unit = { _, _ -> }
                     val noopShare: (String, String) -> Unit = { _, _ -> }
+                    val isSelected = bookmark.id in selectedBookmarkIds
+                    val selectionModeForCard = isMultiSelectMode && !isPendingDeletion
+                    val selectBookmark: (String) -> Unit = { onToggleBookmarkSelection(it) }
+                    val cardClick = when {
+                        isPendingDeletion -> confirmDelete
+                        selectionModeForCard -> selectBookmark
+                        else -> onClickBookmark
+                    }
+                    val actionsDisabled = isPendingDeletion || selectionModeForCard
                     SwipeWrappedBookmark(
                         bookmark = bookmark,
                         isPendingDeletion = isPendingDeletion,
@@ -1095,60 +1183,69 @@ fun BookmarkListView(
                         when (layoutMode) {
                             LayoutMode.GRID -> BookmarkGridCard(
                                 bookmark = bookmark,
-                                onClickCard = if (isPendingDeletion) confirmDelete else onClickBookmark,
-                                onClickDelete = if (isPendingDeletion) noop else onClickDelete,
-                                onClickArchive = if (isPendingDeletion) noop2 else onClickArchive,
-                                onClickFavorite = if (isPendingDeletion) noop2 else onClickFavorite,
-                                onClickLabel = if (isPendingDeletion) noop else onClickLabel,
-                                onClickOpenUrl = if (isPendingDeletion) noop else onClickOpenUrl,
-                                onClickOpenInBrowser = if (isPendingDeletion) noop else onClickOpenInBrowser,
-                                onClickCopyLink = if (isPendingDeletion) noop else onClickCopyLink,
-                                onClickCopyLinkText = if (isPendingDeletion) noop else onClickCopyLinkText,
-                                onClickShareLink = if (isPendingDeletion) noopShare else onClickShareLink,
-                                onClickOpenInBrowserFromMenu = if (isPendingDeletion) noop else onClickOpenInBrowserFromMenu,
-                                onClickCopyImage = if (isPendingDeletion) noop else onClickCopyImage,
-                                onClickDownloadLink = if (isPendingDeletion) noop2s else onClickDownloadLink,
-                                onClickDownloadImage = if (isPendingDeletion) noop else onClickDownloadImage,
-                                onClickShareImage = if (isPendingDeletion) noop else onClickShareImage,
+                                onClickCard = cardClick,
+                                onClickDelete = if (actionsDisabled) noop else onClickDelete,
+                                onClickArchive = if (actionsDisabled) noop2 else onClickArchive,
+                                onClickFavorite = if (actionsDisabled) noop2 else onClickFavorite,
+                                onClickLabel = if (actionsDisabled) noop else onClickLabel,
+                                onClickOpenUrl = if (actionsDisabled) noop else onClickOpenUrl,
+                                onClickOpenInBrowser = if (actionsDisabled) noop else onClickOpenInBrowser,
+                                onClickCopyLink = if (actionsDisabled) noop else onClickCopyLink,
+                                onClickCopyLinkText = if (actionsDisabled) noop else onClickCopyLinkText,
+                                onClickShareLink = if (actionsDisabled) noopShare else onClickShareLink,
+                                onClickOpenInBrowserFromMenu = if (actionsDisabled) noop else onClickOpenInBrowserFromMenu,
+                                onClickCopyImage = if (actionsDisabled) noop else onClickCopyImage,
+                                onClickDownloadLink = if (actionsDisabled) noop2s else onClickDownloadLink,
+                                onClickDownloadImage = if (actionsDisabled) noop else onClickDownloadImage,
+                                onClickShareImage = if (actionsDisabled) noop else onClickShareImage,
+                                isSelectionMode = selectionModeForCard,
+                                isSelected = isSelected,
+                                onToggleSelection = onToggleBookmarkSelection,
                                 isInGrid = true,
                                 index = index + 1,
                             )
                             LayoutMode.COMPACT -> BookmarkCompactCard(
                                 bookmark = bookmark,
-                                onClickCard = if (isPendingDeletion) confirmDelete else onClickBookmark,
-                                onClickDelete = if (isPendingDeletion) noop else onClickDelete,
-                                onClickArchive = if (isPendingDeletion) noop2 else onClickArchive,
-                                onClickFavorite = if (isPendingDeletion) noop2 else onClickFavorite,
-                                onClickLabel = if (isPendingDeletion) noop else onClickLabel,
-                                onClickOpenUrl = if (isPendingDeletion) noop else onClickOpenUrl,
-                                onClickOpenInBrowser = if (isPendingDeletion) noop else onClickOpenInBrowser,
-                                onClickCopyLink = if (isPendingDeletion) noop else onClickCopyLink,
-                                onClickCopyLinkText = if (isPendingDeletion) noop else onClickCopyLinkText,
-                                onClickShareLink = if (isPendingDeletion) noopShare else onClickShareLink,
-                                onClickOpenInBrowserFromMenu = if (isPendingDeletion) noop else onClickOpenInBrowserFromMenu,
-                                onClickCopyImage = if (isPendingDeletion) noop else onClickCopyImage,
-                                onClickDownloadLink = if (isPendingDeletion) noop2s else onClickDownloadLink,
-                                onClickDownloadImage = if (isPendingDeletion) noop else onClickDownloadImage,
-                                onClickShareImage = if (isPendingDeletion) noop else onClickShareImage,
+                                onClickCard = cardClick,
+                                onClickDelete = if (actionsDisabled) noop else onClickDelete,
+                                onClickArchive = if (actionsDisabled) noop2 else onClickArchive,
+                                onClickFavorite = if (actionsDisabled) noop2 else onClickFavorite,
+                                onClickLabel = if (actionsDisabled) noop else onClickLabel,
+                                onClickOpenUrl = if (actionsDisabled) noop else onClickOpenUrl,
+                                onClickOpenInBrowser = if (actionsDisabled) noop else onClickOpenInBrowser,
+                                onClickCopyLink = if (actionsDisabled) noop else onClickCopyLink,
+                                onClickCopyLinkText = if (actionsDisabled) noop else onClickCopyLinkText,
+                                onClickShareLink = if (actionsDisabled) noopShare else onClickShareLink,
+                                onClickOpenInBrowserFromMenu = if (actionsDisabled) noop else onClickOpenInBrowserFromMenu,
+                                onClickCopyImage = if (actionsDisabled) noop else onClickCopyImage,
+                                onClickDownloadLink = if (actionsDisabled) noop2s else onClickDownloadLink,
+                                onClickDownloadImage = if (actionsDisabled) noop else onClickDownloadImage,
+                                onClickShareImage = if (actionsDisabled) noop else onClickShareImage,
+                                isSelectionMode = selectionModeForCard,
+                                isSelected = isSelected,
+                                onToggleSelection = onToggleBookmarkSelection,
                                 index = index + 1,
                             )
                             LayoutMode.MOSAIC -> BookmarkMosaicCard(
                                 bookmark = bookmark,
-                                onClickCard = if (isPendingDeletion) confirmDelete else onClickBookmark,
-                                onClickDelete = if (isPendingDeletion) noop else onClickDelete,
-                                onClickArchive = if (isPendingDeletion) noop2 else onClickArchive,
-                                onClickFavorite = if (isPendingDeletion) noop2 else onClickFavorite,
-                                onClickLabel = if (isPendingDeletion) noop else onClickLabel,
-                                onClickOpenUrl = if (isPendingDeletion) noop else onClickOpenUrl,
-                                onClickOpenInBrowser = if (isPendingDeletion) noop else onClickOpenInBrowser,
-                                onClickCopyLink = if (isPendingDeletion) noop else onClickCopyLink,
-                                onClickCopyLinkText = if (isPendingDeletion) noop else onClickCopyLinkText,
-                                onClickShareLink = if (isPendingDeletion) noopShare else onClickShareLink,
-                                onClickOpenInBrowserFromMenu = if (isPendingDeletion) noop else onClickOpenInBrowserFromMenu,
-                                onClickCopyImage = if (isPendingDeletion) noop else onClickCopyImage,
-                                onClickDownloadLink = if (isPendingDeletion) noop2s else onClickDownloadLink,
-                                onClickDownloadImage = if (isPendingDeletion) noop else onClickDownloadImage,
-                                onClickShareImage = if (isPendingDeletion) noop else onClickShareImage,
+                                onClickCard = cardClick,
+                                onClickDelete = if (actionsDisabled) noop else onClickDelete,
+                                onClickArchive = if (actionsDisabled) noop2 else onClickArchive,
+                                onClickFavorite = if (actionsDisabled) noop2 else onClickFavorite,
+                                onClickLabel = if (actionsDisabled) noop else onClickLabel,
+                                onClickOpenUrl = if (actionsDisabled) noop else onClickOpenUrl,
+                                onClickOpenInBrowser = if (actionsDisabled) noop else onClickOpenInBrowser,
+                                onClickCopyLink = if (actionsDisabled) noop else onClickCopyLink,
+                                onClickCopyLinkText = if (actionsDisabled) noop else onClickCopyLinkText,
+                                onClickShareLink = if (actionsDisabled) noopShare else onClickShareLink,
+                                onClickOpenInBrowserFromMenu = if (actionsDisabled) noop else onClickOpenInBrowserFromMenu,
+                                onClickCopyImage = if (actionsDisabled) noop else onClickCopyImage,
+                                onClickDownloadLink = if (actionsDisabled) noop2s else onClickDownloadLink,
+                                onClickDownloadImage = if (actionsDisabled) noop else onClickDownloadImage,
+                                onClickShareImage = if (actionsDisabled) noop else onClickShareImage,
+                                isSelectionMode = selectionModeForCard,
+                                isSelected = isSelected,
+                                onToggleSelection = onToggleBookmarkSelection,
                                 index = index + 1,
                             )
                         }
@@ -1181,10 +1278,19 @@ fun BookmarkListView(
                     val noop2: (String, Boolean) -> Unit = { _, _ -> }
                     val noop2s: (String, String) -> Unit = { _, _ -> }
                     val noopShare: (String, String) -> Unit = { _, _ -> }
+                    val isSelected = bookmark.id in selectedBookmarkIds
+                    val selectionModeForCard = isMultiSelectMode && !isPendingDeletion
+                    val selectBookmark: (String) -> Unit = { onToggleBookmarkSelection(it) }
+                    val cardClick = when {
+                        isPendingDeletion -> confirmDelete
+                        selectionModeForCard -> selectBookmark
+                        else -> onClickBookmark
+                    }
+                    val actionsDisabled = isPendingDeletion || selectionModeForCard
                     SwipeWrappedBookmark(
                         bookmark = bookmark,
                         isPendingDeletion = isPendingDeletion,
-                        swipeConfig = swipeConfig,
+                        swipeConfig = if (isMultiSelectMode) swipeConfig.copy(enabled = false) else swipeConfig,
                         onClickArchive = onClickArchive,
                         onClickDelete = onClickDelete,
                         onClickFavorite = onClickFavorite,
@@ -1194,60 +1300,69 @@ fun BookmarkListView(
                         when (layoutMode) {
                             LayoutMode.GRID -> BookmarkGridCard(
                                 bookmark = bookmark,
-                                onClickCard = if (isPendingDeletion) confirmDelete else onClickBookmark,
-                                onClickDelete = if (isPendingDeletion) noop else onClickDelete,
-                                onClickArchive = if (isPendingDeletion) noop2 else onClickArchive,
-                                onClickFavorite = if (isPendingDeletion) noop2 else onClickFavorite,
-                                onClickLabel = if (isPendingDeletion) noop else onClickLabel,
-                                onClickOpenUrl = if (isPendingDeletion) noop else onClickOpenUrl,
-                                onClickOpenInBrowser = if (isPendingDeletion) noop else onClickOpenInBrowser,
-                                onClickCopyLink = if (isPendingDeletion) noop else onClickCopyLink,
-                                onClickCopyLinkText = if (isPendingDeletion) noop else onClickCopyLinkText,
-                                onClickShareLink = if (isPendingDeletion) noopShare else onClickShareLink,
-                                onClickOpenInBrowserFromMenu = if (isPendingDeletion) noop else onClickOpenInBrowserFromMenu,
-                                onClickCopyImage = if (isPendingDeletion) noop else onClickCopyImage,
-                                onClickDownloadLink = if (isPendingDeletion) noop2s else onClickDownloadLink,
-                                onClickDownloadImage = if (isPendingDeletion) noop else onClickDownloadImage,
-                                onClickShareImage = if (isPendingDeletion) noop else onClickShareImage,
+                                onClickCard = cardClick,
+                                onClickDelete = if (actionsDisabled) noop else onClickDelete,
+                                onClickArchive = if (actionsDisabled) noop2 else onClickArchive,
+                                onClickFavorite = if (actionsDisabled) noop2 else onClickFavorite,
+                                onClickLabel = if (actionsDisabled) noop else onClickLabel,
+                                onClickOpenUrl = if (actionsDisabled) noop else onClickOpenUrl,
+                                onClickOpenInBrowser = if (actionsDisabled) noop else onClickOpenInBrowser,
+                                onClickCopyLink = if (actionsDisabled) noop else onClickCopyLink,
+                                onClickCopyLinkText = if (actionsDisabled) noop else onClickCopyLinkText,
+                                onClickShareLink = if (actionsDisabled) noopShare else onClickShareLink,
+                                onClickOpenInBrowserFromMenu = if (actionsDisabled) noop else onClickOpenInBrowserFromMenu,
+                                onClickCopyImage = if (actionsDisabled) noop else onClickCopyImage,
+                                onClickDownloadLink = if (actionsDisabled) noop2s else onClickDownloadLink,
+                                onClickDownloadImage = if (actionsDisabled) noop else onClickDownloadImage,
+                                onClickShareImage = if (actionsDisabled) noop else onClickShareImage,
+                                isSelectionMode = selectionModeForCard,
+                                isSelected = isSelected,
+                                onToggleSelection = onToggleBookmarkSelection,
                                 useMobilePortraitLayout = useMobilePortraitGridLayout,
                                 index = index + 1,
                             )
                             LayoutMode.COMPACT -> BookmarkCompactCard(
                                 bookmark = bookmark,
-                                onClickCard = if (isPendingDeletion) confirmDelete else onClickBookmark,
-                                onClickDelete = if (isPendingDeletion) noop else onClickDelete,
-                                onClickArchive = if (isPendingDeletion) noop2 else onClickArchive,
-                                onClickFavorite = if (isPendingDeletion) noop2 else onClickFavorite,
-                                onClickLabel = if (isPendingDeletion) noop else onClickLabel,
-                                onClickOpenUrl = if (isPendingDeletion) noop else onClickOpenUrl,
-                                onClickOpenInBrowser = if (isPendingDeletion) noop else onClickOpenInBrowser,
-                                onClickCopyLink = if (isPendingDeletion) noop else onClickCopyLink,
-                                onClickCopyLinkText = if (isPendingDeletion) noop else onClickCopyLinkText,
-                                onClickShareLink = if (isPendingDeletion) noopShare else onClickShareLink,
-                                onClickOpenInBrowserFromMenu = if (isPendingDeletion) noop else onClickOpenInBrowserFromMenu,
-                                onClickCopyImage = if (isPendingDeletion) noop else onClickCopyImage,
-                                onClickDownloadLink = if (isPendingDeletion) noop2s else onClickDownloadLink,
-                                onClickDownloadImage = if (isPendingDeletion) noop else onClickDownloadImage,
-                                onClickShareImage = if (isPendingDeletion) noop else onClickShareImage,
+                                onClickCard = cardClick,
+                                onClickDelete = if (actionsDisabled) noop else onClickDelete,
+                                onClickArchive = if (actionsDisabled) noop2 else onClickArchive,
+                                onClickFavorite = if (actionsDisabled) noop2 else onClickFavorite,
+                                onClickLabel = if (actionsDisabled) noop else onClickLabel,
+                                onClickOpenUrl = if (actionsDisabled) noop else onClickOpenUrl,
+                                onClickOpenInBrowser = if (actionsDisabled) noop else onClickOpenInBrowser,
+                                onClickCopyLink = if (actionsDisabled) noop else onClickCopyLink,
+                                onClickCopyLinkText = if (actionsDisabled) noop else onClickCopyLinkText,
+                                onClickShareLink = if (actionsDisabled) noopShare else onClickShareLink,
+                                onClickOpenInBrowserFromMenu = if (actionsDisabled) noop else onClickOpenInBrowserFromMenu,
+                                onClickCopyImage = if (actionsDisabled) noop else onClickCopyImage,
+                                onClickDownloadLink = if (actionsDisabled) noop2s else onClickDownloadLink,
+                                onClickDownloadImage = if (actionsDisabled) noop else onClickDownloadImage,
+                                onClickShareImage = if (actionsDisabled) noop else onClickShareImage,
+                                isSelectionMode = selectionModeForCard,
+                                isSelected = isSelected,
+                                onToggleSelection = onToggleBookmarkSelection,
                                 index = index + 1,
                             )
                             LayoutMode.MOSAIC -> BookmarkMosaicCard(
                                 bookmark = bookmark,
-                                onClickCard = if (isPendingDeletion) confirmDelete else onClickBookmark,
-                                onClickDelete = if (isPendingDeletion) noop else onClickDelete,
-                                onClickArchive = if (isPendingDeletion) noop2 else onClickArchive,
-                                onClickFavorite = if (isPendingDeletion) noop2 else onClickFavorite,
-                                onClickLabel = if (isPendingDeletion) noop else onClickLabel,
-                                onClickOpenUrl = if (isPendingDeletion) noop else onClickOpenUrl,
-                                onClickOpenInBrowser = if (isPendingDeletion) noop else onClickOpenInBrowser,
-                                onClickCopyLink = if (isPendingDeletion) noop else onClickCopyLink,
-                                onClickCopyLinkText = if (isPendingDeletion) noop else onClickCopyLinkText,
-                                onClickShareLink = if (isPendingDeletion) noopShare else onClickShareLink,
-                                onClickOpenInBrowserFromMenu = if (isPendingDeletion) noop else onClickOpenInBrowserFromMenu,
-                                onClickCopyImage = if (isPendingDeletion) noop else onClickCopyImage,
-                                onClickDownloadLink = if (isPendingDeletion) noop2s else onClickDownloadLink,
-                                onClickDownloadImage = if (isPendingDeletion) noop else onClickDownloadImage,
-                                onClickShareImage = if (isPendingDeletion) noop else onClickShareImage,
+                                onClickCard = cardClick,
+                                onClickDelete = if (actionsDisabled) noop else onClickDelete,
+                                onClickArchive = if (actionsDisabled) noop2 else onClickArchive,
+                                onClickFavorite = if (actionsDisabled) noop2 else onClickFavorite,
+                                onClickLabel = if (actionsDisabled) noop else onClickLabel,
+                                onClickOpenUrl = if (actionsDisabled) noop else onClickOpenUrl,
+                                onClickOpenInBrowser = if (actionsDisabled) noop else onClickOpenInBrowser,
+                                onClickCopyLink = if (actionsDisabled) noop else onClickCopyLink,
+                                onClickCopyLinkText = if (actionsDisabled) noop else onClickCopyLinkText,
+                                onClickShareLink = if (actionsDisabled) noopShare else onClickShareLink,
+                                onClickOpenInBrowserFromMenu = if (actionsDisabled) noop else onClickOpenInBrowserFromMenu,
+                                onClickCopyImage = if (actionsDisabled) noop else onClickCopyImage,
+                                onClickDownloadLink = if (actionsDisabled) noop2s else onClickDownloadLink,
+                                onClickDownloadImage = if (actionsDisabled) noop else onClickDownloadImage,
+                                onClickShareImage = if (actionsDisabled) noop else onClickShareImage,
+                                isSelectionMode = selectionModeForCard,
+                                isSelected = isSelected,
+                                onToggleSelection = onToggleBookmarkSelection,
                                 index = index + 1,
                             )
                         }

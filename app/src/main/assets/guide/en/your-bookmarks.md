@@ -77,6 +77,14 @@ Each card has four action buttons:
 
 See [Organizing](./organizing.md) for more on how favorites, archive, labels, and deletion work across your whole collection.
 
+## Selecting Multiple Bookmarks
+
+Tap the **select icon** (empty circle) on the right side of the top bar to enter selection mode. The top bar changes to show an **X** button and the number of selected bookmarks.
+
+While selection mode is active, tap any bookmark card to select or deselect it. The card's usual action buttons are hidden, and the far-right action area shows a circular selection indicator instead. Tapping the **X** exits selection mode and clears the current selection.
+
+After selecting one or more bookmarks, use the top-bar **Favorite** or **Archive** buttons to apply that action to all selected cards. Each selected bookmark is toggled from its current state: favorites become not favorite, non-favorites become favorite, archived bookmarks become unarchived, and unarchived bookmarks become archived.
+
 ## Swipe Actions on Cards
 
 In single-column layouts you can swipe a bookmark card left or right to archive or delete it without tapping the icon buttons.
