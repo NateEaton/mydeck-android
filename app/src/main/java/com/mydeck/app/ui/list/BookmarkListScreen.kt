@@ -436,18 +436,18 @@ fun BookmarkListScreen(
     LaunchedEffect(Unit) {
         viewModel.batchActionSnackbarEvent.collect { event ->
             snackbarHostState.currentSnackbarData?.dismiss()
-            val (pluralRes, count) = when (event) {
+            val (stringRes, count) = when (event) {
                 is BatchActionSnackbarEvent.FavoritesAdded ->
-                    R.plurals.multi_select_set_as_favorite to event.count
+                    R.string.multi_select_set_as_favorite to event.count
                 is BatchActionSnackbarEvent.FavoritesRemoved ->
-                    R.plurals.multi_select_unset_as_favorite to event.count
+                    R.string.multi_select_unset_as_favorite to event.count
                 is BatchActionSnackbarEvent.Archived ->
-                    R.plurals.multi_select_set_as_archived to event.count
+                    R.string.multi_select_set_as_archived to event.count
                 is BatchActionSnackbarEvent.Unarchived ->
-                    R.plurals.multi_select_unset_as_archived to event.count
+                    R.string.multi_select_unset_as_archived to event.count
             }
             snackbarHostState.showSnackbar(
-                message = resources.getQuantityString(pluralRes, count, count),
+                message = resources.getString(stringRes, count),
                 duration = SnackbarDuration.Short
             )
         }
