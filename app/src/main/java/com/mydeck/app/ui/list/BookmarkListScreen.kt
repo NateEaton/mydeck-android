@@ -584,6 +584,28 @@ fun BookmarkListScreen(
                     if (isMultiSelectMode) {
                         val targets = multiSelectTargets.value
                         if (multiSelectState.value.hasSelection) {
+                            // Archive slot: shows Unarchive when all selected are already
+                            // archived (one-tap reversal); otherwise shows Archive.
+                            val archiveBarIsRemove = targets.selectedAllArchived
+                            IconButton(
+                                onClick = {
+                                    dismissPendingDeleteSnackbar()
+                                    hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    if (archiveBarIsRemove) {
+                                        viewModel.onUnarchiveSelectedBookmarks()
+                                    } else {
+                                        viewModel.onArchiveSelectedBookmarks()
+                                    }
+                                }
+                            ) {
+                                Icon(
+                                    imageVector = if (archiveBarIsRemove) Icons.Outlined.Inventory2 else Icons.Filled.Inventory2,
+                                    contentDescription = stringResource(
+                                        if (archiveBarIsRemove) R.string.action_remove_from_archive
+                                        else R.string.action_add_to_archive
+                                    )
+                                )
+                            }
                             // Favorite slot: shows Remove-favorite when all selected are already
                             // favorited (one-tap reversal); otherwise shows Add-favorite.
                             val favoriteBarIsRemove = targets.selectedAllFavorited
@@ -606,38 +628,6 @@ fun BookmarkListScreen(
                                     )
                                 )
                             }
-                            val archiveBarIsRemove = targets.selectedAllArchived
-                            IconButton(
-                                onClick = {
-                                    dismissPendingDeleteSnackbar()
-                                    hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
-                                    if (archiveBarIsRemove) {
-                                        viewModel.onUnarchiveSelectedBookmarks()
-                                    } else {
-                                        viewModel.onArchiveSelectedBookmarks()
-                                    }
-                                }
-                            ) {
-                                Icon(
-                                    imageVector = if (archiveBarIsRemove) Icons.Outlined.Inventory2 else Icons.Filled.Inventory2,
-                                    contentDescription = stringResource(
-                                        if (archiveBarIsRemove) R.string.action_remove_from_archive
-                                        else R.string.action_add_to_archive
-                                    )
-                                )
-                            }
-                            IconButton(
-                                onClick = {
-                                    dismissPendingDeleteSnackbar()
-                                    hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
-                                    viewModel.onDeleteSelectedBookmarks()
-                                }
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Filled.Delete,
-                                    contentDescription = stringResource(R.string.action_delete)
-                                )
-                            }
                         }
                         Box {
                             IconButton(onClick = { showSelectionOverflowMenu = true }) {
@@ -651,69 +641,19 @@ fun BookmarkListScreen(
                                 onDismissRequest = { showSelectionOverflowMenu = false }
                             ) {
                                 if (multiSelectState.value.hasSelection) {
-                                    // Overflow slot is the OPPOSITE of the bar's favorite action.
-                                    val overflowFavoriteIsRemove = !targets.selectedAllFavorited
-                                    val overflowFavoriteEnabled = if (overflowFavoriteIsRemove) {
-                                        // Removing favorites only does something if some are favorited.
-                                        !targets.selectedAllUnfavorited
-                                    } else {
-                                        // Adding favorites only does something if some are NOT favorited.
-                                        !targets.selectedAllFavorited
-                                    }
                                     DropdownMenuItem(
                                         leadingIcon = {
                                             Icon(
-                                                imageVector = if (overflowFavoriteIsRemove) Icons.Outlined.FavoriteBorder else Icons.Filled.Favorite,
+                                                imageVector = Icons.Filled.Delete,
                                                 contentDescription = null
                                             )
                                         },
-                                        text = {
-                                            Text(stringResource(
-                                                if (overflowFavoriteIsRemove) R.string.action_remove_from_favorites
-                                                else R.string.action_add_to_favorites
-                                            ))
-                                        },
-                                        enabled = overflowFavoriteEnabled,
+                                        text = { Text(stringResource(R.string.action_delete)) },
                                         onClick = {
                                             showSelectionOverflowMenu = false
                                             dismissPendingDeleteSnackbar()
                                             hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
-                                            if (overflowFavoriteIsRemove) {
-                                                viewModel.onUnfavoriteSelectedBookmarks()
-                                            } else {
-                                                viewModel.onFavoriteSelectedBookmarks()
-                                            }
-                                        }
-                                    )
-                                    val overflowArchiveIsRemove = !targets.selectedAllArchived
-                                    val overflowArchiveEnabled = if (overflowArchiveIsRemove) {
-                                        !targets.selectedAllUnarchived
-                                    } else {
-                                        !targets.selectedAllArchived
-                                    }
-                                    DropdownMenuItem(
-                                        leadingIcon = {
-                                            Icon(
-                                                imageVector = if (overflowArchiveIsRemove) Icons.Outlined.Inventory2 else Icons.Filled.Inventory2,
-                                                contentDescription = null
-                                            )
-                                        },
-                                        text = {
-                                            Text(stringResource(
-                                                if (overflowArchiveIsRemove) R.string.action_remove_from_archive
-                                                else R.string.action_add_to_archive
-                                            ))
-                                        },
-                                        enabled = overflowArchiveEnabled,
-                                        onClick = {
-                                            showSelectionOverflowMenu = false
-                                            dismissPendingDeleteSnackbar()
-                                            hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
-                                            if (overflowArchiveIsRemove) {
-                                                viewModel.onUnarchiveSelectedBookmarks()
-                                            } else {
-                                                viewModel.onArchiveSelectedBookmarks()
-                                            }
+                                            viewModel.onDeleteSelectedBookmarks()
                                         }
                                     )
                                 }

@@ -762,7 +762,6 @@ class BookmarkListViewModel @Inject constructor(
 
         val selectedCount = snapshots.size
         val itemsToUpdate = snapshots.filter { it.isMarked != targetFavorite }
-        clearMultiSelectState()
 
         if (itemsToUpdate.isNotEmpty()) {
             updateBookmark {
@@ -791,7 +790,6 @@ class BookmarkListViewModel @Inject constructor(
 
         val selectedCount = snapshots.size
         val itemsToUpdate = snapshots.filter { it.isArchived != targetArchived }
-        clearMultiSelectState()
 
         if (itemsToUpdate.isNotEmpty()) {
             updateBookmark {
@@ -858,7 +856,11 @@ class BookmarkListViewModel @Inject constructor(
         val visibleIds = visibleBookmarks.mapTo(mutableSetOf()) { it.id }
         _multiSelectState.update { state ->
             val retainedIds = state.selectedIds.intersect(visibleIds)
-            if (retainedIds == state.selectedIds) state else state.copy(selectedIds = retainedIds)
+            when {
+                retainedIds == state.selectedIds -> state
+                retainedIds.isEmpty() -> MultiSelectState()
+                else -> state.copy(selectedIds = retainedIds)
+            }
         }
     }
 

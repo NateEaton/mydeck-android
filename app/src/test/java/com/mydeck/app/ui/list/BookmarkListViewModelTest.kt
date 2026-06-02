@@ -1543,6 +1543,30 @@ class BookmarkListViewModelTest {
     }
 
     @Test
+    fun `visible list refresh exits selection mode when all selected ids disappear`() = runTest {
+        val bookmarkFlow = MutableStateFlow(
+            listOf(bookmarkListItem("bookmark-1"), bookmarkListItem("bookmark-2"))
+        )
+        every {
+            bookmarkRepository.observeFilteredBookmarkListItems(
+                any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(),
+                any(), any(), any(), any(), any(), any(), any(), any(), any(), any()
+            )
+        } returns bookmarkFlow
+        viewModel = createViewModel()
+        advanceUntilIdle()
+
+        viewModel.onEnterMultiSelectMode()
+        viewModel.onToggleBookmarkSelected("bookmark-1")
+        viewModel.onToggleBookmarkSelected("bookmark-2")
+
+        bookmarkFlow.value = listOf(bookmarkListItem("bookmark-3"))
+        advanceUntilIdle()
+
+        assertEquals(MultiSelectState(), viewModel.multiSelectState.value)
+    }
+
+    @Test
     fun `onFavoriteSelectedBookmarks sets favorited on items that need it and emits snackbar with selected count`() = runTest {
         val visibleBookmarks = listOf(
             bookmarkListItem("not-favorite", isMarked = false),
@@ -1573,7 +1597,8 @@ class BookmarkListViewModelTest {
                 listOf(BookmarkBatchUpdate(bookmarkId = "not-favorite", isFavorite = true))
             )
         }
-        assertEquals(MultiSelectState(), viewModel.multiSelectState.value)
+        assertTrue(viewModel.multiSelectState.value.active)
+        assertEquals(setOf("not-favorite", "favorite"), viewModel.multiSelectState.value.selectedIds)
         assertEquals(listOf(BatchActionSnackbarEvent.FavoritesAdded(2, listOf("not-favorite"))), events)
         job.cancel()
     }
@@ -1677,7 +1702,8 @@ class BookmarkListViewModelTest {
                 listOf(BookmarkBatchUpdate(bookmarkId = "not-archived", isArchived = true))
             )
         }
-        assertEquals(MultiSelectState(), viewModel.multiSelectState.value)
+        assertTrue(viewModel.multiSelectState.value.active)
+        assertEquals(setOf("not-archived", "archived"), viewModel.multiSelectState.value.selectedIds)
         assertEquals(listOf(BatchActionSnackbarEvent.Archived(2, listOf("not-archived"))), events)
         job.cancel()
     }

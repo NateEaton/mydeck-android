@@ -190,14 +190,16 @@ Tap **Search** to apply, or **Reset** to clear all filters.
 
 ## Selecting Multiple Bookmarks
 
-Open the **⋮ overflow menu** and tap **Select bookmarks** to enter selection mode. The top bar switches to an **✕** (exit), the number of selected bookmarks as the title, and a **⋮ overflow** that offers **Select all / Deselect all**. Tap any card to select or deselect it — each card's action buttons become dimmed icons showing its current favorite and archive state, with a selection indicator on the right. Tap **✕** to exit and clear the selection.
+Open the **⋮ overflow menu** and tap **Select bookmarks** to enter selection mode. The top bar switches to an **✕** (exit), the number of selected bookmarks as the title, an **Archive** and a **Favorite** action, and a **⋮ overflow**. Tap any card to select or deselect it — each card's action buttons become dimmed icons showing its current favorite and archive state, with a selection indicator on the right. Tap **✕** to exit and clear the selection.
 
-Once at least one bookmark is selected, three actions on the bar apply to the **whole selection** — **Favorite**, **Archive**, and **🗑️ Delete**:
+Once at least one bookmark is selected, the bar's two actions apply to the **whole selection**:
 
-- **Favorite** and **Archive** each show the most useful action for what you've selected. If any selected bookmark isn't yet favorited (or archived), the bar offers **Add favorite** (or **Archive**); once they all already are, it flips to **Remove favorite** (or **Unarchive**). The opposite action sits in the overflow, greyed out when it would do nothing.
-- **Delete** removes every selected bookmark.
+- **Archive** and **Favorite** each show the most useful action for what you've selected. If any selected bookmark isn't yet archived (or favorited), the bar offers **Archive** (or **Add favorite**); once they all already are, it flips to **Unarchive** (or **Remove favorite**).
+- The **⋮ overflow** holds **🗑️ Delete** (removes every selected bookmark) and **Select all / Deselect all**.
 
-Running any of the three exits selection mode and shows a snackbar confirming what happened — for example "3 set as favorites", "5 set as archived", or "4 bookmarks deleted" — each with an **Undo** action. Favorite and archive apply immediately, and Undo reverts only the bookmarks that actually changed. Delete is held until the snackbar goes away: the bookmarks stay greyed out while it's showing, so you can tap **Undo** to keep them, or dismiss the snackbar (or tap elsewhere) to confirm the deletion.
+Archive and Favorite apply immediately and **keep you in selection mode**, so you can run several actions on the same selection in a row. Each shows a snackbar confirming what happened — for example "3 set as favorites" or "5 set as archived" — with an **Undo** action that reverts only the bookmarks that actually changed. Selection mode ends when you tap **✕**, or automatically once an action leaves nothing selected (for example, archiving the last item in My List removes it from the view).
+
+**Delete** is held until the snackbar goes away: the bookmarks stay greyed out while it's showing, so you can tap **Undo** to keep them, or dismiss the snackbar (or tap elsewhere) to confirm the deletion.
 
 ## Refreshing
 
