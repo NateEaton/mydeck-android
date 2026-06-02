@@ -181,7 +181,7 @@ private const val PendingDeleteFromDetailKey = "pending_delete_bookmark_id"
 private const val VideoFullscreenControlsAutoHideDelayMs = 3_000L
 private const val ReadPositionLogPrefix = "READPOS"
 private const val ReaderBottomTopBarRevealThreshold = 0.95f
-private const val ReaderActionFooterAnimationMs = 180
+private const val ReaderActionFooterAnimationMs = 260
 private val ReaderActionFooterBottomGap = 8.dp
 
 private enum class DetailOverlay {
@@ -577,14 +577,13 @@ fun BookmarkDetailHost(
 
             LaunchedEffect(
                 contentMode,
-                isWideLayout,
                 selectionActionModeActive,
                 annotationSurfaceActive,
                 videoFullscreenView
             ) {
                 viewModel.updateReaderFooterGates(
                     readerMode = contentMode == ContentMode.READER,
-                    hasDuplicateWideControls = isWideLayout,
+                    hasDuplicateWideControls = false,
                     selectionToolbarActive = selectionActionModeActive,
                     annotationEditorActive = annotationSurfaceActive,
                     videoFullscreenActive = videoFullscreenView != null
@@ -690,6 +689,7 @@ fun BookmarkDetailHost(
                     },
                     onVideoExitFullscreen = { source -> dismissVideoFullscreen(source) },
                     fullscreenWhileReading = fullscreenWhileReading,
+                    isWideLayout = isWideLayout,
                     annotationId = annotationId,
                     readerContentReloadNonce = readerContentReloadNonce,
                 )
@@ -892,6 +892,7 @@ fun BookmarkDetailScreen(
     onVideoEnterFullscreen: (View, WebChromeClient.CustomViewCallback?) -> Unit = { _, _ -> },
     onVideoExitFullscreen: (VideoFullscreenDismissSource) -> Unit = {},
     fullscreenWhileReading: Boolean = false,
+    isWideLayout: Boolean = false,
     annotationId: String? = null,
     readerContentReloadNonce: Int = 0,
 ) {
@@ -938,7 +939,12 @@ fun BookmarkDetailScreen(
     val footerBottomSafeArea = with(density) {
         WindowInsets.navigationBars.getBottom(this).toDp()
     }
-    val readerFooterClearance = ReaderActionFooterHeight + ReaderActionFooterBottomGap + footerBottomSafeArea
+    val readerFooterContentHeight = if (isWideLayout) {
+        ReaderActionFooterInlineHeight
+    } else {
+        ReaderActionFooterStackedHeight
+    }
+    val readerFooterClearance = readerFooterContentHeight + ReaderActionFooterBottomGap + footerBottomSafeArea
     val readerBottomClearanceCssPx = if (uiState.footerEnabled) {
         readerFooterClearance.value.roundToInt().coerceAtLeast(0)
     } else {
@@ -1160,6 +1166,7 @@ fun BookmarkDetailScreen(
                         onToggleArchive = {
                             onClickToggleArchive(uiState.bookmark.bookmarkId, !uiState.bookmark.isArchived)
                         },
+                        isWideLayout = isWideLayout,
                         palette = readerFooterPalette
                     )
                 }

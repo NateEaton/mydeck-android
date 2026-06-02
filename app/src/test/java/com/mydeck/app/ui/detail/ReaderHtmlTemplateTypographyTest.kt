@@ -74,7 +74,9 @@ class ReaderHtmlTemplateTypographyTest {
 
         templates.values.forEach { template ->
             assertTrue(template.contains("#mydeck-end-sentinel"))
+            assertTrue(template.contains("display: block;"))
             assertTrue(template.contains("pointer-events: none;"))
+            assertTrue(template.contains("transform: translateY(var(--mydeck-bottom-clearance-px, 0px));"))
             assertFalse(template.contains(".mydeck-footer"))
             assertFalse(template.contains(".mydeck-action-btn"))
             assertFalse(template.contains(".mydeck-action-icon"))
