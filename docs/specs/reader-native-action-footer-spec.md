@@ -219,8 +219,7 @@ Box(modifier = Modifier.fillMaxSize()) {
             isArchived = uiState.bookmark.isArchived,
             isWideLayout = isWideLayout,
             onToggleFavorite = viewModel::toggleFavorite,
-            onToggleArchive = viewModel::toggleArchive,
-            palette = readerThemePalette
+            onToggleArchive = viewModel::toggleArchive
         )
     }
 }
@@ -228,8 +227,8 @@ Box(modifier = Modifier.fillMaxSize()) {
 
 `ReaderActionFooter` is a centered pair of separate labeled pill buttons:
 stacked on phone layouts and side by side on wide layouts. The pill surfaces
-are coloured from the reader palette (not the global Material scheme) so they
-harmonise with sepia and reader-dark themes. Material ripple is automatic.
+use the same emphasized `secondaryContainer` role as the active navigation
+drawer pill. Material ripple is automatic.
 
 `uiState.endVisible` is fed from the new bridge. `uiState.showFooter` gates on
 the layout/type conditions in the edge-cases section below.
@@ -293,7 +292,7 @@ element changes.
 7. **Very short articles where the sentinel is visible immediately on load.**
    Same as above — footer appears right away. Same ~150 ms debounce.
 8. **Theme changes mid-read.** The CSS clearance variable does not need to
-   change with theme. The footer rerenders on palette change automatically.
+   change with theme. The footer rerenders through Material theme changes.
    No special handling needed.
 
 ## Implementation outline
@@ -320,7 +319,7 @@ element changes.
    files and its injection point in Kotlin (mirror `readerTopClearanceCssPx`).
 8. Build `ReaderActionFooter` composable — two separate icon-and-text pill
    buttons, stacked on phone layouts and side by side on wide layouts, with
-   surfaces from the reader palette.
+   surfaces matching the active navigation drawer pill.
 9. Wrap the existing WebView in a Compose `Box` and add `AnimatedVisibility`
    for the footer overlay, using the same enter/exit animation values as the
    top app bar.
@@ -362,8 +361,8 @@ element changes.
   `onScrollProgressChanged(progress >= 100)`.
 - Unit test confirming the Picture/Video auto-mark-on-open path at lines
   250–257 is unchanged.
-- Robolectric test for `ReaderActionFooter` rendering with each palette
-  variant.
+- Robolectric test for `ReaderActionFooter` rendering, click handling, and
+  phone/wide layout behavior.
 - Manual test matrix:
   - All three bookmark types: article / picture / video
   - Phone portrait / phone landscape / tablet portrait / tablet landscape

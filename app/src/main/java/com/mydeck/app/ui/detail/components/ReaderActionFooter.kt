@@ -23,7 +23,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -32,7 +31,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.mydeck.app.R
-import com.mydeck.app.ui.theme.ReaderThemePalette
 
 object ReaderActionFooterTestTags {
     const val FOOTER = "reader_action_footer"
@@ -53,18 +51,11 @@ fun ReaderActionFooter(
     isWideLayout: Boolean,
     onToggleFavorite: () -> Unit,
     onToggleArchive: () -> Unit,
-    palette: ReaderThemePalette,
     modifier: Modifier = Modifier
 ) {
-    val surfaceColor = remember(palette.bodyBackgroundColor) {
-        palette.bodyBackgroundColor.toComposeColor()
-    }
-    val contentColor = remember(palette.accentColor) {
-        palette.accentColor.toComposeColor()
-    }
-    val borderColor = remember(palette.buttonBorderColor) {
-        palette.buttonBorderColor.toComposeColor()
-    }
+    val surfaceColor = MaterialTheme.colorScheme.secondaryContainer
+    val contentColor = MaterialTheme.colorScheme.onSurface
+    val borderColor = MaterialTheme.colorScheme.secondaryContainer
     val favoriteDescription = stringResource(
         if (isFavorite) R.string.action_remove_from_favorites else R.string.action_add_to_favorites
     )
@@ -199,6 +190,3 @@ private fun ReaderActionPill(
         }
     }
 }
-
-private fun String.toComposeColor(): Color =
-    Color(android.graphics.Color.parseColor(this))

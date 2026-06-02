@@ -31,7 +31,6 @@ import com.mydeck.app.ui.components.LongPressContextMenuDialog
 import com.mydeck.app.ui.components.LongPressContextMenuItem
 import com.mydeck.app.ui.components.VerticalScrollbar
 import androidx.compose.ui.draw.alpha
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -162,7 +161,6 @@ import com.mydeck.app.util.openUrlInCustomTab
 import com.mydeck.app.ui.components.ShareBookmarkChooser
 import com.mydeck.app.ui.detail.BookmarkDetailViewModel.ContentLoadState
 import com.mydeck.app.ui.list.LocalIsWideLayout
-import com.mydeck.app.ui.theme.resolveReaderThemePalette
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -950,11 +948,6 @@ fun BookmarkDetailScreen(
     } else {
         0
     }
-    val footerAppearance = uiState.readerAppearanceSelection.effectiveAppearance(isSystemInDarkTheme())
-    val footerContext = LocalContext.current
-    val readerFooterPalette = remember(footerContext, footerAppearance) {
-        resolveReaderThemePalette(context = footerContext, appearance = footerAppearance)
-    }
     val topBarCanHide =
         uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.ARTICLE &&
             contentMode == ContentMode.READER
@@ -1166,8 +1159,7 @@ fun BookmarkDetailScreen(
                         onToggleArchive = {
                             onClickToggleArchive(uiState.bookmark.bookmarkId, !uiState.bookmark.isArchived)
                         },
-                        isWideLayout = isWideLayout,
-                        palette = readerFooterPalette
+                        isWideLayout = isWideLayout
                     )
                 }
             }
