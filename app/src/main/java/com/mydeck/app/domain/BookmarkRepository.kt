@@ -46,6 +46,7 @@ interface BookmarkRepository {
     fun observeBookmark(id: String): Flow<Bookmark?>
     suspend fun deleteAllBookmarks()
     suspend fun deleteBookmark(id: String): UpdateResult
+    suspend fun deleteBookmarks(ids: List<String>): UpdateResult
     suspend fun createBookmark(
         title: String,
         url: String,

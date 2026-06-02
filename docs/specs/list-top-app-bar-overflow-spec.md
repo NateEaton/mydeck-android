@@ -1,8 +1,8 @@
 # List View Top App Bar — Overflow Refactor Specification
 
-Status: Draft for Phase 3 implementation. Depends on multi-select Phase 1
-follow-up landing first (`feat/multi-select-phase-1`) since that branch
-introduces the selection-mode app bar that this spec leaves untouched.
+Status: Implemented on `feat/multi-select-phase-1` (alongside multi-select
+Phase 3). The selection-mode app bar introduced on that branch is left
+untouched, as specified.
 
 Date: 2026-06-01
 

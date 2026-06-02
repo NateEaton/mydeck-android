@@ -18,6 +18,26 @@ Tap the **menu icon** (☰) in the top-left corner to open the navigation drawer
 Each item shows a count of how many bookmarks it contains.
 Tap outside the drawer or swipe it closed to dismiss it without changing sections.
 
+The top bar shows the **☰ menu**, the current section title, a **layout icon**, a **sort icon**, and a **⋮ overflow menu**. The overflow holds **Filter** and **Select bookmarks**. (When you're viewing a single label, the overflow instead offers **Rename label**, **Delete label**, and **Select bookmarks**.)
+
+## Adding Bookmarks
+
+### From within MyDeck
+
+Tap the **+** button at the bottom-right of the list to open the **Add Link** sheet. Enter the URL of the page you want to save, and optionally a title, labels, and mark it as a favorite (❤️), then tap **Add**.
+
+For labels, use the **Add labels** / **Edit labels** row in the Labels section. This opens a picker where you can select multiple labels (and create a new label from search text). When you pick a label from search results, the search clears, and your selected labels stay pinned below the search field while you continue choosing more. Tap **Done** to apply picker changes, or tap **Back** to cancel picker changes.
+
+- **Add** — saves the bookmark and closes the sheet
+- **View** — saves the bookmark and immediately opens it to read
+- **Archive** — saves the bookmark directly to the archive
+
+### From another app
+
+You can save any link to MyDeck using Android's share sheet. In a browser or another app, tap **Share** and choose **Save to MyDeck**. A sheet appears with the URL (and title, if the app shared one) pre-filled. You can add or edit the title, pick labels, mark it as a favorite (❤️), and choose **Add**, **View**, or **Archive**.
+
+When opened via the share sheet, a 5-second countdown starts and the bookmark is added automatically when it reaches zero. Tap anywhere on the sheet to stop the countdown and take your time.
+
 ## Bookmark Cards
 
 Each item in the list is a bookmark card. Every card shows the bookmark's **title**, **site name**, estimated **reading time**, and any **labels** assigned to it. If a bookmark has more labels than fit on one line, you can scroll the label row horizontally.
@@ -35,10 +55,6 @@ A denser view that uses the site's **favicon** instead of a full thumbnail. A fi
 ### Mosaic Layout
 
 Each card is a large tile with the thumbnail filling the entire card and the title overlaid at the bottom. Labels are not shown in mosaic layout.
-
-### Switching Layouts
-
-Tap the **layout icon** in the top bar to choose between Grid, Compact, and Mosaic. The icon updates to reflect your current choice.
 
 ### Bookmark Types
 
@@ -77,25 +93,6 @@ Each card has four action buttons:
 
 See [Organizing](./organizing.md) for more on how favorites, archive, labels, and deletion work across your whole collection.
 
-## Selecting Multiple Bookmarks
-
-Tap the **select icon** (empty circle) on the right side of the top bar to enter selection mode. The top bar changes to show an **X** button on the left, the number of selected bookmarks as the title, and a **⋮ overflow** button on the right.
-
-While selection mode is active, tap any bookmark card to select or deselect it. The card's interactive action buttons are replaced by dimmed status icons that show each bookmark's current **favorite** and **archive** state, and the far-right action area shows a circular selection indicator. Tapping the **X** exits selection mode and clears the current selection.
-
-Tap the **⋮ overflow** button to open the selection menu, which always offers:
-
-- **Select all / Deselect all** — selects every bookmark in the current view. If all visible bookmarks are already selected, the same item becomes **Deselect all** and clears the selection.
-
-Once you have at least one bookmark selected, two action icons appear in the top bar (one for favorite, one for archive) and two corresponding items appear in the overflow. Each axis works independently and the bar promotes the most useful action based on what you've selected:
-
-- **Favorite**:
-  - If any selected bookmark is **not** yet a favorite, the bar shows **❤️ Add favorite** (filled heart). Tapping it favorites the whole selection. The overflow has **Remove favorite** as the inverse.
-  - If **all** selected bookmarks are already favorites, the bar promotes **Remove favorite** (outline heart) for a one-tap reversal. The overflow's **Add favorite** is greyed out since there's nothing left to favorite.
-- **Archive**: same pattern with **Archive** (filled box) and **Unarchive** (outline box).
-
-After the action runs, a snackbar at the bottom confirms the post-state of the selection — for example "3 set as favorites", "3 unset as favorites", "5 set as archived", "5 unset as archived" — and selection mode exits automatically.
-
 ## Swipe Actions on Cards
 
 In single-column layouts you can swipe a bookmark card left or right to archive or delete it without tapping the icon buttons.
@@ -129,27 +126,25 @@ Long-pressing on a bookmark card opens a context menu dialog. The dialog header 
 - Download image
 - Share image
 
-## Adding Bookmarks
+## Switching Layouts
 
-### From within MyDeck
+Tap the **layout icon** in the top bar to choose between Grid, Compact, and Mosaic. The icon updates to reflect your current choice.
 
-Tap the **+** button at the bottom-right of the list to open the **Add Link** sheet. Enter the URL of the page you want to save, and optionally a title, labels, and mark it as a favorite (❤️), then tap **Add**.
+## Sorting
 
-For labels, use the **Add labels** / **Edit labels** row in the Labels section. This opens a picker where you can select multiple labels (and create a new label from search text). When you pick a label from search results, the search clears, and your selected labels stay pinned below the search field while you continue choosing more. Tap **Done** to apply picker changes, or tap **Back** to cancel picker changes.
+Tap the **sort icon** (↕) in the top bar to change the sort order. Options are:
 
-- **Add** — saves the bookmark and closes the sheet
-- **View** — saves the bookmark and immediately opens it to read
-- **Archive** — saves the bookmark directly to the archive
+- **Added** — date the bookmark was saved to Readeck
+- **Published** — date the original article was published
+- **Title** — alphabetical by title
+- **Site Name** — alphabetical by site
+- **Duration** — by estimated reading time
 
-### From another app
-
-You can save any link to MyDeck using Android's share sheet. In a browser or another app, tap **Share** and choose **Save to MyDeck**. A sheet appears with the URL (and title, if the app shared one) pre-filled. You can add or edit the title, pick labels, mark it as a favorite (❤️), and choose **Add**, **View**, or **Archive**.
-
-When opened via the share sheet, a 5-second countdown starts and the bookmark is added automatically when it reaches zero. Tap anywhere on the sheet to stop the countdown and take your time.
+An arrow on the selected option shows the current direction. Tap the same option again to toggle between ascending and descending.
 
 ## Searching and Filtering
 
-Tap the **filter icon** (≡) in the top bar to open the filter sheet. The sheet opens showing the top half of the options. Scroll down within the sheet to see all options.
+Open the **⋮ overflow menu** in the top bar and tap **Filter** to open the filter sheet. The sheet opens showing the top half of the options. Scroll down within the sheet to see all options.
 
 Active filters are shown as chips below the top bar. Tap the **×** on a chip to clear that filter.
 
@@ -193,17 +188,16 @@ To return to a standard view you can:
 
 Tap **Search** to apply, or **Reset** to clear all filters.
 
-## Sorting
+## Selecting Multiple Bookmarks
 
-Tap the **sort icon** (↕) in the top bar to change the sort order. Options are:
+Open the **⋮ overflow menu** and tap **Select bookmarks** to enter selection mode. The top bar switches to an **✕** (exit), the number of selected bookmarks as the title, and a **⋮ overflow** that offers **Select all / Deselect all**. Tap any card to select or deselect it — each card's action buttons become dimmed icons showing its current favorite and archive state, with a selection indicator on the right. Tap **✕** to exit and clear the selection.
 
-- **Added** — date the bookmark was saved to Readeck
-- **Published** — date the original article was published
-- **Title** — alphabetical by title
-- **Site Name** — alphabetical by site
-- **Duration** — by estimated reading time
+Once at least one bookmark is selected, three actions on the bar apply to the **whole selection** — **Favorite**, **Archive**, and **🗑️ Delete**:
 
-An arrow on the selected option shows the current direction. Tap the same option again to toggle between ascending and descending.
+- **Favorite** and **Archive** each show the most useful action for what you've selected. If any selected bookmark isn't yet favorited (or archived), the bar offers **Add favorite** (or **Archive**); once they all already are, it flips to **Remove favorite** (or **Unarchive**). The opposite action sits in the overflow, greyed out when it would do nothing.
+- **Delete** removes every selected bookmark.
+
+Running any of the three exits selection mode and shows a snackbar confirming what happened — for example "3 set as favorites", "5 set as archived", or "4 bookmarks deleted" — each with an **Undo** action. Favorite and archive apply immediately, and Undo reverts only the bookmarks that actually changed. Delete is held until the snackbar goes away: the bookmarks stay greyed out while it's showing, so you can tap **Undo** to keep them, or dismiss the snackbar (or tap elsewhere) to confirm the deletion.
 
 ## Refreshing
 

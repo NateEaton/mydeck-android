@@ -73,10 +73,16 @@ data class MultiSelectTargets(
 
 sealed class BatchActionSnackbarEvent {
     abstract val count: Int
-    data class FavoritesAdded(override val count: Int) : BatchActionSnackbarEvent()
-    data class FavoritesRemoved(override val count: Int) : BatchActionSnackbarEvent()
-    data class Archived(override val count: Int) : BatchActionSnackbarEvent()
-    data class Unarchived(override val count: Int) : BatchActionSnackbarEvent()
+
+    // Favorite/archive events carry the ids actually changed (skip-no-op filtered out) so
+    // Undo can revert exactly those items back to their prior state in a single transaction.
+    data class FavoritesAdded(override val count: Int, val changedIds: List<String>) : BatchActionSnackbarEvent()
+    data class FavoritesRemoved(override val count: Int, val changedIds: List<String>) : BatchActionSnackbarEvent()
+    data class Archived(override val count: Int, val changedIds: List<String>) : BatchActionSnackbarEvent()
+    data class Unarchived(override val count: Int, val changedIds: List<String>) : BatchActionSnackbarEvent()
+
+    // Delete is staged (not yet written); confirm/cancel act on the batch-pending set held in the ViewModel.
+    data class Deleted(override val count: Int) : BatchActionSnackbarEvent()
 }
 
 private data class SelectedBookmarkActionState(
@@ -132,6 +138,11 @@ class BookmarkListViewModel @Inject constructor(
     // Pending deletion IDs tracked per staged snackbar so rapid deletes keep item identity.
     private val _pendingDeletionBookmarkIds = MutableStateFlow<List<String>>(emptyList())
     val pendingDeletionBookmarkIds = _pendingDeletionBookmarkIds.asStateFlow()
+
+    // Batch (multi-select) pending deletion kept separate from single-item pending deletion so the
+    // batch confirms/cancels atomically and Undo restores exactly the staged batch set.
+    private val _pendingBatchDeletionBookmarkIds = MutableStateFlow<Set<String>>(emptySet())
+    val pendingBatchDeletionBookmarkIds = _pendingBatchDeletionBookmarkIds.asStateFlow()
 
     private val _multiSelectState = MutableStateFlow(MultiSelectState())
     val multiSelectState = _multiSelectState.asStateFlow()
@@ -680,6 +691,71 @@ class BookmarkListViewModel @Inject constructor(
 
     fun onUnarchiveSelectedBookmarks() = applyBatchArchive(targetArchived = false)
 
+    // Stage all selected bookmarks as batch-pending-delete: grey them out, leave selection mode, and
+    // emit a Snackbar. No DB write happens here — it is deferred until the Snackbar is confirmed.
+    fun onDeleteSelectedBookmarks() {
+        val selectedIds = _multiSelectState.value.selectedIds
+        if (selectedIds.isEmpty()) return
+
+        val staged = selectedIds.toSet()
+        _pendingBatchDeletionBookmarkIds.value = staged
+        clearMultiSelectState()
+        _batchActionSnackbarEvent.trySend(BatchActionSnackbarEvent.Deleted(staged.size))
+    }
+
+    // Confirm path (Snackbar dismissed/timed out/interaction elsewhere): soft-delete the staged batch
+    // locally and enqueue delete pending actions for sync, in one transaction.
+    fun onConfirmBatchDeletion() {
+        val ids = _pendingBatchDeletionBookmarkIds.value
+        if (ids.isEmpty()) return
+
+        _pendingBatchDeletionBookmarkIds.value = emptySet()
+        updateBookmark {
+            updateBookmarkUseCase.deleteBookmarks(ids.toList())
+        }
+    }
+
+    // Undo path: restore the staged batch from pending-delete UI state without enqueuing any deletes.
+    fun onCancelBatchDeletion() {
+        _pendingBatchDeletionBookmarkIds.value = emptySet()
+    }
+
+    // Snackbar Undo for every batch action. Favorite/archive were applied optimistically, so Undo
+    // reverts only the items actually changed; delete was merely staged, so Undo cancels the stage.
+    fun onUndoBatchAction(event: BatchActionSnackbarEvent) {
+        when (event) {
+            is BatchActionSnackbarEvent.FavoritesAdded -> revertBatchFavorite(event.changedIds, revertTo = false)
+            is BatchActionSnackbarEvent.FavoritesRemoved -> revertBatchFavorite(event.changedIds, revertTo = true)
+            is BatchActionSnackbarEvent.Archived -> revertBatchArchive(event.changedIds, revertTo = false)
+            is BatchActionSnackbarEvent.Unarchived -> revertBatchArchive(event.changedIds, revertTo = true)
+            is BatchActionSnackbarEvent.Deleted -> onCancelBatchDeletion()
+        }
+    }
+
+    // Snackbar dismissal for every batch action. Only delete has deferred work to commit on dismiss;
+    // favorite/archive are already applied, so dismissing is a no-op for them.
+    fun onConfirmBatchAction(event: BatchActionSnackbarEvent) {
+        if (event is BatchActionSnackbarEvent.Deleted) onConfirmBatchDeletion()
+    }
+
+    private fun revertBatchFavorite(changedIds: List<String>, revertTo: Boolean) {
+        if (changedIds.isEmpty()) return
+        updateBookmark {
+            updateBookmarkUseCase.updateBookmarks(
+                changedIds.map { BookmarkBatchUpdate(bookmarkId = it, isFavorite = revertTo) }
+            )
+        }
+    }
+
+    private fun revertBatchArchive(changedIds: List<String>, revertTo: Boolean) {
+        if (changedIds.isEmpty()) return
+        updateBookmark {
+            updateBookmarkUseCase.updateBookmarks(
+                changedIds.map { BookmarkBatchUpdate(bookmarkId = it, isArchived = revertTo) }
+            )
+        }
+    }
+
     private fun applyBatchFavorite(targetFavorite: Boolean) {
         val snapshots = selectedBookmarkActionSnapshots()
         if (snapshots.isEmpty()) return
@@ -700,10 +776,11 @@ class BookmarkListViewModel @Inject constructor(
                 )
             }
         }
+        val changedIds = itemsToUpdate.map { it.id }
         val event = if (targetFavorite) {
-            BatchActionSnackbarEvent.FavoritesAdded(selectedCount)
+            BatchActionSnackbarEvent.FavoritesAdded(selectedCount, changedIds)
         } else {
-            BatchActionSnackbarEvent.FavoritesRemoved(selectedCount)
+            BatchActionSnackbarEvent.FavoritesRemoved(selectedCount, changedIds)
         }
         _batchActionSnackbarEvent.trySend(event)
     }
@@ -728,10 +805,11 @@ class BookmarkListViewModel @Inject constructor(
                 )
             }
         }
+        val changedIds = itemsToUpdate.map { it.id }
         val event = if (targetArchived) {
-            BatchActionSnackbarEvent.Archived(selectedCount)
+            BatchActionSnackbarEvent.Archived(selectedCount, changedIds)
         } else {
-            BatchActionSnackbarEvent.Unarchived(selectedCount)
+            BatchActionSnackbarEvent.Unarchived(selectedCount, changedIds)
         }
         _batchActionSnackbarEvent.trySend(event)
     }

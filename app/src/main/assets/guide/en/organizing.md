@@ -39,12 +39,7 @@ There are two ways to access these actions:
 
 Tap the **❤️** button on any bookmark card in a list view to mark a bookmark as a favorite. Tap again to remove it. The heart fills when a bookmark is a favorite.
 
-To favorite or unfavorite several bookmarks at once, tap the **select icon** in the bookmark list top bar and choose the cards you want (or tap **⋮ → Select all** to choose every bookmark in the current view). The top bar exposes the most useful favorite action for your current selection:
-
-- If any selected bookmark is **not** yet a favorite, the bar shows **❤️ Add favorite**. The overflow has **Remove favorite**.
-- If **all** selected bookmarks are already favorites, the bar promotes **Remove favorite** for one-tap reversal; the overflow's **Add favorite** is greyed out.
-
-A snackbar confirms the post-state of the selection (e.g. "3 set as favorites", "3 unset as favorites").
+To favorite or unfavorite several bookmarks at once, tap **⋮ → Select bookmarks**, choose the cards you want (or **⋮ → Select all**), then use the favorite action on the bar. If any selected bookmark isn't yet a favorite, the bar offers **Add favorite**; once they all are, it flips to **Remove favorite**, with the opposite action in the overflow. A snackbar confirms the result (e.g. "3 set as favorites") with an **Undo** that reverts only the bookmarks that actually changed. See [Selecting Multiple Bookmarks](./your-bookmarks.md) for the full multi-select flow.
 
 In the reading view, you can toggle favorites using:
 - The **❤️ Favorite / Remove favorite** button at the end of the content
@@ -59,7 +54,7 @@ Archiving moves a bookmark out of **My List** into the **Archive**. Archived boo
 You can archive a bookmark from several places:
 
 - **Card action** — tap the Archive button on a bookmark card in any list view
-- **Multi-select** — tap the **select icon** in the bookmark list top bar, choose the cards you want (or tap **⋮ → Select all**). The top bar exposes whichever archive action is most useful: **Archive** when any selected bookmark is not yet archived (overflow holds **Unarchive**), or **Unarchive** promoted to the bar when all selected bookmarks are already archived (overflow's Archive is greyed out). A snackbar confirms the post-state of the selection (e.g. "5 set as archived", "5 unset as archived").
+- **Multi-select** — tap **⋮ → Select bookmarks**, choose the cards you want (or **⋮ → Select all**), then use the archive action on the bar. It offers **Archive** when any selected bookmark isn't yet archived, and flips to **Unarchive** once they all are, with the opposite action in the overflow. A snackbar confirms the result (e.g. "5 set as archived") with an **Undo** that reverts only the bookmarks that actually changed.
 - **Reading view** — use the **📦 Archive / Unarchive** button at the end of the content or **⋮** → **Archive / Unarchive**
 - **Add Link sheet** — tap **Archive** to save a new bookmark directly to the Archive
 
@@ -76,3 +71,5 @@ Highlights let you mark passages in articles and transcripts with a color and an
 To delete a bookmark, tap the **🗑️** button on its card in a list view, or tap **⋮** → **Delete** in the reading view.
 
 When deleting from a list view, the card is greyed out and a **"Deleting bookmark \"Title...\""** bar appears at the bottom of the screen with a short title snippet so you can tell which queued delete **Undo** will restore. Tap **Undo** to restore it, or tap anywhere else (including the greyed-out card) to confirm deletion. When deleting from the reading view, you are returned to the list and the same undo bar appears.
+
+To delete several bookmarks at once, tap **⋮ → Select bookmarks**, choose the cards you want, then tap the **🗑️ Delete** icon in the top bar. Selection mode exits and a **"N bookmarks deleted"** snackbar appears with an **Undo** action. The staged bookmarks stay greyed out until you tap **Undo** to restore them all, or let the snackbar go (or interact elsewhere) to confirm the deletion.

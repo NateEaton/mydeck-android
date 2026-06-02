@@ -1,13 +1,15 @@
 # List Multi-Select Actions — Feasibility and Design Specification
 
-Status: Draft for implementation. Phase 1 (selection mode plus batch favorite/archive) is implemented on branch `feat/multi-select-phase-1`. A Phase 1 follow-up on the same branch lands the batch favorite/archive UX as **explicit dual actions with contextual elevation** (MD3 Pattern B, refined):
+Status: Implemented on branch `feat/multi-select-phase-1`. Phase 1 (selection mode plus batch favorite/archive) shipped first; a follow-up on the same branch landed the batch favorite/archive UX as **explicit dual actions with contextual elevation** (MD3 Pattern B, refined); Phase 3 (§6.7 batch delete + Undo, plus Undo on the favorite/archive Snackbars) completed the feature.
+
+The contextual-elevation design:
 
 - Each of the two action axes — favorite and archive — is computed independently from the current selection. For each axis the system promotes the single most useful action to the top app bar; the inverse goes into the overflow menu, greyed-out when it would be a no-op.
   - **All selected are already in the target state** → the inverse action (Remove favorite / Unarchive) is elevated to the bar with the Outlined icon variant. The overflow holds the matching Add action, disabled.
   - **None or some are in the target state** → the additive action (Add favorite / Archive) sits on the bar with the Filled icon variant. The overflow holds the Remove/Unarchive action, enabled iff at least one selected item is in the matching state.
 - Terminology is aligned with the Reading-view overflow: **Add favorite**, **Remove favorite**, **Archive**, **Unarchive**.
 - Select all / Deselect all is a single toggle item in the overflow that swaps label and leading icon based on whether all visible bookmarks are selected.
-- Every batch action emits a confirmation Snackbar describing the post-state of the full selection using a uniform "N set/unset as X" copy pattern: "%d set as favorite(s)", "%d unset as favorite(s)", "%d set as archived", "%d unset as archived" (plurals from `multi_select_set_as_*` / `multi_select_unset_as_*`). The count is the selected count.
+- Every batch action emits a confirmation Snackbar describing the post-state of the full selection using a uniform "N set/unset as X" copy pattern: "%d set as favorites", "%d unset as favorites", "%d set as archived", "%d unset as archived". These are **flat `%1$d`-format strings** (`multi_select_set_as_*` / `multi_select_unset_as_*`), not Android `<plurals>` — an earlier plurals approach was reverted as a regression. The count is the selected count.
 - DB writes only go to items whose state would actually change; the Snackbar fires regardless, so a uniform-state tap still confirms the user's intent landed.
 
 The favorite/archive icons on each card remain visible in select mode as **non-interactive state indicators** at 38% alpha so the user can see per-card state at a glance.
@@ -256,10 +258,10 @@ Behavior:
   target state get no DB write and no sync churn.
 - Always emit a Snackbar describing the post-state of the **full selection**,
   using "set/unset as X" copy and the selected count:
-  - After Add favorite → `multi_select_set_as_favorite` ("%d set as
-    favorite" / "%d set as favorites").
-  - After Remove favorite → `multi_select_unset_as_favorite` ("%d unset as
-    favorite" / "%d unset as favorites").
+  - After Add favorite → `multi_select_set_as_favorite` (flat string
+    "%1$d set as favorites").
+  - After Remove favorite → `multi_select_unset_as_favorite` (flat string
+    "%1$d unset as favorites").
 - Reset the list to non-multi-select mode after the action is accepted.
 
 ### 6.6 Batch Archive (Contextual Elevation)
@@ -544,8 +546,10 @@ Likely strings:
 - `confirm`
 - `cancel` if not already available
 
-Use Android plural resources if the project already uses them. If not, add
-plurals only if needed for clean count handling.
+Use flat `%1$d`-format strings, **not** Android `<plurals>`. A plurals approach
+was tried and reverted as a regression; all count-bearing multi-select copy
+("%1$d set as favorites", "%1$d bookmarks deleted", etc.) uses flat strings with
+English placeholders across all ten locale files.
 
 ## 15. User Guide Updates
 

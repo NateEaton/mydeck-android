@@ -39,6 +39,8 @@ import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material.icons.filled.SelectAll
 import androidx.compose.material.icons.filled.Deselect
+import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.Inventory2
 import androidx.compose.material.icons.automirrored.filled.List
@@ -53,6 +55,7 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.DrawerState
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -166,13 +169,11 @@ fun BookmarkListScreen(
     val labelsWithCounts = viewModel.labelsWithCounts.collectAsState()
     val isLabelsSheetOpen = viewModel.isLabelsSheetOpen.collectAsState()
     val pendingDeletionBookmarkIds = viewModel.pendingDeletionBookmarkIds.collectAsState()
+    val pendingBatchDeletionBookmarkIds = viewModel.pendingBatchDeletionBookmarkIds.collectAsState()
     val multiSelectState = viewModel.multiSelectState.collectAsState()
     val multiSelectTargets = viewModel.multiSelectTargets.collectAsState()
     val swipeConfig = viewModel.swipeConfig.collectAsState()
 
-    var showLayoutMenu by remember { mutableStateOf(false) }
-    var showSortMenu by remember { mutableStateOf(false) }
-    var showOverflowMenu by remember { mutableStateOf(false) }
     var showSelectionOverflowMenu by remember { mutableStateOf(false) }
     var showRenameLabelDialog by remember { mutableStateOf(false) }
     var showDeleteLabelDialog by remember { mutableStateOf(false) }
@@ -436,20 +437,30 @@ fun BookmarkListScreen(
     LaunchedEffect(Unit) {
         viewModel.batchActionSnackbarEvent.collect { event ->
             snackbarHostState.currentSnackbarData?.dismiss()
-            val (stringRes, count) = when (event) {
-                is BatchActionSnackbarEvent.FavoritesAdded ->
-                    R.string.multi_select_set_as_favorite to event.count
-                is BatchActionSnackbarEvent.FavoritesRemoved ->
-                    R.string.multi_select_unset_as_favorite to event.count
-                is BatchActionSnackbarEvent.Archived ->
-                    R.string.multi_select_set_as_archived to event.count
-                is BatchActionSnackbarEvent.Unarchived ->
-                    R.string.multi_select_unset_as_archived to event.count
+            val stringRes = when (event) {
+                is BatchActionSnackbarEvent.FavoritesAdded -> R.string.multi_select_set_as_favorite
+                is BatchActionSnackbarEvent.FavoritesRemoved -> R.string.multi_select_unset_as_favorite
+                is BatchActionSnackbarEvent.Archived -> R.string.multi_select_set_as_archived
+                is BatchActionSnackbarEvent.Unarchived -> R.string.multi_select_unset_as_archived
+                is BatchActionSnackbarEvent.Deleted -> R.string.multi_select_deleted_count
             }
-            snackbarHostState.showSnackbar(
-                message = resources.getString(stringRes, count),
-                duration = SnackbarDuration.Short
+            // Delete is destructive and staged, so it stays until the user acts or interacts
+            // elsewhere (matching single-item delete); favorite/archive are already applied.
+            val duration = if (event is BatchActionSnackbarEvent.Deleted) {
+                SnackbarDuration.Indefinite
+            } else {
+                SnackbarDuration.Long
+            }
+            val result = snackbarHostState.showSnackbar(
+                message = resources.getString(stringRes, event.count),
+                actionLabel = undoActionLabel,
+                duration = duration
             )
+            if (result == androidx.compose.material3.SnackbarResult.ActionPerformed) {
+                viewModel.onUndoBatchAction(event)
+            } else {
+                viewModel.onConfirmBatchAction(event)
+            }
         }
     }
 
@@ -615,6 +626,18 @@ fun BookmarkListScreen(
                                     )
                                 )
                             }
+                            IconButton(
+                                onClick = {
+                                    dismissPendingDeleteSnackbar()
+                                    hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    viewModel.onDeleteSelectedBookmarks()
+                                }
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Delete,
+                                    contentDescription = stringResource(R.string.action_delete)
+                                )
+                            }
                         }
                         Box {
                             IconButton(onClick = { showSelectionOverflowMenu = true }) {
@@ -717,159 +740,18 @@ fun BookmarkListScreen(
                             }
                         }
                     } else {
-                    // Layout button with dropdown — icon reflects current mode
-                    Box {
-                        val currentLayoutIcon = when (layoutMode.value) {
-                            LayoutMode.GRID -> Icons.Filled.Apps
-                            LayoutMode.COMPACT -> Icons.AutoMirrored.Filled.List
-                            LayoutMode.MOSAIC -> Icons.Filled.GridView
-                        }
-                        IconButton(onClick = {
-                            dismissPendingDeleteSnackbar()
-                            showLayoutMenu = true
-                        }) {
-                            Icon(currentLayoutIcon, contentDescription = stringResource(R.string.layout))
-                        }
-                        DropdownMenu(
-                            expanded = showLayoutMenu,
-                            onDismissRequest = { showLayoutMenu = false }
-                        ) {
-                            LayoutMode.entries.forEach { mode ->
-                                DropdownMenuItem(
-                                    leadingIcon = {
-                                        Icon(
-                                            imageVector = when (mode) {
-                                                LayoutMode.GRID -> Icons.Filled.Apps
-                                                LayoutMode.COMPACT -> Icons.AutoMirrored.Filled.List
-                                                LayoutMode.MOSAIC -> Icons.Filled.GridView
-                                            },
-                                            contentDescription = null
-                                        )
-                                    },
-                                    text = {
-                                        Text(
-                                            text = mode.displayName,
-                                            fontWeight = if (mode == layoutMode.value) FontWeight.Bold else FontWeight.Normal
-                                        )
-                                    },
-                                    onClick = {
-                                        viewModel.onLayoutModeSelected(mode)
-                                        showLayoutMenu = false
-                                    }
-                                )
-                            }
-                        }
-                    }
-
-                    // Sort button with dropdown — one row per category, arrow shows direction of active sort
-                    Box {
-                        IconButton(onClick = {
-                            dismissPendingDeleteSnackbar()
-                            showSortMenu = true
-                        }) {
-                            Icon(Icons.Filled.SwapVert, contentDescription = stringResource(R.string.sort))
-                        }
-                        DropdownMenu(
-                            expanded = showSortMenu,
-                            onDismissRequest = { showSortMenu = false }
-                        ) {
-                            // Groups: (label, descOption, ascOption)
-                            val sortGroups = listOf(
-                                Triple("Added", SortOption.ADDED_NEWEST, SortOption.ADDED_OLDEST),
-                                Triple("Published", SortOption.PUBLISHED_NEWEST, SortOption.PUBLISHED_OLDEST),
-                                Triple("Title", SortOption.TITLE_A_TO_Z, SortOption.TITLE_Z_TO_A),
-                                Triple("Site name", SortOption.SITE_A_TO_Z, SortOption.SITE_Z_TO_A),
-                                Triple("Duration", SortOption.DURATION_LONGEST, SortOption.DURATION_SHORTEST)
-                            )
-                            sortGroups.forEach { (label, firstOption, secondOption) ->
-                                val isFirstSelected = sortOption.value == firstOption
-                                val isSecondSelected = sortOption.value == secondOption
-                                val isGroupSelected = isFirstSelected || isSecondSelected
-                                val activeOption = if (isSecondSelected) secondOption else firstOption
-                                val isDescending = activeOption.sqlOrderBy.contains("DESC")
-                                DropdownMenuItem(
-                                    leadingIcon = {
-                                        if (isGroupSelected) {
-                                            Icon(
-                                                imageVector = if (isDescending) Icons.Filled.ArrowDownward else Icons.Filled.ArrowUpward,
-                                                contentDescription = null,
-                                                tint = MaterialTheme.colorScheme.primary
-                                            )
-                                        } else {
-                                            Spacer(Modifier.size(24.dp))
-                                        }
-                                    },
-                                    text = {
-                                        Text(
-                                            text = label,
-                                            color = if (isGroupSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
-                                            fontWeight = if (isGroupSelected) FontWeight.Bold else FontWeight.Normal
-                                        )
-                                    },
-                                    onClick = {
-                                        val newOption = when {
-                                            isFirstSelected -> secondOption  // toggle to other direction
-                                            isSecondSelected -> firstOption  // toggle back
-                                            else -> firstOption              // first tap: use default
-                                        }
-                                        viewModel.onSortOptionSelected(newOption)
-                                        showSortMenu = false
-                                    }
-                                )
-                            }
-                        }
-                    }
-
-                    if (isLabelMode) {
-                        // Overflow menu with Rename/Delete label options
-                        Box {
-                            IconButton(onClick = {
-                                dismissPendingDeleteSnackbar()
-                                showOverflowMenu = true
-                            }) {
-                                Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.more_options))
-                            }
-                            DropdownMenu(
-                                expanded = showOverflowMenu,
-                                onDismissRequest = { showOverflowMenu = false }
-                            ) {
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.rename_label)) },
-                                    onClick = {
-                                        showRenameLabelDialog = true
-                                        showOverflowMenu = false
-                                    }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.delete_label)) },
-                                    onClick = {
-                                        showDeleteLabelDialog = true
-                                        showOverflowMenu = false
-                                    }
-                                )
-                            }
-                        }
-                    } else {
-                        // Filter button (non-label mode only)
-                        IconButton(onClick = {
-                            dismissPendingDeleteSnackbar()
-                            viewModel.onOpenFilterSheet()
-                        }) {
-                            Icon(Icons.Filled.FilterList, contentDescription = stringResource(R.string.filter_bookmarks))
-                        }
-                    }
-                    IconButton(onClick = {
-                        dismissPendingDeleteSnackbar()
-                        showLayoutMenu = false
-                        showSortMenu = false
-                        showOverflowMenu = false
-                        viewModel.onEnterMultiSelectMode()
-                    }) {
-                        Icon(
-                            Icons.Filled.RadioButtonUnchecked,
-                            contentDescription = stringResource(R.string.action_select_bookmarks)
-                        )
-                    }
+                    BookmarkListBarActions(
+                        isLabelMode = isLabelMode,
+                        layoutMode = layoutMode.value,
+                        sortOption = sortOption.value,
+                        onLayoutModeSelected = { viewModel.onLayoutModeSelected(it) },
+                        onSortOptionSelected = { viewModel.onSortOptionSelected(it) },
+                        onDismissPendingDelete = dismissPendingDeleteSnackbar,
+                        onOpenFilterSheet = { viewModel.onOpenFilterSheet() },
+                        onEnterMultiSelectMode = { viewModel.onEnterMultiSelectMode() },
+                        onRequestRenameLabel = { showRenameLabelDialog = true },
+                        onRequestDeleteLabel = { showDeleteLabelDialog = true },
+                    )
                     }
                 }
             )
@@ -900,7 +782,8 @@ fun BookmarkListScreen(
             }
         }
     ) { padding ->
-        val hasPendingDeletion = pendingDeletionBookmarkIds.value.isNotEmpty()
+        val allPendingDeletionIds = pendingDeletionBookmarkIds.value.toSet() + pendingBatchDeletionBookmarkIds.value
+        val hasPendingDeletion = allPendingDeletionIds.isNotEmpty()
         Column(
             modifier = Modifier
                 .padding(padding)
@@ -959,7 +842,7 @@ fun BookmarkListScreen(
                                 scrollToTopTrigger = scrollToTopTrigger,
                                 layoutMode = layoutMode.value,
                                 bookmarks = uiState.bookmarks,
-                                pendingDeletionBookmarkIds = pendingDeletionBookmarkIds.value.toSet(),
+                                pendingDeletionBookmarkIds = allPendingDeletionIds,
                                 isMultiSelectMode = isMultiSelectMode,
                                 selectedBookmarkIds = multiSelectState.value.selectedIds,
                                 swipeConfig = swipeConfig.value,
@@ -1158,6 +1041,198 @@ fun BookmarkListScreen(
                 }
             }
         )
+    }
+}
+
+/**
+ * The normal / label-mode top-app-bar actions row (Layout, Sort, Overflow).
+ * Extracted as a standalone composable so it can be tested in isolation without
+ * wiring up a full BookmarkListViewModel.
+ */
+@Composable
+internal fun BookmarkListBarActions(
+    isLabelMode: Boolean,
+    layoutMode: LayoutMode,
+    sortOption: SortOption,
+    onLayoutModeSelected: (LayoutMode) -> Unit,
+    onSortOptionSelected: (SortOption) -> Unit,
+    onDismissPendingDelete: () -> Unit = {},
+    onOpenFilterSheet: () -> Unit,
+    onEnterMultiSelectMode: () -> Unit,
+    onRequestRenameLabel: () -> Unit,
+    onRequestDeleteLabel: () -> Unit,
+) {
+    var showLayoutMenu by remember { mutableStateOf(false) }
+    var showSortMenu by remember { mutableStateOf(false) }
+    var showOverflowMenu by remember { mutableStateOf(false) }
+
+    // Layout button with dropdown — icon reflects current mode
+    Box {
+        val currentLayoutIcon = when (layoutMode) {
+            LayoutMode.GRID -> Icons.Filled.Apps
+            LayoutMode.COMPACT -> Icons.AutoMirrored.Filled.List
+            LayoutMode.MOSAIC -> Icons.Filled.GridView
+        }
+        IconButton(onClick = {
+            onDismissPendingDelete()
+            showLayoutMenu = true
+        }) {
+            Icon(currentLayoutIcon, contentDescription = stringResource(R.string.layout))
+        }
+        DropdownMenu(
+            expanded = showLayoutMenu,
+            onDismissRequest = { showLayoutMenu = false }
+        ) {
+            LayoutMode.entries.forEach { mode ->
+                DropdownMenuItem(
+                    leadingIcon = {
+                        Icon(
+                            imageVector = when (mode) {
+                                LayoutMode.GRID -> Icons.Filled.Apps
+                                LayoutMode.COMPACT -> Icons.AutoMirrored.Filled.List
+                                LayoutMode.MOSAIC -> Icons.Filled.GridView
+                            },
+                            contentDescription = null
+                        )
+                    },
+                    text = {
+                        Text(
+                            text = mode.displayName,
+                            fontWeight = if (mode == layoutMode) FontWeight.Bold else FontWeight.Normal
+                        )
+                    },
+                    onClick = {
+                        onLayoutModeSelected(mode)
+                        showLayoutMenu = false
+                    }
+                )
+            }
+        }
+    }
+
+    // Sort button with dropdown — one row per category, arrow shows direction of active sort
+    Box {
+        IconButton(onClick = {
+            onDismissPendingDelete()
+            showSortMenu = true
+        }) {
+            Icon(Icons.Filled.SwapVert, contentDescription = stringResource(R.string.sort))
+        }
+        DropdownMenu(
+            expanded = showSortMenu,
+            onDismissRequest = { showSortMenu = false }
+        ) {
+            // Groups: (label, descOption, ascOption)
+            val sortGroups = listOf(
+                Triple("Added", SortOption.ADDED_NEWEST, SortOption.ADDED_OLDEST),
+                Triple("Published", SortOption.PUBLISHED_NEWEST, SortOption.PUBLISHED_OLDEST),
+                Triple("Title", SortOption.TITLE_A_TO_Z, SortOption.TITLE_Z_TO_A),
+                Triple("Site name", SortOption.SITE_A_TO_Z, SortOption.SITE_Z_TO_A),
+                Triple("Duration", SortOption.DURATION_LONGEST, SortOption.DURATION_SHORTEST)
+            )
+            sortGroups.forEach { (label, firstOption, secondOption) ->
+                val isFirstSelected = sortOption == firstOption
+                val isSecondSelected = sortOption == secondOption
+                val isGroupSelected = isFirstSelected || isSecondSelected
+                val activeOption = if (isSecondSelected) secondOption else firstOption
+                val isDescending = activeOption.sqlOrderBy.contains("DESC")
+                DropdownMenuItem(
+                    leadingIcon = {
+                        if (isGroupSelected) {
+                            Icon(
+                                imageVector = if (isDescending) Icons.Filled.ArrowDownward else Icons.Filled.ArrowUpward,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        } else {
+                            Spacer(Modifier.size(24.dp))
+                        }
+                    },
+                    text = {
+                        Text(
+                            text = label,
+                            color = if (isGroupSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                            fontWeight = if (isGroupSelected) FontWeight.Bold else FontWeight.Normal
+                        )
+                    },
+                    onClick = {
+                        val newOption = when {
+                            isFirstSelected -> secondOption  // toggle to other direction
+                            isSecondSelected -> firstOption  // toggle back
+                            else -> firstOption              // first tap: use default
+                        }
+                        onSortOptionSelected(newOption)
+                        showSortMenu = false
+                    }
+                )
+            }
+        }
+    }
+
+    // Overflow menu — always present; same bar shape in normal and label modes.
+    // Label mode lists Rename/Delete label (label-scoped) above a divider, then
+    // Select bookmarks. Normal mode lists Filter, then Select bookmarks (no Filter
+    // in label mode — the label itself is the filter).
+    Box {
+        IconButton(onClick = {
+            onDismissPendingDelete()
+            showOverflowMenu = true
+        }) {
+            Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.more_options))
+        }
+        DropdownMenu(
+            expanded = showOverflowMenu,
+            onDismissRequest = { showOverflowMenu = false }
+        ) {
+            if (isLabelMode) {
+                DropdownMenuItem(
+                    leadingIcon = {
+                        Icon(Icons.Outlined.Edit, contentDescription = null)
+                    },
+                    text = { Text(stringResource(R.string.rename_label)) },
+                    onClick = {
+                        onRequestRenameLabel()
+                        showOverflowMenu = false
+                    }
+                )
+                DropdownMenuItem(
+                    leadingIcon = {
+                        Icon(Icons.Outlined.Delete, contentDescription = null)
+                    },
+                    text = { Text(stringResource(R.string.delete_label)) },
+                    onClick = {
+                        onRequestDeleteLabel()
+                        showOverflowMenu = false
+                    }
+                )
+                HorizontalDivider()
+            } else {
+                DropdownMenuItem(
+                    leadingIcon = {
+                        Icon(Icons.Filled.FilterList, contentDescription = null)
+                    },
+                    text = { Text(stringResource(R.string.filter_bookmarks)) },
+                    onClick = {
+                        showOverflowMenu = false
+                        onDismissPendingDelete()
+                        onOpenFilterSheet()
+                    }
+                )
+            }
+            DropdownMenuItem(
+                leadingIcon = {
+                    Icon(Icons.Filled.RadioButtonUnchecked, contentDescription = null)
+                },
+                text = { Text(stringResource(R.string.action_select_bookmarks)) },
+                onClick = {
+                    showOverflowMenu = false
+                    showLayoutMenu = false
+                    showSortMenu = false
+                    onDismissPendingDelete()
+                    onEnterMultiSelectMode()
+                }
+            )
+        }
     }
 }
 

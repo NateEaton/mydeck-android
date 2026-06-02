@@ -611,6 +611,34 @@ class BookmarkRepositoryImpl @Inject constructor(
         return BookmarkRepository.UpdateResult.Success
     }
 
+    override suspend fun deleteBookmarks(ids: List<String>): BookmarkRepository.UpdateResult {
+        if (ids.isEmpty()) return BookmarkRepository.UpdateResult.Success
+
+        withContext(dispatcher) {
+            database.performTransaction {
+                ids.forEach { id ->
+                    // 1. Optimistic Soft Delete
+                    bookmarkDao.softDeleteBookmark(id)
+
+                    // 2. Delete Supremacy: remove other actions for this bookmark
+                    pendingActionDao.deleteAllForBookmark(id)
+
+                    // 3. Queue Delete Action
+                    pendingActionDao.insert(
+                        PendingActionEntity(
+                            bookmarkId = id,
+                            actionType = ActionType.DELETE,
+                            payload = null,
+                            createdAt = Clock.System.now()
+                        )
+                    )
+                }
+            }
+            syncScheduler.scheduleActionSync()
+        }
+        return BookmarkRepository.UpdateResult.Success
+    }
+
     private suspend fun upsertPendingAction(
         bookmarkId: String,
         type: ActionType,

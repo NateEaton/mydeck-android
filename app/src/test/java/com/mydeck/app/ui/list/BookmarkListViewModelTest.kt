@@ -1574,7 +1574,7 @@ class BookmarkListViewModelTest {
             )
         }
         assertEquals(MultiSelectState(), viewModel.multiSelectState.value)
-        assertEquals(listOf(BatchActionSnackbarEvent.FavoritesAdded(2)), events)
+        assertEquals(listOf(BatchActionSnackbarEvent.FavoritesAdded(2, listOf("not-favorite"))), events)
         job.cancel()
     }
 
@@ -1603,7 +1603,7 @@ class BookmarkListViewModelTest {
         advanceUntilIdle()
 
         coVerify(exactly = 0) { updateBookmarkUseCase.updateBookmarks(any()) }
-        assertEquals(listOf(BatchActionSnackbarEvent.FavoritesAdded(2)), events)
+        assertEquals(listOf(BatchActionSnackbarEvent.FavoritesAdded(2, emptyList())), events)
         job.cancel()
     }
 
@@ -1642,7 +1642,7 @@ class BookmarkListViewModelTest {
                 )
             )
         }
-        assertEquals(listOf(BatchActionSnackbarEvent.FavoritesRemoved(3)), events)
+        assertEquals(listOf(BatchActionSnackbarEvent.FavoritesRemoved(3, listOf("fav-a", "fav-b"))), events)
         job.cancel()
     }
 
@@ -1678,7 +1678,7 @@ class BookmarkListViewModelTest {
             )
         }
         assertEquals(MultiSelectState(), viewModel.multiSelectState.value)
-        assertEquals(listOf(BatchActionSnackbarEvent.Archived(2)), events)
+        assertEquals(listOf(BatchActionSnackbarEvent.Archived(2, listOf("not-archived"))), events)
         job.cancel()
     }
 
@@ -1715,7 +1715,7 @@ class BookmarkListViewModelTest {
                 )
             )
         }
-        assertEquals(listOf(BatchActionSnackbarEvent.Unarchived(2)), events)
+        assertEquals(listOf(BatchActionSnackbarEvent.Unarchived(2, listOf("a-a", "a-b"))), events)
         job.cancel()
     }
 
@@ -1893,6 +1893,162 @@ class BookmarkListViewModelTest {
 
         assertFalse(viewModel.multiSelectState.value.active)
         assertEquals(emptySet<String>(), viewModel.multiSelectState.value.selectedIds)
+    }
+
+    @Test
+    fun `onDeleteSelectedBookmarks stages all selected ids, exits selection, and emits Deleted without deleting`() = runTest {
+        val visibleBookmarks = listOf(
+            bookmarkListItem("del-1"),
+            bookmarkListItem("del-2"),
+            bookmarkListItem("keep")
+        )
+        every {
+            bookmarkRepository.observeFilteredBookmarkListItems(
+                any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(),
+                any(), any(), any(), any(), any(), any(), any(), any(), any(), any()
+            )
+        } returns flowOf(visibleBookmarks)
+        viewModel = createViewModel()
+        advanceUntilIdle()
+
+        val events = mutableListOf<BatchActionSnackbarEvent>()
+        val job = launch { viewModel.batchActionSnackbarEvent.toList(events) }
+
+        viewModel.onEnterMultiSelectMode()
+        viewModel.onToggleBookmarkSelected("del-1")
+        viewModel.onToggleBookmarkSelected("del-2")
+        viewModel.onDeleteSelectedBookmarks()
+        advanceUntilIdle()
+
+        assertEquals(setOf("del-1", "del-2"), viewModel.pendingBatchDeletionBookmarkIds.value)
+        assertEquals(MultiSelectState(), viewModel.multiSelectState.value)
+        assertEquals(listOf<BatchActionSnackbarEvent>(BatchActionSnackbarEvent.Deleted(2)), events)
+        coVerify(exactly = 0) { updateBookmarkUseCase.deleteBookmarks(any()) }
+        job.cancel()
+    }
+
+    @Test
+    fun `onConfirmBatchDeletion deletes all staged ids once and clears pending`() = runTest {
+        val visibleBookmarks = listOf(bookmarkListItem("del-1"), bookmarkListItem("del-2"))
+        every {
+            bookmarkRepository.observeFilteredBookmarkListItems(
+                any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(),
+                any(), any(), any(), any(), any(), any(), any(), any(), any(), any()
+            )
+        } returns flowOf(visibleBookmarks)
+        coEvery { updateBookmarkUseCase.deleteBookmarks(any()) } returns UpdateBookmarkUseCase.Result.Success
+        viewModel = createViewModel()
+        advanceUntilIdle()
+
+        viewModel.onEnterMultiSelectMode()
+        viewModel.onToggleBookmarkSelected("del-1")
+        viewModel.onToggleBookmarkSelected("del-2")
+        viewModel.onDeleteSelectedBookmarks()
+        advanceUntilIdle()
+
+        viewModel.onConfirmBatchDeletion()
+        advanceUntilIdle()
+
+        coVerify(exactly = 1) {
+            updateBookmarkUseCase.deleteBookmarks(match { it.toSet() == setOf("del-1", "del-2") })
+        }
+        assertEquals(emptySet<String>(), viewModel.pendingBatchDeletionBookmarkIds.value)
+    }
+
+    @Test
+    fun `onCancelBatchDeletion clears staged ids without enqueuing any delete`() = runTest {
+        val visibleBookmarks = listOf(bookmarkListItem("del-1"), bookmarkListItem("del-2"))
+        every {
+            bookmarkRepository.observeFilteredBookmarkListItems(
+                any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(),
+                any(), any(), any(), any(), any(), any(), any(), any(), any(), any()
+            )
+        } returns flowOf(visibleBookmarks)
+        viewModel = createViewModel()
+        advanceUntilIdle()
+
+        viewModel.onEnterMultiSelectMode()
+        viewModel.onToggleBookmarkSelected("del-1")
+        viewModel.onToggleBookmarkSelected("del-2")
+        viewModel.onDeleteSelectedBookmarks()
+        advanceUntilIdle()
+
+        viewModel.onCancelBatchDeletion()
+        advanceUntilIdle()
+
+        coVerify(exactly = 0) { updateBookmarkUseCase.deleteBookmarks(any()) }
+        assertEquals(emptySet<String>(), viewModel.pendingBatchDeletionBookmarkIds.value)
+    }
+
+    @Test
+    fun `onUndoBatchAction on Deleted event cancels staged batch delete`() = runTest {
+        val visibleBookmarks = listOf(bookmarkListItem("del-1"), bookmarkListItem("del-2"))
+        every {
+            bookmarkRepository.observeFilteredBookmarkListItems(
+                any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(),
+                any(), any(), any(), any(), any(), any(), any(), any(), any(), any()
+            )
+        } returns flowOf(visibleBookmarks)
+        viewModel = createViewModel()
+        advanceUntilIdle()
+
+        viewModel.onEnterMultiSelectMode()
+        viewModel.onToggleBookmarkSelected("del-1")
+        viewModel.onToggleBookmarkSelected("del-2")
+        viewModel.onDeleteSelectedBookmarks()
+        advanceUntilIdle()
+
+        viewModel.onUndoBatchAction(BatchActionSnackbarEvent.Deleted(2))
+        advanceUntilIdle()
+
+        coVerify(exactly = 0) { updateBookmarkUseCase.deleteBookmarks(any()) }
+        assertEquals(emptySet<String>(), viewModel.pendingBatchDeletionBookmarkIds.value)
+    }
+
+    @Test
+    fun `onUndoBatchAction reverts only changed favorite items to their prior state`() = runTest {
+        coEvery { updateBookmarkUseCase.updateBookmarks(any()) } returns UpdateBookmarkUseCase.Result.Success
+        viewModel = createViewModel()
+        advanceUntilIdle()
+
+        viewModel.onUndoBatchAction(BatchActionSnackbarEvent.FavoritesAdded(3, listOf("changed-a", "changed-b")))
+        advanceUntilIdle()
+
+        coVerify(exactly = 1) {
+            updateBookmarkUseCase.updateBookmarks(
+                listOf(
+                    BookmarkBatchUpdate(bookmarkId = "changed-a", isFavorite = false),
+                    BookmarkBatchUpdate(bookmarkId = "changed-b", isFavorite = false)
+                )
+            )
+        }
+    }
+
+    @Test
+    fun `onUndoBatchAction reverts only changed archive items to their prior state`() = runTest {
+        coEvery { updateBookmarkUseCase.updateBookmarks(any()) } returns UpdateBookmarkUseCase.Result.Success
+        viewModel = createViewModel()
+        advanceUntilIdle()
+
+        viewModel.onUndoBatchAction(BatchActionSnackbarEvent.Unarchived(1, listOf("changed-x")))
+        advanceUntilIdle()
+
+        coVerify(exactly = 1) {
+            updateBookmarkUseCase.updateBookmarks(
+                listOf(BookmarkBatchUpdate(bookmarkId = "changed-x", isArchived = true))
+            )
+        }
+    }
+
+    @Test
+    fun `onUndoBatchAction with no changed favorite items does not touch the repository`() = runTest {
+        viewModel = createViewModel()
+        advanceUntilIdle()
+
+        viewModel.onUndoBatchAction(BatchActionSnackbarEvent.FavoritesAdded(2, emptyList()))
+        advanceUntilIdle()
+
+        coVerify(exactly = 0) { updateBookmarkUseCase.updateBookmarks(any()) }
     }
 
     private fun bookmarkListItem(
