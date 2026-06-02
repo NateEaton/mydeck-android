@@ -1180,6 +1180,49 @@ class BookmarkRepositoryImpl @Inject constructor(
             }
         }
 
+    override suspend fun addLabelsToBookmarks(
+        ids: List<String>,
+        labels: List<String>
+    ): Map<String, List<String>> = withContext(dispatcher) {
+        if (ids.isEmpty() || labels.isEmpty()) return@withContext emptyMap()
+
+        val idSet = ids.toSet()
+        val targets = bookmarkDao.getAllBookmarksWithContent()
+            .filter { it.bookmark.id in idSet }
+
+        val priorByBookmark = mutableMapOf<String, List<String>>()
+        database.performTransaction {
+            for (bookmarkWithContent in targets) {
+                val bookmark = bookmarkWithContent.bookmark
+                val prior = bookmark.labels
+                val merged = (prior + labels).distinct()
+                if (merged.size == prior.size) continue
+
+                priorByBookmark[bookmark.id] = prior
+                val labelsJson = json.encodeToString(merged)
+                bookmarkDao.updateLabels(bookmark.id, labelsJson)
+                upsertPendingAction(bookmark.id, ActionType.UPDATE_LABELS, LabelsPayload(merged))
+            }
+        }
+        if (priorByBookmark.isNotEmpty()) {
+            syncScheduler.scheduleActionSync()
+        }
+        priorByBookmark
+    }
+
+    override suspend fun restoreBookmarkLabels(priorByBookmark: Map<String, List<String>>) =
+        withContext(dispatcher) {
+            if (priorByBookmark.isEmpty()) return@withContext
+            database.performTransaction {
+                for ((id, priorLabels) in priorByBookmark) {
+                    val labelsJson = json.encodeToString(priorLabels)
+                    bookmarkDao.updateLabels(id, labelsJson)
+                    upsertPendingAction(id, ActionType.UPDATE_LABELS, LabelsPayload(priorLabels))
+                }
+            }
+            syncScheduler.scheduleActionSync()
+        }
+
     override suspend fun refreshBookmarkMetadata(bookmarkId: String) = withContext(dispatcher) {
         try {
             val response = readeckApi.getBookmarkById(bookmarkId)

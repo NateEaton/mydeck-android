@@ -103,6 +103,16 @@ interface BookmarkRepository {
     suspend fun updateMetadata(bookmarkId: String, metadata: BookmarkMetadataUpdate): UpdateResult
     suspend fun renameLabel(oldLabel: String, newLabel: String): UpdateResult
     suspend fun deleteLabel(label: String): UpdateResult
+
+    /**
+     * Adds [labels] to each bookmark in [ids] (additive union per bookmark).
+     * Returns the prior label list of every bookmark that actually changed,
+     * keyed by bookmark id, so the change can be undone.
+     */
+    suspend fun addLabelsToBookmarks(ids: List<String>, labels: List<String>): Map<String, List<String>>
+
+    /** Restores the captured prior label lists (Undo for [addLabelsToBookmarks]). */
+    suspend fun restoreBookmarkLabels(priorByBookmark: Map<String, List<String>>)
     suspend fun fetchRawBookmarkJson(bookmarkId: String): String?
     suspend fun refreshBookmarkMetadata(bookmarkId: String)
     suspend fun fetchExtractionLog(bookmarkId: String): ExtractionLogResult

@@ -172,6 +172,7 @@ fun BookmarkListScreen(
     val pendingBatchDeletionBookmarkIds = viewModel.pendingBatchDeletionBookmarkIds.collectAsState()
     val multiSelectState = viewModel.multiSelectState.collectAsState()
     val multiSelectTargets = viewModel.multiSelectTargets.collectAsState()
+    val showAddLabelsPicker = viewModel.showAddLabelsPicker.collectAsState()
     val swipeConfig = viewModel.swipeConfig.collectAsState()
 
     var showSelectionOverflowMenu by remember { mutableStateOf(false) }
@@ -442,6 +443,7 @@ fun BookmarkListScreen(
                 is BatchActionSnackbarEvent.FavoritesRemoved -> R.string.multi_select_unset_as_favorite
                 is BatchActionSnackbarEvent.Archived -> R.string.multi_select_set_as_archived
                 is BatchActionSnackbarEvent.Unarchived -> R.string.multi_select_unset_as_archived
+                is BatchActionSnackbarEvent.LabelsAdded -> R.string.multi_select_labels_added
                 is BatchActionSnackbarEvent.Deleted -> R.string.multi_select_deleted_count
             }
             // Delete is destructive and staged, so it stays until the user acts or interacts
@@ -654,6 +656,20 @@ fun BookmarkListScreen(
                                             dismissPendingDeleteSnackbar()
                                             hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
                                             viewModel.onDeleteSelectedBookmarks()
+                                        }
+                                    )
+                                    DropdownMenuItem(
+                                        leadingIcon = {
+                                            Icon(
+                                                imageVector = Icons.AutoMirrored.Outlined.Label,
+                                                contentDescription = null
+                                            )
+                                        },
+                                        text = { Text(stringResource(R.string.add_labels)) },
+                                        onClick = {
+                                            showSelectionOverflowMenu = false
+                                            dismissPendingDeleteSnackbar()
+                                            viewModel.onAddLabelsToSelection()
                                         }
                                     )
                                 }
@@ -901,6 +917,23 @@ fun BookmarkListScreen(
                 onDeleteLabel = { label -> viewModel.onDeleteLabel(label) }
             ),
             onDismiss = { viewModel.onCloseLabelsSheet() }
+        )
+    }
+
+    // Multi-select: Add labels picker (additive union applied to the captured selection).
+    // The mode is remembered so it stays referentially stable across this screen's frequent
+    // recompositions; otherwise the sheet's remember(mode) would reset the in-progress selection.
+    if (showAddLabelsPicker.value) {
+        val addLabelsMode = remember {
+            LabelPickerMode.MultiSelect(
+                initialSelection = emptySet(),
+                onDone = { chosen -> viewModel.onLabelsPicked(chosen) }
+            )
+        }
+        LabelPickerBottomSheet(
+            labels = labelsWithCounts.value,
+            mode = addLabelsMode,
+            onDismiss = { viewModel.onDismissAddLabelsPicker() }
         )
     }
 

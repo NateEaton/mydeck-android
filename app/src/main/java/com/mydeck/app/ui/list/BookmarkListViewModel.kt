@@ -81,6 +81,13 @@ sealed class BatchActionSnackbarEvent {
     data class Archived(override val count: Int, val changedIds: List<String>) : BatchActionSnackbarEvent()
     data class Unarchived(override val count: Int, val changedIds: List<String>) : BatchActionSnackbarEvent()
 
+    // Labels are applied optimistically (like favorite/archive); Undo restores each changed
+    // bookmark's prior label list, so the event carries those snapshots.
+    data class LabelsAdded(
+        override val count: Int,
+        val priorLabelsByBookmark: Map<String, List<String>>
+    ) : BatchActionSnackbarEvent()
+
     // Delete is staged (not yet written); confirm/cancel act on the batch-pending set held in the ViewModel.
     data class Deleted(override val count: Int) : BatchActionSnackbarEvent()
 }
@@ -146,6 +153,14 @@ class BookmarkListViewModel @Inject constructor(
 
     private val _multiSelectState = MutableStateFlow(MultiSelectState())
     val multiSelectState = _multiSelectState.asStateFlow()
+
+    // Add-labels picker: holds the selection captured when the picker opened, so selection-mode
+    // changes while the picker is open do not affect which bookmarks get the labels.
+    private val _addLabelsPickerTargetIds = MutableStateFlow<List<String>>(emptyList())
+    val addLabelsPickerTargetIds = _addLabelsPickerTargetIds.asStateFlow()
+
+    private val _showAddLabelsPicker = MutableStateFlow(false)
+    val showAddLabelsPicker = _showAddLabelsPicker.asStateFlow()
 
     // Constraint feedback: one-shot snackbar message when content sync is blocked
     private val _constraintSnackbarEvent = Channel<Int>(Channel.BUFFERED)
@@ -691,6 +706,34 @@ class BookmarkListViewModel @Inject constructor(
 
     fun onUnarchiveSelectedBookmarks() = applyBatchArchive(targetArchived = false)
 
+    // Capture the current selection and open the add-labels picker. The captured ids drive the
+    // apply, so toggling selection (or auto-exit) while the picker is open has no effect.
+    fun onAddLabelsToSelection() {
+        val selectedIds = _multiSelectState.value.selectedIds
+        if (selectedIds.isEmpty()) return
+        _addLabelsPickerTargetIds.value = selectedIds.toList()
+        _showAddLabelsPicker.value = true
+    }
+
+    fun onDismissAddLabelsPicker() {
+        _showAddLabelsPicker.value = false
+        _addLabelsPickerTargetIds.value = emptyList()
+    }
+
+    fun onLabelsPicked(chosen: Set<String>) {
+        val targetIds = _addLabelsPickerTargetIds.value
+        onDismissAddLabelsPicker()
+        if (chosen.isEmpty() || targetIds.isEmpty()) return
+
+        val selectedCount = targetIds.size
+        viewModelScope.launch {
+            val priorByBookmark = updateBookmarkUseCase.addLabelsToBookmarks(targetIds, chosen.toList())
+            _batchActionSnackbarEvent.trySend(
+                BatchActionSnackbarEvent.LabelsAdded(selectedCount, priorByBookmark)
+            )
+        }
+    }
+
     // Stage all selected bookmarks as batch-pending-delete: grey them out, leave selection mode, and
     // emit a Snackbar. No DB write happens here — it is deferred until the Snackbar is confirmed.
     fun onDeleteSelectedBookmarks() {
@@ -728,6 +771,7 @@ class BookmarkListViewModel @Inject constructor(
             is BatchActionSnackbarEvent.FavoritesRemoved -> revertBatchFavorite(event.changedIds, revertTo = true)
             is BatchActionSnackbarEvent.Archived -> revertBatchArchive(event.changedIds, revertTo = false)
             is BatchActionSnackbarEvent.Unarchived -> revertBatchArchive(event.changedIds, revertTo = true)
+            is BatchActionSnackbarEvent.LabelsAdded -> revertBatchLabels(event.priorLabelsByBookmark)
             is BatchActionSnackbarEvent.Deleted -> onCancelBatchDeletion()
         }
     }
@@ -753,6 +797,13 @@ class BookmarkListViewModel @Inject constructor(
             updateBookmarkUseCase.updateBookmarks(
                 changedIds.map { BookmarkBatchUpdate(bookmarkId = it, isArchived = revertTo) }
             )
+        }
+    }
+
+    private fun revertBatchLabels(priorLabelsByBookmark: Map<String, List<String>>) {
+        if (priorLabelsByBookmark.isEmpty()) return
+        viewModelScope.launch {
+            updateBookmarkUseCase.restoreBookmarkLabels(priorLabelsByBookmark)
         }
     }
 

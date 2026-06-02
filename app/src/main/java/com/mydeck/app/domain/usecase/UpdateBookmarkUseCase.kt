@@ -46,6 +46,14 @@ class UpdateBookmarkUseCase @Inject constructor(
         return handleResult(bookmarkRepository.deleteBookmarks(bookmarkIds))
     }
 
+    suspend fun addLabelsToBookmarks(ids: List<String>, labels: List<String>): Map<String, List<String>> {
+        return bookmarkRepository.addLabelsToBookmarks(ids, labels)
+    }
+
+    suspend fun restoreBookmarkLabels(priorByBookmark: Map<String, List<String>>) {
+        bookmarkRepository.restoreBookmarkLabels(priorByBookmark)
+    }
+
     private fun handleResult(result: BookmarkRepository.UpdateResult): Result {
         return when(result) {
             is BookmarkRepository.UpdateResult.Success -> Result.Success

@@ -2077,6 +2077,87 @@ class BookmarkListViewModelTest {
         coVerify(exactly = 0) { updateBookmarkUseCase.updateBookmarks(any()) }
     }
 
+    @Test
+    fun `onLabelsPicked applies labels to captured selection, stays in mode, and emits LabelsAdded`() = runTest {
+        val visibleBookmarks = listOf(bookmarkListItem("a"), bookmarkListItem("b"), bookmarkListItem("c"))
+        every {
+            bookmarkRepository.observeFilteredBookmarkListItems(
+                any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(),
+                any(), any(), any(), any(), any(), any(), any(), any(), any(), any()
+            )
+        } returns flowOf(visibleBookmarks)
+        coEvery { updateBookmarkUseCase.addLabelsToBookmarks(any(), any()) } returns
+            mapOf("a" to emptyList())
+        viewModel = createViewModel()
+        advanceUntilIdle()
+
+        val events = mutableListOf<BatchActionSnackbarEvent>()
+        val job = launch { viewModel.batchActionSnackbarEvent.toList(events) }
+
+        viewModel.onEnterMultiSelectMode()
+        viewModel.onToggleBookmarkSelected("a")
+        viewModel.onToggleBookmarkSelected("b")
+        viewModel.onAddLabelsToSelection()
+        assertTrue(viewModel.showAddLabelsPicker.value)
+
+        viewModel.onLabelsPicked(setOf("work"))
+        advanceUntilIdle()
+
+        coVerify(exactly = 1) {
+            updateBookmarkUseCase.addLabelsToBookmarks(
+                match { it.toSet() == setOf("a", "b") },
+                listOf("work")
+            )
+        }
+        assertFalse(viewModel.showAddLabelsPicker.value)
+        assertTrue(viewModel.multiSelectState.value.active)
+        assertEquals(setOf("a", "b"), viewModel.multiSelectState.value.selectedIds)
+        assertEquals(
+            listOf<BatchActionSnackbarEvent>(
+                BatchActionSnackbarEvent.LabelsAdded(2, mapOf("a" to emptyList()))
+            ),
+            events
+        )
+        job.cancel()
+    }
+
+    @Test
+    fun `onLabelsPicked with empty chosen is a no-op`() = runTest {
+        val visibleBookmarks = listOf(bookmarkListItem("a"))
+        every {
+            bookmarkRepository.observeFilteredBookmarkListItems(
+                any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(),
+                any(), any(), any(), any(), any(), any(), any(), any(), any(), any()
+            )
+        } returns flowOf(visibleBookmarks)
+        viewModel = createViewModel()
+        advanceUntilIdle()
+
+        viewModel.onEnterMultiSelectMode()
+        viewModel.onToggleBookmarkSelected("a")
+        viewModel.onAddLabelsToSelection()
+        viewModel.onLabelsPicked(emptySet())
+        advanceUntilIdle()
+
+        coVerify(exactly = 0) { updateBookmarkUseCase.addLabelsToBookmarks(any(), any()) }
+        assertFalse(viewModel.showAddLabelsPicker.value)
+        // Selection is preserved when the picker is cancelled with no labels.
+        assertEquals(setOf("a"), viewModel.multiSelectState.value.selectedIds)
+    }
+
+    @Test
+    fun `onUndoBatchAction on LabelsAdded restores captured prior labels`() = runTest {
+        coEvery { updateBookmarkUseCase.restoreBookmarkLabels(any()) } just Runs
+        viewModel = createViewModel()
+        advanceUntilIdle()
+
+        val prior = mapOf("a" to listOf("home"), "b" to emptyList())
+        viewModel.onUndoBatchAction(BatchActionSnackbarEvent.LabelsAdded(2, prior))
+        advanceUntilIdle()
+
+        coVerify(exactly = 1) { updateBookmarkUseCase.restoreBookmarkLabels(prior) }
+    }
+
     private fun bookmarkListItem(
         id: String,
         isMarked: Boolean = false,

@@ -125,6 +125,7 @@ other{}
     <string name="multi_select_set_as_archived">%1$d set as archived</string>
     <string name="multi_select_unset_as_archived">%1$d unset as archived</string>
     <string name="multi_select_deleted_count">%1$d bookmarks deleted</string>
+    <string name="multi_select_labels_added">Labels added to %1$d bookmarks</string>
     <string name="action_add_to_favorites">Add favorite</string>
     <string name="action_remove_from_favorites">Favorit entfernen</string>
     <string name="action_add_to_archive">Archivieren</string>

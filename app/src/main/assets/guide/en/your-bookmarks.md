@@ -195,7 +195,9 @@ Open the **⋮ overflow menu** and tap **Select bookmarks** to enter selection m
 Once at least one bookmark is selected, the bar's two actions apply to the **whole selection**:
 
 - **Archive** and **Favorite** each show the most useful action for what you've selected. If any selected bookmark isn't yet archived (or favorited), the bar offers **Archive** (or **Add favorite**); once they all already are, it flips to **Unarchive** (or **Remove favorite**).
-- The **⋮ overflow** holds **🗑️ Delete** (removes every selected bookmark) and **Select all / Deselect all**.
+- The **⋮ overflow** holds **🗑️ Delete** (removes every selected bookmark), **Add labels**, and **Select all / Deselect all**.
+
+**Add labels** opens the label picker. Pick one or more existing labels (or create a new one from the search box) and tap **Done** to add them to every selected bookmark — labels already present are kept, and bookmarks that already have all the chosen labels are left untouched. Like Archive and Favorite, this **keeps you in selection mode** so you can keep working with the same set. A snackbar confirms "Labels added to N bookmarks" with an **Undo** that restores the prior labels on the bookmarks that changed.
 
 Archive and Favorite apply immediately and **keep you in selection mode**, so you can run several actions on the same selection in a row. Each shows a snackbar confirming what happened — for example "3 set as favorites" or "5 set as archived" — with an **Undo** action that reverts only the bookmarks that actually changed. Selection mode ends when you tap **✕**, or automatically once an action leaves nothing selected (for example, archiving the last item in My List removes it from the view).
 

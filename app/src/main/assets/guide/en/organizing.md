@@ -8,11 +8,13 @@ Labels let you categorize your bookmarks with any words, phrases, or emojis you 
 
 ### Adding Labels to a Bookmark
 
-You can add labels in two places:
+You can add labels in three places:
 
 - **When saving a bookmark** — the Add Link sheet (opened from the **+** button or the Android share sheet) shows a **Labels** section with chips for current labels and an **Add labels** / **Edit labels** row. Tap that row to open a label picker, select one or more labels, then tap **Done** to save label changes.
 
 - **From Bookmark Details** — open any bookmark and tap **⋮** → **Details**. The Labels section shows existing labels with **×** buttons to remove them, plus an **Add labels** / **Edit labels** row that opens the same multi-select label picker.
+
+- **For several bookmarks at once** — tap **⋮ → Select bookmarks**, choose the cards you want (or **⋮ → Select all**), then open the **⋮ overflow** and tap **Add labels**. Pick one or more labels (or create a new one) and tap **Done** to add them to every selected bookmark. Existing labels are kept, and any bookmark that already has all the chosen labels is left unchanged. The selection stays active afterward, so you can keep working with it. A snackbar confirms the result (e.g. "Labels added to 3 bookmarks") with an **Undo** that restores the prior labels on the bookmarks that changed. Batch *removing* labels isn't supported yet.
 
 ### Browsing by Label
 
