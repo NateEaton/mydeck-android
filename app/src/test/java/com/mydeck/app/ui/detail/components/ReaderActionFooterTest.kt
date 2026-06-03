@@ -1,5 +1,6 @@
 package com.mydeck.app.ui.detail.components
 
+import android.content.Context
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
@@ -7,6 +8,8 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.test.core.app.ApplicationProvider
+import com.mydeck.app.R
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -57,10 +60,13 @@ class ReaderActionFooterTest {
 
     private fun renderAndAssert() {
         val clickCounts = renderFooter()
+        val context: Context = ApplicationProvider.getApplicationContext()
+        val favoriteLabel = context.getString(R.string.action_add_to_favorites)
+        val archiveLabel = context.getString(R.string.action_add_to_archive)
 
         composeTestRule.onNodeWithTag(ReaderActionFooterTestTags.FOOTER).assertIsDisplayed()
-        composeTestRule.onNodeWithText("Add to favorites").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Archive").assertIsDisplayed()
+        composeTestRule.onNodeWithText(favoriteLabel).assertIsDisplayed()
+        composeTestRule.onNodeWithText(archiveLabel).assertIsDisplayed()
         composeTestRule.onNodeWithTag(ReaderActionFooterTestTags.FAVORITE).performClick()
         composeTestRule.onNodeWithTag(ReaderActionFooterTestTags.ARCHIVE).performClick()
 
