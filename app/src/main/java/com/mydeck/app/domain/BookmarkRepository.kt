@@ -8,6 +8,13 @@ import com.mydeck.app.domain.model.ProgressFilter
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 
+data class BookmarkBatchUpdate(
+    val bookmarkId: String,
+    val isFavorite: Boolean? = null,
+    val isArchived: Boolean? = null,
+    val isRead: Boolean? = null
+)
+
 interface BookmarkRepository {
     fun observeBookmarks(
         type: Bookmark.Type? = null,
@@ -39,12 +46,14 @@ interface BookmarkRepository {
     fun observeBookmark(id: String): Flow<Bookmark?>
     suspend fun deleteAllBookmarks()
     suspend fun deleteBookmark(id: String): UpdateResult
+    suspend fun deleteBookmarks(ids: List<String>): UpdateResult
     suspend fun createBookmark(
         title: String,
         url: String,
         labels: List<String> = emptyList()
     ): String
     suspend fun updateBookmark(bookmarkId: String, isFavorite: Boolean?, isArchived: Boolean?, isRead: Boolean?): UpdateResult
+    suspend fun updateBookmarks(updates: List<BookmarkBatchUpdate>): UpdateResult
     suspend fun updateReadProgress(bookmarkId: String, progress: Int): UpdateResult
     suspend fun updateLabels(bookmarkId: String, labels: List<String>): UpdateResult
     val syncProgress: StateFlow<BookmarkSyncProgress>
@@ -94,6 +103,16 @@ interface BookmarkRepository {
     suspend fun updateMetadata(bookmarkId: String, metadata: BookmarkMetadataUpdate): UpdateResult
     suspend fun renameLabel(oldLabel: String, newLabel: String): UpdateResult
     suspend fun deleteLabel(label: String): UpdateResult
+
+    /**
+     * Adds [labels] to each bookmark in [ids] (additive union per bookmark).
+     * Returns the prior label list of every bookmark that actually changed,
+     * keyed by bookmark id, so the change can be undone.
+     */
+    suspend fun addLabelsToBookmarks(ids: List<String>, labels: List<String>): Map<String, List<String>>
+
+    /** Restores the captured prior label lists (Undo for [addLabelsToBookmarks]). */
+    suspend fun restoreBookmarkLabels(priorByBookmark: Map<String, List<String>>)
     suspend fun fetchRawBookmarkJson(bookmarkId: String): String?
     suspend fun refreshBookmarkMetadata(bookmarkId: String)
     suspend fun fetchExtractionLog(bookmarkId: String): ExtractionLogResult

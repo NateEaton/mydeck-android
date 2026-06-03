@@ -525,37 +525,66 @@ class BookmarkRepositoryImpl @Inject constructor(
     ): BookmarkRepository.UpdateResult {
         withContext(dispatcher) {
             database.performTransaction {
-                isFavorite?.let {
-                    bookmarkDao.updateIsMarked(bookmarkId, it)
-                    upsertPendingAction(bookmarkId, ActionType.TOGGLE_FAVORITE, TogglePayload(it))
-                }
-                isArchived?.let {
-                    bookmarkDao.updateIsArchived(bookmarkId, it)
-                    upsertPendingAction(bookmarkId, ActionType.TOGGLE_ARCHIVE, TogglePayload(it))
-                    if (it) {
-                        applicationScope.launch {
-                            try {
-                                val scope = settingsDataStore.getOfflineContentScope()
-                                if (scope == OfflineContentScope.MY_LIST &&
-                                    contentPackageManager.hasResources(bookmarkId) == true
-                                ) {
-                                    contentPackageManager.deletePackage(bookmarkId)
-                                    Timber.d("Purged managed offline content on archive for $bookmarkId")
-                                }
-                            } catch (e: Exception) {
-                                Timber.w(e, "Failed to purge managed offline content on archive for $bookmarkId")
-                            }
-                        }
-                    }
-                }
-                isRead?.let {
-                    bookmarkDao.updateReadProgress(bookmarkId, if (it) 100 else 0)
-                    upsertPendingAction(bookmarkId, ActionType.TOGGLE_READ, TogglePayload(it))
-                }
+                applyBookmarkUpdate(
+                    BookmarkBatchUpdate(
+                        bookmarkId = bookmarkId,
+                        isFavorite = isFavorite,
+                        isArchived = isArchived,
+                        isRead = isRead
+                    )
+                )
             }
             syncScheduler.scheduleActionSync()
         }
         return BookmarkRepository.UpdateResult.Success
+    }
+
+    override suspend fun updateBookmarks(
+        updates: List<BookmarkBatchUpdate>
+    ): BookmarkRepository.UpdateResult {
+        if (updates.isEmpty()) return BookmarkRepository.UpdateResult.Success
+
+        withContext(dispatcher) {
+            database.performTransaction {
+                updates.forEach { applyBookmarkUpdate(it) }
+            }
+            syncScheduler.scheduleActionSync()
+        }
+        return BookmarkRepository.UpdateResult.Success
+    }
+
+    private suspend fun applyBookmarkUpdate(update: BookmarkBatchUpdate) {
+        update.isFavorite?.let {
+            bookmarkDao.updateIsMarked(update.bookmarkId, it)
+            upsertPendingAction(update.bookmarkId, ActionType.TOGGLE_FAVORITE, TogglePayload(it))
+        }
+        update.isArchived?.let {
+            bookmarkDao.updateIsArchived(update.bookmarkId, it)
+            upsertPendingAction(update.bookmarkId, ActionType.TOGGLE_ARCHIVE, TogglePayload(it))
+            if (it) {
+                purgeManagedOfflineContentOnArchive(update.bookmarkId)
+            }
+        }
+        update.isRead?.let {
+            bookmarkDao.updateReadProgress(update.bookmarkId, if (it) 100 else 0)
+            upsertPendingAction(update.bookmarkId, ActionType.TOGGLE_READ, TogglePayload(it))
+        }
+    }
+
+    private fun purgeManagedOfflineContentOnArchive(bookmarkId: String) {
+        applicationScope.launch {
+            try {
+                val scope = settingsDataStore.getOfflineContentScope()
+                if (scope == OfflineContentScope.MY_LIST &&
+                    contentPackageManager.hasResources(bookmarkId) == true
+                ) {
+                    contentPackageManager.deletePackage(bookmarkId)
+                    Timber.d("Purged managed offline content on archive for $bookmarkId")
+                }
+            } catch (e: Exception) {
+                Timber.w(e, "Failed to purge managed offline content on archive for $bookmarkId")
+            }
+        }
     }
 
     override suspend fun deleteBookmark(id: String): BookmarkRepository.UpdateResult {
@@ -576,6 +605,34 @@ class BookmarkRepositoryImpl @Inject constructor(
                         createdAt = Clock.System.now()
                     )
                 )
+            }
+            syncScheduler.scheduleActionSync()
+        }
+        return BookmarkRepository.UpdateResult.Success
+    }
+
+    override suspend fun deleteBookmarks(ids: List<String>): BookmarkRepository.UpdateResult {
+        if (ids.isEmpty()) return BookmarkRepository.UpdateResult.Success
+
+        withContext(dispatcher) {
+            database.performTransaction {
+                ids.forEach { id ->
+                    // 1. Optimistic Soft Delete
+                    bookmarkDao.softDeleteBookmark(id)
+
+                    // 2. Delete Supremacy: remove other actions for this bookmark
+                    pendingActionDao.deleteAllForBookmark(id)
+
+                    // 3. Queue Delete Action
+                    pendingActionDao.insert(
+                        PendingActionEntity(
+                            bookmarkId = id,
+                            actionType = ActionType.DELETE,
+                            payload = null,
+                            createdAt = Clock.System.now()
+                        )
+                    )
+                }
             }
             syncScheduler.scheduleActionSync()
         }
@@ -1121,6 +1178,49 @@ class BookmarkRepositoryImpl @Inject constructor(
                 Timber.e(e, "Error deleting label")
                 BookmarkRepository.UpdateResult.Error("Failed to delete label: ${e.message}")
             }
+        }
+
+    override suspend fun addLabelsToBookmarks(
+        ids: List<String>,
+        labels: List<String>
+    ): Map<String, List<String>> = withContext(dispatcher) {
+        if (ids.isEmpty() || labels.isEmpty()) return@withContext emptyMap()
+
+        val idSet = ids.toSet()
+        val targets = bookmarkDao.getAllBookmarksWithContent()
+            .filter { it.bookmark.id in idSet }
+
+        val priorByBookmark = mutableMapOf<String, List<String>>()
+        database.performTransaction {
+            for (bookmarkWithContent in targets) {
+                val bookmark = bookmarkWithContent.bookmark
+                val prior = bookmark.labels
+                val merged = (prior + labels).distinct()
+                if (merged.size == prior.size) continue
+
+                priorByBookmark[bookmark.id] = prior
+                val labelsJson = json.encodeToString(merged)
+                bookmarkDao.updateLabels(bookmark.id, labelsJson)
+                upsertPendingAction(bookmark.id, ActionType.UPDATE_LABELS, LabelsPayload(merged))
+            }
+        }
+        if (priorByBookmark.isNotEmpty()) {
+            syncScheduler.scheduleActionSync()
+        }
+        priorByBookmark
+    }
+
+    override suspend fun restoreBookmarkLabels(priorByBookmark: Map<String, List<String>>) =
+        withContext(dispatcher) {
+            if (priorByBookmark.isEmpty()) return@withContext
+            database.performTransaction {
+                for ((id, priorLabels) in priorByBookmark) {
+                    val labelsJson = json.encodeToString(priorLabels)
+                    bookmarkDao.updateLabels(id, labelsJson)
+                    upsertPendingAction(id, ActionType.UPDATE_LABELS, LabelsPayload(priorLabels))
+                }
+            }
+            syncScheduler.scheduleActionSync()
         }
 
     override suspend fun refreshBookmarkMetadata(bookmarkId: String) = withContext(dispatcher) {

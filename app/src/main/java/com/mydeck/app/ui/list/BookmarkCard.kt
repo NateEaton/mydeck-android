@@ -59,6 +59,7 @@ import androidx.compose.material3.CardDefaults.outlinedCardBorder
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SuggestionChip
 import androidx.compose.material3.Text
@@ -81,9 +82,14 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextOverflow
@@ -322,6 +328,79 @@ private fun CompactStatusRail(
 
 val LocalIsWideLayout = compositionLocalOf { false }
 
+private fun Modifier.selectionSemantics(
+    isSelectionMode: Boolean,
+    isSelected: Boolean
+): Modifier = if (isSelectionMode) {
+    this.semantics { selected = isSelected }
+} else {
+    this
+}
+
+@Composable
+private fun BookmarkSelectionIndicator(
+    isSelected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    outlineColor: Color = MaterialTheme.colorScheme.outline
+) {
+    val description = stringResource(
+        if (isSelected) R.string.action_deselect_bookmark else R.string.action_select_bookmark
+    )
+    IconButton(
+        onClick = onClick,
+        modifier = modifier
+            .size(36.dp)
+            .semantics { contentDescription = description }
+    ) {
+        if (isSelected) {
+            Box(
+                modifier = Modifier
+                    .size(24.dp)
+                    .background(MaterialTheme.colorScheme.primary, CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Check,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onPrimary,
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+        } else {
+            Canvas(modifier = Modifier.size(24.dp)) {
+                drawCircle(
+                    color = outlineColor,
+                    style = Stroke(width = 2.dp.toPx())
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun BookmarkSelectStateIcon(
+    imageVector: ImageVector,
+    contentDescription: String,
+    tint: Color = LocalContentColor.current,
+    boxSize: Dp = 36.dp,
+    iconSize: Dp = 20.dp,
+) {
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier = Modifier.size(boxSize)
+    ) {
+        Icon(
+            imageVector = imageVector,
+            contentDescription = contentDescription,
+            tint = tint,
+            modifier = Modifier
+                .size(iconSize)
+                .alpha(0.38f)
+        )
+    }
+}
+
 @OptIn(ExperimentalLayoutApi::class, ExperimentalFoundationApi::class)
 @Composable
 fun BookmarkMosaicCard(
@@ -342,6 +421,9 @@ fun BookmarkMosaicCard(
     onClickDownloadImage: (String) -> Unit = {},
     onClickShareImage: (String) -> Unit = {},
     isWideLayout: Boolean = LocalIsWideLayout.current,
+    isSelectionMode: Boolean = false,
+    isSelected: Boolean = false,
+    onToggleSelection: (String) -> Unit = {},
     index: Int? = null
 ) {
     var showBodyContextMenu by remember { mutableStateOf(false) }
@@ -353,7 +435,10 @@ fun BookmarkMosaicCard(
                 .fillMaxWidth()
                 .padding(if (isWideLayout) 1.dp else 8.dp)
                 .height(200.dp)
-                .clickable { onClickCard(bookmark.id) },
+                .selectionSemantics(isSelectionMode, isSelected)
+                .clickable {
+                    if (isSelectionMode) onToggleSelection(bookmark.id) else onClickCard(bookmark.id)
+                },
             elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
             border = outlinedCardBorder().copy(
                 brush = androidx.compose.ui.graphics.SolidColor(
@@ -377,9 +462,13 @@ fun BookmarkMosaicCard(
                         .fillMaxWidth()
                         .height(200.dp)
                         .combinedClickable(
-                            onClick = { onClickCard(bookmark.id) },
-                            onLongClick = { showImageContextMenu = true },
-                            onLongClickLabel = stringResource(R.string.long_press_for_options)
+                            onClick = {
+                                if (isSelectionMode) onToggleSelection(bookmark.id) else onClickCard(bookmark.id)
+                            },
+                            onLongClick = if (isSelectionMode) ({}) else {
+                                { showImageContextMenu = true }
+                            },
+                            onLongClickLabel = if (isSelectionMode) null else stringResource(R.string.long_press_for_options)
                         )
                 )
 
@@ -432,9 +521,13 @@ fun BookmarkMosaicCard(
                         .align(Alignment.BottomStart)
                         .fillMaxWidth()
                         .combinedClickable(
-                            onClick = { onClickCard(bookmark.id) },
-                            onLongClick = { showBodyContextMenu = true },
-                            onLongClickLabel = stringResource(R.string.long_press_for_options)
+                            onClick = {
+                                if (isSelectionMode) onToggleSelection(bookmark.id) else onClickCard(bookmark.id)
+                            },
+                            onLongClick = if (isSelectionMode) ({}) else {
+                                { showBodyContextMenu = true }
+                            },
+                            onLongClickLabel = if (isSelectionMode) null else stringResource(R.string.long_press_for_options)
                         )
                         .padding(horizontal = 12.dp, vertical = 8.dp),
                     verticalArrangement = Arrangement.spacedBy(4.dp)
@@ -466,6 +559,7 @@ fun BookmarkMosaicCard(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
+                        if (!isSelectionMode) {
                         Row(horizontalArrangement = Arrangement.Start) {
                             IconButton(
                                 onClick = { onClickFavorite(bookmark.id, !bookmark.isMarked) },
@@ -501,16 +595,44 @@ fun BookmarkMosaicCard(
                                 )
                             }
                         }
-                        IconButton(
-                            onClick = { onClickDelete(bookmark.id) },
-                            modifier = Modifier.size(36.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.Delete,
-                                contentDescription = stringResource(R.string.action_delete),
-                                tint = Color.White,
-                                modifier = Modifier.size(20.dp)
+                        } else {
+                            Row(horizontalArrangement = Arrangement.Start) {
+                                BookmarkSelectStateIcon(
+                                    imageVector = if (bookmark.isMarked) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
+                                    contentDescription = stringResource(
+                                        if (bookmark.isMarked) R.string.bookmark_state_favorited
+                                        else R.string.bookmark_state_not_favorited
+                                    ),
+                                    tint = Color.White
+                                )
+                                BookmarkSelectStateIcon(
+                                    imageVector = if (bookmark.isArchived) Icons.Filled.Inventory2 else Icons.Outlined.Inventory2,
+                                    contentDescription = stringResource(
+                                        if (bookmark.isArchived) R.string.bookmark_state_archived
+                                        else R.string.bookmark_state_not_archived
+                                    ),
+                                    tint = Color.White
+                                )
+                            }
+                        }
+                        if (isSelectionMode) {
+                            BookmarkSelectionIndicator(
+                                isSelected = isSelected,
+                                onClick = { onToggleSelection(bookmark.id) },
+                                outlineColor = Color.White
                             )
+                        } else {
+                            IconButton(
+                                onClick = { onClickDelete(bookmark.id) },
+                                modifier = Modifier.size(36.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Delete,
+                                    contentDescription = stringResource(R.string.action_delete),
+                                    tint = Color.White,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
                         }
                     }
                 }
@@ -537,7 +659,7 @@ fun BookmarkMosaicCard(
             }
         }
         }
-        if (showBodyContextMenu) {
+        if (showBodyContextMenu && !isSelectionMode) {
             LongPressContextMenuDialog(
                 headerImageUrl = bookmark.iconSrc,
                 title = bookmark.title,
@@ -572,7 +694,7 @@ fun BookmarkMosaicCard(
 
             }
         }
-        if (showImageContextMenu && bookmark.imageSrc.isNotBlank()) {
+        if (showImageContextMenu && !isSelectionMode && bookmark.imageSrc.isNotBlank()) {
             LongPressContextMenuDialog(
                 headerImageUrl = bookmark.imageSrc,
                 title = bookmark.title,
@@ -621,6 +743,9 @@ fun BookmarkGridCard(
     isWideLayout: Boolean = LocalIsWideLayout.current,
     isInGrid: Boolean = false,
     useMobilePortraitLayout: Boolean = false,
+    isSelectionMode: Boolean = false,
+    isSelected: Boolean = false,
+    onToggleSelection: (String) -> Unit = {},
     index: Int? = null,
 ) {
     if (useMobilePortraitLayout) {
@@ -640,6 +765,9 @@ fun BookmarkGridCard(
             onClickCopyImage = onClickCopyImage,
             onClickDownloadImage = onClickDownloadImage,
             onClickShareImage = onClickShareImage,
+            isSelectionMode = isSelectionMode,
+            isSelected = isSelected,
+            onToggleSelection = onToggleSelection,
             index = index,
         )
     } else if (isWideLayout) {
@@ -660,6 +788,9 @@ fun BookmarkGridCard(
             onClickDownloadImage = onClickDownloadImage,
             onClickShareImage = onClickShareImage,
             isInGrid = isInGrid,
+            isSelectionMode = isSelectionMode,
+            isSelected = isSelected,
+            onToggleSelection = onToggleSelection,
             index = index,
         )
     } else {
@@ -679,6 +810,9 @@ fun BookmarkGridCard(
             onClickCopyImage = onClickCopyImage,
             onClickDownloadImage = onClickDownloadImage,
             onClickShareImage = onClickShareImage,
+            isSelectionMode = isSelectionMode,
+            isSelected = isSelected,
+            onToggleSelection = onToggleSelection,
             index = index,
         )
     }
@@ -715,6 +849,9 @@ private fun BookmarkGridCardMobilePortrait(
     onClickCopyImage: (String) -> Unit = {},
     onClickDownloadImage: (String) -> Unit = {},
     onClickShareImage: (String) -> Unit = {},
+    isSelectionMode: Boolean = false,
+    isSelected: Boolean = false,
+    onToggleSelection: (String) -> Unit = {},
     index: Int? = null,
 ) {
     var showBodyContextMenu by remember { mutableStateOf(false) }
@@ -727,10 +864,15 @@ private fun BookmarkGridCardMobilePortrait(
                 .fillMaxWidth()
                 .padding(horizontal = 12.dp, vertical = 8.dp)
                 .height(MobilePortraitGridCardHeight)
+                .selectionSemantics(isSelectionMode, isSelected)
                 .combinedClickable(
-                    onClick = { onClickCard(bookmark.id) },
-                    onLongClick = { showBodyContextMenu = true },
-                    onLongClickLabel = stringResource(R.string.long_press_for_options)
+                    onClick = {
+                        if (isSelectionMode) onToggleSelection(bookmark.id) else onClickCard(bookmark.id)
+                    },
+                    onLongClick = if (isSelectionMode) ({}) else {
+                        { showBodyContextMenu = true }
+                    },
+                    onLongClickLabel = if (isSelectionMode) null else stringResource(R.string.long_press_for_options)
                 ),
             border = outlinedCardBorder().copy(
                 brush = androidx.compose.ui.graphics.SolidColor(
@@ -757,9 +899,13 @@ private fun BookmarkGridCardMobilePortrait(
                         modifier = Modifier
                             .fillMaxSize()
                             .combinedClickable(
-                                onClick = { onClickCard(bookmark.id) },
-                                onLongClick = { showImageContextMenu = true },
-                                onLongClickLabel = stringResource(R.string.long_press_for_options)
+                                onClick = {
+                                    if (isSelectionMode) onToggleSelection(bookmark.id) else onClickCard(bookmark.id)
+                                },
+                                onLongClick = if (isSelectionMode) ({}) else {
+                                    { showImageContextMenu = true }
+                                },
+                                onLongClickLabel = if (isSelectionMode) null else stringResource(R.string.long_press_for_options)
                             )
                     )
 
@@ -855,7 +1001,9 @@ private fun BookmarkGridCardMobilePortrait(
                             LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                                 items(bookmark.labels) { label ->
                                     SuggestionChip(
-                                        onClick = { onClickLabel(label) },
+                                        onClick = {
+                                            if (isSelectionMode) onToggleSelection(bookmark.id) else onClickLabel(label)
+                                        },
                                         label = {
                                             Text(
                                                 text = label,
@@ -877,6 +1025,7 @@ private fun BookmarkGridCardMobilePortrait(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
+                        if (!isSelectionMode) {
                         Row(horizontalArrangement = Arrangement.Start) {
                             IconButton(
                                 onClick = { onClickFavorite(bookmark.id, !bookmark.isMarked) },
@@ -906,14 +1055,44 @@ private fun BookmarkGridCardMobilePortrait(
                                 )
                             }
                         }
-                        IconButton(
-                            onClick = { onClickDelete(bookmark.id) },
-                            modifier = Modifier.size(48.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.Delete,
-                                contentDescription = stringResource(R.string.action_delete),
+                        } else {
+                            Row(horizontalArrangement = Arrangement.Start) {
+                                BookmarkSelectStateIcon(
+                                    imageVector = if (bookmark.isMarked) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
+                                    contentDescription = stringResource(
+                                        if (bookmark.isMarked) R.string.bookmark_state_favorited
+                                        else R.string.bookmark_state_not_favorited
+                                    ),
+                                    boxSize = 48.dp,
+                                    iconSize = 24.dp
+                                )
+                                BookmarkSelectStateIcon(
+                                    imageVector = if (bookmark.isArchived) Icons.Filled.Inventory2 else Icons.Outlined.Inventory2,
+                                    contentDescription = stringResource(
+                                        if (bookmark.isArchived) R.string.bookmark_state_archived
+                                        else R.string.bookmark_state_not_archived
+                                    ),
+                                    boxSize = 48.dp,
+                                    iconSize = 24.dp
+                                )
+                            }
+                        }
+                        if (isSelectionMode) {
+                            BookmarkSelectionIndicator(
+                                isSelected = isSelected,
+                                onClick = { onToggleSelection(bookmark.id) },
+                                outlineColor = MaterialTheme.colorScheme.outline
                             )
+                        } else {
+                            IconButton(
+                                onClick = { onClickDelete(bookmark.id) },
+                                modifier = Modifier.size(48.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Delete,
+                                    contentDescription = stringResource(R.string.action_delete),
+                                )
+                            }
                         }
                     }
                 }
@@ -941,7 +1120,7 @@ private fun BookmarkGridCardMobilePortrait(
             }
         }
 
-        if (showBodyContextMenu) {
+        if (showBodyContextMenu && !isSelectionMode) {
             LongPressContextMenuDialog(
                 headerImageUrl = bookmark.iconSrc,
                 title = bookmark.title,
@@ -976,7 +1155,7 @@ private fun BookmarkGridCardMobilePortrait(
 
             }
         }
-        if (showImageContextMenu && bookmark.imageSrc.isNotBlank()) {
+        if (showImageContextMenu && !isSelectionMode && bookmark.imageSrc.isNotBlank()) {
             LongPressContextMenuDialog(
                 headerImageUrl = bookmark.imageSrc,
                 title = bookmark.title,
@@ -1022,6 +1201,9 @@ private fun BookmarkGridCardNarrow(
     onClickCopyImage: (String) -> Unit = {},
     onClickDownloadImage: (String) -> Unit = {},
     onClickShareImage: (String) -> Unit = {},
+    isSelectionMode: Boolean = false,
+    isSelected: Boolean = false,
+    onToggleSelection: (String) -> Unit = {},
 ) {
     var showBodyContextMenu by remember { mutableStateOf(false) }
     var showImageContextMenu by remember { mutableStateOf(false) }
@@ -1031,10 +1213,15 @@ private fun BookmarkGridCardNarrow(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 12.dp, vertical = 8.dp)
+                .selectionSemantics(isSelectionMode, isSelected)
                 .combinedClickable(
-                    onClick = { onClickCard(bookmark.id) },
-                    onLongClick = { showBodyContextMenu = true },
-                    onLongClickLabel = stringResource(R.string.long_press_for_options)
+                    onClick = {
+                        if (isSelectionMode) onToggleSelection(bookmark.id) else onClickCard(bookmark.id)
+                    },
+                    onLongClick = if (isSelectionMode) ({}) else {
+                        { showBodyContextMenu = true }
+                    },
+                    onLongClickLabel = if (isSelectionMode) null else stringResource(R.string.long_press_for_options)
                 ),
             border = outlinedCardBorder().copy(
                 brush = androidx.compose.ui.graphics.SolidColor(
@@ -1061,9 +1248,13 @@ private fun BookmarkGridCardNarrow(
                         .width(100.dp)
                         .height(80.dp)
                         .combinedClickable(
-                            onClick = { onClickCard(bookmark.id) },
-                            onLongClick = { showImageContextMenu = true },
-                            onLongClickLabel = stringResource(R.string.long_press_for_options)
+                            onClick = {
+                                if (isSelectionMode) onToggleSelection(bookmark.id) else onClickCard(bookmark.id)
+                            },
+                            onLongClick = if (isSelectionMode) ({}) else {
+                                { showImageContextMenu = true }
+                            },
+                            onLongClickLabel = if (isSelectionMode) null else stringResource(R.string.long_press_for_options)
                         )
                 )
 
@@ -1152,7 +1343,9 @@ private fun BookmarkGridCardNarrow(
                     ) {
                         bookmark.labels.forEach { label ->
                             SuggestionChip(
-                                onClick = { onClickLabel(label) },
+                                onClick = {
+                                    if (isSelectionMode) onToggleSelection(bookmark.id) else onClickLabel(label)
+                                },
                                 label = {
                                     Text(
                                         text = label,
@@ -1172,6 +1365,7 @@ private fun BookmarkGridCardNarrow(
                         .padding(top = 4.dp),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
+                    if (!isSelectionMode) {
                     Row(horizontalArrangement = Arrangement.Start) {
                         IconButton(
                             onClick = { onClickFavorite(bookmark.id, !bookmark.isMarked) },
@@ -1204,15 +1398,40 @@ private fun BookmarkGridCardNarrow(
                             )
                         }
                     }
-                    IconButton(
-                        onClick = { onClickDelete(bookmark.id) },
-                        modifier = Modifier.size(36.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.Delete,
-                            contentDescription = stringResource(R.string.action_delete),
-                            modifier = Modifier.size(20.dp)
+                    } else {
+                        Row(horizontalArrangement = Arrangement.Start) {
+                            BookmarkSelectStateIcon(
+                                imageVector = if (bookmark.isMarked) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
+                                contentDescription = stringResource(
+                                    if (bookmark.isMarked) R.string.bookmark_state_favorited
+                                    else R.string.bookmark_state_not_favorited
+                                )
+                            )
+                            BookmarkSelectStateIcon(
+                                imageVector = if (bookmark.isArchived) Icons.Filled.Inventory2 else Icons.Outlined.Inventory2,
+                                contentDescription = stringResource(
+                                    if (bookmark.isArchived) R.string.bookmark_state_archived
+                                    else R.string.bookmark_state_not_archived
+                                )
+                            )
+                        }
+                    }
+                    if (isSelectionMode) {
+                        BookmarkSelectionIndicator(
+                            isSelected = isSelected,
+                            onClick = { onToggleSelection(bookmark.id) }
                         )
+                    } else {
+                        IconButton(
+                            onClick = { onClickDelete(bookmark.id) },
+                            modifier = Modifier.size(36.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Delete,
+                                contentDescription = stringResource(R.string.action_delete),
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
                     }
                 }
             }
@@ -1239,7 +1458,7 @@ private fun BookmarkGridCardNarrow(
             }
         }
         }
-        if (showBodyContextMenu) {
+        if (showBodyContextMenu && !isSelectionMode) {
             LongPressContextMenuDialog(
                 headerImageUrl = bookmark.iconSrc,
                 title = bookmark.title,
@@ -1274,7 +1493,7 @@ private fun BookmarkGridCardNarrow(
 
             }
         }
-        if (showImageContextMenu && bookmark.imageSrc.isNotBlank()) {
+        if (showImageContextMenu && !isSelectionMode && bookmark.imageSrc.isNotBlank()) {
             LongPressContextMenuDialog(
                 headerImageUrl = bookmark.imageSrc,
                 title = bookmark.title,
@@ -1320,6 +1539,9 @@ private fun BookmarkGridCardWide(
     onClickDownloadImage: (String) -> Unit = {},
     onClickShareImage: (String) -> Unit = {},
     isInGrid: Boolean = false,
+    isSelectionMode: Boolean = false,
+    isSelected: Boolean = false,
+    onToggleSelection: (String) -> Unit = {},
     index: Int? = null,
 ) {
     var showBodyContextMenu by remember { mutableStateOf(false) }
@@ -1331,10 +1553,15 @@ private fun BookmarkGridCardWide(
             .fillMaxWidth()
             .then(if (isInGrid) Modifier.height(300.dp) else Modifier)
             .padding(horizontal = 12.dp, vertical = 6.dp)
+            .selectionSemantics(isSelectionMode, isSelected)
             .combinedClickable(
-                onClick = { onClickCard(bookmark.id) },
-                onLongClick = { showBodyContextMenu = true },
-                onLongClickLabel = stringResource(R.string.long_press_for_options)
+                onClick = {
+                    if (isSelectionMode) onToggleSelection(bookmark.id) else onClickCard(bookmark.id)
+                },
+                onLongClick = if (isSelectionMode) ({}) else {
+                    { showBodyContextMenu = true }
+                },
+                onLongClickLabel = if (isSelectionMode) null else stringResource(R.string.long_press_for_options)
             ),
         border = outlinedCardBorder().copy(
             brush = androidx.compose.ui.graphics.SolidColor(
@@ -1362,9 +1589,13 @@ private fun BookmarkGridCardWide(
                     modifier = Modifier
                         .fillMaxSize()
                         .combinedClickable(
-                            onClick = { onClickCard(bookmark.id) },
-                            onLongClick = { showImageContextMenu = true },
-                            onLongClickLabel = stringResource(R.string.long_press_for_options)
+                            onClick = {
+                                if (isSelectionMode) onToggleSelection(bookmark.id) else onClickCard(bookmark.id)
+                            },
+                            onLongClick = if (isSelectionMode) ({}) else {
+                                { showImageContextMenu = true }
+                            },
+                            onLongClickLabel = if (isSelectionMode) null else stringResource(R.string.long_press_for_options)
                         )
                 )
 
@@ -1453,7 +1684,9 @@ private fun BookmarkGridCardWide(
                     ) {
                         bookmark.labels.forEach { label ->
                             SuggestionChip(
-                                onClick = { onClickLabel(label) },
+                                onClick = {
+                                    if (isSelectionMode) onToggleSelection(bookmark.id) else onClickLabel(label)
+                                },
                                 label = {
                                     Text(
                                         text = label,
@@ -1477,6 +1710,7 @@ private fun BookmarkGridCardWide(
                         .padding(top = 4.dp),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
+                    if (!isSelectionMode) {
                     Row(horizontalArrangement = Arrangement.Start) {
                         IconButton(
                             onClick = { onClickFavorite(bookmark.id, !bookmark.isMarked) },
@@ -1509,15 +1743,40 @@ private fun BookmarkGridCardWide(
                             )
                         }
                     }
-                    IconButton(
-                        onClick = { onClickDelete(bookmark.id) },
-                        modifier = Modifier.size(36.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.Delete,
-                            contentDescription = stringResource(R.string.action_delete),
-                            modifier = Modifier.size(20.dp)
+                    } else {
+                        Row(horizontalArrangement = Arrangement.Start) {
+                            BookmarkSelectStateIcon(
+                                imageVector = if (bookmark.isMarked) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
+                                contentDescription = stringResource(
+                                    if (bookmark.isMarked) R.string.bookmark_state_favorited
+                                    else R.string.bookmark_state_not_favorited
+                                )
+                            )
+                            BookmarkSelectStateIcon(
+                                imageVector = if (bookmark.isArchived) Icons.Filled.Inventory2 else Icons.Outlined.Inventory2,
+                                contentDescription = stringResource(
+                                    if (bookmark.isArchived) R.string.bookmark_state_archived
+                                    else R.string.bookmark_state_not_archived
+                                )
+                            )
+                        }
+                    }
+                    if (isSelectionMode) {
+                        BookmarkSelectionIndicator(
+                            isSelected = isSelected,
+                            onClick = { onToggleSelection(bookmark.id) }
                         )
+                    } else {
+                        IconButton(
+                            onClick = { onClickDelete(bookmark.id) },
+                            modifier = Modifier.size(36.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Delete,
+                                contentDescription = stringResource(R.string.action_delete),
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
                     }
                 }
             }
@@ -1544,7 +1803,7 @@ private fun BookmarkGridCardWide(
             }
         }
         }
-        if (showBodyContextMenu) {
+        if (showBodyContextMenu && !isSelectionMode) {
             LongPressContextMenuDialog(
                 headerImageUrl = bookmark.iconSrc,
                 title = bookmark.title,
@@ -1579,7 +1838,7 @@ private fun BookmarkGridCardWide(
 
             }
         }
-        if (showImageContextMenu && bookmark.imageSrc.isNotBlank()) {
+        if (showImageContextMenu && !isSelectionMode && bookmark.imageSrc.isNotBlank()) {
             LongPressContextMenuDialog(
                 headerImageUrl = bookmark.imageSrc,
                 title = bookmark.title,
@@ -1645,6 +1904,9 @@ fun BookmarkCompactCard(
     onClickDownloadImage: (String) -> Unit = {},
     onClickShareImage: (String) -> Unit = {},
     isWideLayout: Boolean = LocalIsWideLayout.current,
+    isSelectionMode: Boolean = false,
+    isSelected: Boolean = false,
+    onToggleSelection: (String) -> Unit = {},
     index: Int? = null
 ) {
     if (isWideLayout) {
@@ -1664,6 +1926,9 @@ fun BookmarkCompactCard(
             onClickCopyImage = onClickCopyImage,
             onClickDownloadImage = onClickDownloadImage,
             onClickShareImage = onClickShareImage,
+            isSelectionMode = isSelectionMode,
+            isSelected = isSelected,
+            onToggleSelection = onToggleSelection,
             index = index,
         )
     } else {
@@ -1683,6 +1948,9 @@ fun BookmarkCompactCard(
             onClickCopyImage = onClickCopyImage,
             onClickDownloadImage = onClickDownloadImage,
             onClickShareImage = onClickShareImage,
+            isSelectionMode = isSelectionMode,
+            isSelected = isSelected,
+            onToggleSelection = onToggleSelection,
             index = index,
         )
     }
@@ -1706,6 +1974,9 @@ private fun BookmarkCompactCardNarrow(
     onClickCopyImage: (String) -> Unit = {},
     onClickDownloadImage: (String) -> Unit = {},
     onClickShareImage: (String) -> Unit = {},
+    isSelectionMode: Boolean = false,
+    isSelected: Boolean = false,
+    onToggleSelection: (String) -> Unit = {},
     index: Int? = null
 ) {
     var showBodyContextMenu by remember { mutableStateOf(false) }
@@ -1715,10 +1986,15 @@ private fun BookmarkCompactCardNarrow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .selectionSemantics(isSelectionMode, isSelected)
             .combinedClickable(
-                onClick = { onClickCard(bookmark.id) },
-                onLongClick = { showBodyContextMenu = true },
-                onLongClickLabel = stringResource(R.string.long_press_for_options)
+                onClick = {
+                    if (isSelectionMode) onToggleSelection(bookmark.id) else onClickCard(bookmark.id)
+                },
+                onLongClick = if (isSelectionMode) ({}) else {
+                    { showBodyContextMenu = true }
+                },
+                onLongClickLabel = if (isSelectionMode) null else stringResource(R.string.long_press_for_options)
             )
             .padding(horizontal = 16.dp, vertical = 8.dp)
             .heightIn(min = CompactCardMinHeight)
@@ -1783,7 +2059,9 @@ private fun BookmarkCompactCardNarrow(
                 ) {
                     items(bookmark.labels) { label ->
                         SuggestionChip(
-                            onClick = { onClickLabel(label) },
+                            onClick = {
+                                if (isSelectionMode) onToggleSelection(bookmark.id) else onClickLabel(label)
+                            },
                             label = {
                                 Text(
                                     text = label,
@@ -1805,6 +2083,7 @@ private fun BookmarkCompactCardNarrow(
                     .padding(top = 6.dp),
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
+            if (!isSelectionMode) {
             Row(horizontalArrangement = Arrangement.Start) {
                 IconButton(
                     onClick = { onClickFavorite(bookmark.id, !bookmark.isMarked) },
@@ -1837,21 +2116,48 @@ private fun BookmarkCompactCardNarrow(
                     )
                 }
             }
-            IconButton(
-                onClick = { onClickDelete(bookmark.id) },
-                modifier = Modifier.size(36.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Filled.Delete,
-                    contentDescription = stringResource(R.string.action_delete),
-                    modifier = Modifier.size(20.dp)
+            } else {
+                Row(horizontalArrangement = Arrangement.Start) {
+                    BookmarkSelectStateIcon(
+                        imageVector = if (bookmark.isMarked) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
+                        contentDescription = stringResource(
+                            if (bookmark.isMarked) R.string.bookmark_state_favorited
+                            else R.string.bookmark_state_not_favorited
+                        ),
+                        boxSize = 32.dp,
+                        iconSize = 18.dp
+                    )
+                    BookmarkSelectStateIcon(
+                        imageVector = if (bookmark.isArchived) Icons.Filled.Inventory2 else Icons.Outlined.Inventory2,
+                        contentDescription = stringResource(
+                            if (bookmark.isArchived) R.string.bookmark_state_archived
+                            else R.string.bookmark_state_not_archived
+                        )
+                    )
+                }
+            }
+            if (isSelectionMode) {
+                BookmarkSelectionIndicator(
+                    isSelected = isSelected,
+                    onClick = { onToggleSelection(bookmark.id) }
                 )
+            } else {
+                IconButton(
+                    onClick = { onClickDelete(bookmark.id) },
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Delete,
+                        contentDescription = stringResource(R.string.action_delete),
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
             }
             }
         }
     }
         HorizontalDivider()
-        if (showBodyContextMenu) {
+        if (showBodyContextMenu && !isSelectionMode) {
             LongPressContextMenuDialog(
                 headerImageUrl = bookmark.iconSrc,
                 title = bookmark.title,
@@ -1886,7 +2192,7 @@ private fun BookmarkCompactCardNarrow(
 
             }
         }
-        if (showImageContextMenu && bookmark.imageSrc.isNotBlank()) {
+        if (showImageContextMenu && !isSelectionMode && bookmark.imageSrc.isNotBlank()) {
             LongPressContextMenuDialog(
                 headerImageUrl = bookmark.imageSrc,
                 title = bookmark.title,
@@ -1931,6 +2237,9 @@ private fun BookmarkCompactCardWide(
     onClickCopyImage: (String) -> Unit = {},
     onClickDownloadImage: (String) -> Unit = {},
     onClickShareImage: (String) -> Unit = {},
+    isSelectionMode: Boolean = false,
+    isSelected: Boolean = false,
+    onToggleSelection: (String) -> Unit = {},
     index: Int? = null
 ) {
     var showBodyContextMenu by remember { mutableStateOf(false) }
@@ -1940,10 +2249,15 @@ private fun BookmarkCompactCardWide(
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .selectionSemantics(isSelectionMode, isSelected)
             .combinedClickable(
-                onClick = { onClickCard(bookmark.id) },
-                onLongClick = { showBodyContextMenu = true },
-                onLongClickLabel = stringResource(R.string.long_press_for_options)
+                onClick = {
+                    if (isSelectionMode) onToggleSelection(bookmark.id) else onClickCard(bookmark.id)
+                },
+                onLongClick = if (isSelectionMode) ({}) else {
+                    { showBodyContextMenu = true }
+                },
+                onLongClickLabel = if (isSelectionMode) null else stringResource(R.string.long_press_for_options)
             )
             .padding(horizontal = 16.dp, vertical = 8.dp)
             .heightIn(min = CompactCardMinHeight)
@@ -1972,46 +2286,67 @@ private fun BookmarkCompactCardWide(
 
                 Spacer(Modifier.width(4.dp))
 
-                // Action icons in title row (right-aligned)
-                IconButton(
-                    onClick = { onClickFavorite(bookmark.id, !bookmark.isMarked) },
-                    modifier = Modifier.size(36.dp)
-                ) {
-                    Icon(
+                if (isSelectionMode) {
+                    BookmarkSelectStateIcon(
                         imageVector = if (bookmark.isMarked) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
-                        contentDescription = stringResource(R.string.action_favorite),
-                        modifier = Modifier.size(20.dp)
+                        contentDescription = stringResource(
+                            if (bookmark.isMarked) R.string.bookmark_state_favorited
+                            else R.string.bookmark_state_not_favorited
+                        )
                     )
-                }
-                IconButton(
-                    onClick = { onClickArchive(bookmark.id, !bookmark.isArchived) },
-                    modifier = Modifier.size(36.dp)
-                ) {
-                    Icon(
+                    BookmarkSelectStateIcon(
                         imageVector = if (bookmark.isArchived) Icons.Filled.Inventory2 else Icons.Outlined.Inventory2,
-                        contentDescription = stringResource(R.string.action_archive),
-                        modifier = Modifier.size(20.dp)
+                        contentDescription = stringResource(
+                            if (bookmark.isArchived) R.string.bookmark_state_archived
+                            else R.string.bookmark_state_not_archived
+                        )
                     )
-                }
-                IconButton(
-                    onClick = { onClickOpenUrl(bookmark.id) },
-                    modifier = Modifier.size(36.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.Language,
-                        contentDescription = stringResource(R.string.action_view_original),
-                        modifier = Modifier.size(20.dp)
+                    BookmarkSelectionIndicator(
+                        isSelected = isSelected,
+                        onClick = { onToggleSelection(bookmark.id) }
                     )
-                }
-                IconButton(
-                    onClick = { onClickDelete(bookmark.id) },
-                    modifier = Modifier.size(36.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.Delete,
-                        contentDescription = stringResource(R.string.action_delete),
-                        modifier = Modifier.size(20.dp)
-                    )
+                } else {
+                    // Action icons in title row (right-aligned)
+                    IconButton(
+                        onClick = { onClickFavorite(bookmark.id, !bookmark.isMarked) },
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Icon(
+                            imageVector = if (bookmark.isMarked) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
+                            contentDescription = stringResource(R.string.action_favorite),
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                    IconButton(
+                        onClick = { onClickArchive(bookmark.id, !bookmark.isArchived) },
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Icon(
+                            imageVector = if (bookmark.isArchived) Icons.Filled.Inventory2 else Icons.Outlined.Inventory2,
+                            contentDescription = stringResource(R.string.action_archive),
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                    IconButton(
+                        onClick = { onClickOpenUrl(bookmark.id) },
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Language,
+                            contentDescription = stringResource(R.string.action_view_original),
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                    IconButton(
+                        onClick = { onClickDelete(bookmark.id) },
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Delete,
+                            contentDescription = stringResource(R.string.action_delete),
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
                 }
             }
 
@@ -2057,7 +2392,9 @@ private fun BookmarkCompactCardWide(
                     ) {
                         items(bookmark.labels) { label ->
                             SuggestionChip(
-                                onClick = { onClickLabel(label) },
+                                onClick = {
+                                    if (isSelectionMode) onToggleSelection(bookmark.id) else onClickLabel(label)
+                                },
                                 label = {
                                     Text(
                                         text = label,
@@ -2075,7 +2412,7 @@ private fun BookmarkCompactCardWide(
         }
     }
         HorizontalDivider()
-        if (showBodyContextMenu) {
+        if (showBodyContextMenu && !isSelectionMode) {
             LongPressContextMenuDialog(
                 headerImageUrl = bookmark.iconSrc,
                 title = bookmark.title,
@@ -2110,7 +2447,7 @@ private fun BookmarkCompactCardWide(
 
             }
         }
-        if (showImageContextMenu && bookmark.imageSrc.isNotBlank()) {
+        if (showImageContextMenu && !isSelectionMode && bookmark.imageSrc.isNotBlank()) {
             LongPressContextMenuDialog(
                 headerImageUrl = bookmark.imageSrc,
                 title = bookmark.title,

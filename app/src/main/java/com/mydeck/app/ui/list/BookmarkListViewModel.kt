@@ -11,6 +11,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import com.mydeck.app.BuildConfig
 import com.mydeck.app.R
+import com.mydeck.app.domain.BookmarkBatchUpdate
 import com.mydeck.app.domain.BookmarkRepository
 import com.mydeck.app.domain.model.Bookmark
 import com.mydeck.app.domain.model.BookmarkCounts
@@ -52,6 +53,50 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 import timber.log.Timber
 import javax.inject.Inject
+
+data class MultiSelectState(
+    val active: Boolean = false,
+    val selectedIds: Set<String> = emptySet()
+) {
+    val selectedCount: Int get() = selectedIds.size
+    val hasSelection: Boolean get() = selectedIds.isNotEmpty()
+    fun isSelected(bookmarkId: String): Boolean = bookmarkId in selectedIds
+}
+
+data class MultiSelectTargets(
+    val allVisibleSelected: Boolean = false,
+    val selectedAllFavorited: Boolean = false,
+    val selectedAllUnfavorited: Boolean = false,
+    val selectedAllArchived: Boolean = false,
+    val selectedAllUnarchived: Boolean = false
+)
+
+sealed class BatchActionSnackbarEvent {
+    abstract val count: Int
+
+    // Favorite/archive events carry the ids actually changed (skip-no-op filtered out) so
+    // Undo can revert exactly those items back to their prior state in a single transaction.
+    data class FavoritesAdded(override val count: Int, val changedIds: List<String>) : BatchActionSnackbarEvent()
+    data class FavoritesRemoved(override val count: Int, val changedIds: List<String>) : BatchActionSnackbarEvent()
+    data class Archived(override val count: Int, val changedIds: List<String>) : BatchActionSnackbarEvent()
+    data class Unarchived(override val count: Int, val changedIds: List<String>) : BatchActionSnackbarEvent()
+
+    // Labels are applied optimistically (like favorite/archive); Undo restores each changed
+    // bookmark's prior label list, so the event carries those snapshots.
+    data class LabelsAdded(
+        override val count: Int,
+        val priorLabelsByBookmark: Map<String, List<String>>
+    ) : BatchActionSnackbarEvent()
+
+    // Delete is staged (not yet written); confirm/cancel act on the batch-pending set held in the ViewModel.
+    data class Deleted(override val count: Int) : BatchActionSnackbarEvent()
+}
+
+private data class SelectedBookmarkActionState(
+    val id: String,
+    val isMarked: Boolean,
+    val isArchived: Boolean
+)
 
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
@@ -100,6 +145,22 @@ class BookmarkListViewModel @Inject constructor(
     // Pending deletion IDs tracked per staged snackbar so rapid deletes keep item identity.
     private val _pendingDeletionBookmarkIds = MutableStateFlow<List<String>>(emptyList())
     val pendingDeletionBookmarkIds = _pendingDeletionBookmarkIds.asStateFlow()
+
+    // Batch (multi-select) pending deletion kept separate from single-item pending deletion so the
+    // batch confirms/cancels atomically and Undo restores exactly the staged batch set.
+    private val _pendingBatchDeletionBookmarkIds = MutableStateFlow<Set<String>>(emptySet())
+    val pendingBatchDeletionBookmarkIds = _pendingBatchDeletionBookmarkIds.asStateFlow()
+
+    private val _multiSelectState = MutableStateFlow(MultiSelectState())
+    val multiSelectState = _multiSelectState.asStateFlow()
+
+    // Add-labels picker: holds the selection captured when the picker opened, so selection-mode
+    // changes while the picker is open do not affect which bookmarks get the labels.
+    private val _addLabelsPickerTargetIds = MutableStateFlow<List<String>>(emptyList())
+    val addLabelsPickerTargetIds = _addLabelsPickerTargetIds.asStateFlow()
+
+    private val _showAddLabelsPicker = MutableStateFlow(false)
+    val showAddLabelsPicker = _showAddLabelsPicker.asStateFlow()
 
     // Constraint feedback: one-shot snackbar message when content sync is blocked
     private val _constraintSnackbarEvent = Channel<Int>(Channel.BUFFERED)
@@ -228,6 +289,28 @@ class BookmarkListViewModel @Inject constructor(
     private val _uiState = MutableStateFlow<UiState>(UiState.Loading)
     val uiState = _uiState.asStateFlow()
 
+    val multiSelectTargets: StateFlow<MultiSelectTargets> = combine(
+        _multiSelectState,
+        _uiState
+    ) { selection, ui ->
+        val bookmarks = (ui as? UiState.Success)?.bookmarks.orEmpty()
+        val allVisibleSelected = bookmarks.isNotEmpty() &&
+            bookmarks.all { it.id in selection.selectedIds }
+        val selectedItems = bookmarks.filter { it.id in selection.selectedIds }
+        val hasSelection = selectedItems.isNotEmpty()
+        MultiSelectTargets(
+            allVisibleSelected = allVisibleSelected,
+            selectedAllFavorited = hasSelection && selectedItems.all { it.isMarked },
+            selectedAllUnfavorited = hasSelection && selectedItems.none { it.isMarked },
+            selectedAllArchived = hasSelection && selectedItems.all { it.isArchived },
+            selectedAllUnarchived = hasSelection && selectedItems.none { it.isArchived }
+        )
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, MultiSelectTargets())
+
+    private val _batchActionSnackbarEvent = Channel<BatchActionSnackbarEvent>(Channel.BUFFERED)
+    val batchActionSnackbarEvent: Flow<BatchActionSnackbarEvent> =
+        _batchActionSnackbarEvent.receiveAsFlow()
+
     init {
         viewModelScope.launch {
             var wasRunning = false
@@ -290,6 +373,7 @@ class BookmarkListViewModel @Inject constructor(
             }.combine(loadBookmarksHasFailed) { (visibleBookmarks, initialSyncPerformed), hasLoadFailed ->
                 Triple(visibleBookmarks, initialSyncPerformed, hasLoadFailed)
             }.collectLatest { (visibleBookmarks, initialSyncPerformed, hasLoadFailed) ->
+                dropSelectedIdsMissingFrom(visibleBookmarks)
                 _uiState.update { currentState ->
                     val updateBookmarkState = (currentState as? UiState.Success)?.updateBookmarkState
                     when {
@@ -310,6 +394,7 @@ class BookmarkListViewModel @Inject constructor(
     // --- Drawer preset navigation ---
 
     fun onSelectDrawerPreset(preset: DrawerPreset) {
+        clearMultiSelectState()
         _drawerPreset.value = preset
         _filterFormState.value = FilterFormState.fromPreset(preset)
         _activeLabel.value = null
@@ -325,6 +410,7 @@ class BookmarkListViewModel @Inject constructor(
     // --- Label mode ---
 
     fun onClickLabel(label: String) {
+        clearMultiSelectState()
         if (_activeLabel.value == label) {
             // Toggle off label mode, return to previous drawer preset
             _activeLabel.value = null
@@ -381,11 +467,13 @@ class BookmarkListViewModel @Inject constructor(
     }
 
     fun onApplyFilter(filterFormState: FilterFormState) {
+        clearMultiSelectState()
         _filterFormState.value = filterFormState
         _isFilterSheetOpen.value = false
     }
 
     fun onResetFilter() {
+        clearMultiSelectState()
         _filterFormState.value = FilterFormState.fromPreset(_drawerPreset.value)
         _isFilterSheetOpen.value = false
     }
@@ -584,6 +672,246 @@ class BookmarkListViewModel @Inject constructor(
                 bookmarkId = bookmarkId,
                 isArchived = isArchived
             )
+        }
+    }
+
+    fun onEnterMultiSelectMode() {
+        _multiSelectState.value = MultiSelectState(active = true)
+    }
+
+    fun onExitMultiSelectMode() {
+        clearMultiSelectState()
+    }
+
+    fun onToggleBookmarkSelected(bookmarkId: String) {
+        _multiSelectState.update { state ->
+            if (!state.active) {
+                state
+            } else {
+                val selectedIds = if (bookmarkId in state.selectedIds) {
+                    state.selectedIds - bookmarkId
+                } else {
+                    state.selectedIds + bookmarkId
+                }
+                state.copy(selectedIds = selectedIds)
+            }
+        }
+    }
+
+    fun onFavoriteSelectedBookmarks() = applyBatchFavorite(targetFavorite = true)
+
+    fun onUnfavoriteSelectedBookmarks() = applyBatchFavorite(targetFavorite = false)
+
+    fun onArchiveSelectedBookmarks() = applyBatchArchive(targetArchived = true)
+
+    fun onUnarchiveSelectedBookmarks() = applyBatchArchive(targetArchived = false)
+
+    // Capture the current selection and open the add-labels picker. The captured ids drive the
+    // apply, so toggling selection (or auto-exit) while the picker is open has no effect.
+    fun onAddLabelsToSelection() {
+        val selectedIds = _multiSelectState.value.selectedIds
+        if (selectedIds.isEmpty()) return
+        _addLabelsPickerTargetIds.value = selectedIds.toList()
+        _showAddLabelsPicker.value = true
+    }
+
+    fun onDismissAddLabelsPicker() {
+        _showAddLabelsPicker.value = false
+        _addLabelsPickerTargetIds.value = emptyList()
+    }
+
+    fun onLabelsPicked(chosen: Set<String>) {
+        val targetIds = _addLabelsPickerTargetIds.value
+        onDismissAddLabelsPicker()
+        if (chosen.isEmpty() || targetIds.isEmpty()) return
+
+        val selectedCount = targetIds.size
+        viewModelScope.launch {
+            val priorByBookmark = updateBookmarkUseCase.addLabelsToBookmarks(targetIds, chosen.toList())
+            _batchActionSnackbarEvent.trySend(
+                BatchActionSnackbarEvent.LabelsAdded(selectedCount, priorByBookmark)
+            )
+        }
+    }
+
+    // Stage all selected bookmarks as batch-pending-delete: grey them out, leave selection mode, and
+    // emit a Snackbar. No DB write happens here — it is deferred until the Snackbar is confirmed.
+    fun onDeleteSelectedBookmarks() {
+        val selectedIds = _multiSelectState.value.selectedIds
+        if (selectedIds.isEmpty()) return
+
+        val staged = selectedIds.toSet()
+        _pendingBatchDeletionBookmarkIds.value = staged
+        clearMultiSelectState()
+        _batchActionSnackbarEvent.trySend(BatchActionSnackbarEvent.Deleted(staged.size))
+    }
+
+    // Confirm path (Snackbar dismissed/timed out/interaction elsewhere): soft-delete the staged batch
+    // locally and enqueue delete pending actions for sync, in one transaction.
+    fun onConfirmBatchDeletion() {
+        val ids = _pendingBatchDeletionBookmarkIds.value
+        if (ids.isEmpty()) return
+
+        _pendingBatchDeletionBookmarkIds.value = emptySet()
+        updateBookmark {
+            updateBookmarkUseCase.deleteBookmarks(ids.toList())
+        }
+    }
+
+    // Undo path: restore the staged batch from pending-delete UI state without enqueuing any deletes.
+    fun onCancelBatchDeletion() {
+        _pendingBatchDeletionBookmarkIds.value = emptySet()
+    }
+
+    // Snackbar Undo for every batch action. Favorite/archive were applied optimistically, so Undo
+    // reverts only the items actually changed; delete was merely staged, so Undo cancels the stage.
+    fun onUndoBatchAction(event: BatchActionSnackbarEvent) {
+        when (event) {
+            is BatchActionSnackbarEvent.FavoritesAdded -> revertBatchFavorite(event.changedIds, revertTo = false)
+            is BatchActionSnackbarEvent.FavoritesRemoved -> revertBatchFavorite(event.changedIds, revertTo = true)
+            is BatchActionSnackbarEvent.Archived -> revertBatchArchive(event.changedIds, revertTo = false)
+            is BatchActionSnackbarEvent.Unarchived -> revertBatchArchive(event.changedIds, revertTo = true)
+            is BatchActionSnackbarEvent.LabelsAdded -> revertBatchLabels(event.priorLabelsByBookmark)
+            is BatchActionSnackbarEvent.Deleted -> onCancelBatchDeletion()
+        }
+    }
+
+    // Snackbar dismissal for every batch action. Only delete has deferred work to commit on dismiss;
+    // favorite/archive are already applied, so dismissing is a no-op for them.
+    fun onConfirmBatchAction(event: BatchActionSnackbarEvent) {
+        if (event is BatchActionSnackbarEvent.Deleted) onConfirmBatchDeletion()
+    }
+
+    private fun revertBatchFavorite(changedIds: List<String>, revertTo: Boolean) {
+        if (changedIds.isEmpty()) return
+        updateBookmark {
+            updateBookmarkUseCase.updateBookmarks(
+                changedIds.map { BookmarkBatchUpdate(bookmarkId = it, isFavorite = revertTo) }
+            )
+        }
+    }
+
+    private fun revertBatchArchive(changedIds: List<String>, revertTo: Boolean) {
+        if (changedIds.isEmpty()) return
+        updateBookmark {
+            updateBookmarkUseCase.updateBookmarks(
+                changedIds.map { BookmarkBatchUpdate(bookmarkId = it, isArchived = revertTo) }
+            )
+        }
+    }
+
+    private fun revertBatchLabels(priorLabelsByBookmark: Map<String, List<String>>) {
+        if (priorLabelsByBookmark.isEmpty()) return
+        viewModelScope.launch {
+            updateBookmarkUseCase.restoreBookmarkLabels(priorLabelsByBookmark)
+        }
+    }
+
+    private fun applyBatchFavorite(targetFavorite: Boolean) {
+        val snapshots = selectedBookmarkActionSnapshots()
+        if (snapshots.isEmpty()) return
+
+        val selectedCount = snapshots.size
+        val itemsToUpdate = snapshots.filter { it.isMarked != targetFavorite }
+
+        if (itemsToUpdate.isNotEmpty()) {
+            updateBookmark {
+                updateBookmarkUseCase.updateBookmarks(
+                    itemsToUpdate.map { snapshot ->
+                        BookmarkBatchUpdate(
+                            bookmarkId = snapshot.id,
+                            isFavorite = targetFavorite
+                        )
+                    }
+                )
+            }
+        }
+        val changedIds = itemsToUpdate.map { it.id }
+        val event = if (targetFavorite) {
+            BatchActionSnackbarEvent.FavoritesAdded(selectedCount, changedIds)
+        } else {
+            BatchActionSnackbarEvent.FavoritesRemoved(selectedCount, changedIds)
+        }
+        _batchActionSnackbarEvent.trySend(event)
+    }
+
+    private fun applyBatchArchive(targetArchived: Boolean) {
+        val snapshots = selectedBookmarkActionSnapshots()
+        if (snapshots.isEmpty()) return
+
+        val selectedCount = snapshots.size
+        val itemsToUpdate = snapshots.filter { it.isArchived != targetArchived }
+
+        if (itemsToUpdate.isNotEmpty()) {
+            updateBookmark {
+                updateBookmarkUseCase.updateBookmarks(
+                    itemsToUpdate.map { snapshot ->
+                        BookmarkBatchUpdate(
+                            bookmarkId = snapshot.id,
+                            isArchived = targetArchived
+                        )
+                    }
+                )
+            }
+        }
+        val changedIds = itemsToUpdate.map { it.id }
+        val event = if (targetArchived) {
+            BatchActionSnackbarEvent.Archived(selectedCount, changedIds)
+        } else {
+            BatchActionSnackbarEvent.Unarchived(selectedCount, changedIds)
+        }
+        _batchActionSnackbarEvent.trySend(event)
+    }
+
+    fun onToggleSelectAllBookmarks() {
+        val visibleIds = (_uiState.value as? UiState.Success)
+            ?.bookmarks
+            ?.mapTo(linkedSetOf<String>()) { it.id }
+            ?: linkedSetOf()
+        _multiSelectState.update { state ->
+            if (!state.active) {
+                state
+            } else if (visibleIds.isNotEmpty() && state.selectedIds == visibleIds) {
+                state.copy(selectedIds = emptySet())
+            } else {
+                state.copy(selectedIds = visibleIds)
+            }
+        }
+    }
+
+    private fun selectedBookmarkActionSnapshots(): List<SelectedBookmarkActionState> {
+        val selectedIds = _multiSelectState.value.selectedIds
+        if (selectedIds.isEmpty()) return emptyList()
+
+        val bookmarks = (_uiState.value as? UiState.Success)?.bookmarks.orEmpty()
+        return bookmarks
+            .asSequence()
+            .filter { it.id in selectedIds }
+            .map {
+                SelectedBookmarkActionState(
+                    id = it.id,
+                    isMarked = it.isMarked,
+                    isArchived = it.isArchived
+                )
+            }
+            .toList()
+    }
+
+    private fun clearMultiSelectState() {
+        _multiSelectState.value = MultiSelectState()
+    }
+
+    private fun dropSelectedIdsMissingFrom(visibleBookmarks: List<BookmarkListItem>) {
+        if (!_multiSelectState.value.active) return
+
+        val visibleIds = visibleBookmarks.mapTo(mutableSetOf()) { it.id }
+        _multiSelectState.update { state ->
+            val retainedIds = state.selectedIds.intersect(visibleIds)
+            when {
+                retainedIds == state.selectedIds -> state
+                retainedIds.isEmpty() -> MultiSelectState()
+                else -> state.copy(selectedIds = retainedIds)
+            }
         }
     }
 

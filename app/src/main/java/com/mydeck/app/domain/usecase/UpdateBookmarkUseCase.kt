@@ -1,5 +1,6 @@
 package com.mydeck.app.domain.usecase
 
+import com.mydeck.app.domain.BookmarkBatchUpdate
 import com.mydeck.app.domain.BookmarkRepository
 import javax.inject.Inject
 
@@ -33,8 +34,24 @@ class UpdateBookmarkUseCase @Inject constructor(
         ))
     }
 
+    suspend fun updateBookmarks(updates: List<BookmarkBatchUpdate>): Result {
+        return handleResult(bookmarkRepository.updateBookmarks(updates))
+    }
+
     suspend fun deleteBookmark(bookmarkId: String): Result {
         return handleResult(bookmarkRepository.deleteBookmark(bookmarkId))
+    }
+
+    suspend fun deleteBookmarks(bookmarkIds: List<String>): Result {
+        return handleResult(bookmarkRepository.deleteBookmarks(bookmarkIds))
+    }
+
+    suspend fun addLabelsToBookmarks(ids: List<String>, labels: List<String>): Map<String, List<String>> {
+        return bookmarkRepository.addLabelsToBookmarks(ids, labels)
+    }
+
+    suspend fun restoreBookmarkLabels(priorByBookmark: Map<String, List<String>>) {
+        bookmarkRepository.restoreBookmarkLabels(priorByBookmark)
     }
 
     private fun handleResult(result: BookmarkRepository.UpdateResult): Result {

@@ -114,6 +114,12 @@ Do not fail silently — surface the request in the PR description so the mainta
 
 ---
 
+## Providing Copyable Deliverables (prompts, PR descriptions, discussion posts)
+
+When asked to produce an artifact the user will copy elsewhere — an implementation prompt for another agent, a PR/issue description, a discussion/release post, a commit message, etc. — **always present it as raw markdown inside a fenced code block** so it can be copied verbatim without rendering. Do not render it as normal prose. If the artifact itself contains fenced code blocks, use a longer outer fence (e.g. four backticks) so nesting is preserved.
+
+---
+
 ## Other Guidelines
 
 - Follow existing code style and patterns

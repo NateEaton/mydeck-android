@@ -218,6 +218,54 @@ class BookmarkRepositoryImplTest {
     }
 
     @Test
+    fun `updateBookmarks favorite updates local rows queues actions and schedules sync once`() = runTest {
+        val updates = listOf(
+            BookmarkBatchUpdate(bookmarkId = "bookmark-1", isFavorite = true),
+            BookmarkBatchUpdate(bookmarkId = "bookmark-2", isFavorite = false)
+        )
+
+        bookmarkRepositoryImpl.updateBookmarks(updates)
+
+        coVerify { bookmarkDao.updateIsMarked("bookmark-1", true) }
+        coVerify { bookmarkDao.updateIsMarked("bookmark-2", false) }
+        coVerify {
+            pendingActionDao.insert(match {
+                it.bookmarkId == "bookmark-1" && it.actionType == ActionType.TOGGLE_FAVORITE
+            })
+        }
+        coVerify {
+            pendingActionDao.insert(match {
+                it.bookmarkId == "bookmark-2" && it.actionType == ActionType.TOGGLE_FAVORITE
+            })
+        }
+        verify(exactly = 1) { syncScheduler.scheduleActionSync() }
+    }
+
+    @Test
+    fun `updateBookmarks archive updates local rows queues actions and schedules sync once`() = runTest {
+        val updates = listOf(
+            BookmarkBatchUpdate(bookmarkId = "bookmark-1", isArchived = true),
+            BookmarkBatchUpdate(bookmarkId = "bookmark-2", isArchived = false)
+        )
+
+        bookmarkRepositoryImpl.updateBookmarks(updates)
+
+        coVerify { bookmarkDao.updateIsArchived("bookmark-1", true) }
+        coVerify { bookmarkDao.updateIsArchived("bookmark-2", false) }
+        coVerify {
+            pendingActionDao.insert(match {
+                it.bookmarkId == "bookmark-1" && it.actionType == ActionType.TOGGLE_ARCHIVE
+            })
+        }
+        coVerify {
+            pendingActionDao.insert(match {
+                it.bookmarkId == "bookmark-2" && it.actionType == ActionType.TOGGLE_ARCHIVE
+            })
+        }
+        verify(exactly = 1) { syncScheduler.scheduleActionSync() }
+    }
+
+    @Test
     fun `deleteBookmark performs soft delete and queues action`() = runTest {
         // Arrange
         val bookmarkId = "123"
@@ -808,6 +856,55 @@ class BookmarkRepositoryImplTest {
         val result = bookmarkRepositoryImpl.deleteLabel("work")
 
         assertTrue(result is BookmarkRepository.UpdateResult.Error)
+    }
+
+    @Test
+    fun `addLabelsToBookmarks unions labels, preserves existing, and returns prior labels of changed`() = runTest {
+        val bk1 = bookmarkDto.copy(id = "bk-1").toDomain().copy(labels = listOf("home")).toEntity()
+        val bk2 = bookmarkDto.copy(id = "bk-2").toDomain().copy(labels = listOf("work")).toEntity()
+        coEvery { bookmarkDao.getAllBookmarksWithContent() } returns listOf(bk1, bk2)
+
+        val prior = bookmarkRepositoryImpl.addLabelsToBookmarks(listOf("bk-1", "bk-2"), listOf("work"))
+
+        // bk-1 gains "work" (kept "home"); bk-2 already had "work" → no-op.
+        assertEquals(mapOf("bk-1" to listOf("home")), prior)
+        coVerify(exactly = 1) {
+            bookmarkDao.updateLabels("bk-1", match { it.contains("home") && it.contains("work") })
+        }
+        coVerify(exactly = 0) { bookmarkDao.updateLabels("bk-2", any()) }
+        verify { syncScheduler.scheduleActionSync() }
+    }
+
+    @Test
+    fun `addLabelsToBookmarks collapses duplicates and is a no-op when nothing changes`() = runTest {
+        val bk1 = bookmarkDto.copy(id = "bk-1").toDomain().copy(labels = listOf("work", "home")).toEntity()
+        coEvery { bookmarkDao.getAllBookmarksWithContent() } returns listOf(bk1)
+
+        val prior = bookmarkRepositoryImpl.addLabelsToBookmarks(listOf("bk-1"), listOf("work", "home"))
+
+        assertTrue(prior.isEmpty())
+        coVerify(exactly = 0) { bookmarkDao.updateLabels(any(), any()) }
+        verify(exactly = 0) { syncScheduler.scheduleActionSync() }
+    }
+
+    @Test
+    fun `addLabelsToBookmarks is a no-op for empty labels`() = runTest {
+        val prior = bookmarkRepositoryImpl.addLabelsToBookmarks(listOf("bk-1"), emptyList())
+
+        assertTrue(prior.isEmpty())
+        coVerify(exactly = 0) { bookmarkDao.getAllBookmarksWithContent() }
+        coVerify(exactly = 0) { bookmarkDao.updateLabels(any(), any()) }
+    }
+
+    @Test
+    fun `restoreBookmarkLabels writes captured prior labels and schedules sync`() = runTest {
+        bookmarkRepositoryImpl.restoreBookmarkLabels(
+            mapOf("bk-1" to listOf("home"), "bk-2" to emptyList())
+        )
+
+        coVerify(exactly = 1) { bookmarkDao.updateLabels("bk-1", match { it.contains("home") }) }
+        coVerify(exactly = 1) { bookmarkDao.updateLabels("bk-2", any()) }
+        verify { syncScheduler.scheduleActionSync() }
     }
 
     // ── Single-bookmark operations ────────────────────────────────────────────

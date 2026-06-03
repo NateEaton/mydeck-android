@@ -196,7 +196,24 @@
     <!-- Bookmark Card Actions -->
     <string name="action_favorite">Favorito</string>
     <string name="action_archive">Arquivo</string>
-    <string name="action_add_to_favorites">Adicionar aos favoritos</string>
+    <string name="action_select_bookmarks">Select bookmarks</string>
+    <string name="multi_select_deleted_count">%1$d bookmarks deleted</string>
+    <string name="multi_select_labels_added">Labels added to %1$d bookmarks</string>
+    <string name="action_exit_selection_mode">Exit selection mode</string>
+    <string name="action_select_bookmark">Select bookmark</string>
+    <string name="action_deselect_bookmark">Deselect bookmark</string>
+    <string name="action_select_all">Select all</string>
+    <string name="action_deselect_all">Deselect all</string>
+    <string name="bookmark_state_favorited">Favorited</string>
+    <string name="bookmark_state_not_favorited">Not favorited</string>
+    <string name="bookmark_state_archived">Archived</string>
+    <string name="bookmark_state_not_archived">Not archived</string>
+    <string name="selected_bookmark_count">%1$d selected</string>
+    <string name="multi_select_set_as_favorite">%1$d set as favorite</string>
+    <string name="multi_select_unset_as_favorite">%1$d unset as favorite</string>
+    <string name="multi_select_set_as_archived">%1$d set as archived</string>
+    <string name="multi_select_unset_as_archived">%1$d unset as archived</string>
+    <string name="action_add_to_favorites">Add favorite</string>
     <string name="action_remove_from_favorites">Remover favorito</string>
     <string name="action_add_to_archive">Arquivar</string>
     <string name="action_remove_from_archive">Desarquivar</string>

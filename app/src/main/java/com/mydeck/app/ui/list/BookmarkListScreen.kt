@@ -26,14 +26,23 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.SwapVert
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.Apps
+import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
+import androidx.compose.material.icons.filled.RadioButtonUnchecked
+import androidx.compose.material.icons.filled.SelectAll
+import androidx.compose.material.icons.filled.Deselect
+import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.FavoriteBorder
+import androidx.compose.material.icons.outlined.Inventory2
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.automirrored.outlined.Label
 import androidx.compose.material.icons.outlined.Bookmarks
@@ -46,6 +55,7 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.DrawerState
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -159,11 +169,13 @@ fun BookmarkListScreen(
     val labelsWithCounts = viewModel.labelsWithCounts.collectAsState()
     val isLabelsSheetOpen = viewModel.isLabelsSheetOpen.collectAsState()
     val pendingDeletionBookmarkIds = viewModel.pendingDeletionBookmarkIds.collectAsState()
+    val pendingBatchDeletionBookmarkIds = viewModel.pendingBatchDeletionBookmarkIds.collectAsState()
+    val multiSelectState = viewModel.multiSelectState.collectAsState()
+    val multiSelectTargets = viewModel.multiSelectTargets.collectAsState()
+    val showAddLabelsPicker = viewModel.showAddLabelsPicker.collectAsState()
     val swipeConfig = viewModel.swipeConfig.collectAsState()
 
-    var showLayoutMenu by remember { mutableStateOf(false) }
-    var showSortMenu by remember { mutableStateOf(false) }
-    var showOverflowMenu by remember { mutableStateOf(false) }
+    var showSelectionOverflowMenu by remember { mutableStateOf(false) }
     var showRenameLabelDialog by remember { mutableStateOf(false) }
     var showDeleteLabelDialog by remember { mutableStateOf(false) }
     var scrollToTopTrigger by remember { mutableStateOf(0) }
@@ -181,6 +193,7 @@ fun BookmarkListScreen(
     val syncFraction by viewModel.syncFraction.collectAsState()
 
     val isLabelMode = activeLabel.value != null
+    val isMultiSelectMode = multiSelectState.value.active
     val dismissPendingDeleteSnackbar: () -> Unit = {
         snackbarHostState.currentSnackbarData?.dismiss()
     }
@@ -421,6 +434,38 @@ fun BookmarkListScreen(
         }
     }
 
+    val resources = context.resources
+    LaunchedEffect(Unit) {
+        viewModel.batchActionSnackbarEvent.collect { event ->
+            snackbarHostState.currentSnackbarData?.dismiss()
+            val stringRes = when (event) {
+                is BatchActionSnackbarEvent.FavoritesAdded -> R.string.multi_select_set_as_favorite
+                is BatchActionSnackbarEvent.FavoritesRemoved -> R.string.multi_select_unset_as_favorite
+                is BatchActionSnackbarEvent.Archived -> R.string.multi_select_set_as_archived
+                is BatchActionSnackbarEvent.Unarchived -> R.string.multi_select_unset_as_archived
+                is BatchActionSnackbarEvent.LabelsAdded -> R.string.multi_select_labels_added
+                is BatchActionSnackbarEvent.Deleted -> R.string.multi_select_deleted_count
+            }
+            // Delete is destructive and staged, so it stays until the user acts or interacts
+            // elsewhere (matching single-item delete); favorite/archive are already applied.
+            val duration = if (event is BatchActionSnackbarEvent.Deleted) {
+                SnackbarDuration.Indefinite
+            } else {
+                SnackbarDuration.Long
+            }
+            val result = snackbarHostState.showSnackbar(
+                message = resources.getString(stringRes, event.count),
+                actionLabel = undoActionLabel,
+                duration = duration
+            )
+            if (result == androidx.compose.material3.SnackbarResult.ActionPerformed) {
+                viewModel.onUndoBatchAction(event)
+            } else {
+                viewModel.onConfirmBatchAction(event)
+            }
+        }
+    }
+
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_STOP) {
@@ -431,6 +476,12 @@ fun BookmarkListScreen(
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose {
             lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+
+    DisposableEffect(viewModel) {
+        onDispose {
+            viewModel.onExitMultiSelectMode()
         }
     }
 
@@ -470,7 +521,14 @@ fun BookmarkListScreen(
             Column {
             TopAppBar(
                 title = {
-                    if (isLabelMode) {
+                    if (isMultiSelectMode) {
+                        Text(
+                            text = stringResource(
+                                R.string.selected_bookmark_count,
+                                multiSelectState.value.selectedCount
+                            )
+                        )
+                    } else if (isLabelMode) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier.clickable {
@@ -498,7 +556,19 @@ fun BookmarkListScreen(
                     }
                 },
                 navigationIcon = {
-                    if (showNavigationIcon) {
+                    if (isMultiSelectMode) {
+                        IconButton(
+                            onClick = {
+                                dismissPendingDeleteSnackbar()
+                                viewModel.onExitMultiSelectMode()
+                            }
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Clear,
+                                contentDescription = stringResource(R.string.action_exit_selection_mode)
+                            )
+                        }
+                    } else if (showNavigationIcon) {
                         IconButton(
                             onClick = {
                                 dismissPendingDeleteSnackbar()
@@ -513,146 +583,131 @@ fun BookmarkListScreen(
                     }
                 },
                 actions = {
-                    // Layout button with dropdown — icon reflects current mode
-                    Box {
-                        val currentLayoutIcon = when (layoutMode.value) {
-                            LayoutMode.GRID -> Icons.Filled.Apps
-                            LayoutMode.COMPACT -> Icons.AutoMirrored.Filled.List
-                            LayoutMode.MOSAIC -> Icons.Filled.GridView
+                    if (isMultiSelectMode) {
+                        val targets = multiSelectTargets.value
+                        if (multiSelectState.value.hasSelection) {
+                            // Archive slot: shows Unarchive when all selected are already
+                            // archived (one-tap reversal); otherwise shows Archive.
+                            val archiveBarIsRemove = targets.selectedAllArchived
+                            IconButton(
+                                onClick = {
+                                    dismissPendingDeleteSnackbar()
+                                    hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    if (archiveBarIsRemove) {
+                                        viewModel.onUnarchiveSelectedBookmarks()
+                                    } else {
+                                        viewModel.onArchiveSelectedBookmarks()
+                                    }
+                                }
+                            ) {
+                                Icon(
+                                    imageVector = if (archiveBarIsRemove) Icons.Outlined.Inventory2 else Icons.Filled.Inventory2,
+                                    contentDescription = stringResource(
+                                        if (archiveBarIsRemove) R.string.action_remove_from_archive
+                                        else R.string.action_add_to_archive
+                                    )
+                                )
+                            }
+                            // Favorite slot: shows Remove-favorite when all selected are already
+                            // favorited (one-tap reversal); otherwise shows Add-favorite.
+                            val favoriteBarIsRemove = targets.selectedAllFavorited
+                            IconButton(
+                                onClick = {
+                                    dismissPendingDeleteSnackbar()
+                                    hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    if (favoriteBarIsRemove) {
+                                        viewModel.onUnfavoriteSelectedBookmarks()
+                                    } else {
+                                        viewModel.onFavoriteSelectedBookmarks()
+                                    }
+                                }
+                            ) {
+                                Icon(
+                                    imageVector = if (favoriteBarIsRemove) Icons.Outlined.FavoriteBorder else Icons.Filled.Favorite,
+                                    contentDescription = stringResource(
+                                        if (favoriteBarIsRemove) R.string.action_remove_from_favorites
+                                        else R.string.action_add_to_favorites
+                                    )
+                                )
+                            }
                         }
-                        IconButton(onClick = {
-                            dismissPendingDeleteSnackbar()
-                            showLayoutMenu = true
-                        }) {
-                            Icon(currentLayoutIcon, contentDescription = stringResource(R.string.layout))
-                        }
-                        DropdownMenu(
-                            expanded = showLayoutMenu,
-                            onDismissRequest = { showLayoutMenu = false }
-                        ) {
-                            LayoutMode.entries.forEach { mode ->
+                        Box {
+                            IconButton(onClick = { showSelectionOverflowMenu = true }) {
+                                Icon(
+                                    Icons.Filled.MoreVert,
+                                    contentDescription = stringResource(R.string.more_options)
+                                )
+                            }
+                            DropdownMenu(
+                                expanded = showSelectionOverflowMenu,
+                                onDismissRequest = { showSelectionOverflowMenu = false }
+                            ) {
+                                if (multiSelectState.value.hasSelection) {
+                                    DropdownMenuItem(
+                                        leadingIcon = {
+                                            Icon(
+                                                imageVector = Icons.Filled.Delete,
+                                                contentDescription = null
+                                            )
+                                        },
+                                        text = { Text(stringResource(R.string.action_delete)) },
+                                        onClick = {
+                                            showSelectionOverflowMenu = false
+                                            dismissPendingDeleteSnackbar()
+                                            hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                                            viewModel.onDeleteSelectedBookmarks()
+                                        }
+                                    )
+                                    DropdownMenuItem(
+                                        leadingIcon = {
+                                            Icon(
+                                                imageVector = Icons.AutoMirrored.Outlined.Label,
+                                                contentDescription = null
+                                            )
+                                        },
+                                        text = { Text(stringResource(R.string.add_labels)) },
+                                        onClick = {
+                                            showSelectionOverflowMenu = false
+                                            dismissPendingDeleteSnackbar()
+                                            viewModel.onAddLabelsToSelection()
+                                        }
+                                    )
+                                }
+                                val allSelected = targets.allVisibleSelected
                                 DropdownMenuItem(
                                     leadingIcon = {
                                         Icon(
-                                            imageVector = when (mode) {
-                                                LayoutMode.GRID -> Icons.Filled.Apps
-                                                LayoutMode.COMPACT -> Icons.AutoMirrored.Filled.List
-                                                LayoutMode.MOSAIC -> Icons.Filled.GridView
-                                            },
+                                            imageVector = if (allSelected) Icons.Filled.Deselect else Icons.Filled.SelectAll,
                                             contentDescription = null
                                         )
                                     },
                                     text = {
-                                        Text(
-                                            text = mode.displayName,
-                                            fontWeight = if (mode == layoutMode.value) FontWeight.Bold else FontWeight.Normal
-                                        )
+                                        Text(stringResource(
+                                            if (allSelected) R.string.action_deselect_all
+                                            else R.string.action_select_all
+                                        ))
                                     },
                                     onClick = {
-                                        viewModel.onLayoutModeSelected(mode)
-                                        showLayoutMenu = false
-                                    }
-                                )
-                            }
-                        }
-                    }
-
-                    // Sort button with dropdown — one row per category, arrow shows direction of active sort
-                    Box {
-                        IconButton(onClick = {
-                            dismissPendingDeleteSnackbar()
-                            showSortMenu = true
-                        }) {
-                            Icon(Icons.Filled.SwapVert, contentDescription = stringResource(R.string.sort))
-                        }
-                        DropdownMenu(
-                            expanded = showSortMenu,
-                            onDismissRequest = { showSortMenu = false }
-                        ) {
-                            // Groups: (label, descOption, ascOption)
-                            val sortGroups = listOf(
-                                Triple("Added", SortOption.ADDED_NEWEST, SortOption.ADDED_OLDEST),
-                                Triple("Published", SortOption.PUBLISHED_NEWEST, SortOption.PUBLISHED_OLDEST),
-                                Triple("Title", SortOption.TITLE_A_TO_Z, SortOption.TITLE_Z_TO_A),
-                                Triple("Site name", SortOption.SITE_A_TO_Z, SortOption.SITE_Z_TO_A),
-                                Triple("Duration", SortOption.DURATION_LONGEST, SortOption.DURATION_SHORTEST)
-                            )
-                            sortGroups.forEach { (label, firstOption, secondOption) ->
-                                val isFirstSelected = sortOption.value == firstOption
-                                val isSecondSelected = sortOption.value == secondOption
-                                val isGroupSelected = isFirstSelected || isSecondSelected
-                                val activeOption = if (isSecondSelected) secondOption else firstOption
-                                val isDescending = activeOption.sqlOrderBy.contains("DESC")
-                                DropdownMenuItem(
-                                    leadingIcon = {
-                                        if (isGroupSelected) {
-                                            Icon(
-                                                imageVector = if (isDescending) Icons.Filled.ArrowDownward else Icons.Filled.ArrowUpward,
-                                                contentDescription = null,
-                                                tint = MaterialTheme.colorScheme.primary
-                                            )
-                                        } else {
-                                            Spacer(Modifier.size(24.dp))
-                                        }
-                                    },
-                                    text = {
-                                        Text(
-                                            text = label,
-                                            color = if (isGroupSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
-                                            fontWeight = if (isGroupSelected) FontWeight.Bold else FontWeight.Normal
-                                        )
-                                    },
-                                    onClick = {
-                                        val newOption = when {
-                                            isFirstSelected -> secondOption  // toggle to other direction
-                                            isSecondSelected -> firstOption  // toggle back
-                                            else -> firstOption              // first tap: use default
-                                        }
-                                        viewModel.onSortOptionSelected(newOption)
-                                        showSortMenu = false
-                                    }
-                                )
-                            }
-                        }
-                    }
-
-                    if (isLabelMode) {
-                        // Overflow menu with Rename/Delete label options
-                        Box {
-                            IconButton(onClick = {
-                                dismissPendingDeleteSnackbar()
-                                showOverflowMenu = true
-                            }) {
-                                Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.more_options))
-                            }
-                            DropdownMenu(
-                                expanded = showOverflowMenu,
-                                onDismissRequest = { showOverflowMenu = false }
-                            ) {
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.rename_label)) },
-                                    onClick = {
-                                        showRenameLabelDialog = true
-                                        showOverflowMenu = false
-                                    }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.delete_label)) },
-                                    onClick = {
-                                        showDeleteLabelDialog = true
-                                        showOverflowMenu = false
+                                        showSelectionOverflowMenu = false
+                                        dismissPendingDeleteSnackbar()
+                                        viewModel.onToggleSelectAllBookmarks()
                                     }
                                 )
                             }
                         }
                     } else {
-                        // Filter button (non-label mode only)
-                        IconButton(onClick = {
-                            dismissPendingDeleteSnackbar()
-                            viewModel.onOpenFilterSheet()
-                        }) {
-                            Icon(Icons.Filled.FilterList, contentDescription = stringResource(R.string.filter_bookmarks))
-                        }
+                    BookmarkListBarActions(
+                        isLabelMode = isLabelMode,
+                        layoutMode = layoutMode.value,
+                        sortOption = sortOption.value,
+                        onLayoutModeSelected = { viewModel.onLayoutModeSelected(it) },
+                        onSortOptionSelected = { viewModel.onSortOptionSelected(it) },
+                        onDismissPendingDelete = dismissPendingDeleteSnackbar,
+                        onOpenFilterSheet = { viewModel.onOpenFilterSheet() },
+                        onEnterMultiSelectMode = { viewModel.onEnterMultiSelectMode() },
+                        onRequestRenameLabel = { showRenameLabelDialog = true },
+                        onRequestDeleteLabel = { showDeleteLabelDialog = true },
+                    )
                     }
                 }
             )
@@ -666,22 +721,25 @@ fun BookmarkListScreen(
             }
         },
         floatingActionButton = {
-            val clipboardManager = LocalClipboardManager.current
-            FloatingActionButton(
-                onClick = {
-                    dismissPendingDeleteSnackbar()
-                    val clipboardText = clipboardManager.getText()?.text
-                    viewModel.openCreateBookmarkDialog(clipboardText)
+            if (!isMultiSelectMode) {
+                val clipboardManager = LocalClipboardManager.current
+                FloatingActionButton(
+                    onClick = {
+                        dismissPendingDeleteSnackbar()
+                        val clipboardText = clipboardManager.getText()?.text
+                        viewModel.openCreateBookmarkDialog(clipboardText)
+                    }
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Add,
+                        contentDescription = stringResource(id = R.string.add_bookmark)
+                    )
                 }
-            ) {
-                Icon(
-                    imageVector = Icons.Filled.Add,
-                    contentDescription = stringResource(id = R.string.add_bookmark)
-                )
             }
         }
     ) { padding ->
-        val hasPendingDeletion = pendingDeletionBookmarkIds.value.isNotEmpty()
+        val allPendingDeletionIds = pendingDeletionBookmarkIds.value.toSet() + pendingBatchDeletionBookmarkIds.value
+        val hasPendingDeletion = allPendingDeletionIds.isNotEmpty()
         Column(
             modifier = Modifier
                 .padding(padding)
@@ -701,7 +759,7 @@ fun BookmarkListScreen(
                 }
         ) {
             // FilterBar: visible when filters are active beyond preset defaults, not in label mode
-            if (!isLabelMode) {
+            if (!isLabelMode && !isMultiSelectMode) {
                 FilterBar(
                     filterFormState = filterFormState.value,
                     drawerPreset = drawerPreset.value,
@@ -740,9 +798,12 @@ fun BookmarkListScreen(
                                 scrollToTopTrigger = scrollToTopTrigger,
                                 layoutMode = layoutMode.value,
                                 bookmarks = uiState.bookmarks,
-                                pendingDeletionBookmarkIds = pendingDeletionBookmarkIds.value.toSet(),
+                                pendingDeletionBookmarkIds = allPendingDeletionIds,
+                                isMultiSelectMode = isMultiSelectMode,
+                                selectedBookmarkIds = multiSelectState.value.selectedIds,
                                 swipeConfig = swipeConfig.value,
                                 onClickBookmark = onClickBookmark,
+                                onToggleBookmarkSelection = { viewModel.onToggleBookmarkSelected(it) },
                                 onClickDelete = onClickDelete,
                                 onClickArchive = onClickArchive,
                                 onClickFavorite = onClickFavorite,
@@ -859,6 +920,23 @@ fun BookmarkListScreen(
         )
     }
 
+    // Multi-select: Add labels picker (additive union applied to the captured selection).
+    // The mode is remembered so it stays referentially stable across this screen's frequent
+    // recompositions; otherwise the sheet's remember(mode) would reset the in-progress selection.
+    if (showAddLabelsPicker.value) {
+        val addLabelsMode = remember {
+            LabelPickerMode.MultiSelect(
+                initialSelection = emptySet(),
+                onDone = { chosen -> viewModel.onLabelsPicked(chosen) }
+            )
+        }
+        LabelPickerBottomSheet(
+            labels = labelsWithCounts.value,
+            mode = addLabelsMode,
+            onDismiss = { viewModel.onDismissAddLabelsPicker() }
+        )
+    }
+
     // Label mode: Rename label dialog (from TopAppBar overflow menu)
     if (showRenameLabelDialog && activeLabel.value != null) {
         val currentLabel = activeLabel.value!!
@@ -936,6 +1014,198 @@ fun BookmarkListScreen(
                 }
             }
         )
+    }
+}
+
+/**
+ * The normal / label-mode top-app-bar actions row (Layout, Sort, Overflow).
+ * Extracted as a standalone composable so it can be tested in isolation without
+ * wiring up a full BookmarkListViewModel.
+ */
+@Composable
+internal fun BookmarkListBarActions(
+    isLabelMode: Boolean,
+    layoutMode: LayoutMode,
+    sortOption: SortOption,
+    onLayoutModeSelected: (LayoutMode) -> Unit,
+    onSortOptionSelected: (SortOption) -> Unit,
+    onDismissPendingDelete: () -> Unit = {},
+    onOpenFilterSheet: () -> Unit,
+    onEnterMultiSelectMode: () -> Unit,
+    onRequestRenameLabel: () -> Unit,
+    onRequestDeleteLabel: () -> Unit,
+) {
+    var showLayoutMenu by remember { mutableStateOf(false) }
+    var showSortMenu by remember { mutableStateOf(false) }
+    var showOverflowMenu by remember { mutableStateOf(false) }
+
+    // Layout button with dropdown — icon reflects current mode
+    Box {
+        val currentLayoutIcon = when (layoutMode) {
+            LayoutMode.GRID -> Icons.Filled.Apps
+            LayoutMode.COMPACT -> Icons.AutoMirrored.Filled.List
+            LayoutMode.MOSAIC -> Icons.Filled.GridView
+        }
+        IconButton(onClick = {
+            onDismissPendingDelete()
+            showLayoutMenu = true
+        }) {
+            Icon(currentLayoutIcon, contentDescription = stringResource(R.string.layout))
+        }
+        DropdownMenu(
+            expanded = showLayoutMenu,
+            onDismissRequest = { showLayoutMenu = false }
+        ) {
+            LayoutMode.entries.forEach { mode ->
+                DropdownMenuItem(
+                    leadingIcon = {
+                        Icon(
+                            imageVector = when (mode) {
+                                LayoutMode.GRID -> Icons.Filled.Apps
+                                LayoutMode.COMPACT -> Icons.AutoMirrored.Filled.List
+                                LayoutMode.MOSAIC -> Icons.Filled.GridView
+                            },
+                            contentDescription = null
+                        )
+                    },
+                    text = {
+                        Text(
+                            text = mode.displayName,
+                            fontWeight = if (mode == layoutMode) FontWeight.Bold else FontWeight.Normal
+                        )
+                    },
+                    onClick = {
+                        onLayoutModeSelected(mode)
+                        showLayoutMenu = false
+                    }
+                )
+            }
+        }
+    }
+
+    // Sort button with dropdown — one row per category, arrow shows direction of active sort
+    Box {
+        IconButton(onClick = {
+            onDismissPendingDelete()
+            showSortMenu = true
+        }) {
+            Icon(Icons.Filled.SwapVert, contentDescription = stringResource(R.string.sort))
+        }
+        DropdownMenu(
+            expanded = showSortMenu,
+            onDismissRequest = { showSortMenu = false }
+        ) {
+            // Groups: (label, descOption, ascOption)
+            val sortGroups = listOf(
+                Triple("Added", SortOption.ADDED_NEWEST, SortOption.ADDED_OLDEST),
+                Triple("Published", SortOption.PUBLISHED_NEWEST, SortOption.PUBLISHED_OLDEST),
+                Triple("Title", SortOption.TITLE_A_TO_Z, SortOption.TITLE_Z_TO_A),
+                Triple("Site name", SortOption.SITE_A_TO_Z, SortOption.SITE_Z_TO_A),
+                Triple("Duration", SortOption.DURATION_LONGEST, SortOption.DURATION_SHORTEST)
+            )
+            sortGroups.forEach { (label, firstOption, secondOption) ->
+                val isFirstSelected = sortOption == firstOption
+                val isSecondSelected = sortOption == secondOption
+                val isGroupSelected = isFirstSelected || isSecondSelected
+                val activeOption = if (isSecondSelected) secondOption else firstOption
+                val isDescending = activeOption.sqlOrderBy.contains("DESC")
+                DropdownMenuItem(
+                    leadingIcon = {
+                        if (isGroupSelected) {
+                            Icon(
+                                imageVector = if (isDescending) Icons.Filled.ArrowDownward else Icons.Filled.ArrowUpward,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        } else {
+                            Spacer(Modifier.size(24.dp))
+                        }
+                    },
+                    text = {
+                        Text(
+                            text = label,
+                            color = if (isGroupSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                            fontWeight = if (isGroupSelected) FontWeight.Bold else FontWeight.Normal
+                        )
+                    },
+                    onClick = {
+                        val newOption = when {
+                            isFirstSelected -> secondOption  // toggle to other direction
+                            isSecondSelected -> firstOption  // toggle back
+                            else -> firstOption              // first tap: use default
+                        }
+                        onSortOptionSelected(newOption)
+                        showSortMenu = false
+                    }
+                )
+            }
+        }
+    }
+
+    // Overflow menu — always present; same bar shape in normal and label modes.
+    // Label mode lists Rename/Delete label (label-scoped) above a divider, then
+    // Select bookmarks. Normal mode lists Filter, then Select bookmarks (no Filter
+    // in label mode — the label itself is the filter).
+    Box {
+        IconButton(onClick = {
+            onDismissPendingDelete()
+            showOverflowMenu = true
+        }) {
+            Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.more_options))
+        }
+        DropdownMenu(
+            expanded = showOverflowMenu,
+            onDismissRequest = { showOverflowMenu = false }
+        ) {
+            if (isLabelMode) {
+                DropdownMenuItem(
+                    leadingIcon = {
+                        Icon(Icons.Outlined.Edit, contentDescription = null)
+                    },
+                    text = { Text(stringResource(R.string.rename_label)) },
+                    onClick = {
+                        onRequestRenameLabel()
+                        showOverflowMenu = false
+                    }
+                )
+                DropdownMenuItem(
+                    leadingIcon = {
+                        Icon(Icons.Outlined.Delete, contentDescription = null)
+                    },
+                    text = { Text(stringResource(R.string.delete_label)) },
+                    onClick = {
+                        onRequestDeleteLabel()
+                        showOverflowMenu = false
+                    }
+                )
+                HorizontalDivider()
+            } else {
+                DropdownMenuItem(
+                    leadingIcon = {
+                        Icon(Icons.Filled.FilterList, contentDescription = null)
+                    },
+                    text = { Text(stringResource(R.string.filter_bookmarks)) },
+                    onClick = {
+                        showOverflowMenu = false
+                        onDismissPendingDelete()
+                        onOpenFilterSheet()
+                    }
+                )
+            }
+            DropdownMenuItem(
+                leadingIcon = {
+                    Icon(Icons.Filled.RadioButtonUnchecked, contentDescription = null)
+                },
+                text = { Text(stringResource(R.string.action_select_bookmarks)) },
+                onClick = {
+                    showOverflowMenu = false
+                    showLayoutMenu = false
+                    showSortMenu = false
+                    onDismissPendingDelete()
+                    onEnterMultiSelectMode()
+                }
+            )
+        }
     }
 }
 
@@ -1023,9 +1293,12 @@ fun BookmarkListView(
     layoutMode: LayoutMode = LayoutMode.GRID,
     bookmarks: List<BookmarkListItem>,
     pendingDeletionBookmarkIds: Set<String> = emptySet(),
+    isMultiSelectMode: Boolean = false,
+    selectedBookmarkIds: Set<String> = emptySet(),
     swipeConfig: SwipeConfig = SwipeConfig.Default,
     isMultiColumn: Boolean = LocalIsWideLayout.current,
     onClickBookmark: (String) -> Unit,
+    onToggleBookmarkSelection: (String) -> Unit = {},
     onClickDelete: (String) -> Unit,
     onClickFavorite: (String, Boolean) -> Unit,
     onClickArchive: (String, Boolean) -> Unit,
@@ -1082,6 +1355,15 @@ fun BookmarkListView(
                     val noop2: (String, Boolean) -> Unit = { _, _ -> }
                     val noop2s: (String, String) -> Unit = { _, _ -> }
                     val noopShare: (String, String) -> Unit = { _, _ -> }
+                    val isSelected = bookmark.id in selectedBookmarkIds
+                    val selectionModeForCard = isMultiSelectMode && !isPendingDeletion
+                    val selectBookmark: (String) -> Unit = { onToggleBookmarkSelection(it) }
+                    val cardClick = when {
+                        isPendingDeletion -> confirmDelete
+                        selectionModeForCard -> selectBookmark
+                        else -> onClickBookmark
+                    }
+                    val actionsDisabled = isPendingDeletion || selectionModeForCard
                     SwipeWrappedBookmark(
                         bookmark = bookmark,
                         isPendingDeletion = isPendingDeletion,
@@ -1095,60 +1377,69 @@ fun BookmarkListView(
                         when (layoutMode) {
                             LayoutMode.GRID -> BookmarkGridCard(
                                 bookmark = bookmark,
-                                onClickCard = if (isPendingDeletion) confirmDelete else onClickBookmark,
-                                onClickDelete = if (isPendingDeletion) noop else onClickDelete,
-                                onClickArchive = if (isPendingDeletion) noop2 else onClickArchive,
-                                onClickFavorite = if (isPendingDeletion) noop2 else onClickFavorite,
-                                onClickLabel = if (isPendingDeletion) noop else onClickLabel,
-                                onClickOpenUrl = if (isPendingDeletion) noop else onClickOpenUrl,
-                                onClickOpenInBrowser = if (isPendingDeletion) noop else onClickOpenInBrowser,
-                                onClickCopyLink = if (isPendingDeletion) noop else onClickCopyLink,
-                                onClickCopyLinkText = if (isPendingDeletion) noop else onClickCopyLinkText,
-                                onClickShareLink = if (isPendingDeletion) noopShare else onClickShareLink,
-                                onClickOpenInBrowserFromMenu = if (isPendingDeletion) noop else onClickOpenInBrowserFromMenu,
-                                onClickCopyImage = if (isPendingDeletion) noop else onClickCopyImage,
-                                onClickDownloadLink = if (isPendingDeletion) noop2s else onClickDownloadLink,
-                                onClickDownloadImage = if (isPendingDeletion) noop else onClickDownloadImage,
-                                onClickShareImage = if (isPendingDeletion) noop else onClickShareImage,
+                                onClickCard = cardClick,
+                                onClickDelete = if (actionsDisabled) noop else onClickDelete,
+                                onClickArchive = if (actionsDisabled) noop2 else onClickArchive,
+                                onClickFavorite = if (actionsDisabled) noop2 else onClickFavorite,
+                                onClickLabel = if (actionsDisabled) noop else onClickLabel,
+                                onClickOpenUrl = if (actionsDisabled) noop else onClickOpenUrl,
+                                onClickOpenInBrowser = if (actionsDisabled) noop else onClickOpenInBrowser,
+                                onClickCopyLink = if (actionsDisabled) noop else onClickCopyLink,
+                                onClickCopyLinkText = if (actionsDisabled) noop else onClickCopyLinkText,
+                                onClickShareLink = if (actionsDisabled) noopShare else onClickShareLink,
+                                onClickOpenInBrowserFromMenu = if (actionsDisabled) noop else onClickOpenInBrowserFromMenu,
+                                onClickCopyImage = if (actionsDisabled) noop else onClickCopyImage,
+                                onClickDownloadLink = if (actionsDisabled) noop2s else onClickDownloadLink,
+                                onClickDownloadImage = if (actionsDisabled) noop else onClickDownloadImage,
+                                onClickShareImage = if (actionsDisabled) noop else onClickShareImage,
+                                isSelectionMode = selectionModeForCard,
+                                isSelected = isSelected,
+                                onToggleSelection = onToggleBookmarkSelection,
                                 isInGrid = true,
                                 index = index + 1,
                             )
                             LayoutMode.COMPACT -> BookmarkCompactCard(
                                 bookmark = bookmark,
-                                onClickCard = if (isPendingDeletion) confirmDelete else onClickBookmark,
-                                onClickDelete = if (isPendingDeletion) noop else onClickDelete,
-                                onClickArchive = if (isPendingDeletion) noop2 else onClickArchive,
-                                onClickFavorite = if (isPendingDeletion) noop2 else onClickFavorite,
-                                onClickLabel = if (isPendingDeletion) noop else onClickLabel,
-                                onClickOpenUrl = if (isPendingDeletion) noop else onClickOpenUrl,
-                                onClickOpenInBrowser = if (isPendingDeletion) noop else onClickOpenInBrowser,
-                                onClickCopyLink = if (isPendingDeletion) noop else onClickCopyLink,
-                                onClickCopyLinkText = if (isPendingDeletion) noop else onClickCopyLinkText,
-                                onClickShareLink = if (isPendingDeletion) noopShare else onClickShareLink,
-                                onClickOpenInBrowserFromMenu = if (isPendingDeletion) noop else onClickOpenInBrowserFromMenu,
-                                onClickCopyImage = if (isPendingDeletion) noop else onClickCopyImage,
-                                onClickDownloadLink = if (isPendingDeletion) noop2s else onClickDownloadLink,
-                                onClickDownloadImage = if (isPendingDeletion) noop else onClickDownloadImage,
-                                onClickShareImage = if (isPendingDeletion) noop else onClickShareImage,
+                                onClickCard = cardClick,
+                                onClickDelete = if (actionsDisabled) noop else onClickDelete,
+                                onClickArchive = if (actionsDisabled) noop2 else onClickArchive,
+                                onClickFavorite = if (actionsDisabled) noop2 else onClickFavorite,
+                                onClickLabel = if (actionsDisabled) noop else onClickLabel,
+                                onClickOpenUrl = if (actionsDisabled) noop else onClickOpenUrl,
+                                onClickOpenInBrowser = if (actionsDisabled) noop else onClickOpenInBrowser,
+                                onClickCopyLink = if (actionsDisabled) noop else onClickCopyLink,
+                                onClickCopyLinkText = if (actionsDisabled) noop else onClickCopyLinkText,
+                                onClickShareLink = if (actionsDisabled) noopShare else onClickShareLink,
+                                onClickOpenInBrowserFromMenu = if (actionsDisabled) noop else onClickOpenInBrowserFromMenu,
+                                onClickCopyImage = if (actionsDisabled) noop else onClickCopyImage,
+                                onClickDownloadLink = if (actionsDisabled) noop2s else onClickDownloadLink,
+                                onClickDownloadImage = if (actionsDisabled) noop else onClickDownloadImage,
+                                onClickShareImage = if (actionsDisabled) noop else onClickShareImage,
+                                isSelectionMode = selectionModeForCard,
+                                isSelected = isSelected,
+                                onToggleSelection = onToggleBookmarkSelection,
                                 index = index + 1,
                             )
                             LayoutMode.MOSAIC -> BookmarkMosaicCard(
                                 bookmark = bookmark,
-                                onClickCard = if (isPendingDeletion) confirmDelete else onClickBookmark,
-                                onClickDelete = if (isPendingDeletion) noop else onClickDelete,
-                                onClickArchive = if (isPendingDeletion) noop2 else onClickArchive,
-                                onClickFavorite = if (isPendingDeletion) noop2 else onClickFavorite,
-                                onClickLabel = if (isPendingDeletion) noop else onClickLabel,
-                                onClickOpenUrl = if (isPendingDeletion) noop else onClickOpenUrl,
-                                onClickOpenInBrowser = if (isPendingDeletion) noop else onClickOpenInBrowser,
-                                onClickCopyLink = if (isPendingDeletion) noop else onClickCopyLink,
-                                onClickCopyLinkText = if (isPendingDeletion) noop else onClickCopyLinkText,
-                                onClickShareLink = if (isPendingDeletion) noopShare else onClickShareLink,
-                                onClickOpenInBrowserFromMenu = if (isPendingDeletion) noop else onClickOpenInBrowserFromMenu,
-                                onClickCopyImage = if (isPendingDeletion) noop else onClickCopyImage,
-                                onClickDownloadLink = if (isPendingDeletion) noop2s else onClickDownloadLink,
-                                onClickDownloadImage = if (isPendingDeletion) noop else onClickDownloadImage,
-                                onClickShareImage = if (isPendingDeletion) noop else onClickShareImage,
+                                onClickCard = cardClick,
+                                onClickDelete = if (actionsDisabled) noop else onClickDelete,
+                                onClickArchive = if (actionsDisabled) noop2 else onClickArchive,
+                                onClickFavorite = if (actionsDisabled) noop2 else onClickFavorite,
+                                onClickLabel = if (actionsDisabled) noop else onClickLabel,
+                                onClickOpenUrl = if (actionsDisabled) noop else onClickOpenUrl,
+                                onClickOpenInBrowser = if (actionsDisabled) noop else onClickOpenInBrowser,
+                                onClickCopyLink = if (actionsDisabled) noop else onClickCopyLink,
+                                onClickCopyLinkText = if (actionsDisabled) noop else onClickCopyLinkText,
+                                onClickShareLink = if (actionsDisabled) noopShare else onClickShareLink,
+                                onClickOpenInBrowserFromMenu = if (actionsDisabled) noop else onClickOpenInBrowserFromMenu,
+                                onClickCopyImage = if (actionsDisabled) noop else onClickCopyImage,
+                                onClickDownloadLink = if (actionsDisabled) noop2s else onClickDownloadLink,
+                                onClickDownloadImage = if (actionsDisabled) noop else onClickDownloadImage,
+                                onClickShareImage = if (actionsDisabled) noop else onClickShareImage,
+                                isSelectionMode = selectionModeForCard,
+                                isSelected = isSelected,
+                                onToggleSelection = onToggleBookmarkSelection,
                                 index = index + 1,
                             )
                         }
@@ -1181,10 +1472,19 @@ fun BookmarkListView(
                     val noop2: (String, Boolean) -> Unit = { _, _ -> }
                     val noop2s: (String, String) -> Unit = { _, _ -> }
                     val noopShare: (String, String) -> Unit = { _, _ -> }
+                    val isSelected = bookmark.id in selectedBookmarkIds
+                    val selectionModeForCard = isMultiSelectMode && !isPendingDeletion
+                    val selectBookmark: (String) -> Unit = { onToggleBookmarkSelection(it) }
+                    val cardClick = when {
+                        isPendingDeletion -> confirmDelete
+                        selectionModeForCard -> selectBookmark
+                        else -> onClickBookmark
+                    }
+                    val actionsDisabled = isPendingDeletion || selectionModeForCard
                     SwipeWrappedBookmark(
                         bookmark = bookmark,
                         isPendingDeletion = isPendingDeletion,
-                        swipeConfig = swipeConfig,
+                        swipeConfig = if (isMultiSelectMode) swipeConfig.copy(enabled = false) else swipeConfig,
                         onClickArchive = onClickArchive,
                         onClickDelete = onClickDelete,
                         onClickFavorite = onClickFavorite,
@@ -1194,60 +1494,69 @@ fun BookmarkListView(
                         when (layoutMode) {
                             LayoutMode.GRID -> BookmarkGridCard(
                                 bookmark = bookmark,
-                                onClickCard = if (isPendingDeletion) confirmDelete else onClickBookmark,
-                                onClickDelete = if (isPendingDeletion) noop else onClickDelete,
-                                onClickArchive = if (isPendingDeletion) noop2 else onClickArchive,
-                                onClickFavorite = if (isPendingDeletion) noop2 else onClickFavorite,
-                                onClickLabel = if (isPendingDeletion) noop else onClickLabel,
-                                onClickOpenUrl = if (isPendingDeletion) noop else onClickOpenUrl,
-                                onClickOpenInBrowser = if (isPendingDeletion) noop else onClickOpenInBrowser,
-                                onClickCopyLink = if (isPendingDeletion) noop else onClickCopyLink,
-                                onClickCopyLinkText = if (isPendingDeletion) noop else onClickCopyLinkText,
-                                onClickShareLink = if (isPendingDeletion) noopShare else onClickShareLink,
-                                onClickOpenInBrowserFromMenu = if (isPendingDeletion) noop else onClickOpenInBrowserFromMenu,
-                                onClickCopyImage = if (isPendingDeletion) noop else onClickCopyImage,
-                                onClickDownloadLink = if (isPendingDeletion) noop2s else onClickDownloadLink,
-                                onClickDownloadImage = if (isPendingDeletion) noop else onClickDownloadImage,
-                                onClickShareImage = if (isPendingDeletion) noop else onClickShareImage,
+                                onClickCard = cardClick,
+                                onClickDelete = if (actionsDisabled) noop else onClickDelete,
+                                onClickArchive = if (actionsDisabled) noop2 else onClickArchive,
+                                onClickFavorite = if (actionsDisabled) noop2 else onClickFavorite,
+                                onClickLabel = if (actionsDisabled) noop else onClickLabel,
+                                onClickOpenUrl = if (actionsDisabled) noop else onClickOpenUrl,
+                                onClickOpenInBrowser = if (actionsDisabled) noop else onClickOpenInBrowser,
+                                onClickCopyLink = if (actionsDisabled) noop else onClickCopyLink,
+                                onClickCopyLinkText = if (actionsDisabled) noop else onClickCopyLinkText,
+                                onClickShareLink = if (actionsDisabled) noopShare else onClickShareLink,
+                                onClickOpenInBrowserFromMenu = if (actionsDisabled) noop else onClickOpenInBrowserFromMenu,
+                                onClickCopyImage = if (actionsDisabled) noop else onClickCopyImage,
+                                onClickDownloadLink = if (actionsDisabled) noop2s else onClickDownloadLink,
+                                onClickDownloadImage = if (actionsDisabled) noop else onClickDownloadImage,
+                                onClickShareImage = if (actionsDisabled) noop else onClickShareImage,
+                                isSelectionMode = selectionModeForCard,
+                                isSelected = isSelected,
+                                onToggleSelection = onToggleBookmarkSelection,
                                 useMobilePortraitLayout = useMobilePortraitGridLayout,
                                 index = index + 1,
                             )
                             LayoutMode.COMPACT -> BookmarkCompactCard(
                                 bookmark = bookmark,
-                                onClickCard = if (isPendingDeletion) confirmDelete else onClickBookmark,
-                                onClickDelete = if (isPendingDeletion) noop else onClickDelete,
-                                onClickArchive = if (isPendingDeletion) noop2 else onClickArchive,
-                                onClickFavorite = if (isPendingDeletion) noop2 else onClickFavorite,
-                                onClickLabel = if (isPendingDeletion) noop else onClickLabel,
-                                onClickOpenUrl = if (isPendingDeletion) noop else onClickOpenUrl,
-                                onClickOpenInBrowser = if (isPendingDeletion) noop else onClickOpenInBrowser,
-                                onClickCopyLink = if (isPendingDeletion) noop else onClickCopyLink,
-                                onClickCopyLinkText = if (isPendingDeletion) noop else onClickCopyLinkText,
-                                onClickShareLink = if (isPendingDeletion) noopShare else onClickShareLink,
-                                onClickOpenInBrowserFromMenu = if (isPendingDeletion) noop else onClickOpenInBrowserFromMenu,
-                                onClickCopyImage = if (isPendingDeletion) noop else onClickCopyImage,
-                                onClickDownloadLink = if (isPendingDeletion) noop2s else onClickDownloadLink,
-                                onClickDownloadImage = if (isPendingDeletion) noop else onClickDownloadImage,
-                                onClickShareImage = if (isPendingDeletion) noop else onClickShareImage,
+                                onClickCard = cardClick,
+                                onClickDelete = if (actionsDisabled) noop else onClickDelete,
+                                onClickArchive = if (actionsDisabled) noop2 else onClickArchive,
+                                onClickFavorite = if (actionsDisabled) noop2 else onClickFavorite,
+                                onClickLabel = if (actionsDisabled) noop else onClickLabel,
+                                onClickOpenUrl = if (actionsDisabled) noop else onClickOpenUrl,
+                                onClickOpenInBrowser = if (actionsDisabled) noop else onClickOpenInBrowser,
+                                onClickCopyLink = if (actionsDisabled) noop else onClickCopyLink,
+                                onClickCopyLinkText = if (actionsDisabled) noop else onClickCopyLinkText,
+                                onClickShareLink = if (actionsDisabled) noopShare else onClickShareLink,
+                                onClickOpenInBrowserFromMenu = if (actionsDisabled) noop else onClickOpenInBrowserFromMenu,
+                                onClickCopyImage = if (actionsDisabled) noop else onClickCopyImage,
+                                onClickDownloadLink = if (actionsDisabled) noop2s else onClickDownloadLink,
+                                onClickDownloadImage = if (actionsDisabled) noop else onClickDownloadImage,
+                                onClickShareImage = if (actionsDisabled) noop else onClickShareImage,
+                                isSelectionMode = selectionModeForCard,
+                                isSelected = isSelected,
+                                onToggleSelection = onToggleBookmarkSelection,
                                 index = index + 1,
                             )
                             LayoutMode.MOSAIC -> BookmarkMosaicCard(
                                 bookmark = bookmark,
-                                onClickCard = if (isPendingDeletion) confirmDelete else onClickBookmark,
-                                onClickDelete = if (isPendingDeletion) noop else onClickDelete,
-                                onClickArchive = if (isPendingDeletion) noop2 else onClickArchive,
-                                onClickFavorite = if (isPendingDeletion) noop2 else onClickFavorite,
-                                onClickLabel = if (isPendingDeletion) noop else onClickLabel,
-                                onClickOpenUrl = if (isPendingDeletion) noop else onClickOpenUrl,
-                                onClickOpenInBrowser = if (isPendingDeletion) noop else onClickOpenInBrowser,
-                                onClickCopyLink = if (isPendingDeletion) noop else onClickCopyLink,
-                                onClickCopyLinkText = if (isPendingDeletion) noop else onClickCopyLinkText,
-                                onClickShareLink = if (isPendingDeletion) noopShare else onClickShareLink,
-                                onClickOpenInBrowserFromMenu = if (isPendingDeletion) noop else onClickOpenInBrowserFromMenu,
-                                onClickCopyImage = if (isPendingDeletion) noop else onClickCopyImage,
-                                onClickDownloadLink = if (isPendingDeletion) noop2s else onClickDownloadLink,
-                                onClickDownloadImage = if (isPendingDeletion) noop else onClickDownloadImage,
-                                onClickShareImage = if (isPendingDeletion) noop else onClickShareImage,
+                                onClickCard = cardClick,
+                                onClickDelete = if (actionsDisabled) noop else onClickDelete,
+                                onClickArchive = if (actionsDisabled) noop2 else onClickArchive,
+                                onClickFavorite = if (actionsDisabled) noop2 else onClickFavorite,
+                                onClickLabel = if (actionsDisabled) noop else onClickLabel,
+                                onClickOpenUrl = if (actionsDisabled) noop else onClickOpenUrl,
+                                onClickOpenInBrowser = if (actionsDisabled) noop else onClickOpenInBrowser,
+                                onClickCopyLink = if (actionsDisabled) noop else onClickCopyLink,
+                                onClickCopyLinkText = if (actionsDisabled) noop else onClickCopyLinkText,
+                                onClickShareLink = if (actionsDisabled) noopShare else onClickShareLink,
+                                onClickOpenInBrowserFromMenu = if (actionsDisabled) noop else onClickOpenInBrowserFromMenu,
+                                onClickCopyImage = if (actionsDisabled) noop else onClickCopyImage,
+                                onClickDownloadLink = if (actionsDisabled) noop2s else onClickDownloadLink,
+                                onClickDownloadImage = if (actionsDisabled) noop else onClickDownloadImage,
+                                onClickShareImage = if (actionsDisabled) noop else onClickShareImage,
+                                isSelectionMode = selectionModeForCard,
+                                isSelected = isSelected,
+                                onToggleSelection = onToggleBookmarkSelection,
                                 index = index + 1,
                             )
                         }
