@@ -16,9 +16,14 @@ import android.webkit.WebChromeClient
 import android.webkit.WebView
 import android.widget.FrameLayout
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.Crossfade
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.animation.core.animate
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.clickable
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.Download
@@ -26,7 +31,6 @@ import com.mydeck.app.ui.components.LongPressContextMenuDialog
 import com.mydeck.app.ui.components.LongPressContextMenuItem
 import com.mydeck.app.ui.components.VerticalScrollbar
 import androidx.compose.ui.draw.alpha
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -128,6 +132,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.material3.OutlinedTextField
@@ -155,6 +160,7 @@ import com.mydeck.app.domain.model.TextWidth
 import com.mydeck.app.util.openUrlInCustomTab
 import com.mydeck.app.ui.components.ShareBookmarkChooser
 import com.mydeck.app.ui.detail.BookmarkDetailViewModel.ContentLoadState
+import com.mydeck.app.ui.list.LocalIsWideLayout
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -173,6 +179,8 @@ private const val PendingDeleteFromDetailKey = "pending_delete_bookmark_id"
 private const val VideoFullscreenControlsAutoHideDelayMs = 3_000L
 private const val ReadPositionLogPrefix = "READPOS"
 private const val ReaderBottomTopBarRevealThreshold = 0.95f
+private const val ReaderActionFooterAnimationMs = 260
+private val ReaderActionFooterBottomGap = 8.dp
 
 private enum class DetailOverlay {
     NONE,
@@ -559,6 +567,26 @@ fun BookmarkDetailHost(
                     else ContentMode.READER
                 )
             }
+            val isWideLayout = LocalIsWideLayout.current
+            var selectionActionModeActive by remember(uiState.bookmark.bookmarkId) {
+                mutableStateOf(false)
+            }
+            val annotationSurfaceActive = showAnnotationsSheet || annotationEditState != null
+
+            LaunchedEffect(
+                contentMode,
+                selectionActionModeActive,
+                annotationSurfaceActive,
+                videoFullscreenView
+            ) {
+                viewModel.updateReaderFooterGates(
+                    readerMode = contentMode == ContentMode.READER,
+                    hasDuplicateWideControls = false,
+                    selectionToolbarActive = selectionActionModeActive,
+                    annotationEditorActive = annotationSurfaceActive,
+                    videoFullscreenActive = videoFullscreenView != null
+                )
+            }
 
             // Auto-switch to Original mode when content fetch fails (any reason)
             // This handles both permanent failures (no server content) and
@@ -638,8 +666,14 @@ fun BookmarkDetailHost(
                     onTextSelectionCaptured = { selectionData ->
                         showSelectionAnnotationEditor(uiState.bookmark.bookmarkId, selectionData)
                     },
+                    onReaderSelectionActionModeChanged = { active ->
+                        selectionActionModeActive = active
+                    },
                     onAnnotationClicked = { annotationId ->
                         showAnnotationEditor(uiState.bookmark.bookmarkId, annotationId)
+                    },
+                    onReaderEndVisibleChanged = { visible ->
+                        viewModel.onReaderEndVisibleChanged(visible)
                     },
                     onReaderWebViewChanged = { readerWebView.value = it },
                     readerWebView = readerWebView.value,
@@ -653,6 +687,7 @@ fun BookmarkDetailHost(
                     },
                     onVideoExitFullscreen = { source -> dismissVideoFullscreen(source) },
                     fullscreenWhileReading = fullscreenWhileReading,
+                    isWideLayout = isWideLayout,
                     annotationId = annotationId,
                     readerContentReloadNonce = readerContentReloadNonce,
                 )
@@ -846,13 +881,16 @@ fun BookmarkDetailScreen(
     onLinkLongPress: (linkUrl: String, linkText: String) -> Unit = { _, _ -> },
     onIntrapageLinkLongPress: (linkUrl: String, linkText: String) -> Unit = { _, _ -> },
     onTextSelectionCaptured: (com.mydeck.app.domain.model.SelectionData) -> Unit = {},
+    onReaderSelectionActionModeChanged: (Boolean) -> Unit = {},
     onAnnotationClicked: (String) -> Unit = {},
+    onReaderEndVisibleChanged: (Boolean) -> Unit = {},
     readerWebView: WebView? = null,
     onReaderWebViewChanged: (WebView?) -> Unit = {},
     videoFullscreenView: View? = null,
     onVideoEnterFullscreen: (View, WebChromeClient.CustomViewCallback?) -> Unit = { _, _ -> },
     onVideoExitFullscreen: (VideoFullscreenDismissSource) -> Unit = {},
     fullscreenWhileReading: Boolean = false,
+    isWideLayout: Boolean = false,
     annotationId: String? = null,
     readerContentReloadNonce: Int = 0,
 ) {
@@ -896,6 +934,20 @@ fun BookmarkDetailScreen(
             12.dp
     }
     val readerTopClearanceCssPx = topBarClearance.value.roundToInt().coerceAtLeast(0)
+    val footerBottomSafeArea = with(density) {
+        WindowInsets.navigationBars.getBottom(this).toDp()
+    }
+    val readerFooterContentHeight = if (isWideLayout) {
+        ReaderActionFooterInlineHeight
+    } else {
+        ReaderActionFooterStackedHeight
+    }
+    val readerFooterClearance = readerFooterContentHeight + ReaderActionFooterBottomGap + footerBottomSafeArea
+    val readerBottomClearanceCssPx = if (uiState.footerEnabled) {
+        readerFooterClearance.value.roundToInt().coerceAtLeast(0)
+    } else {
+        0
+    }
     val topBarCanHide =
         uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.ARTICLE &&
             contentMode == ContentMode.READER
@@ -1052,16 +1104,17 @@ fun BookmarkDetailScreen(
                     onLinkLongPress = onLinkLongPress,
                     onIntrapageLinkLongPress = onIntrapageLinkLongPress,
                     onTextSelectionCaptured = onTextSelectionCaptured,
+                    onReaderSelectionActionModeChanged = onReaderSelectionActionModeChanged,
                     onAnnotationClicked = onAnnotationClicked,
+                    onReaderEndVisibleChanged = onReaderEndVisibleChanged,
                     onReaderWebViewChanged = onReaderWebViewChanged,
                     onVideoEnterFullscreen = onVideoEnterFullscreen,
                     onVideoExitFullscreen = onVideoExitFullscreen,
-                    onClickToggleFavorite = onClickToggleFavorite,
-                    onClickToggleArchive = onClickToggleArchive,
                     onReaderScrollChanged = ::updateTopBarFromReaderScroll,
                     annotationId = annotationId,
                     readerContentReloadNonce = readerContentReloadNonce,
                     readerTopClearanceCssPx = readerTopClearanceCssPx,
+                    readerBottomClearanceCssPx = readerBottomClearanceCssPx,
                     topBarClearance = topBarClearance,
                 )
 
@@ -1082,6 +1135,31 @@ fun BookmarkDetailScreen(
                             .windowInsetsPadding(WindowInsets.statusBars)
                             .height(28.dp)
                             .clickable { showFullscreenTopBar = true }
+                    )
+                }
+
+                AnimatedVisibility(
+                    visible = uiState.showFooter,
+                    enter = slideInVertically(
+                        animationSpec = tween(durationMillis = ReaderActionFooterAnimationMs)
+                    ) { it } + fadeIn(animationSpec = tween(durationMillis = ReaderActionFooterAnimationMs)),
+                    exit = slideOutVertically(
+                        animationSpec = tween(durationMillis = ReaderActionFooterAnimationMs)
+                    ) { it } + fadeOut(animationSpec = tween(durationMillis = ReaderActionFooterAnimationMs)),
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(bottom = footerBottomSafeArea + ReaderActionFooterBottomGap)
+                ) {
+                    ReaderActionFooter(
+                        isFavorite = uiState.bookmark.isFavorite,
+                        isArchived = uiState.bookmark.isArchived,
+                        onToggleFavorite = {
+                            onClickToggleFavorite(uiState.bookmark.bookmarkId, !uiState.bookmark.isFavorite)
+                        },
+                        onToggleArchive = {
+                            onClickToggleArchive(uiState.bookmark.bookmarkId, !uiState.bookmark.isArchived)
+                        },
+                        isWideLayout = isWideLayout
                     )
                 }
             }
@@ -1363,16 +1441,17 @@ fun BookmarkDetailContent(
     onLinkLongPress: (linkUrl: String, linkText: String) -> Unit = { _, _ -> },
     onIntrapageLinkLongPress: (linkUrl: String, linkText: String) -> Unit = { _, _ -> },
     onTextSelectionCaptured: (com.mydeck.app.domain.model.SelectionData) -> Unit = {},
+    onReaderSelectionActionModeChanged: (Boolean) -> Unit = {},
     onAnnotationClicked: (String) -> Unit = {},
+    onReaderEndVisibleChanged: (Boolean) -> Unit = {},
     onReaderWebViewChanged: (WebView?) -> Unit = {},
     onVideoEnterFullscreen: (View, android.webkit.WebChromeClient.CustomViewCallback?) -> Unit = { _, _ -> },
     onVideoExitFullscreen: (VideoFullscreenDismissSource) -> Unit = {},
-    onClickToggleFavorite: (String, Boolean) -> Unit = { _, _ -> },
-    onClickToggleArchive: (String, Boolean) -> Unit = { _, _ -> },
     onReaderScrollChanged: (scrollY: Int, deltaY: Int, scrollProgress: Float, userInitiated: Boolean) -> Unit = { _, _, _, _ -> },
     annotationId: String? = null,
     readerContentReloadNonce: Int = 0,
     readerTopClearanceCssPx: Int = 0,
+    readerBottomClearanceCssPx: Int = 0,
     topBarClearance: Dp = 0.dp,
 ) {
     val coroutineScope = rememberCoroutineScope()
@@ -1487,15 +1566,16 @@ fun BookmarkDetailContent(
                         onLinkLongPress = onLinkLongPress,
                         onIntrapageLinkLongPress = onIntrapageLinkLongPress,
                         onTextSelectionCaptured = onTextSelectionCaptured,
+                        onSelectionActionModeChanged = onReaderSelectionActionModeChanged,
                         onAnnotationClicked = onAnnotationClicked,
+                        onEndVisibleChanged = onReaderEndVisibleChanged,
                         onVideoEnterFullscreen = onVideoEnterFullscreen,
                         onVideoExitFullscreen = onVideoExitFullscreen,
-                        onToggleFavorite = onClickToggleFavorite,
-                        onToggleArchive = onClickToggleArchive,
                         onScrollChanged = onReaderScrollChanged,
                         annotationId = annotationId ?: "",
                         contentReloadKey = readerContentReloadNonce,
                         readerTopClearanceCssPx = readerTopClearanceCssPx,
+                        readerBottomClearanceCssPx = readerBottomClearanceCssPx,
                     )
                 }
             }
@@ -1835,9 +1915,7 @@ private fun BookmarkDetailContentPreview() {
                 )
             ),
             webViewDispatcher = remember { NestedScrollDispatcher() },
-            onClickOpenUrl = {},
-            onClickToggleFavorite = { _, _ -> },
-            onClickToggleArchive = { _, _ -> }
+            onClickOpenUrl = {}
         )
     }
 }

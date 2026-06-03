@@ -56,13 +56,30 @@ class ReaderHtmlTemplateTypographyTest {
         templates.values.forEach { template ->
             assertTrue(template.contains("--body-color:"))
             assertTrue(template.contains("--body-bg:"))
+            assertTrue(template.contains("--mydeck-bottom-clearance-px: 0px;"))
             assertTrue(template.contains("--link-color:"))
             assertTrue(template.contains("--annotation-active-outline-color:"))
             assertTrue(template.contains("color: var(--body-color);"))
             assertTrue(template.contains("background-color: var(--body-bg);"))
+            assertTrue(template.contains("padding-bottom: calc(13px + var(--mydeck-bottom-clearance-px, 0px));"))
             assertTrue(template.contains("text-decoration-color: var(--accent-underline-color);"))
             assertTrue(template.contains("outline: 2px solid var(--annotation-active-outline-color);"))
             assertFalse(template.contains("{{"))
+        }
+    }
+
+    @Test
+    fun `reader templates expose end sentinel css and no html action footer css`() {
+        val templates = loadTemplates()
+
+        templates.values.forEach { template ->
+            assertTrue(template.contains("#mydeck-end-sentinel"))
+            assertTrue(template.contains("display: block;"))
+            assertTrue(template.contains("pointer-events: none;"))
+            assertTrue(template.contains("transform: translateY(var(--mydeck-bottom-clearance-px, 0px));"))
+            assertFalse(template.contains(".mydeck-footer"))
+            assertFalse(template.contains(".mydeck-action-btn"))
+            assertFalse(template.contains(".mydeck-action-icon"))
         }
     }
 

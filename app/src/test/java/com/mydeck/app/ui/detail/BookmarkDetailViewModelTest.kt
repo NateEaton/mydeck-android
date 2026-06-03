@@ -9,6 +9,7 @@ import com.mydeck.app.domain.model.DarkAppearance
 import com.mydeck.app.domain.model.LightAppearance
 import com.mydeck.app.domain.model.ReaderAppearanceSelection
 import com.mydeck.app.domain.model.SelectionData
+import com.mydeck.app.domain.model.Template
 import com.mydeck.app.domain.model.Theme
 import com.mydeck.app.domain.content.ContentPackageManager
 import com.mydeck.app.domain.sync.ContentSyncConstraints
@@ -39,6 +40,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
@@ -425,6 +427,175 @@ class BookmarkDetailViewModelTest {
         viewModel.onArticleSearchUpdateResults(totalMatches = 36, preferredMatch = 30)
 
         assertEquals(27, viewModel.articleSearchState.value.currentMatch)
+    }
+
+    @Test
+    fun `reader end visibility is debounced before showing footer`() = runTest {
+        viewModel = createViewModel()
+        viewModel.uiState.take(2).toList()
+
+        viewModel.updateReaderFooterGates(
+            readerMode = true,
+            hasDuplicateWideControls = false,
+            selectionToolbarActive = false,
+            annotationEditorActive = false,
+            videoFullscreenActive = false
+        )
+        viewModel.onReaderEndVisibleChanged(true)
+        advanceTimeBy(149)
+
+        var state = viewModel.uiState.value as BookmarkDetailViewModel.UiState.Success
+        assertFalse(state.endVisible)
+        assertFalse(state.showFooter)
+
+        advanceTimeBy(1)
+        advanceUntilIdle()
+
+        state = viewModel.uiState.value as BookmarkDetailViewModel.UiState.Success
+        assertTrue(state.endVisible)
+        assertTrue(state.showFooter)
+    }
+
+    @Test
+    fun `reader footer show state honors suppression gates`() = runTest {
+        viewModel = createViewModel()
+        viewModel.uiState.take(2).toList()
+        viewModel.onReaderEndVisibleChanged(true)
+        advanceTimeBy(150)
+        advanceUntilIdle()
+
+        viewModel.updateReaderFooterGates(
+            readerMode = false,
+            hasDuplicateWideControls = false,
+            selectionToolbarActive = false,
+            annotationEditorActive = false,
+            videoFullscreenActive = false
+        )
+        val originalModeState = viewModel.uiState.first {
+            it is BookmarkDetailViewModel.UiState.Success &&
+                !it.endVisible &&
+                !it.footerEnabled &&
+                !it.showFooter
+        } as BookmarkDetailViewModel.UiState.Success
+        assertFalse(originalModeState.endVisible)
+        assertFalse(originalModeState.footerEnabled)
+        assertFalse(originalModeState.showFooter)
+
+        viewModel.onReaderEndVisibleChanged(true)
+        advanceTimeBy(150)
+        advanceUntilIdle()
+
+        val gateCases = listOf(
+            "wide duplicate controls" to ReaderFooterGateArgs(hasDuplicateWideControls = true),
+            "selection toolbar" to ReaderFooterGateArgs(selectionToolbarActive = true),
+            "annotation editor" to ReaderFooterGateArgs(annotationEditorActive = true),
+            "video fullscreen" to ReaderFooterGateArgs(videoFullscreenActive = true)
+        )
+
+        gateCases.forEach { (name, gate) ->
+            viewModel.updateReaderFooterGates(
+                readerMode = true,
+                hasDuplicateWideControls = false,
+                selectionToolbarActive = false,
+                annotationEditorActive = false,
+                videoFullscreenActive = false
+            )
+            viewModel.uiState.first {
+                it is BookmarkDetailViewModel.UiState.Success &&
+                    it.endVisible &&
+                    it.footerEnabled &&
+                    it.showFooter
+            }
+
+            viewModel.updateReaderFooterGates(
+                readerMode = gate.readerMode,
+                hasDuplicateWideControls = gate.hasDuplicateWideControls,
+                selectionToolbarActive = gate.selectionToolbarActive,
+                annotationEditorActive = gate.annotationEditorActive,
+                videoFullscreenActive = gate.videoFullscreenActive
+            )
+
+            val state = viewModel.uiState.first {
+                it is BookmarkDetailViewModel.UiState.Success &&
+                    it.endVisible &&
+                    !it.footerEnabled
+            } as BookmarkDetailViewModel.UiState.Success
+            assertTrue("endVisible remains true for $name", state.endVisible)
+            assertFalse("footer disabled for $name", state.footerEnabled)
+            assertFalse("footer hidden for $name", state.showFooter)
+        }
+    }
+
+    @Test
+    fun `sentinel changes do not alter read progress persistence`() = runTest {
+        viewModel = createViewModel()
+        advanceUntilIdle()
+        clearMocks(bookmarkRepository, answers = false, recordedCalls = true)
+
+        viewModel.onScrollProgressChanged(25)
+        viewModel.onReaderEndVisibleChanged(true)
+        advanceTimeBy(150)
+        viewModel.onReaderEndVisibleChanged(false)
+        advanceTimeBy(150)
+        viewModel.saveProgressOnPause()
+        advanceUntilIdle()
+
+        coVerify(exactly = 1) { bookmarkRepository.updateReadProgress("123", 25) }
+    }
+
+    @Test
+    fun `article completion still runs through scroll progress and remains locked`() = runTest {
+        viewModel = createViewModel()
+        advanceUntilIdle()
+        clearMocks(bookmarkRepository, answers = false, recordedCalls = true)
+
+        viewModel.onReaderEndVisibleChanged(true)
+        advanceTimeBy(150)
+        viewModel.onScrollProgressChanged(100)
+        viewModel.onReaderEndVisibleChanged(false)
+        advanceTimeBy(150)
+        viewModel.onScrollProgressChanged(50)
+        viewModel.saveProgressOnPause()
+        advanceUntilIdle()
+
+        coVerify(exactly = 1) { bookmarkRepository.updateReadProgress("123", 100) }
+    }
+
+    @Test
+    fun `picture bookmarks still auto mark read on open`() = runTest {
+        val pictureBookmark = sampleBookmark.copy(
+            type = Bookmark.Type.Picture,
+            documentTpe = "photo",
+            hasArticle = false,
+            articleContent = null,
+            readProgress = 0
+        )
+        every { bookmarkRepository.observeBookmark("123") } returns MutableStateFlow(pictureBookmark)
+        coEvery { bookmarkRepository.getBookmarkById("123") } returns pictureBookmark
+
+        viewModel = createViewModel()
+        advanceUntilIdle()
+
+        coVerify(exactly = 1) { bookmarkRepository.updateReadProgress("123", 100) }
+    }
+
+    @Test
+    fun `video bookmarks still auto mark read on open`() = runTest {
+        val videoBookmark = sampleBookmark.copy(
+            type = Bookmark.Type.Video,
+            documentTpe = "video",
+            hasArticle = false,
+            articleContent = null,
+            embed = "<iframe src=\"https://example.com/embed\"></iframe>",
+            readProgress = 0
+        )
+        every { bookmarkRepository.observeBookmark("123") } returns MutableStateFlow(videoBookmark)
+        coEvery { bookmarkRepository.getBookmarkById("123") } returns videoBookmark
+
+        viewModel = createViewModel()
+        advanceUntilIdle()
+
+        coVerify(exactly = 1) { bookmarkRepository.updateReadProgress("123", 100) }
     }
 
     @Test
@@ -1307,6 +1478,50 @@ class BookmarkDetailViewModelTest {
         assertTrue(bookmark.shouldShowHeaderDescription())
     }
 
+    @Test
+    fun `article reader content replaces html footer with end sentinel`() {
+        val content = detailBookmark(
+            type = BookmarkDetailViewModel.Bookmark.Type.ARTICLE,
+            articleContent = "<p>Article</p>"
+        ).getContent(Template.SimpleTemplate("<html><body>%s</body></html>"), isDark = false)
+
+        assertNotNull(content)
+        assertTrue(content!!.contains("<div id=\"rd-article-content\"><p>Article</p></div><div id=\"mydeck-end-sentinel\""))
+        assertFalse(content.contains("mydeck-footer"))
+        assertFalse(content.contains("MyDeckActions"))
+    }
+
+    @Test
+    fun `photo reader content places end sentinel after image and caption`() {
+        val content = detailBookmark(
+            type = BookmarkDetailViewModel.Bookmark.Type.PHOTO,
+            articleContent = "<p>Caption</p>",
+            imgSrc = "image.jpg"
+        ).getContent(Template.SimpleTemplate("<html><body>%s</body></html>"), isDark = false)
+
+        assertNotNull(content)
+        assertTrue(content!!.contains("<img src=\"image.jpg\"/><p>Caption</p><div id=\"mydeck-end-sentinel\""))
+        assertFalse(content.contains("mydeck-footer"))
+        assertFalse(content.contains("MyDeckActions"))
+    }
+
+    @Test
+    fun `video reader content places end sentinel after transcript content`() {
+        val content = detailBookmark(
+            type = BookmarkDetailViewModel.Bookmark.Type.VIDEO,
+            articleContent = "<p>Transcript</p>",
+            embed = "<iframe src=\"https://example.com/embed\"></iframe>"
+        ).getContent(Template.SimpleTemplate("<html><body>%s</body></html>"), isDark = false)
+
+        assertNotNull(content)
+        val articleIndex = content!!.indexOf("<div id=\"rd-article-content\"><p>Transcript</p></div>")
+        val sentinelIndex = content.indexOf("<div id=\"mydeck-end-sentinel\"")
+        assertTrue(articleIndex >= 0)
+        assertTrue(sentinelIndex > articleIndex)
+        assertFalse(content.contains("mydeck-footer"))
+        assertFalse(content.contains("MyDeckActions"))
+    }
+
     // ── Extraction error / log ────────────────────────────────────────────────
 
     @Test
@@ -1358,6 +1573,49 @@ class BookmarkDetailViewModelTest {
         assertNull(logState.text)
         assertTrue(viewModel.uiState.value is BookmarkDetailViewModel.UiState.Success)
     }
+
+    private data class ReaderFooterGateArgs(
+        val readerMode: Boolean = true,
+        val hasDuplicateWideControls: Boolean = false,
+        val selectionToolbarActive: Boolean = false,
+        val annotationEditorActive: Boolean = false,
+        val videoFullscreenActive: Boolean = false
+    )
+
+    private fun detailBookmark(
+        type: BookmarkDetailViewModel.Bookmark.Type,
+        articleContent: String?,
+        embed: String? = null,
+        imgSrc: String = "",
+        description: String = ""
+    ) = BookmarkDetailViewModel.Bookmark(
+        url = "https://example.com",
+        title = "Title",
+        authors = emptyList(),
+        createdDate = "March 17, 2026",
+        publishedDate = null,
+        publishedDateInput = null,
+        bookmarkId = "123",
+        siteName = "Example",
+        imgSrc = imgSrc,
+        iconSrc = "",
+        thumbnailSrc = "",
+        isFavorite = false,
+        isArchived = false,
+        isRead = false,
+        type = type,
+        articleContent = articleContent,
+        embed = embed,
+        lang = "en",
+        textDirection = "ltr",
+        wordCount = null,
+        readingTime = null,
+        description = description,
+        omitDescription = false,
+        labels = emptyList(),
+        readProgress = 0,
+        hasContent = true
+    )
 
     val sampleBookmark = Bookmark(
 

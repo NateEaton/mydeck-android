@@ -2,7 +2,22 @@
 
 ## Status
 
-Proposal — not yet scheduled for implementation.
+Implemented in `feat/reader-native-footer`.
+
+Divergence: bottom clearance is applied through the existing runtime CSS-variable
+path rather than by reloading reader HTML when footer gates change. This keeps
+the footer animation from reflowing WebView content and preserves reader scroll
+position.
+
+Divergence: the implemented footer follows the native Readeck button shape:
+favorite and archive are separate labeled pills. They stack on phone layouts
+and sit side by side on wide layouts unless a future layout introduces duplicate
+persistent controls that require explicit suppression.
+
+Divergence: the end sentinel is visually translated by the footer bottom
+clearance, so footer visibility changes when the reserved action-footer space
+reaches the viewport instead of when the raw content end crosses it. The footer
+animation duration is tuned to 260 ms for a less abrupt reveal/hide.
 
 ## Context
 
@@ -103,9 +118,11 @@ The sentinel is styled with a stable, minimal size rather than zero height:
 
 ```css
 #mydeck-end-sentinel {
+  display: block;
   width: 1px;
   height: 1px;
   pointer-events: none;
+  transform: translateY(var(--mydeck-bottom-clearance-px, 0px));
 }
 ```
 
@@ -200,17 +217,18 @@ Box(modifier = Modifier.fillMaxSize()) {
         ReaderActionFooter(
             isFavorite = uiState.bookmark.isFavorite,
             isArchived = uiState.bookmark.isArchived,
+            isWideLayout = isWideLayout,
             onToggleFavorite = viewModel::toggleFavorite,
-            onToggleArchive = viewModel::toggleArchive,
-            palette = readerThemePalette
+            onToggleArchive = viewModel::toggleArchive
         )
     }
 }
 ```
 
-`ReaderActionFooter` is a `Row` with two `IconButton`s side-by-side, centered,
-surface coloured from the reader palette (not the global Material scheme) so
-it harmonises with sepia and reader-dark themes. Material ripple is automatic.
+`ReaderActionFooter` is a centered pair of separate labeled pill buttons:
+stacked on phone layouts and side by side on wide layouts. The pill surfaces
+use the same emphasized `secondaryContainer` role as the active navigation
+drawer pill. Material ripple is automatic.
 
 `uiState.endVisible` is fed from the new bridge. `uiState.showFooter` gates on
 the layout/type conditions in the edge-cases section below.
@@ -245,11 +263,11 @@ element changes.
 
 ## Edge cases
 
-1. **Wide layouts (tablet landscape).** Bookmark details may already be
-   persistent on the side with favorite/archive controls available there.
-   Verify against the current AppShell layout. If duplicate controls would
-   result, suppress the floating footer in those layouts
-   (`showFooter = false`).
+1. **Wide layouts (tablet landscape).** The footer may render the two action
+   pills side by side. Bookmark details may later become persistent on the side
+   with favorite/archive controls available there; if duplicate controls would
+   result in such a layout, suppress the floating footer explicitly
+   (`showFooter = false`) instead of treating every wide layout as duplicate.
 2. **Original-page WebView.** Do not render the footer there. The
    favorite/archive actions still apply to the underlying bookmark, but mixing
    them with non-extracted content is confusing UX, and the original-page
@@ -274,7 +292,7 @@ element changes.
 7. **Very short articles where the sentinel is visible immediately on load.**
    Same as above — footer appears right away. Same ~150 ms debounce.
 8. **Theme changes mid-read.** The CSS clearance variable does not need to
-   change with theme. The footer rerenders on palette change automatically.
+   change with theme. The footer rerenders through Material theme changes.
    No special handling needed.
 
 ## Implementation outline
@@ -299,8 +317,9 @@ element changes.
    Video remain unchanged and still auto-mark on open.
 7. Add `--mydeck-bottom-clearance-px` to the reader CSS in the four template
    files and its injection point in Kotlin (mirror `readerTopClearanceCssPx`).
-8. Build `ReaderActionFooter` composable — a `Row` of two `IconButton`s,
-   surfaces from the reader palette.
+8. Build `ReaderActionFooter` composable — two separate icon-and-text pill
+   buttons, stacked on phone layouts and side by side on wide layouts, with
+   surfaces matching the active navigation drawer pill.
 9. Wrap the existing WebView in a Compose `Box` and add `AnimatedVisibility`
    for the footer overlay, using the same enter/exit animation values as the
    top app bar.
@@ -342,8 +361,8 @@ element changes.
   `onScrollProgressChanged(progress >= 100)`.
 - Unit test confirming the Picture/Video auto-mark-on-open path at lines
   250–257 is unchanged.
-- Robolectric test for `ReaderActionFooter` rendering with each palette
-  variant.
+- Robolectric test for `ReaderActionFooter` rendering, click handling, and
+  phone/wide layout behavior.
 - Manual test matrix:
   - All three bookmark types: article / picture / video
   - Phone portrait / phone landscape / tablet portrait / tablet landscape
@@ -355,8 +374,8 @@ element changes.
   - Offline state — toggle queues to pending actions, footer reflects pending
     state via the existing UiState path
   - Original-page WebView — footer never shown
-  - Wide layout — footer suppressed if duplicate controls present in side
-    panel
+  - Wide layout — footer actions can sit side by side; suppress only if
+    duplicate controls are present in a side panel
   - Video with iframe embed and long transcript — sentinel after the
     transcript, not after the embed
   - Picture with no caption — sentinel directly after the image

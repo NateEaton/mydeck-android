@@ -187,6 +187,8 @@ class BookmarkDetailViewModel @Inject constructor(
     val annotationEditState: StateFlow<AnnotationEditState?> = _annotationEditState.asStateFlow()
     private val _readerContentReloadNonce = MutableStateFlow(0)
     val readerContentReloadNonce: StateFlow<Int> = _readerContentReloadNonce.asStateFlow()
+    private val _readerEndVisible = MutableStateFlow(false)
+    private val _readerFooterGates = MutableStateFlow(ReaderFooterGateState())
 
     // Gallery state
     private val _galleryData = MutableStateFlow<ImageGalleryData?>(null)
@@ -206,6 +208,7 @@ class BookmarkDetailViewModel @Inject constructor(
     private var searchDebounceJob: Job? = null
     private var annotationSyncJob: Job? = null
     private var contentRefreshJob: Job? = null
+    private var endVisibleDebounceJob: Job? = null
 
     // Cached values to avoid DAO/filesystem queries on every combine emission
     @Volatile private var cachedHasResources: Boolean? = null
@@ -234,6 +237,7 @@ class BookmarkDetailViewModel @Inject constructor(
         _showAnnotationsSheet.value = false
         _annotationEditState.value = null
         _pendingArchiveState.value = null
+        resetReaderFooterState()
 
         _bookmarkId.value = bookmarkId
         initializeBookmark(bookmarkId)
@@ -415,12 +419,35 @@ class BookmarkDetailViewModel @Inject constructor(
                     template,
                     typographySettings,
                     readerAppearanceSelection,
-                    _pendingArchiveState
-                ) { uState, temp, typo, reader, pendingArch ->
-                    UpdateData(uState, temp, typo, reader, pendingArch)
+                    combine(
+                        _pendingArchiveState,
+                        _readerEndVisible,
+                        _readerFooterGates
+                    ) { pendingArch, endVisible, footerGates ->
+                        ReaderFooterData(pendingArch, endVisible, footerGates)
+                    }
+                ) { uState, temp, typo, reader, footerData ->
+                    UpdateData(
+                        uState,
+                        temp,
+                        typo,
+                        reader,
+                        footerData.pendingArchiveState,
+                        footerData.endVisible,
+                        footerData.footerGates
+                    )
                 }
             ) { bookmark, data ->
-                ContentRefreshable(bookmark, data.updateState, data.template, data.typographySettings, data.readerAppearanceSelection, data.pendingArchiveState)
+                ContentRefreshable(
+                    bookmark = bookmark,
+                    updateState = data.updateState,
+                    template = data.template,
+                    typographySettings = data.typographySettings,
+                    readerAppearanceSelection = data.readerAppearanceSelection,
+                    pendingArchiveState = data.pendingArchiveState,
+                    endVisible = data.endVisible,
+                    footerGates = data.footerGates
+                )
             }.map { data ->
                 val bookmark = data.bookmark
                 val updateState = data.updateState
@@ -428,6 +455,8 @@ class BookmarkDetailViewModel @Inject constructor(
                 val typographySettings = data.typographySettings
                 val readerAppearanceSelection = data.readerAppearanceSelection
                 val pendingArchiveState = data.pendingArchiveState
+                val footerEnabled = data.footerGates.footerEnabled
+                val showFooter = data.endVisible && footerEnabled
                 if (bookmark == null) {
                     Timber.e("Error loading bookmark [bookmarkId=$id]")
                     UiState.Error
@@ -492,7 +521,10 @@ class BookmarkDetailViewModel @Inject constructor(
                         updateBookmarkState = updateState,
                         template = template,
                         typographySettings = typographySettings,
-                        readerAppearanceSelection = readerAppearanceSelection
+                        readerAppearanceSelection = readerAppearanceSelection,
+                        endVisible = data.endVisible,
+                        footerEnabled = footerEnabled,
+                        showFooter = showFooter
                     )
                 }
             }
@@ -576,6 +608,42 @@ class BookmarkDetailViewModel @Inject constructor(
         if (clamped >= 100) {
             isReadLocked = true
         }
+    }
+
+    fun onReaderEndVisibleChanged(visible: Boolean) {
+        endVisibleDebounceJob?.cancel()
+        endVisibleDebounceJob = viewModelScope.launch {
+            delay(ReaderEndVisibleDebounceMs)
+            _readerEndVisible.value = visible
+        }
+    }
+
+    fun updateReaderFooterGates(
+        readerMode: Boolean,
+        hasDuplicateWideControls: Boolean,
+        selectionToolbarActive: Boolean,
+        annotationEditorActive: Boolean,
+        videoFullscreenActive: Boolean
+    ) {
+        if (!readerMode) {
+            endVisibleDebounceJob?.cancel()
+            endVisibleDebounceJob = null
+            _readerEndVisible.value = false
+        }
+        _readerFooterGates.value = ReaderFooterGateState(
+            readerMode = readerMode,
+            hasDuplicateWideControls = hasDuplicateWideControls,
+            selectionToolbarActive = selectionToolbarActive,
+            annotationEditorActive = annotationEditorActive,
+            videoFullscreenActive = videoFullscreenActive
+        )
+    }
+
+    private fun resetReaderFooterState() {
+        endVisibleDebounceJob?.cancel()
+        endVisibleDebounceJob = null
+        _readerEndVisible.value = false
+        _readerFooterGates.value = ReaderFooterGateState()
     }
 
     fun onToggleRead(bookmarkId: String, isRead: Boolean) {
@@ -1658,7 +1726,9 @@ class BookmarkDetailViewModel @Inject constructor(
         val template: Template?,
         val typographySettings: com.mydeck.app.domain.model.TypographySettings,
         val readerAppearanceSelection: ReaderAppearanceSelection,
-        val pendingArchiveState: Boolean?
+        val pendingArchiveState: Boolean?,
+        val endVisible: Boolean,
+        val footerGates: ReaderFooterGateState
     )
 
     private data class UpdateData(
@@ -1666,8 +1736,31 @@ class BookmarkDetailViewModel @Inject constructor(
         val template: Template?,
         val typographySettings: com.mydeck.app.domain.model.TypographySettings,
         val readerAppearanceSelection: ReaderAppearanceSelection,
-        val pendingArchiveState: Boolean?
+        val pendingArchiveState: Boolean?,
+        val endVisible: Boolean,
+        val footerGates: ReaderFooterGateState
     )
+
+    private data class ReaderFooterData(
+        val pendingArchiveState: Boolean?,
+        val endVisible: Boolean,
+        val footerGates: ReaderFooterGateState
+    )
+
+    private data class ReaderFooterGateState(
+        val readerMode: Boolean = true,
+        val hasDuplicateWideControls: Boolean = false,
+        val selectionToolbarActive: Boolean = false,
+        val annotationEditorActive: Boolean = false,
+        val videoFullscreenActive: Boolean = false
+    ) {
+        val footerEnabled: Boolean
+            get() = readerMode &&
+                !hasDuplicateWideControls &&
+                !selectionToolbarActive &&
+                !annotationEditorActive &&
+                !videoFullscreenActive
+    }
 
     sealed class UiState {
         data class Success(
@@ -1675,7 +1768,10 @@ class BookmarkDetailViewModel @Inject constructor(
             val updateBookmarkState: UpdateBookmarkState?, 
             val template: Template, 
             val typographySettings: com.mydeck.app.domain.model.TypographySettings,
-            val readerAppearanceSelection: ReaderAppearanceSelection
+            val readerAppearanceSelection: ReaderAppearanceSelection,
+            val endVisible: Boolean = false,
+            val footerEnabled: Boolean = true,
+            val showFooter: Boolean = false
         ) : UiState()
 
         data object Loading : UiState()
@@ -1738,10 +1834,6 @@ class BookmarkDetailViewModel @Inject constructor(
         fun getContent(
             template: Template,
             isDark: Boolean,
-            favoriteLabel: String = "",
-            unfavoriteLabel: String = "",
-            archiveLabel: String = "",
-            unarchiveLabel: String = "",
             topClearanceCssPx: Int = 0,
         ): String? {
             val htmlTemplate = when (template) {
@@ -1755,12 +1847,7 @@ class BookmarkDetailViewModel @Inject constructor(
                 }
             }
             val headerHtml = buildReaderHeaderHtml(topClearanceCssPx)
-            val footerHtml = buildReaderFooterHtml(
-                favoriteLabel = favoriteLabel,
-                unfavoriteLabel = unfavoriteLabel,
-                archiveLabel = archiveLabel,
-                unarchiveLabel = unarchiveLabel,
-            )
+            val endSentinelHtml = buildReaderEndSentinelHtml()
             return when (type) {
                 Type.PHOTO -> {
                     val articleNormalized = articleContent?.let { normalizeText(it) }
@@ -1776,11 +1863,11 @@ class BookmarkDetailViewModel @Inject constructor(
                         } else {
                             articleContent
                         }
-                        htmlTemplate.replace("%s", headerHtml + content + footerHtml)
+                        htmlTemplate.replace("%s", headerHtml + content + endSentinelHtml)
                     } else {
                         val textPart = if (articleContent != null && (!textIsDescription || !showInHeader)) articleContent else ""
                         val imagePart = """<img src="$imgSrc"/>"""
-                        htmlTemplate.replace("%s", headerHtml + imagePart + textPart + footerHtml)
+                        htmlTemplate.replace("%s", headerHtml + imagePart + textPart + endSentinelHtml)
                     }
                 }
 
@@ -1801,7 +1888,7 @@ class BookmarkDetailViewModel @Inject constructor(
                     } ?: ""
                     val content = embedPart + "<div id=\"rd-article-content\">$textPart</div>"
                     if (content.isNotEmpty()) {
-                        htmlTemplate.replace("%s", headerHtml + content + footerHtml)
+                        htmlTemplate.replace("%s", headerHtml + content + endSentinelHtml)
                     } else {
                         null
                     }
@@ -1809,7 +1896,7 @@ class BookmarkDetailViewModel @Inject constructor(
 
                 Type.ARTICLE -> {
                     articleContent?.let {
-                        htmlTemplate.replace("%s", headerHtml + "<div id=\"rd-article-content\">" + it + "</div>" + footerHtml)
+                        htmlTemplate.replace("%s", headerHtml + "<div id=\"rd-article-content\">" + it + "</div>" + endSentinelHtml)
                     }
                 }
             }
@@ -1830,27 +1917,8 @@ class BookmarkDetailViewModel @Inject constructor(
             return "$clearanceHtml<header class=\"mydeck-header\">$titleHtml$descriptionHtml</header>"
         }
 
-        private fun buildReaderFooterHtml(
-            favoriteLabel: String,
-            unfavoriteLabel: String,
-            archiveLabel: String,
-            unarchiveLabel: String,
-        ): String {
-            val favIcon = if (isFavorite) WebViewActionsInjector.FAV_ICON_FILLED else WebViewActionsInjector.FAV_ICON_OUTLINE
-            val arcIcon = if (isArchived) WebViewActionsInjector.ARC_ICON_FILLED else WebViewActionsInjector.ARC_ICON_OUTLINE
-            val favText = escapeHtml(if (isFavorite) unfavoriteLabel else favoriteLabel)
-            val arcText = escapeHtml(if (isArchived) unarchiveLabel else archiveLabel)
-            return "<footer class=\"mydeck-footer\">" +
-                "<button id=\"mydeck-favorite-btn\" type=\"button\" class=\"mydeck-action-btn\" data-active=\"$isFavorite\" onclick=\"window.MyDeckActions && window.MyDeckActions.toggleFavorite()\">" +
-                "<span class=\"mydeck-action-icon\" aria-hidden=\"true\">$favIcon</span>" +
-                "<span class=\"mydeck-action-label\">$favText</span>" +
-                "</button>" +
-                "<button id=\"mydeck-archive-btn\" type=\"button\" class=\"mydeck-action-btn\" data-active=\"$isArchived\" onclick=\"window.MyDeckActions && window.MyDeckActions.toggleArchive()\">" +
-                "<span class=\"mydeck-action-icon\" aria-hidden=\"true\">$arcIcon</span>" +
-                "<span class=\"mydeck-action-label\">$arcText</span>" +
-                "</button>" +
-                "</footer>"
-        }
+        private fun buildReaderEndSentinelHtml(): String =
+            "<div id=\"mydeck-end-sentinel\" aria-hidden=\"true\"></div>"
 
         private fun escapeHtml(value: String): String {
             val sb = StringBuilder(value.length)
@@ -2121,6 +2189,7 @@ class BookmarkDetailViewModel @Inject constructor(
     )
 
     companion object {
+        private const val ReaderEndVisibleDebounceMs = 150L
     }
 
 }

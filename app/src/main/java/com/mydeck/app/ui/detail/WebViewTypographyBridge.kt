@@ -67,7 +67,7 @@ object WebViewTypographyBridge {
                 body.style.lineHeight = '${TypographySettings.lineSpacingCssValue(settings.lineSpacingPercent)}';
                 body.style.maxWidth = '$widthPercent%';
                 body.style.margin = '0 auto';
-                body.style.padding = '0 8px';
+                body.style.padding = '0 8px calc(8px + var(--mydeck-bottom-clearance-px, 0px)) 8px';
                 body.style.textAlign = '${if (settings.justified) "justify" else "left"}';
                 var appliedHyphens = window.mydeckHyphenationSelectionSuspended ? 'manual' : desiredHyphens;
                 body.style.hyphens = appliedHyphens;

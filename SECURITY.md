@@ -58,7 +58,8 @@ MyDeck uses two distinct WebView contexts with different security profiles:
 
 - Loads **app-owned HTML templates** from local assets, populated with server-extracted article content
 - JavaScript is enabled to support in-article search, highlight/annotation interaction, and image lightbox functionality
-- Two `@JavascriptInterface` bridges are registered for image tap handling and annotation interaction
+- Reader bridges are event-reporting only: image taps, annotation taps, selection scope, scroll progress, and end-of-content sentinel visibility
+- No reader bridge can favorite, archive, delete, edit, or otherwise mutate bookmark state; favorite/archive actions are native Compose UI
 - Content is sandboxed within the app's asset domain; no external navigation occurs from this WebView
 
 ### Original Web Page WebView

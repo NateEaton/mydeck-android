@@ -18,13 +18,11 @@ import androidx.webkit.WebViewAssetLoader
 import com.mydeck.app.domain.content.OfflineContentPathHandler
 import com.mydeck.app.domain.model.ImageGalleryData
 import com.mydeck.app.domain.model.SelectionData
-import com.mydeck.app.ui.detail.WebViewActionsBridge
-import com.mydeck.app.ui.detail.WebViewActionsInjector
 import com.mydeck.app.ui.detail.WebViewAnnotationBridge
+import com.mydeck.app.ui.detail.WebViewEndSentinelBridge
 import com.mydeck.app.ui.detail.WebViewImageBridge
 import com.mydeck.app.ui.detail.WebViewAnnotationTapBridge
 import com.mydeck.app.ui.detail.WebViewSelectionScopeBridge
-import com.mydeck.app.ui.detail.WebViewTocBridge
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -125,15 +123,16 @@ fun BookmarkDetailArticle(
     onLinkLongPress: (linkUrl: String, linkText: String) -> Unit = { _, _ -> },
     onIntrapageLinkLongPress: (linkUrl: String, linkText: String) -> Unit = { _, _ -> },
     onTextSelectionCaptured: (SelectionData) -> Unit = {},
+    onSelectionActionModeChanged: (Boolean) -> Unit = {},
     onAnnotationClicked: (String) -> Unit = {},
+    onEndVisibleChanged: (Boolean) -> Unit = {},
     onVideoEnterFullscreen: (View, android.webkit.WebChromeClient.CustomViewCallback?) -> Unit = { _, _ -> },
     onVideoExitFullscreen: (VideoFullscreenDismissSource) -> Unit = {},
-    onToggleFavorite: (String, Boolean) -> Unit = { _, _ -> },
-    onToggleArchive: (String, Boolean) -> Unit = { _, _ -> },
     onScrollChanged: (scrollY: Int, deltaY: Int, scrollProgress: Float, userInitiated: Boolean) -> Unit = { _, _, _, _ -> },
     annotationId: String = "",
     contentReloadKey: Int = 0,
     readerTopClearanceCssPx: Int = 0,
+    readerBottomClearanceCssPx: Int = 0,
 ) {
     val isSystemInDarkMode = isSystemInDarkTheme()
     val localContext = LocalContext.current
@@ -141,13 +140,7 @@ fun BookmarkDetailArticle(
     val readerThemePalette = remember(localContext, effectiveAppearance) {
         resolveReaderThemePalette(context = localContext, appearance = effectiveAppearance)
     }
-    val favoriteLabel = stringResource(R.string.action_add_to_favorites)
-    val unfavoriteLabel = stringResource(R.string.action_remove_from_favorites)
-    val archiveLabel = stringResource(R.string.action_add_to_archive)
-    val unarchiveLabel = stringResource(R.string.action_remove_from_archive)
     val latestUiState by rememberUpdatedState(uiState)
-    val latestToggleFavorite by rememberUpdatedState(onToggleFavorite)
-    val latestToggleArchive by rememberUpdatedState(onToggleArchive)
     // Key on articleContent presence (not the full string) so annotation-refresh HTML changes
     // don't trigger a full WebView reload — those are handled via JS innerHTML replacement.
     // Title and description are reader-header inputs, so include them so that an in-app
@@ -165,10 +158,6 @@ fun BookmarkDetailArticle(
             uiState.bookmark.getContent(
                 template = uiState.template,
                 isDark = isSystemInDarkMode,
-                favoriteLabel = favoriteLabel,
-                unfavoriteLabel = unfavoriteLabel,
-                archiveLabel = archiveLabel,
-                unarchiveLabel = unarchiveLabel,
                 topClearanceCssPx = readerTopClearanceCssPx,
             )
         )
@@ -188,13 +177,16 @@ fun BookmarkDetailArticle(
     }
     val json = remember { Json { ignoreUnknownKeys = true } }
     val latestSelectionHandler = rememberUpdatedState(onTextSelectionCaptured)
+    val latestSelectionActionModeHandler = rememberUpdatedState(onSelectionActionModeChanged)
     val latestAnnotationClickHandler = rememberUpdatedState(onAnnotationClicked)
+    val latestEndVisibleHandler = rememberUpdatedState(onEndVisibleChanged)
     val latestIntrapageLinkLongPressHandler = rememberUpdatedState(onIntrapageLinkLongPress)
     val latestTypographySettings = rememberUpdatedState(uiState.typographySettings)
     val latestThemePalette = rememberUpdatedState(readerThemePalette)
     val latestThemeScript = rememberUpdatedState(WebViewThemeBridge.applyTheme(readerThemePalette))
     val latestProgressHandler = rememberUpdatedState(onScrollProgressChanged)
     val latestScrollChangedHandler = rememberUpdatedState(onScrollChanged)
+    val latestBottomClearanceCssPx = rememberUpdatedState(readerBottomClearanceCssPx)
     val latestVideoEnterFullscreen = rememberUpdatedState(onVideoEnterFullscreen)
     val latestVideoExitFullscreen = rememberUpdatedState(onVideoExitFullscreen)
     val latestInitialProgress = rememberUpdatedState(initialReadProgress)
@@ -209,6 +201,14 @@ fun BookmarkDetailArticle(
     fun applyTheme(webView: WebView) {
         webView.setBackgroundColor(android.graphics.Color.parseColor(latestThemePalette.value.bodyBackgroundColor))
         webView.evaluateJavascript(latestThemeScript.value, null)
+    }
+
+    fun applyBottomClearance(webView: WebView) {
+        val cssPx = latestBottomClearanceCssPx.value.coerceAtLeast(0)
+        webView.evaluateJavascript(
+            "document.documentElement.style.setProperty('--mydeck-bottom-clearance-px', '${cssPx}px');",
+            null
+        )
     }
 
     fun focusSearchMatch(webView: WebView, matchIndex: Int) {
@@ -250,10 +250,6 @@ fun BookmarkDetailArticle(
         content.value = uiState.bookmark.getContent(
             template = uiState.template,
             isDark = isSystemInDarkMode,
-            favoriteLabel = favoriteLabel,
-            unfavoriteLabel = unfavoriteLabel,
-            archiveLabel = archiveLabel,
-            unarchiveLabel = unarchiveLabel,
             topClearanceCssPx = readerTopClearanceCssPx,
         )
         webViewRef.value?.let { webView ->
@@ -263,13 +259,23 @@ fun BookmarkDetailArticle(
         }
     }
 
+    LaunchedEffect(readerBottomClearanceCssPx) {
+        webViewRef.value?.let { webView ->
+            withContext(Dispatchers.Main) {
+                applyBottomClearance(webView)
+            }
+        }
+    }
+
     LaunchedEffect(content.value) {
         if (content.value != null) {
             hasReportedReady = false
             logReadPos { "$ReadPositionLogPrefix: ready-reset bookmark=${uiState.bookmark.bookmarkId} source=content-changed" }
+            onEndVisibleChanged(false)
             onContentReady(false)
         } else {
             onWebViewChanged(null)
+            onEndVisibleChanged(false)
             logReadPos { "$ReadPositionLogPrefix: ready-true bookmark=${uiState.bookmark.bookmarkId} source=no-content" }
             onContentReady(true)
         }
@@ -337,27 +343,6 @@ fun BookmarkDetailArticle(
             withContext(Dispatchers.Main) {
                 applyTheme(webView)
             }
-        }
-    }
-
-    // Sync the in-page favorite/archive button state when the underlying bookmark
-    // toggles change (e.g., user taps the button and the ViewModel updates the state).
-    LaunchedEffect(uiState.bookmark.isFavorite) {
-        webViewRef.value?.let { webView ->
-            val label = if (uiState.bookmark.isFavorite) unfavoriteLabel else favoriteLabel
-            webView.evaluateJavascript(
-                WebViewActionsInjector.setFavoriteStateScript(uiState.bookmark.isFavorite, label),
-                null
-            )
-        }
-    }
-    LaunchedEffect(uiState.bookmark.isArchived) {
-        webViewRef.value?.let { webView ->
-            val label = if (uiState.bookmark.isArchived) unarchiveLabel else archiveLabel
-            webView.evaluateJavascript(
-                WebViewActionsInjector.setArchiveStateScript(uiState.bookmark.isArchived, label),
-                null
-            )
         }
     }
 
@@ -471,6 +456,9 @@ fun BookmarkDetailArticle(
                                 selection?.let { latestSelectionHandler.value(it) }
                                 finishActionMode()
                             }
+                        },
+                        onSelectionActionModeChanged = { active ->
+                            latestSelectionActionModeHandler.value(active)
                         }
                     ).apply {
                         val isVideo = uiState.bookmark.type == BookmarkDetailViewModel.Bookmark.Type.VIDEO
@@ -527,17 +515,12 @@ fun BookmarkDetailArticle(
                             WebViewScrollBridge.BRIDGE_NAME
                         )
                         addJavascriptInterface(
-                            WebViewActionsBridge(
-                                onToggleFavorite = {
-                                    val bm = latestUiState.bookmark
-                                    latestToggleFavorite(bm.bookmarkId, !bm.isFavorite)
-                                },
-                                onToggleArchive = {
-                                    val bm = latestUiState.bookmark
-                                    latestToggleArchive(bm.bookmarkId, !bm.isArchived)
+                            WebViewEndSentinelBridge(
+                                onEndVisibleChanged = { visible ->
+                                    latestEndVisibleHandler.value(visible)
                                 }
                             ),
-                            WebViewActionsBridge.BRIDGE_NAME
+                            WebViewEndSentinelBridge.BRIDGE_NAME
                         )
                         webChromeClient = object : android.webkit.WebChromeClient() {
                             override fun onShowCustomView(
@@ -647,7 +630,8 @@ fun BookmarkDetailArticle(
                                     WebViewSelectionScopeBridge.injectSelectionScopeWatcher(),
                                     null
                                 )
-                                webView.evaluateJavascript(WebViewActionsInjector.injectActions(), null)
+                                applyBottomClearance(webView)
+                                webView.evaluateJavascript(WebViewEndSentinelBridge.injectEndSentinelObserver(), null)
                             }
 
                             private fun reportReadyIfNeeded(webView: WebView?) {
@@ -854,7 +838,8 @@ private class HighlightActionWebView(
     private val highlightActionLabel: String,
     var onReaderScrollChanged: (scrollY: Int, deltaY: Int, scrollProgress: Float, userInitiated: Boolean) -> Unit,
     private val onAnnotationTapRequested: (WebView) -> Unit,
-    private val onHighlightActionRequested: (WebView, finishActionMode: () -> Unit) -> Unit
+    private val onHighlightActionRequested: (WebView, finishActionMode: () -> Unit) -> Unit,
+    private val onSelectionActionModeChanged: (Boolean) -> Unit
 ) : WebView(context) {
     private val touchSlop = ViewConfiguration.get(context).scaledTouchSlop
     private var downX = 0f
@@ -1044,6 +1029,7 @@ private class HighlightActionWebView(
 
     private fun suspendHyphenationForSelection() {
         if (actionModeDepth == 0) {
+            onSelectionActionModeChanged(true)
             evaluateJavascript(WebViewTypographyBridge.suspendHyphenationForSelection(), null)
         }
         actionModeDepth += 1
@@ -1053,6 +1039,7 @@ private class HighlightActionWebView(
         actionModeDepth = (actionModeDepth - 1).coerceAtLeast(0)
         if (actionModeDepth == 0) {
             evaluateJavascript(WebViewTypographyBridge.restoreHyphenationAfterSelection(), null)
+            onSelectionActionModeChanged(false)
         }
     }
 

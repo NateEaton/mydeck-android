@@ -204,4 +204,13 @@ class WebViewTypographyBridgeTest {
         
         assertTrue(js.contains("body.style.margin = '0 auto'"))
     }
+
+    @Test
+    fun `applyTypography preserves reader bottom clearance variable`() {
+        val settings = TypographySettings()
+        val js = WebViewTypographyBridge.applyTypography(settings, 100)
+
+        assertTrue(js.contains("var(--mydeck-bottom-clearance-px, 0px)"))
+        assertTrue(js.contains("body.style.padding = '0 8px calc(8px + var(--mydeck-bottom-clearance-px, 0px)) 8px'"))
+    }
 }
