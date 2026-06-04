@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="36dp"
+    android:height="36dp"
+    android:viewportWidth="36"
+    android:viewportHeight="36">
+    <path
+        android:fillColor="@color/ic_launcher_badge_snapshot_stroke"
+        android:pathData="M18,0 a18,18 0 1,0 0,36 a18,18 0 1,0 0,-36 Z" />
+    <path
+        android:fillColor="@color/ic_launcher_badge_snapshot_fill"
+        android:pathData="M18,2 a16,16 0 1,0 0,32 a16,16 0 1,0 0,-32 Z" />
+</vector>

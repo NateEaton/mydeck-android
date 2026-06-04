@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="ic_launcher_badge_snapshot_fill">#FFEB3B</color>
+    <color name="ic_launcher_badge_snapshot_stroke">#1A1A1A</color>
+</resources>
