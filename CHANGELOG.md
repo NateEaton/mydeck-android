@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.14.0] - 2026-06-04
+
+### Added
+
+- Bookmark multi-select: long-press a card to enter selection mode, then batch-favorite, archive, delete, or apply labels to multiple bookmarks at once
+- Top app bar overflow menu for additional actions in the bookmark list
+
+### Changed
+
+- Reader action footer is now a native Compose bar, replacing the in-WebView footer for smoother, more consistent interactions
+- Standard release builds now enforce HTTPS-only server connections
+
 ## [0.13.2] - 2026-05-29
 
 ### Added
