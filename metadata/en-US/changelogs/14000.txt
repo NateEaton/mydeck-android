@@ -1,0 +1,7 @@
+<b>Added</b>
+- Multi-select bookmarks: long-press to enter selection mode, then batch-favorite, archive, delete, or label multiple bookmarks at once
+- Top app bar overflow menu for additional actions in the bookmark list
+
+<b>Changed</b>
+- Reader action footer is now a native Compose bar, replacing the in-WebView footer for smoother, more consistent interactions
+- Standard release builds now enforce HTTPS-only connections
