@@ -182,6 +182,8 @@ android {
 
     sourceSets {
         getByName("debug").assets.srcDirs(files("$projectDir/schemas"))
+        getByName("githubSnapshot").res.srcDir("src/snapshotShared/res")
+        getByName("githubSnapshotHttp").res.srcDir("src/snapshotShared/res")
     }
 
     lint {
