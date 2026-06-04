@@ -2,8 +2,9 @@
 
 ## Status
 
-Draft. Keep untracked until the native reader footer branch is merged and this
-work is ready to branch from `main`.
+Implemented on branch `feat/launcher-snapshot-badge` (commit `dc54313f`).
+First pass covers adaptive icons only; legacy density fallbacks for
+API 24-25 deferred.
 
 ## Context
 
@@ -69,24 +70,33 @@ as text inside the icon.
 
 ## Resource Strategy
 
-### Minimal snapshot-only version
+### Shared snapshot source set (as implemented)
 
-Add adaptive icon overrides for snapshot flavors:
+To avoid duplicating badge assets in both snapshot flavor dirs, the resources
+live in a single shared source set wired into both `githubSnapshot` and
+`githubSnapshotHttp` via `sourceSets`:
 
-```text
-app/src/githubSnapshot/res/mipmap-anydpi-v26/ic_launcher.xml
-app/src/githubSnapshot/res/mipmap-anydpi-v26/ic_launcher_round.xml
-app/src/githubSnapshot/res/drawable/ic_launcher_foreground_snapshot.xml
-app/src/githubSnapshot/res/drawable/ic_launcher_badge_snapshot.xml
-
-app/src/githubSnapshotHttp/res/mipmap-anydpi-v26/ic_launcher.xml
-app/src/githubSnapshotHttp/res/mipmap-anydpi-v26/ic_launcher_round.xml
-app/src/githubSnapshotHttp/res/drawable/ic_launcher_foreground_snapshot.xml
-app/src/githubSnapshotHttp/res/drawable/ic_launcher_badge_snapshot.xml
+```kotlin
+// app/build.gradle.kts
+sourceSets {
+    getByName("debug").assets.srcDirs(files("$projectDir/schemas"))
+    getByName("githubSnapshot").res.srcDir("src/snapshotShared/res")
+    getByName("githubSnapshotHttp").res.srcDir("src/snapshotShared/res")
+}
 ```
 
-The snapshot adaptive icon XML can keep the existing background and swap only
-the foreground:
+Files:
+
+```text
+app/src/snapshotShared/res/values/colors.xml
+app/src/snapshotShared/res/drawable/ic_launcher_badge_snapshot.xml
+app/src/snapshotShared/res/drawable/ic_launcher_foreground_snapshot.xml
+app/src/snapshotShared/res/mipmap-anydpi-v26/ic_launcher.xml
+app/src/snapshotShared/res/mipmap-anydpi-v26/ic_launcher_round.xml
+```
+
+The snapshot adaptive icon XML keeps the existing background and swaps only the
+foreground:
 
 ```xml
 <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
@@ -95,25 +105,30 @@ the foreground:
 </adaptive-icon>
 ```
 
-`ic_launcher_foreground_snapshot.xml` can be a layer-list that combines the
-existing foreground with a badge drawable:
+`ic_launcher_foreground_snapshot.xml` is a layer-list combining the existing
+foreground with the badge drawable:
 
 ```xml
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
     <item android:drawable="@mipmap/ic_launcher_foreground" />
     <item
-        android:bottom="12dp"
-        android:drawable="@drawable/ic_launcher_badge_snapshot"
         android:gravity="bottom|end"
-        android:right="12dp"
-        android:width="36dp"
-        android:height="36dp" />
+        android:bottom="27dp"
+        android:right="27dp"
+        android:width="18dp"
+        android:height="18dp"
+        android:drawable="@drawable/ic_launcher_badge_snapshot" />
 </layer-list>
 ```
 
-This keeps the base asset shared and makes the badge easy to inspect in review.
-Before implementing, verify the layer-list renders correctly inside adaptive
-icons on API 26+ and through Android Studio's Image Asset preview.
+The badge is a small yellow (`#FFEB3B`) filled circle with a thin dark
+(`#1A1A1A`) stroke, sized 18dp at 27dp insets so its center sits at (72, 72)
+on the 108dp adaptive canvas and the whole shape stays inside the 66dp safe
+zone across all launcher mask shapes.
+
+The original 36dp/12dp sizing from the initial draft was too large in
+on-device review; halving to 18dp and re-centering on the same point
+produced a cleaner notification-dot read at launcher icon size.
 
 ### Legacy fallback assets
 
@@ -161,11 +176,18 @@ downloads or nonstandard local tools.
    - `./gradlew :app:testDebugUnitTestAll`
    - `./gradlew :app:lintDebugAll`
 
-## Open Questions
+## Resolved Decisions
 
-- Should `githubSnapshotHttp` use exactly the same snapshot badge as
-  `githubSnapshot`, relying on the app label for HTTP?
-- Should API 24-25 fallback icons be badged in the first pass?
-- Should debug builds get a visual treatment, or is snapshot/release enough?
-- What badge color best contrasts with the current icon while still fitting
-  MyDeck's visual identity?
+- **Shared badge across both snapshot flavors.** `githubSnapshotHttp` uses the
+  same badge as `githubSnapshot`; the app label disambiguates HTTP. Enforced
+  structurally via the shared `snapshotShared/res` source set, so the two
+  flavors cannot drift.
+- **API 24-25 fallbacks deferred.** Legacy density `mipmap-*/ic_launcher.webp`
+  overrides not added in the first pass. Current testing targets (Pixel 9) do
+  not need them. Revisit if older devices enter the testing rotation.
+- **No separate debug treatment.** Snapshot vs release is the meaningful
+  visual distinction; adding a debug badge would be noise.
+- **Badge color: yellow `#FFEB3B`.** High contrast against the deep teal
+  (`#1E5F5E`) background, no overlap with the existing icon palette. A thin
+  `#1A1A1A` stroke keeps it legible against light wallpapers and themed-icon
+  surfaces.
