@@ -1,7 +1,6 @@
 # List Multi-Select — Phase 4 Refinements Specification
 
-Status: Draft for implementation on the existing `feat/multi-select-phase-1`
-branch (Phase 3 shipped on the same branch; this work continues there).
+Status: Implemented on branch `feat/multi-select-phase-1`. 
 
 Date: 2026-06-02
 

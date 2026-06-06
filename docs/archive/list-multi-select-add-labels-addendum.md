@@ -1,6 +1,6 @@
 # List Multi-Select — Batch Add Labels (Addendum)
 
-Status: Draft for implementation. Addendum to
+Status: Implemented on branch `feat/multi-select-phase-1`. Addendum to
 [`list-multi-select-actions-spec.md`](./list-multi-select-actions-spec.md);
 extends that spec's §6 action set with a fourth batch action. Depends on
 multi-select Phase 3 (batch delete + Undo) having landed on
