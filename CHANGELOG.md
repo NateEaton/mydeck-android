@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.14.1] - 2026-06-08
+
+### Changed
+
+- Refined About screen copy, project repository labels, and license/source-code wording
+- Updated English user guide action labels to match the current bookmark and reader controls
+
+### Fixed
+
+- Corrected About screen attribution for the Readeck server and original ReadeckApp project
+
 ## [0.14.0] - 2026-06-04
 
 ### Added
