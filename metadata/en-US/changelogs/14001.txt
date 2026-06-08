@@ -1,0 +1,6 @@
+<b>Changed</b>
+- Refined About screen copy, project repository labels, and license/source-code wording
+- Updated user guide action labels to match the current bookmark and reader controls
+
+<b>Fixed</b>
+- Corrected About screen attribution for the Readeck server and original ReadeckApp project
