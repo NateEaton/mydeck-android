@@ -87,7 +87,7 @@ In **Grid** and **Compact** layouts, the download icon appears on the site-info 
 Each card has four action buttons:
 
 - **❤️ Favorite** — toggle the favorite status; filled when set
-- **Archive** — move the bookmark to the archive (or back to My List if already archived); the card is removed from the current view when toggled
+- **📦 Archive** — move the bookmark to the archive (or back to My List if already archived); the card is removed from the current view when toggled
 - **🌐 View web page** — open the web page in an in-app viewer
 - **🗑️ Delete** — delete the bookmark; the card is greyed out and a **"Deleting bookmark \"Title...\""** bar appears at the bottom with an **Undo** option and a short title snippet so you can tell which queued delete you are restoring. Tap **Undo** to restore the bookmark, or tap anywhere else (including the greyed-out card itself) to confirm deletion
 
@@ -190,12 +190,12 @@ Tap **Search** to apply, or **Reset** to clear all filters.
 
 ## Selecting Multiple Bookmarks
 
-Open the **⋮ overflow menu** and tap **Select bookmarks** to enter selection mode. The top bar switches to an **✕** (exit), the number of selected bookmarks as the title, an **Archive** and a **Favorite** action, and a **⋮ overflow**. Tap any card to select or deselect it — each card's action buttons become dimmed icons showing its current favorite and archive state, with a selection indicator on the right. Tap **✕** to exit and clear the selection.
+Open the **⋮ overflow menu** and tap **Select bookmarks** to enter selection mode. The top bar switches to an **✕** (exit), the number of selected bookmarks as the title, an **📦 Archive** and a **❤️ Favorite** action, and a **⋮ overflow**. Tap any card to select or deselect it — each card's action buttons become dimmed icons showing its current favorite and archive state, with a selection indicator on the right. Tap **✕** to exit and clear the selection.
 
 Once at least one bookmark is selected, the bar's two actions apply to the **whole selection**:
 
 - **Archive** and **Favorite** each show the most useful action for what you've selected. If any selected bookmark isn't yet archived (or favorited), the bar offers **Archive** (or **Add favorite**); once they all already are, it flips to **Unarchive** (or **Remove favorite**).
-- The **⋮ overflow** holds **🗑️ Delete** (removes every selected bookmark), **Add labels**, and **Select all / Deselect all**.
+- The **⋮ overflow** holds **Delete** (removes every selected bookmark), **Add labels**, and **Select all / Deselect all**.
 
 **Add labels** opens the label picker. Pick one or more existing labels (or create a new one from the search box) and tap **Done** to add them to every selected bookmark — labels already present are kept, and bookmarks that already have all the chosen labels are left untouched. Like Archive and Favorite, this **keeps you in selection mode** so you can keep working with the same set. A snackbar confirms "Labels added to N bookmarks" with an **Undo** that restores the prior labels on the bookmarks that changed.
 

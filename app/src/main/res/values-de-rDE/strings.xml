@@ -628,7 +628,7 @@ other{}
     <string name="list_view_empty_nothing_to_see">No bookmarks have been found.</string>
     <string name="about_title">About</string>
     <string name="about_version">Version %s</string>
-    <string name="about_description">A read-later app for Readeck with a Pocket-like experience</string>
+    <string name="about_description">A native Android client for Readeck, a self-hosted read-it-later service. It supports managing and reading your saved articles, videos, and photos.</string>
     <string name="about_credits_title">Credits</string>
     <string name="about_credits_app_author">MyDeck by Nate Eaton</string>
     <string name="about_credits_readeck">Readeck server by Olivier Meunier</string>
@@ -638,10 +638,10 @@ other{}
     <string name="about_system_info_device">Device: %1$s %2$s</string>
     <string name="about_project_title">Project</string>
     <string name="about_project_this_repo">MyDeck Repository (Fork)</string>
-    <string name="about_project_original_repo">Original ReadeckApp Repository</string>
-    <string name="about_project_readeck_repo">Readeck Server (Codeberg.org)</string>
+    <string name="about_project_original_repo">ReadeckApp Repository</string>
+    <string name="about_project_readeck_repo">Readeck Server Repository</string>
     <string name="about_license_title">License</string>
-    <string name="about_license_text">MyDeck is licensed under the GNU General Public License v3 (GPLv3). Source code is available on GitHub.</string>
+    <string name="about_license_text">MyDeck is licensed under the GNU General Public License v3 (GPLv3). Source code is available in the project repository.</string>
     <string name="about_license_readeck">Readeck server is licensed under the AGPL-3.0 license.</string>
     <string name="detail_dialog_title">Details</string>
     <string name="detail_type">Type</string>
