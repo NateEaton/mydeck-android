@@ -56,7 +56,7 @@ Loaded: true
 Has Article: true
 Has Article Content: false
 
-Article Resource: https://read.eatonfamily.net/api/bookmarks/.../article
+Article Resource: https://readeck.example.com/api/bookmarks/.../article
 ```
 
 The bookmark was in LOADED state, server confirmed it has article content, but local database had no content - clear indication of failed article download.

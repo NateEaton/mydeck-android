@@ -7,7 +7,7 @@ Allow external tools, such as a Telegram highlight bot, to open a Readeck bookma
 Example source URL:
 
 ```text
-https://read.eatonfamily.net/bookmarks/PJmgMtUozPd5JF9zqPra7w
+https://readeck.example.com/bookmarks/PJmgMtUozPd5JF9zqPra7w
 ```
 
 Bot-generated MyDeck URL:
@@ -25,7 +25,7 @@ It is not an Android **Verified Link** or **App Link**. Android App Links are ve
 In short:
 
 - `mydeck://bookmark/{id}`: custom scheme deep link.
-- `https://read.eatonfamily.net/bookmarks/{id}` opening directly in MyDeck: Android App Link / Verified Link.
+- `https://readeck.example.com/bookmarks/{id}` opening directly in MyDeck: Android App Link / Verified Link.
 
 ## Supported URL Format
 

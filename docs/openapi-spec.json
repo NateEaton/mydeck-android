@@ -7,7 +7,7 @@
   },
   "servers": [
     {
-      "url": "https://read.eatonfamily.net/api"
+      "url": "https://readeck.example.com/api"
     }
   ],
   "components": {
