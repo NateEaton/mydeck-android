@@ -1,6 +1,6 @@
 # Offline Download Icon: Cached-Content State & Text-Cache Retention
 
-**Status:** Part 1 (cached-content state fix) implemented on `claude/offline-reading-icon-analysis-bsbr5p` (commit `11146cb`). Part 2 (demote-to-text on purge/prune) proposed / deferred. (documented 2026-06-12)
+**Status:** Part 1 (cached-content state fix) implemented on `claude/offline-reading-icon-analysis-bsbr5p` (commit `11146cb`). Part 2 (demote-to-text on purge/prune) **shelved** — see §3.0. (documented 2026-06-12, Part 2 shelved 2026-06-12)
 **Origin:** Investigation of why opened-but-not-batch-downloaded bookmarks showed no offline download icon when "offline reading" was disabled, and why content opened with offline reading off was lost entirely when the setting was toggled off.
 
 ---
@@ -73,11 +73,23 @@ Effect: opened articles show the outline icon regardless of the offline-reading 
 
 ---
 
-## 3. Follow-up — demote-to-text on purge / prune (proposed)
+## 3. Follow-up — demote-to-text on purge / prune (shelved)
+
+### 3.0 Status: shelved (2026-06-12)
+
+Originally proposed as a way to honor the expectation *"content I've read stays readable offline."* On review, shelving — not deferring — for these reasons:
+
+1. **Storage at scale.** The premise that "text is cheap, images are the cost" doesn't hold for power-user libraries (10k+ bookmarks have been observed in the wild). HTML alone can still be material, and worse, it's invisible to the user — there's no obvious signal explaining why disabling offline reading didn't reclaim the space they expected. A user who toggled the setting off to reclaim storage shouldn't be surprised by a residual footprint.
+2. **UX coherence.** Today the contract is single and learnable: *offline = text + images*. Introducing a third lifecycle state where managed content silently degrades to text-only produces a worse offline read (broken-image articles) than the pure on-demand path — which at least never promised images. It also conflates two states (`DOWNLOADED_TEXT_ONLY` from on-demand caching vs. from managed teardown) that today have distinct provenance.
+3. **The real lever is upstream.** Pure on-demand text caches (`DOWNLOADED` + no `content_package` row) are *not* swept by `purgeManagedOfflineContent` — it filters on `hasResources = 1`. So "content I merely read survives disable" already holds for the on-demand path. What breaks the intuition is the **promote-on-open** behavior in `enqueuePriorityPackageDownload`: opening a bookmark while offline reading is on turns a read into a *managed* package, which then gets fully wiped on disable. If this ever feels wrong in practice, the right intervention is to revisit promote-on-open (e.g. don't auto-promote, or promote only on explicit user action), not to degrade managed content on teardown.
+
+The original analysis (§3.1–§3.5) is preserved below for reference but is **not** a work item. Do not implement without re-opening the design conversation.
+
+---
+
+### 3.1 Current behavior (preserved for reference)
 
 With Part 1 in place, `DOWNLOADED_TEXT_ONLY` is reachable for the first time. That exposes a second divergence from user expectation around the lifecycle of *managed* content.
-
-### 3.1 Current behavior
 
 - **Disable offline reading** → `SyncSettingsViewModel.runManagedContentPurge` → `purgeManagedOfflineContent` → for each `getBookmarkIdsWithOfflinePackages()` (rows with `hasResources = 1`) → `ContentPackageManager.deleteContentForBookmark` → **full wipe**: deletes files, `content_resource`, `content_package`, `article_content`, cached annotations, and resets `contentState = NOT_ATTEMPTED`.
 - **Policy prune** (`OfflinePolicyEvaluator.selectForPruning`, e.g. a bookmark ages out of the date-range / Newest-N window) → same `deleteContentForBookmark` full wipe.
