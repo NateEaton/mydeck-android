@@ -171,6 +171,21 @@ interface BookmarkDao {
             // when content-bearing bookmark metadata is refreshed.
             upsertBookmark(bookmarkToInsert)
 
+            // upsertBookmark's existing-row branch routes through updateBookmarkMetadata, whose
+            // SET clause deliberately omits contentState (so metadata-only syncs can't clobber
+            // local download status). That means an explicit state on a content-bearing write —
+            // e.g. on-demand article caching stamping DOWNLOADED — would be silently dropped for
+            // already-synced rows, leaving the row NOT_ATTEMPTED despite having cached
+            // article_content (no offline icon, and a redundant re-fetch on every reopen).
+            // Persist the resolved state directly so it survives. bookmarkToInsert already
+            // reflects the preserve/heal logic above, so this re-writes the same value for
+            // preserved rows and is therefore safe for metadata-only callers too.
+            updateContentState(
+                bookmarkToInsert.id,
+                bookmarkToInsert.contentState.value,
+                bookmarkToInsert.contentFailureReason
+            )
+
             // Re-insert article content: prefer new content, fall back to preserved existing
             val contentToSave = articleContent ?: existingArticleContent?.let {
                 ArticleContentEntity(bookmarkId = bookmark.id, content = it)

@@ -476,6 +476,71 @@ class BookmarkDaoTest {
     }
 
     @RunWith(RobolectricTestRunner::class)
+    internal class ContentBearingUpsertTest : BaseTest() {
+        // Regression: on-demand article caching stamps DOWNLOADED and writes article HTML for an
+        // already-synced row. Previously upsertBookmark's existing-row branch
+        // (updateBookmarkMetadata) dropped contentState, leaving the row NOT_ATTEMPTED despite
+        // having cached content — so no offline icon and a redundant re-fetch on every reopen.
+        @Test
+        fun `content-bearing insert persists explicit DOWNLOADED state on existing row`() =
+            runTest(testDispatcher) {
+                val bookmarkId = "test-0"
+                assertEquals(
+                    BookmarkEntity.ContentState.NOT_ATTEMPTED,
+                    bookmarkDao.getBookmarkById(bookmarkId).contentState
+                )
+
+                val original = bookmarkDao.getBookmarkById(bookmarkId)
+                bookmarkDao.insertBookmarkWithArticleContent(
+                    BookmarkWithArticleContent(
+                        bookmark = original.copy(
+                            contentState = BookmarkEntity.ContentState.DOWNLOADED,
+                            contentFailureReason = null
+                        ),
+                        articleContent = ArticleContentEntity(
+                            bookmarkId = bookmarkId,
+                            content = "fresh body"
+                        )
+                    )
+                )
+
+                val saved = bookmarkDao.getBookmarkById(bookmarkId)
+                assertEquals(BookmarkEntity.ContentState.DOWNLOADED, saved.contentState)
+                assertEquals("fresh body", bookmarkDao.getArticleContent(bookmarkId))
+            }
+
+        // Guard: the fix must not defeat the preserve branch — a refresh whose incoming state is
+        // the default NOT_ATTEMPTED still keeps the locally-known DOWNLOADED state and content.
+        @Test
+        fun `content-bearing insert preserves existing state when incoming is NOT_ATTEMPTED`() =
+            runTest(testDispatcher) {
+                val bookmarkId = "test-0"
+                bookmarkDao.updateContentState(
+                    bookmarkId,
+                    BookmarkEntity.ContentState.DOWNLOADED.value,
+                    null
+                )
+
+                val original = bookmarkDao.getBookmarkById(bookmarkId)
+                bookmarkDao.insertBookmarkWithArticleContent(
+                    BookmarkWithArticleContent(
+                        bookmark = original.copy(
+                            title = "Refreshed Title",
+                            contentState = BookmarkEntity.ContentState.NOT_ATTEMPTED,
+                            contentFailureReason = null
+                        ),
+                        articleContent = null
+                    )
+                )
+
+                val saved = bookmarkDao.getBookmarkById(bookmarkId)
+                assertEquals("Refreshed Title", saved.title)
+                assertEquals(BookmarkEntity.ContentState.DOWNLOADED, saved.contentState)
+                assertEquals("content", bookmarkDao.getArticleContent(bookmarkId))
+            }
+    }
+
+    @RunWith(RobolectricTestRunner::class)
     internal class WithErrorsFilterTest : BaseTest() {
         @Test
         fun `withErrors yes matches server error state or persisted server errors`() = runTest(testDispatcher) {
