@@ -124,11 +124,24 @@ class OfflinePolicyEvaluatorTest {
     }
 
     @Test
-    fun `needsOfflinePackage returns false when content downloaded`() {
+    fun `needsOfflinePackage returns false when a package is committed and not dirty`() {
         val bk = bookmark(id = "1", created = "2026-01-01T00:00:00Z",
-            contentState = BookmarkEntity.ContentState.DOWNLOADED)
+            contentState = BookmarkEntity.ContentState.DOWNLOADED,
+            hasContentPackage = true)
 
         assertFalse(evaluator.needsOfflinePackage(bk))
+    }
+
+    @Test
+    fun `needsOfflinePackage returns true for a legacy text cache with no committed package`() {
+        // DOWNLOADED but no content_package row — a freshly-added article or on-demand text cache
+        // that must be upgraded to a full package (spec §4.2, diagnosis 4.2). The old guard keyed
+        // off bare contentState and wrongly treated this as "done".
+        val bk = bookmark(id = "1", created = "2026-01-01T00:00:00Z",
+            contentState = BookmarkEntity.ContentState.DOWNLOADED,
+            hasContentPackage = false)
+
+        assertTrue(evaluator.needsOfflinePackage(bk))
     }
 
     // --- selectEligibleBookmarks: STORAGE_LIMIT policy ---
@@ -798,13 +811,15 @@ class OfflinePolicyEvaluatorTest {
         id: String,
         created: String,
         hasOfflinePackage: Boolean = false,
-        contentState: BookmarkEntity.ContentState = BookmarkEntity.ContentState.NOT_ATTEMPTED
+        contentState: BookmarkEntity.ContentState = BookmarkEntity.ContentState.NOT_ATTEMPTED,
+        hasContentPackage: Boolean = hasOfflinePackage
     ): BookmarkDao.OfflinePolicyBookmark {
         return BookmarkDao.OfflinePolicyBookmark(
             id = id,
             created = Instant.parse(created),
             contentState = contentState,
-            hasOfflinePackage = hasOfflinePackage
+            hasOfflinePackage = hasOfflinePackage,
+            hasContentPackage = hasContentPackage
         )
     }
 }

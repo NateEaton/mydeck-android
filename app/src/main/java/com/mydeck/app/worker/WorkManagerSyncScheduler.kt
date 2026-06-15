@@ -19,23 +19,6 @@ class WorkManagerSyncScheduler @Inject constructor(
         ActionSyncWorker.enqueue(workManager)
     }
 
-    override fun scheduleArticleDownload(bookmarkId: String) {
-        val request = OneTimeWorkRequestBuilder<LoadArticleWorker>()
-            .setInputData(
-                Data.Builder()
-                    .putString(LoadArticleWorker.PARAM_BOOKMARK_ID, bookmarkId)
-                    .build()
-            )
-            .setConstraints(
-                Constraints.Builder()
-                    .setRequiredNetworkType(NetworkType.CONNECTED)
-                    .build()
-            )
-            .build()
-        workManager.enqueue(request)
-        Timber.d("Article download enqueued for bookmark: $bookmarkId")
-    }
-
     override fun scheduleBatchArticleLoad(wifiOnly: Boolean, allowBatterySaver: Boolean) {
         try {
             val constraintsBuilder = Constraints.Builder()

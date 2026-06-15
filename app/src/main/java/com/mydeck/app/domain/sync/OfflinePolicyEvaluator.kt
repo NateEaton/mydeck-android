@@ -1,5 +1,6 @@
 package com.mydeck.app.domain.sync
 
+import com.mydeck.app.domain.content.OfflineContentForm
 import com.mydeck.app.io.db.dao.BookmarkDao
 import com.mydeck.app.io.prefs.SettingsDataStore
 import javax.inject.Inject
@@ -68,7 +69,11 @@ class OfflinePolicyEvaluator @Inject constructor(
     }
 
     fun needsOfflinePackage(bookmark: BookmarkDao.OfflinePolicyBookmark): Boolean {
-        return bookmark.contentState != com.mydeck.app.io.db.model.BookmarkEntity.ContentState.DOWNLOADED
+        // Completeness guard (spec §4.2): a bookmark needs a (re)fetch when it has no committed
+        // package yet (NOT_ATTEMPTED, or a legacy text cache that was never packaged) or it is
+        // DIRTY (freshness refresh / §4.3 partial re-attempt). A committed package that is not
+        // DIRTY — full OR legitimately image-less — does not, so it is not re-downloaded each run.
+        return OfflineContentForm.needsContentFetch(bookmark.contentState, bookmark.hasContentPackage)
     }
 
     /**

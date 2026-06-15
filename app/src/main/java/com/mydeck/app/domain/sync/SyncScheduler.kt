@@ -7,11 +7,6 @@ interface SyncScheduler {
     fun scheduleActionSync()
 
     /**
-     * Schedules a one-time background download for an article's content.
-     */
-    fun scheduleArticleDownload(bookmarkId: String)
-
-    /**
      * Enqueues a batch content-sync job to download offline articles.
      */
     fun scheduleBatchArticleLoad(wifiOnly: Boolean, allowBatterySaver: Boolean)

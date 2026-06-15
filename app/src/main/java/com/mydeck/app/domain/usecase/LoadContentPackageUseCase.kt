@@ -3,6 +3,7 @@ package com.mydeck.app.domain.usecase
 import com.mydeck.app.domain.BookmarkRepository
 import com.mydeck.app.domain.content.AnnotationHtmlEnricher
 import com.mydeck.app.domain.content.ContentPackageManager
+import com.mydeck.app.domain.content.OfflineContentForm
 import com.mydeck.app.domain.mapper.toDomain
 import com.mydeck.app.domain.model.Bookmark
 import com.mydeck.app.domain.model.Bookmark.ContentState
@@ -67,8 +68,12 @@ class LoadContentPackageUseCase @Inject constructor(
         val bookmark = bookmarkRepository.getBookmarkById(bookmarkId)
         onProgress?.invoke(0.1f)
 
-        // Guard: never re-fetch downloaded content
-        if (bookmark.contentState == ContentState.DOWNLOADED) {
+        // Completeness guard (spec §4.2 / OfflineContentForm.needsContentFetch): never re-fetch a
+        // committed package, but DO upgrade a legacy on-demand text cache (DOWNLOADED with no
+        // content_package) to a real package. DIRTY falls through to the freshness/re-fetch logic
+        // below (a DIRTY package is re-attempted; a fresh DIRTY package is restored to DOWNLOADED).
+        val hasPackage = contentPackageManager.getContentDir(bookmarkId) != null
+        if (bookmark.contentState == ContentState.DOWNLOADED && hasPackage) {
             return Result.AlreadyDownloaded
         }
 
@@ -188,7 +193,32 @@ class LoadContentPackageUseCase @Inject constructor(
                         pkg.json?.omitDescription?.let { omitVal ->
                             bookmarkDao.updateOmitDescription(bookmarkId, omitVal)
                         }
-                        Timber.i("Content package downloaded for $bookmarkId (kind=$packageKind)")
+                        // Partial-package rule (spec §4.3): commitPackage stamped DOWNLOADED, but if
+                        // the multipart fetch committed HTML while dropping its image resource parts
+                        // in transport (parse warnings + zero resources) — or a picture has no image —
+                        // override to DIRTY so the completeness guards re-attempt the resources next
+                        // run. The HTML text stays immediately readable in the meantime (TEXT_CACHE
+                        // form); a genuinely image-less article (no warnings) stays DOWNLOADED.
+                        val isPartial = OfflineContentForm.isPartialPackage(
+                            hasHtml = effectivePkg.html != null,
+                            resourceCount = pkg.resources.size,
+                            parseWarningCount = pkg.parseWarnings.size,
+                            isPicture = bookmark.type is Bookmark.Type.Picture,
+                            isVideo = bookmark.type is Bookmark.Type.Video
+                        )
+                        if (isPartial) {
+                            bookmarkDao.updateContentState(
+                                bookmarkId,
+                                BookmarkEntity.ContentState.DIRTY.value,
+                                "Partial package: image resource parts missing in transport, will re-attempt"
+                            )
+                            Timber.w(
+                                "Partial package for $bookmarkId (kind=$packageKind) — HTML committed " +
+                                    "but resources dropped (warnings=${pkg.parseWarnings.size}); marked DIRTY for re-attempt"
+                            )
+                        } else {
+                            Timber.i("Content package downloaded for $bookmarkId (kind=$packageKind)")
+                        }
                         Result.Success
                     } else {
                         Result.TransientFailure("Failed to commit package to storage")

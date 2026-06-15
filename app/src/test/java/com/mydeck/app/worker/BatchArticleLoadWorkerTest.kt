@@ -495,13 +495,15 @@ class BatchArticleLoadWorkerTest {
         id: String,
         created: String,
         hasOfflinePackage: Boolean = false,
-        contentState: BookmarkEntity.ContentState = BookmarkEntity.ContentState.NOT_ATTEMPTED
+        contentState: BookmarkEntity.ContentState = BookmarkEntity.ContentState.NOT_ATTEMPTED,
+        hasContentPackage: Boolean = hasOfflinePackage
     ): BookmarkDao.OfflinePolicyBookmark {
         return BookmarkDao.OfflinePolicyBookmark(
             id = id,
             created = Instant.parse(created),
             contentState = contentState,
-            hasOfflinePackage = hasOfflinePackage
+            hasOfflinePackage = hasOfflinePackage,
+            hasContentPackage = hasContentPackage
         )
     }
 }

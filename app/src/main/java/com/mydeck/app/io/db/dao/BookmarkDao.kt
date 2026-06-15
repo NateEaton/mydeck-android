@@ -834,7 +834,10 @@ interface BookmarkDao {
         val id: String,
         val created: Instant,
         val contentState: BookmarkEntity.ContentState,
-        val hasOfflinePackage: Boolean
+        /** A full package is committed: a content_package row exists with hasResources = 1. */
+        val hasOfflinePackage: Boolean,
+        /** Any content_package row is committed (HTML on disk), regardless of hasResources. */
+        val hasContentPackage: Boolean
     )
 
     @Query("""
@@ -852,8 +855,12 @@ interface BookmarkDao {
 
     @Query("""
         SELECT b.id FROM bookmarks b
-        WHERE b.isLocalDeleted = 0 AND b.contentState IN (0, 2)
+        WHERE b.isLocalDeleted = 0 AND b.contentState != 3
         AND (b.hasArticle = 1 OR b.type = 'photo')
+        AND (
+            b.contentState = 2
+            OR NOT EXISTS (SELECT 1 FROM content_package cp WHERE cp.bookmarkId = b.id)
+        )
         AND (:includeArchived = 1 OR b.isArchived = 0)
         ORDER BY b.created DESC
     """)
@@ -864,7 +871,8 @@ interface BookmarkDao {
             b.id AS id,
             b.created AS created,
             b.contentState AS contentState,
-            CASE WHEN cp.bookmarkId IS NOT NULL AND cp.hasResources = 1 THEN 1 ELSE 0 END AS hasOfflinePackage
+            CASE WHEN cp.bookmarkId IS NOT NULL AND cp.hasResources = 1 THEN 1 ELSE 0 END AS hasOfflinePackage,
+            CASE WHEN cp.bookmarkId IS NOT NULL THEN 1 ELSE 0 END AS hasContentPackage
         FROM bookmarks b
         LEFT JOIN content_package cp ON cp.bookmarkId = b.id
         WHERE b.isLocalDeleted = 0
@@ -892,8 +900,12 @@ interface BookmarkDao {
     @Query("""
         SELECT b.id FROM bookmarks b
         WHERE b.isLocalDeleted = 0
-        AND b.contentState IN (0, 2)
+        AND b.contentState != 3
         AND (b.hasArticle = 1 OR b.type = 'photo')
+        AND (
+            b.contentState = 2
+            OR NOT EXISTS (SELECT 1 FROM content_package cp WHERE cp.bookmarkId = b.id)
+        )
         AND b.id IN (
             SELECT id FROM bookmarks
             WHERE isLocalDeleted = 0
@@ -986,8 +998,12 @@ interface BookmarkDao {
 
     @Query("""
         SELECT b.id FROM bookmarks b
-        WHERE b.isLocalDeleted = 0 AND b.contentState IN (0, 2)
+        WHERE b.isLocalDeleted = 0 AND b.contentState != 3
         AND (b.hasArticle = 1 OR b.type = 'photo')
+        AND (
+            b.contentState = 2
+            OR NOT EXISTS (SELECT 1 FROM content_package cp WHERE cp.bookmarkId = b.id)
+        )
         AND (:includeArchived = 1 OR b.isArchived = 0)
         AND b.created >= :fromEpoch AND b.created <= :toEpoch
         ORDER BY b.created DESC

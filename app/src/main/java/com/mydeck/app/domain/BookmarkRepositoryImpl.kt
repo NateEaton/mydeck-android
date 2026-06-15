@@ -513,8 +513,20 @@ class BookmarkRepositoryImpl @Inject constructor(
         }
     }
 
-    private fun enqueueArticleDownload(bookmarkId: String) {
-        syncScheduler.scheduleArticleDownload(bookmarkId)
+    /**
+     * Queue a FULL offline package download for a freshly-added bookmark (spec §5 A1).
+     *
+     * The old per-add path enqueued LoadArticleWorker, which fetched LEGACY TEXT only and
+     * pre-stamped contentState=DOWNLOADED with no package — stranding the article as text-only
+     * forever, because every guard then treated it as "done" (diagnosis 4.2). Instead route the
+     * add through the batch package pipeline: a freshly-added article is the newest bookmark, so
+     * the batch worker fetches a real package (text + images) for it (and promote-on-open covers
+     * an early open). Callers already gate on offline reading being enabled and hasArticle.
+     */
+    private suspend fun enqueueArticleDownload(bookmarkId: String) {
+        val constraints = settingsDataStore.getContentSyncConstraints()
+        syncScheduler.scheduleBatchArticleLoad(constraints.wifiOnly, constraints.allowOnBatterySaver)
+        Timber.d("Queued batch offline package fetch for newly added bookmark: $bookmarkId")
     }
 
     override suspend fun updateBookmark(

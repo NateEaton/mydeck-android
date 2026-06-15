@@ -335,6 +335,15 @@ class BookmarkDetailViewModel @Inject constructor(
                                 } else {
                                     // Legacy article path — content in Room
                                     syncAnnotationsIfNeeded(id)
+                                    // Promote-on-open (spec §4.2 / A1): a legacy on-demand text cache
+                                    // (DOWNLOADED with no committed package) must be upgraded to a full
+                                    // package when offline reading is on, instead of being stranded as
+                                    // text-only. The old DOWNLOADED branch only displayed and never
+                                    // promoted, so freshly-added articles never gained images
+                                    // (diagnosis 4.2). Open-while-offline-off stays a text cache.
+                                    if (settingsDataStore.isOfflineReadingEnabled()) {
+                                        enqueuePriorityPackageDownload(id)
+                                    }
                                 }
                             }
                             ContentState.PERMANENT_NO_CONTENT -> {
@@ -1060,7 +1069,12 @@ class BookmarkDetailViewModel @Inject constructor(
             if (loadState == ContentLoadState.Loaded) {
                 cachedHasResources = contentPackageManager.hasResources(bookmarkId)
                 cachedHasOfflinePackage = contentPackageManager.getContentDir(bookmarkId) != null
-                if (cachedHasResources != true && settingsDataStore.isOfflineReadingEnabled()) {
+                // Promote-on-open (spec §4.2 / A1): upgrade to a full package only when there is no
+                // committed package yet (a text cache from LoadArticleUseCase). Keying off package
+                // presence rather than hasResources avoids re-downloading a committed image-less
+                // package on every open (churn); a transport-partial package is re-attempted in the
+                // background via its DIRTY state instead.
+                if (cachedHasOfflinePackage != true && settingsDataStore.isOfflineReadingEnabled()) {
                     enqueuePriorityPackageDownload(bookmarkId)
                 }
             }

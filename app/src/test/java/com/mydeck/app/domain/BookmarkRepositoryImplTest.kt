@@ -5,6 +5,7 @@ import com.mydeck.app.domain.mapper.toEntity
 import com.mydeck.app.domain.mapper.toDomain
 import com.mydeck.app.domain.model.Bookmark
 import com.mydeck.app.domain.model.BookmarkMetadataUpdate
+import com.mydeck.app.domain.sync.ContentSyncConstraints
 import com.mydeck.app.domain.sync.SyncScheduler
 import com.mydeck.app.io.db.MyDeckDatabase
 import com.mydeck.app.io.db.dao.BookmarkDao
@@ -599,7 +600,9 @@ class BookmarkRepositoryImplTest {
         val bookmarkId = "new-bookmark-id"
         
         coEvery { settingsDataStore.isOfflineReadingEnabled() } returns true
-        
+        coEvery { settingsDataStore.getContentSyncConstraints() } returns
+            ContentSyncConstraints(wifiOnly = false, allowOnBatterySaver = true)
+
         val createBookmarkDto = CreateBookmarkDto(labels = labels, title = title, url = url)
         val headers = Headers.Builder()
             .add(ReadeckApi.Header.BOOKMARK_ID, bookmarkId)
@@ -621,7 +624,9 @@ class BookmarkRepositoryImplTest {
         coVerify { readeckApi.createBookmark(createBookmarkDto) }
         coVerify { readeckApi.getBookmarkById(bookmarkId) }
         coVerify { bookmarkDao.upsertBookmarksMetadataOnly(any()) }
-        verify { syncScheduler.scheduleArticleDownload(bookmarkId) }
+        // Per-add now routes through the batch package pipeline (spec §5 A1) instead of the
+        // removed legacy text worker, so a freshly-added article gets a full package.
+        verify { syncScheduler.scheduleBatchArticleLoad(false, true) }
     }
 
     @Test
