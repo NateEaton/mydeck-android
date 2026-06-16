@@ -920,6 +920,8 @@ interface BookmarkDao {
         AND b.id IN (
             SELECT id FROM bookmarks
             WHERE isLocalDeleted = 0
+            AND (hasArticle = 1 OR type = 'photo')
+            AND contentState != 3
             AND (:includeArchived = 1 OR isArchived = 0)
             ORDER BY created DESC
             LIMIT :n
@@ -942,6 +944,8 @@ interface BookmarkDao {
         AND b.id NOT IN (
             SELECT id FROM bookmarks
             WHERE isLocalDeleted = 0
+            AND (hasArticle = 1 OR type = 'photo')
+            AND contentState != 3
             AND (:includeArchived = 1 OR isArchived = 0)
             ORDER BY created DESC
             LIMIT :n
