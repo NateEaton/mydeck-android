@@ -827,7 +827,11 @@ interface BookmarkDao {
         val contentDownloaded: Int,
         val contentAvailable: Int,
         val contentDirty: Int,
-        val permanentNoContent: Int
+        val permanentNoContent: Int,
+        /** Live count of AUTOMATIC full packages on device (hasResources=1) — W2/W6. */
+        val fullPackagesAutomatic: Int = 0,
+        /** Live count of MANUAL full packages on device (hasResources=1) — W2/W6. */
+        val fullPackagesManual: Int = 0
     )
 
     data class OfflinePolicyBookmark(
@@ -850,7 +854,11 @@ interface BookmarkDao {
             (SELECT COUNT(*) FROM bookmarks WHERE contentState = 1 AND isLocalDeleted = 0) AS contentDownloaded,
             (SELECT COUNT(*) FROM bookmarks WHERE contentState = 0 AND hasArticle = 1 AND isLocalDeleted = 0) AS contentAvailable,
             (SELECT COUNT(*) FROM bookmarks WHERE contentState = 2 AND isLocalDeleted = 0) AS contentDirty,
-            (SELECT COUNT(*) FROM bookmarks WHERE contentState = 3 AND isLocalDeleted = 0) AS permanentNoContent
+            (SELECT COUNT(*) FROM bookmarks WHERE contentState = 3 AND isLocalDeleted = 0) AS permanentNoContent,
+            (SELECT COUNT(*) FROM content_package cp JOIN bookmarks b ON b.id = cp.bookmarkId
+                WHERE cp.hasResources = 1 AND cp.source = 'AUTOMATIC' AND b.isLocalDeleted = 0) AS fullPackagesAutomatic,
+            (SELECT COUNT(*) FROM content_package cp JOIN bookmarks b ON b.id = cp.bookmarkId
+                WHERE cp.hasResources = 1 AND cp.source = 'MANUAL' AND b.isLocalDeleted = 0) AS fullPackagesManual
         FROM bookmarks LIMIT 1
     """)
     fun observeDetailedSyncStatus(): Flow<DetailedSyncStatusCounts?>

@@ -711,6 +711,18 @@ private fun OfflineReadingSection(
                         label = stringResource(R.string.sync_status_available_offline),
                         value = uiState.syncStatus.fullOfflineAvailable.toString()
                     )
+                    // Provenance breakdown (W2): Automatic = policy-managed (prunable),
+                    // Manual = hand-picked / opened (protected from prune).
+                    CompactStatRow(
+                        label = stringResource(R.string.sync_status_available_offline_automatic),
+                        value = uiState.syncStatus.automaticOfflineAvailable.toString(),
+                        modifier = Modifier.padding(start = 16.dp)
+                    )
+                    CompactStatRow(
+                        label = stringResource(R.string.sync_status_available_offline_manual),
+                        value = uiState.syncStatus.manualOfflineAvailable.toString(),
+                        modifier = Modifier.padding(start = 16.dp)
+                    )
                     if (uiState.syncStatus.skippedNoContent > 0) {
                         CompactStatRow(
                             label = stringResource(R.string.sync_status_skipped_no_content),

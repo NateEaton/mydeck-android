@@ -595,6 +595,8 @@ other{}
     <string name="sync_offline_what_to_keep">What to keep offline</string>
     <string name="sync_offline_whether_to_download">Whether to download</string>
     <string name="sync_status_available_offline">Available offline</string>
+    <string name="sync_status_available_offline_automatic">Automatic</string>
+    <string name="sync_status_available_offline_manual">Manual</string>
     <string name="sync_status_last_content_sync_label">Last content sync</string>
     <string name="sync_status_next_sync">Next sync: %1$s</string>
     <string name="sync_status_favorites_label">Favorites</string>
