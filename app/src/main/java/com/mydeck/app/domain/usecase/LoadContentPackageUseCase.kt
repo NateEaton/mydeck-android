@@ -486,6 +486,24 @@ class LoadContentPackageUseCase @Inject constructor(
                             pkg.json?.omitDescription?.let { omitVal ->
                                 bookmarkDao.updateOmitDescription(id, omitVal)
                             }
+                            // Partial-package rule (spec §4.3) — mirror fetchAndCommit: if the
+                            // multipart response committed HTML but dropped its image resource parts
+                            // in transport, mark DIRTY so the completeness guards re-attempt it next
+                            // run (a genuinely image-less article stays DOWNLOADED).
+                            if (OfflineContentForm.isPartialPackage(
+                                    hasHtml = effectivePkg.html != null,
+                                    resourceCount = pkg.resources.size,
+                                    parseWarningCount = pkg.parseWarnings.size,
+                                    isPicture = bookmark.type is Bookmark.Type.Picture,
+                                    isVideo = bookmark.type is Bookmark.Type.Video
+                                )
+                            ) {
+                                bookmarkDao.updateContentState(
+                                    id, BookmarkEntity.ContentState.DIRTY.value,
+                                    "Partial package: image resource parts missing in transport, will re-attempt"
+                                )
+                                Timber.w("Partial package for $id (batch) — resources dropped (warnings=${pkg.parseWarnings.size}); marked DIRTY")
+                            }
                         }
                         results[id] = if (committed) Result.Success else Result.TransientFailure("Commit failed")
                     }
