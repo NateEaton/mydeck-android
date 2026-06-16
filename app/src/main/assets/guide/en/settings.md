@@ -57,7 +57,7 @@ When **Include Archive** is off, archiving a bookmark removes it from offline el
 
 Shows how many bookmarks are fully available offline, how much storage offline content is using, and when offline content maintenance last ran.
 
-- **Clear All Offline Content** — removes all locally stored offline content without deleting the bookmarks themselves
+- **Clear All Offline Content** — removes all locally stored offline content, including full offline packages and text cached for quick re-opening, reclaiming all offline storage; bookmarks themselves are not deleted, and content is re-downloaded according to your offline settings
 
 If you turn offline reading off, MyDeck removes all automatically downloaded content immediately but keeps text that was loaded on demand when you opened bookmarks while browsing.
 

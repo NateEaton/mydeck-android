@@ -382,7 +382,7 @@ class SyncSettingsViewModel @Inject constructor(
     fun onConfirmClearOfflineContent() {
         showDialog.value = null
         viewModelScope.launch {
-            runManagedContentPurge("All offline content cleared by user")
+            runFullContentClear("All offline content cleared by user")
         }
     }
 
@@ -417,6 +417,19 @@ class SyncSettingsViewModel @Inject constructor(
             workManager.cancelUniqueWork(BatchArticleLoadWorker.UNIQUE_WORK_NAME)
             workManager.cancelAllWorkByTag(BatchArticleLoadWorker.WORK_TAG_OFFLINE_CONTENT)
             purgeManagedOfflineContent()
+            refreshStorageSize()
+            Timber.i(successLog)
+        } finally {
+            isPurgingOfflineContent.value = false
+        }
+    }
+
+    private suspend fun runFullContentClear(successLog: String) {
+        isPurgingOfflineContent.value = true
+        try {
+            workManager.cancelUniqueWork(BatchArticleLoadWorker.UNIQUE_WORK_NAME)
+            workManager.cancelAllWorkByTag(BatchArticleLoadWorker.WORK_TAG_OFFLINE_CONTENT)
+            contentPackageManager.deleteAllContent()
             refreshStorageSize()
             Timber.i(successLog)
         } finally {
