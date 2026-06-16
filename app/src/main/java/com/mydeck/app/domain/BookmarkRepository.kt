@@ -117,6 +117,9 @@ interface BookmarkRepository {
     suspend fun refreshBookmarkMetadata(bookmarkId: String)
     suspend fun fetchExtractionLog(bookmarkId: String): ExtractionLogResult
 
+    /** Debug-only: aggregated offline storage facts for a single bookmark. */
+    suspend fun getOfflineContentDebugInfo(bookmarkId: String): OfflineContentDebugInfo
+
     sealed interface BookmarkSyncProgress {
         data object Idle : BookmarkSyncProgress
         data class Running(val page: Int, val totalPages: Int) : BookmarkSyncProgress
@@ -145,3 +148,15 @@ interface BookmarkRepository {
         data class NetworkError(val errorMessage: String, val ex: Exception?): SyncResult()
     }
 }
+
+/** Immutable snapshot of offline storage facts used by the debug exporter. */
+data class OfflineContentDebugInfo(
+    val hasArticleContent: Boolean,
+    val articleContentLength: Int,
+    val hasPackage: Boolean,
+    val hasResources: Boolean,
+    val source: String?,        // "AUTOMATIC" | "MANUAL" | null
+    val resourceCount: Int,
+    val resourceTotalBytes: Long,
+    val contentDir: java.io.File?
+)

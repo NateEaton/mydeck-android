@@ -1300,4 +1300,22 @@ class BookmarkRepositoryImpl @Inject constructor(
                 BookmarkRepository.ExtractionLogResult.NetworkError
             }
         }
+
+    override suspend fun getOfflineContentDebugInfo(bookmarkId: String): OfflineContentDebugInfo =
+        withContext(dispatcher) {
+            val articleContent = bookmarkDao.getArticleContent(bookmarkId)
+            val pkg = database.getContentPackageDao().getPackage(bookmarkId)
+            val resources = database.getContentPackageDao().getResources(bookmarkId)
+            val contentDir = contentPackageManager.getContentDir(bookmarkId)
+            OfflineContentDebugInfo(
+                hasArticleContent = articleContent != null,
+                articleContentLength = articleContent?.length ?: 0,
+                hasPackage = pkg != null,
+                hasResources = pkg?.hasResources ?: false,
+                source = pkg?.source,
+                resourceCount = resources.size,
+                resourceTotalBytes = resources.sumOf { it.byteSize },
+                contentDir = contentDir
+            )
+        }
 }
