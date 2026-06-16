@@ -812,14 +812,16 @@ class OfflinePolicyEvaluatorTest {
         created: String,
         hasOfflinePackage: Boolean = false,
         contentState: BookmarkEntity.ContentState = BookmarkEntity.ContentState.NOT_ATTEMPTED,
-        hasContentPackage: Boolean = hasOfflinePackage
+        hasContentPackage: Boolean = hasOfflinePackage,
+        source: String? = if (hasContentPackage) "AUTOMATIC" else null
     ): BookmarkDao.OfflinePolicyBookmark {
         return BookmarkDao.OfflinePolicyBookmark(
             id = id,
             created = Instant.parse(created),
             contentState = contentState,
             hasOfflinePackage = hasOfflinePackage,
-            hasContentPackage = hasContentPackage
+            hasContentPackage = hasContentPackage,
+            source = source
         )
     }
 }

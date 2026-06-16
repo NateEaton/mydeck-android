@@ -52,7 +52,8 @@ class ContentPackageManager @Inject constructor(
     suspend fun commitPackage(
         pkg: BookmarkSyncPackage,
         packageKind: String,
-        sourceUpdated: String
+        sourceUpdated: String,
+        source: ContentSource = ContentSource.AUTOMATIC
     ): Boolean {
         val bookmarkId = pkg.bookmarkId
         val finalDir = File(offlineContentDir, bookmarkId)
@@ -112,6 +113,14 @@ class ContentPackageManager @Inject constructor(
                 )
             }
 
+            // Provenance (W2): never let a background re-download downgrade an existing
+            // MANUAL package to AUTOMATIC; an explicit MANUAL action may upgrade AUTOMATIC.
+            // (No DB writes occur before line ~139, so reading the existing row here is safe.)
+            val effectiveSource = ContentSource.resolveOnCommit(
+                existing = ContentSource.fromStored(contentPackageDao.getPackage(bookmarkId)?.source),
+                incoming = source
+            )
+
             // Prepare DB entities (computed before swap, persisted before swap)
             val packageEntity = ContentPackageEntity(
                 bookmarkId = bookmarkId,
@@ -120,7 +129,8 @@ class ContentPackageManager @Inject constructor(
                 hasResources = resourceEntities.isNotEmpty(),
                 sourceUpdated = sourceUpdated,
                 lastRefreshed = System.currentTimeMillis(),
-                localBasePath = "offline_content/$bookmarkId"
+                localBasePath = "offline_content/$bookmarkId",
+                source = effectiveSource.name
             )
 
             val annotationEntities = AnnotationHtmlParser.parse(pkg.html, bookmarkId)

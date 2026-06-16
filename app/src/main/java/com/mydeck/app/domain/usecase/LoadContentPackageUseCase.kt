@@ -3,6 +3,7 @@ package com.mydeck.app.domain.usecase
 import com.mydeck.app.domain.BookmarkRepository
 import com.mydeck.app.domain.content.AnnotationHtmlEnricher
 import com.mydeck.app.domain.content.ContentPackageManager
+import com.mydeck.app.domain.content.ContentSource
 import com.mydeck.app.domain.content.OfflineContentForm
 import com.mydeck.app.domain.mapper.toDomain
 import com.mydeck.app.domain.model.Bookmark
@@ -58,12 +59,17 @@ class LoadContentPackageUseCase @Inject constructor(
             return Result.TransientFailure("Offline")
         }
 
-        return fetchAndCommit(bookmarkId = bookmarkId, bookmark = bookmark)
+        // Refresh preserves provenance (the sticky-MANUAL rule keeps a MANUAL package MANUAL).
+        return fetchAndCommit(bookmarkId = bookmarkId, bookmark = bookmark, source = ContentSource.AUTOMATIC)
     }
 
     suspend fun execute(
         bookmarkId: String,
-        onProgress: ((Float) -> Unit)? = null
+        onProgress: ((Float) -> Unit)? = null,
+        // On-demand open is a user action → the resulting package is MANUAL (kept) when offline
+        // reading is on. (W2; the offline-off open of a video/picture is a rare edge that also
+        // lands MANUAL and is cleared by Clear All — see spec §6 W2.)
+        source: ContentSource = ContentSource.MANUAL
     ): Result {
         val bookmark = bookmarkRepository.getBookmarkById(bookmarkId)
         onProgress?.invoke(0.1f)
@@ -125,12 +131,13 @@ class LoadContentPackageUseCase @Inject constructor(
             return Result.TransientFailure("Offline")
         }
 
-        return fetchAndCommit(bookmarkId, bookmark, onProgress)
+        return fetchAndCommit(bookmarkId, bookmark, source, onProgress)
     }
 
     private suspend fun fetchAndCommit(
         bookmarkId: String,
         bookmark: Bookmark,
+        source: ContentSource,
         onProgress: ((Float) -> Unit)? = null
     ): Result {
         return try {
@@ -184,7 +191,7 @@ class LoadContentPackageUseCase @Inject constructor(
 
                     val sourceUpdatedInstant = pkg.json?.updated ?: bookmark.updated.toInstant(TimeZone.currentSystemDefault())
                     val committed = contentPackageManager.commitPackage(
-                        enrichedPkg, packageKind, sourceUpdatedInstant.toString()
+                        enrichedPkg, packageKind, sourceUpdatedInstant.toString(), source
                     )
                     onProgress?.invoke(0.95f) // Content committed
 
@@ -399,7 +406,13 @@ class LoadContentPackageUseCase @Inject constructor(
      *
      * All bookmarks receive full content packages (text + images).
      */
-    suspend fun executeBatch(bookmarkIds: List<String>): Map<String, Result> {
+    suspend fun executeBatch(
+        bookmarkIds: List<String>,
+        // Policy batch downloads are AUTOMATIC; the priority path (promote-on-open / multi-select)
+        // passes MANUAL. The sticky-MANUAL rule in commitPackage prevents a background re-download
+        // from downgrading an existing MANUAL package.
+        source: ContentSource = ContentSource.AUTOMATIC
+    ): Map<String, Result> {
         if (bookmarkIds.isEmpty()) return emptyMap()
         val results = mutableMapOf<String, Result>()
 
@@ -467,7 +480,7 @@ class LoadContentPackageUseCase @Inject constructor(
 
                         val sourceUpdatedInstant = pkg.json?.updated ?: bookmark.updated.toInstant(TimeZone.currentSystemDefault())
                         val committed = contentPackageManager.commitPackage(
-                            enrichedPkg, packageKind, sourceUpdatedInstant.toString()
+                            enrichedPkg, packageKind, sourceUpdatedInstant.toString(), source
                         )
                         if (committed) {
                             pkg.json?.omitDescription?.let { omitVal ->

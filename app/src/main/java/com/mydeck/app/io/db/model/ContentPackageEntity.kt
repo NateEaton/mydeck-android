@@ -1,5 +1,6 @@
 package com.mydeck.app.io.db.model
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.PrimaryKey
@@ -38,5 +39,14 @@ data class ContentPackageEntity(
     val hasResources: Boolean,
     val sourceUpdated: String,   // bookmark updated timestamp at time of package download
     val lastRefreshed: Long,     // epoch millis of last successful refresh
-    val localBasePath: String    // relative path under app-private storage
+    val localBasePath: String,   // relative path under app-private storage
+    /**
+     * Provenance of this package (spec §6 W2): `AUTOMATIC` = downloaded by the offline
+     * policy (prunable); `MANUAL` = created by an explicit user action — promote-on-open
+     * or multi-select "Available offline" (protected from the policy prune). Stored as the
+     * [com.mydeck.app.domain.content.ContentSource] name. Defaults to `AUTOMATIC` so rows
+     * written before this column existed are treated as policy-managed.
+     */
+    @ColumnInfo(defaultValue = "AUTOMATIC")
+    val source: String = "AUTOMATIC"
 )

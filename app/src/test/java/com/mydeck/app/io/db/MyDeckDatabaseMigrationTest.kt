@@ -373,4 +373,55 @@ class MyDeckDatabaseMigrationTest {
         dbV15.close()
         db.close()
     }
+
+    @Test
+    @Throws(IOException::class)
+    fun migrate16To17AddsContentPackageSourceDefaultingAutomatic() {
+        val helper = MigrationTestHelper(
+            InstrumentationRegistry.getInstrumentation(),
+            MyDeckDatabase::class.java,
+            emptyList<AutoMigrationSpec>(), // workaround for https://issuetracker.google.com/issues/298459978
+            FrameworkSQLiteOpenHelperFactory()
+        )
+        val db = helper.createDatabase(TEST_DB, 16).apply {
+            // A pre-W2 content_package row (no source column yet).
+            execSQL(
+                """
+                INSERT INTO content_package
+                    (bookmarkId, packageKind, hasHtml, hasResources, sourceUpdated, lastRefreshed, localBasePath)
+                VALUES ('bm1', 'ARTICLE', 1, 1, '2026-01-01T00:00:00Z', 0, 'offline_content/bm1')
+                """
+            )
+            close()
+        }
+
+        val dbV17 = helper.runMigrationsAndValidate(TEST_DB, 17, true, MyDeckDatabase.MIGRATION_16_17)
+
+        // The new column exists and is NOT NULL with default 'AUTOMATIC'.
+        val columns = mutableMapOf<String, ContentValues>()
+        val info = dbV17.query("PRAGMA table_info('content_package')")
+        try {
+            while (info.moveToNext()) {
+                val cv = ContentValues()
+                DatabaseUtils.cursorRowToContentValues(info, cv)
+                columns[cv.getAsString("name")] = cv
+            }
+        } finally {
+            info.close()
+        }
+        assertTrue(columns.containsKey("source"))
+        assertEquals(1, columns.getValue("source").getAsInteger("notnull"))
+
+        // The pre-existing row was backfilled to AUTOMATIC.
+        val cursor = dbV17.query("SELECT source FROM content_package WHERE bookmarkId = 'bm1'")
+        try {
+            assertTrue(cursor.moveToFirst())
+            assertEquals("AUTOMATIC", cursor.getString(0))
+        } finally {
+            cursor.close()
+        }
+
+        dbV17.close()
+        db.close()
+    }
 }

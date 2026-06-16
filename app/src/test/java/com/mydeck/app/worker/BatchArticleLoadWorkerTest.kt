@@ -5,6 +5,7 @@ import androidx.work.Data
 import androidx.work.ListenableWorker
 import androidx.work.WorkerParameters
 import com.mydeck.app.domain.content.ContentPackageManager
+import com.mydeck.app.domain.content.ContentSource
 import com.mydeck.app.domain.sync.OfflineContentScope
 import com.mydeck.app.domain.sync.OfflinePolicy
 import com.mydeck.app.domain.sync.OfflinePolicyEvaluator
@@ -212,14 +213,15 @@ class BatchArticleLoadWorkerTest {
 
         coEvery { settingsDataStore.getOfflineContentScope() } returns OfflineContentScope.MY_LIST
         coEvery { bookmarkDao.getIsArchived("priority-1") } returns false
-        coEvery { loadContentPackageUseCase.executeBatch(listOf("priority-1")) } returns mapOf(
+        coEvery { loadContentPackageUseCase.executeBatch(listOf("priority-1"), ContentSource.MANUAL) } returns mapOf(
             "priority-1" to LoadContentPackageUseCase.Result.Success
         )
 
         val result = createWorker(inputData).doWork()
 
         assertEquals(ListenableWorker.Result.success(), result)
-        coVerify { loadContentPackageUseCase.executeBatch(listOf("priority-1")) }
+        // Priority downloads are user-initiated → MANUAL provenance (W2).
+        coVerify { loadContentPackageUseCase.executeBatch(listOf("priority-1"), ContentSource.MANUAL) }
     }
 
     @Test
@@ -258,14 +260,14 @@ class BatchArticleLoadWorkerTest {
             .build()
 
         coEvery { settingsDataStore.getOfflineContentScope() } returns OfflineContentScope.MY_LIST_AND_ARCHIVED
-        coEvery { loadContentPackageUseCase.executeBatch(listOf("priority-1")) } returns mapOf(
+        coEvery { loadContentPackageUseCase.executeBatch(listOf("priority-1"), ContentSource.MANUAL) } returns mapOf(
             "priority-1" to LoadContentPackageUseCase.Result.Success
         )
 
         val result = createWorker(inputData).doWork()
 
         assertEquals(ListenableWorker.Result.success(), result)
-        coVerify { loadContentPackageUseCase.executeBatch(listOf("priority-1")) }
+        coVerify { loadContentPackageUseCase.executeBatch(listOf("priority-1"), ContentSource.MANUAL) }
     }
 
     @Test
@@ -496,14 +498,16 @@ class BatchArticleLoadWorkerTest {
         created: String,
         hasOfflinePackage: Boolean = false,
         contentState: BookmarkEntity.ContentState = BookmarkEntity.ContentState.NOT_ATTEMPTED,
-        hasContentPackage: Boolean = hasOfflinePackage
+        hasContentPackage: Boolean = hasOfflinePackage,
+        source: String? = if (hasContentPackage) ContentSource.AUTOMATIC.name else null
     ): BookmarkDao.OfflinePolicyBookmark {
         return BookmarkDao.OfflinePolicyBookmark(
             id = id,
             created = Instant.parse(created),
             contentState = contentState,
             hasOfflinePackage = hasOfflinePackage,
-            hasContentPackage = hasContentPackage
+            hasContentPackage = hasContentPackage,
+            source = source
         )
     }
 }

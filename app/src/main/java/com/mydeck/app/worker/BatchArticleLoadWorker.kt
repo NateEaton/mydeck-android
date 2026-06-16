@@ -11,6 +11,7 @@ import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import com.mydeck.app.domain.content.ContentPackageManager
+import com.mydeck.app.domain.content.ContentSource
 import com.mydeck.app.domain.sync.OfflinePolicy
 import com.mydeck.app.domain.sync.OfflinePolicyEvaluator
 import com.mydeck.app.domain.sync.OfflinePolicyEvaluator.Companion.avgArticleBytes
@@ -235,7 +236,8 @@ class BatchArticleLoadWorker @AssistedInject constructor(
                 Timber.i("Priority content fetch blocked by constraints for $bookmarkId")
                 return Result.success()
             }
-            loadContentPackageUseCase.executeBatch(listOf(bookmarkId))
+            // Priority downloads are user-initiated (promote-on-open / multi-select) → MANUAL (W2).
+            loadContentPackageUseCase.executeBatch(listOf(bookmarkId), ContentSource.MANUAL)
             settingsDataStore.saveLastContentSyncTimestamp(Clock.System.now())
             Timber.i("BatchArticleLoadWorker: priority download completed for $bookmarkId")
             Result.success()
@@ -278,8 +280,10 @@ class BatchArticleLoadWorker @AssistedInject constructor(
         }
 
         // --- Entry check ---
+        // Prune operates only on AUTOMATIC full packages (W2); MANUAL packages (promote-on-open /
+        // multi-select) are protected from the policy prune and survive until Clear All / disable.
         val initialBookmarks = bookmarkDao.getOfflinePolicyBookmarks(includeArchived)
-            .filter { it.hasOfflinePackage }
+            .filter { it.hasOfflinePackage && it.source == ContentSource.AUTOMATIC.name }
         if (initialBookmarks.isEmpty()) return
 
         val initialUsage = contentPackageManager.calculateManagedOfflineSize()
@@ -293,7 +297,7 @@ class BatchArticleLoadWorker @AssistedInject constructor(
         // --- Prune loop: remove one at a time until soft ceiling ---
         while (true) {
             val downloadedBookmarks = bookmarkDao.getOfflinePolicyBookmarks(includeArchived)
-                .filter { it.hasOfflinePackage }
+                .filter { it.hasOfflinePackage && it.source == ContentSource.AUTOMATIC.name }
             if (downloadedBookmarks.isEmpty()) return
 
             val totalUsageBytes = contentPackageManager.calculateManagedOfflineSize()

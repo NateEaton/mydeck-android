@@ -329,10 +329,15 @@ class BookmarkRepositoryImpl @Inject constructor(
         contentState: BookmarkEntity.ContentState,
         hasResources: Boolean?
     ): BookmarkListItem.OfflineState {
+        // Presence guarantee (W9): show an icon whenever content is on the device. A full package
+        // (hasResources=true) renders the filled icon regardless of contentState — including DIRTY,
+        // which still has text+images on disk and is merely flagged for a future refresh. Keying
+        // the filled icon off the package (not off contentState==DOWNLOADED) fixes the bug where a
+        // freshness re-mark (DOWNLOADED→DIRTY) hid the download icon for a fully-downloaded article.
         return when {
-            contentState != BookmarkEntity.ContentState.DOWNLOADED -> BookmarkListItem.OfflineState.NOT_DOWNLOADED
             hasResources == true -> BookmarkListItem.OfflineState.DOWNLOADED_FULL
-            else -> BookmarkListItem.OfflineState.DOWNLOADED_TEXT_ONLY
+            contentState == BookmarkEntity.ContentState.DOWNLOADED -> BookmarkListItem.OfflineState.DOWNLOADED_TEXT_ONLY
+            else -> BookmarkListItem.OfflineState.NOT_DOWNLOADED
         }
     }
 

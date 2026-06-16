@@ -837,7 +837,9 @@ interface BookmarkDao {
         /** A full package is committed: a content_package row exists with hasResources = 1. */
         val hasOfflinePackage: Boolean,
         /** Any content_package row is committed (HTML on disk), regardless of hasResources. */
-        val hasContentPackage: Boolean
+        val hasContentPackage: Boolean,
+        /** Provenance of the committed package (W2): `AUTOMATIC` | `MANUAL`; null when no package. */
+        val source: String?
     )
 
     @Query("""
@@ -872,7 +874,8 @@ interface BookmarkDao {
             b.created AS created,
             b.contentState AS contentState,
             CASE WHEN cp.bookmarkId IS NOT NULL AND cp.hasResources = 1 THEN 1 ELSE 0 END AS hasOfflinePackage,
-            CASE WHEN cp.bookmarkId IS NOT NULL THEN 1 ELSE 0 END AS hasContentPackage
+            CASE WHEN cp.bookmarkId IS NOT NULL THEN 1 ELSE 0 END AS hasContentPackage,
+            cp.source AS source
         FROM bookmarks b
         LEFT JOIN content_package cp ON cp.bookmarkId = b.id
         WHERE b.isLocalDeleted = 0
@@ -923,7 +926,10 @@ interface BookmarkDao {
     @Query("""
         SELECT b.id FROM bookmarks b
         WHERE b.isLocalDeleted = 0
-        AND b.contentState = 1
+        AND EXISTS (
+            SELECT 1 FROM content_package cp
+            WHERE cp.bookmarkId = b.id AND cp.hasResources = 1 AND cp.source = 'AUTOMATIC'
+        )
         AND (:includeArchived = 1 OR b.isArchived = 0)
         AND b.id NOT IN (
             SELECT id FROM bookmarks
