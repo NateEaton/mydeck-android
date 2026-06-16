@@ -626,7 +626,7 @@ class BookmarkRepositoryImplTest {
         coVerify { bookmarkDao.upsertBookmarksMetadataOnly(any()) }
         // Per-add now routes through the batch package pipeline (spec §5 A1) instead of the
         // removed legacy text worker, so a freshly-added article gets a full package.
-        verify { syncScheduler.scheduleBatchArticleLoad(false, true) }
+        verify { syncScheduler.scheduleBatchArticleLoad(false, true, userInitiated = true) }
     }
 
     @Test

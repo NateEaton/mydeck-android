@@ -530,7 +530,11 @@ class BookmarkRepositoryImpl @Inject constructor(
      */
     private suspend fun enqueueArticleDownload(bookmarkId: String) {
         val constraints = settingsDataStore.getContentSyncConstraints()
-        syncScheduler.scheduleBatchArticleLoad(constraints.wifiOnly, constraints.allowOnBatterySaver)
+        syncScheduler.scheduleBatchArticleLoad(
+            constraints.wifiOnly,
+            constraints.allowOnBatterySaver,
+            userInitiated = true
+        )
         Timber.d("Queued batch offline package fetch for newly added bookmark: $bookmarkId")
     }
 

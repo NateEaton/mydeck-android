@@ -71,6 +71,7 @@ class BatchArticleLoadWorker @AssistedInject constructor(
             var previousPendingCount = -1
             var stalledRetries = 0
             var processedThisRun = 0
+            var stalledWithPending = false
             
             while (true) {
                 // Check constraints before each batch (skip if user overrode)
@@ -165,6 +166,7 @@ class BatchArticleLoadWorker @AssistedInject constructor(
                             "Stalled: pending count unchanged at ${pendingBookmarkIds.size} " +
                                 "after $stalledRetries retries (batch $batchIndex), stopping batch loop"
                         )
+                        stalledWithPending = true
                         break
                     }
                 } else {
@@ -213,8 +215,26 @@ class BatchArticleLoadWorker @AssistedInject constructor(
             }
 
             settingsDataStore.saveLastContentSyncTimestamp(Clock.System.now())
-            Timber.i("BatchArticleLoadWorker completed successfully")
-            return Result.success()
+            return when {
+                stalledWithPending && runAttemptCount < MAX_RUN_ATTEMPTS -> {
+                    Timber.w(
+                        "BatchArticleLoadWorker stalled with eligible bookmarks still pending " +
+                            "(runAttemptCount=$runAttemptCount); retrying with backoff"
+                    )
+                    Result.retry()
+                }
+                stalledWithPending -> {
+                    Timber.w(
+                        "BatchArticleLoadWorker stalled with eligible bookmarks still pending " +
+                            "after $runAttemptCount run attempts; giving up to avoid infinite churn"
+                    )
+                    Result.success()
+                }
+                else -> {
+                    Timber.i("BatchArticleLoadWorker completed successfully")
+                    Result.success()
+                }
+            }
         } catch (e: Exception) {
             Timber.e(e, "BatchArticleLoadWorker failed")
             return if (e.isHttpBlockedByBuildPolicy()) Result.failure() else Result.retry()
@@ -324,6 +344,7 @@ class BatchArticleLoadWorker @AssistedInject constructor(
         private const val PRIORITY_WORK_NAME_PREFIX = "content_priority_"
         private const val BATCH_DELAY_MS = 500L
         private const val MAX_STALLED_RETRIES = 3
+        private const val MAX_RUN_ATTEMPTS = 5
 
         internal const val MAX_BATCH_SIZE = 3
         private const val MAX_PROCESSED_PER_RUN = 100

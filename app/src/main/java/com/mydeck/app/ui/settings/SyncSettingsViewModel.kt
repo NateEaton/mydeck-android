@@ -443,7 +443,7 @@ class SyncSettingsViewModel @Inject constructor(
         }
         workManager.cancelUniqueWork(BatchArticleLoadWorker.UNIQUE_WORK_NAME)
         workManager.cancelAllWorkByTag(BatchArticleLoadWorker.WORK_TAG_OFFLINE_CONTENT)
-        loadBookmarksUseCase.enqueueContentSyncIfNeeded()
+        loadBookmarksUseCase.enqueueContentSyncIfNeeded(userInitiated = true)
     }
 
     private suspend fun resolveContentSyncStatus(

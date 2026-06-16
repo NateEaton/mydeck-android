@@ -122,17 +122,18 @@ class LoadBookmarksUseCase @Inject constructor(
         }
     }
 
-    suspend fun enqueueContentSyncIfNeeded() {
+    suspend fun enqueueContentSyncIfNeeded(userInitiated: Boolean = false) {
         if (policyEvaluator.shouldAutoFetchContent()) {
-            enqueueBatchArticleLoader()
+            enqueueBatchArticleLoader(userInitiated)
         }
     }
 
-    private suspend fun enqueueBatchArticleLoader() {
+    private suspend fun enqueueBatchArticleLoader(userInitiated: Boolean = false) {
         val syncConstraints = settingsDataStore.getContentSyncConstraints()
         syncScheduler.scheduleBatchArticleLoad(
             wifiOnly = syncConstraints.wifiOnly,
-            allowBatterySaver = syncConstraints.allowOnBatterySaver
+            allowBatterySaver = syncConstraints.allowOnBatterySaver,
+            userInitiated = userInitiated
         )
     }
 

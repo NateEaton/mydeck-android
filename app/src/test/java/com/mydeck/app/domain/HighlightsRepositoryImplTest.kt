@@ -1001,7 +1001,11 @@ class HighlightsRepositoryImplTest {
         var orphanRepairRequests = 0
 
         override fun scheduleActionSync() = Unit
-        override fun scheduleBatchArticleLoad(wifiOnly: Boolean, allowBatterySaver: Boolean) = Unit
+        override fun scheduleBatchArticleLoad(
+            wifiOnly: Boolean,
+            allowBatterySaver: Boolean,
+            userInitiated: Boolean
+        ) = Unit
         override fun scheduleBookmarkOrphanRepairFullSync() {
             orphanRepairRequests += 1
         }

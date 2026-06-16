@@ -50,9 +50,10 @@ class BatchArticleLoadWorkerTest {
         coEvery { bookmarkDao.markNoContentBookmarksPermanent() } returns 0
     }
 
-    private fun createWorker(inputData: Data = Data.EMPTY): BatchArticleLoadWorker {
+    private fun createWorker(inputData: Data = Data.EMPTY, runAttemptCount: Int = 0): BatchArticleLoadWorker {
         val workerParams = mockk<WorkerParameters> {
             every { this@mockk.inputData } returns inputData
+            every { this@mockk.runAttemptCount } returns runAttemptCount
         }
         return BatchArticleLoadWorker(
             appContext = context,
@@ -360,9 +361,11 @@ class BatchArticleLoadWorkerTest {
     // --- Stalled-progress regression test ---
 
     @Test
-    fun `doWork stops when pending count unchanged after retries`() = runTest {
+    fun `doWork retries when pending count unchanged after retries and run attempts remain`() = runTest {
         // Simulate: a bookmark keeps re-appearing in the pending list without progress.
         // After MAX_STALLED_RETRIES consecutive same-count iterations, the guard fires.
+        // Bug 4.6 (W5): previously this silently returned success(), swallowing the backlog.
+        // It must now distinguish "stalled with pending work" and retry instead.
         val policyBookmarks = listOf(
             policyBookmark("stuck", "2026-03-01T00:00:00Z", hasOfflinePackage = false)
         )
@@ -378,11 +381,62 @@ class BatchArticleLoadWorkerTest {
             (firstArg() as List<*>).associate { it as String to LoadContentPackageUseCase.Result.Success }
         }
 
-        val result = createWorker().doWork()
+        val result = createWorker(runAttemptCount = 0).doWork()
 
-        assertEquals(ListenableWorker.Result.success(), result)
+        assertEquals(ListenableWorker.Result.retry(), result)
         // 1 initial batch + 2 retries = 3 batches; stall fires on 4th check before batch
         coVerify(exactly = 3) { loadContentPackageUseCase.executeBatch(any()) }
+    }
+
+    @Test
+    fun `doWork gives up with success when stalled and run attempts exhausted`() = runTest {
+        // Same stalled scenario, but runAttemptCount has reached MAX_RUN_ATTEMPTS — must stop
+        // retrying indefinitely and return success() to avoid infinite churn.
+        val policyBookmarks = listOf(
+            policyBookmark("stuck", "2026-03-01T00:00:00Z", hasOfflinePackage = false)
+        )
+
+        coEvery { contentPackageManager.calculateManagedOfflineSize() } returns 90_000_000L
+        coEvery { policyEvaluator.shouldStopDownloading(90_000_000L, any()) } returns false
+        coEvery { policyEvaluator.downloadHeadroomBytes(90_000_000L, any()) } returns 2_800_000L
+        coEvery { policyEvaluator.shouldPrune(any(), any(), any()) } returns false
+        coEvery { bookmarkDao.getOfflinePolicyBookmarks(false) } returns policyBookmarks
+        coEvery { policyEvaluator.selectEligibleBookmarks(any(), any()) } returns policyBookmarks
+        coEvery { policyEvaluator.needsOfflinePackage(any()) } returns true
+        coEvery { loadContentPackageUseCase.executeBatch(any()) } answers {
+            (firstArg() as List<*>).associate { it as String to LoadContentPackageUseCase.Result.Success }
+        }
+
+        val result = createWorker(runAttemptCount = 5).doWork()
+
+        assertEquals(ListenableWorker.Result.success(), result)
+    }
+
+    @Test
+    fun `doWork returns success when pending set drains to empty (no stall)`() = runTest {
+        // Eligible set shrinks to zero across iterations — a legitimate drain, not a stall.
+        // Must NOT be treated as stalledWithPending even though runAttemptCount could be nonzero.
+        val policyBookmarks = listOf(
+            policyBookmark("1", "2026-03-01T00:00:00Z", hasOfflinePackage = false)
+        )
+
+        coEvery { contentPackageManager.calculateManagedOfflineSize() } returns 10_000_000L
+        coEvery { policyEvaluator.shouldStopDownloading(any(), any()) } returns false
+        coEvery { policyEvaluator.downloadHeadroomBytes(any(), any()) } returns 46_000_000L
+        coEvery { policyEvaluator.shouldPrune(any(), any(), any()) } returns false
+        coEvery { bookmarkDao.getOfflinePolicyBookmarks(false) } returns policyBookmarks
+        coEvery { policyEvaluator.selectEligibleBookmarks(any(), any()) } returnsMany listOf(
+            policyBookmarks, emptyList()
+        )
+        coEvery { policyEvaluator.needsOfflinePackage(any()) } returns true
+        coEvery { loadContentPackageUseCase.executeBatch(any()) } answers {
+            (firstArg() as List<*>).associate { it as String to LoadContentPackageUseCase.Result.Success }
+        }
+
+        val result = createWorker(runAttemptCount = 0).doWork()
+
+        assertEquals(ListenableWorker.Result.success(), result)
+        coVerify(exactly = 1) { loadContentPackageUseCase.executeBatch(any()) }
     }
 
     // --- Thrashing regression test ---
