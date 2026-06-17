@@ -629,6 +629,119 @@ class BookmarkRepositoryImplTest {
         verify { syncScheduler.scheduleBatchArticleLoad(false, true, userInitiated = true) }
     }
 
+    // --- W3: idempotent background create (reconcile-on-retry) ---
+
+    private val reconcileQuery: ReadeckApi.SortOrder
+        get() = ReadeckApi.SortOrder(ReadeckApi.Sort.Created, ReadeckApi.Order.Descending)
+
+    @Test
+    fun `createBookmark on retry adopts the already-created bookmark when the newest matches`() = runTest {
+        // Lost-response case (flaky cellular): a prior POST created the bookmark server-side but the
+        // client saw a failure. The retry must ADOPT it, not POST again -> one bookmark, one label.
+        val title = "Test Bookmark"
+        val url = "https://example.com/lost-response"
+        val labels = listOf("news")
+        val attemptTs = Clock.System.now()
+        val adoptedId = "already-created-id"
+
+        coEvery { settingsDataStore.isOfflineReadingEnabled() } returns true
+        coEvery { settingsDataStore.getContentSyncConstraints() } returns
+            ContentSyncConstraints(wifiOnly = false, allowOnBatterySaver = true)
+
+        val newest = bookmarkDto.copy(id = adoptedId, url = url, created = attemptTs, state = 1, hasArticle = true)
+        coEvery {
+            readeckApi.getBookmarks(limit = 1, offset = 0, updatedSince = null, sortOrder = reconcileQuery, hasErrors = null)
+        } returns Response.success(listOf(newest))
+        coEvery { readeckApi.getBookmarkById(adoptedId) } returns Response.success(newest)
+
+        val result = bookmarkRepositoryImpl.createBookmark(title, url, labels, attemptTs.toEpochMilliseconds())
+
+        assertEquals(adoptedId, result)
+        coVerify(exactly = 0) { readeckApi.createBookmark(any()) } // POST skipped -> no duplicate / no dup label
+        coVerify { readeckApi.getBookmarkById(adoptedId) }         // adopted bookmark hydrated locally
+    }
+
+    @Test
+    fun `createBookmark on retry with no matching newest bookmark POSTs once`() = runTest {
+        // Genuine failure: the prior POST never reached the server, so reconcile finds nothing -> POST.
+        val title = "Test Bookmark"
+        val url = "https://example.com/genuine-failure"
+        val labels = listOf("news")
+        val attemptTs = Clock.System.now()
+        val newId = "freshly-created-id"
+
+        coEvery { settingsDataStore.isOfflineReadingEnabled() } returns true
+        coEvery { settingsDataStore.getContentSyncConstraints() } returns
+            ContentSyncConstraints(wifiOnly = false, allowOnBatterySaver = true)
+        coEvery {
+            readeckApi.getBookmarks(limit = 1, offset = 0, updatedSince = null, sortOrder = reconcileQuery, hasErrors = null)
+        } returns Response.success(emptyList())
+
+        val createDto = CreateBookmarkDto(labels = labels, title = title, url = url)
+        val headers = Headers.Builder().add(ReadeckApi.Header.BOOKMARK_ID, newId).build()
+        coEvery { readeckApi.createBookmark(createDto) } returns Response.success(StatusMessageDto(200, "Created"), headers)
+        coEvery { readeckApi.getBookmarkById(newId) } returns
+            Response.success(bookmarkDto.copy(id = newId, url = url, state = 1, hasArticle = true))
+
+        val result = bookmarkRepositoryImpl.createBookmark(title, url, labels, attemptTs.toEpochMilliseconds())
+
+        assertEquals(newId, result)
+        coVerify(exactly = 1) { readeckApi.createBookmark(createDto) }
+    }
+
+    @Test
+    fun `createBookmark on retry ignores a stale prior add of the same URL and POSTs`() = runTest {
+        // Newest matches the URL but was created long before this attempt -> a *previous* add, not the
+        // one we're retrying. Server allows duplicate URLs by design, so we POST the intended new copy.
+        val title = "Test Bookmark"
+        val url = "https://example.com/intentional-re-add"
+        val labels = listOf("news")
+        val attemptTs = Clock.System.now()
+        val newId = "second-copy-id"
+
+        coEvery { settingsDataStore.isOfflineReadingEnabled() } returns true
+        coEvery { settingsDataStore.getContentSyncConstraints() } returns
+            ContentSyncConstraints(wifiOnly = false, allowOnBatterySaver = true)
+
+        val stale = bookmarkDto.copy(id = "old-copy", url = url, created = attemptTs.minus(1.days), state = 1, hasArticle = true)
+        coEvery {
+            readeckApi.getBookmarks(limit = 1, offset = 0, updatedSince = null, sortOrder = reconcileQuery, hasErrors = null)
+        } returns Response.success(listOf(stale))
+
+        val createDto = CreateBookmarkDto(labels = labels, title = title, url = url)
+        val headers = Headers.Builder().add(ReadeckApi.Header.BOOKMARK_ID, newId).build()
+        coEvery { readeckApi.createBookmark(createDto) } returns Response.success(StatusMessageDto(200, "Created"), headers)
+        coEvery { readeckApi.getBookmarkById(newId) } returns
+            Response.success(bookmarkDto.copy(id = newId, url = url, state = 1, hasArticle = true))
+
+        val result = bookmarkRepositoryImpl.createBookmark(title, url, labels, attemptTs.toEpochMilliseconds())
+
+        assertEquals(newId, result)
+        coVerify(exactly = 1) { readeckApi.createBookmark(createDto) }
+    }
+
+    @Test
+    fun `createBookmark on retry throws when the reconcile query fails so the worker retries`() = runTest {
+        // If we can't confirm whether the add already landed, do NOT POST (that would re-open the
+        // duplicate window) -> let the exception propagate so the worker returns Result.retry().
+        val url = "https://example.com/flaky"
+        val attemptTs = Clock.System.now()
+
+        coEvery {
+            readeckApi.getBookmarks(limit = 1, offset = 0, updatedSince = null, sortOrder = reconcileQuery, hasErrors = null)
+        } returns Response.error(503, "down".toResponseBody())
+
+        var threw = false
+        try {
+            bookmarkRepositoryImpl.createBookmark("t", url, emptyList(), attemptTs.toEpochMilliseconds())
+        } catch (e: Exception) {
+            threw = true
+        }
+
+        assertTrue(threw)
+        coVerify(exactly = 0) { readeckApi.createBookmark(any()) }
+    }
+
     @Test
     fun `insertBookmarks uses content-aware path when article content is present`() = runTest {
         val bookmark = bookmarkDto.toDomain().copy(

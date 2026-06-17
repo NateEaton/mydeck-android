@@ -50,7 +50,11 @@ interface BookmarkRepository {
     suspend fun createBookmark(
         title: String,
         url: String,
-        labels: List<String> = emptyList()
+        labels: List<String> = emptyList(),
+        // When non-null, this is a create RETRY: before POSTing, reconcile against the server and
+        // adopt an already-created bookmark for this URL if one exists (W3 lost-response idempotency).
+        // The value is the original attempt time (epoch ms) used to tell "this add" from a prior add.
+        attemptTimestampMs: Long? = null
     ): String
     suspend fun updateBookmark(bookmarkId: String, isFavorite: Boolean?, isArchived: Boolean?, isRead: Boolean?): UpdateResult
     suspend fun updateBookmarks(updates: List<BookmarkBatchUpdate>): UpdateResult

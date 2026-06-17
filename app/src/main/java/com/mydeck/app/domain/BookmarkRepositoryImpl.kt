@@ -47,6 +47,7 @@ import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
 import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.datetime.Clock
+import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import kotlinx.serialization.SerializationException
@@ -55,6 +56,11 @@ import timber.log.Timber
 import java.io.IOException
 import java.util.UUID
 import javax.inject.Inject
+
+// W3: slack on the create-retry recency check to absorb client/server clock skew (NTP keeps this to
+// seconds; 2 min is ample). Its only side effect is that a deliberate re-add within this window of a
+// prior add is treated as the same add — effectively a rapid double-add, which is benign.
+private const val RECONCILE_SKEW_MARGIN_MS = 2 * 60_000L
 
 class BookmarkRepositoryImpl @Inject constructor(
     private val database: MyDeckDatabase,
@@ -448,8 +454,22 @@ class BookmarkRepositoryImpl @Inject constructor(
     override suspend fun createBookmark(
         title: String,
         url: String,
-        labels: List<String>
+        labels: List<String>,
+        attemptTimestampMs: Long?
     ): String {
+        // W3 idempotency for the lost-response case: when this is a retry (attemptTimestampMs != null),
+        // a prior POST may have created the bookmark server-side even though the client saw a failure
+        // (response lost mid-flight, characteristically on flaky cellular). Reconcile first and adopt
+        // the already-created bookmark instead of creating a duplicate (with a duplicated label).
+        if (attemptTimestampMs != null) {
+            val adoptedId = findRecentlyCreatedBookmarkId(url, attemptTimestampMs)
+            if (adoptedId != null) {
+                Timber.i("createBookmark: adopting already-created bookmark $adoptedId for URL=$url (reconciled on retry; skipping POST)")
+                hydrateCreatedBookmark(adoptedId)
+                return adoptedId
+            }
+        }
+
         val createBookmarkDto = CreateBookmarkDto(labels = labels, title = title, url = url)
         val response = readeckApi.createBookmark(createBookmarkDto)
         if (!response.isSuccessful) {
@@ -457,8 +477,47 @@ class BookmarkRepositoryImpl @Inject constructor(
         }
 
         val bookmarkId = response.headers()[ReadeckApi.Header.BOOKMARK_ID]!!
+        hydrateCreatedBookmark(bookmarkId)
+        return bookmarkId
+    }
 
-        // Fetch and insert bookmark metadata
+    /**
+     * W3 reconcile (create retry only). The Readeck server allows the same URL to be added multiple
+     * times by design (intentional re-adds), so the ONLY reliable "already added by THIS attempt"
+     * signal is: the single most-recent bookmark matches the URL **and** was created recently enough
+     * to be this add (`created >= attemptTimestamp - skew margin`) — not a previous add of the same
+     * URL that merely happens to still be the newest.
+     *
+     * The created-time comparison crosses client/server clocks; [RECONCILE_SKEW_MARGIN_MS] absorbs
+     * realistic NTP skew. A skew-free alternative would anchor recency to the HTTP `Date` response
+     * header (server "now") rather than the client attempt time — see spec §6 W3.
+     *
+     * Throws if the reconcile query itself fails, so the worker retries instead of blindly POSTing
+     * (which would re-open the duplicate window).
+     */
+    private suspend fun findRecentlyCreatedBookmarkId(url: String, attemptTimestampMs: Long): String? {
+        val response = readeckApi.getBookmarks(
+            limit = 1,
+            offset = 0,
+            updatedSince = null,
+            sortOrder = ReadeckApi.SortOrder(ReadeckApi.Sort.Created, ReadeckApi.Order.Descending),
+            hasErrors = null
+        )
+        if (!response.isSuccessful) {
+            throw Exception("createBookmark reconcile query failed: HTTP ${response.code()}")
+        }
+        val newest = response.body()?.firstOrNull() ?: return null
+        val recentEnough = Instant.fromEpochMilliseconds(attemptTimestampMs - RECONCILE_SKEW_MARGIN_MS)
+        return if (newest.url == url && newest.created >= recentEnough) {
+            newest.id
+        } else {
+            null
+        }
+    }
+
+    /** Fetch the server's view of a just-created/adopted bookmark, insert it locally, and kick off
+     *  loading-poll or offline download as appropriate. Shared by the POST and adopt paths. */
+    private suspend fun hydrateCreatedBookmark(bookmarkId: String) {
         try {
             val bookmarkResponse = readeckApi.getBookmarkById(bookmarkId)
             if (bookmarkResponse.isSuccessful && bookmarkResponse.body() != null) {
@@ -477,8 +536,6 @@ class BookmarkRepositoryImpl @Inject constructor(
         } catch (e: Exception) {
             Timber.w(e, "Failed to fetch and insert created bookmark")
         }
-
-        return bookmarkId
     }
 
     private fun pollForBookmarkReady(bookmarkId: String) {

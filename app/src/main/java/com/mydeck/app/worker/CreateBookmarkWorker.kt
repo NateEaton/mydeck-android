@@ -6,6 +6,7 @@ import androidx.work.BackoffPolicy
 import androidx.work.Constraints
 import androidx.work.CoroutineWorker
 import androidx.work.Data
+import androidx.work.ExistingWorkPolicy
 import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
@@ -20,6 +21,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import timber.log.Timber
+import java.util.UUID
 import java.util.concurrent.TimeUnit
 import javax.inject.Provider
 
@@ -44,12 +46,21 @@ class CreateBookmarkWorker @AssistedInject constructor(
 
         return try {
             val bookmarkRepository = bookmarkRepositoryProvider.get()
+            // On a retry (runAttemptCount > 0) a prior POST may have reached the server even though
+            // the client saw a failure (lost response on flaky cellular — the W3 duplicate cause).
+            // Hand the repository the original attempt timestamp so it can reconcile against the
+            // server before re-POSTing, adopting the already-created bookmark instead of duplicating.
+            // The input data is preserved unchanged across retries, so this baseline is stable.
+            val attemptTimestampMs = workerParams.inputData.getLong(PARAM_ATTEMPT_TS, 0L)
+            val reconcileSinceMs =
+                if (runAttemptCount > 0 && attemptTimestampMs > 0L) attemptTimestampMs else null
             val bookmarkId = createMutex.withLock {
-                Timber.d("CreateBookmarkWorker: Creating bookmark for URL=$url")
+                Timber.d("CreateBookmarkWorker: Creating bookmark for URL=$url (attempt=$runAttemptCount)")
                 bookmarkRepository.createBookmark(
                     title = title,
                     url = url,
-                    labels = labels
+                    labels = labels,
+                    attemptTimestampMs = reconcileSinceMs
                 )
             }
 
@@ -114,9 +125,14 @@ class CreateBookmarkWorker @AssistedInject constructor(
         const val PARAM_LABELS = "labels"
         const val PARAM_IS_ARCHIVED = "isArchived"
         const val PARAM_IS_FAVORITE = "isFavorite"
+        const val PARAM_ATTEMPT_TS = "attemptTimestampMs"
         const val RESULT_BOOKMARK_ID = "bookmarkId"
         // Held during the entire 60s poll loop for intentional process-global serialization
         private val createMutex = Mutex()
+
+        /** Stable per-URL unique work name so duplicate adds of the same URL coalesce. */
+        fun uniqueWorkName(url: String): String =
+            "create_" + UUID.nameUUIDFromBytes(url.toByteArray())
 
         fun enqueue(
             workManager: WorkManager,
@@ -136,6 +152,7 @@ class CreateBookmarkWorker @AssistedInject constructor(
                 .putStringArray(PARAM_LABELS, labels.toTypedArray())
                 .putBoolean(PARAM_IS_ARCHIVED, isArchived)
                 .putBoolean(PARAM_IS_FAVORITE, isFavorite)
+                .putLong(PARAM_ATTEMPT_TS, System.currentTimeMillis())
                 .build()
 
             val request = OneTimeWorkRequestBuilder<CreateBookmarkWorker>()
@@ -148,8 +165,15 @@ class CreateBookmarkWorker @AssistedInject constructor(
                 )
                 .build()
 
-            workManager.enqueue(request)
-            Timber.d("CreateBookmarkWorker enqueued for URL=$url")
+            // Coalesce duplicate adds of the same URL (double-tap / double-share) into a single
+            // worker; KEEP lets the in-flight worker win, and its retry path reconciles the
+            // lost-response case. Different URLs get distinct unique names, so they don't collide.
+            workManager.enqueueUniqueWork(
+                uniqueWorkName(url),
+                ExistingWorkPolicy.KEEP,
+                request
+            )
+            Timber.d("CreateBookmarkWorker enqueued (unique) for URL=$url")
         }
     }
 }

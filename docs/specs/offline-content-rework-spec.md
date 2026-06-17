@@ -196,15 +196,22 @@ So provenance is exactly **two values — `AUTOMATIC` (prunable) vs `MANUAL` (pr
 
 **Root cause:** `BookmarkRepositoryImpl.createBookmark` (`:444`) POSTs with no dedup; `CreateBookmarkWorker` is enqueued non-unique and retries up to 3× — a POST that reached the server but lost its response is re-POSTed → duplicate (with duplicated label).
 
-**Design:**
-1. **Coalesce enqueues:** make `CreateBookmarkWorker.enqueue` unique per URL (`enqueueUniqueWork("create_<urlHash>", KEEP|APPEND_OR_REPLACE, …)`), so a double-tap/double-share doesn't create two workers.
-2. **Idempotent execution:** before POSTing on a **retry**, reconcile against the server:
-   - Persist the create attempt (URL + attempt timestamp + a client request id) before the POST.
-   - On worker re-run, query the server for a bookmark with the **exact** URL created since the attempt timestamp (`GET /bookmarks?…` filtered/scanned by URL). If found, **adopt** it (insert locally, skip the POST). Only POST if no match.
-   - This makes "did my create actually land?" the first question on retry, instead of blindly re-creating.
-3. Keep the existing label/favorite/archive application against the adopted-or-created id.
+**Network landscape (confirmed with the reporting user, 2026-06-17):** this is specifically a **cellular / unstable-connectivity** phenomenon — the POST commits server-side and then the connection drops mid-response, so the client never reads the `bookmark-id`. It does **not** reproduce on a stable LAN/Wi-Fi (the response never gets a chance to be lost), so the **unit tests are the proof**; an on-device double-add over Wi-Fi only exercises the enqueue-coalescing path.
 
-**Tests:** simulate (a) lost-response-after-server-create then retry → no duplicate; (b) genuine failure then retry → single create; (c) concurrent duplicate enqueues → one bookmark.
+**Design (as implemented):**
+1. **Coalesce enqueues:** `CreateBookmarkWorker.enqueue` uses `enqueueUniqueWork(uniqueWorkName(url), ExistingWorkPolicy.KEEP, request)`, where `uniqueWorkName(url) = "create_" + UUID.nameUUIDFromBytes(url.toByteArray())`. A double-tap / double-share of the same URL coalesces to one worker (KEEP = the in-flight worker wins; its retry path covers the lost-response case). Distinct URLs get distinct names and never collide.
+2. **Reconcile before re-POST — retry only.** The attempt timestamp (`System.currentTimeMillis()`) is stamped into the worker input `Data` at enqueue and is preserved unchanged across retries, so it is a stable baseline. On a retry run (`runAttemptCount > 0`) the worker passes it to `BookmarkRepository.createBookmark(..., attemptTimestampMs)`; on the first attempt it passes `null` and the happy path is a single POST, unchanged.
+3. **Adopt rule — the *single most-recent* bookmark only.** The Readeck server allows the same URL to be added multiple times **by design** (intentional re-adds), so "this URL exists somewhere recent" is **not** a valid signal. The repo queries `getBookmarks(limit = 1, sort = -created)` (no `ReadeckApi` change — Readeck's `GET /bookmarks` has only a full-text `search`, unreliable for exact-URL) and adopts that newest bookmark **iff** `newest.url == url` **and** `newest.created >= attemptTimestamp − skewMargin`. The created-recency clause is what distinguishes "our lost-response add actually landed" from "a *previous* add of the same URL that merely happens to still be the newest." If adopted, run the existing local-insert/hydrate path against that id and **skip the POST**; otherwise POST.
+4. **Fail-closed on an unconfirmable check.** If the reconcile query itself fails (network still flaky), it throws → the worker returns `Result.retry()` rather than POSTing — so we never re-create until we've confirmed the add did *not* already land.
+5. **Labels/favorite/archive against the reconciled id.** Labels ride the create DTO, so an adopted bookmark already carries them → we do **not** re-apply (this is what kills the duplicated-label symptom). Favorite/archive are applied by the worker against the adopted-or-created id as before.
+
+**Decisions / deviations from the earlier draft of this section:**
+- **No separate "client request id"** — the WorkManager work UUID already correlates retry runs in logs, and Readeck's create DTO accepts no idempotency key, so a generated id would be dead weight. The attempt timestamp does the real work.
+- **`skewMargin ≈ 2 min`** absorbs client/server clock skew (NTP keeps this to seconds). Its only side effect: a deliberate re-add **within ~2 min** of a prior add (when the re-add fails) adopts the prior copy — effectively a rapid double-add, which is benign.
+- **Accepted edge case (user-confirmed):** deliberately re-adding a URL that is still your newest bookmark, when the re-add hits a network failure, adopts the existing copy and skips the intended duplicate. In practice this only arises during active testing.
+- **Skew-free alternative (documented for future reference, not implemented):** anchor recency to the HTTP `Date` response header (server "now") instead of the client attempt timestamp, eliminating the cross-clock comparison entirely. Deferred — the margin is simpler and more than sufficient.
+
+**Tests (all unit/Robolectric):** (a) lost-response-after-server-create then retry → adopt, no second POST, one bookmark/one label; (b) genuine failure then retry → no match → single POST; (b′) newest matches URL but is stale (created before the attempt) → POST the intended new copy; (c) `enqueue` uses unique work + KEEP with a stable per-URL name; plus worker-wiring (retry passes the timestamp, first attempt passes `null`) and reconcile-query-failure → propagates (worker retries).
 
 ### W4 — Purge / Clear-All semantics
 
