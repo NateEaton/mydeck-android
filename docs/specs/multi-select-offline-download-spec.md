@@ -29,6 +29,25 @@ Multi-select "Available offline" always lands items in the **MANUAL** pool (W2 t
 - Already-downloaded **`MANUAL`** item in the selection → full no-op.
 - Already-downloaded **`AUTOMATIC`** item in the selection → **no re-fetch, but flip to `MANUAL`** (decided 2026-06-15: multi-select flips, so the user's explicit pick survives prune). *(Per W2, merely **opening** an AUTOMATIC item does **not** flip it — only this explicit action does.)*
 
+### 3.1 Known limitation — image-less committed packages (2026-06-17)
+
+The flip above triggers off the list item's `offlineState`, which classifies a package as
+**full** only when it has image resources (`content_package.hasResources = 1`). An article that
+genuinely has **no images** commits a complete offline package with `hasResources = 0`, which
+`deriveOfflineState` renders as `DOWNLOADED_TEXT_ONLY` (the outline icon), not `DOWNLOADED_FULL`.
+
+Consequences for this action on such an item:
+- It is classified as "not yet a full package," so the action **enqueues** a download instead of flipping.
+- That download hits the completeness guard in `LoadContentPackageUseCase.execute`
+  (`contentState == DOWNLOADED && hasPackage → AlreadyDownloaded`), which does **not** rewrite
+  `source` — so the item **stays `AUTOMATIC`** and is not protected from prune.
+
+Decision (maintainer, 2026-06-17): **leave as-is.** This is a pre-existing classification choice
+("full = has images") that predates this feature; no-image articles are rare (1 of 37 downloaded
+items in field testing) and tiny. Documented here so the behavior is intentional, not a regression.
+A future fix would key `deriveOfflineState` (and, for consistency, the W2/W6 Settings counts) off
+**package-row presence** (`hasResources != null`) rather than image presence.
+
 ## 4. Offline-reading master toggle — RESOLVED (2026-06-15)
 
 When offline reading is **disabled**, the "Available offline" overflow option is **greyed out and inactive**. Rationale (maintainer): the text caching that happens when a bookmark is opened with offline disabled is a **performance/efficiency** feature, *not* an alternative to offline storage (though it indirectly provides that benefit) — keep a **hard line** between offline enabled and disabled. No prompt-to-enable; the option simply isn't actionable until offline reading is on.
