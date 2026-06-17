@@ -1332,7 +1332,8 @@ class BookmarkRepositoryImplTest {
         wordCount = 500,
         published = null,
         contentState = BookmarkEntity.ContentState.NOT_ATTEMPTED,
-        hasResources = null
+        hasResources = null,
+        source = null
     )
 
     private val editBookmarkResponseDto = EditBookmarkResponseDto(

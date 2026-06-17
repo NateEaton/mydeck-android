@@ -386,7 +386,8 @@ interface BookmarkDao {
             b.wordCount,
             b.published,
             b.contentState,
-            cp.hasResources
+            cp.hasResources,
+            cp.source
             """)
 
             append(" FROM bookmarks b")
@@ -585,7 +586,7 @@ interface BookmarkDao {
             b.readProgress, b.icon_src AS iconSrc, b.image_src AS imageSrc,
             b.labels, b.thumbnail_src AS thumbnailSrc, b.type,
             b.readingTime, b.created, b.wordCount, b.published,
-            b.contentState, cp.hasResources
+            b.contentState, cp.hasResources, cp.source
             FROM bookmarks b
             LEFT JOIN content_package cp ON cp.bookmarkId = b.id
             WHERE b.isLocalDeleted = 0""")
@@ -664,7 +665,7 @@ interface BookmarkDao {
             b.readProgress, b.icon_src AS iconSrc, b.image_src AS imageSrc,
             b.labels, b.thumbnail_src AS thumbnailSrc, b.type,
             b.readingTime, b.created, b.wordCount, b.published,
-            b.contentState, cp.hasResources
+            b.contentState, cp.hasResources, cp.source
             FROM bookmarks b
             LEFT JOIN content_package cp ON cp.bookmarkId = b.id
             WHERE b.isLocalDeleted = 0""")

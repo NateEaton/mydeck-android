@@ -26,6 +26,9 @@ data class BookmarkListItem(
     enum class OfflineState {
         NOT_DOWNLOADED,
         DOWNLOADED_TEXT_ONLY,
-        DOWNLOADED_FULL
+        /** Full offline package downloaded by the offline policy (AUTOMATIC provenance). */
+        DOWNLOADED_FULL,
+        /** Full offline package the user hand-picked (MANUAL provenance, W2/W9) — rendered tinted. */
+        DOWNLOADED_FULL_MANUAL
     }
 }

@@ -515,6 +515,7 @@ other{}
     <string name="notif_content_ready_title">Content ready offline</string>
     <string name="bookmark_card_text_available">Text available</string>
     <string name="bookmark_card_available_offline">Available offline</string>
+    <string name="bookmark_card_available_offline_manual">Saved offline manually</string>
     <string name="action_share_image">Bild teilen</string>
     <string name="image_url_copied">Bild-URL kopiert</string>
     <string name="image_copied">Bild kopiert</string>

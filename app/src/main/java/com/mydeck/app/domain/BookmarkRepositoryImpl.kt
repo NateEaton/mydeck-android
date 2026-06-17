@@ -2,6 +2,7 @@ package com.mydeck.app.domain
 
 import com.mydeck.app.coroutine.ApplicationScope
 import com.mydeck.app.coroutine.IoDispatcher
+import com.mydeck.app.domain.content.ContentSource
 import com.mydeck.app.domain.mapper.toDomain
 import com.mydeck.app.domain.mapper.toEntity
 import com.mydeck.app.domain.model.Bookmark
@@ -167,7 +168,7 @@ class BookmarkRepositoryImpl @Inject constructor(
                     created = listItem.created.toLocalDateTime(kotlinx.datetime.TimeZone.currentSystemDefault()),
                     wordCount = listItem.wordCount,
                     published = listItem.published?.toLocalDateTime(kotlinx.datetime.TimeZone.currentSystemDefault()),
-                    offlineState = deriveOfflineState(listItem.contentState, listItem.hasResources)
+                    offlineState = deriveOfflineState(listItem.contentState, listItem.hasResources, listItem.source)
                 )
             }
         }
@@ -229,7 +230,7 @@ class BookmarkRepositoryImpl @Inject constructor(
                     created = listItem.created.toLocalDateTime(kotlinx.datetime.TimeZone.currentSystemDefault()),
                     wordCount = listItem.wordCount,
                     published = listItem.published?.toLocalDateTime(kotlinx.datetime.TimeZone.currentSystemDefault()),
-                    offlineState = deriveOfflineState(listItem.contentState, listItem.hasResources)
+                    offlineState = deriveOfflineState(listItem.contentState, listItem.hasResources, listItem.source)
                 )
             }
         }
@@ -319,7 +320,7 @@ class BookmarkRepositoryImpl @Inject constructor(
                     created = listItem.created.toLocalDateTime(kotlinx.datetime.TimeZone.currentSystemDefault()),
                     wordCount = listItem.wordCount,
                     published = listItem.published?.toLocalDateTime(kotlinx.datetime.TimeZone.currentSystemDefault()),
-                    offlineState = deriveOfflineState(listItem.contentState, listItem.hasResources)
+                    offlineState = deriveOfflineState(listItem.contentState, listItem.hasResources, listItem.source)
                 )
             }
         }
@@ -327,7 +328,8 @@ class BookmarkRepositoryImpl @Inject constructor(
 
     private fun deriveOfflineState(
         contentState: BookmarkEntity.ContentState,
-        hasResources: Boolean?
+        hasResources: Boolean?,
+        source: String?
     ): BookmarkListItem.OfflineState {
         // Presence guarantee (W9): show an icon whenever content is on the device. A full package
         // (hasResources=true) renders the filled icon regardless of contentState — including DIRTY,
@@ -335,6 +337,8 @@ class BookmarkRepositoryImpl @Inject constructor(
         // the filled icon off the package (not off contentState==DOWNLOADED) fixes the bug where a
         // freshness re-mark (DOWNLOADED→DIRTY) hid the download icon for a fully-downloaded article.
         return when {
+            hasResources == true && source == ContentSource.MANUAL.name ->
+                BookmarkListItem.OfflineState.DOWNLOADED_FULL_MANUAL
             hasResources == true -> BookmarkListItem.OfflineState.DOWNLOADED_FULL
             contentState == BookmarkEntity.ContentState.DOWNLOADED -> BookmarkListItem.OfflineState.DOWNLOADED_TEXT_ONLY
             else -> BookmarkListItem.OfflineState.NOT_DOWNLOADED

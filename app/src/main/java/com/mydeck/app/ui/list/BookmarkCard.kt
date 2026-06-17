@@ -215,11 +215,16 @@ private fun OfflineStateIndicator(
     ) {
         Icon(
             imageVector = when (offlineState) {
-                BookmarkListItem.OfflineState.DOWNLOADED_FULL -> Icons.Filled.DownloadForOffline
+                BookmarkListItem.OfflineState.DOWNLOADED_FULL,
+                BookmarkListItem.OfflineState.DOWNLOADED_FULL_MANUAL -> Icons.Filled.DownloadForOffline
                 else -> Icons.Outlined.DownloadForOffline
             },
             contentDescription = null,
-            tint = Color.White,
+            tint = if (offlineState == BookmarkListItem.OfflineState.DOWNLOADED_FULL_MANUAL) {
+                MaterialTheme.colorScheme.primary
+            } else {
+                Color.White
+            },
             modifier = Modifier.size(iconSize)
         )
     }
@@ -286,11 +291,16 @@ private fun CompactOfflineStateIndicator(
     if (offlineState == BookmarkListItem.OfflineState.NOT_DOWNLOADED) return
     Icon(
         imageVector = when (offlineState) {
-            BookmarkListItem.OfflineState.DOWNLOADED_FULL -> Icons.Filled.DownloadForOffline
+            BookmarkListItem.OfflineState.DOWNLOADED_FULL,
+            BookmarkListItem.OfflineState.DOWNLOADED_FULL_MANUAL -> Icons.Filled.DownloadForOffline
             else -> Icons.Outlined.DownloadForOffline
         },
         contentDescription = null,
-        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+        tint = if (offlineState == BookmarkListItem.OfflineState.DOWNLOADED_FULL_MANUAL) {
+            MaterialTheme.colorScheme.primary
+        } else {
+            MaterialTheme.colorScheme.onSurfaceVariant
+        },
         modifier = modifier.size(iconSize)
     )
 }
@@ -1872,12 +1882,21 @@ private fun BookmarkDownloadStatusIndicator(
     isMosaic: Boolean = false
 ) {
     if (offlineState == BookmarkListItem.OfflineState.NOT_DOWNLOADED) return
-    val isFull = offlineState == BookmarkListItem.OfflineState.DOWNLOADED_FULL
+    val isManual = offlineState == BookmarkListItem.OfflineState.DOWNLOADED_FULL_MANUAL
+    val isFull = offlineState == BookmarkListItem.OfflineState.DOWNLOADED_FULL || isManual
     Icon(
         imageVector = if (isFull) Icons.Filled.DownloadForOffline else Icons.Outlined.DownloadForOffline,
-        contentDescription = stringResource(if (isFull) R.string.bookmark_card_available_offline else R.string.bookmark_card_text_available),
+        contentDescription = stringResource(
+            when {
+                isManual -> R.string.bookmark_card_available_offline_manual
+                isFull -> R.string.bookmark_card_available_offline
+                else -> R.string.bookmark_card_text_available
+            }
+        ),
         modifier = modifier.size(BookmarkDownloadIconSize),
-        tint = if (isMosaic) {
+        tint = if (isManual) {
+            MaterialTheme.colorScheme.primary
+        } else if (isMosaic) {
             Color.White.copy(alpha = 0.6f)
         } else {
             MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
