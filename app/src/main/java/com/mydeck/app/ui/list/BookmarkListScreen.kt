@@ -47,6 +47,7 @@ import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.automirrored.outlined.Label
 import androidx.compose.material.icons.outlined.Bookmarks
 import androidx.compose.material.icons.outlined.CloudOff
+import androidx.compose.material.icons.outlined.DownloadForOffline
 import androidx.compose.material.icons.outlined.SearchOff
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -172,6 +173,7 @@ fun BookmarkListScreen(
     val pendingBatchDeletionBookmarkIds = viewModel.pendingBatchDeletionBookmarkIds.collectAsState()
     val multiSelectState = viewModel.multiSelectState.collectAsState()
     val multiSelectTargets = viewModel.multiSelectTargets.collectAsState()
+    val offlineReadingEnabled = viewModel.offlineReadingEnabled.collectAsState()
     val showAddLabelsPicker = viewModel.showAddLabelsPicker.collectAsState()
     val swipeConfig = viewModel.swipeConfig.collectAsState()
 
@@ -438,6 +440,23 @@ fun BookmarkListScreen(
     LaunchedEffect(Unit) {
         viewModel.batchActionSnackbarEvent.collect { event ->
             snackbarHostState.currentSnackbarData?.dismiss()
+            // "Available offline" is informational only (no Undo) and carries two counts that sum
+            // to the original selection: items now available offline + items with no offline content.
+            if (event is BatchActionSnackbarEvent.MadeAvailableOffline) {
+                val message = when {
+                    event.skippedCount == 0 ->
+                        resources.getString(R.string.multi_select_offline_available, event.availableCount)
+                    event.availableCount == 0 ->
+                        resources.getString(R.string.multi_select_offline_none, event.skippedCount)
+                    else -> resources.getString(
+                        R.string.multi_select_offline_available_with_skipped,
+                        event.availableCount,
+                        event.skippedCount
+                    )
+                }
+                snackbarHostState.showSnackbar(message = message, duration = SnackbarDuration.Long)
+                return@collect
+            }
             val stringRes = when (event) {
                 is BatchActionSnackbarEvent.FavoritesAdded -> R.string.multi_select_set_as_favorite
                 is BatchActionSnackbarEvent.FavoritesRemoved -> R.string.multi_select_unset_as_favorite
@@ -445,6 +464,7 @@ fun BookmarkListScreen(
                 is BatchActionSnackbarEvent.Unarchived -> R.string.multi_select_unset_as_archived
                 is BatchActionSnackbarEvent.LabelsAdded -> R.string.multi_select_labels_added
                 is BatchActionSnackbarEvent.Deleted -> R.string.multi_select_deleted_count
+                is BatchActionSnackbarEvent.MadeAvailableOffline -> return@collect // handled above
             }
             // Delete is destructive and staged, so it stays until the user acts or interacts
             // elsewhere (matching single-item delete); favorite/archive are already applied.
@@ -670,6 +690,23 @@ fun BookmarkListScreen(
                                             showSelectionOverflowMenu = false
                                             dismissPendingDeleteSnackbar()
                                             viewModel.onAddLabelsToSelection()
+                                        }
+                                    )
+                                    // Greyed out when offline reading is disabled (hard line — no
+                                    // prompt-to-enable; spec §4).
+                                    DropdownMenuItem(
+                                        leadingIcon = {
+                                            Icon(
+                                                imageVector = Icons.Outlined.DownloadForOffline,
+                                                contentDescription = null
+                                            )
+                                        },
+                                        text = { Text(stringResource(R.string.action_make_available_offline)) },
+                                        enabled = offlineReadingEnabled.value,
+                                        onClick = {
+                                            showSelectionOverflowMenu = false
+                                            dismissPendingDeleteSnackbar()
+                                            viewModel.onMakeSelectionAvailableOffline()
                                         }
                                     )
                                 }

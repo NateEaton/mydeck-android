@@ -2,6 +2,8 @@ package com.mydeck.app.ui.list
 
 import android.content.Context
 import androidx.lifecycle.SavedStateHandle
+import androidx.work.Constraints
+import androidx.work.NetworkType
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import com.mydeck.app.R
@@ -14,12 +16,15 @@ import com.mydeck.app.domain.model.BookmarkCounts
 import com.mydeck.app.domain.model.BookmarkListItem
 import com.mydeck.app.domain.sync.ConnectivityMonitor
 import com.mydeck.app.domain.content.ContentPackageManager
+import com.mydeck.app.domain.content.ContentSource
+import com.mydeck.app.domain.sync.ContentSyncConstraints
 import com.mydeck.app.domain.sync.OfflinePolicyEvaluator
 import com.mydeck.app.domain.sync.SyncScheduler
 import com.mydeck.app.domain.usecase.FullSyncUseCase
 import com.mydeck.app.domain.usecase.UpdateBookmarkUseCase
 import com.mydeck.app.domain.model.SwipeConfig
 import com.mydeck.app.io.prefs.SettingsDataStore
+import com.mydeck.app.worker.BatchArticleLoadWorker
 import com.mydeck.app.worker.CreateBookmarkWorker
 import com.mydeck.app.worker.LoadBookmarksWorker
 import io.mockk.coEvery
@@ -29,6 +34,7 @@ import io.mockk.Runs
 import io.mockk.just
 import io.mockk.mockk
 import io.mockk.mockkObject
+import io.mockk.slot
 import io.mockk.unmockkObject
 import io.mockk.verify
 import kotlinx.coroutines.Dispatchers
@@ -102,6 +108,13 @@ class BookmarkListViewModelTest {
         every { LoadBookmarksWorker.enqueue(any(), any<LoadBookmarksWorker.Trigger>()) } returns UUID.randomUUID()
         mockkObject(CreateBookmarkWorker.Companion)
         every { CreateBookmarkWorker.enqueue(any(), any(), any(), any(), any()) } just Runs
+        mockkObject(BatchArticleLoadWorker.Companion)
+        every { BatchArticleLoadWorker.enqueuePriorityDownload(any(), any(), any()) } just Runs
+
+        every { settingsDataStore.offlineReadingEnabledFlow } returns MutableStateFlow(true)
+        coEvery { settingsDataStore.getContentSyncConstraints() } returns
+            ContentSyncConstraints(wifiOnly = false, allowOnBatterySaver = true)
+        coEvery { contentPackageManager.updatePackageSource(any(), any()) } just Runs
 
         every { bookmarkRepository.searchBookmarkListItems(any(), any(), any(), any(), any(), any(), any()) } returns flowOf(emptyList())
 
@@ -153,6 +166,7 @@ class BookmarkListViewModelTest {
     fun tearDown() {
         unmockkObject(CreateBookmarkWorker.Companion)
         unmockkObject(LoadBookmarksWorker.Companion)
+        unmockkObject(BatchArticleLoadWorker.Companion)
         Dispatchers.resetMain()
     }
 
@@ -2158,17 +2172,165 @@ class BookmarkListViewModelTest {
         coVerify(exactly = 1) { updateBookmarkUseCase.restoreBookmarkLabels(prior) }
     }
 
+    @Test
+    fun `onMakeSelectionAvailableOffline enqueues only eligible non-full items and exits selection mode`() = runTest {
+        val visibleBookmarks = listOf(
+            bookmarkListItem("article-new"),
+            bookmarkListItem("photo-new", type = Bookmark.Type.Picture),
+            bookmarkListItem("text-only", offlineState = BookmarkListItem.OfflineState.DOWNLOADED_TEXT_ONLY),
+            bookmarkListItem("unselected")
+        )
+        every {
+            bookmarkRepository.observeFilteredBookmarkListItems(
+                any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(),
+                any(), any(), any(), any(), any(), any(), any(), any(), any(), any()
+            )
+        } returns flowOf(visibleBookmarks)
+        stubBookmark("article-new")
+        stubBookmark("photo-new", type = Bookmark.Type.Picture)
+        stubBookmark("text-only")
+        viewModel = createViewModel()
+        advanceUntilIdle()
+
+        val events = mutableListOf<BatchActionSnackbarEvent>()
+        val job = launch { viewModel.batchActionSnackbarEvent.toList(events) }
+
+        viewModel.onEnterMultiSelectMode()
+        viewModel.onToggleBookmarkSelected("article-new")
+        viewModel.onToggleBookmarkSelected("photo-new")
+        viewModel.onToggleBookmarkSelected("text-only")
+        viewModel.onMakeSelectionAvailableOffline()
+        advanceUntilIdle()
+
+        verify(exactly = 1) { BatchArticleLoadWorker.enqueuePriorityDownload(workManager, "article-new", any()) }
+        verify(exactly = 1) { BatchArticleLoadWorker.enqueuePriorityDownload(workManager, "photo-new", any()) }
+        verify(exactly = 1) { BatchArticleLoadWorker.enqueuePriorityDownload(workManager, "text-only", any()) }
+        verify(exactly = 0) { BatchArticleLoadWorker.enqueuePriorityDownload(workManager, "unselected", any()) }
+        coVerify(exactly = 0) { contentPackageManager.updatePackageSource(any(), any()) }
+        assertEquals(MultiSelectState(), viewModel.multiSelectState.value)
+        assertEquals(
+            listOf(BatchActionSnackbarEvent.MadeAvailableOffline(availableCount = 3, skippedCount = 0)),
+            events
+        )
+        job.cancel()
+    }
+
+    @Test
+    fun `onMakeSelectionAvailableOffline skips ineligible items and counts them in the snackbar`() = runTest {
+        val visibleBookmarks = listOf(
+            bookmarkListItem("eligible"),
+            bookmarkListItem("perm-no-content"),
+            bookmarkListItem("embed-video", type = Bookmark.Type.Video)
+        )
+        every {
+            bookmarkRepository.observeFilteredBookmarkListItems(
+                any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(),
+                any(), any(), any(), any(), any(), any(), any(), any(), any(), any()
+            )
+        } returns flowOf(visibleBookmarks)
+        stubBookmark("eligible")
+        stubBookmark("perm-no-content", contentState = Bookmark.ContentState.PERMANENT_NO_CONTENT)
+        stubBookmark("embed-video", hasArticle = false, type = Bookmark.Type.Video)
+        viewModel = createViewModel()
+        advanceUntilIdle()
+
+        val events = mutableListOf<BatchActionSnackbarEvent>()
+        val job = launch { viewModel.batchActionSnackbarEvent.toList(events) }
+
+        viewModel.onEnterMultiSelectMode()
+        viewModel.onToggleBookmarkSelected("eligible")
+        viewModel.onToggleBookmarkSelected("perm-no-content")
+        viewModel.onToggleBookmarkSelected("embed-video")
+        viewModel.onMakeSelectionAvailableOffline()
+        advanceUntilIdle()
+
+        verify(exactly = 1) { BatchArticleLoadWorker.enqueuePriorityDownload(workManager, "eligible", any()) }
+        verify(exactly = 0) { BatchArticleLoadWorker.enqueuePriorityDownload(workManager, "perm-no-content", any()) }
+        verify(exactly = 0) { BatchArticleLoadWorker.enqueuePriorityDownload(workManager, "embed-video", any()) }
+        // availableCount + skippedCount equals the original selection (3).
+        assertEquals(
+            listOf(BatchActionSnackbarEvent.MadeAvailableOffline(availableCount = 1, skippedCount = 2)),
+            events
+        )
+        job.cancel()
+    }
+
+    @Test
+    fun `onMakeSelectionAvailableOffline flips already-AUTOMATIC full package to MANUAL with no re-fetch`() = runTest {
+        val visibleBookmarks = listOf(
+            bookmarkListItem("auto-full", offlineState = BookmarkListItem.OfflineState.DOWNLOADED_FULL),
+            bookmarkListItem("manual-full", offlineState = BookmarkListItem.OfflineState.DOWNLOADED_FULL_MANUAL)
+        )
+        every {
+            bookmarkRepository.observeFilteredBookmarkListItems(
+                any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(),
+                any(), any(), any(), any(), any(), any(), any(), any(), any(), any()
+            )
+        } returns flowOf(visibleBookmarks)
+        stubBookmark("auto-full")
+        stubBookmark("manual-full")
+        viewModel = createViewModel()
+        advanceUntilIdle()
+
+        val events = mutableListOf<BatchActionSnackbarEvent>()
+        val job = launch { viewModel.batchActionSnackbarEvent.toList(events) }
+
+        viewModel.onEnterMultiSelectMode()
+        viewModel.onToggleBookmarkSelected("auto-full")
+        viewModel.onToggleBookmarkSelected("manual-full")
+        viewModel.onMakeSelectionAvailableOffline()
+        advanceUntilIdle()
+
+        coVerify(exactly = 1) { contentPackageManager.updatePackageSource("auto-full", ContentSource.MANUAL) }
+        coVerify(exactly = 0) { contentPackageManager.updatePackageSource("manual-full", any()) }
+        verify(exactly = 0) { BatchArticleLoadWorker.enqueuePriorityDownload(any(), any(), any()) }
+        assertEquals(
+            listOf(BatchActionSnackbarEvent.MadeAvailableOffline(availableCount = 2, skippedCount = 0)),
+            events
+        )
+        job.cancel()
+    }
+
+    @Test
+    fun `onMakeSelectionAvailableOffline respects wifi-only constraint`() = runTest {
+        coEvery { settingsDataStore.getContentSyncConstraints() } returns
+            ContentSyncConstraints(wifiOnly = true, allowOnBatterySaver = true)
+        val visibleBookmarks = listOf(bookmarkListItem("wifi-target"))
+        every {
+            bookmarkRepository.observeFilteredBookmarkListItems(
+                any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(),
+                any(), any(), any(), any(), any(), any(), any(), any(), any(), any()
+            )
+        } returns flowOf(visibleBookmarks)
+        stubBookmark("wifi-target")
+        viewModel = createViewModel()
+        advanceUntilIdle()
+
+        viewModel.onEnterMultiSelectMode()
+        viewModel.onToggleBookmarkSelected("wifi-target")
+        viewModel.onMakeSelectionAvailableOffline()
+        advanceUntilIdle()
+
+        val constraintsSlot = slot<Constraints>()
+        verify {
+            BatchArticleLoadWorker.enqueuePriorityDownload(workManager, "wifi-target", capture(constraintsSlot))
+        }
+        assertEquals(NetworkType.UNMETERED, constraintsSlot.captured.requiredNetworkType)
+    }
+
     private fun bookmarkListItem(
         id: String,
         isMarked: Boolean = false,
-        isArchived: Boolean = false
+        isArchived: Boolean = false,
+        type: Bookmark.Type = Bookmark.Type.Article,
+        offlineState: BookmarkListItem.OfflineState = BookmarkListItem.OfflineState.NOT_DOWNLOADED
     ) = BookmarkListItem(
         id = id,
         href = "https://example.com/api/bookmarks/$id",
         url = "https://example.com/$id",
         title = "Bookmark $id",
         siteName = "Example Site",
-        type = Bookmark.Type.Article,
+        type = type,
         isMarked = isMarked,
         isArchived = isArchived,
         labels = emptyList(),
@@ -2181,8 +2343,24 @@ class BookmarkListViewModelTest {
         created = kotlinx.datetime.Clock.System.now()
             .toLocalDateTime(kotlinx.datetime.TimeZone.currentSystemDefault()),
         wordCount = null,
-        published = null
+        published = null,
+        offlineState = offlineState
     )
+
+    // Stub the eligibility-relevant fields of the full Bookmark fetched by
+    // onMakeSelectionAvailableOffline. Defaults to an eligible article.
+    private fun stubBookmark(
+        id: String,
+        hasArticle: Boolean = true,
+        type: Bookmark.Type = Bookmark.Type.Article,
+        contentState: Bookmark.ContentState = Bookmark.ContentState.NOT_ATTEMPTED
+    ) {
+        val bookmark = mockk<Bookmark>(relaxed = true)
+        every { bookmark.hasArticle } returns hasArticle
+        every { bookmark.type } returns type
+        every { bookmark.contentState } returns contentState
+        coEvery { bookmarkRepository.getBookmarkById(id) } returns bookmark
+    }
 
     private val bookmarks = listOf(
         BookmarkListItem(
