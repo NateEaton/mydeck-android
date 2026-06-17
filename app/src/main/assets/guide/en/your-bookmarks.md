@@ -78,7 +78,8 @@ All three layouts show whether a bookmark's content has been downloaded for offl
 
 - **No indicator** — content not yet downloaded
 - **Outlined download icon** — text has been cached on demand for reading
-- **Filled download icon** — the bookmark is fully available offline as a managed offline package
+- **Filled download icon** — the bookmark is fully available offline, downloaded automatically by your offline settings
+- **Filled download icon in a highlight colour** — the bookmark is fully available offline because you saved it yourself (by opening it while offline reading is on); these hand-picked items are kept and aren't removed by routine offline maintenance
 
 In **Grid** and **Compact** layouts, the download icon appears on the site-info row, next to the site name and reading time. In **Mosaic** layout, it appears on the title row near the top-right area of the card.
 
