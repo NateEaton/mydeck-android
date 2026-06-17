@@ -615,6 +615,7 @@ other{}
     <string name="auto_sync_notification_success">Synchronization successful</string>
     <string name="auto_sync_notification_failure">Synchronization failed</string>
     <string name="auto_sync_notification_running">Background synchronization running.</string>
+    <string name="offline_content_notification_running">Downloading offline content…</string>
     <string name="auto_sync_notification_channel">Background Synchronization</string>
     <string name="auto_sync_notification_rationale_dialog_title">Notification Permission Required</string>
     <string name="auto_sync_notification_rationale_dialog_text">To notify you about background sync failures, we need permission to send notifications.  Please grant this permission.</string>

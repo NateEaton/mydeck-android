@@ -3,6 +3,7 @@ package com.mydeck.app.worker
 import android.content.Context
 import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
+import androidx.work.ForegroundInfo
 import androidx.work.WorkerParameters
 import com.mydeck.app.domain.sync.OfflinePolicyEvaluator
 import com.mydeck.app.domain.usecase.LoadContentPackageUseCase
@@ -13,6 +14,7 @@ import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import kotlinx.datetime.Clock
 import timber.log.Timber
+import kotlin.coroutines.cancellation.CancellationException
 
 @HiltWorker
 class DateRangeContentSyncWorker @AssistedInject constructor(
@@ -24,6 +26,9 @@ class DateRangeContentSyncWorker @AssistedInject constructor(
     private val settingsDataStore: SettingsDataStore
 ) : CoroutineWorker(appContext, workerParams) {
 
+    override suspend fun getForegroundInfo(): ForegroundInfo =
+        offlineContentForegroundInfo(applicationContext)
+
     override suspend fun doWork(): Result {
         val fromEpoch = inputData.getLong(PARAM_FROM_EPOCH, 0)
         val toEpoch = inputData.getLong(PARAM_TO_EPOCH, 0)
@@ -32,6 +37,17 @@ class DateRangeContentSyncWorker @AssistedInject constructor(
         if (fromEpoch == 0L && toEpoch == 0L) {
             Timber.w("DateRangeContentSyncWorker: both fromEpoch and toEpoch are 0 — likely missing input params")
             return Result.success()
+        }
+
+        // W7: same OS-level visibility as metadata sync via a foreground (dataSync) service.
+        // Best-effort and decoupled from the download — log and continue if promotion is disallowed
+        // (e.g. background start on Android 12+). NO setExpedited.
+        try {
+            setForeground(getForegroundInfo())
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Timber.w(e, "Failed to promote DateRangeContentSyncWorker to foreground")
         }
 
         Timber.d("DateRangeContentSyncWorker starting [from=$fromEpoch, to=$toEpoch, override=$isOverride]")

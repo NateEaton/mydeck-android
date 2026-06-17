@@ -5,6 +5,7 @@ import androidx.hilt.work.HiltWorker
 import androidx.work.Constraints
 import androidx.work.CoroutineWorker
 import androidx.work.ExistingWorkPolicy
+import androidx.work.ForegroundInfo
 import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
@@ -27,6 +28,7 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.datetime.Clock
 import timber.log.Timber
+import kotlin.coroutines.cancellation.CancellationException
 
 @HiltWorker
 class BatchArticleLoadWorker @AssistedInject constructor(
@@ -39,10 +41,26 @@ class BatchArticleLoadWorker @AssistedInject constructor(
     private val contentPackageManager: ContentPackageManager
 ) : CoroutineWorker(appContext, workerParams) {
 
+    override suspend fun getForegroundInfo(): ForegroundInfo =
+        offlineContentForegroundInfo(applicationContext)
+
     override suspend fun doWork(): Result {
         if (!settingsDataStore.isOfflineReadingEnabled()) {
             Timber.i("BatchArticleLoadWorker: offline reading disabled, skipping work")
             return Result.success()
+        }
+
+        // W7: give offline-content sync the same OS-level visibility as metadata sync by promoting
+        // to a foreground (dataSync) service, exactly like FullSyncWorker/LoadBookmarksWorker.
+        // Best-effort and fully decoupled from the download: if promotion is disallowed (e.g. the
+        // worker was started from the background on Android 12+), log and continue so downloads
+        // never depend on notification success. NO setExpedited — that broke content sync before.
+        try {
+            setForeground(getForegroundInfo())
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Timber.w(e, "Failed to promote BatchArticleLoadWorker to foreground")
         }
 
         // Priority single-bookmark path: skip the normal batch logic.

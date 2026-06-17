@@ -165,6 +165,7 @@ other{}
     <string name="auto_sync_notification_success">Synchronisierung im Hintergrund erfolgreich. %1$d Lesezeichen gelöscht.</string>
     <string name="auto_sync_notification_failure">Synchronisierung im Hintergrund gescheitert.</string>
     <string name="auto_sync_notification_running">Synchronisierung im Hintergrund läuft.</string>
+    <string name="offline_content_notification_running">Downloading offline content…</string>
     <string name="auto_sync_notification_channel">Synchronisierung im Hintergrund</string>
     <string name="auto_sync_notification_rationale_dialog_title">Benachrichtigungen Berechtigung benötigt</string>
     <string name="auto_sync_notification_rationale_dialog_text">Um Sie über Fehler bei der Hintergrundsynchronisierung zu informieren, benötigen wir die Berechtigung, Ihnen Benachrichtigungen zu senden. Bitte erteilen Sie diese Berechtigung.</string>

@@ -192,6 +192,7 @@
     <string name="auto_sync_notification_success">后台同步成功。已删除 %1$d 个书签。</string>
     <string name="auto_sync_notification_failure">后台同步失败。</string>
     <string name="auto_sync_notification_running">后台同步进行中。</string>
+    <string name="offline_content_notification_running">Downloading offline content…</string>
     <string name="auto_sync_notification_channel">后台同步</string>
 
     <!-- Sync Settings - Phase 3 -->

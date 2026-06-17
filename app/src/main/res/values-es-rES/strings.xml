@@ -199,6 +199,7 @@ other{}
     <string name="auto_sync_notification_success">La sincronización en segundo plano fue correcta. Se borraron %1$d marcadores.</string>
     <string name="auto_sync_notification_failure">Falló la sincronización en segundo plano.</string>
     <string name="auto_sync_notification_running">La sincronización en segundo plano está en proceso.</string>
+    <string name="offline_content_notification_running">Downloading offline content…</string>
     <string name="auto_sync_notification_channel">Sincronización en segundo plano</string>
 
     <!-- Sync Settings - Phase 3 -->

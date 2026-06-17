@@ -250,6 +250,8 @@ So provenance is exactly **two values — `AUTOMATIC` (prunable) vs `MANUAL` (pr
 
 **Tests:** instrumented/manual check that each offline-content trigger posts the notification when enabled; no `ForegroundServiceStartNotAllowedException`.
 
+**Implemented (2026-06-17, on-device verified — supersedes the `setExpedited` design text above):** Replicated the metadata-sync pattern verbatim — an unconditional guarded `setForeground(getForegroundInfo())` in `doWork` (rethrow `CancellationException`, else log + continue), via a shared `offlineContentForegroundInfo()` helper (`dataSync` FGS type, reusing `SYNC_NOTIFICATION_CHANNEL_ID`), on `BatchArticleLoadWorker` and `DateRangeContentSyncWorker`. Deliberately **no `setExpedited`** (it threw at enqueue when quota was unavailable and silently broke content sync in the first attempt) and **no preference gate** — bookmarks sync doesn't gate on `isSyncNotificationsEnabled()` (a currently-dead, default-true pref), so "consistent with metadata sync" means always-promote. Verified on Pixel 9 / Android 16: downloads `content_package` 0→188; "Downloading offline content…" notification shows when foreground; background-started chunks are gracefully denied FGS (no crash, downloads progress then defer on `device_idle`, matching metadata sync).
+
 ### W8 — Debug export enhancement
 
 `BookmarkDebugExporter` uses `getBookmarkById` (bare entity) so `hasLocalArticleContent`/`localArticleContentLength` are always false. Load the content join and add package facts: `content_package` presence, `hasResources`, resource count + total bytes, on-disk file list, `offlineBaseUrl`. Makes every test-matrix cell verifiable by inspection.
