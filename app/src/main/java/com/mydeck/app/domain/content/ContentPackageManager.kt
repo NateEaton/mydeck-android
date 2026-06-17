@@ -369,10 +369,21 @@ class ContentPackageManager @Inject constructor(
     }
 
     /**
-     * Calculate total size of managed offline packages only (hasResources=true).
+     * Total size of all managed offline packages (hasResources=true) across
+     * **both** provenance pools (AUTOMATIC + MANUAL). This is the **cap-size**
+     * that drives absolute storage-cap enforcement (W2).
      */
     suspend fun calculateManagedOfflineSize(): Long {
         return bookmarkDao.getManagedOfflineStorageSize()
+    }
+
+    /**
+     * Total size of AUTOMATIC full packages only. This is the **policy-size**
+     * that drives the policy prune (W2); MANUAL bytes are excluded so a large
+     * hand-picked pool cannot trigger eviction of policy-downloaded content.
+     */
+    suspend fun calculateAutomaticOfflineSize(): Long {
+        return bookmarkDao.getAutomaticOfflineStorageSize()
     }
 
     /**

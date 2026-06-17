@@ -48,6 +48,11 @@ class BatchArticleLoadWorkerTest {
         coEvery { settingsDataStore.saveLastContentSyncTimestamp(any()) } returns Unit
         coEvery { policyEvaluator.canFetchContent() } returns OfflinePolicyEvaluator.Decision(true)
         coEvery { bookmarkDao.markNoContentBookmarksPermanent() } returns 0
+        // Absolute storage cap defaults to UNLIMITED → enforceAbsoluteStorageCap() is a no-op.
+        coEvery { settingsDataStore.getOfflineMaxStorageCap() } returns Long.MAX_VALUE
+        // Policy-size (AUTOMATIC only) drives the policy prune; default 0 so the entry check
+        // is satisfied without per-test stubs unless a test exercises the prune explicitly.
+        coEvery { contentPackageManager.calculateAutomaticOfflineSize() } returns 0L
     }
 
     private fun createWorker(inputData: Data = Data.EMPTY, runAttemptCount: Int = 0): BatchArticleLoadWorker {
@@ -324,11 +329,14 @@ class BatchArticleLoadWorkerTest {
             listOf(newBookmarkAfter),             // post-batch prune entry check
             listOf(newBookmarkAfter)              // download loop iteration 2
         )
-        coEvery { contentPackageManager.calculateManagedOfflineSize() } returnsMany listOf(
+        // Policy-size (AUTOMATIC) drives the prune; cap-size (both pools) drives the download loop.
+        coEvery { contentPackageManager.calculateAutomaticOfflineSize() } returnsMany listOf(
             110_000_000L, // initial prune entry: shouldPrune check
-            110_000_000L, // prune loop iter 1: isPrunedEnough check (before deletion)
+            110_000_000L, // prune loop iter 1: isPrunedEnough / selectForPruning
+            42_000_000L   // post-batch prune entry: shouldPrune check
+        )
+        coEvery { contentPackageManager.calculateManagedOfflineSize() } returnsMany listOf(
             40_000_000L,  // download loop iteration 1: shouldStopDownloading
-            42_000_000L,  // post-batch prune entry: shouldPrune check
             42_000_000L   // download loop iteration 2: shouldStopDownloading
         )
         // Initial prune: entry triggers
@@ -356,6 +364,98 @@ class BatchArticleLoadWorkerTest {
         assertEquals(ListenableWorker.Result.success(), result)
         coVerify { contentPackageManager.deleteContentForBookmark("old-1") }
         coVerify { loadContentPackageUseCase.executeBatch(listOf("new-1")) }
+    }
+
+    // --- Absolute storage cap (W2) ---
+
+    @Test
+    fun `doWork enforces absolute cap across both pools evicting oldest-refreshed-first`() = runTest {
+        // No eligible bookmarks → download loop is a no-op; the cap pass then runs.
+        coEvery { bookmarkDao.getOfflinePolicyBookmarks(false) } returns emptyList()
+        coEvery { policyEvaluator.shouldStopDownloading(any(), any()) } returns false
+        coEvery { policyEvaluator.selectEligibleBookmarks(any(), any()) } returns emptyList()
+
+        coEvery { settingsDataStore.getOfflineMaxStorageCap() } returns 100L
+        // read 1: download-loop usageBeforeBatch; reads 2-4: cap pass (initial + after each eviction).
+        coEvery { contentPackageManager.calculateManagedOfflineSize() } returnsMany listOf(
+            250L, // download loop iteration 1
+            250L, // cap pass: initial usage (over cap)
+            180L, // after evicting m1 (still over cap)
+            90L   // after evicting a1 (now under cap → stop)
+        )
+        // Oldest-refreshed first across both pools: a MANUAL package is oldest.
+        coEvery { bookmarkDao.getOfflinePackageBookmarkIdsOldestRefreshedFirst() } returns
+            listOf("m1", "a1", "a2", "m2")
+        coEvery { contentPackageManager.deleteContentForBookmark(any()) } returns Unit
+
+        val result = createWorker().doWork()
+
+        assertEquals(ListenableWorker.Result.success(), result)
+        // Evicts oldest-first until under cap — MANUAL m1 IS evicted by the cap.
+        coVerify(exactly = 1) { contentPackageManager.deleteContentForBookmark("m1") }
+        coVerify(exactly = 1) { contentPackageManager.deleteContentForBookmark("a1") }
+        // Does not over-evict once under the cap.
+        coVerify(exactly = 0) { contentPackageManager.deleteContentForBookmark("a2") }
+        coVerify(exactly = 0) { contentPackageManager.deleteContentForBookmark("m2") }
+    }
+
+    @Test
+    fun `doWork does not evict anything when cap is unlimited`() = runTest {
+        coEvery { bookmarkDao.getOfflinePolicyBookmarks(false) } returns emptyList()
+        coEvery { policyEvaluator.shouldStopDownloading(any(), any()) } returns false
+        coEvery { policyEvaluator.selectEligibleBookmarks(any(), any()) } returns emptyList()
+        // Cap is UNLIMITED (setup default Long.MAX_VALUE).
+        coEvery { contentPackageManager.calculateManagedOfflineSize() } returns 5_000_000_000L
+
+        val result = createWorker().doWork()
+
+        assertEquals(ListenableWorker.Result.success(), result)
+        coVerify(exactly = 0) { bookmarkDao.getOfflinePackageBookmarkIdsOldestRefreshedFirst() }
+        coVerify(exactly = 0) { contentPackageManager.deleteContentForBookmark(any()) }
+    }
+
+    @Test
+    fun `doWork does not evict when usage is under the cap`() = runTest {
+        coEvery { bookmarkDao.getOfflinePolicyBookmarks(false) } returns emptyList()
+        coEvery { policyEvaluator.shouldStopDownloading(any(), any()) } returns false
+        coEvery { policyEvaluator.selectEligibleBookmarks(any(), any()) } returns emptyList()
+
+        coEvery { settingsDataStore.getOfflineMaxStorageCap() } returns 100L
+        coEvery { contentPackageManager.calculateManagedOfflineSize() } returns 50L
+
+        val result = createWorker().doWork()
+
+        assertEquals(ListenableWorker.Result.success(), result)
+        coVerify(exactly = 0) { bookmarkDao.getOfflinePackageBookmarkIdsOldestRefreshedFirst() }
+        coVerify(exactly = 0) { contentPackageManager.deleteContentForBookmark(any()) }
+    }
+
+    @Test
+    fun `priority download enforces absolute cap after adding manual content`() = runTest {
+        val inputData = Data.Builder()
+            .putString(BatchArticleLoadWorker.KEY_PRIORITY_BOOKMARK_ID, "priority-1")
+            .build()
+
+        coEvery { settingsDataStore.getOfflineContentScope() } returns OfflineContentScope.MY_LIST
+        coEvery { bookmarkDao.getIsArchived("priority-1") } returns false
+        coEvery { loadContentPackageUseCase.executeBatch(listOf("priority-1"), ContentSource.MANUAL) } returns mapOf(
+            "priority-1" to LoadContentPackageUseCase.Result.Success
+        )
+
+        coEvery { settingsDataStore.getOfflineMaxStorageCap() } returns 100L
+        coEvery { contentPackageManager.calculateManagedOfflineSize() } returnsMany listOf(
+            250L, // cap pass: initial usage (over cap)
+            90L   // after evicting the oldest package (under cap → stop)
+        )
+        coEvery { bookmarkDao.getOfflinePackageBookmarkIdsOldestRefreshedFirst() } returns
+            listOf("old-manual", "priority-1")
+        coEvery { contentPackageManager.deleteContentForBookmark(any()) } returns Unit
+
+        val result = createWorker(inputData).doWork()
+
+        assertEquals(ListenableWorker.Result.success(), result)
+        coVerify(exactly = 1) { contentPackageManager.deleteContentForBookmark("old-manual") }
+        coVerify(exactly = 0) { contentPackageManager.deleteContentForBookmark("priority-1") }
     }
 
     // --- Stalled-progress regression test ---

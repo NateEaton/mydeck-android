@@ -214,6 +214,9 @@ class BatchArticleLoadWorker @AssistedInject constructor(
                 delay(BATCH_DELAY_MS)
             }
 
+            // Absolute storage cap spans both pools and is the only thing that may evict MANUAL.
+            enforceAbsoluteStorageCap()
+
             settingsDataStore.saveLastContentSyncTimestamp(Clock.System.now())
             return when {
                 stalledWithPending && runAttemptCount < MAX_RUN_ATTEMPTS -> {
@@ -258,6 +261,8 @@ class BatchArticleLoadWorker @AssistedInject constructor(
             }
             // Priority downloads are user-initiated (promote-on-open / multi-select) → MANUAL (W2).
             loadContentPackageUseCase.executeBatch(listOf(bookmarkId), ContentSource.MANUAL)
+            // Newly-added MANUAL content can push total usage over the absolute cap.
+            enforceAbsoluteStorageCap()
             settingsDataStore.saveLastContentSyncTimestamp(Clock.System.now())
             Timber.i("BatchArticleLoadWorker: priority download completed for $bookmarkId")
             Result.success()
@@ -291,7 +296,7 @@ class BatchArticleLoadWorker @AssistedInject constructor(
                 }
                 val remainingOutsideWindow =
                     bookmarkDao.getDownloadedBookmarkIdsOutsideNewestN(newestN, includeArchived).size
-                val usageAfterWindowPrune = contentPackageManager.calculateManagedOfflineSize()
+                val usageAfterWindowPrune = contentPackageManager.calculateAutomaticOfflineSize()
                 Timber.i(
                     "Prune cycle complete for NEWEST_N window overflow " +
                         "(remainingOutsideWindow=$remainingOutsideWindow, usage=${usageAfterWindowPrune / 1024}KB)"
@@ -301,12 +306,15 @@ class BatchArticleLoadWorker @AssistedInject constructor(
 
         // --- Entry check ---
         // Prune operates only on AUTOMATIC full packages (W2); MANUAL packages (promote-on-open /
-        // multi-select) are protected from the policy prune and survive until Clear All / disable.
+        // multi-select) are protected from the policy prune and survive until the absolute storage
+        // cap is exceeded (see enforceAbsoluteStorageCap) or Clear All / disable.
         val initialBookmarks = bookmarkDao.getOfflinePolicyBookmarks(includeArchived)
             .filter { it.hasOfflinePackage && it.source == ContentSource.AUTOMATIC.name }
         if (initialBookmarks.isEmpty()) return
 
-        val initialUsage = contentPackageManager.calculateManagedOfflineSize()
+        // Policy prune is driven by policy-size (AUTOMATIC only), not cap-size, so a large
+        // hand-picked MANUAL pool can never trigger eviction of policy-downloaded content.
+        val initialUsage = contentPackageManager.calculateAutomaticOfflineSize()
         if (!policyEvaluator.shouldPrune(initialBookmarks, initialUsage)) return
 
         Timber.i(
@@ -320,7 +328,7 @@ class BatchArticleLoadWorker @AssistedInject constructor(
                 .filter { it.hasOfflinePackage && it.source == ContentSource.AUTOMATIC.name }
             if (downloadedBookmarks.isEmpty()) return
 
-            val totalUsageBytes = contentPackageManager.calculateManagedOfflineSize()
+            val totalUsageBytes = contentPackageManager.calculateAutomaticOfflineSize()
             if (policyEvaluator.isPrunedEnough(downloadedBookmarks, totalUsageBytes)) {
                 Timber.i(
                     "Prune cycle complete (usage=${totalUsageBytes / 1024}KB, " +
@@ -333,6 +341,38 @@ class BatchArticleLoadWorker @AssistedInject constructor(
                 .firstOrNull() ?: return
             contentPackageManager.deleteContentForBookmark(pruneId)
             Timber.i("Pruned managed offline content for $pruneId")
+        }
+    }
+
+    /**
+     * Enforce the absolute storage cap across **both** provenance pools (W2).
+     *
+     * This is the only mechanism that may evict MANUAL content. When total
+     * on-device package size (AUTOMATIC + MANUAL) exceeds the user-configured
+     * cap, packages are evicted oldest-downloaded-first (`lastRefreshed ASC`)
+     * across both pools until usage is at or below the cap. No-op when the cap
+     * is UNLIMITED. Distinct from [pruneManagedContentIfNeeded], which is the
+     * AUTOMATIC-only policy prune and never evicts MANUAL.
+     */
+    private suspend fun enforceAbsoluteStorageCap() {
+        val cap = settingsDataStore.getOfflineMaxStorageCap()
+        if (cap == Long.MAX_VALUE) return // UNLIMITED — cap disabled
+
+        var usage = contentPackageManager.calculateManagedOfflineSize()
+        if (usage <= cap) return
+
+        Timber.i(
+            "Absolute storage cap exceeded (usage=${usage / 1024}KB > cap=${cap / 1024}KB); " +
+                "evicting oldest-downloaded-first across both pools"
+        )
+        for (bookmarkId in bookmarkDao.getOfflinePackageBookmarkIdsOldestRefreshedFirst()) {
+            if (usage <= cap) break
+            contentPackageManager.deleteContentForBookmark(bookmarkId)
+            usage = contentPackageManager.calculateManagedOfflineSize()
+            Timber.i("Cap-evicted offline content for $bookmarkId (usage now ${usage / 1024}KB)")
+        }
+        if (usage > cap) {
+            Timber.w("Storage still above cap after evicting all packages (usage=${usage / 1024}KB)")
         }
     }
 

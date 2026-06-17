@@ -11,6 +11,7 @@ import com.mydeck.app.io.db.model.BookmarkEntity
 import com.mydeck.app.io.db.model.BookmarkWithArticleContent
 import com.mydeck.app.io.db.model.CachedAnnotationEntity
 import com.mydeck.app.io.db.model.ContentPackageEntity
+import com.mydeck.app.io.db.model.ContentResourceEntity
 import com.mydeck.app.io.db.model.ImageResourceEntity
 import com.mydeck.app.io.db.model.RemoteBookmarkIdEntity
 import com.mydeck.app.io.db.model.ResourceEntity
@@ -939,5 +940,76 @@ class BookmarkDaoTest {
             assertTrue("article within eligible window must not be pruned", "prune-b" !in outsideWindow)
             assertTrue("article outside eligible window should be pruned", "prune-c" in outsideWindow)
         }
+
+        // --- Absolute storage cap accounting + eviction order (W2) ---
+
+        @Test
+        fun `cap eviction list orders by lastRefreshed ascending across both pools`() =
+            runTest(testDispatcher) {
+                // Insertion order, bookmark `created`, and provenance are all deliberately
+                // unrelated to lastRefreshed, to prove ordering is purely by lastRefreshed.
+                val autoNew = newBookmark(id = "auto-new", created = day(1))
+                val manualOld = newBookmark(id = "manual-old", created = day(5))
+                val autoMid = newBookmark(id = "auto-mid", created = day(3))
+                listOf(autoNew, manualOld, autoMid).forEach {
+                    bookmarkDao.insertBookmarksWithArticleContent(
+                        listOf(BookmarkWithArticleContent(bookmark = it, articleContent = null))
+                    )
+                }
+                insertFullPackage("manual-old", lastRefreshed = 100L, source = "MANUAL")
+                insertFullPackage("auto-mid", lastRefreshed = 200L, source = "AUTOMATIC")
+                insertFullPackage("auto-new", lastRefreshed = 300L, source = "AUTOMATIC")
+
+                val order = bookmarkDao.getOfflinePackageBookmarkIdsOldestRefreshedFirst()
+
+                assertEquals(listOf("manual-old", "auto-mid", "auto-new"), order)
+            }
+
+        @Test
+        fun `automatic offline size excludes manual packages`() = runTest(testDispatcher) {
+            val auto = newBookmark(id = "size-auto", created = day(1))
+            val manual = newBookmark(id = "size-manual", created = day(2))
+            listOf(auto, manual).forEach {
+                bookmarkDao.insertBookmarksWithArticleContent(
+                    listOf(BookmarkWithArticleContent(bookmark = it, articleContent = null))
+                )
+            }
+            insertFullPackage("size-auto", lastRefreshed = 1L, source = "AUTOMATIC")
+            insertFullPackage("size-manual", lastRefreshed = 2L, source = "MANUAL")
+            contentPackageDao.insertResources(
+                listOf(
+                    contentResource("size-auto", bytes = 1000L),
+                    contentResource("size-manual", bytes = 500L)
+                )
+            )
+
+            // policy-size = AUTOMATIC only; cap-size = both pools.
+            assertEquals(1000L, bookmarkDao.getAutomaticOfflineStorageSize())
+            assertEquals(1500L, bookmarkDao.getManagedOfflineStorageSize())
+        }
+
+        private suspend fun insertFullPackage(id: String, lastRefreshed: Long, source: String) {
+            contentPackageDao.insertPackage(
+                ContentPackageEntity(
+                    bookmarkId = id,
+                    packageKind = "ARTICLE",
+                    hasHtml = true,
+                    hasResources = true,
+                    sourceUpdated = "2025-06-01T00:00:00Z",
+                    lastRefreshed = lastRefreshed,
+                    localBasePath = "packages/$id",
+                    source = source
+                )
+            )
+        }
+
+        private fun contentResource(bookmarkId: String, bytes: Long) = ContentResourceEntity(
+            bookmarkId = bookmarkId,
+            path = "img/$bookmarkId.png",
+            mimeType = "image/png",
+            group = "image",
+            localRelativePath = "packages/$bookmarkId/img.png",
+            byteSize = bytes
+        )
     }
 }

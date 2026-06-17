@@ -421,37 +421,9 @@ class OfflinePolicyEvaluatorTest {
         assertFalse(shouldPrune)
     }
 
-    @Test
-    fun `shouldPrune newest N returns true when secondary cap exceeded even if count within N`() = runTest {
-        coEvery { settingsDataStore.getOfflinePolicy() } returns OfflinePolicy.NEWEST_N
-        coEvery { settingsDataStore.getOfflinePolicyNewestN() } returns 10
-        coEvery { settingsDataStore.getOfflineMaxStorageCap() } returns 500L
-
-        val shouldPrune = evaluator.shouldPrune(
-            downloadedBookmarks = listOf(
-                bookmark(id = "1", created = "2026-01-01T00:00:00Z", hasOfflinePackage = true)
-            ),
-            totalUsageBytes = 501L
-        )
-
-        assertTrue(shouldPrune)
-    }
-
-    @Test
-    fun `shouldPrune newest N returns false when secondary cap at exactly limit`() = runTest {
-        coEvery { settingsDataStore.getOfflinePolicy() } returns OfflinePolicy.NEWEST_N
-        coEvery { settingsDataStore.getOfflinePolicyNewestN() } returns 10
-        coEvery { settingsDataStore.getOfflineMaxStorageCap() } returns 500L
-
-        val shouldPrune = evaluator.shouldPrune(
-            downloadedBookmarks = listOf(
-                bookmark(id = "1", created = "2026-01-01T00:00:00Z", hasOfflinePackage = true)
-            ),
-            totalUsageBytes = 500L
-        )
-
-        assertFalse(shouldPrune)
-    }
+    // Note: the absolute storage cap no longer triggers the policy prune — it is
+    // enforced as a separate both-pools pass (BatchArticleLoadWorker.enforceAbsoluteStorageCap),
+    // covered by BatchArticleLoadWorkerTest. The policy prune is AUTOMATIC-only (W2).
 
     // --- shouldPrune: DATE_RANGE policy ---
 
@@ -509,23 +481,6 @@ class OfflinePolicyEvaluatorTest {
         assertTrue(shouldPrune)
     }
 
-    @Test
-    fun `shouldPrune date range returns true when secondary cap exceeded even if all within window`() = runTest {
-        coEvery { settingsDataStore.getOfflinePolicy() } returns OfflinePolicy.DATE_RANGE
-        coEvery { settingsDataStore.getOfflinePolicyDateRangeWindow() } returns 30.days
-        coEvery { settingsDataStore.getOfflineMaxStorageCap() } returns 500L
-
-        val shouldPrune = evaluator.shouldPrune(
-            downloadedBookmarks = listOf(
-                bookmark(id = "1", created = "2026-03-25T00:00:00Z", hasOfflinePackage = true)
-            ),
-            totalUsageBytes = 501L,
-            now = Instant.parse("2026-04-01T00:00:00Z")
-        )
-
-        assertTrue(shouldPrune)
-    }
-
     // --- selectForPruning: STORAGE_LIMIT policy ---
 
     @Test
@@ -547,7 +502,7 @@ class OfflinePolicyEvaluatorTest {
     // --- selectForPruning: NEWEST_N policy ---
 
     @Test
-    fun `selectForPruning newest N returns only overflow bookmarks when no secondary cap exceeded`() = runTest {
+    fun `selectForPruning newest N returns only overflow bookmarks`() = runTest {
         coEvery { settingsDataStore.getOfflinePolicy() } returns OfflinePolicy.NEWEST_N
         coEvery { settingsDataStore.getOfflinePolicyNewestN() } returns 2
 
@@ -561,41 +516,6 @@ class OfflinePolicyEvaluatorTest {
         )
 
         assertEquals(listOf("1"), pruneIds)
-    }
-
-    @Test
-    fun `selectForPruning newest N returns all oldest first when secondary cap exceeded`() = runTest {
-        coEvery { settingsDataStore.getOfflinePolicy() } returns OfflinePolicy.NEWEST_N
-        coEvery { settingsDataStore.getOfflinePolicyNewestN() } returns 2
-        coEvery { settingsDataStore.getOfflineMaxStorageCap() } returns 500L
-
-        val pruneIds = evaluator.selectForPruning(
-            downloadedBookmarks = listOf(
-                bookmark(id = "1", created = "2026-01-01T00:00:00Z", hasOfflinePackage = true),
-                bookmark(id = "2", created = "2026-02-01T00:00:00Z", hasOfflinePackage = true),
-                bookmark(id = "3", created = "2026-03-01T00:00:00Z", hasOfflinePackage = true)
-            ),
-            totalUsageBytes = 501L
-        )
-
-        assertEquals(listOf("1", "2", "3"), pruneIds)
-    }
-
-    @Test
-    fun `selectForPruning newest N returns all when no overflow but secondary cap exceeded`() = runTest {
-        coEvery { settingsDataStore.getOfflinePolicy() } returns OfflinePolicy.NEWEST_N
-        coEvery { settingsDataStore.getOfflinePolicyNewestN() } returns 5
-        coEvery { settingsDataStore.getOfflineMaxStorageCap() } returns 500L
-
-        val pruneIds = evaluator.selectForPruning(
-            downloadedBookmarks = listOf(
-                bookmark(id = "1", created = "2026-01-01T00:00:00Z", hasOfflinePackage = true),
-                bookmark(id = "2", created = "2026-02-01T00:00:00Z", hasOfflinePackage = true)
-            ),
-            totalUsageBytes = 501L
-        )
-
-        assertEquals(listOf("1", "2"), pruneIds)
     }
 
     // --- selectForPruning: DATE_RANGE policy ---
@@ -619,25 +539,7 @@ class OfflinePolicyEvaluatorTest {
     }
 
     @Test
-    fun `selectForPruning date range returns all oldest first when secondary cap exceeded`() = runTest {
-        coEvery { settingsDataStore.getOfflinePolicy() } returns OfflinePolicy.DATE_RANGE
-        coEvery { settingsDataStore.getOfflinePolicyDateRangeWindow() } returns 30.days
-        coEvery { settingsDataStore.getOfflineMaxStorageCap() } returns 500L
-
-        val pruneIds = evaluator.selectForPruning(
-            downloadedBookmarks = listOf(
-                bookmark(id = "1", created = "2026-01-01T00:00:00Z", hasOfflinePackage = true),
-                bookmark(id = "2", created = "2026-03-25T00:00:00Z", hasOfflinePackage = true)
-            ),
-            totalUsageBytes = 501L,
-            now = Instant.parse("2026-04-01T00:00:00Z")
-        )
-
-        assertEquals(listOf("1", "2"), pruneIds)
-    }
-
-    @Test
-    fun `selectForPruning date range returns empty when all within window and under cap`() = runTest {
+    fun `selectForPruning date range returns empty when all within window`() = runTest {
         coEvery { settingsDataStore.getOfflinePolicy() } returns OfflinePolicy.DATE_RANGE
         coEvery { settingsDataStore.getOfflinePolicyDateRangeWindow() } returns 30.days
 

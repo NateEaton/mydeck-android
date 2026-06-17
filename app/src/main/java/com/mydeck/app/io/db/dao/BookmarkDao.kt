@@ -1042,6 +1042,11 @@ interface BookmarkDao {
     """)
     suspend fun getBookmarkIdsWithOfflinePackages(): List<String>
 
+    /**
+     * Total on-device bytes of **all** full packages across both provenance pools
+     * (AUTOMATIC + MANUAL). This is the **cap-size** that drives the absolute
+     * storage-cap enforcement (W2).
+     */
     @Query("""
         SELECT COALESCE(
             (SELECT SUM(byteSize) FROM content_resource WHERE bookmarkId IN (SELECT bookmarkId FROM content_package WHERE hasResources = 1)), 0
@@ -1050,6 +1055,35 @@ interface BookmarkDao {
         )
     """)
     suspend fun getManagedOfflineStorageSize(): Long
+
+    /**
+     * Total on-device bytes of AUTOMATIC full packages only. This is the
+     * **policy-size** that drives the policy prune (W2): MANUAL bytes must not
+     * count toward the policy storage limit, or a large hand-picked pool would
+     * trigger eviction of policy-downloaded content.
+     */
+    @Query("""
+        SELECT COALESCE(
+            (SELECT SUM(byteSize) FROM content_resource WHERE bookmarkId IN (SELECT bookmarkId FROM content_package WHERE hasResources = 1 AND source = 'AUTOMATIC')), 0
+        ) + COALESCE(
+            (SELECT SUM(LENGTH(CAST(content AS BLOB))) FROM article_content WHERE bookmarkId IN (SELECT bookmarkId FROM content_package WHERE hasResources = 1 AND source = 'AUTOMATIC')), 0
+        )
+    """)
+    suspend fun getAutomaticOfflineStorageSize(): Long
+
+    /**
+     * Bookmark ids of every on-device full package across **both** provenance
+     * pools, ordered oldest-downloaded first (`lastRefreshed ASC`). Drives the
+     * absolute storage-cap eviction (W2) — the only mechanism that may evict
+     * MANUAL content. The candidate set matches [getManagedOfflineStorageSize]
+     * exactly (all `hasResources = 1` packages, no archive/pool filter).
+     */
+    @Query("""
+        SELECT bookmarkId FROM content_package
+        WHERE hasResources = 1
+        ORDER BY lastRefreshed ASC
+    """)
+    suspend fun getOfflinePackageBookmarkIdsOldestRefreshedFirst(): List<String>
 
     @Query("SELECT COALESCE(SUM(byteSize), 0) FROM content_resource WHERE mimeType LIKE 'image/%'")
     suspend fun getTotalImageResourceBytes(): Long
