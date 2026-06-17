@@ -29,6 +29,14 @@ interface ContentPackageDao {
     @Query("DELETE FROM content_package WHERE bookmarkId = :bookmarkId")
     suspend fun deletePackage(bookmarkId: String)
 
+    /**
+     * Update only the provenance of an existing package (W2). Used by the multi-select
+     * "Available offline" action to flip an already-downloaded AUTOMATIC package to MANUAL
+     * without re-fetching. No-op (zero rows) when no package exists for [bookmarkId].
+     */
+    @Query("UPDATE content_package SET source = :source WHERE bookmarkId = :bookmarkId")
+    suspend fun updateContentPackageSource(bookmarkId: String, source: String)
+
     @Transaction
     suspend fun replacePackageAndResources(
         pkg: ContentPackageEntity,

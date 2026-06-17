@@ -349,6 +349,17 @@ class ContentPackageManager @Inject constructor(
     }
 
     /**
+     * Update the provenance of an existing package (W2) without touching files or
+     * re-fetching. Used by the multi-select "Available offline" action to flip an
+     * already-downloaded AUTOMATIC package to MANUAL so the user's explicit pick
+     * survives the policy prune. No-op when no package exists for [bookmarkId].
+     */
+    suspend fun updatePackageSource(bookmarkId: String, source: ContentSource) {
+        contentPackageDao.updateContentPackageSource(bookmarkId, source.name)
+        Timber.d("Updated content package source for $bookmarkId to ${source.name}")
+    }
+
+    /**
      * Delete all offline content.
      */
     suspend fun deleteAllContent() {
