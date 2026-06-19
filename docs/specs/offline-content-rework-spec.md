@@ -149,6 +149,8 @@ W2–W9 below. Each is independently specified and testable. **W2 (provenance) l
 
 ### W2 — Content provenance: Automatic vs Manual pools (Fork B, explicit) — **supersedes §9.1 A1 resolution**
 
+> **UPDATED 2026-06-19 — Pin/Unpin pivot (Stefan feedback).** The "what creates MANUAL" rule below was revised: **promote-on-open now commits `AUTOMATIC`, not `MANUAL`** — opening is a convenience cache, not a deliberate keep. **`MANUAL` is created only by an explicit Pin** (the multi-select Pin action, or the reader's per-article Pin); **Unpin** demotes `MANUAL`→`AUTOMATIC`. Everything else in W2 is unchanged — the `AUTOMATIC`/`MANUAL` column + migration, prune-skips-`MANUAL`, the both-pools absolute cap, and the split count. Wherever the text below says promote-on-open → `MANUAL` (the MANUAL definition, §"What creates MANUAL content — R1", the tests note), read it as `AUTOMATIC`. **Authoritative current model:** `multi-select-offline-download-spec.md` (retitled "Offline pinning (Pin / Unpin)").
+
 **Why.** Phase-1 field testing (2026-06-15) showed the §9.1 A1 "form-as-signal, no provenance flag" resolution does not hold: **promote-on-open** turns any article opened while offline reading is on into a full package indistinguishable from a policy download, so the rolling prune — and any add or periodic prune that triggers it — **evicts hand-picked offline reads**. The "open it while offline is *off* to keep it" workaround is backwards and yields text-only. Track provenance explicitly instead (the "explicit pinned vs managed" arm of Fork B, diagnosis §7).
 
 **Model — two values, by how a full package was acquired:**

@@ -66,10 +66,12 @@ class LoadContentPackageUseCase @Inject constructor(
     suspend fun execute(
         bookmarkId: String,
         onProgress: ((Float) -> Unit)? = null,
-        // On-demand open is a user action → the resulting package is MANUAL (kept) when offline
-        // reading is on. (W2; the offline-off open of a video/picture is a rare edge that also
-        // lands MANUAL and is cleared by Clear All — see spec §6 W2.)
-        source: ContentSource = ContentSource.MANUAL
+        // On-demand open is a convenience cache, not a deliberate keep (Pin/Unpin model): the
+        // resulting package is AUTOMATIC (prunable). Only an explicit Pin commits MANUAL, and it
+        // does so via the priority worker path (enqueuePriorityDownload(MANUAL)) — never here — so
+        // this default must stay AUTOMATIC, else opening a picture (or an article whose text fetch
+        // fails and falls back to the package) would silently auto-pin it.
+        source: ContentSource = ContentSource.AUTOMATIC
     ): Result {
         val bookmark = bookmarkRepository.getBookmarkById(bookmarkId)
         onProgress?.invoke(0.1f)
