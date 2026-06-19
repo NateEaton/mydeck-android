@@ -17,6 +17,7 @@ import timber.log.Timber
 import com.mydeck.app.io.db.model.ArticleContentEntity
 import com.mydeck.app.io.db.model.BookmarkWithArticleContent
 import com.mydeck.app.io.db.model.BookmarkListItemEntity
+import com.mydeck.app.io.db.model.ContentPackageEntity
 import com.mydeck.app.io.db.model.RemoteBookmarkIdEntity
 import com.mydeck.app.io.db.model.BookmarkCountsEntity
 
@@ -232,11 +233,13 @@ interface BookmarkDao {
     suspend fun hardDeleteBookmark(id: String)
 
     @Transaction
-    @RawQuery(observedEntities = [BookmarkEntity::class])
+    @RawQuery(observedEntities = [BookmarkEntity::class, ContentPackageEntity::class])
     fun getBookmarksByFiltersDynamic(query: SupportSQLiteQuery): Flow<List<BookmarkEntity>>
 
+    // Observes content_package too so the offline/pinned icon re-emits when a package's source is
+    // flipped (pin/unpin) — a UPDATE that touches only content_package, not bookmarks.
     @Transaction
-    @RawQuery(observedEntities = [BookmarkEntity::class])
+    @RawQuery(observedEntities = [BookmarkEntity::class, ContentPackageEntity::class])
     fun getBookmarkListItemsByFiltersDynamic(query: SupportSQLiteQuery): Flow<List<BookmarkListItemEntity>>
 
     @Query("SELECT isMarked FROM bookmarks WHERE id = :id")
@@ -385,6 +388,7 @@ interface BookmarkDao {
             b.created,
             b.wordCount,
             b.published,
+            b.hasArticle,
             b.contentState,
             cp.hasResources,
             cp.source
@@ -586,7 +590,7 @@ interface BookmarkDao {
             b.readProgress, b.icon_src AS iconSrc, b.image_src AS imageSrc,
             b.labels, b.thumbnail_src AS thumbnailSrc, b.type,
             b.readingTime, b.created, b.wordCount, b.published,
-            b.contentState, cp.hasResources, cp.source
+            b.hasArticle, b.contentState, cp.hasResources, cp.source
             FROM bookmarks b
             LEFT JOIN content_package cp ON cp.bookmarkId = b.id
             WHERE b.isLocalDeleted = 0""")
@@ -665,7 +669,7 @@ interface BookmarkDao {
             b.readProgress, b.icon_src AS iconSrc, b.image_src AS imageSrc,
             b.labels, b.thumbnail_src AS thumbnailSrc, b.type,
             b.readingTime, b.created, b.wordCount, b.published,
-            b.contentState, cp.hasResources, cp.source
+            b.hasArticle, b.contentState, cp.hasResources, cp.source
             FROM bookmarks b
             LEFT JOIN content_package cp ON cp.bookmarkId = b.id
             WHERE b.isLocalDeleted = 0""")

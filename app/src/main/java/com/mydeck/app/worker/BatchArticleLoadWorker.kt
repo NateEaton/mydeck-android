@@ -66,7 +66,8 @@ class BatchArticleLoadWorker @AssistedInject constructor(
         // Priority single-bookmark path: skip the normal batch logic.
         val priorityBookmarkId = inputData.getString(KEY_PRIORITY_BOOKMARK_ID)
         if (priorityBookmarkId != null) {
-            return processPriorityBookmark(priorityBookmarkId)
+            val prioritySource = ContentSource.fromStored(inputData.getString(KEY_PRIORITY_SOURCE))
+            return processPriorityBookmark(priorityBookmarkId, prioritySource)
         }
 
         val overrideConstraints = inputData.getBoolean(KEY_OVERRIDE_CONSTRAINTS, false)
@@ -262,9 +263,9 @@ class BatchArticleLoadWorker @AssistedInject constructor(
         }
     }
 
-    private suspend fun processPriorityBookmark(bookmarkId: String): Result {
+    private suspend fun processPriorityBookmark(bookmarkId: String, source: ContentSource): Result {
         return try {
-            Timber.d("BatchArticleLoadWorker: priority download starting for $bookmarkId")
+            Timber.d("BatchArticleLoadWorker: priority download starting for $bookmarkId (source=$source)")
             if (!settingsDataStore.isOfflineReadingEnabled()) {
                 Timber.i("Priority content fetch skipped because offline reading is disabled for $bookmarkId")
                 return Result.success()
@@ -277,8 +278,9 @@ class BatchArticleLoadWorker @AssistedInject constructor(
                 Timber.i("Priority content fetch blocked by constraints for $bookmarkId")
                 return Result.success()
             }
-            // Priority downloads are user-initiated (promote-on-open / multi-select) → MANUAL (W2).
-            loadContentPackageUseCase.executeBatch(listOf(bookmarkId), ContentSource.MANUAL)
+            // Priority download provenance is set by the caller: promote-on-open → AUTOMATIC
+            // (managed/prunable), explicit pin (per-article / multi-select) → MANUAL (pinned). W2.
+            loadContentPackageUseCase.executeBatch(listOf(bookmarkId), source)
             // Newly-added MANUAL content can push total usage over the absolute cap.
             enforceAbsoluteStorageCap()
             settingsDataStore.saveLastContentSyncTimestamp(Clock.System.now())
@@ -398,6 +400,7 @@ class BatchArticleLoadWorker @AssistedInject constructor(
         const val UNIQUE_WORK_NAME = "batch_article_load"
         const val WORK_TAG_OFFLINE_CONTENT = "offline_content_work"
         const val KEY_PRIORITY_BOOKMARK_ID = "priority_bookmark_id"
+        const val KEY_PRIORITY_SOURCE = "priority_source"
         const val KEY_OVERRIDE_CONSTRAINTS = "override_constraints"
         private const val PRIORITY_WORK_NAME_PREFIX = "content_priority_"
         private const val BATCH_DELAY_MS = 500L
@@ -429,10 +432,16 @@ class BatchArticleLoadWorker @AssistedInject constructor(
         fun enqueuePriorityDownload(
             workManager: WorkManager,
             bookmarkId: String,
-            constraints: Constraints
+            constraints: Constraints,
+            source: ContentSource
         ) {
             val request = OneTimeWorkRequestBuilder<BatchArticleLoadWorker>()
-                .setInputData(workDataOf(KEY_PRIORITY_BOOKMARK_ID to bookmarkId))
+                .setInputData(
+                    workDataOf(
+                        KEY_PRIORITY_BOOKMARK_ID to bookmarkId,
+                        KEY_PRIORITY_SOURCE to source.name
+                    )
+                )
                 .setConstraints(constraints)
                 .addTag(WORK_TAG_OFFLINE_CONTENT)
                 .build()

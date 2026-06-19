@@ -196,7 +196,7 @@ Open the **⋮ overflow menu** and tap **Select bookmarks** to enter selection m
 Once at least one bookmark is selected, the bar's two actions apply to the **whole selection**:
 
 - **Archive** and **Favorite** each show the most useful action for what you've selected. If any selected bookmark isn't yet archived (or favorited), the bar offers **Archive** (or **Add favorite**); once they all already are, it flips to **Unarchive** (or **Remove favorite**).
-- The **⋮ overflow** holds **Delete** (removes every selected bookmark), **Add labels**, **Available offline**, and **Select all / Deselect all**.
+- The **⋮ overflow** holds **Delete** (removes every selected bookmark), **Add labels**, **Pin offline / Unpin offline**, and **Select all / Deselect all**.
 
 **Add labels** opens the label picker. Pick one or more existing labels (or create a new one from the search box) and tap **Done** to add them to every selected bookmark — labels already present are kept, and bookmarks that already have all the chosen labels are left untouched. Like Archive and Favorite, this **keeps you in selection mode** so you can keep working with the same set. A snackbar confirms "Labels added to N bookmarks" with an **Undo** that restores the prior labels on the bookmarks that changed.
 
@@ -204,7 +204,7 @@ Archive and Favorite apply immediately and **keep you in selection mode**, so yo
 
 **Delete** is held until the snackbar goes away: the bookmarks stay greyed out while it's showing, so you can tap **Undo** to keep them, or dismiss the snackbar (or tap elsewhere) to confirm the deletion.
 
-**Available offline** downloads the full offline content — article text and images — for every selected bookmark so you can read them without a connection. Downloads run in the background under your sync settings (Wi-Fi only, battery saver), and each card shows the offline-available icon once its content lands. Bookmarks you pick this way are kept offline — the automatic offline limit won't remove them (see [Settings](./settings.md)). A snackbar summarizes the result, such as "8 available offline" or "8 available offline · 2 have no offline content" when some selected items (for example, link-only bookmarks or videos with no article) can't be stored. The option is greyed out while offline reading is turned off, and choosing it exits selection mode.
+**Pin offline** keeps the selected bookmarks on your device for offline reading. Pinned bookmarks are protected — the automatic offline limit won't remove them (only unpinning, clearing offline content, or turning offline reading off does; see [Settings](./settings.md)). MyDeck downloads anything that isn't already stored in the background under your sync settings (Wi-Fi only, battery saver), and each pinned card shows a **pin** icon. The menu reads **Unpin offline** instead when every selected bookmark is already pinned; unpinning hands those bookmarks back to automatic management (it doesn't delete them — they're just no longer protected). Like Archive and Favorite, pinning **keeps you in selection mode**. A snackbar summarizes the result, such as "8 pinned offline" or "8 pinned offline · 2 have no offline content" when some selected items (for example, link-only bookmarks or videos with no article) have nothing to store. The Pin/Unpin option is hidden while offline reading is turned off. You can also pin or unpin a single article from the **⋮ menu** while reading it.
 
 ## Refreshing
 

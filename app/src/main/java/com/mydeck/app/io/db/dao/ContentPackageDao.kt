@@ -7,6 +7,7 @@ import androidx.room.Query
 import androidx.room.Transaction
 import com.mydeck.app.io.db.model.ContentPackageEntity
 import com.mydeck.app.io.db.model.ContentResourceEntity
+import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface ContentPackageDao {
@@ -19,6 +20,10 @@ interface ContentPackageDao {
 
     @Query("SELECT * FROM content_package WHERE bookmarkId = :bookmarkId")
     suspend fun getPackage(bookmarkId: String): ContentPackageEntity?
+
+    /** Reactive provenance of a bookmark's package (null when none) — drives the reader pin state. */
+    @Query("SELECT source FROM content_package WHERE bookmarkId = :bookmarkId")
+    fun observePackageSource(bookmarkId: String): Flow<String?>
 
     @Query("SELECT * FROM content_resource WHERE bookmarkId = :bookmarkId")
     suspend fun getResources(bookmarkId: String): List<ContentResourceEntity>

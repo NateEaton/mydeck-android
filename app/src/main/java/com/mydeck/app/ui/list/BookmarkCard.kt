@@ -40,6 +40,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DownloadForOffline
+import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Inventory2
@@ -215,12 +216,12 @@ private fun OfflineStateIndicator(
     ) {
         Icon(
             imageVector = when (offlineState) {
-                BookmarkListItem.OfflineState.DOWNLOADED_FULL,
-                BookmarkListItem.OfflineState.DOWNLOADED_FULL_MANUAL -> Icons.Filled.DownloadForOffline
+                BookmarkListItem.OfflineState.PINNED -> Icons.Filled.PushPin
+                BookmarkListItem.OfflineState.DOWNLOADED_FULL -> Icons.Filled.DownloadForOffline
                 else -> Icons.Outlined.DownloadForOffline
             },
             contentDescription = null,
-            tint = if (offlineState == BookmarkListItem.OfflineState.DOWNLOADED_FULL_MANUAL) {
+            tint = if (offlineState == BookmarkListItem.OfflineState.PINNED) {
                 MaterialTheme.colorScheme.primary
             } else {
                 Color.White
@@ -291,12 +292,12 @@ private fun CompactOfflineStateIndicator(
     if (offlineState == BookmarkListItem.OfflineState.NOT_DOWNLOADED) return
     Icon(
         imageVector = when (offlineState) {
-            BookmarkListItem.OfflineState.DOWNLOADED_FULL,
-            BookmarkListItem.OfflineState.DOWNLOADED_FULL_MANUAL -> Icons.Filled.DownloadForOffline
+            BookmarkListItem.OfflineState.PINNED -> Icons.Filled.PushPin
+            BookmarkListItem.OfflineState.DOWNLOADED_FULL -> Icons.Filled.DownloadForOffline
             else -> Icons.Outlined.DownloadForOffline
         },
         contentDescription = null,
-        tint = if (offlineState == BookmarkListItem.OfflineState.DOWNLOADED_FULL_MANUAL) {
+        tint = if (offlineState == BookmarkListItem.OfflineState.PINNED) {
             MaterialTheme.colorScheme.primary
         } else {
             MaterialTheme.colorScheme.onSurfaceVariant
@@ -1882,19 +1883,23 @@ private fun BookmarkDownloadStatusIndicator(
     isMosaic: Boolean = false
 ) {
     if (offlineState == BookmarkListItem.OfflineState.NOT_DOWNLOADED) return
-    val isManual = offlineState == BookmarkListItem.OfflineState.DOWNLOADED_FULL_MANUAL
-    val isFull = offlineState == BookmarkListItem.OfflineState.DOWNLOADED_FULL || isManual
+    val isPinned = offlineState == BookmarkListItem.OfflineState.PINNED
+    val isFull = offlineState == BookmarkListItem.OfflineState.DOWNLOADED_FULL
     Icon(
-        imageVector = if (isFull) Icons.Filled.DownloadForOffline else Icons.Outlined.DownloadForOffline,
+        imageVector = when {
+            isPinned -> Icons.Filled.PushPin
+            isFull -> Icons.Filled.DownloadForOffline
+            else -> Icons.Outlined.DownloadForOffline
+        },
         contentDescription = stringResource(
             when {
-                isManual -> R.string.bookmark_card_available_offline_manual
+                isPinned -> R.string.bookmark_card_pinned
                 isFull -> R.string.bookmark_card_available_offline
                 else -> R.string.bookmark_card_text_available
             }
         ),
         modifier = modifier.size(BookmarkDownloadIconSize),
-        tint = if (isManual) {
+        tint = if (isPinned) {
             MaterialTheme.colorScheme.primary
         } else if (isMosaic) {
             Color.White.copy(alpha = 0.6f)

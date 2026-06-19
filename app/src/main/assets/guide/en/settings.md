@@ -34,6 +34,8 @@ Above the sync button, the **Bookmarks** counts show how many bookmarks are in y
 
 Offline reading is optional and off by default. When enabled, MyDeck automatically downloads and keeps eligible bookmarks available so you can read them without internet access. A status indicator below the toggle shows whether content is actively syncing, up to date, or waiting on a connection or battery constraint.
 
+MyDeck keeps two kinds of offline content: **automatic** content that it manages for you within the limits below (this includes bookmarks you simply open while offline reading is on), and **pinned** content that you deliberately keep. Pin a bookmark from its reading view (**⋮ → Pin offline**) or pin several at once with **Pin offline** in the bookmark-list selection menu. Pinned bookmarks are protected from automatic trimming — only unpinning them, **Clear All Offline Content**, turning offline reading off, or the maximum storage cap will remove them.
+
 #### What to keep offline
 
 Choose which bookmarks MyDeck keeps fully available offline:
@@ -41,7 +43,7 @@ Choose which bookmarks MyDeck keeps fully available offline:
 - **Storage limit** — keep saved content until it reaches the selected total storage size
 - **Most recent** — keep the most recently saved bookmarks fully available offline, up to the selected count
 - **Last** — keep a selected duration's worth of bookmarks fully available offline, measured back from the current time
-- **Maximum storage cap** — appears with **Most recent** and **Last** to set an upper limit on the *total* offline storage MyDeck uses. This cap covers **both** automatically downloaded content **and** content you've saved offline yourself by opening it while offline reading is on. It is the only setting that can remove your hand-picked offline content: if the total ever exceeds the cap, MyDeck removes the oldest-downloaded content first — across both kinds — until usage is back under the cap. Setting the cap below what **Most recent**/**Last** would otherwise keep makes content download and trim repeatedly, so leave headroom above your chosen amount
+- **Maximum storage cap** — appears with **Most recent** and **Last** to set an upper limit on the *total* offline storage MyDeck uses. This cap covers **both** automatically managed content **and** content you've **pinned**. It is the only automatic setting that can remove pinned content: if the total ever exceeds the cap, MyDeck removes the oldest-downloaded content first — across both kinds — until usage is back under the cap. Setting the cap below what **Most recent**/**Last** would otherwise keep makes content download and trim repeatedly, so leave headroom above your chosen amount
 - **Include Archive** — when off, automatic offline maintenance applies only to **My List**; when on, archived bookmarks remain eligible
 
 For **Most recent**, the selected count is always based on the raw newest bookmarks in scope. If some of those bookmarks have no extractable article content, they are counted as skipped rather than replaced by older bookmarks.
@@ -55,11 +57,11 @@ When **Include Archive** is off, archiving a bookmark removes it from offline el
 
 #### Storage
 
-Shows how many bookmarks are fully available offline, how much storage offline content is using, and when offline content maintenance last ran.
+Shows how many bookmarks are fully available offline — split into **Automatic** and **Pinned** counts — how much storage offline content is using, and when offline content maintenance last ran.
 
 - **Clear All Offline Content** — removes all locally stored offline content, including full offline packages and text cached for quick re-opening, reclaiming all offline storage; bookmarks themselves are not deleted, and content is re-downloaded according to your offline settings
 
-If you turn offline reading off, MyDeck removes all automatically downloaded content immediately but keeps text that was loaded on demand when you opened bookmarks while browsing.
+If you turn offline reading off, MyDeck removes all stored offline content — both automatic and pinned — immediately, but keeps the lightweight text it cached when you opened bookmarks while browsing.
 
 ## User Interface
 

@@ -215,6 +215,7 @@ class BatchArticleLoadWorkerTest {
     fun `doWork processes priority bookmark directly`() = runTest {
         val inputData = Data.Builder()
             .putString(BatchArticleLoadWorker.KEY_PRIORITY_BOOKMARK_ID, "priority-1")
+            .putString(BatchArticleLoadWorker.KEY_PRIORITY_SOURCE, ContentSource.MANUAL.name)
             .build()
 
         coEvery { settingsDataStore.getOfflineContentScope() } returns OfflineContentScope.MY_LIST
@@ -236,6 +237,7 @@ class BatchArticleLoadWorkerTest {
 
         val inputData = Data.Builder()
             .putString(BatchArticleLoadWorker.KEY_PRIORITY_BOOKMARK_ID, "priority-1")
+            .putString(BatchArticleLoadWorker.KEY_PRIORITY_SOURCE, ContentSource.MANUAL.name)
             .build()
 
         val result = createWorker(inputData).doWork()
@@ -248,6 +250,7 @@ class BatchArticleLoadWorkerTest {
     fun `doWork skips archived priority bookmark when scope excludes archived`() = runTest {
         val inputData = Data.Builder()
             .putString(BatchArticleLoadWorker.KEY_PRIORITY_BOOKMARK_ID, "priority-1")
+            .putString(BatchArticleLoadWorker.KEY_PRIORITY_SOURCE, ContentSource.MANUAL.name)
             .build()
 
         coEvery { settingsDataStore.getOfflineContentScope() } returns OfflineContentScope.MY_LIST
@@ -263,6 +266,7 @@ class BatchArticleLoadWorkerTest {
     fun `doWork downloads archived priority bookmark when scope includes archived`() = runTest {
         val inputData = Data.Builder()
             .putString(BatchArticleLoadWorker.KEY_PRIORITY_BOOKMARK_ID, "priority-1")
+            .putString(BatchArticleLoadWorker.KEY_PRIORITY_SOURCE, ContentSource.MANUAL.name)
             .build()
 
         coEvery { settingsDataStore.getOfflineContentScope() } returns OfflineContentScope.MY_LIST_AND_ARCHIVED
@@ -280,6 +284,7 @@ class BatchArticleLoadWorkerTest {
     fun `doWork skips priority bookmark when constraints block fetch`() = runTest {
         val inputData = Data.Builder()
             .putString(BatchArticleLoadWorker.KEY_PRIORITY_BOOKMARK_ID, "priority-1")
+            .putString(BatchArticleLoadWorker.KEY_PRIORITY_SOURCE, ContentSource.MANUAL.name)
             .build()
 
         coEvery { settingsDataStore.getOfflineContentScope() } returns OfflineContentScope.MY_LIST
@@ -434,6 +439,7 @@ class BatchArticleLoadWorkerTest {
     fun `priority download enforces absolute cap after adding manual content`() = runTest {
         val inputData = Data.Builder()
             .putString(BatchArticleLoadWorker.KEY_PRIORITY_BOOKMARK_ID, "priority-1")
+            .putString(BatchArticleLoadWorker.KEY_PRIORITY_SOURCE, ContentSource.MANUAL.name)
             .build()
 
         coEvery { settingsDataStore.getOfflineContentScope() } returns OfflineContentScope.MY_LIST
@@ -588,6 +594,7 @@ class BatchArticleLoadWorkerTest {
     fun `doWork priority path retries on unexpected exception`() = runTest {
         val inputData = Data.Builder()
             .putString(BatchArticleLoadWorker.KEY_PRIORITY_BOOKMARK_ID, "priority-1")
+            .putString(BatchArticleLoadWorker.KEY_PRIORITY_SOURCE, ContentSource.MANUAL.name)
             .build()
 
         coEvery { settingsDataStore.getOfflineContentScope() } returns OfflineContentScope.MY_LIST

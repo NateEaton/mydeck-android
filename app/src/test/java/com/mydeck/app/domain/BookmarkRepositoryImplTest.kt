@@ -1444,6 +1444,7 @@ class BookmarkRepositoryImplTest {
         created = Instant.fromEpochSeconds(0),
         wordCount = 500,
         published = null,
+        hasArticle = true,
         contentState = BookmarkEntity.ContentState.NOT_ATTEMPTED,
         hasResources = null,
         source = null

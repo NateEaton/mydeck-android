@@ -126,10 +126,14 @@ other{}
     <string name="multi_select_unset_as_archived">%1$d unset as archived</string>
     <string name="multi_select_deleted_count">%1$d bookmarks deleted</string>
     <string name="multi_select_labels_added">Labels added to %1$d bookmarks</string>
-    <string name="action_make_available_offline">Available offline</string>
-    <string name="multi_select_offline_available">%1$d available offline</string>
-    <string name="multi_select_offline_none">%1$d have no offline content</string>
-    <string name="multi_select_offline_available_with_skipped">%1$d available offline · %2$d have no offline content</string>
+    <string name="action_pin_offline">Pin offline</string>
+    <string name="action_unpin_offline">Unpin offline</string>
+    <string name="multi_select_pinned_offline">%1$d pinned offline</string>
+    <string name="multi_select_pinned_with_skipped">%1$d pinned offline · %2$d have no offline content</string>
+    <string name="multi_select_unpinned">%1$d unpinned</string>
+    <string name="reader_pinned_offline">Pinned offline</string>
+    <string name="reader_unpinned">Unpinned</string>
+    <string name="reader_pin_no_content">No offline content available</string>
     <string name="action_add_to_favorites">Add favorite</string>
     <string name="action_remove_from_favorites">Favorit entfernen</string>
     <string name="action_add_to_archive">Archivieren</string>
@@ -520,7 +524,7 @@ other{}
     <string name="notif_content_ready_title">Content ready offline</string>
     <string name="bookmark_card_text_available">Text available</string>
     <string name="bookmark_card_available_offline">Available offline</string>
-    <string name="bookmark_card_available_offline_manual">Saved offline manually</string>
+    <string name="bookmark_card_pinned">Pinned offline</string>
     <string name="action_share_image">Bild teilen</string>
     <string name="image_url_copied">Bild-URL kopiert</string>
     <string name="image_copied">Bild kopiert</string>
@@ -602,7 +606,7 @@ other{}
     <string name="sync_offline_whether_to_download">Whether to download</string>
     <string name="sync_status_available_offline">Available offline</string>
     <string name="sync_status_available_offline_automatic">Automatic</string>
-    <string name="sync_status_available_offline_manual">Manual</string>
+    <string name="sync_status_available_offline_manual">Pinned</string>
     <string name="sync_status_last_content_sync_label">Last content sync</string>
     <string name="sync_status_next_sync">Next sync: %1$s</string>
     <string name="sync_status_favorites_label">Favorites</string>

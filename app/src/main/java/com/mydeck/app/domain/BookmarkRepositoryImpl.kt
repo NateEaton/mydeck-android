@@ -174,7 +174,8 @@ class BookmarkRepositoryImpl @Inject constructor(
                     created = listItem.created.toLocalDateTime(kotlinx.datetime.TimeZone.currentSystemDefault()),
                     wordCount = listItem.wordCount,
                     published = listItem.published?.toLocalDateTime(kotlinx.datetime.TimeZone.currentSystemDefault()),
-                    offlineState = deriveOfflineState(listItem.contentState, listItem.hasResources, listItem.source)
+                    offlineState = deriveOfflineState(listItem.contentState, listItem.hasResources, listItem.source),
+                    offlineEligible = deriveOfflineEligible(listItem.hasArticle, listItem.type, listItem.contentState)
                 )
             }
         }
@@ -236,7 +237,8 @@ class BookmarkRepositoryImpl @Inject constructor(
                     created = listItem.created.toLocalDateTime(kotlinx.datetime.TimeZone.currentSystemDefault()),
                     wordCount = listItem.wordCount,
                     published = listItem.published?.toLocalDateTime(kotlinx.datetime.TimeZone.currentSystemDefault()),
-                    offlineState = deriveOfflineState(listItem.contentState, listItem.hasResources, listItem.source)
+                    offlineState = deriveOfflineState(listItem.contentState, listItem.hasResources, listItem.source),
+                    offlineEligible = deriveOfflineEligible(listItem.hasArticle, listItem.type, listItem.contentState)
                 )
             }
         }
@@ -326,25 +328,39 @@ class BookmarkRepositoryImpl @Inject constructor(
                     created = listItem.created.toLocalDateTime(kotlinx.datetime.TimeZone.currentSystemDefault()),
                     wordCount = listItem.wordCount,
                     published = listItem.published?.toLocalDateTime(kotlinx.datetime.TimeZone.currentSystemDefault()),
-                    offlineState = deriveOfflineState(listItem.contentState, listItem.hasResources, listItem.source)
+                    offlineState = deriveOfflineState(listItem.contentState, listItem.hasResources, listItem.source),
+                    offlineEligible = deriveOfflineEligible(listItem.hasArticle, listItem.type, listItem.contentState)
                 )
             }
         }
     }
+
+    // Offline eligibility (pinnability) — same gate as LoadContentPackageUseCase: has article
+    // content or is a picture, and not permanently no-content.
+    private fun deriveOfflineEligible(
+        hasArticle: Boolean,
+        type: BookmarkEntity.Type,
+        contentState: BookmarkEntity.ContentState
+    ): Boolean =
+        (hasArticle || type == BookmarkEntity.Type.PHOTO) &&
+            contentState != BookmarkEntity.ContentState.PERMANENT_NO_CONTENT
 
     private fun deriveOfflineState(
         contentState: BookmarkEntity.ContentState,
         hasResources: Boolean?,
         source: String?
     ): BookmarkListItem.OfflineState {
-        // Presence guarantee (W9): show an icon whenever content is on the device. A full package
-        // (hasResources=true) renders the filled icon regardless of contentState — including DIRTY,
-        // which still has text+images on disk and is merely flagged for a future refresh. Keying
-        // the filled icon off the package (not off contentState==DOWNLOADED) fixes the bug where a
-        // freshness re-mark (DOWNLOADED→DIRTY) hid the download icon for a fully-downloaded article.
+        // Presence guarantee (W9): show an icon whenever content is on the device.
+        //  - PINNED keys off committed-package presence (hasResources != null = a content_package
+        //    row exists) + MANUAL source, so an image-less pinned article still shows the pin icon
+        //    (offline-pinning spec §9).
+        //  - A managed full package (hasResources=true, AUTOMATIC) renders the filled download icon
+        //    regardless of contentState — including DIRTY, which still has text+images on disk.
+        //  - A managed image-less package or an on-demand text cache (no package row) renders the
+        //    outline icon.
         return when {
-            hasResources == true && source == ContentSource.MANUAL.name ->
-                BookmarkListItem.OfflineState.DOWNLOADED_FULL_MANUAL
+            hasResources != null && source == ContentSource.MANUAL.name ->
+                BookmarkListItem.OfflineState.PINNED
             hasResources == true -> BookmarkListItem.OfflineState.DOWNLOADED_FULL
             contentState == BookmarkEntity.ContentState.DOWNLOADED -> BookmarkListItem.OfflineState.DOWNLOADED_TEXT_ONLY
             else -> BookmarkListItem.OfflineState.NOT_DOWNLOADED

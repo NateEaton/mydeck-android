@@ -45,9 +45,9 @@ import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.Inventory2
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.automirrored.outlined.Label
+import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.outlined.Bookmarks
 import androidx.compose.material.icons.outlined.CloudOff
-import androidx.compose.material.icons.outlined.DownloadForOffline
 import androidx.compose.material.icons.outlined.SearchOff
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -440,21 +440,26 @@ fun BookmarkListScreen(
     LaunchedEffect(Unit) {
         viewModel.batchActionSnackbarEvent.collect { event ->
             snackbarHostState.currentSnackbarData?.dismiss()
-            // "Available offline" is informational only (no Undo) and carries two counts that sum
-            // to the original selection: items now available offline + items with no offline content.
-            if (event is BatchActionSnackbarEvent.MadeAvailableOffline) {
-                val message = when {
-                    event.skippedCount == 0 ->
-                        resources.getString(R.string.multi_select_offline_available, event.availableCount)
-                    event.availableCount == 0 ->
-                        resources.getString(R.string.multi_select_offline_none, event.skippedCount)
-                    else -> resources.getString(
-                        R.string.multi_select_offline_available_with_skipped,
-                        event.availableCount,
+            // Pin/Unpin are informational only (no Undo; selection mode stays open). Pin carries two
+            // counts that sum to the selection: items now pinned + items with no offline content.
+            if (event is BatchActionSnackbarEvent.PinnedOffline) {
+                val message = if (event.skippedCount == 0) {
+                    resources.getString(R.string.multi_select_pinned_offline, event.pinnedCount)
+                } else {
+                    resources.getString(
+                        R.string.multi_select_pinned_with_skipped,
+                        event.pinnedCount,
                         event.skippedCount
                     )
                 }
                 snackbarHostState.showSnackbar(message = message, duration = SnackbarDuration.Long)
+                return@collect
+            }
+            if (event is BatchActionSnackbarEvent.Unpinned) {
+                snackbarHostState.showSnackbar(
+                    message = resources.getString(R.string.multi_select_unpinned, event.count),
+                    duration = SnackbarDuration.Long
+                )
                 return@collect
             }
             val stringRes = when (event) {
@@ -464,7 +469,8 @@ fun BookmarkListScreen(
                 is BatchActionSnackbarEvent.Unarchived -> R.string.multi_select_unset_as_archived
                 is BatchActionSnackbarEvent.LabelsAdded -> R.string.multi_select_labels_added
                 is BatchActionSnackbarEvent.Deleted -> R.string.multi_select_deleted_count
-                is BatchActionSnackbarEvent.MadeAvailableOffline -> return@collect // handled above
+                is BatchActionSnackbarEvent.PinnedOffline -> return@collect // handled above
+                is BatchActionSnackbarEvent.Unpinned -> return@collect // handled above
             }
             // Delete is destructive and staged, so it stays until the user acts or interacts
             // elsewhere (matching single-item delete); favorite/archive are already applied.
@@ -692,23 +698,32 @@ fun BookmarkListScreen(
                                             viewModel.onAddLabelsToSelection()
                                         }
                                     )
-                                    // Greyed out when offline reading is disabled (hard line — no
-                                    // prompt-to-enable; spec §4).
-                                    DropdownMenuItem(
-                                        leadingIcon = {
-                                            Icon(
-                                                imageVector = Icons.Outlined.DownloadForOffline,
-                                                contentDescription = null
-                                            )
-                                        },
-                                        text = { Text(stringResource(R.string.action_make_available_offline)) },
-                                        enabled = offlineReadingEnabled.value,
-                                        onClick = {
-                                            showSelectionOverflowMenu = false
-                                            dismissPendingDeleteSnackbar()
-                                            viewModel.onMakeSelectionAvailableOffline()
-                                        }
-                                    )
+                                    // Pin/Unpin offline — hidden entirely when offline storage is
+                                    // disabled (offline-pinning spec §6). Contextual: Unpin when all
+                                    // selected are already pinned, otherwise Pin.
+                                    if (offlineReadingEnabled.value) {
+                                        val allPinned = targets.selectedAllPinned
+                                        DropdownMenuItem(
+                                            leadingIcon = {
+                                                Icon(
+                                                    imageVector = Icons.Filled.PushPin,
+                                                    contentDescription = null
+                                                )
+                                            },
+                                            text = {
+                                                Text(stringResource(
+                                                    if (allPinned) R.string.action_unpin_offline
+                                                    else R.string.action_pin_offline
+                                                ))
+                                            },
+                                            onClick = {
+                                                showSelectionOverflowMenu = false
+                                                dismissPendingDeleteSnackbar()
+                                                if (allPinned) viewModel.onUnpinSelection()
+                                                else viewModel.onPinSelection()
+                                            }
+                                        )
+                                    }
                                 }
                                 val allSelected = targets.allVisibleSelected
                                 DropdownMenuItem(

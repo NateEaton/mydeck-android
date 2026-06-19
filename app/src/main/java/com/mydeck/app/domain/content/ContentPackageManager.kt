@@ -9,6 +9,8 @@ import com.mydeck.app.io.db.model.ContentPackageEntity
 import com.mydeck.app.io.db.model.ContentResourceEntity
 import com.mydeck.app.io.rest.sync.BookmarkSyncPackage
 import com.mydeck.app.io.rest.sync.ResourcePart
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 import timber.log.Timber
 import java.io.File
 import javax.inject.Inject
@@ -349,10 +351,23 @@ class ContentPackageManager @Inject constructor(
     }
 
     /**
-     * Update the provenance of an existing package (W2) without touching files or
-     * re-fetching. Used by the multi-select "Available offline" action to flip an
-     * already-downloaded AUTOMATIC package to MANUAL so the user's explicit pick
-     * survives the policy prune. No-op when no package exists for [bookmarkId].
+     * Current provenance of the committed package, or null when no package exists. Authoritative
+     * source for pin/unpin decisions (keys off package-row presence, not image presence — so an
+     * image-less committed package is handled correctly; offline-pinning spec §9).
+     */
+    suspend fun getPackageSource(bookmarkId: String): ContentSource? =
+        contentPackageDao.getPackage(bookmarkId)?.let { ContentSource.fromStored(it.source) }
+
+    /** Reactive [getPackageSource] — emits on pin/unpin (and any package commit/delete). */
+    fun observePackageSource(bookmarkId: String): Flow<ContentSource?> =
+        contentPackageDao.observePackageSource(bookmarkId).map { stored ->
+            stored?.let { ContentSource.fromStored(it) }
+        }
+
+    /**
+     * Update the provenance of an existing package (W2) without touching files or re-fetching.
+     * Used by the Pin action to flip an existing AUTOMATIC package to MANUAL (pin), and by Unpin to
+     * demote a MANUAL package back to AUTOMATIC (managed). No-op when no package exists.
      */
     suspend fun updatePackageSource(bookmarkId: String, source: ContentSource) {
         contentPackageDao.updateContentPackageSource(bookmarkId, source.name)

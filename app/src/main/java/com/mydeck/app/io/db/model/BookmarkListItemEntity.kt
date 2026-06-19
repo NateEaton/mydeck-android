@@ -30,6 +30,8 @@ data class BookmarkListItemEntity(
     val created: Instant,
     val wordCount: Int?,
     val published: Instant?,
+    /** Server's article-content flag; with type/contentState drives offline eligibility (pinnability). */
+    val hasArticle: Boolean,
     val contentState: BookmarkEntity.ContentState,
     /**
      * Whether this bookmark has downloaded resources (images).
