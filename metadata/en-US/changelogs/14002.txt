@@ -1,0 +1,11 @@
+<b>Added</b>
+- Offline pinning: pin articles to keep them offline and protected from cleanup, from multi-select or the reader menu
+
+<b>Changed</b>
+- More reliable, complete offline downloads with images; opened articles become managed content you can pin to keep
+- Offline content sync now shows a notification
+
+<b>Fixed</b>
+- Added articles now download with their images
+- "Clear All Offline Content" now clears everything
+- More reliable sync on flaky networks; no duplicate bookmarks
