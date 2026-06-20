@@ -97,6 +97,7 @@ Tap **⋮** in the top bar for additional actions:
 - **Add to favorites / Remove favorite** — toggle the favorite status
 - **Archive / Unarchive** — move the bookmark to the archive (or back to My List)
 - **Mark as read / Mark as unread** — toggle whether the bookmark has been read; this is reflected back in the bookmark list
+- **Pin offline / Unpin offline** — keep this bookmark on your device for offline reading (or release it back to automatic management). Pinned bookmarks are protected from the automatic offline limit and show a **pin** icon in the bookmark list. This action appears only while offline reading is enabled
 - **View web page / View [bookmark type]** — switch between the reading view and the web page in an in-app viewer (see above)
 - **Share link** — open the Android share sheet to share the bookmark using the format selected in **Settings → User Interface**
 - **Details** — open the Bookmark Details screen (see below)

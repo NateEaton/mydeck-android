@@ -154,6 +154,14 @@
     <string name="multi_select_unset_as_archived">%1$d unset as archived</string>
     <string name="multi_select_deleted_count">%1$d bookmarks deleted</string>
     <string name="multi_select_labels_added">Labels added to %1$d bookmarks</string>
+    <string name="action_pin_offline">Pin offline</string>
+    <string name="action_unpin_offline">Unpin offline</string>
+    <string name="multi_select_pinned_offline">%1$d pinned offline</string>
+    <string name="multi_select_pinned_with_skipped">%1$d pinned offline · %2$d have no offline content</string>
+    <string name="multi_select_unpinned">%1$d unpinned</string>
+    <string name="reader_pinned_offline">Pinned offline</string>
+    <string name="reader_unpinned">Unpinned</string>
+    <string name="reader_pin_no_content">No offline content available</string>
     <string name="action_add_to_favorites">Add favorite</string>
     <string name="action_remove_from_favorites">移除收藏</string>
     <string name="action_add_to_archive">存档</string>
@@ -192,6 +200,7 @@
     <string name="auto_sync_notification_success">后台同步成功。已删除 %1$d 个书签。</string>
     <string name="auto_sync_notification_failure">后台同步失败。</string>
     <string name="auto_sync_notification_running">后台同步进行中。</string>
+    <string name="offline_content_notification_running">Downloading offline content…</string>
     <string name="auto_sync_notification_channel">后台同步</string>
 
     <!-- Sync Settings - Phase 3 -->
@@ -463,6 +472,7 @@
     <string name="notif_content_ready_title">Content ready offline</string>
     <string name="bookmark_card_text_available">Text available</string>
     <string name="bookmark_card_available_offline">Available offline</string>
+    <string name="bookmark_card_pinned">Pinned offline</string>
     <string name="action_share_image">Share image</string>
     <string name="image_url_copied">Image URL copied</string>
     <string name="image_copied">Image copied</string>
@@ -593,6 +603,8 @@
     <string name="sync_offline_what_to_keep">What to keep offline</string>
     <string name="sync_offline_whether_to_download">Whether to download</string>
     <string name="sync_status_available_offline">Available offline</string>
+    <string name="sync_status_available_offline_automatic">Automatic</string>
+    <string name="sync_status_available_offline_manual">Pinned</string>
     <string name="sync_status_last_content_sync_label">Last content sync</string>
     <string name="sync_status_next_sync">Next sync: %1$s</string>
     <string name="sync_status_favorites_label">Favorites</string>

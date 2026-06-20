@@ -10,6 +10,7 @@ import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.Inventory2
@@ -50,7 +51,13 @@ fun BookmarkDetailMenu(
     onShowHighlights: () -> Unit = {},
     onClickOpenInBrowser: (String) -> Unit = {},
     contentMode: ContentMode = ContentMode.READER,
-    onContentModeChange: (ContentMode) -> Unit = {}
+    onContentModeChange: (ContentMode) -> Unit = {},
+    // Offline pinning (spec §4.1): the item is hidden entirely when offline storage is disabled,
+    // and greyed out when the bookmark isn't pinnable (no downloadable content).
+    offlineReadingEnabled: Boolean = false,
+    isPinned: Boolean = false,
+    pinEligible: Boolean = false,
+    onClickTogglePin: (Boolean) -> Unit = {}
 ) {
     var expanded by remember { mutableStateOf(false) }
 
@@ -140,6 +147,29 @@ fun BookmarkDetailMenu(
                     )
                 }
             )
+
+            // Pin / Unpin offline — hidden entirely when offline storage is disabled (spec §6);
+            // shown but greyed out when the bookmark isn't pinnable (no downloadable content: a
+            // no-content article, or an embed-only video with no transcript) to signal "not
+            // applicable." Contextual label otherwise.
+            if (offlineReadingEnabled) {
+                DropdownMenuItem(
+                    text = {
+                        Text(
+                            if (isPinned) stringResource(R.string.action_unpin_offline)
+                            else stringResource(R.string.action_pin_offline)
+                        )
+                    },
+                    enabled = pinEligible,
+                    onClick = {
+                        onClickTogglePin(!isPinned)
+                        expanded = false
+                    },
+                    leadingIcon = {
+                        Icon(Icons.Filled.PushPin, contentDescription = null)
+                    }
+                )
+            }
 
             if (uiState.bookmark.hasContent) {
                 // Thin light divider between read and View original

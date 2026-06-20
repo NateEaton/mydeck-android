@@ -3,7 +3,11 @@ package com.mydeck.app.util
 import android.content.Context
 import com.mydeck.app.BuildConfig
 import com.mydeck.app.domain.BookmarkRepository
+import com.mydeck.app.domain.OfflineContentDebugInfo
+import com.mydeck.app.domain.content.OfflineContentForm
+import com.mydeck.app.domain.content.OfflineContentPathHandler
 import com.mydeck.app.domain.model.Bookmark
+import com.mydeck.app.io.db.model.BookmarkEntity
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
@@ -36,11 +40,15 @@ class BookmarkDebugExporter(
             val rawApiJson = bookmarkRepository.fetchRawBookmarkJson(bookmarkId)
             val rawArticleHtml = null // Legacy article endpoint removed (Stage 4)
 
+            // Fetch offline storage facts from DB + disk
+            val offlineInfo = bookmarkRepository.getOfflineContentDebugInfo(bookmarkId)
+
             // Build the comprehensive JSON
             val debugJson = buildDebugJson(
                 bookmark = bookmark,
                 rawApiJson = rawApiJson,
-                rawArticleHtml = rawArticleHtml
+                rawArticleHtml = rawArticleHtml,
+                offlineInfo = offlineInfo
             )
 
             // Pretty-print the JSON
@@ -73,7 +81,8 @@ class BookmarkDebugExporter(
     private fun buildDebugJson(
         bookmark: Bookmark,
         rawApiJson: String?,
-        rawArticleHtml: String?
+        rawArticleHtml: String?,
+        offlineInfo: OfflineContentDebugInfo
     ): String {
         val root = buildJsonObject {
             putJsonObject("exportInfo") {
@@ -96,13 +105,61 @@ class BookmarkDebugExporter(
                 put("bookmarkId", bookmark.id)
                 put("contentState", bookmark.contentState.name)
                 put("contentFailureReason", bookmark.contentFailureReason ?: "none")
-                put("hasLocalArticleContent", bookmark.articleContent != null)
-                put("localArticleContentLength", bookmark.articleContent?.length ?: 0)
+                put("hasLocalArticleContent", offlineInfo.hasArticleContent)
+                put("localArticleContentLength", offlineInfo.articleContentLength)
                 put("readProgress", bookmark.readProgress)
                 put("isMarked", bookmark.isMarked)
                 put("isArchived", bookmark.isArchived)
                 put("isDeleted", bookmark.isDeleted)
                 put("omitDescription", bookmark.omitDescription?.toString() ?: "null")
+            }
+
+            putJsonObject("offlineContent") {
+                // Content package DB facts
+                put("hasContentPackage", offlineInfo.hasPackage)
+                put("hasResources", offlineInfo.hasResources)
+                put("source", offlineInfo.source)
+                put("resourceCount", offlineInfo.resourceCount)
+                put("resourceTotalBytes", offlineInfo.resourceTotalBytes)
+
+                // Derived offline form (map domain ContentState → entity enum for helpers)
+                val entityContentState = when (bookmark.contentState) {
+                    Bookmark.ContentState.NOT_ATTEMPTED -> BookmarkEntity.ContentState.NOT_ATTEMPTED
+                    Bookmark.ContentState.DOWNLOADED -> BookmarkEntity.ContentState.DOWNLOADED
+                    Bookmark.ContentState.DIRTY -> BookmarkEntity.ContentState.DIRTY
+                    Bookmark.ContentState.PERMANENT_NO_CONTENT -> BookmarkEntity.ContentState.PERMANENT_NO_CONTENT
+                }
+                val form = OfflineContentForm.derive(
+                    contentState = entityContentState,
+                    hasPackage = offlineInfo.hasPackage,
+                    hasResources = offlineInfo.hasResources
+                )
+                put("offlineContentForm", form.name)
+                put("needsContentFetch", OfflineContentForm.needsContentFetch(
+                    contentState = entityContentState,
+                    hasPackage = offlineInfo.hasPackage
+                ))
+
+                // On-disk facts
+                val contentDir = offlineInfo.contentDir
+                put("contentDir", contentDir?.absolutePath)
+                putJsonArray("onDiskFiles") {
+                    contentDir?.walkTopDown()
+                        ?.filter { it.isFile }
+                        ?.sortedBy { it.relativeTo(contentDir).path }
+                        ?.forEach { file ->
+                            add(buildJsonObject {
+                                put("path", file.relativeTo(contentDir).path)
+                                put("bytes", file.length())
+                            })
+                        }
+                }
+
+                // Reader base URL (set only when package + resources exist)
+                val offlineBaseUrl = if (offlineInfo.hasPackage && offlineInfo.hasResources) {
+                    OfflineContentPathHandler.buildBaseUrl(bookmark.id)
+                } else null
+                put("offlineBaseUrl", offlineBaseUrl)
             }
 
             putJsonObject("bookmarkMetadata") {

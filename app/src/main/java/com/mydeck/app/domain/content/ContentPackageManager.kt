@@ -9,6 +9,8 @@ import com.mydeck.app.io.db.model.ContentPackageEntity
 import com.mydeck.app.io.db.model.ContentResourceEntity
 import com.mydeck.app.io.rest.sync.BookmarkSyncPackage
 import com.mydeck.app.io.rest.sync.ResourcePart
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 import timber.log.Timber
 import java.io.File
 import javax.inject.Inject
@@ -52,7 +54,8 @@ class ContentPackageManager @Inject constructor(
     suspend fun commitPackage(
         pkg: BookmarkSyncPackage,
         packageKind: String,
-        sourceUpdated: String
+        sourceUpdated: String,
+        source: ContentSource = ContentSource.AUTOMATIC
     ): Boolean {
         val bookmarkId = pkg.bookmarkId
         val finalDir = File(offlineContentDir, bookmarkId)
@@ -112,6 +115,14 @@ class ContentPackageManager @Inject constructor(
                 )
             }
 
+            // Provenance (W2): never let a background re-download downgrade an existing
+            // MANUAL package to AUTOMATIC; an explicit MANUAL action may upgrade AUTOMATIC.
+            // (No DB writes occur before line ~139, so reading the existing row here is safe.)
+            val effectiveSource = ContentSource.resolveOnCommit(
+                existing = ContentSource.fromStored(contentPackageDao.getPackage(bookmarkId)?.source),
+                incoming = source
+            )
+
             // Prepare DB entities (computed before swap, persisted before swap)
             val packageEntity = ContentPackageEntity(
                 bookmarkId = bookmarkId,
@@ -120,7 +131,8 @@ class ContentPackageManager @Inject constructor(
                 hasResources = resourceEntities.isNotEmpty(),
                 sourceUpdated = sourceUpdated,
                 lastRefreshed = System.currentTimeMillis(),
-                localBasePath = "offline_content/$bookmarkId"
+                localBasePath = "offline_content/$bookmarkId",
+                source = effectiveSource.name
             )
 
             val annotationEntities = AnnotationHtmlParser.parse(pkg.html, bookmarkId)
@@ -339,6 +351,30 @@ class ContentPackageManager @Inject constructor(
     }
 
     /**
+     * Current provenance of the committed package, or null when no package exists. Authoritative
+     * source for pin/unpin decisions (keys off package-row presence, not image presence — so an
+     * image-less committed package is handled correctly; offline-pinning spec §9).
+     */
+    suspend fun getPackageSource(bookmarkId: String): ContentSource? =
+        contentPackageDao.getPackage(bookmarkId)?.let { ContentSource.fromStored(it.source) }
+
+    /** Reactive [getPackageSource] — emits on pin/unpin (and any package commit/delete). */
+    fun observePackageSource(bookmarkId: String): Flow<ContentSource?> =
+        contentPackageDao.observePackageSource(bookmarkId).map { stored ->
+            stored?.let { ContentSource.fromStored(it) }
+        }
+
+    /**
+     * Update the provenance of an existing package (W2) without touching files or re-fetching.
+     * Used by the Pin action to flip an existing AUTOMATIC package to MANUAL (pin), and by Unpin to
+     * demote a MANUAL package back to AUTOMATIC (managed). No-op when no package exists.
+     */
+    suspend fun updatePackageSource(bookmarkId: String, source: ContentSource) {
+        contentPackageDao.updateContentPackageSource(bookmarkId, source.name)
+        Timber.d("Updated content package source for $bookmarkId to ${source.name}")
+    }
+
+    /**
      * Delete all offline content.
      */
     suspend fun deleteAllContent() {
@@ -359,10 +395,21 @@ class ContentPackageManager @Inject constructor(
     }
 
     /**
-     * Calculate total size of managed offline packages only (hasResources=true).
+     * Total size of all managed offline packages (hasResources=true) across
+     * **both** provenance pools (AUTOMATIC + MANUAL). This is the **cap-size**
+     * that drives absolute storage-cap enforcement (W2).
      */
     suspend fun calculateManagedOfflineSize(): Long {
         return bookmarkDao.getManagedOfflineStorageSize()
+    }
+
+    /**
+     * Total size of AUTOMATIC full packages only. This is the **policy-size**
+     * that drives the policy prune (W2); MANUAL bytes are excluded so a large
+     * hand-picked pool cannot trigger eviction of policy-downloaded content.
+     */
+    suspend fun calculateAutomaticOfflineSize(): Long {
+        return bookmarkDao.getAutomaticOfflineStorageSize()
     }
 
     /**

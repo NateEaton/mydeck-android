@@ -74,7 +74,9 @@ class LoadBookmarksWorker @AssistedInject constructor(
         }
 
         if (outcome.enqueueContentSync) {
-            loadBookmarksUseCase.enqueueContentSyncIfNeeded()
+            // PULL_TO_REFRESH is the user-initiated trigger (manual "Sync Now"/pull-to-refresh);
+            // INITIAL and APP_OPEN are passive/automatic and should not displace lingering work.
+            loadBookmarksUseCase.enqueueContentSyncIfNeeded(userInitiated = trigger == Trigger.PULL_TO_REFRESH)
         }
         if (outcome.bookmarkAnnotationCheckIds.isNotEmpty()) {
             requestBookmarkAnnotationChecksForDeltaHints(outcome.bookmarkAnnotationCheckIds)

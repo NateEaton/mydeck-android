@@ -1,5 +1,6 @@
 package com.mydeck.app.domain.sync
 
+import com.mydeck.app.domain.content.OfflineContentForm
 import com.mydeck.app.io.db.dao.BookmarkDao
 import com.mydeck.app.io.prefs.SettingsDataStore
 import javax.inject.Inject
@@ -68,7 +69,11 @@ class OfflinePolicyEvaluator @Inject constructor(
     }
 
     fun needsOfflinePackage(bookmark: BookmarkDao.OfflinePolicyBookmark): Boolean {
-        return bookmark.contentState != com.mydeck.app.io.db.model.BookmarkEntity.ContentState.DOWNLOADED
+        // Completeness guard (spec §4.2): a bookmark needs a (re)fetch when it has no committed
+        // package yet (NOT_ATTEMPTED, or a legacy text cache that was never packaged) or it is
+        // DIRTY (freshness refresh / §4.3 partial re-attempt). A committed package that is not
+        // DIRTY — full OR legitimately image-less — does not, so it is not re-downloaded each run.
+        return OfflineContentForm.needsContentFetch(bookmark.contentState, bookmark.hasContentPackage)
     }
 
     /**
@@ -96,14 +101,12 @@ class OfflinePolicyEvaluator @Inject constructor(
             }
 
             OfflinePolicy.NEWEST_N -> {
-                isSecondaryCapExceeded(totalUsageBytes) ||
-                    downloadedBookmarks.size > settingsDataStore.getOfflinePolicyNewestN()
+                downloadedBookmarks.size > settingsDataStore.getOfflinePolicyNewestN()
             }
 
             OfflinePolicy.DATE_RANGE -> {
                 val cutoff = now - settingsDataStore.getOfflinePolicyDateRangeWindow()
-                isSecondaryCapExceeded(totalUsageBytes) ||
-                    downloadedBookmarks.any { it.created < cutoff }
+                downloadedBookmarks.any { it.created < cutoff }
             }
         }
     }
@@ -146,20 +149,12 @@ class OfflinePolicyEvaluator @Inject constructor(
             OfflinePolicy.NEWEST_N -> {
                 val overflowCount =
                     (downloadedBookmarks.size - settingsDataStore.getOfflinePolicyNewestN()).coerceAtLeast(0)
-                if (isSecondaryCapExceeded(totalUsageBytes) || overflowCount == 0) {
-                    oldestFirst.map { it.id }
-                } else {
-                    oldestFirst.take(overflowCount).map { it.id }
-                }
+                oldestFirst.take(overflowCount).map { it.id }
             }
 
             OfflinePolicy.DATE_RANGE -> {
-                if (isSecondaryCapExceeded(totalUsageBytes)) {
-                    oldestFirst.map { it.id }
-                } else {
-                    val cutoff = now - settingsDataStore.getOfflinePolicyDateRangeWindow()
-                    oldestFirst.filter { it.created < cutoff }.map { it.id }
-                }
+                val cutoff = now - settingsDataStore.getOfflinePolicyDateRangeWindow()
+                oldestFirst.filter { it.created < cutoff }.map { it.id }
             }
         }
     }
@@ -211,10 +206,6 @@ class OfflinePolicyEvaluator @Inject constructor(
             }
         }
         return (threshold - totalUsageBytes).coerceAtLeast(0L)
-    }
-
-    private suspend fun isSecondaryCapExceeded(totalUsageBytes: Long): Boolean {
-        return totalUsageBytes > settingsDataStore.getOfflineMaxStorageCap()
     }
 
     companion object {

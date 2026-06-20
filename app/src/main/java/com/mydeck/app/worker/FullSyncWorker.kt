@@ -80,7 +80,7 @@ class FullSyncWorker @AssistedInject constructor(
                 }
             }
             if (outcome.enqueueContentSync) {
-                loadBookmarksUseCase.enqueueContentSyncIfNeeded()
+                loadBookmarksUseCase.enqueueContentSyncIfNeeded(userInitiated = isManualSync)
             }
             if (outcome.bookmarkAnnotationCheckIds.isNotEmpty()) {
                 requestBookmarkAnnotationChecksForDeltaHints(outcome.bookmarkAnnotationCheckIds)

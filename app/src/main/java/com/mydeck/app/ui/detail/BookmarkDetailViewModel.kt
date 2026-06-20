@@ -21,6 +21,7 @@ import com.mydeck.app.domain.model.Template
 import com.mydeck.app.domain.model.Theme
 import com.mydeck.app.domain.model.toEffectiveAppearance
 import com.mydeck.app.domain.content.ContentPackageManager
+import com.mydeck.app.domain.content.ContentSource
 import com.mydeck.app.domain.sync.ConnectivityMonitor
 import com.mydeck.app.domain.usecase.LoadArticleUseCase
 import com.mydeck.app.io.db.dao.CachedAnnotationDao
@@ -105,7 +106,34 @@ class BookmarkDetailViewModel @Inject constructor(
     private val _debugExportEvent = Channel<DebugExportEvent>(Channel.BUFFERED)
     val debugExportEvent: Flow<DebugExportEvent> = _debugExportEvent.receiveAsFlow()
 
+    // Offline pinning (per-article, offline-pinning spec §4.1). offlineReadingEnabled hides the
+    // reader's Pin/Unpin overflow item; pinFeedbackEvent carries a string-resource id for the
+    // confirmation snackbar. isPinned (declared below, after _bookmarkId) drives the contextual
+    // label and is observed reactively from the package source.
+    val offlineReadingEnabled: StateFlow<Boolean> = settingsDataStore.offlineReadingEnabledFlow
+    private val _pinFeedbackEvent = Channel<Int>(Channel.BUFFERED)
+    val pinFeedbackEvent: Flow<Int> = _pinFeedbackEvent.receiveAsFlow()
+
     private val _bookmarkId = MutableStateFlow<String?>(savedStateHandle["bookmarkId"])
+
+    // Reactive pinned state for the current bookmark — emits whenever the package source changes
+    // (pin/unpin from the reader OR the list), so the overflow label always reflects reality.
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    val isPinned: StateFlow<Boolean> = _bookmarkId
+        .filterNotNull()
+        .flatMapLatest { id -> contentPackageManager.observePackageSource(id) }
+        .map { it == ContentSource.MANUAL }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
+    // Whether the current bookmark can hold offline content (is pinnable) — same gate as the Pin
+    // action. Drives the reader Pin/Unpin item's enabled state, so an embed-only video (no
+    // transcript) or a no-content article shows it greyed out even though it has a viewable embed.
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    val pinEligible: StateFlow<Boolean> = _bookmarkId
+        .filterNotNull()
+        .flatMapLatest { id -> bookmarkRepository.observeBookmark(id) }
+        .map { it != null && isOfflineEligible(it) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
     private val themeModeFlow = settingsDataStore.themeFlow
         .map { themeStr ->
             themeStr?.let {
@@ -335,6 +363,15 @@ class BookmarkDetailViewModel @Inject constructor(
                                 } else {
                                     // Legacy article path — content in Room
                                     syncAnnotationsIfNeeded(id)
+                                    // Promote-on-open (spec §4.2 / A1): a legacy on-demand text cache
+                                    // (DOWNLOADED with no committed package) must be upgraded to a full
+                                    // package when offline reading is on, instead of being stranded as
+                                    // text-only. The old DOWNLOADED branch only displayed and never
+                                    // promoted, so freshly-added articles never gained images
+                                    // (diagnosis 4.2). Open-while-offline-off stays a text cache.
+                                    if (settingsDataStore.isOfflineReadingEnabled()) {
+                                        enqueuePriorityPackageDownload(id, ContentSource.AUTOMATIC)
+                                    }
                                 }
                             }
                             ContentState.PERMANENT_NO_CONTENT -> {
@@ -1060,25 +1097,34 @@ class BookmarkDetailViewModel @Inject constructor(
             if (loadState == ContentLoadState.Loaded) {
                 cachedHasResources = contentPackageManager.hasResources(bookmarkId)
                 cachedHasOfflinePackage = contentPackageManager.getContentDir(bookmarkId) != null
-                if (cachedHasResources != true && settingsDataStore.isOfflineReadingEnabled()) {
-                    enqueuePriorityPackageDownload(bookmarkId)
+                // Promote-on-open (spec §4.2 / A1): upgrade to a full package only when there is no
+                // committed package yet (a text cache from LoadArticleUseCase). Keying off package
+                // presence rather than hasResources avoids re-downloading a committed image-less
+                // package on every open (churn); a transport-partial package is re-attempted in the
+                // background via its DIRTY state instead.
+                if (cachedHasOfflinePackage != true && settingsDataStore.isOfflineReadingEnabled()) {
+                    enqueuePriorityPackageDownload(bookmarkId, ContentSource.AUTOMATIC)
                 }
             }
             _contentLoadState.value = loadState
         }
     }
 
-    private suspend fun enqueuePriorityPackageDownload(bookmarkId: String) {
+    private suspend fun enqueuePriorityPackageDownload(bookmarkId: String, source: ContentSource) {
         try {
             if (!settingsDataStore.isOfflineReadingEnabled()) {
                 return
             }
-            val includeArchived = settingsDataStore.getOfflineContentScope().includesArchived
-            if (!includeArchived) {
-                val bookmark = bookmarkRepository.getBookmarkById(bookmarkId)
-                if (bookmark.isArchived) {
-                    Timber.d("Skipping priority package download for archived bookmark outside offline scope: $bookmarkId")
-                    return
+            // Promote-on-open (AUTOMATIC) respects the offline scope; an explicit pin (MANUAL)
+            // overrides it — the user deliberately wants this item kept.
+            if (source == ContentSource.AUTOMATIC) {
+                val includeArchived = settingsDataStore.getOfflineContentScope().includesArchived
+                if (!includeArchived) {
+                    val bookmark = bookmarkRepository.getBookmarkById(bookmarkId)
+                    if (bookmark.isArchived) {
+                        Timber.d("Skipping priority package download for archived bookmark outside offline scope: $bookmarkId")
+                        return
+                    }
                 }
             }
             val syncConstraints = settingsDataStore.getContentSyncConstraints()
@@ -1091,16 +1137,57 @@ class BookmarkDetailViewModel @Inject constructor(
             if (!syncConstraints.allowOnBatterySaver) {
                 constraintsBuilder.setRequiresBatteryNotLow(true)
             }
+            // Source is set by the caller: promote-on-open → AUTOMATIC (managed/prunable),
+            // explicit pin → MANUAL (pinned). W2 / offline-pinning spec §2.
             BatchArticleLoadWorker.enqueuePriorityDownload(
                 workManager = workManager,
                 bookmarkId = bookmarkId,
-                constraints = constraintsBuilder.build()
+                constraints = constraintsBuilder.build(),
+                source = source
             )
-            Timber.d("Queued priority offline package for $bookmarkId")
+            Timber.d("Queued priority offline package ($source) for $bookmarkId")
         } catch (e: Exception) {
             Timber.w(e, "Failed to enqueue priority package download for $bookmarkId")
         }
     }
+
+    // Per-article Pin (offline-pinning spec §4.1): make the current bookmark a pinned (MANUAL)
+    // package. Keyed off the committed-package source — no package → download as MANUAL; AUTOMATIC →
+    // flip; already MANUAL → no-op. isPinned updates reactively from the package source (no optimistic
+    // write needed).
+    fun onPinBookmark() {
+        val bookmarkId = _bookmarkId.value ?: return
+        viewModelScope.launch {
+            val bookmark = runCatching { bookmarkRepository.getBookmarkById(bookmarkId) }.getOrNull()
+            if (bookmark == null || !isOfflineEligible(bookmark)) {
+                _pinFeedbackEvent.trySend(R.string.reader_pin_no_content)
+                return@launch
+            }
+            when (contentPackageManager.getPackageSource(bookmarkId)) {
+                ContentSource.MANUAL -> { /* already pinned */ }
+                ContentSource.AUTOMATIC -> contentPackageManager.updatePackageSource(bookmarkId, ContentSource.MANUAL)
+                null -> enqueuePriorityPackageDownload(bookmarkId, ContentSource.MANUAL)
+            }
+            _pinFeedbackEvent.trySend(R.string.reader_pinned_offline)
+        }
+    }
+
+    // Per-article Unpin: demote the pinned (MANUAL) package back to AUTOMATIC (managed) —
+    // non-destructive; content stays and becomes prunable again.
+    fun onUnpinBookmark() {
+        val bookmarkId = _bookmarkId.value ?: return
+        viewModelScope.launch {
+            if (contentPackageManager.getPackageSource(bookmarkId) == ContentSource.MANUAL) {
+                contentPackageManager.updatePackageSource(bookmarkId, ContentSource.AUTOMATIC)
+            }
+            _pinFeedbackEvent.trySend(R.string.reader_unpinned)
+        }
+    }
+
+    // Same eligibility gate as LoadContentPackageUseCase / the list Pin action.
+    private fun isOfflineEligible(bookmark: com.mydeck.app.domain.model.Bookmark): Boolean =
+        (bookmark.hasArticle || bookmark.type is com.mydeck.app.domain.model.Bookmark.Type.Picture) &&
+            bookmark.contentState != ContentState.PERMANENT_NO_CONTENT
 
     fun onViewExtractionLog() {
         val bookmarkId = _bookmarkId.value ?: return

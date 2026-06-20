@@ -19,24 +19,7 @@ class WorkManagerSyncScheduler @Inject constructor(
         ActionSyncWorker.enqueue(workManager)
     }
 
-    override fun scheduleArticleDownload(bookmarkId: String) {
-        val request = OneTimeWorkRequestBuilder<LoadArticleWorker>()
-            .setInputData(
-                Data.Builder()
-                    .putString(LoadArticleWorker.PARAM_BOOKMARK_ID, bookmarkId)
-                    .build()
-            )
-            .setConstraints(
-                Constraints.Builder()
-                    .setRequiredNetworkType(NetworkType.CONNECTED)
-                    .build()
-            )
-            .build()
-        workManager.enqueue(request)
-        Timber.d("Article download enqueued for bookmark: $bookmarkId")
-    }
-
-    override fun scheduleBatchArticleLoad(wifiOnly: Boolean, allowBatterySaver: Boolean) {
+    override fun scheduleBatchArticleLoad(wifiOnly: Boolean, allowBatterySaver: Boolean, userInitiated: Boolean) {
         try {
             val constraintsBuilder = Constraints.Builder()
             if (wifiOnly) {
@@ -51,12 +34,18 @@ class WorkManagerSyncScheduler @Inject constructor(
                 .setConstraints(constraintsBuilder.build())
                 .addTag(BatchArticleLoadWorker.WORK_TAG_OFFLINE_CONTENT)
                 .build()
+            // User-initiated triggers must actually run: REPLACE displaces a backed-off/lingering
+            // ENQUEUED instance that KEEP would otherwise silently leave in place (bug 4.6).
+            val policy = if (userInitiated) ExistingWorkPolicy.REPLACE else ExistingWorkPolicy.KEEP
             workManager.enqueueUniqueWork(
                 BatchArticleLoadWorker.UNIQUE_WORK_NAME,
-                ExistingWorkPolicy.KEEP,
+                policy,
                 request
             )
-            Timber.d("Batch article loader enqueued (wifiOnly=$wifiOnly, allowBatterySaver=$allowBatterySaver)")
+            Timber.d(
+                "Batch article loader enqueued (wifiOnly=$wifiOnly, allowBatterySaver=$allowBatterySaver, " +
+                    "userInitiated=$userInitiated, policy=$policy)"
+            )
         } catch (e: Exception) {
             Timber.w(e, "Failed to enqueue batch article loader")
         }

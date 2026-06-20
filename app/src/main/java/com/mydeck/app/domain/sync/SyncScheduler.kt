@@ -7,14 +7,13 @@ interface SyncScheduler {
     fun scheduleActionSync()
 
     /**
-     * Schedules a one-time background download for an article's content.
-     */
-    fun scheduleArticleDownload(bookmarkId: String)
-
-    /**
      * Enqueues a batch content-sync job to download offline articles.
+     *
+     * @param userInitiated when true, replaces any existing (e.g. backed-off/lingering)
+     *   enqueued work so a user-triggered sync actually runs instead of being silently
+     *   dropped by [androidx.work.ExistingWorkPolicy.KEEP].
      */
-    fun scheduleBatchArticleLoad(wifiOnly: Boolean, allowBatterySaver: Boolean)
+    fun scheduleBatchArticleLoad(wifiOnly: Boolean, allowBatterySaver: Boolean, userInitiated: Boolean = false)
 
     /**
      * Enqueues a one-time forced bookmark metadata repair after global highlight

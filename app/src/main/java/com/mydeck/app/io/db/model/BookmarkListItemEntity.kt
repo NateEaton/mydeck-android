@@ -30,14 +30,22 @@ data class BookmarkListItemEntity(
     val created: Instant,
     val wordCount: Int?,
     val published: Instant?,
+    /** Server's article-content flag; with type/contentState drives offline eligibility (pinnability). */
+    val hasArticle: Boolean,
     val contentState: BookmarkEntity.ContentState,
     /**
      * Whether this bookmark has downloaded resources (images).
-     * 
+     *
      * Combined with contentState to determine offline availability:
      * - null: No content package exists
      * - false: Text cached on-demand only
      * - true: Full offline package with resources
      */
-    val hasResources: Boolean?
+    val hasResources: Boolean?,
+    /**
+     * Provenance of the content package (W2): `AUTOMATIC`, `MANUAL`, or null when
+     * no package exists. Drives the MANUAL icon tint (W9). See
+     * [com.mydeck.app.domain.content.ContentSource].
+     */
+    val source: String?
 )

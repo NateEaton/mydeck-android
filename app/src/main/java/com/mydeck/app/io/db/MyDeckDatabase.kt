@@ -22,7 +22,7 @@ import com.mydeck.app.io.db.model.CachedAnnotationEntity
 
 @Database(
     entities = [BookmarkEntity::class, ArticleContentEntity::class, ContentPackageEntity::class, ContentResourceEntity::class, RemoteBookmarkIdEntity::class, RemoteAnnotationIdEntity::class, PendingActionEntity::class, CachedAnnotationEntity::class, BookmarkAnnotationSyncMetadataEntity::class],
-    version = 16,
+    version = 17,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
@@ -298,6 +298,18 @@ abstract class MyDeckDatabase : RoomDatabase() {
                     SET contentState = 0, contentFailureReason = NULL
                     WHERE contentState = 3 AND hasArticle = 1
                     """
+                )
+            }
+        }
+
+        // W2 content provenance: add content_package.source (AUTOMATIC | MANUAL).
+        // Existing rows default to AUTOMATIC (treated as policy-managed/prunable); a
+        // previously user-opened package becomes MANUAL again the next time it is opened
+        // or multi-selected. See spec offline-content-rework-spec.md §6 W2.
+        val MIGRATION_16_17 = object : Migration(16, 17) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL(
+                    "ALTER TABLE content_package ADD COLUMN source TEXT NOT NULL DEFAULT 'AUTOMATIC'"
                 )
             }
         }

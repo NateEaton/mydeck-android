@@ -199,7 +199,7 @@ class LoadBookmarksWorkerTest {
         )
         coEvery { settingsDataStore.saveLastSyncTimestamp(any()) } returns Unit
         coEvery { settingsDataStore.isInitialSyncPerformed() } returns true
-        coEvery { loadBookmarksUseCase.enqueueContentSyncIfNeeded() } returns Unit
+        coEvery { loadBookmarksUseCase.enqueueContentSyncIfNeeded(userInitiated = true) } returns Unit
         coEvery { highlightsRepository.requestRefresh(any()) } returns Result.success(Unit)
 
         val worker = LoadBookmarksWorker(
@@ -221,6 +221,10 @@ class LoadBookmarksWorkerTest {
         }
         coVerify(exactly = 1) {
             highlightsRepository.requestRefresh(HighlightsRefreshReason.MANUAL_SYNC)
+        }
+        // Bug 4.6 (W5): PULL_TO_REFRESH is user-initiated → must REPLACE, not KEEP.
+        coVerify(exactly = 1) {
+            loadBookmarksUseCase.enqueueContentSyncIfNeeded(userInitiated = true)
         }
     }
 
@@ -252,7 +256,7 @@ class LoadBookmarksWorkerTest {
         coEvery {
             loadBookmarksUseCase.execute(updatedIds = updatedIds, enqueueContentSyncAfterLoad = false)
         } returns LoadBookmarksUseCase.UseCaseResult.Success(Unit)
-        coEvery { loadBookmarksUseCase.enqueueContentSyncIfNeeded() } returns Unit
+        coEvery { loadBookmarksUseCase.enqueueContentSyncIfNeeded(userInitiated = true) } returns Unit
         coEvery { settingsDataStore.saveLastSyncTimestamp(any()) } returns Unit
         coEvery { settingsDataStore.isInitialSyncPerformed() } returns true
         coEvery { highlightsRepository.requestRefresh(any()) } returns Result.success(Unit)

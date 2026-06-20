@@ -5,6 +5,8 @@ import android.content.Intent
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.work.Constraints
+import androidx.work.NetworkType
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -23,6 +25,7 @@ import com.mydeck.app.domain.model.SortOption
 import com.mydeck.app.domain.model.SwipeConfig
 import com.mydeck.app.domain.sync.ConnectivityMonitor
 import com.mydeck.app.domain.content.ContentPackageManager
+import com.mydeck.app.domain.content.ContentSource
 import com.mydeck.app.domain.sync.OfflinePolicyEvaluator
 import com.mydeck.app.domain.usecase.FullSyncUseCase
 import com.mydeck.app.domain.usecase.UpdateBookmarkUseCase
@@ -32,6 +35,7 @@ import com.mydeck.app.util.extractUrlAndTitle
 import com.mydeck.app.util.formatBookmarkShareText
 import com.mydeck.app.util.isValidUrl
 import com.mydeck.app.util.MAX_TITLE_LENGTH
+import com.mydeck.app.worker.BatchArticleLoadWorker
 import com.mydeck.app.worker.CreateBookmarkWorker
 import com.mydeck.app.worker.LoadBookmarksWorker
 import kotlinx.coroutines.channels.Channel
@@ -68,7 +72,9 @@ data class MultiSelectTargets(
     val selectedAllFavorited: Boolean = false,
     val selectedAllUnfavorited: Boolean = false,
     val selectedAllArchived: Boolean = false,
-    val selectedAllUnarchived: Boolean = false
+    val selectedAllUnarchived: Boolean = false,
+    // All selected items are already pinned (offline). Drives the contextual Pin↔Unpin label.
+    val selectedAllPinned: Boolean = false
 )
 
 sealed class BatchActionSnackbarEvent {
@@ -90,6 +96,19 @@ sealed class BatchActionSnackbarEvent {
 
     // Delete is staged (not yet written); confirm/cancel act on the batch-pending set held in the ViewModel.
     data class Deleted(override val count: Int) : BatchActionSnackbarEvent()
+
+    // Pin/Unpin (multi-select): informational only (no Undo — the toggle is its own inverse, and
+    // selection mode stays open). pinnedCount = eligible items now pinned (downloading / flipped /
+    // already pinned); skippedCount = ineligible items (no offline content). The two sum to the
+    // selection size. Unpinned carries just the count demoted back to managed.
+    data class PinnedOffline(
+        val pinnedCount: Int,
+        val skippedCount: Int
+    ) : BatchActionSnackbarEvent() {
+        override val count: Int get() = pinnedCount + skippedCount
+    }
+
+    data class Unpinned(override val count: Int) : BatchActionSnackbarEvent()
 }
 
 private data class SelectedBookmarkActionState(
@@ -303,13 +322,22 @@ class BookmarkListViewModel @Inject constructor(
             selectedAllFavorited = hasSelection && selectedItems.all { it.isMarked },
             selectedAllUnfavorited = hasSelection && selectedItems.none { it.isMarked },
             selectedAllArchived = hasSelection && selectedItems.all { it.isArchived },
-            selectedAllUnarchived = hasSelection && selectedItems.none { it.isArchived }
+            selectedAllUnarchived = hasSelection && selectedItems.none { it.isArchived },
+            // Toggle decision considers only *pinnable* (eligible) items, so a no-content item in
+            // the selection doesn't block Unpin once the eligible items are all pinned.
+            selectedAllPinned = selectedItems.any { it.offlineEligible } &&
+                selectedItems.filter { it.offlineEligible }
+                    .all { it.offlineState == BookmarkListItem.OfflineState.PINNED }
         )
     }.stateIn(viewModelScope, SharingStarted.Eagerly, MultiSelectTargets())
 
     private val _batchActionSnackbarEvent = Channel<BatchActionSnackbarEvent>(Channel.BUFFERED)
     val batchActionSnackbarEvent: Flow<BatchActionSnackbarEvent> =
         _batchActionSnackbarEvent.receiveAsFlow()
+
+    // Drives the multi-select "Available offline" overflow item's enabled state: greyed out and
+    // inactive when offline reading is disabled (hard line — no prompt-to-enable).
+    val offlineReadingEnabled: StateFlow<Boolean> = settingsDataStore.offlineReadingEnabledFlow
 
     init {
         viewModelScope.launch {
@@ -706,6 +734,63 @@ class BookmarkListViewModel @Inject constructor(
 
     fun onUnarchiveSelectedBookmarks() = applyBatchArchive(targetArchived = false)
 
+    // Multi-select "Pin offline": pin every eligible selected bookmark (W2 MANUAL = pinned).
+    // Keyed off the authoritative committed-package source (not the list icon), so an image-less
+    // committed package pins correctly (offline-pinning spec §9):
+    //   - no committed package → enqueue a priority download as MANUAL (the worker commits MANUAL)
+    //   - AUTOMATIC package     → flip in place to MANUAL (no re-fetch)
+    //   - MANUAL package        → already pinned, no-op
+    // Ineligible items (no article/picture content, or PERMANENT_NO_CONTENT) are skipped and
+    // surfaced in the snackbar. Selection mode stays open (favorite/archive parity).
+    fun onPinSelection() {
+        val targetIds = _multiSelectState.value.selectedIds.toList()
+        if (targetIds.isEmpty()) return
+
+        viewModelScope.launch {
+            val constraints = buildContentSyncConstraints()
+            var pinned = 0
+            var skipped = 0
+            for (id in targetIds) {
+                val bookmark = runCatching { bookmarkRepository.getBookmarkById(id) }.getOrNull()
+                if (bookmark == null || !isOfflineEligible(bookmark)) {
+                    skipped++
+                    continue
+                }
+                when (contentPackageManager.getPackageSource(id)) {
+                    ContentSource.MANUAL -> { /* already pinned */ }
+                    ContentSource.AUTOMATIC -> contentPackageManager.updatePackageSource(id, ContentSource.MANUAL)
+                    null -> BatchArticleLoadWorker.enqueuePriorityDownload(
+                        workManager, id, constraints, ContentSource.MANUAL
+                    )
+                }
+                pinned++
+            }
+            _batchActionSnackbarEvent.trySend(
+                BatchActionSnackbarEvent.PinnedOffline(pinnedCount = pinned, skippedCount = skipped)
+            )
+        }
+    }
+
+    // Multi-select "Unpin": demote every pinned (MANUAL) selected bookmark back to AUTOMATIC
+    // (managed) — non-destructive; the content stays and becomes prunable again. Items that aren't
+    // pinned are a no-op. The contextual menu only offers Unpin when all selected are already
+    // pinned, so in practice every item demotes. Selection mode stays open.
+    fun onUnpinSelection() {
+        val targetIds = _multiSelectState.value.selectedIds.toList()
+        if (targetIds.isEmpty()) return
+
+        viewModelScope.launch {
+            var unpinned = 0
+            for (id in targetIds) {
+                if (contentPackageManager.getPackageSource(id) == ContentSource.MANUAL) {
+                    contentPackageManager.updatePackageSource(id, ContentSource.AUTOMATIC)
+                    unpinned++
+                }
+            }
+            _batchActionSnackbarEvent.trySend(BatchActionSnackbarEvent.Unpinned(unpinned))
+        }
+    }
+
     // Capture the current selection and open the add-labels picker. The captured ids drive the
     // apply, so toggling selection (or auto-exit) while the picker is open has no effect.
     fun onAddLabelsToSelection() {
@@ -773,6 +858,9 @@ class BookmarkListViewModel @Inject constructor(
             is BatchActionSnackbarEvent.Unarchived -> revertBatchArchive(event.changedIds, revertTo = true)
             is BatchActionSnackbarEvent.LabelsAdded -> revertBatchLabels(event.priorLabelsByBookmark)
             is BatchActionSnackbarEvent.Deleted -> onCancelBatchDeletion()
+            // Pin/Unpin are informational only — their snackbars offer no Undo (the toggle is the inverse).
+            is BatchActionSnackbarEvent.PinnedOffline -> Unit
+            is BatchActionSnackbarEvent.Unpinned -> Unit
         }
     }
 
@@ -895,6 +983,23 @@ class BookmarkListViewModel @Inject constructor(
                 )
             }
             .toList()
+    }
+
+    // Same eligibility gate as LoadContentPackageUseCase: pictures always carry offline content;
+    // articles and videos need extracted article content (hasArticle) — this excludes embed-only
+    // videos. PERMANENT_NO_CONTENT is never eligible.
+    private fun isOfflineEligible(bookmark: Bookmark): Boolean =
+        (bookmark.hasArticle || bookmark.type is Bookmark.Type.Picture) &&
+            bookmark.contentState != Bookmark.ContentState.PERMANENT_NO_CONTENT
+
+    // Build WorkManager constraints from the user's content-sync settings (wifi-only / battery
+    // saver), mirroring the promote-on-open priority download in BookmarkDetailViewModel.
+    private suspend fun buildContentSyncConstraints(): Constraints {
+        val syncConstraints = settingsDataStore.getContentSyncConstraints()
+        return Constraints.Builder().apply {
+            setRequiredNetworkType(if (syncConstraints.wifiOnly) NetworkType.UNMETERED else NetworkType.CONNECTED)
+            if (!syncConstraints.allowOnBatterySaver) setRequiresBatteryNotLow(true)
+        }.build()
     }
 
     private fun clearMultiSelectState() {

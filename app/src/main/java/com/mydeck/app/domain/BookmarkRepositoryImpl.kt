@@ -2,6 +2,7 @@ package com.mydeck.app.domain
 
 import com.mydeck.app.coroutine.ApplicationScope
 import com.mydeck.app.coroutine.IoDispatcher
+import com.mydeck.app.domain.content.ContentSource
 import com.mydeck.app.domain.mapper.toDomain
 import com.mydeck.app.domain.mapper.toEntity
 import com.mydeck.app.domain.model.Bookmark
@@ -46,6 +47,7 @@ import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
 import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.datetime.Clock
+import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import kotlinx.serialization.SerializationException
@@ -54,6 +56,11 @@ import timber.log.Timber
 import java.io.IOException
 import java.util.UUID
 import javax.inject.Inject
+
+// W3: slack on the create-retry recency check to absorb client/server clock skew (NTP keeps this to
+// seconds; 2 min is ample). Its only side effect is that a deliberate re-add within this window of a
+// prior add is treated as the same add — effectively a rapid double-add, which is benign.
+private const val RECONCILE_SKEW_MARGIN_MS = 2 * 60_000L
 
 class BookmarkRepositoryImpl @Inject constructor(
     private val database: MyDeckDatabase,
@@ -167,7 +174,8 @@ class BookmarkRepositoryImpl @Inject constructor(
                     created = listItem.created.toLocalDateTime(kotlinx.datetime.TimeZone.currentSystemDefault()),
                     wordCount = listItem.wordCount,
                     published = listItem.published?.toLocalDateTime(kotlinx.datetime.TimeZone.currentSystemDefault()),
-                    offlineState = deriveOfflineState(listItem.contentState, listItem.hasResources)
+                    offlineState = deriveOfflineState(listItem.contentState, listItem.hasResources, listItem.source),
+                    offlineEligible = deriveOfflineEligible(listItem.hasArticle, listItem.type, listItem.contentState)
                 )
             }
         }
@@ -229,7 +237,8 @@ class BookmarkRepositoryImpl @Inject constructor(
                     created = listItem.created.toLocalDateTime(kotlinx.datetime.TimeZone.currentSystemDefault()),
                     wordCount = listItem.wordCount,
                     published = listItem.published?.toLocalDateTime(kotlinx.datetime.TimeZone.currentSystemDefault()),
-                    offlineState = deriveOfflineState(listItem.contentState, listItem.hasResources)
+                    offlineState = deriveOfflineState(listItem.contentState, listItem.hasResources, listItem.source),
+                    offlineEligible = deriveOfflineEligible(listItem.hasArticle, listItem.type, listItem.contentState)
                 )
             }
         }
@@ -319,20 +328,42 @@ class BookmarkRepositoryImpl @Inject constructor(
                     created = listItem.created.toLocalDateTime(kotlinx.datetime.TimeZone.currentSystemDefault()),
                     wordCount = listItem.wordCount,
                     published = listItem.published?.toLocalDateTime(kotlinx.datetime.TimeZone.currentSystemDefault()),
-                    offlineState = deriveOfflineState(listItem.contentState, listItem.hasResources)
+                    offlineState = deriveOfflineState(listItem.contentState, listItem.hasResources, listItem.source),
+                    offlineEligible = deriveOfflineEligible(listItem.hasArticle, listItem.type, listItem.contentState)
                 )
             }
         }
     }
 
+    // Offline eligibility (pinnability) — same gate as LoadContentPackageUseCase: has article
+    // content or is a picture, and not permanently no-content.
+    private fun deriveOfflineEligible(
+        hasArticle: Boolean,
+        type: BookmarkEntity.Type,
+        contentState: BookmarkEntity.ContentState
+    ): Boolean =
+        (hasArticle || type == BookmarkEntity.Type.PHOTO) &&
+            contentState != BookmarkEntity.ContentState.PERMANENT_NO_CONTENT
+
     private fun deriveOfflineState(
         contentState: BookmarkEntity.ContentState,
-        hasResources: Boolean?
+        hasResources: Boolean?,
+        source: String?
     ): BookmarkListItem.OfflineState {
+        // Presence guarantee (W9): show an icon whenever content is on the device.
+        //  - PINNED keys off committed-package presence (hasResources != null = a content_package
+        //    row exists) + MANUAL source, so an image-less pinned article still shows the pin icon
+        //    (offline-pinning spec §9).
+        //  - A managed full package (hasResources=true, AUTOMATIC) renders the filled download icon
+        //    regardless of contentState — including DIRTY, which still has text+images on disk.
+        //  - A managed image-less package or an on-demand text cache (no package row) renders the
+        //    outline icon.
         return when {
-            contentState != BookmarkEntity.ContentState.DOWNLOADED -> BookmarkListItem.OfflineState.NOT_DOWNLOADED
+            hasResources != null && source == ContentSource.MANUAL.name ->
+                BookmarkListItem.OfflineState.PINNED
             hasResources == true -> BookmarkListItem.OfflineState.DOWNLOADED_FULL
-            else -> BookmarkListItem.OfflineState.DOWNLOADED_TEXT_ONLY
+            contentState == BookmarkEntity.ContentState.DOWNLOADED -> BookmarkListItem.OfflineState.DOWNLOADED_TEXT_ONLY
+            else -> BookmarkListItem.OfflineState.NOT_DOWNLOADED
         }
     }
 
@@ -439,8 +470,22 @@ class BookmarkRepositoryImpl @Inject constructor(
     override suspend fun createBookmark(
         title: String,
         url: String,
-        labels: List<String>
+        labels: List<String>,
+        attemptTimestampMs: Long?
     ): String {
+        // W3 idempotency for the lost-response case: when this is a retry (attemptTimestampMs != null),
+        // a prior POST may have created the bookmark server-side even though the client saw a failure
+        // (response lost mid-flight, characteristically on flaky cellular). Reconcile first and adopt
+        // the already-created bookmark instead of creating a duplicate (with a duplicated label).
+        if (attemptTimestampMs != null) {
+            val adoptedId = findRecentlyCreatedBookmarkId(url, attemptTimestampMs)
+            if (adoptedId != null) {
+                Timber.i("createBookmark: adopting already-created bookmark $adoptedId for URL=$url (reconciled on retry; skipping POST)")
+                hydrateCreatedBookmark(adoptedId)
+                return adoptedId
+            }
+        }
+
         val createBookmarkDto = CreateBookmarkDto(labels = labels, title = title, url = url)
         val response = readeckApi.createBookmark(createBookmarkDto)
         if (!response.isSuccessful) {
@@ -448,8 +493,47 @@ class BookmarkRepositoryImpl @Inject constructor(
         }
 
         val bookmarkId = response.headers()[ReadeckApi.Header.BOOKMARK_ID]!!
+        hydrateCreatedBookmark(bookmarkId)
+        return bookmarkId
+    }
 
-        // Fetch and insert bookmark metadata
+    /**
+     * W3 reconcile (create retry only). The Readeck server allows the same URL to be added multiple
+     * times by design (intentional re-adds), so the ONLY reliable "already added by THIS attempt"
+     * signal is: the single most-recent bookmark matches the URL **and** was created recently enough
+     * to be this add (`created >= attemptTimestamp - skew margin`) — not a previous add of the same
+     * URL that merely happens to still be the newest.
+     *
+     * The created-time comparison crosses client/server clocks; [RECONCILE_SKEW_MARGIN_MS] absorbs
+     * realistic NTP skew. A skew-free alternative would anchor recency to the HTTP `Date` response
+     * header (server "now") rather than the client attempt time — see spec §6 W3.
+     *
+     * Throws if the reconcile query itself fails, so the worker retries instead of blindly POSTing
+     * (which would re-open the duplicate window).
+     */
+    private suspend fun findRecentlyCreatedBookmarkId(url: String, attemptTimestampMs: Long): String? {
+        val response = readeckApi.getBookmarks(
+            limit = 1,
+            offset = 0,
+            updatedSince = null,
+            sortOrder = ReadeckApi.SortOrder(ReadeckApi.Sort.Created, ReadeckApi.Order.Descending),
+            hasErrors = null
+        )
+        if (!response.isSuccessful) {
+            throw Exception("createBookmark reconcile query failed: HTTP ${response.code()}")
+        }
+        val newest = response.body()?.firstOrNull() ?: return null
+        val recentEnough = Instant.fromEpochMilliseconds(attemptTimestampMs - RECONCILE_SKEW_MARGIN_MS)
+        return if (newest.url == url && newest.created >= recentEnough) {
+            newest.id
+        } else {
+            null
+        }
+    }
+
+    /** Fetch the server's view of a just-created/adopted bookmark, insert it locally, and kick off
+     *  loading-poll or offline download as appropriate. Shared by the POST and adopt paths. */
+    private suspend fun hydrateCreatedBookmark(bookmarkId: String) {
         try {
             val bookmarkResponse = readeckApi.getBookmarkById(bookmarkId)
             if (bookmarkResponse.isSuccessful && bookmarkResponse.body() != null) {
@@ -468,8 +552,6 @@ class BookmarkRepositoryImpl @Inject constructor(
         } catch (e: Exception) {
             Timber.w(e, "Failed to fetch and insert created bookmark")
         }
-
-        return bookmarkId
     }
 
     private fun pollForBookmarkReady(bookmarkId: String) {
@@ -513,8 +595,24 @@ class BookmarkRepositoryImpl @Inject constructor(
         }
     }
 
-    private fun enqueueArticleDownload(bookmarkId: String) {
-        syncScheduler.scheduleArticleDownload(bookmarkId)
+    /**
+     * Queue a FULL offline package download for a freshly-added bookmark (spec §5 A1).
+     *
+     * The old per-add path enqueued LoadArticleWorker, which fetched LEGACY TEXT only and
+     * pre-stamped contentState=DOWNLOADED with no package — stranding the article as text-only
+     * forever, because every guard then treated it as "done" (diagnosis 4.2). Instead route the
+     * add through the batch package pipeline: a freshly-added article is the newest bookmark, so
+     * the batch worker fetches a real package (text + images) for it (and promote-on-open covers
+     * an early open). Callers already gate on offline reading being enabled and hasArticle.
+     */
+    private suspend fun enqueueArticleDownload(bookmarkId: String) {
+        val constraints = settingsDataStore.getContentSyncConstraints()
+        syncScheduler.scheduleBatchArticleLoad(
+            constraints.wifiOnly,
+            constraints.allowOnBatterySaver,
+            userInitiated = true
+        )
+        Timber.d("Queued batch offline package fetch for newly added bookmark: $bookmarkId")
     }
 
     override suspend fun updateBookmark(
@@ -1282,5 +1380,23 @@ class BookmarkRepositoryImpl @Inject constructor(
                 Timber.e(e, "Unexpected error fetching extraction log")
                 BookmarkRepository.ExtractionLogResult.NetworkError
             }
+        }
+
+    override suspend fun getOfflineContentDebugInfo(bookmarkId: String): OfflineContentDebugInfo =
+        withContext(dispatcher) {
+            val articleContent = bookmarkDao.getArticleContent(bookmarkId)
+            val pkg = database.getContentPackageDao().getPackage(bookmarkId)
+            val resources = database.getContentPackageDao().getResources(bookmarkId)
+            val contentDir = contentPackageManager.getContentDir(bookmarkId)
+            OfflineContentDebugInfo(
+                hasArticleContent = articleContent != null,
+                articleContentLength = articleContent?.length ?: 0,
+                hasPackage = pkg != null,
+                hasResources = pkg?.hasResources ?: false,
+                source = pkg?.source,
+                resourceCount = resources.size,
+                resourceTotalBytes = resources.sumOf { it.byteSize },
+                contentDir = contentDir
+            )
         }
 }

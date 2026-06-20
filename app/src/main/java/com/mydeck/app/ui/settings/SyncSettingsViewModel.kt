@@ -212,7 +212,10 @@ class SyncSettingsViewModel @Inject constructor(
                 myListBookmarks = myListBookmarks,
                 archivedBookmarks = archivedBookmarks,
                 favorites = favorites,
-                fullOfflineAvailable = detailedSyncStatusCounts.contentDownloaded,
+                fullOfflineAvailable = detailedSyncStatusCounts.fullPackagesAutomatic +
+                    detailedSyncStatusCounts.fullPackagesManual,
+                automaticOfflineAvailable = detailedSyncStatusCounts.fullPackagesAutomatic,
+                manualOfflineAvailable = detailedSyncStatusCounts.fullPackagesManual,
                 skippedNoContent = args[20] as Int,
                 lastBookmarkSyncTimestamp = args[15] as String?,
                 lastOfflineMaintenanceTimestamp = args[16] as String?,
@@ -379,7 +382,7 @@ class SyncSettingsViewModel @Inject constructor(
     fun onConfirmClearOfflineContent() {
         showDialog.value = null
         viewModelScope.launch {
-            runManagedContentPurge("All offline content cleared by user")
+            runFullContentClear("All offline content cleared by user")
         }
     }
 
@@ -421,13 +424,26 @@ class SyncSettingsViewModel @Inject constructor(
         }
     }
 
+    private suspend fun runFullContentClear(successLog: String) {
+        isPurgingOfflineContent.value = true
+        try {
+            workManager.cancelUniqueWork(BatchArticleLoadWorker.UNIQUE_WORK_NAME)
+            workManager.cancelAllWorkByTag(BatchArticleLoadWorker.WORK_TAG_OFFLINE_CONTENT)
+            contentPackageManager.deleteAllContent()
+            refreshStorageSize()
+            Timber.i(successLog)
+        } finally {
+            isPurgingOfflineContent.value = false
+        }
+    }
+
     private suspend fun restartManagedContentSyncIfNeeded() {
         if (!offlineReadingEnabled.value) {
             return
         }
         workManager.cancelUniqueWork(BatchArticleLoadWorker.UNIQUE_WORK_NAME)
         workManager.cancelAllWorkByTag(BatchArticleLoadWorker.WORK_TAG_OFFLINE_CONTENT)
-        loadBookmarksUseCase.enqueueContentSyncIfNeeded()
+        loadBookmarksUseCase.enqueueContentSyncIfNeeded(userInitiated = true)
     }
 
     private suspend fun resolveContentSyncStatus(
@@ -548,6 +564,8 @@ data class SyncStatus(
     val archivedBookmarks: Int = 0,
     val favorites: Int = 0,
     val fullOfflineAvailable: Int = 0,
+    val automaticOfflineAvailable: Int = 0,
+    val manualOfflineAvailable: Int = 0,
     val skippedNoContent: Int = 0,
     val lastBookmarkSyncTimestamp: String? = null,
     val lastOfflineMaintenanceTimestamp: String? = null,

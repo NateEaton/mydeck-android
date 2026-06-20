@@ -5,6 +5,7 @@ import androidx.work.Data
 import androidx.work.ListenableWorker
 import androidx.work.WorkerParameters
 import com.mydeck.app.domain.content.ContentPackageManager
+import com.mydeck.app.domain.content.ContentSource
 import com.mydeck.app.domain.sync.OfflineContentScope
 import com.mydeck.app.domain.sync.OfflinePolicy
 import com.mydeck.app.domain.sync.OfflinePolicyEvaluator
@@ -47,11 +48,17 @@ class BatchArticleLoadWorkerTest {
         coEvery { settingsDataStore.saveLastContentSyncTimestamp(any()) } returns Unit
         coEvery { policyEvaluator.canFetchContent() } returns OfflinePolicyEvaluator.Decision(true)
         coEvery { bookmarkDao.markNoContentBookmarksPermanent() } returns 0
+        // Absolute storage cap defaults to UNLIMITED → enforceAbsoluteStorageCap() is a no-op.
+        coEvery { settingsDataStore.getOfflineMaxStorageCap() } returns Long.MAX_VALUE
+        // Policy-size (AUTOMATIC only) drives the policy prune; default 0 so the entry check
+        // is satisfied without per-test stubs unless a test exercises the prune explicitly.
+        coEvery { contentPackageManager.calculateAutomaticOfflineSize() } returns 0L
     }
 
-    private fun createWorker(inputData: Data = Data.EMPTY): BatchArticleLoadWorker {
+    private fun createWorker(inputData: Data = Data.EMPTY, runAttemptCount: Int = 0): BatchArticleLoadWorker {
         val workerParams = mockk<WorkerParameters> {
             every { this@mockk.inputData } returns inputData
+            every { this@mockk.runAttemptCount } returns runAttemptCount
         }
         return BatchArticleLoadWorker(
             appContext = context,
@@ -208,18 +215,20 @@ class BatchArticleLoadWorkerTest {
     fun `doWork processes priority bookmark directly`() = runTest {
         val inputData = Data.Builder()
             .putString(BatchArticleLoadWorker.KEY_PRIORITY_BOOKMARK_ID, "priority-1")
+            .putString(BatchArticleLoadWorker.KEY_PRIORITY_SOURCE, ContentSource.MANUAL.name)
             .build()
 
         coEvery { settingsDataStore.getOfflineContentScope() } returns OfflineContentScope.MY_LIST
         coEvery { bookmarkDao.getIsArchived("priority-1") } returns false
-        coEvery { loadContentPackageUseCase.executeBatch(listOf("priority-1")) } returns mapOf(
+        coEvery { loadContentPackageUseCase.executeBatch(listOf("priority-1"), ContentSource.MANUAL) } returns mapOf(
             "priority-1" to LoadContentPackageUseCase.Result.Success
         )
 
         val result = createWorker(inputData).doWork()
 
         assertEquals(ListenableWorker.Result.success(), result)
-        coVerify { loadContentPackageUseCase.executeBatch(listOf("priority-1")) }
+        // Priority downloads are user-initiated → MANUAL provenance (W2).
+        coVerify { loadContentPackageUseCase.executeBatch(listOf("priority-1"), ContentSource.MANUAL) }
     }
 
     @Test
@@ -228,6 +237,7 @@ class BatchArticleLoadWorkerTest {
 
         val inputData = Data.Builder()
             .putString(BatchArticleLoadWorker.KEY_PRIORITY_BOOKMARK_ID, "priority-1")
+            .putString(BatchArticleLoadWorker.KEY_PRIORITY_SOURCE, ContentSource.MANUAL.name)
             .build()
 
         val result = createWorker(inputData).doWork()
@@ -240,6 +250,7 @@ class BatchArticleLoadWorkerTest {
     fun `doWork skips archived priority bookmark when scope excludes archived`() = runTest {
         val inputData = Data.Builder()
             .putString(BatchArticleLoadWorker.KEY_PRIORITY_BOOKMARK_ID, "priority-1")
+            .putString(BatchArticleLoadWorker.KEY_PRIORITY_SOURCE, ContentSource.MANUAL.name)
             .build()
 
         coEvery { settingsDataStore.getOfflineContentScope() } returns OfflineContentScope.MY_LIST
@@ -255,23 +266,25 @@ class BatchArticleLoadWorkerTest {
     fun `doWork downloads archived priority bookmark when scope includes archived`() = runTest {
         val inputData = Data.Builder()
             .putString(BatchArticleLoadWorker.KEY_PRIORITY_BOOKMARK_ID, "priority-1")
+            .putString(BatchArticleLoadWorker.KEY_PRIORITY_SOURCE, ContentSource.MANUAL.name)
             .build()
 
         coEvery { settingsDataStore.getOfflineContentScope() } returns OfflineContentScope.MY_LIST_AND_ARCHIVED
-        coEvery { loadContentPackageUseCase.executeBatch(listOf("priority-1")) } returns mapOf(
+        coEvery { loadContentPackageUseCase.executeBatch(listOf("priority-1"), ContentSource.MANUAL) } returns mapOf(
             "priority-1" to LoadContentPackageUseCase.Result.Success
         )
 
         val result = createWorker(inputData).doWork()
 
         assertEquals(ListenableWorker.Result.success(), result)
-        coVerify { loadContentPackageUseCase.executeBatch(listOf("priority-1")) }
+        coVerify { loadContentPackageUseCase.executeBatch(listOf("priority-1"), ContentSource.MANUAL) }
     }
 
     @Test
     fun `doWork skips priority bookmark when constraints block fetch`() = runTest {
         val inputData = Data.Builder()
             .putString(BatchArticleLoadWorker.KEY_PRIORITY_BOOKMARK_ID, "priority-1")
+            .putString(BatchArticleLoadWorker.KEY_PRIORITY_SOURCE, ContentSource.MANUAL.name)
             .build()
 
         coEvery { settingsDataStore.getOfflineContentScope() } returns OfflineContentScope.MY_LIST
@@ -321,11 +334,14 @@ class BatchArticleLoadWorkerTest {
             listOf(newBookmarkAfter),             // post-batch prune entry check
             listOf(newBookmarkAfter)              // download loop iteration 2
         )
-        coEvery { contentPackageManager.calculateManagedOfflineSize() } returnsMany listOf(
+        // Policy-size (AUTOMATIC) drives the prune; cap-size (both pools) drives the download loop.
+        coEvery { contentPackageManager.calculateAutomaticOfflineSize() } returnsMany listOf(
             110_000_000L, // initial prune entry: shouldPrune check
-            110_000_000L, // prune loop iter 1: isPrunedEnough check (before deletion)
+            110_000_000L, // prune loop iter 1: isPrunedEnough / selectForPruning
+            42_000_000L   // post-batch prune entry: shouldPrune check
+        )
+        coEvery { contentPackageManager.calculateManagedOfflineSize() } returnsMany listOf(
             40_000_000L,  // download loop iteration 1: shouldStopDownloading
-            42_000_000L,  // post-batch prune entry: shouldPrune check
             42_000_000L   // download loop iteration 2: shouldStopDownloading
         )
         // Initial prune: entry triggers
@@ -355,12 +371,107 @@ class BatchArticleLoadWorkerTest {
         coVerify { loadContentPackageUseCase.executeBatch(listOf("new-1")) }
     }
 
+    // --- Absolute storage cap (W2) ---
+
+    @Test
+    fun `doWork enforces absolute cap across both pools evicting oldest-refreshed-first`() = runTest {
+        // No eligible bookmarks → download loop is a no-op; the cap pass then runs.
+        coEvery { bookmarkDao.getOfflinePolicyBookmarks(false) } returns emptyList()
+        coEvery { policyEvaluator.shouldStopDownloading(any(), any()) } returns false
+        coEvery { policyEvaluator.selectEligibleBookmarks(any(), any()) } returns emptyList()
+
+        coEvery { settingsDataStore.getOfflineMaxStorageCap() } returns 100L
+        // read 1: download-loop usageBeforeBatch; reads 2-4: cap pass (initial + after each eviction).
+        coEvery { contentPackageManager.calculateManagedOfflineSize() } returnsMany listOf(
+            250L, // download loop iteration 1
+            250L, // cap pass: initial usage (over cap)
+            180L, // after evicting m1 (still over cap)
+            90L   // after evicting a1 (now under cap → stop)
+        )
+        // Oldest-refreshed first across both pools: a MANUAL package is oldest.
+        coEvery { bookmarkDao.getOfflinePackageBookmarkIdsOldestRefreshedFirst() } returns
+            listOf("m1", "a1", "a2", "m2")
+        coEvery { contentPackageManager.deleteContentForBookmark(any()) } returns Unit
+
+        val result = createWorker().doWork()
+
+        assertEquals(ListenableWorker.Result.success(), result)
+        // Evicts oldest-first until under cap — MANUAL m1 IS evicted by the cap.
+        coVerify(exactly = 1) { contentPackageManager.deleteContentForBookmark("m1") }
+        coVerify(exactly = 1) { contentPackageManager.deleteContentForBookmark("a1") }
+        // Does not over-evict once under the cap.
+        coVerify(exactly = 0) { contentPackageManager.deleteContentForBookmark("a2") }
+        coVerify(exactly = 0) { contentPackageManager.deleteContentForBookmark("m2") }
+    }
+
+    @Test
+    fun `doWork does not evict anything when cap is unlimited`() = runTest {
+        coEvery { bookmarkDao.getOfflinePolicyBookmarks(false) } returns emptyList()
+        coEvery { policyEvaluator.shouldStopDownloading(any(), any()) } returns false
+        coEvery { policyEvaluator.selectEligibleBookmarks(any(), any()) } returns emptyList()
+        // Cap is UNLIMITED (setup default Long.MAX_VALUE).
+        coEvery { contentPackageManager.calculateManagedOfflineSize() } returns 5_000_000_000L
+
+        val result = createWorker().doWork()
+
+        assertEquals(ListenableWorker.Result.success(), result)
+        coVerify(exactly = 0) { bookmarkDao.getOfflinePackageBookmarkIdsOldestRefreshedFirst() }
+        coVerify(exactly = 0) { contentPackageManager.deleteContentForBookmark(any()) }
+    }
+
+    @Test
+    fun `doWork does not evict when usage is under the cap`() = runTest {
+        coEvery { bookmarkDao.getOfflinePolicyBookmarks(false) } returns emptyList()
+        coEvery { policyEvaluator.shouldStopDownloading(any(), any()) } returns false
+        coEvery { policyEvaluator.selectEligibleBookmarks(any(), any()) } returns emptyList()
+
+        coEvery { settingsDataStore.getOfflineMaxStorageCap() } returns 100L
+        coEvery { contentPackageManager.calculateManagedOfflineSize() } returns 50L
+
+        val result = createWorker().doWork()
+
+        assertEquals(ListenableWorker.Result.success(), result)
+        coVerify(exactly = 0) { bookmarkDao.getOfflinePackageBookmarkIdsOldestRefreshedFirst() }
+        coVerify(exactly = 0) { contentPackageManager.deleteContentForBookmark(any()) }
+    }
+
+    @Test
+    fun `priority download enforces absolute cap after adding manual content`() = runTest {
+        val inputData = Data.Builder()
+            .putString(BatchArticleLoadWorker.KEY_PRIORITY_BOOKMARK_ID, "priority-1")
+            .putString(BatchArticleLoadWorker.KEY_PRIORITY_SOURCE, ContentSource.MANUAL.name)
+            .build()
+
+        coEvery { settingsDataStore.getOfflineContentScope() } returns OfflineContentScope.MY_LIST
+        coEvery { bookmarkDao.getIsArchived("priority-1") } returns false
+        coEvery { loadContentPackageUseCase.executeBatch(listOf("priority-1"), ContentSource.MANUAL) } returns mapOf(
+            "priority-1" to LoadContentPackageUseCase.Result.Success
+        )
+
+        coEvery { settingsDataStore.getOfflineMaxStorageCap() } returns 100L
+        coEvery { contentPackageManager.calculateManagedOfflineSize() } returnsMany listOf(
+            250L, // cap pass: initial usage (over cap)
+            90L   // after evicting the oldest package (under cap → stop)
+        )
+        coEvery { bookmarkDao.getOfflinePackageBookmarkIdsOldestRefreshedFirst() } returns
+            listOf("old-manual", "priority-1")
+        coEvery { contentPackageManager.deleteContentForBookmark(any()) } returns Unit
+
+        val result = createWorker(inputData).doWork()
+
+        assertEquals(ListenableWorker.Result.success(), result)
+        coVerify(exactly = 1) { contentPackageManager.deleteContentForBookmark("old-manual") }
+        coVerify(exactly = 0) { contentPackageManager.deleteContentForBookmark("priority-1") }
+    }
+
     // --- Stalled-progress regression test ---
 
     @Test
-    fun `doWork stops when pending count unchanged after retries`() = runTest {
+    fun `doWork retries when pending count unchanged after retries and run attempts remain`() = runTest {
         // Simulate: a bookmark keeps re-appearing in the pending list without progress.
         // After MAX_STALLED_RETRIES consecutive same-count iterations, the guard fires.
+        // Bug 4.6 (W5): previously this silently returned success(), swallowing the backlog.
+        // It must now distinguish "stalled with pending work" and retry instead.
         val policyBookmarks = listOf(
             policyBookmark("stuck", "2026-03-01T00:00:00Z", hasOfflinePackage = false)
         )
@@ -376,11 +487,62 @@ class BatchArticleLoadWorkerTest {
             (firstArg() as List<*>).associate { it as String to LoadContentPackageUseCase.Result.Success }
         }
 
-        val result = createWorker().doWork()
+        val result = createWorker(runAttemptCount = 0).doWork()
 
-        assertEquals(ListenableWorker.Result.success(), result)
+        assertEquals(ListenableWorker.Result.retry(), result)
         // 1 initial batch + 2 retries = 3 batches; stall fires on 4th check before batch
         coVerify(exactly = 3) { loadContentPackageUseCase.executeBatch(any()) }
+    }
+
+    @Test
+    fun `doWork gives up with success when stalled and run attempts exhausted`() = runTest {
+        // Same stalled scenario, but runAttemptCount has reached MAX_RUN_ATTEMPTS — must stop
+        // retrying indefinitely and return success() to avoid infinite churn.
+        val policyBookmarks = listOf(
+            policyBookmark("stuck", "2026-03-01T00:00:00Z", hasOfflinePackage = false)
+        )
+
+        coEvery { contentPackageManager.calculateManagedOfflineSize() } returns 90_000_000L
+        coEvery { policyEvaluator.shouldStopDownloading(90_000_000L, any()) } returns false
+        coEvery { policyEvaluator.downloadHeadroomBytes(90_000_000L, any()) } returns 2_800_000L
+        coEvery { policyEvaluator.shouldPrune(any(), any(), any()) } returns false
+        coEvery { bookmarkDao.getOfflinePolicyBookmarks(false) } returns policyBookmarks
+        coEvery { policyEvaluator.selectEligibleBookmarks(any(), any()) } returns policyBookmarks
+        coEvery { policyEvaluator.needsOfflinePackage(any()) } returns true
+        coEvery { loadContentPackageUseCase.executeBatch(any()) } answers {
+            (firstArg() as List<*>).associate { it as String to LoadContentPackageUseCase.Result.Success }
+        }
+
+        val result = createWorker(runAttemptCount = 5).doWork()
+
+        assertEquals(ListenableWorker.Result.success(), result)
+    }
+
+    @Test
+    fun `doWork returns success when pending set drains to empty (no stall)`() = runTest {
+        // Eligible set shrinks to zero across iterations — a legitimate drain, not a stall.
+        // Must NOT be treated as stalledWithPending even though runAttemptCount could be nonzero.
+        val policyBookmarks = listOf(
+            policyBookmark("1", "2026-03-01T00:00:00Z", hasOfflinePackage = false)
+        )
+
+        coEvery { contentPackageManager.calculateManagedOfflineSize() } returns 10_000_000L
+        coEvery { policyEvaluator.shouldStopDownloading(any(), any()) } returns false
+        coEvery { policyEvaluator.downloadHeadroomBytes(any(), any()) } returns 46_000_000L
+        coEvery { policyEvaluator.shouldPrune(any(), any(), any()) } returns false
+        coEvery { bookmarkDao.getOfflinePolicyBookmarks(false) } returns policyBookmarks
+        coEvery { policyEvaluator.selectEligibleBookmarks(any(), any()) } returnsMany listOf(
+            policyBookmarks, emptyList()
+        )
+        coEvery { policyEvaluator.needsOfflinePackage(any()) } returns true
+        coEvery { loadContentPackageUseCase.executeBatch(any()) } answers {
+            (firstArg() as List<*>).associate { it as String to LoadContentPackageUseCase.Result.Success }
+        }
+
+        val result = createWorker(runAttemptCount = 0).doWork()
+
+        assertEquals(ListenableWorker.Result.success(), result)
+        coVerify(exactly = 1) { loadContentPackageUseCase.executeBatch(any()) }
     }
 
     // --- Thrashing regression test ---
@@ -432,6 +594,7 @@ class BatchArticleLoadWorkerTest {
     fun `doWork priority path retries on unexpected exception`() = runTest {
         val inputData = Data.Builder()
             .putString(BatchArticleLoadWorker.KEY_PRIORITY_BOOKMARK_ID, "priority-1")
+            .putString(BatchArticleLoadWorker.KEY_PRIORITY_SOURCE, ContentSource.MANUAL.name)
             .build()
 
         coEvery { settingsDataStore.getOfflineContentScope() } returns OfflineContentScope.MY_LIST
@@ -495,13 +658,17 @@ class BatchArticleLoadWorkerTest {
         id: String,
         created: String,
         hasOfflinePackage: Boolean = false,
-        contentState: BookmarkEntity.ContentState = BookmarkEntity.ContentState.NOT_ATTEMPTED
+        contentState: BookmarkEntity.ContentState = BookmarkEntity.ContentState.NOT_ATTEMPTED,
+        hasContentPackage: Boolean = hasOfflinePackage,
+        source: String? = if (hasContentPackage) ContentSource.AUTOMATIC.name else null
     ): BookmarkDao.OfflinePolicyBookmark {
         return BookmarkDao.OfflinePolicyBookmark(
             id = id,
             created = Instant.parse(created),
             contentState = contentState,
-            hasOfflinePackage = hasOfflinePackage
+            hasOfflinePackage = hasOfflinePackage,
+            hasContentPackage = hasContentPackage,
+            source = source
         )
     }
 }

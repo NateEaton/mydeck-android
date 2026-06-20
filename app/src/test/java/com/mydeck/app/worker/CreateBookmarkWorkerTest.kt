@@ -2,13 +2,17 @@ package com.mydeck.app.worker
 
 import android.content.Context
 import androidx.work.Data
+import androidx.work.ExistingWorkPolicy
 import androidx.work.ListenableWorker
+import androidx.work.OneTimeWorkRequest
+import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import com.mydeck.app.domain.BookmarkRepository
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.verify
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runTest
@@ -16,6 +20,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.fail
 import org.junit.Before
 import org.junit.Test
+import java.util.UUID
 import javax.inject.Provider
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -40,7 +45,8 @@ class CreateBookmarkWorkerTest {
         title: String? = "Test Title",
         labels: Array<String>? = arrayOf("label1", "label2"),
         isArchived: Boolean = false,
-        isFavorite: Boolean = false
+        isFavorite: Boolean = false,
+        attemptTimestampMs: Long = 0L
     ): Data {
         val data = mockk<Data>()
         every { data.getString(CreateBookmarkWorker.PARAM_URL) } returns url
@@ -48,6 +54,7 @@ class CreateBookmarkWorkerTest {
         every { data.getStringArray(CreateBookmarkWorker.PARAM_LABELS) } returns labels
         every { data.getBoolean(CreateBookmarkWorker.PARAM_IS_ARCHIVED, false) } returns isArchived
         every { data.getBoolean(CreateBookmarkWorker.PARAM_IS_FAVORITE, false) } returns isFavorite
+        every { data.getLong(CreateBookmarkWorker.PARAM_ATTEMPT_TS, 0L) } returns attemptTimestampMs
         return data
     }
 
@@ -203,5 +210,79 @@ class CreateBookmarkWorkerTest {
 
         assert(result is ListenableWorker.Result.Success)
         coVerify { bookmarkRepository.createBookmark("", "https://example.com", listOf("label1", "label2")) }
+    }
+
+    // --- W3: idempotent background create ---
+
+    @Test
+    fun `enqueue coalesces duplicate URLs via unique work with KEEP`() {
+        val workManager = mockk<WorkManager>(relaxed = true)
+        val url = "https://example.com/article"
+
+        CreateBookmarkWorker.enqueue(
+            workManager = workManager,
+            url = url,
+            title = "Title",
+            labels = emptyList()
+        )
+
+        // Unique work keyed by URL + KEEP = a double-tap/double-share can't spawn a second worker
+        // for the same URL (test matrix W3: "concurrent duplicate enqueues -> one bookmark").
+        verify {
+            workManager.enqueueUniqueWork(
+                CreateBookmarkWorker.uniqueWorkName(url),
+                ExistingWorkPolicy.KEEP,
+                any<OneTimeWorkRequest>()
+            )
+        }
+    }
+
+    @Test
+    fun `uniqueWorkName is stable per URL and distinct across URLs`() {
+        val a = CreateBookmarkWorker.uniqueWorkName("https://example.com/a")
+        val aAgain = CreateBookmarkWorker.uniqueWorkName("https://example.com/a")
+        val b = CreateBookmarkWorker.uniqueWorkName("https://example.com/b")
+
+        assertEquals(a, aAgain) // same URL coalesces
+        assert(a != b)          // different URLs do not collide
+        assertEquals("create_" + UUID.nameUUIDFromBytes("https://example.com/a".toByteArray()), a)
+    }
+
+    @Test
+    fun `doWork on retry passes attempt timestamp so the repository reconciles`() = runTest {
+        val attemptTs = 1_700_000_000_000L
+        val inputData = createInputData(attemptTimestampMs = attemptTs)
+        every { workerParams.inputData } returns inputData
+        every { workerParams.runAttemptCount } returns 1
+        val worker = CreateBookmarkWorker(context, workerParams, bookmarkRepositoryProvider)
+        coEvery { bookmarkRepository.createBookmark(any(), any(), any(), any()) } returns "bookmark-123"
+
+        val result = worker.doWork()
+
+        assert(result is ListenableWorker.Result.Success)
+        coVerify {
+            bookmarkRepository.createBookmark(
+                "Test Title", "https://example.com", listOf("label1", "label2"), attemptTs
+            )
+        }
+    }
+
+    @Test
+    fun `doWork on first attempt does not request reconcile`() = runTest {
+        val inputData = createInputData(attemptTimestampMs = 1_700_000_000_000L)
+        every { workerParams.inputData } returns inputData
+        every { workerParams.runAttemptCount } returns 0
+        val worker = CreateBookmarkWorker(context, workerParams, bookmarkRepositoryProvider)
+        coEvery { bookmarkRepository.createBookmark(any(), any(), any(), any()) } returns "bookmark-123"
+
+        val result = worker.doWork()
+
+        assert(result is ListenableWorker.Result.Success)
+        // First attempt -> null timestamp -> repository POSTs directly (happy path unchanged).
+        coVerify {
+            bookmarkRepository.createBookmark(
+                "Test Title", "https://example.com", listOf("label1", "label2"), null
+            )
+        }
     }
 }

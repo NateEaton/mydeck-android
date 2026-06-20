@@ -5,12 +5,14 @@ import androidx.hilt.work.HiltWorker
 import androidx.work.Constraints
 import androidx.work.CoroutineWorker
 import androidx.work.ExistingWorkPolicy
+import androidx.work.ForegroundInfo
 import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import com.mydeck.app.domain.content.ContentPackageManager
+import com.mydeck.app.domain.content.ContentSource
 import com.mydeck.app.domain.sync.OfflinePolicy
 import com.mydeck.app.domain.sync.OfflinePolicyEvaluator
 import com.mydeck.app.domain.sync.OfflinePolicyEvaluator.Companion.avgArticleBytes
@@ -26,6 +28,7 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.datetime.Clock
 import timber.log.Timber
+import kotlin.coroutines.cancellation.CancellationException
 
 @HiltWorker
 class BatchArticleLoadWorker @AssistedInject constructor(
@@ -38,16 +41,33 @@ class BatchArticleLoadWorker @AssistedInject constructor(
     private val contentPackageManager: ContentPackageManager
 ) : CoroutineWorker(appContext, workerParams) {
 
+    override suspend fun getForegroundInfo(): ForegroundInfo =
+        offlineContentForegroundInfo(applicationContext)
+
     override suspend fun doWork(): Result {
         if (!settingsDataStore.isOfflineReadingEnabled()) {
             Timber.i("BatchArticleLoadWorker: offline reading disabled, skipping work")
             return Result.success()
         }
 
+        // W7: give offline-content sync the same OS-level visibility as metadata sync by promoting
+        // to a foreground (dataSync) service, exactly like FullSyncWorker/LoadBookmarksWorker.
+        // Best-effort and fully decoupled from the download: if promotion is disallowed (e.g. the
+        // worker was started from the background on Android 12+), log and continue so downloads
+        // never depend on notification success. NO setExpedited — that broke content sync before.
+        try {
+            setForeground(getForegroundInfo())
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Timber.w(e, "Failed to promote BatchArticleLoadWorker to foreground")
+        }
+
         // Priority single-bookmark path: skip the normal batch logic.
         val priorityBookmarkId = inputData.getString(KEY_PRIORITY_BOOKMARK_ID)
         if (priorityBookmarkId != null) {
-            return processPriorityBookmark(priorityBookmarkId)
+            val prioritySource = ContentSource.fromStored(inputData.getString(KEY_PRIORITY_SOURCE))
+            return processPriorityBookmark(priorityBookmarkId, prioritySource)
         }
 
         val overrideConstraints = inputData.getBoolean(KEY_OVERRIDE_CONSTRAINTS, false)
@@ -70,6 +90,7 @@ class BatchArticleLoadWorker @AssistedInject constructor(
             var previousPendingCount = -1
             var stalledRetries = 0
             var processedThisRun = 0
+            var stalledWithPending = false
             
             while (true) {
                 // Check constraints before each batch (skip if user overrode)
@@ -164,6 +185,7 @@ class BatchArticleLoadWorker @AssistedInject constructor(
                             "Stalled: pending count unchanged at ${pendingBookmarkIds.size} " +
                                 "after $stalledRetries retries (batch $batchIndex), stopping batch loop"
                         )
+                        stalledWithPending = true
                         break
                     }
                 } else {
@@ -211,18 +233,39 @@ class BatchArticleLoadWorker @AssistedInject constructor(
                 delay(BATCH_DELAY_MS)
             }
 
+            // Absolute storage cap spans both pools and is the only thing that may evict MANUAL.
+            enforceAbsoluteStorageCap()
+
             settingsDataStore.saveLastContentSyncTimestamp(Clock.System.now())
-            Timber.i("BatchArticleLoadWorker completed successfully")
-            return Result.success()
+            return when {
+                stalledWithPending && runAttemptCount < MAX_RUN_ATTEMPTS -> {
+                    Timber.w(
+                        "BatchArticleLoadWorker stalled with eligible bookmarks still pending " +
+                            "(runAttemptCount=$runAttemptCount); retrying with backoff"
+                    )
+                    Result.retry()
+                }
+                stalledWithPending -> {
+                    Timber.w(
+                        "BatchArticleLoadWorker stalled with eligible bookmarks still pending " +
+                            "after $runAttemptCount run attempts; giving up to avoid infinite churn"
+                    )
+                    Result.success()
+                }
+                else -> {
+                    Timber.i("BatchArticleLoadWorker completed successfully")
+                    Result.success()
+                }
+            }
         } catch (e: Exception) {
             Timber.e(e, "BatchArticleLoadWorker failed")
             return if (e.isHttpBlockedByBuildPolicy()) Result.failure() else Result.retry()
         }
     }
 
-    private suspend fun processPriorityBookmark(bookmarkId: String): Result {
+    private suspend fun processPriorityBookmark(bookmarkId: String, source: ContentSource): Result {
         return try {
-            Timber.d("BatchArticleLoadWorker: priority download starting for $bookmarkId")
+            Timber.d("BatchArticleLoadWorker: priority download starting for $bookmarkId (source=$source)")
             if (!settingsDataStore.isOfflineReadingEnabled()) {
                 Timber.i("Priority content fetch skipped because offline reading is disabled for $bookmarkId")
                 return Result.success()
@@ -235,7 +278,11 @@ class BatchArticleLoadWorker @AssistedInject constructor(
                 Timber.i("Priority content fetch blocked by constraints for $bookmarkId")
                 return Result.success()
             }
-            loadContentPackageUseCase.executeBatch(listOf(bookmarkId))
+            // Priority download provenance is set by the caller: promote-on-open → AUTOMATIC
+            // (managed/prunable), explicit pin (per-article / multi-select) → MANUAL (pinned). W2.
+            loadContentPackageUseCase.executeBatch(listOf(bookmarkId), source)
+            // Newly-added MANUAL content can push total usage over the absolute cap.
+            enforceAbsoluteStorageCap()
             settingsDataStore.saveLastContentSyncTimestamp(Clock.System.now())
             Timber.i("BatchArticleLoadWorker: priority download completed for $bookmarkId")
             Result.success()
@@ -269,7 +316,7 @@ class BatchArticleLoadWorker @AssistedInject constructor(
                 }
                 val remainingOutsideWindow =
                     bookmarkDao.getDownloadedBookmarkIdsOutsideNewestN(newestN, includeArchived).size
-                val usageAfterWindowPrune = contentPackageManager.calculateManagedOfflineSize()
+                val usageAfterWindowPrune = contentPackageManager.calculateAutomaticOfflineSize()
                 Timber.i(
                     "Prune cycle complete for NEWEST_N window overflow " +
                         "(remainingOutsideWindow=$remainingOutsideWindow, usage=${usageAfterWindowPrune / 1024}KB)"
@@ -278,11 +325,16 @@ class BatchArticleLoadWorker @AssistedInject constructor(
         }
 
         // --- Entry check ---
+        // Prune operates only on AUTOMATIC full packages (W2); MANUAL packages (promote-on-open /
+        // multi-select) are protected from the policy prune and survive until the absolute storage
+        // cap is exceeded (see enforceAbsoluteStorageCap) or Clear All / disable.
         val initialBookmarks = bookmarkDao.getOfflinePolicyBookmarks(includeArchived)
-            .filter { it.hasOfflinePackage }
+            .filter { it.hasOfflinePackage && it.source == ContentSource.AUTOMATIC.name }
         if (initialBookmarks.isEmpty()) return
 
-        val initialUsage = contentPackageManager.calculateManagedOfflineSize()
+        // Policy prune is driven by policy-size (AUTOMATIC only), not cap-size, so a large
+        // hand-picked MANUAL pool can never trigger eviction of policy-downloaded content.
+        val initialUsage = contentPackageManager.calculateAutomaticOfflineSize()
         if (!policyEvaluator.shouldPrune(initialBookmarks, initialUsage)) return
 
         Timber.i(
@@ -293,10 +345,10 @@ class BatchArticleLoadWorker @AssistedInject constructor(
         // --- Prune loop: remove one at a time until soft ceiling ---
         while (true) {
             val downloadedBookmarks = bookmarkDao.getOfflinePolicyBookmarks(includeArchived)
-                .filter { it.hasOfflinePackage }
+                .filter { it.hasOfflinePackage && it.source == ContentSource.AUTOMATIC.name }
             if (downloadedBookmarks.isEmpty()) return
 
-            val totalUsageBytes = contentPackageManager.calculateManagedOfflineSize()
+            val totalUsageBytes = contentPackageManager.calculateAutomaticOfflineSize()
             if (policyEvaluator.isPrunedEnough(downloadedBookmarks, totalUsageBytes)) {
                 Timber.i(
                     "Prune cycle complete (usage=${totalUsageBytes / 1024}KB, " +
@@ -312,14 +364,48 @@ class BatchArticleLoadWorker @AssistedInject constructor(
         }
     }
 
+    /**
+     * Enforce the absolute storage cap across **both** provenance pools (W2).
+     *
+     * This is the only mechanism that may evict MANUAL content. When total
+     * on-device package size (AUTOMATIC + MANUAL) exceeds the user-configured
+     * cap, packages are evicted oldest-downloaded-first (`lastRefreshed ASC`)
+     * across both pools until usage is at or below the cap. No-op when the cap
+     * is UNLIMITED. Distinct from [pruneManagedContentIfNeeded], which is the
+     * AUTOMATIC-only policy prune and never evicts MANUAL.
+     */
+    private suspend fun enforceAbsoluteStorageCap() {
+        val cap = settingsDataStore.getOfflineMaxStorageCap()
+        if (cap == Long.MAX_VALUE) return // UNLIMITED — cap disabled
+
+        var usage = contentPackageManager.calculateManagedOfflineSize()
+        if (usage <= cap) return
+
+        Timber.i(
+            "Absolute storage cap exceeded (usage=${usage / 1024}KB > cap=${cap / 1024}KB); " +
+                "evicting oldest-downloaded-first across both pools"
+        )
+        for (bookmarkId in bookmarkDao.getOfflinePackageBookmarkIdsOldestRefreshedFirst()) {
+            if (usage <= cap) break
+            contentPackageManager.deleteContentForBookmark(bookmarkId)
+            usage = contentPackageManager.calculateManagedOfflineSize()
+            Timber.i("Cap-evicted offline content for $bookmarkId (usage now ${usage / 1024}KB)")
+        }
+        if (usage > cap) {
+            Timber.w("Storage still above cap after evicting all packages (usage=${usage / 1024}KB)")
+        }
+    }
+
     companion object {
         const val UNIQUE_WORK_NAME = "batch_article_load"
         const val WORK_TAG_OFFLINE_CONTENT = "offline_content_work"
         const val KEY_PRIORITY_BOOKMARK_ID = "priority_bookmark_id"
+        const val KEY_PRIORITY_SOURCE = "priority_source"
         const val KEY_OVERRIDE_CONSTRAINTS = "override_constraints"
         private const val PRIORITY_WORK_NAME_PREFIX = "content_priority_"
         private const val BATCH_DELAY_MS = 500L
         private const val MAX_STALLED_RETRIES = 3
+        private const val MAX_RUN_ATTEMPTS = 5
 
         internal const val MAX_BATCH_SIZE = 3
         private const val MAX_PROCESSED_PER_RUN = 100
@@ -346,10 +432,16 @@ class BatchArticleLoadWorker @AssistedInject constructor(
         fun enqueuePriorityDownload(
             workManager: WorkManager,
             bookmarkId: String,
-            constraints: Constraints
+            constraints: Constraints,
+            source: ContentSource
         ) {
             val request = OneTimeWorkRequestBuilder<BatchArticleLoadWorker>()
-                .setInputData(workDataOf(KEY_PRIORITY_BOOKMARK_ID to bookmarkId))
+                .setInputData(
+                    workDataOf(
+                        KEY_PRIORITY_BOOKMARK_ID to bookmarkId,
+                        KEY_PRIORITY_SOURCE to source.name
+                    )
+                )
                 .setConstraints(constraints)
                 .addTag(WORK_TAG_OFFLINE_CONTENT)
                 .build()

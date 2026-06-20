@@ -50,7 +50,11 @@ interface BookmarkRepository {
     suspend fun createBookmark(
         title: String,
         url: String,
-        labels: List<String> = emptyList()
+        labels: List<String> = emptyList(),
+        // When non-null, this is a create RETRY: before POSTing, reconcile against the server and
+        // adopt an already-created bookmark for this URL if one exists (W3 lost-response idempotency).
+        // The value is the original attempt time (epoch ms) used to tell "this add" from a prior add.
+        attemptTimestampMs: Long? = null
     ): String
     suspend fun updateBookmark(bookmarkId: String, isFavorite: Boolean?, isArchived: Boolean?, isRead: Boolean?): UpdateResult
     suspend fun updateBookmarks(updates: List<BookmarkBatchUpdate>): UpdateResult
@@ -117,6 +121,9 @@ interface BookmarkRepository {
     suspend fun refreshBookmarkMetadata(bookmarkId: String)
     suspend fun fetchExtractionLog(bookmarkId: String): ExtractionLogResult
 
+    /** Debug-only: aggregated offline storage facts for a single bookmark. */
+    suspend fun getOfflineContentDebugInfo(bookmarkId: String): OfflineContentDebugInfo
+
     sealed interface BookmarkSyncProgress {
         data object Idle : BookmarkSyncProgress
         data class Running(val page: Int, val totalPages: Int) : BookmarkSyncProgress
@@ -145,3 +152,15 @@ interface BookmarkRepository {
         data class NetworkError(val errorMessage: String, val ex: Exception?): SyncResult()
     }
 }
+
+/** Immutable snapshot of offline storage facts used by the debug exporter. */
+data class OfflineContentDebugInfo(
+    val hasArticleContent: Boolean,
+    val articleContentLength: Int,
+    val hasPackage: Boolean,
+    val hasResources: Boolean,
+    val source: String?,        // "AUTOMATIC" | "MANUAL" | null
+    val resourceCount: Int,
+    val resourceTotalBytes: Long,
+    val contentDir: java.io.File?
+)

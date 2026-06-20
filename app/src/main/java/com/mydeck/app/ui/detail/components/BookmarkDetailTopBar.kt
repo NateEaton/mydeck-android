@@ -50,6 +50,10 @@ fun BookmarkDetailTopBar(
     scrollBehavior: TopAppBarScrollBehavior,
     canScrollToTop: Boolean = true,
     onScrollToTop: () -> Unit = {},
+    offlineReadingEnabled: Boolean = false,
+    isPinned: Boolean = false,
+    pinEligible: Boolean = false,
+    onClickTogglePin: (Boolean) -> Unit = {},
 ) {
     if (articleSearchState.isActive) {
         ArticleSearchBar(
@@ -115,7 +119,11 @@ fun BookmarkDetailTopBar(
                     onShowHighlights = onShowHighlights,
                     onClickOpenInBrowser = onClickOpenInBrowser,
                     contentMode = contentMode,
-                    onContentModeChange = onContentModeChange
+                    onContentModeChange = onContentModeChange,
+                    offlineReadingEnabled = offlineReadingEnabled,
+                    isPinned = isPinned,
+                    pinEligible = pinEligible,
+                    onClickTogglePin = onClickTogglePin
                 )
             }
         )

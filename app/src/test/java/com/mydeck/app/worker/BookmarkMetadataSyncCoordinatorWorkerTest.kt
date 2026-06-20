@@ -58,7 +58,10 @@ class BookmarkMetadataSyncCoordinatorWorkerTest {
         coEvery { settingsDataStore.saveLastSyncTimestamp(any()) } returns Unit
         coEvery { settingsDataStore.saveLastFullSyncTimestamp(any()) } returns Unit
         coEvery { settingsDataStore.setInitialSyncPerformed(any()) } returns Unit
+        // initialWorker (trigger=INITIAL) is passive → userInitiated=false (default);
+        // manualWorker (isManualSync=true) is the user-initiated trigger → userInitiated=true.
         coEvery { loadBookmarksUseCase.enqueueContentSyncIfNeeded() } returns Unit
+        coEvery { loadBookmarksUseCase.enqueueContentSyncIfNeeded(userInitiated = true) } returns Unit
         coEvery { highlightsRepository.requestRefresh(any()) } returns Result.success(Unit)
 
         val initialWorker = loadWorker(

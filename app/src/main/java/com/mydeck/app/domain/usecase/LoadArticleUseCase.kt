@@ -33,8 +33,13 @@ class LoadArticleUseCase @Inject constructor(
     suspend fun execute(bookmarkId: String, markDirtyAfterSuccess: Boolean = false): Result {
         val bookmark = bookmarkRepository.getBookmarkById(bookmarkId)
 
-        // Guard: never re-fetch downloaded content
-        if (bookmark.contentState == ContentState.DOWNLOADED) {
+        // Guard (spec §4.2): only short-circuit for the on-demand text cache this use case OWNS.
+        // Skip a re-fetch when the article_content text is already present and current (DOWNLOADED).
+        // A DIRTY row (stale / server content newer) falls through so the text is refreshed; a row
+        // with a full package but no separate text cache is not "our" text, so we still cache it.
+        if (bookmark.contentState == ContentState.DOWNLOADED &&
+            bookmarkDao.getArticleContent(bookmarkId) != null
+        ) {
             return Result.AlreadyDownloaded
         }
 

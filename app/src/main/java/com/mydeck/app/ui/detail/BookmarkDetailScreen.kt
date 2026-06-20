@@ -268,6 +268,9 @@ fun BookmarkDetailHost(
     val galleryData = viewModel.galleryData.collectAsState().value
     val readerContextMenu = viewModel.readerContextMenu.collectAsState().value
     val extractionLogState = viewModel.extractionLogState.collectAsState().value
+    val offlineReadingEnabled = viewModel.offlineReadingEnabled.collectAsState().value
+    val isPinned = viewModel.isPinned.collectAsState().value
+    val pinEligible = viewModel.pinEligible.collectAsState().value
     val readerWebView = remember { mutableStateOf<WebView?>(null) }
     var detailOverlay by remember { mutableStateOf(DetailOverlay.NONE) }
     var showTypographyPanel by remember { mutableStateOf(false) }
@@ -477,6 +480,12 @@ fun BookmarkDetailHost(
 
     // In-place annotation updates via JS (avoids full WebView reload)
     LaunchedEffect(Unit) {
+        viewModel.pinFeedbackEvent.collect { messageResId ->
+            snackbarHostState.showSnackbar(context.getString(messageResId))
+        }
+    }
+
+    LaunchedEffect(Unit) {
         viewModel.annotationRefreshEvent.collect { event ->
             val webView = readerWebView.value ?: return@collect
             when (event) {
@@ -651,6 +660,12 @@ fun BookmarkDetailHost(
                     initialReadProgress = viewModel.getInitialReadProgress(),
                     contentMode = contentMode,
                     onContentModeChange = { contentMode = it },
+                    offlineReadingEnabled = offlineReadingEnabled,
+                    isPinned = isPinned,
+                    pinEligible = pinEligible,
+                    onClickTogglePin = { pin ->
+                        if (pin) viewModel.onPinBookmark() else viewModel.onUnpinBookmark()
+                    },
                     contentLoadState = contentLoadState,
                     articleSearchState = articleSearchState,
                     onArticleSearchDeactivate = onArticleSearchDeactivate,
@@ -868,6 +883,10 @@ fun BookmarkDetailScreen(
     initialReadProgress: Int = 0,
     contentMode: ContentMode = ContentMode.READER,
     onContentModeChange: (ContentMode) -> Unit = {},
+    offlineReadingEnabled: Boolean = false,
+    isPinned: Boolean = false,
+    pinEligible: Boolean = false,
+    onClickTogglePin: (Boolean) -> Unit = {},
     contentLoadState: ContentLoadState = ContentLoadState.Idle,
     articleSearchState: BookmarkDetailViewModel.ArticleSearchState = BookmarkDetailViewModel.ArticleSearchState(),
     onArticleSearchDeactivate: () -> Unit = {},
@@ -1194,6 +1213,10 @@ fun BookmarkDetailScreen(
                     onArticleSearchActivate = onArticleSearchActivate,
                     onClickOpenInBrowser = onClickOpenInBrowser,
                     onContentModeChange = onContentModeChange,
+                    offlineReadingEnabled = offlineReadingEnabled,
+                    isPinned = isPinned,
+                    pinEligible = pinEligible,
+                    onClickTogglePin = onClickTogglePin,
                     scrollBehavior = topBarScrollBehavior,
                     canScrollToTop = canScrollReaderToTop,
                     onScrollToTop = {

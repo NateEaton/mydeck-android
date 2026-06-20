@@ -5,10 +5,13 @@ import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import com.mydeck.app.io.db.dao.BookmarkDao
 import com.mydeck.app.io.db.dao.CachedAnnotationDao
+import com.mydeck.app.io.db.dao.ContentPackageDao
 import com.mydeck.app.io.db.model.ArticleContentEntity
 import com.mydeck.app.io.db.model.BookmarkEntity
 import com.mydeck.app.io.db.model.BookmarkWithArticleContent
 import com.mydeck.app.io.db.model.CachedAnnotationEntity
+import com.mydeck.app.io.db.model.ContentPackageEntity
+import com.mydeck.app.io.db.model.ContentResourceEntity
 import com.mydeck.app.io.db.model.ImageResourceEntity
 import com.mydeck.app.io.db.model.RemoteBookmarkIdEntity
 import com.mydeck.app.io.db.model.ResourceEntity
@@ -41,6 +44,7 @@ class BookmarkDaoTest {
     internal abstract class BaseTest {
         lateinit var bookmarkDao: BookmarkDao
         lateinit var cachedAnnotationDao: CachedAnnotationDao
+        lateinit var contentPackageDao: ContentPackageDao
         private lateinit var db: MyDeckDatabase
         val testDispatcher = StandardTestDispatcher()
         val remoteSyncRunId = "remote-sync-run"
@@ -53,6 +57,7 @@ class BookmarkDaoTest {
                 .allowMainThreadQueries().build()
             bookmarkDao = db.getBookmarkDao()
             cachedAnnotationDao = db.getCachedAnnotationDao()
+            contentPackageDao = db.getContentPackageDao()
             generateTestData()
         }
 
@@ -795,5 +800,216 @@ class BookmarkDaoTest {
             val list = bookmarkDao.getFilteredBookmarkListItems(maxWordCount = 150, includeNullWordCount = true).first()
             assertEquals(9, list.size) // 6 in range + 3 null
         }
+    }
+
+    @RunWith(RobolectricTestRunner::class)
+    internal class NewestNWindowEligibilityTest : BaseTest() {
+
+        private fun newBookmark(
+            id: String,
+            created: kotlinx.datetime.Instant,
+            type: BookmarkEntity.Type = BookmarkEntity.Type.ARTICLE,
+            hasArticle: Boolean = true,
+            contentState: BookmarkEntity.ContentState = BookmarkEntity.ContentState.NOT_ATTEMPTED
+        ) = BookmarkEntity(
+            id = id,
+            href = "http://example.com/$id",
+            created = created,
+            updated = created,
+            state = BookmarkEntity.State.LOADED,
+            loaded = true,
+            url = "http://example.com/$id",
+            title = "Bookmark $id",
+            siteName = "Example",
+            site = "example.com",
+            authors = emptyList(),
+            lang = "en",
+            textDirection = "ltr",
+            documentTpe = type.value.lowercase(),
+            type = type,
+            hasArticle = hasArticle,
+            description = "Description for $id",
+            isDeleted = false,
+            isMarked = false,
+            isArchived = false,
+            labels = emptyList(),
+            readProgress = 0,
+            wordCount = 100,
+            readingTime = 5,
+            published = null,
+            embed = null,
+            embedHostname = null,
+            article = ResourceEntity(""),
+            icon = ImageResourceEntity("", 50, 50),
+            image = ImageResourceEntity("", 200, 100),
+            log = ResourceEntity(""),
+            props = ResourceEntity(""),
+            thumbnail = ImageResourceEntity("", 100, 100),
+            contentState = contentState,
+            isLocalDeleted = false
+        )
+
+        private fun day(index: Int): kotlinx.datetime.Instant {
+            val startDate = LocalDate(2025, 6, 1)
+            return startDate.plus(index.toLong(), kotlinx.datetime.DateTimeUnit.DAY).atStartOfDayIn(TimeZone.UTC)
+        }
+
+        @Test
+        fun `window excludes non-article and no-content rows`() = runTest(testDispatcher) {
+            // Newest -> oldest: Video, Article A, PERMANENT_NO_CONTENT row, Article B, Article C
+            val video = newBookmark(
+                id = "win-video",
+                created = day(5),
+                type = BookmarkEntity.Type.VIDEO,
+                hasArticle = false
+            )
+            val articleA = newBookmark(id = "win-a", created = day(4))
+            val noContent = newBookmark(
+                id = "win-nocontent",
+                created = day(3),
+                hasArticle = true,
+                contentState = BookmarkEntity.ContentState.PERMANENT_NO_CONTENT
+            )
+            val articleB = newBookmark(id = "win-b", created = day(2))
+            val articleC = newBookmark(id = "win-c", created = day(1))
+
+            listOf(video, articleA, noContent, articleB, articleC).forEach {
+                bookmarkDao.insertBookmarksWithArticleContent(
+                    listOf(BookmarkWithArticleContent(bookmark = it, articleContent = null))
+                )
+            }
+
+            val result = bookmarkDao.getBookmarkIdsEligibleForNewestNContentFetch(
+                n = 3,
+                includeArchived = true
+            )
+
+            assertEquals(setOf("win-a", "win-b", "win-c"), result.toSet())
+            assertTrue("video must not occupy a window slot", "win-video" !in result)
+            assertTrue("PERMANENT_NO_CONTENT row must not occupy a window slot", "win-nocontent" !in result)
+        }
+
+        @Test
+        fun `prune does not flag article within eligible newest-N window`() = runTest(testDispatcher) {
+            // Newest -> oldest: Video, Article A (downloaded), Video, Article B (downloaded), Article C (downloaded, oldest)
+            val video1 = newBookmark(
+                id = "prune-video1",
+                created = day(5),
+                type = BookmarkEntity.Type.VIDEO,
+                hasArticle = false
+            )
+            val articleA = newBookmark(id = "prune-a", created = day(4))
+            val video2 = newBookmark(
+                id = "prune-video2",
+                created = day(3),
+                type = BookmarkEntity.Type.VIDEO,
+                hasArticle = false
+            )
+            val articleB = newBookmark(id = "prune-b", created = day(2))
+            val articleC = newBookmark(id = "prune-c", created = day(1))
+
+            listOf(video1, articleA, video2, articleB, articleC).forEach {
+                bookmarkDao.insertBookmarksWithArticleContent(
+                    listOf(BookmarkWithArticleContent(bookmark = it, articleContent = null))
+                )
+            }
+
+            listOf(articleA.id, articleB.id, articleC.id).forEach { id ->
+                contentPackageDao.insertPackage(
+                    ContentPackageEntity(
+                        bookmarkId = id,
+                        packageKind = "ARTICLE",
+                        hasHtml = true,
+                        hasResources = true,
+                        sourceUpdated = "2025-06-01T00:00:00Z",
+                        lastRefreshed = 0L,
+                        localBasePath = "packages/$id",
+                        source = "AUTOMATIC"
+                    )
+                )
+            }
+
+            // Eligible newest-N(=2) window is {prune-a, prune-b} (videos don't occupy slots).
+            // prune-a is the newest eligible article and must NOT be flagged for prune.
+            val outsideWindow = bookmarkDao.getDownloadedBookmarkIdsOutsideNewestN(
+                n = 2,
+                includeArchived = true
+            )
+
+            assertTrue("article within eligible window must not be pruned", "prune-a" !in outsideWindow)
+            assertTrue("article within eligible window must not be pruned", "prune-b" !in outsideWindow)
+            assertTrue("article outside eligible window should be pruned", "prune-c" in outsideWindow)
+        }
+
+        // --- Absolute storage cap accounting + eviction order (W2) ---
+
+        @Test
+        fun `cap eviction list orders by lastRefreshed ascending across both pools`() =
+            runTest(testDispatcher) {
+                // Insertion order, bookmark `created`, and provenance are all deliberately
+                // unrelated to lastRefreshed, to prove ordering is purely by lastRefreshed.
+                val autoNew = newBookmark(id = "auto-new", created = day(1))
+                val manualOld = newBookmark(id = "manual-old", created = day(5))
+                val autoMid = newBookmark(id = "auto-mid", created = day(3))
+                listOf(autoNew, manualOld, autoMid).forEach {
+                    bookmarkDao.insertBookmarksWithArticleContent(
+                        listOf(BookmarkWithArticleContent(bookmark = it, articleContent = null))
+                    )
+                }
+                insertFullPackage("manual-old", lastRefreshed = 100L, source = "MANUAL")
+                insertFullPackage("auto-mid", lastRefreshed = 200L, source = "AUTOMATIC")
+                insertFullPackage("auto-new", lastRefreshed = 300L, source = "AUTOMATIC")
+
+                val order = bookmarkDao.getOfflinePackageBookmarkIdsOldestRefreshedFirst()
+
+                assertEquals(listOf("manual-old", "auto-mid", "auto-new"), order)
+            }
+
+        @Test
+        fun `automatic offline size excludes manual packages`() = runTest(testDispatcher) {
+            val auto = newBookmark(id = "size-auto", created = day(1))
+            val manual = newBookmark(id = "size-manual", created = day(2))
+            listOf(auto, manual).forEach {
+                bookmarkDao.insertBookmarksWithArticleContent(
+                    listOf(BookmarkWithArticleContent(bookmark = it, articleContent = null))
+                )
+            }
+            insertFullPackage("size-auto", lastRefreshed = 1L, source = "AUTOMATIC")
+            insertFullPackage("size-manual", lastRefreshed = 2L, source = "MANUAL")
+            contentPackageDao.insertResources(
+                listOf(
+                    contentResource("size-auto", bytes = 1000L),
+                    contentResource("size-manual", bytes = 500L)
+                )
+            )
+
+            // policy-size = AUTOMATIC only; cap-size = both pools.
+            assertEquals(1000L, bookmarkDao.getAutomaticOfflineStorageSize())
+            assertEquals(1500L, bookmarkDao.getManagedOfflineStorageSize())
+        }
+
+        private suspend fun insertFullPackage(id: String, lastRefreshed: Long, source: String) {
+            contentPackageDao.insertPackage(
+                ContentPackageEntity(
+                    bookmarkId = id,
+                    packageKind = "ARTICLE",
+                    hasHtml = true,
+                    hasResources = true,
+                    sourceUpdated = "2025-06-01T00:00:00Z",
+                    lastRefreshed = lastRefreshed,
+                    localBasePath = "packages/$id",
+                    source = source
+                )
+            )
+        }
+
+        private fun contentResource(bookmarkId: String, bytes: Long) = ContentResourceEntity(
+            bookmarkId = bookmarkId,
+            path = "img/$bookmarkId.png",
+            mimeType = "image/png",
+            group = "image",
+            localRelativePath = "packages/$bookmarkId/img.png",
+            byteSize = bytes
+        )
     }
 }

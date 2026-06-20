@@ -17,6 +17,7 @@ import timber.log.Timber
 import com.mydeck.app.io.db.model.ArticleContentEntity
 import com.mydeck.app.io.db.model.BookmarkWithArticleContent
 import com.mydeck.app.io.db.model.BookmarkListItemEntity
+import com.mydeck.app.io.db.model.ContentPackageEntity
 import com.mydeck.app.io.db.model.RemoteBookmarkIdEntity
 import com.mydeck.app.io.db.model.BookmarkCountsEntity
 
@@ -232,11 +233,13 @@ interface BookmarkDao {
     suspend fun hardDeleteBookmark(id: String)
 
     @Transaction
-    @RawQuery(observedEntities = [BookmarkEntity::class])
+    @RawQuery(observedEntities = [BookmarkEntity::class, ContentPackageEntity::class])
     fun getBookmarksByFiltersDynamic(query: SupportSQLiteQuery): Flow<List<BookmarkEntity>>
 
+    // Observes content_package too so the offline/pinned icon re-emits when a package's source is
+    // flipped (pin/unpin) — a UPDATE that touches only content_package, not bookmarks.
     @Transaction
-    @RawQuery(observedEntities = [BookmarkEntity::class])
+    @RawQuery(observedEntities = [BookmarkEntity::class, ContentPackageEntity::class])
     fun getBookmarkListItemsByFiltersDynamic(query: SupportSQLiteQuery): Flow<List<BookmarkListItemEntity>>
 
     @Query("SELECT isMarked FROM bookmarks WHERE id = :id")
@@ -385,8 +388,10 @@ interface BookmarkDao {
             b.created,
             b.wordCount,
             b.published,
+            b.hasArticle,
             b.contentState,
-            cp.hasResources
+            cp.hasResources,
+            cp.source
             """)
 
             append(" FROM bookmarks b")
@@ -585,7 +590,7 @@ interface BookmarkDao {
             b.readProgress, b.icon_src AS iconSrc, b.image_src AS imageSrc,
             b.labels, b.thumbnail_src AS thumbnailSrc, b.type,
             b.readingTime, b.created, b.wordCount, b.published,
-            b.contentState, cp.hasResources
+            b.hasArticle, b.contentState, cp.hasResources, cp.source
             FROM bookmarks b
             LEFT JOIN content_package cp ON cp.bookmarkId = b.id
             WHERE b.isLocalDeleted = 0""")
@@ -664,7 +669,7 @@ interface BookmarkDao {
             b.readProgress, b.icon_src AS iconSrc, b.image_src AS imageSrc,
             b.labels, b.thumbnail_src AS thumbnailSrc, b.type,
             b.readingTime, b.created, b.wordCount, b.published,
-            b.contentState, cp.hasResources
+            b.hasArticle, b.contentState, cp.hasResources, cp.source
             FROM bookmarks b
             LEFT JOIN content_package cp ON cp.bookmarkId = b.id
             WHERE b.isLocalDeleted = 0""")
@@ -827,14 +832,23 @@ interface BookmarkDao {
         val contentDownloaded: Int,
         val contentAvailable: Int,
         val contentDirty: Int,
-        val permanentNoContent: Int
+        val permanentNoContent: Int,
+        /** Live count of AUTOMATIC full packages on device (hasResources=1) — W2/W6. */
+        val fullPackagesAutomatic: Int = 0,
+        /** Live count of MANUAL full packages on device (hasResources=1) — W2/W6. */
+        val fullPackagesManual: Int = 0
     )
 
     data class OfflinePolicyBookmark(
         val id: String,
         val created: Instant,
         val contentState: BookmarkEntity.ContentState,
-        val hasOfflinePackage: Boolean
+        /** A full package is committed: a content_package row exists with hasResources = 1. */
+        val hasOfflinePackage: Boolean,
+        /** Any content_package row is committed (HTML on disk), regardless of hasResources. */
+        val hasContentPackage: Boolean,
+        /** Provenance of the committed package (W2): `AUTOMATIC` | `MANUAL`; null when no package. */
+        val source: String?
     )
 
     @Query("""
@@ -845,15 +859,23 @@ interface BookmarkDao {
             (SELECT COUNT(*) FROM bookmarks WHERE contentState = 1 AND isLocalDeleted = 0) AS contentDownloaded,
             (SELECT COUNT(*) FROM bookmarks WHERE contentState = 0 AND hasArticle = 1 AND isLocalDeleted = 0) AS contentAvailable,
             (SELECT COUNT(*) FROM bookmarks WHERE contentState = 2 AND isLocalDeleted = 0) AS contentDirty,
-            (SELECT COUNT(*) FROM bookmarks WHERE contentState = 3 AND isLocalDeleted = 0) AS permanentNoContent
+            (SELECT COUNT(*) FROM bookmarks WHERE contentState = 3 AND isLocalDeleted = 0) AS permanentNoContent,
+            (SELECT COUNT(*) FROM content_package cp JOIN bookmarks b ON b.id = cp.bookmarkId
+                WHERE cp.hasResources = 1 AND cp.source = 'AUTOMATIC' AND b.isLocalDeleted = 0) AS fullPackagesAutomatic,
+            (SELECT COUNT(*) FROM content_package cp JOIN bookmarks b ON b.id = cp.bookmarkId
+                WHERE cp.hasResources = 1 AND cp.source = 'MANUAL' AND b.isLocalDeleted = 0) AS fullPackagesManual
         FROM bookmarks LIMIT 1
     """)
     fun observeDetailedSyncStatus(): Flow<DetailedSyncStatusCounts?>
 
     @Query("""
         SELECT b.id FROM bookmarks b
-        WHERE b.isLocalDeleted = 0 AND b.contentState IN (0, 2)
+        WHERE b.isLocalDeleted = 0 AND b.contentState != 3
         AND (b.hasArticle = 1 OR b.type = 'photo')
+        AND (
+            b.contentState = 2
+            OR NOT EXISTS (SELECT 1 FROM content_package cp WHERE cp.bookmarkId = b.id)
+        )
         AND (:includeArchived = 1 OR b.isArchived = 0)
         ORDER BY b.created DESC
     """)
@@ -864,7 +886,9 @@ interface BookmarkDao {
             b.id AS id,
             b.created AS created,
             b.contentState AS contentState,
-            CASE WHEN cp.bookmarkId IS NOT NULL AND cp.hasResources = 1 THEN 1 ELSE 0 END AS hasOfflinePackage
+            CASE WHEN cp.bookmarkId IS NOT NULL AND cp.hasResources = 1 THEN 1 ELSE 0 END AS hasOfflinePackage,
+            CASE WHEN cp.bookmarkId IS NOT NULL THEN 1 ELSE 0 END AS hasContentPackage,
+            cp.source AS source
         FROM bookmarks b
         LEFT JOIN content_package cp ON cp.bookmarkId = b.id
         WHERE b.isLocalDeleted = 0
@@ -892,11 +916,17 @@ interface BookmarkDao {
     @Query("""
         SELECT b.id FROM bookmarks b
         WHERE b.isLocalDeleted = 0
-        AND b.contentState IN (0, 2)
+        AND b.contentState != 3
         AND (b.hasArticle = 1 OR b.type = 'photo')
+        AND (
+            b.contentState = 2
+            OR NOT EXISTS (SELECT 1 FROM content_package cp WHERE cp.bookmarkId = b.id)
+        )
         AND b.id IN (
             SELECT id FROM bookmarks
             WHERE isLocalDeleted = 0
+            AND (hasArticle = 1 OR type = 'photo')
+            AND contentState != 3
             AND (:includeArchived = 1 OR isArchived = 0)
             ORDER BY created DESC
             LIMIT :n
@@ -911,11 +941,16 @@ interface BookmarkDao {
     @Query("""
         SELECT b.id FROM bookmarks b
         WHERE b.isLocalDeleted = 0
-        AND b.contentState = 1
+        AND EXISTS (
+            SELECT 1 FROM content_package cp
+            WHERE cp.bookmarkId = b.id AND cp.hasResources = 1 AND cp.source = 'AUTOMATIC'
+        )
         AND (:includeArchived = 1 OR b.isArchived = 0)
         AND b.id NOT IN (
             SELECT id FROM bookmarks
             WHERE isLocalDeleted = 0
+            AND (hasArticle = 1 OR type = 'photo')
+            AND contentState != 3
             AND (:includeArchived = 1 OR isArchived = 0)
             ORDER BY created DESC
             LIMIT :n
@@ -986,8 +1021,12 @@ interface BookmarkDao {
 
     @Query("""
         SELECT b.id FROM bookmarks b
-        WHERE b.isLocalDeleted = 0 AND b.contentState IN (0, 2)
+        WHERE b.isLocalDeleted = 0 AND b.contentState != 3
         AND (b.hasArticle = 1 OR b.type = 'photo')
+        AND (
+            b.contentState = 2
+            OR NOT EXISTS (SELECT 1 FROM content_package cp WHERE cp.bookmarkId = b.id)
+        )
         AND (:includeArchived = 1 OR b.isArchived = 0)
         AND b.created >= :fromEpoch AND b.created <= :toEpoch
         ORDER BY b.created DESC
@@ -1008,6 +1047,11 @@ interface BookmarkDao {
     """)
     suspend fun getBookmarkIdsWithOfflinePackages(): List<String>
 
+    /**
+     * Total on-device bytes of **all** full packages across both provenance pools
+     * (AUTOMATIC + MANUAL). This is the **cap-size** that drives the absolute
+     * storage-cap enforcement (W2).
+     */
     @Query("""
         SELECT COALESCE(
             (SELECT SUM(byteSize) FROM content_resource WHERE bookmarkId IN (SELECT bookmarkId FROM content_package WHERE hasResources = 1)), 0
@@ -1016,6 +1060,35 @@ interface BookmarkDao {
         )
     """)
     suspend fun getManagedOfflineStorageSize(): Long
+
+    /**
+     * Total on-device bytes of AUTOMATIC full packages only. This is the
+     * **policy-size** that drives the policy prune (W2): MANUAL bytes must not
+     * count toward the policy storage limit, or a large hand-picked pool would
+     * trigger eviction of policy-downloaded content.
+     */
+    @Query("""
+        SELECT COALESCE(
+            (SELECT SUM(byteSize) FROM content_resource WHERE bookmarkId IN (SELECT bookmarkId FROM content_package WHERE hasResources = 1 AND source = 'AUTOMATIC')), 0
+        ) + COALESCE(
+            (SELECT SUM(LENGTH(CAST(content AS BLOB))) FROM article_content WHERE bookmarkId IN (SELECT bookmarkId FROM content_package WHERE hasResources = 1 AND source = 'AUTOMATIC')), 0
+        )
+    """)
+    suspend fun getAutomaticOfflineStorageSize(): Long
+
+    /**
+     * Bookmark ids of every on-device full package across **both** provenance
+     * pools, ordered oldest-downloaded first (`lastRefreshed ASC`). Drives the
+     * absolute storage-cap eviction (W2) — the only mechanism that may evict
+     * MANUAL content. The candidate set matches [getManagedOfflineStorageSize]
+     * exactly (all `hasResources = 1` packages, no archive/pool filter).
+     */
+    @Query("""
+        SELECT bookmarkId FROM content_package
+        WHERE hasResources = 1
+        ORDER BY lastRefreshed ASC
+    """)
+    suspend fun getOfflinePackageBookmarkIdsOldestRefreshedFirst(): List<String>
 
     @Query("SELECT COALESCE(SUM(byteSize), 0) FROM content_resource WHERE mimeType LIKE 'image/%'")
     suspend fun getTotalImageResourceBytes(): Long

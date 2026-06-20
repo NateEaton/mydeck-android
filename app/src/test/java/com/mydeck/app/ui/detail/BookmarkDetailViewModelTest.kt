@@ -96,6 +96,7 @@ class BookmarkDetailViewModelTest {
         loadArticleUseCase = mockk(relaxed = true)
         loadContentPackageUseCase = mockk(relaxed = true)
         contentPackageManager = mockk(relaxed = true)
+        every { contentPackageManager.observePackageSource(any()) } returns MutableStateFlow(null)
         every { contentPackageManager.getContentDir(any()) } returns null
         coEvery { contentPackageManager.hasResources(any()) } returns true
         coEvery { loadContentPackageUseCase.execute(any(), any()) } returns LoadContentPackageUseCase.Result.TransientFailure("Not available")
@@ -122,6 +123,7 @@ class BookmarkDetailViewModelTest {
         every { settingsDataStore.typographySettingsFlow } returns MutableStateFlow(com.mydeck.app.domain.model.TypographySettings())
         every { settingsDataStore.keepScreenOnWhileReadingFlow } returns MutableStateFlow(true)
         every { settingsDataStore.fullscreenWhileReadingFlow } returns MutableStateFlow(false)
+        every { settingsDataStore.offlineReadingEnabledFlow } returns MutableStateFlow(false)
         coEvery { settingsDataStore.getBookmarkShareFormat() } returns BookmarkShareFormat.URL_ONLY
         coEvery { settingsDataStore.isOfflineReadingEnabled() } returns false
         coEvery { settingsDataStore.getOfflineContentScope() } returns OfflineContentScope.MY_LIST_AND_ARCHIVED

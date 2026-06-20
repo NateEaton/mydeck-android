@@ -142,7 +142,7 @@ class FullSyncWorkerTest {
             updatedIds = listOf("bk-1", "bk-2", "bk-3"),
             maxServerTime = Clock.System.now()
         )
-        coEvery { fixture.loadBookmarksUseCase.enqueueContentSyncIfNeeded() } returns Unit
+        coEvery { fixture.loadBookmarksUseCase.enqueueContentSyncIfNeeded(userInitiated = true) } returns Unit
 
         val result = fixture.worker.doWork()
 
@@ -152,6 +152,11 @@ class FullSyncWorkerTest {
         }
         coVerify(exactly = 0) {
             fixture.highlightsRepository.requestRefresh(HighlightsRefreshReason.USER_RETRY)
+        }
+        // Bug 4.6 (W5): manual/user-initiated sync must thread userInitiated=true so the
+        // content-sync scheduler uses REPLACE instead of silently KEEP-dropping the trigger.
+        coVerify(exactly = 1) {
+            fixture.loadBookmarksUseCase.enqueueContentSyncIfNeeded(userInitiated = true)
         }
     }
 
