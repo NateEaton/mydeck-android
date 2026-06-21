@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.14.2] - 2026-06-19
+
+### Added
+
+- Offline pinning: pin articles to keep them available offline and protected from automatic cleanup. Pin or unpin from bookmark multi-select or the reader's overflow menu.
+- System notification for offline content downloads, consistent with metadata sync.
+
+### Changed
+
+- Reworked offline content storage so downloads are reliable and complete (text and images), keyed off actual content completeness rather than a single overloaded state flag.
+- Opening an article now caches it as managed content (subject to automatic cleanup); pin it to keep it offline.
+- Settings shows current on-device offline storage, split into automatic and pinned content.
+
+### Fixed
+
+- Newly added articles now reliably download with their images instead of getting stuck as text-only.
+- "Clear All Offline Content" now clears every form of downloaded content, not just managed packages.
+- More reliable offline sync and trimming on flaky networks: a manual sync is no longer silently dropped, and partial or failed downloads are retried.
+- No more duplicate bookmarks when saving over a dropped connection.
+
 ## [0.14.1] - 2026-06-08
 
 ### Changed
