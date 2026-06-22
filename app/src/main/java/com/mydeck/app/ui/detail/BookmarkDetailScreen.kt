@@ -321,7 +321,7 @@ fun BookmarkDetailHost(
             val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url))
             context.startActivity(intent)
         } catch (e: Exception) {
-            // Handle error silently or show snackbar
+            Timber.w(e, "Failed to open URL in browser: %s", url)
         }
     }
 
