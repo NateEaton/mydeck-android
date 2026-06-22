@@ -145,6 +145,7 @@ import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.navigation.compose.rememberNavController
+import timber.log.Timber
 
 private const val PendingDeleteFromDetailKey = "pending_delete_bookmark_id"
 private const val PendingDeleteSnackbarTitleMaxChars = 18
@@ -322,7 +323,7 @@ fun BookmarkListScreen(
                         android.content.ClipData.newUri(context.contentResolver, "image", imageUri)
                     )
                 } catch (e: Exception) {
-                    // silent fail
+                    Timber.w(e, "Failed to copy image to clipboard")
                 }
             }
         }
@@ -387,7 +388,7 @@ fun BookmarkListScreen(
                     }
                     context.startActivity(android.content.Intent.createChooser(shareIntent, null))
                 } catch (e: Exception) {
-                    // silent fail
+                    Timber.w(e, "Failed to share image")
                 }
             }
         }

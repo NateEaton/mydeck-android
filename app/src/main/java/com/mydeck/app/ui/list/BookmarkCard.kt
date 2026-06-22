@@ -649,86 +649,24 @@ fun BookmarkMosaicCard(
                 }
             }
 
-        if (showCardIndexOverlay && index != null) {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = index.toString(),
-                    fontSize = 44.sp,
-                    fontWeight = FontWeight.Black,
-                    color = Color.White,
-                    style = androidx.compose.ui.text.TextStyle(
-                        shadow = Shadow(
-                            color = Color.Black,
-                            offset = Offset(2f, 2f),
-                            blurRadius = 6f
-                        )
-                    )
-                )
-            }
+        BookmarkCardIndexOverlay(index)
         }
-        }
-        if (showBodyContextMenu && !isSelectionMode) {
-            LongPressContextMenuDialog(
-                headerImageUrl = bookmark.iconSrc,
-                title = bookmark.title,
-                subtitle = bookmark.url,
-                onDismiss = { showBodyContextMenu = false },
-            ) {
-                LongPressContextMenuItem(
-                    icon = Icons.Outlined.ContentCopy,
-                    text = stringResource(R.string.action_copy_link),
-                    onClick = { showBodyContextMenu = false; onClickCopyLink(bookmark.url) },
-                )
-                LongPressContextMenuItem(
-                    icon = Icons.Outlined.ContentCopy,
-                    text = stringResource(R.string.action_copy_link_text),
-                    onClick = { showBodyContextMenu = false; onClickCopyLinkText(bookmark.title) },
-                )
-                LongPressContextMenuItem(
-                    icon = Icons.Outlined.Download,
-                    text = stringResource(R.string.action_download_link),
-                    onClick = { showBodyContextMenu = false; onClickDownloadLink(bookmark.url, bookmark.title) },
-                )
-                LongPressContextMenuItem(
-                    icon = Icons.Outlined.Share,
-                    text = stringResource(R.string.action_share_link),
-                    onClick = { showBodyContextMenu = false; onClickShareLink(bookmark.title, bookmark.url) },
-                )
-                LongPressContextMenuItem(
-                    icon = Icons.AutoMirrored.Filled.OpenInNew,
-                    text = stringResource(R.string.action_open_in_browser),
-                    onClick = { showBodyContextMenu = false; onClickOpenInBrowserFromMenu(bookmark.url) },
-                )
-
-            }
-        }
-        if (showImageContextMenu && !isSelectionMode && bookmark.imageSrc.isNotBlank()) {
-            LongPressContextMenuDialog(
-                headerImageUrl = bookmark.imageSrc,
-                title = bookmark.title,
-                subtitle = bookmark.imageSrc,
-                onDismiss = { showImageContextMenu = false },
-            ) {
-                LongPressContextMenuItem(
-                    icon = Icons.Outlined.ContentCopy,
-                    text = stringResource(R.string.action_copy_image),
-                    onClick = { showImageContextMenu = false; onClickCopyImage(bookmark.imageSrc) },
-                )
-                LongPressContextMenuItem(
-                    icon = Icons.Outlined.Download,
-                    text = stringResource(R.string.action_download_image),
-                    onClick = { showImageContextMenu = false; onClickDownloadImage(bookmark.imageSrc) },
-                )
-                LongPressContextMenuItem(
-                    icon = Icons.Outlined.Share,
-                    text = stringResource(R.string.action_share_image),
-                    onClick = { showImageContextMenu = false; onClickShareImage(bookmark.imageSrc) },
-                )
-            }
-        }
+        BookmarkCardContextMenus(
+            bookmark = bookmark,
+            isSelectionMode = isSelectionMode,
+            showBodyMenu = showBodyContextMenu,
+            onDismissBodyMenu = { showBodyContextMenu = false },
+            showImageMenu = showImageContextMenu,
+            onDismissImageMenu = { showImageContextMenu = false },
+            onClickCopyLink = onClickCopyLink,
+            onClickCopyLinkText = onClickCopyLinkText,
+            onClickDownloadLink = onClickDownloadLink,
+            onClickShareLink = onClickShareLink,
+            onClickOpenInBrowserFromMenu = onClickOpenInBrowserFromMenu,
+            onClickCopyImage = onClickCopyImage,
+            onClickDownloadImage = onClickDownloadImage,
+            onClickShareImage = onClickShareImage,
+        )
     }
 }
 
@@ -1110,86 +1048,24 @@ private fun BookmarkGridCardMobilePortrait(
             }
         }
 
-        if (showCardIndexOverlay && index != null) {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = index.toString(),
-                    fontSize = 44.sp,
-                    fontWeight = FontWeight.Black,
-                    color = Color.White,
-                    style = androidx.compose.ui.text.TextStyle(
-                        shadow = Shadow(
-                            color = Color.Black,
-                            offset = Offset(2f, 2f),
-                            blurRadius = 6f
-                        )
-                    )
-                )
-            }
-        }
+        BookmarkCardIndexOverlay(index)
 
-        if (showBodyContextMenu && !isSelectionMode) {
-            LongPressContextMenuDialog(
-                headerImageUrl = bookmark.iconSrc,
-                title = bookmark.title,
-                subtitle = bookmark.url,
-                onDismiss = { showBodyContextMenu = false },
-            ) {
-                LongPressContextMenuItem(
-                    icon = Icons.Outlined.ContentCopy,
-                    text = stringResource(R.string.action_copy_link),
-                    onClick = { showBodyContextMenu = false; onClickCopyLink(bookmark.url) },
-                )
-                LongPressContextMenuItem(
-                    icon = Icons.Outlined.ContentCopy,
-                    text = stringResource(R.string.action_copy_link_text),
-                    onClick = { showBodyContextMenu = false; onClickCopyLinkText(bookmark.title) },
-                )
-                LongPressContextMenuItem(
-                    icon = Icons.Outlined.Download,
-                    text = stringResource(R.string.action_download_link),
-                    onClick = { showBodyContextMenu = false; onClickDownloadLink(bookmark.url, bookmark.title) },
-                )
-                LongPressContextMenuItem(
-                    icon = Icons.Outlined.Share,
-                    text = stringResource(R.string.action_share_link),
-                    onClick = { showBodyContextMenu = false; onClickShareLink(bookmark.title, bookmark.url) },
-                )
-                LongPressContextMenuItem(
-                    icon = Icons.AutoMirrored.Filled.OpenInNew,
-                    text = stringResource(R.string.action_open_in_browser),
-                    onClick = { showBodyContextMenu = false; onClickOpenInBrowserFromMenu(bookmark.url) },
-                )
-
-            }
-        }
-        if (showImageContextMenu && !isSelectionMode && bookmark.imageSrc.isNotBlank()) {
-            LongPressContextMenuDialog(
-                headerImageUrl = bookmark.imageSrc,
-                title = bookmark.title,
-                subtitle = bookmark.imageSrc,
-                onDismiss = { showImageContextMenu = false },
-            ) {
-                LongPressContextMenuItem(
-                    icon = Icons.Outlined.ContentCopy,
-                    text = stringResource(R.string.action_copy_image),
-                    onClick = { showImageContextMenu = false; onClickCopyImage(bookmark.imageSrc) },
-                )
-                LongPressContextMenuItem(
-                    icon = Icons.Outlined.Download,
-                    text = stringResource(R.string.action_download_image),
-                    onClick = { showImageContextMenu = false; onClickDownloadImage(bookmark.imageSrc) },
-                )
-                LongPressContextMenuItem(
-                    icon = Icons.Outlined.Share,
-                    text = stringResource(R.string.action_share_image),
-                    onClick = { showImageContextMenu = false; onClickShareImage(bookmark.imageSrc) },
-                )
-            }
-        }
+        BookmarkCardContextMenus(
+            bookmark = bookmark,
+            isSelectionMode = isSelectionMode,
+            showBodyMenu = showBodyContextMenu,
+            onDismissBodyMenu = { showBodyContextMenu = false },
+            showImageMenu = showImageContextMenu,
+            onDismissImageMenu = { showImageContextMenu = false },
+            onClickCopyLink = onClickCopyLink,
+            onClickCopyLinkText = onClickCopyLinkText,
+            onClickDownloadLink = onClickDownloadLink,
+            onClickShareLink = onClickShareLink,
+            onClickOpenInBrowserFromMenu = onClickOpenInBrowserFromMenu,
+            onClickCopyImage = onClickCopyImage,
+            onClickDownloadImage = onClickDownloadImage,
+            onClickShareImage = onClickShareImage,
+        )
     }
 }
 
@@ -1369,165 +1245,37 @@ private fun BookmarkGridCardNarrow(
                     }
                 }
 
-                // Action buttons
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 4.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    if (!isSelectionMode) {
-                    Row(horizontalArrangement = Arrangement.Start) {
-                        IconButton(
-                            onClick = { onClickFavorite(bookmark.id, !bookmark.isMarked) },
-                            modifier = Modifier.size(36.dp)
-                        ) {
-                            Icon(
-                                imageVector = if (bookmark.isMarked) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
-                                contentDescription = stringResource(R.string.action_favorite),
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-                        IconButton(
-                            onClick = { onClickArchive(bookmark.id, !bookmark.isArchived) },
-                            modifier = Modifier.size(36.dp)
-                        ) {
-                            Icon(
-                                imageVector = if (bookmark.isArchived) Icons.Filled.Inventory2 else Icons.Outlined.Inventory2,
-                                contentDescription = stringResource(R.string.action_archive),
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-                        IconButton(
-                            onClick = { onClickOpenUrl(bookmark.id) },
-                            modifier = Modifier.size(36.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.Language,
-                                contentDescription = stringResource(R.string.action_view_original),
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-                    }
-                    } else {
-                        Row(horizontalArrangement = Arrangement.Start) {
-                            BookmarkSelectStateIcon(
-                                imageVector = if (bookmark.isMarked) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
-                                contentDescription = stringResource(
-                                    if (bookmark.isMarked) R.string.bookmark_state_favorited
-                                    else R.string.bookmark_state_not_favorited
-                                )
-                            )
-                            BookmarkSelectStateIcon(
-                                imageVector = if (bookmark.isArchived) Icons.Filled.Inventory2 else Icons.Outlined.Inventory2,
-                                contentDescription = stringResource(
-                                    if (bookmark.isArchived) R.string.bookmark_state_archived
-                                    else R.string.bookmark_state_not_archived
-                                )
-                            )
-                        }
-                    }
-                    if (isSelectionMode) {
-                        BookmarkSelectionIndicator(
-                            isSelected = isSelected,
-                            onClick = { onToggleSelection(bookmark.id) }
-                        )
-                    } else {
-                        IconButton(
-                            onClick = { onClickDelete(bookmark.id) },
-                            modifier = Modifier.size(36.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.Delete,
-                                contentDescription = stringResource(R.string.action_delete),
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-                    }
-                }
+                BookmarkCardActionRow(
+                    bookmark = bookmark,
+                    isSelectionMode = isSelectionMode,
+                    isSelected = isSelected,
+                    onToggleSelection = onToggleSelection,
+                    onClickFavorite = onClickFavorite,
+                    onClickArchive = onClickArchive,
+                    onClickOpenUrl = onClickOpenUrl,
+                    onClickDelete = onClickDelete,
+                )
             }
         }
 
-        if (showCardIndexOverlay && index != null) {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = index.toString(),
-                    fontSize = 44.sp,
-                    fontWeight = FontWeight.Black,
-                    color = Color.White,
-                    style = androidx.compose.ui.text.TextStyle(
-                        shadow = Shadow(
-                            color = Color.Black,
-                            offset = Offset(2f, 2f),
-                            blurRadius = 6f
-                        )
-                    )
-                )
-            }
+        BookmarkCardIndexOverlay(index)
         }
-        }
-        if (showBodyContextMenu && !isSelectionMode) {
-            LongPressContextMenuDialog(
-                headerImageUrl = bookmark.iconSrc,
-                title = bookmark.title,
-                subtitle = bookmark.url,
-                onDismiss = { showBodyContextMenu = false },
-            ) {
-                LongPressContextMenuItem(
-                    icon = Icons.Outlined.ContentCopy,
-                    text = stringResource(R.string.action_copy_link),
-                    onClick = { showBodyContextMenu = false; onClickCopyLink(bookmark.url) },
-                )
-                LongPressContextMenuItem(
-                    icon = Icons.Outlined.ContentCopy,
-                    text = stringResource(R.string.action_copy_link_text),
-                    onClick = { showBodyContextMenu = false; onClickCopyLinkText(bookmark.title) },
-                )
-                LongPressContextMenuItem(
-                    icon = Icons.Outlined.Download,
-                    text = stringResource(R.string.action_download_link),
-                    onClick = { showBodyContextMenu = false; onClickDownloadLink(bookmark.url, bookmark.title) },
-                )
-                LongPressContextMenuItem(
-                    icon = Icons.Outlined.Share,
-                    text = stringResource(R.string.action_share_link),
-                    onClick = { showBodyContextMenu = false; onClickShareLink(bookmark.title, bookmark.url) },
-                )
-                LongPressContextMenuItem(
-                    icon = Icons.AutoMirrored.Filled.OpenInNew,
-                    text = stringResource(R.string.action_open_in_browser),
-                    onClick = { showBodyContextMenu = false; onClickOpenInBrowserFromMenu(bookmark.url) },
-                )
-
-            }
-        }
-        if (showImageContextMenu && !isSelectionMode && bookmark.imageSrc.isNotBlank()) {
-            LongPressContextMenuDialog(
-                headerImageUrl = bookmark.imageSrc,
-                title = bookmark.title,
-                subtitle = bookmark.imageSrc,
-                onDismiss = { showImageContextMenu = false },
-            ) {
-                LongPressContextMenuItem(
-                    icon = Icons.Outlined.ContentCopy,
-                    text = stringResource(R.string.action_copy_image),
-                    onClick = { showImageContextMenu = false; onClickCopyImage(bookmark.imageSrc) },
-                )
-                LongPressContextMenuItem(
-                    icon = Icons.Outlined.Download,
-                    text = stringResource(R.string.action_download_image),
-                    onClick = { showImageContextMenu = false; onClickDownloadImage(bookmark.imageSrc) },
-                )
-                LongPressContextMenuItem(
-                    icon = Icons.Outlined.Share,
-                    text = stringResource(R.string.action_share_image),
-                    onClick = { showImageContextMenu = false; onClickShareImage(bookmark.imageSrc) },
-                )
-            }
-        }
+        BookmarkCardContextMenus(
+            bookmark = bookmark,
+            isSelectionMode = isSelectionMode,
+            showBodyMenu = showBodyContextMenu,
+            onDismissBodyMenu = { showBodyContextMenu = false },
+            showImageMenu = showImageContextMenu,
+            onDismissImageMenu = { showImageContextMenu = false },
+            onClickCopyLink = onClickCopyLink,
+            onClickCopyLinkText = onClickCopyLinkText,
+            onClickDownloadLink = onClickDownloadLink,
+            onClickShareLink = onClickShareLink,
+            onClickOpenInBrowserFromMenu = onClickOpenInBrowserFromMenu,
+            onClickCopyImage = onClickCopyImage,
+            onClickDownloadImage = onClickDownloadImage,
+            onClickShareImage = onClickShareImage,
+        )
     }
 }
 
@@ -1714,165 +1462,37 @@ private fun BookmarkGridCardWide(
                     Spacer(modifier = Modifier.weight(1f))
                 }
 
-                // Action buttons
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 4.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    if (!isSelectionMode) {
-                    Row(horizontalArrangement = Arrangement.Start) {
-                        IconButton(
-                            onClick = { onClickFavorite(bookmark.id, !bookmark.isMarked) },
-                            modifier = Modifier.size(36.dp)
-                        ) {
-                            Icon(
-                                imageVector = if (bookmark.isMarked) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
-                                contentDescription = stringResource(R.string.action_favorite),
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-                        IconButton(
-                            onClick = { onClickArchive(bookmark.id, !bookmark.isArchived) },
-                            modifier = Modifier.size(36.dp)
-                        ) {
-                            Icon(
-                                imageVector = if (bookmark.isArchived) Icons.Filled.Inventory2 else Icons.Outlined.Inventory2,
-                                contentDescription = stringResource(R.string.action_archive),
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-                        IconButton(
-                            onClick = { onClickOpenUrl(bookmark.id) },
-                            modifier = Modifier.size(36.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.Language,
-                                contentDescription = stringResource(R.string.action_view_original),
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-                    }
-                    } else {
-                        Row(horizontalArrangement = Arrangement.Start) {
-                            BookmarkSelectStateIcon(
-                                imageVector = if (bookmark.isMarked) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
-                                contentDescription = stringResource(
-                                    if (bookmark.isMarked) R.string.bookmark_state_favorited
-                                    else R.string.bookmark_state_not_favorited
-                                )
-                            )
-                            BookmarkSelectStateIcon(
-                                imageVector = if (bookmark.isArchived) Icons.Filled.Inventory2 else Icons.Outlined.Inventory2,
-                                contentDescription = stringResource(
-                                    if (bookmark.isArchived) R.string.bookmark_state_archived
-                                    else R.string.bookmark_state_not_archived
-                                )
-                            )
-                        }
-                    }
-                    if (isSelectionMode) {
-                        BookmarkSelectionIndicator(
-                            isSelected = isSelected,
-                            onClick = { onToggleSelection(bookmark.id) }
-                        )
-                    } else {
-                        IconButton(
-                            onClick = { onClickDelete(bookmark.id) },
-                            modifier = Modifier.size(36.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.Delete,
-                                contentDescription = stringResource(R.string.action_delete),
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-                    }
-                }
+                BookmarkCardActionRow(
+                    bookmark = bookmark,
+                    isSelectionMode = isSelectionMode,
+                    isSelected = isSelected,
+                    onToggleSelection = onToggleSelection,
+                    onClickFavorite = onClickFavorite,
+                    onClickArchive = onClickArchive,
+                    onClickOpenUrl = onClickOpenUrl,
+                    onClickDelete = onClickDelete,
+                )
             }
         }
 
-        if (showCardIndexOverlay && index != null) {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = index.toString(),
-                    fontSize = 44.sp,
-                    fontWeight = FontWeight.Black,
-                    color = Color.White,
-                    style = androidx.compose.ui.text.TextStyle(
-                        shadow = Shadow(
-                            color = Color.Black,
-                            offset = Offset(2f, 2f),
-                            blurRadius = 6f
-                        )
-                    )
-                )
-            }
+        BookmarkCardIndexOverlay(index)
         }
-        }
-        if (showBodyContextMenu && !isSelectionMode) {
-            LongPressContextMenuDialog(
-                headerImageUrl = bookmark.iconSrc,
-                title = bookmark.title,
-                subtitle = bookmark.url,
-                onDismiss = { showBodyContextMenu = false },
-            ) {
-                LongPressContextMenuItem(
-                    icon = Icons.Outlined.ContentCopy,
-                    text = stringResource(R.string.action_copy_link),
-                    onClick = { showBodyContextMenu = false; onClickCopyLink(bookmark.url) },
-                )
-                LongPressContextMenuItem(
-                    icon = Icons.Outlined.ContentCopy,
-                    text = stringResource(R.string.action_copy_link_text),
-                    onClick = { showBodyContextMenu = false; onClickCopyLinkText(bookmark.title) },
-                )
-                LongPressContextMenuItem(
-                    icon = Icons.Outlined.Download,
-                    text = stringResource(R.string.action_download_link),
-                    onClick = { showBodyContextMenu = false; onClickDownloadLink(bookmark.url, bookmark.title) },
-                )
-                LongPressContextMenuItem(
-                    icon = Icons.Outlined.Share,
-                    text = stringResource(R.string.action_share_link),
-                    onClick = { showBodyContextMenu = false; onClickShareLink(bookmark.title, bookmark.url) },
-                )
-                LongPressContextMenuItem(
-                    icon = Icons.AutoMirrored.Filled.OpenInNew,
-                    text = stringResource(R.string.action_open_in_browser),
-                    onClick = { showBodyContextMenu = false; onClickOpenInBrowserFromMenu(bookmark.url) },
-                )
-
-            }
-        }
-        if (showImageContextMenu && !isSelectionMode && bookmark.imageSrc.isNotBlank()) {
-            LongPressContextMenuDialog(
-                headerImageUrl = bookmark.imageSrc,
-                title = bookmark.title,
-                subtitle = bookmark.imageSrc,
-                onDismiss = { showImageContextMenu = false },
-            ) {
-                LongPressContextMenuItem(
-                    icon = Icons.Outlined.ContentCopy,
-                    text = stringResource(R.string.action_copy_image),
-                    onClick = { showImageContextMenu = false; onClickCopyImage(bookmark.imageSrc) },
-                )
-                LongPressContextMenuItem(
-                    icon = Icons.Outlined.Download,
-                    text = stringResource(R.string.action_download_image),
-                    onClick = { showImageContextMenu = false; onClickDownloadImage(bookmark.imageSrc) },
-                )
-                LongPressContextMenuItem(
-                    icon = Icons.Outlined.Share,
-                    text = stringResource(R.string.action_share_image),
-                    onClick = { showImageContextMenu = false; onClickShareImage(bookmark.imageSrc) },
-                )
-            }
-        }
+        BookmarkCardContextMenus(
+            bookmark = bookmark,
+            isSelectionMode = isSelectionMode,
+            showBodyMenu = showBodyContextMenu,
+            onDismissBodyMenu = { showBodyContextMenu = false },
+            showImageMenu = showImageContextMenu,
+            onDismissImageMenu = { showImageContextMenu = false },
+            onClickCopyLink = onClickCopyLink,
+            onClickCopyLinkText = onClickCopyLinkText,
+            onClickDownloadLink = onClickDownloadLink,
+            onClickShareLink = onClickShareLink,
+            onClickOpenInBrowserFromMenu = onClickOpenInBrowserFromMenu,
+            onClickCopyImage = onClickCopyImage,
+            onClickDownloadImage = onClickDownloadImage,
+            onClickShareImage = onClickShareImage,
+        )
     }
 }
 
@@ -2181,65 +1801,22 @@ private fun BookmarkCompactCardNarrow(
         }
     }
         HorizontalDivider()
-        if (showBodyContextMenu && !isSelectionMode) {
-            LongPressContextMenuDialog(
-                headerImageUrl = bookmark.iconSrc,
-                title = bookmark.title,
-                subtitle = bookmark.url,
-                onDismiss = { showBodyContextMenu = false },
-            ) {
-                LongPressContextMenuItem(
-                    icon = Icons.Outlined.ContentCopy,
-                    text = stringResource(R.string.action_copy_link),
-                    onClick = { showBodyContextMenu = false; onClickCopyLink(bookmark.url) },
-                )
-                LongPressContextMenuItem(
-                    icon = Icons.Outlined.ContentCopy,
-                    text = stringResource(R.string.action_copy_link_text),
-                    onClick = { showBodyContextMenu = false; onClickCopyLinkText(bookmark.title) },
-                )
-                LongPressContextMenuItem(
-                    icon = Icons.Outlined.Download,
-                    text = stringResource(R.string.action_download_link),
-                    onClick = { showBodyContextMenu = false; onClickDownloadLink(bookmark.url, bookmark.title) },
-                )
-                LongPressContextMenuItem(
-                    icon = Icons.Outlined.Share,
-                    text = stringResource(R.string.action_share_link),
-                    onClick = { showBodyContextMenu = false; onClickShareLink(bookmark.title, bookmark.url) },
-                )
-                LongPressContextMenuItem(
-                    icon = Icons.AutoMirrored.Filled.OpenInNew,
-                    text = stringResource(R.string.action_open_in_browser),
-                    onClick = { showBodyContextMenu = false; onClickOpenInBrowserFromMenu(bookmark.url) },
-                )
-
-            }
-        }
-        if (showImageContextMenu && !isSelectionMode && bookmark.imageSrc.isNotBlank()) {
-            LongPressContextMenuDialog(
-                headerImageUrl = bookmark.imageSrc,
-                title = bookmark.title,
-                subtitle = bookmark.imageSrc,
-                onDismiss = { showImageContextMenu = false },
-            ) {
-                LongPressContextMenuItem(
-                    icon = Icons.Outlined.ContentCopy,
-                    text = stringResource(R.string.action_copy_image),
-                    onClick = { showImageContextMenu = false; onClickCopyImage(bookmark.imageSrc) },
-                )
-                LongPressContextMenuItem(
-                    icon = Icons.Outlined.Download,
-                    text = stringResource(R.string.action_download_image),
-                    onClick = { showImageContextMenu = false; onClickDownloadImage(bookmark.imageSrc) },
-                )
-                LongPressContextMenuItem(
-                    icon = Icons.Outlined.Share,
-                    text = stringResource(R.string.action_share_image),
-                    onClick = { showImageContextMenu = false; onClickShareImage(bookmark.imageSrc) },
-                )
-            }
-        }
+        BookmarkCardContextMenus(
+            bookmark = bookmark,
+            isSelectionMode = isSelectionMode,
+            showBodyMenu = showBodyContextMenu,
+            onDismissBodyMenu = { showBodyContextMenu = false },
+            showImageMenu = showImageContextMenu,
+            onDismissImageMenu = { showImageContextMenu = false },
+            onClickCopyLink = onClickCopyLink,
+            onClickCopyLinkText = onClickCopyLinkText,
+            onClickDownloadLink = onClickDownloadLink,
+            onClickShareLink = onClickShareLink,
+            onClickOpenInBrowserFromMenu = onClickOpenInBrowserFromMenu,
+            onClickCopyImage = onClickCopyImage,
+            onClickDownloadImage = onClickDownloadImage,
+            onClickShareImage = onClickShareImage,
+        )
     }
 }
 
@@ -2436,102 +2013,217 @@ private fun BookmarkCompactCardWide(
         }
     }
         HorizontalDivider()
-        if (showBodyContextMenu && !isSelectionMode) {
-            LongPressContextMenuDialog(
-                headerImageUrl = bookmark.iconSrc,
-                title = bookmark.title,
-                subtitle = bookmark.url,
-                onDismiss = { showBodyContextMenu = false },
-            ) {
-                LongPressContextMenuItem(
-                    icon = Icons.Outlined.ContentCopy,
-                    text = stringResource(R.string.action_copy_link),
-                    onClick = { showBodyContextMenu = false; onClickCopyLink(bookmark.url) },
-                )
-                LongPressContextMenuItem(
-                    icon = Icons.Outlined.ContentCopy,
-                    text = stringResource(R.string.action_copy_link_text),
-                    onClick = { showBodyContextMenu = false; onClickCopyLinkText(bookmark.title) },
-                )
-                LongPressContextMenuItem(
-                    icon = Icons.Outlined.Download,
-                    text = stringResource(R.string.action_download_link),
-                    onClick = { showBodyContextMenu = false; onClickDownloadLink(bookmark.url, bookmark.title) },
-                )
-                LongPressContextMenuItem(
-                    icon = Icons.Outlined.Share,
-                    text = stringResource(R.string.action_share_link),
-                    onClick = { showBodyContextMenu = false; onClickShareLink(bookmark.title, bookmark.url) },
-                )
-                LongPressContextMenuItem(
-                    icon = Icons.AutoMirrored.Filled.OpenInNew,
-                    text = stringResource(R.string.action_open_in_browser),
-                    onClick = { showBodyContextMenu = false; onClickOpenInBrowserFromMenu(bookmark.url) },
-                )
+        BookmarkCardContextMenus(
+            bookmark = bookmark,
+            isSelectionMode = isSelectionMode,
+            showBodyMenu = showBodyContextMenu,
+            onDismissBodyMenu = { showBodyContextMenu = false },
+            showImageMenu = showImageContextMenu,
+            onDismissImageMenu = { showImageContextMenu = false },
+            onClickCopyLink = onClickCopyLink,
+            onClickCopyLinkText = onClickCopyLinkText,
+            onClickDownloadLink = onClickDownloadLink,
+            onClickShareLink = onClickShareLink,
+            onClickOpenInBrowserFromMenu = onClickOpenInBrowserFromMenu,
+            onClickCopyImage = onClickCopyImage,
+            onClickDownloadImage = onClickDownloadImage,
+            onClickShareImage = onClickShareImage,
+        )
+    }
+}
 
+/**
+ * Action button row shared by the grid card variants: favorite / archive / open-original
+ * (or selection-state icons in selection mode), and a delete button or selection indicator.
+ */
+@Composable
+private fun BookmarkCardActionRow(
+    bookmark: BookmarkListItem,
+    isSelectionMode: Boolean,
+    isSelected: Boolean,
+    onToggleSelection: (String) -> Unit,
+    onClickFavorite: (String, Boolean) -> Unit,
+    onClickArchive: (String, Boolean) -> Unit,
+    onClickOpenUrl: (String) -> Unit,
+    onClickDelete: (String) -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 4.dp),
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        if (!isSelectionMode) {
+            Row(horizontalArrangement = Arrangement.Start) {
+                IconButton(
+                    onClick = { onClickFavorite(bookmark.id, !bookmark.isMarked) },
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Icon(
+                        imageVector = if (bookmark.isMarked) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
+                        contentDescription = stringResource(R.string.action_favorite),
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+                IconButton(
+                    onClick = { onClickArchive(bookmark.id, !bookmark.isArchived) },
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Icon(
+                        imageVector = if (bookmark.isArchived) Icons.Filled.Inventory2 else Icons.Outlined.Inventory2,
+                        contentDescription = stringResource(R.string.action_archive),
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+                IconButton(
+                    onClick = { onClickOpenUrl(bookmark.id) },
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Language,
+                        contentDescription = stringResource(R.string.action_view_original),
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
+        } else {
+            Row(horizontalArrangement = Arrangement.Start) {
+                BookmarkSelectStateIcon(
+                    imageVector = if (bookmark.isMarked) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
+                    contentDescription = stringResource(
+                        if (bookmark.isMarked) R.string.bookmark_state_favorited
+                        else R.string.bookmark_state_not_favorited
+                    )
+                )
+                BookmarkSelectStateIcon(
+                    imageVector = if (bookmark.isArchived) Icons.Filled.Inventory2 else Icons.Outlined.Inventory2,
+                    contentDescription = stringResource(
+                        if (bookmark.isArchived) R.string.bookmark_state_archived
+                        else R.string.bookmark_state_not_archived
+                    )
+                )
             }
         }
-        if (showImageContextMenu && !isSelectionMode && bookmark.imageSrc.isNotBlank()) {
-            LongPressContextMenuDialog(
-                headerImageUrl = bookmark.imageSrc,
-                title = bookmark.title,
-                subtitle = bookmark.imageSrc,
-                onDismiss = { showImageContextMenu = false },
+        if (isSelectionMode) {
+            BookmarkSelectionIndicator(
+                isSelected = isSelected,
+                onClick = { onToggleSelection(bookmark.id) }
+            )
+        } else {
+            IconButton(
+                onClick = { onClickDelete(bookmark.id) },
+                modifier = Modifier.size(36.dp)
             ) {
-                LongPressContextMenuItem(
-                    icon = Icons.Outlined.ContentCopy,
-                    text = stringResource(R.string.action_copy_image),
-                    onClick = { showImageContextMenu = false; onClickCopyImage(bookmark.imageSrc) },
-                )
-                LongPressContextMenuItem(
-                    icon = Icons.Outlined.Download,
-                    text = stringResource(R.string.action_download_image),
-                    onClick = { showImageContextMenu = false; onClickDownloadImage(bookmark.imageSrc) },
-                )
-                LongPressContextMenuItem(
-                    icon = Icons.Outlined.Share,
-                    text = stringResource(R.string.action_share_image),
-                    onClick = { showImageContextMenu = false; onClickShareImage(bookmark.imageSrc) },
+                Icon(
+                    imageVector = Icons.Filled.Delete,
+                    contentDescription = stringResource(R.string.action_delete),
+                    modifier = Modifier.size(20.dp)
                 )
             }
         }
     }
 }
 
+/** Large index number overlaid on a card when the debug card-index overlay is enabled. */
 @Composable
-fun CircularProgressIndicator(
-    progress: Int,
-    modifier: Modifier = Modifier
-) {
-    val progressColor = Color.White
-
-    Canvas(modifier = modifier) {
-        val strokeWidth = 3.dp.toPx()
-        val diameter = size.minDimension
-        val radius = (diameter - strokeWidth) / 2f
-        val topLeft = Offset(
-            x = (size.width - diameter) / 2f + strokeWidth / 2f,
-            y = (size.height - diameter) / 2f + strokeWidth / 2f
-        )
-        val arcSize = Size(diameter - strokeWidth, diameter - strokeWidth)
-
-        // Calculate sweep angle based on progress (0-100)
-        // Start at -90 degrees (12 o'clock position) and sweep clockwise
-        val sweepAngle = (progress / 100f) * 360f
-
-        // Draw the circular arc
-        drawArc(
-            color = progressColor,
-            startAngle = -90f,
-            sweepAngle = sweepAngle,
-            useCenter = false,
-            topLeft = topLeft,
-            size = arcSize,
-            style = Stroke(
-                width = strokeWidth,
-                cap = StrokeCap.Round
+private fun BookmarkCardIndexOverlay(index: Int?) {
+    if (showCardIndexOverlay && index != null) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = index.toString(),
+                fontSize = 44.sp,
+                fontWeight = FontWeight.Black,
+                color = Color.White,
+                style = androidx.compose.ui.text.TextStyle(
+                    shadow = Shadow(
+                        color = Color.Black,
+                        offset = Offset(2f, 2f),
+                        blurRadius = 6f
+                    )
+                )
             )
-        )
+        }
+    }
+}
+
+/** Long-press context menus (body link actions + image actions) shared by all card variants. */
+@Composable
+private fun BookmarkCardContextMenus(
+    bookmark: BookmarkListItem,
+    isSelectionMode: Boolean,
+    showBodyMenu: Boolean,
+    onDismissBodyMenu: () -> Unit,
+    showImageMenu: Boolean,
+    onDismissImageMenu: () -> Unit,
+    onClickCopyLink: (String) -> Unit,
+    onClickCopyLinkText: (String) -> Unit,
+    onClickDownloadLink: (String, String) -> Unit,
+    onClickShareLink: (String, String) -> Unit,
+    onClickOpenInBrowserFromMenu: (String) -> Unit,
+    onClickCopyImage: (String) -> Unit,
+    onClickDownloadImage: (String) -> Unit,
+    onClickShareImage: (String) -> Unit,
+) {
+    if (showBodyMenu && !isSelectionMode) {
+        LongPressContextMenuDialog(
+            headerImageUrl = bookmark.iconSrc,
+            title = bookmark.title,
+            subtitle = bookmark.url,
+            onDismiss = onDismissBodyMenu,
+        ) {
+            LongPressContextMenuItem(
+                icon = Icons.Outlined.ContentCopy,
+                text = stringResource(R.string.action_copy_link),
+                onClick = { onDismissBodyMenu(); onClickCopyLink(bookmark.url) },
+            )
+            LongPressContextMenuItem(
+                icon = Icons.Outlined.ContentCopy,
+                text = stringResource(R.string.action_copy_link_text),
+                onClick = { onDismissBodyMenu(); onClickCopyLinkText(bookmark.title) },
+            )
+            LongPressContextMenuItem(
+                icon = Icons.Outlined.Download,
+                text = stringResource(R.string.action_download_link),
+                onClick = { onDismissBodyMenu(); onClickDownloadLink(bookmark.url, bookmark.title) },
+            )
+            LongPressContextMenuItem(
+                icon = Icons.Outlined.Share,
+                text = stringResource(R.string.action_share_link),
+                onClick = { onDismissBodyMenu(); onClickShareLink(bookmark.title, bookmark.url) },
+            )
+            LongPressContextMenuItem(
+                icon = Icons.AutoMirrored.Filled.OpenInNew,
+                text = stringResource(R.string.action_open_in_browser),
+                onClick = { onDismissBodyMenu(); onClickOpenInBrowserFromMenu(bookmark.url) },
+            )
+        }
+    }
+    if (showImageMenu && !isSelectionMode && bookmark.imageSrc.isNotBlank()) {
+        LongPressContextMenuDialog(
+            headerImageUrl = bookmark.imageSrc,
+            title = bookmark.title,
+            subtitle = bookmark.imageSrc,
+            onDismiss = onDismissImageMenu,
+        ) {
+            LongPressContextMenuItem(
+                icon = Icons.Outlined.ContentCopy,
+                text = stringResource(R.string.action_copy_image),
+                onClick = { onDismissImageMenu(); onClickCopyImage(bookmark.imageSrc) },
+            )
+            LongPressContextMenuItem(
+                icon = Icons.Outlined.Download,
+                text = stringResource(R.string.action_download_image),
+                onClick = { onDismissImageMenu(); onClickDownloadImage(bookmark.imageSrc) },
+            )
+            LongPressContextMenuItem(
+                icon = Icons.Outlined.Share,
+                text = stringResource(R.string.action_share_image),
+                onClick = { onDismissImageMenu(); onClickShareImage(bookmark.imageSrc) },
+            )
+        }
     }
 }
 

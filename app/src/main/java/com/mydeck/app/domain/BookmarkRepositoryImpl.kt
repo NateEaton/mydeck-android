@@ -150,34 +150,7 @@ class BookmarkRepositoryImpl @Inject constructor(
             includeNullWordCount = includeNullWordCount,
             orderBy = orderBy
         ).map { listItems ->
-            listItems.map { listItem ->
-                BookmarkListItem(
-                    id = listItem.id,
-                    href = listItem.href,
-                    url = listItem.url,
-                    title = listItem.title,
-                    siteName = listItem.siteName,
-                    isMarked = listItem.isMarked,
-                    isArchived = listItem.isArchived,
-                    isRead = listItem.readProgress == 100,
-                    readProgress = listItem.readProgress,
-                    thumbnailSrc = listItem.thumbnailSrc,
-                    iconSrc = listItem.iconSrc,
-                    imageSrc = listItem.imageSrc,
-                    labels = listItem.labels,
-                    type = when (listItem.type) {
-                        BookmarkEntity.Type.ARTICLE -> Bookmark.Type.Article
-                        BookmarkEntity.Type.PHOTO -> Bookmark.Type.Picture
-                        BookmarkEntity.Type.VIDEO -> Bookmark.Type.Video
-                    },
-                    readingTime = listItem.readingTime,
-                    created = listItem.created.toLocalDateTime(kotlinx.datetime.TimeZone.currentSystemDefault()),
-                    wordCount = listItem.wordCount,
-                    published = listItem.published?.toLocalDateTime(kotlinx.datetime.TimeZone.currentSystemDefault()),
-                    offlineState = deriveOfflineState(listItem.contentState, listItem.hasResources, listItem.source),
-                    offlineEligible = deriveOfflineEligible(listItem.hasArticle, listItem.type, listItem.contentState)
-                )
-            }
+            listItems.map { it.toBookmarkListItem() }
         }
     }
 
@@ -213,34 +186,7 @@ class BookmarkRepositoryImpl @Inject constructor(
             },
             orderBy = orderBy
         ).map { listItems ->
-            listItems.map { listItem ->
-                BookmarkListItem(
-                    id = listItem.id,
-                    href = listItem.href,
-                    url = listItem.url,
-                    title = listItem.title,
-                    siteName = listItem.siteName,
-                    isMarked = listItem.isMarked,
-                    isArchived = listItem.isArchived,
-                    isRead = listItem.readProgress == 100,
-                    readProgress = listItem.readProgress,
-                    thumbnailSrc = listItem.thumbnailSrc,
-                    iconSrc = listItem.iconSrc,
-                    imageSrc = listItem.imageSrc,
-                    labels = listItem.labels,
-                    type = when (listItem.type) {
-                        BookmarkEntity.Type.ARTICLE -> Bookmark.Type.Article
-                        BookmarkEntity.Type.PHOTO -> Bookmark.Type.Picture
-                        BookmarkEntity.Type.VIDEO -> Bookmark.Type.Video
-                    },
-                    readingTime = listItem.readingTime,
-                    created = listItem.created.toLocalDateTime(kotlinx.datetime.TimeZone.currentSystemDefault()),
-                    wordCount = listItem.wordCount,
-                    published = listItem.published?.toLocalDateTime(kotlinx.datetime.TimeZone.currentSystemDefault()),
-                    offlineState = deriveOfflineState(listItem.contentState, listItem.hasResources, listItem.source),
-                    offlineEligible = deriveOfflineEligible(listItem.hasArticle, listItem.type, listItem.contentState)
-                )
-            }
+            listItems.map { it.toBookmarkListItem() }
         }
     }
 
@@ -304,36 +250,37 @@ class BookmarkRepositoryImpl @Inject constructor(
             includeNullWordCount = includeNullWordCount,
             orderBy = orderBy
         ).map { listItems ->
-            listItems.map { listItem ->
-                BookmarkListItem(
-                    id = listItem.id,
-                    href = listItem.href,
-                    url = listItem.url,
-                    title = listItem.title,
-                    siteName = listItem.siteName,
-                    isMarked = listItem.isMarked,
-                    isArchived = listItem.isArchived,
-                    isRead = listItem.readProgress == 100,
-                    readProgress = listItem.readProgress,
-                    thumbnailSrc = listItem.thumbnailSrc,
-                    iconSrc = listItem.iconSrc,
-                    imageSrc = listItem.imageSrc,
-                    labels = listItem.labels,
-                    type = when (listItem.type) {
-                        BookmarkEntity.Type.ARTICLE -> Bookmark.Type.Article
-                        BookmarkEntity.Type.PHOTO -> Bookmark.Type.Picture
-                        BookmarkEntity.Type.VIDEO -> Bookmark.Type.Video
-                    },
-                    readingTime = listItem.readingTime,
-                    created = listItem.created.toLocalDateTime(kotlinx.datetime.TimeZone.currentSystemDefault()),
-                    wordCount = listItem.wordCount,
-                    published = listItem.published?.toLocalDateTime(kotlinx.datetime.TimeZone.currentSystemDefault()),
-                    offlineState = deriveOfflineState(listItem.contentState, listItem.hasResources, listItem.source),
-                    offlineEligible = deriveOfflineEligible(listItem.hasArticle, listItem.type, listItem.contentState)
-                )
-            }
+            listItems.map { it.toBookmarkListItem() }
         }
     }
+
+    private fun BookmarkListItemEntity.toBookmarkListItem(): BookmarkListItem =
+        BookmarkListItem(
+            id = id,
+            href = href,
+            url = url,
+            title = title,
+            siteName = siteName,
+            isMarked = isMarked,
+            isArchived = isArchived,
+            isRead = readProgress == 100,
+            readProgress = readProgress,
+            thumbnailSrc = thumbnailSrc,
+            iconSrc = iconSrc,
+            imageSrc = imageSrc,
+            labels = labels,
+            type = when (type) {
+                BookmarkEntity.Type.ARTICLE -> Bookmark.Type.Article
+                BookmarkEntity.Type.PHOTO -> Bookmark.Type.Picture
+                BookmarkEntity.Type.VIDEO -> Bookmark.Type.Video
+            },
+            readingTime = readingTime,
+            created = created.toLocalDateTime(kotlinx.datetime.TimeZone.currentSystemDefault()),
+            wordCount = wordCount,
+            published = published?.toLocalDateTime(kotlinx.datetime.TimeZone.currentSystemDefault()),
+            offlineState = deriveOfflineState(contentState, hasResources, source),
+            offlineEligible = deriveOfflineEligible(hasArticle, type, contentState)
+        )
 
     // Offline eligibility (pinnability) — same gate as LoadContentPackageUseCase: has article
     // content or is a picture, and not permanently no-content.

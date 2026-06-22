@@ -453,9 +453,13 @@ class LoadContentPackageUseCase @Inject constructor(
                             continue
                         }
 
-                        // Update metadata if provided
+                        // Update metadata if provided (best-effort; content load proceeds regardless)
                         pkg.json?.let { dto ->
-                            try { bookmarkRepository.insertBookmarks(listOf(dto.toDomain())) } catch (_: Exception) {}
+                            try {
+                                bookmarkRepository.insertBookmarks(listOf(dto.toDomain()))
+                            } catch (e: Exception) {
+                                Timber.w(e, "Failed to update metadata for bookmark %s from content package", id)
+                            }
                         }
 
                         // Determine package kind
