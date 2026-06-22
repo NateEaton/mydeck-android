@@ -2498,43 +2498,6 @@ private fun BookmarkCompactCardWide(
     }
 }
 
-@Composable
-fun CircularProgressIndicator(
-    progress: Int,
-    modifier: Modifier = Modifier
-) {
-    val progressColor = Color.White
-
-    Canvas(modifier = modifier) {
-        val strokeWidth = 3.dp.toPx()
-        val diameter = size.minDimension
-        val radius = (diameter - strokeWidth) / 2f
-        val topLeft = Offset(
-            x = (size.width - diameter) / 2f + strokeWidth / 2f,
-            y = (size.height - diameter) / 2f + strokeWidth / 2f
-        )
-        val arcSize = Size(diameter - strokeWidth, diameter - strokeWidth)
-
-        // Calculate sweep angle based on progress (0-100)
-        // Start at -90 degrees (12 o'clock position) and sweep clockwise
-        val sweepAngle = (progress / 100f) * 360f
-
-        // Draw the circular arc
-        drawArc(
-            color = progressColor,
-            startAngle = -90f,
-            sweepAngle = sweepAngle,
-            useCenter = false,
-            topLeft = topLeft,
-            size = arcSize,
-            style = Stroke(
-                width = strokeWidth,
-                cap = StrokeCap.Round
-            )
-        )
-    }
-}
-
 @Preview(showBackground = true)
 @Composable
 fun BookmarkCardPreview() {
