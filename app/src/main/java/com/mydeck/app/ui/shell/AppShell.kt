@@ -457,112 +457,128 @@ private fun MediumAppShell(
             }
         }
 
-        // Persistent themed Surface prevents white flash between screen transitions
-        Surface(
+        AppShellNavHost(
+            navController = navController,
+            settingsDataStore = settingsDataStore,
+            bookmarkListViewModel = bookmarkListViewModel,
             modifier = Modifier.weight(1f).fillMaxSize(),
-            color = MaterialTheme.colorScheme.background,
-        ) {
-            // Determine start destination based on auth state
-            val token = settingsDataStore?.tokenFlow?.collectAsState()?.value
-            val startDestination: Any = if (token.isNullOrBlank()) {
-                WelcomeRoute
-            } else {
-                BookmarkListRoute()
-            }
+        )
+    }
+    } // end CompositionLocalProvider
+}
 
-            NavHost(
-                navController = navController,
-                startDestination = startDestination,
+@SuppressLint("WrongStartDestinationType")
+@Composable
+private fun AppShellNavHost(
+    navController: NavHostController,
+    settingsDataStore: SettingsDataStore?,
+    bookmarkListViewModel: BookmarkListViewModel,
+    modifier: Modifier = Modifier,
+) {
+    // Persistent themed Surface prevents white flash between screen transitions
+    Surface(
+        modifier = modifier,
+        color = MaterialTheme.colorScheme.background,
+    ) {
+        // Determine start destination based on auth state
+        val token = settingsDataStore?.tokenFlow?.collectAsState()?.value
+        val startDestination: Any = if (token.isNullOrBlank()) {
+            WelcomeRoute
+        } else {
+            BookmarkListRoute()
+        }
+
+        NavHost(
+            navController = navController,
+            startDestination = startDestination,
+            enterTransition = {
+                slideInHorizontally(animationSpec = tween(300)) { it } +
+                    fadeIn(animationSpec = tween(300))
+            },
+            exitTransition = {
+                slideOutHorizontally(animationSpec = tween(300)) { -it } +
+                    fadeOut(animationSpec = tween(300))
+            },
+            popEnterTransition = {
+                slideInHorizontally(animationSpec = tween(300)) { -it } +
+                    fadeIn(animationSpec = tween(300))
+            },
+            popExitTransition = {
+                slideOutHorizontally(animationSpec = tween(300)) { it } +
+                    fadeOut(animationSpec = tween(300))
+            },
+        ) {
+            composable<BookmarkListRoute> {
+                BookmarkListScreen(
+                    navController,
+                    bookmarkListViewModel,
+                    drawerState = rememberDrawerState(DrawerValue.Closed),
+                    showNavigationIcon = false,
+                )
+            }
+            composable<HighlightsRoute> {
+                HighlightsScreen(navController, showBackButton = false)
+            }
+            composable<SettingsRoute> { SettingsScreen(navController, showBackButton = false) }
+            composable<WelcomeRoute> { WelcomeScreen(navController) }
+            composable<AccountSettingsRoute> { AccountSettingsScreen(navController) }
+            composable<BookmarkDetailRoute>(
                 enterTransition = {
-                    slideInHorizontally(animationSpec = tween(300)) { it } +
-                        fadeIn(animationSpec = tween(300))
+                    scaleIn(
+                        initialScale = 0.92f,
+                        animationSpec = tween(300)
+                    ) + fadeIn(animationSpec = tween(300))
                 },
                 exitTransition = {
-                    slideOutHorizontally(animationSpec = tween(300)) { -it } +
-                        fadeOut(animationSpec = tween(300))
+                    scaleOut(
+                        targetScale = 0.92f,
+                        animationSpec = tween(300)
+                    ) + fadeOut(animationSpec = tween(300))
                 },
                 popEnterTransition = {
-                    slideInHorizontally(animationSpec = tween(300)) { -it } +
-                        fadeIn(animationSpec = tween(300))
+                    scaleIn(
+                        initialScale = 0.92f,
+                        animationSpec = tween(300)
+                    ) + fadeIn(animationSpec = tween(300))
                 },
                 popExitTransition = {
-                    slideOutHorizontally(animationSpec = tween(300)) { it } +
-                        fadeOut(animationSpec = tween(300))
+                    scaleOut(
+                        targetScale = 0.92f,
+                        animationSpec = tween(300)
+                    ) + fadeOut(animationSpec = tween(300))
                 },
-            ) {
-                composable<BookmarkListRoute> {
-                    BookmarkListScreen(
-                        navController,
-                        bookmarkListViewModel,
-                        drawerState = rememberDrawerState(DrawerValue.Closed),
-                        showNavigationIcon = false,
-                    )
-                }
-                composable<HighlightsRoute> {
-                    HighlightsScreen(navController, showBackButton = false)
-                }
-                composable<SettingsRoute> { SettingsScreen(navController, showBackButton = false) }
-                composable<WelcomeRoute> { WelcomeScreen(navController) }
-                composable<AccountSettingsRoute> { AccountSettingsScreen(navController) }
-                composable<BookmarkDetailRoute>(
-                    enterTransition = {
-                        scaleIn(
-                            initialScale = 0.92f,
-                            animationSpec = tween(300)
-                        ) + fadeIn(animationSpec = tween(300))
-                    },
-                    exitTransition = {
-                        scaleOut(
-                            targetScale = 0.92f,
-                            animationSpec = tween(300)
-                        ) + fadeOut(animationSpec = tween(300))
-                    },
-                    popEnterTransition = {
-                        scaleIn(
-                            initialScale = 0.92f,
-                            animationSpec = tween(300)
-                        ) + fadeIn(animationSpec = tween(300))
-                    },
-                    popExitTransition = {
-                        scaleOut(
-                            targetScale = 0.92f,
-                            animationSpec = tween(300)
-                        ) + fadeOut(animationSpec = tween(300))
-                    },
-                ) { backStackEntry ->
-                    val route = backStackEntry.toRoute<BookmarkDetailRoute>()
-                    BookmarkDetailScreen(
-                        navController,
-                        route.bookmarkId,
-                        showOriginal = route.showOriginal,
-                        annotationId = route.annotationId
-                    )
-                }
-                composable<OpenSourceLibrariesRoute> {
-                    OpenSourceLibrariesScreen(navHostController = navController)
-                }
-                composable<LogViewRoute> {
-                    LogViewScreen(navController = navController)
-                }
-                composable<SyncSettingsRoute> {
-                    SyncSettingsScreen(navHostController = navController)
-                }
-                composable<UiSettingsRoute> {
-                    UiSettingsScreen(navHostController = navController)
-                }
-                composable<UserGuideRoute> {
-                    UserGuideIndexScreen(navHostController = navController, showBackButton = false)
-                }
-                composable<UserGuideSectionRoute> {
-                    UserGuideSectionScreen(navHostController = navController)
-                }
-                composable<AboutRoute> {
-                    AboutScreen(navHostController = navController, showBackButton = false)
-                }
+            ) { backStackEntry ->
+                val route = backStackEntry.toRoute<BookmarkDetailRoute>()
+                BookmarkDetailScreen(
+                    navController,
+                    route.bookmarkId,
+                    showOriginal = route.showOriginal,
+                    annotationId = route.annotationId
+                )
+            }
+            composable<OpenSourceLibrariesRoute> {
+                OpenSourceLibrariesScreen(navHostController = navController)
+            }
+            composable<LogViewRoute> {
+                LogViewScreen(navController = navController)
+            }
+            composable<SyncSettingsRoute> {
+                SyncSettingsScreen(navHostController = navController)
+            }
+            composable<UiSettingsRoute> {
+                UiSettingsScreen(navHostController = navController)
+            }
+            composable<UserGuideRoute> {
+                UserGuideIndexScreen(navHostController = navController, showBackButton = false)
+            }
+            composable<UserGuideSectionRoute> {
+                UserGuideSectionScreen(navHostController = navController)
+            }
+            composable<AboutRoute> {
+                AboutScreen(navHostController = navController, showBackButton = false)
             }
         }
     }
-    } // end CompositionLocalProvider
 }
 
 @SuppressLint("WrongStartDestinationType")
@@ -646,109 +662,12 @@ private fun ExpandedAppShell(
             )
         }
 
-        Surface(
+        AppShellNavHost(
+            navController = navController,
+            settingsDataStore = settingsDataStore,
+            bookmarkListViewModel = bookmarkListViewModel,
             modifier = Modifier.weight(1f).fillMaxSize(),
-            color = MaterialTheme.colorScheme.background,
-        ) {
-            // Determine start destination based on auth state
-            val token = settingsDataStore?.tokenFlow?.collectAsState()?.value
-            val startDestination: Any = if (token.isNullOrBlank()) {
-                WelcomeRoute
-            } else {
-                BookmarkListRoute()
-            }
-
-            NavHost(
-                navController = navController,
-                startDestination = startDestination,
-                enterTransition = {
-                    slideInHorizontally(animationSpec = tween(300)) { it } +
-                        fadeIn(animationSpec = tween(300))
-                },
-                exitTransition = {
-                    slideOutHorizontally(animationSpec = tween(300)) { -it } +
-                        fadeOut(animationSpec = tween(300))
-                },
-                popEnterTransition = {
-                    slideInHorizontally(animationSpec = tween(300)) { -it } +
-                        fadeIn(animationSpec = tween(300))
-                },
-                popExitTransition = {
-                    slideOutHorizontally(animationSpec = tween(300)) { it } +
-                        fadeOut(animationSpec = tween(300))
-                },
-            ) {
-                composable<BookmarkListRoute> {
-                    BookmarkListScreen(
-                        navController,
-                        bookmarkListViewModel,
-                        drawerState = rememberDrawerState(DrawerValue.Closed),
-                        showNavigationIcon = false,
-                    )
-                }
-                composable<HighlightsRoute> {
-                    HighlightsScreen(navController, showBackButton = false)
-                }
-                composable<SettingsRoute> { SettingsScreen(navController, showBackButton = false) }
-                composable<WelcomeRoute> { WelcomeScreen(navController) }
-                composable<AccountSettingsRoute> { AccountSettingsScreen(navController) }
-                composable<BookmarkDetailRoute>(
-                    enterTransition = {
-                        scaleIn(
-                            initialScale = 0.92f,
-                            animationSpec = tween(300)
-                        ) + fadeIn(animationSpec = tween(300))
-                    },
-                    exitTransition = {
-                        scaleOut(
-                            targetScale = 0.92f,
-                            animationSpec = tween(300)
-                        ) + fadeOut(animationSpec = tween(300))
-                    },
-                    popEnterTransition = {
-                        scaleIn(
-                            initialScale = 0.92f,
-                            animationSpec = tween(300)
-                        ) + fadeIn(animationSpec = tween(300))
-                    },
-                    popExitTransition = {
-                        scaleOut(
-                            targetScale = 0.92f,
-                            animationSpec = tween(300)
-                        ) + fadeOut(animationSpec = tween(300))
-                    },
-                ) { backStackEntry ->
-                    val route = backStackEntry.toRoute<BookmarkDetailRoute>()
-                    BookmarkDetailScreen(
-                        navController,
-                        route.bookmarkId,
-                        showOriginal = route.showOriginal,
-                        annotationId = route.annotationId
-                    )
-                }
-                composable<OpenSourceLibrariesRoute> {
-                    OpenSourceLibrariesScreen(navHostController = navController)
-                }
-                composable<LogViewRoute> {
-                    LogViewScreen(navController = navController)
-                }
-                composable<SyncSettingsRoute> {
-                    SyncSettingsScreen(navHostController = navController)
-                }
-                composable<UiSettingsRoute> {
-                    UiSettingsScreen(navHostController = navController)
-                }
-                composable<UserGuideRoute> {
-                    UserGuideIndexScreen(navHostController = navController, showBackButton = false)
-                }
-                composable<UserGuideSectionRoute> {
-                    UserGuideSectionScreen(navHostController = navController)
-                }
-                composable<AboutRoute> {
-                    AboutScreen(navHostController = navController, showBackButton = false)
-                }
-            }
-        }
+        )
     }
     } // end CompositionLocalProvider
 }
