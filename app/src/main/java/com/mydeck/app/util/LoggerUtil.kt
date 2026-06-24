@@ -4,7 +4,6 @@ package com.mydeck.app.util
 import android.content.Context
 import com.mydeck.app.BuildConfig
 import com.mydeck.app.LOGDIR
-import fr.bipi.treessence.file.FileLoggerTree
 import timber.log.Timber
 import java.io.File
 import java.io.FileOutputStream

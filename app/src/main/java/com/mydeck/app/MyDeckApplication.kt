@@ -4,11 +4,12 @@ import android.app.Application
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.os.Build
+import android.util.Log
 import com.mydeck.app.io.db.dao.BookmarkDao
 import com.mydeck.app.io.db.dao.CachedAnnotationDao
 import dagger.hilt.android.HiltAndroidApp
+import com.mydeck.app.util.FileLoggerTree
 import com.mydeck.app.util.createLogDir
-import fr.bipi.treessence.context.GlobalContext.startTimber
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -80,32 +81,23 @@ class MyDeckApplication : Application() {
     }
 
     private fun initTimberLog() {
-        val logDir = createLogDir(filesDir)
-        startTimber {
-            if (isDebugBuild()) {
-                debugTree()
-                logDir?.let {
-                    fileTree {
-                        level = 3 // Log.DEBUG
-                        fileName = LOGFILE
-                        dir = it.absolutePath
-                        fileLimit = 3
-                        sizeLimit = 128 * 1024 // 128 KB in bytes
-                        appendToFile = true
-                    }
-                }
-            } else {
-                logDir?.let {
-                    fileTree {
-                        level = 5 // Log.WARN
-                        fileName = LOGFILE
-                        dir = it.absolutePath
-                        fileLimit = 3
-                        sizeLimit = 128 * 1024 // 128 KB in bytes
-                        appendToFile = true
-                    }
-                }
-            }
+        if (isDebugBuild()) {
+            Timber.plant(Timber.DebugTree())
+        }
+        val logDir = createLogDir(filesDir) ?: return
+        try {
+            Timber.plant(
+                FileLoggerTree.Builder()
+                    .dir(logDir.absolutePath)
+                    .fileName(LOGFILE)
+                    .fileLimit(3)
+                    .sizeLimit(128 * 1024) // 128 KB in bytes
+                    .appendToFile(true)
+                    .minPriority(if (isDebugBuild()) Log.DEBUG else Log.WARN)
+                    .build()
+            )
+        } catch (e: Exception) {
+            Log.w("MyDeckApplication", "Failed to set up file logging", e)
         }
     }
 
