@@ -3218,29 +3218,6 @@
             ]
         },
         {
-            "uniqueId": "com.github.bastienpaulfr:Treessence",
-            "funding": [
-                
-            ],
-            "developers": [
-                {
-                    "name": "BP"
-                }
-            ],
-            "artifactVersion": "1.1.2",
-            "description": "Some trees for Timber lib",
-            "scm": {
-                "connection": "scm:git://github.com/bastienpaulfr/Treessence.git",
-                "url": "git://github.com/bastienpaulfr/Treessence.git",
-                "developerConnection": "scm:git://github.com/bastienpaulfr/Treessence.git"
-            },
-            "name": "bastienpaulfr/Treessence",
-            "website": "https://github.com/bastienpaulfr/Treessence",
-            "licenses": [
-                "Apache-2.0"
-            ]
-        },
-        {
             "uniqueId": "com.google.accompanist:accompanist-drawablepainter",
             "funding": [
                 

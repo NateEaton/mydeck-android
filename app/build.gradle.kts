@@ -34,8 +34,6 @@ android {
         versionName = "0.14.2"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-
-        buildConfigField("long", "BUILD_TIME", "${System.currentTimeMillis()}L")
     }
 
     signingConfigs {
@@ -282,7 +280,6 @@ dependencies {
 
     implementation(libs.aboutlibraries.core)
     implementation(libs.aboutlibraries.compose.m3)
-    implementation(libs.treessence)
     implementation(libs.accompanist.permissions)
     
     // Markdown rendering
