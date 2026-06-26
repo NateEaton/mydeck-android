@@ -123,6 +123,7 @@ class BookmarkDetailViewModelTest {
         every { settingsDataStore.typographySettingsFlow } returns MutableStateFlow(com.mydeck.app.domain.model.TypographySettings())
         every { settingsDataStore.keepScreenOnWhileReadingFlow } returns MutableStateFlow(true)
         every { settingsDataStore.fullscreenWhileReadingFlow } returns MutableStateFlow(false)
+        every { settingsDataStore.openWebPagesInFlow } returns MutableStateFlow(com.mydeck.app.domain.model.OpenWebPagesIn.IN_APP)
         every { settingsDataStore.offlineReadingEnabledFlow } returns MutableStateFlow(false)
         coEvery { settingsDataStore.getBookmarkShareFormat() } returns BookmarkShareFormat.URL_ONLY
         coEvery { settingsDataStore.isOfflineReadingEnabled() } returns false

@@ -85,6 +85,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.draw.alpha
@@ -310,8 +311,10 @@ private fun CompactOfflineStateIndicator(
 private fun CompactStatusRail(
     bookmark: BookmarkListItem,
     faviconSize: Dp,
+    showFavicon: Boolean = true,
     modifier: Modifier = Modifier
 ) {
+    if (!showFavicon) return
     Column(
         modifier = modifier
             .width(CompactStatusRailWidth)
@@ -338,6 +341,13 @@ private fun CompactStatusRail(
 }
 
 val LocalIsWideLayout = compositionLocalOf { false }
+
+/**
+ * When true, the card's "View web page" action opens the original URL in the external browser, so the
+ * action renders an open-in-new icon instead of the globe. Provided from the list per the user's
+ * "Open web pages" preference; the click itself is routed in the ViewModel.
+ */
+val LocalOpenWebPageExternally = compositionLocalOf { false }
 
 private fun Modifier.selectionSemantics(
     isSelectionMode: Boolean,
@@ -421,6 +431,7 @@ fun BookmarkMosaicCard(
     onClickFavorite: (String, Boolean) -> Unit,
     onClickArchive: (String, Boolean) -> Unit,
     onClickLabel: (String) -> Unit = {},
+    onClickEditLabels: (String) -> Unit = {},
     onClickOpenUrl: (String) -> Unit = {},
     onClickOpenInBrowser: (String) -> Unit = {},
     onClickCopyLink: (String) -> Unit = {},
@@ -574,36 +585,53 @@ fun BookmarkMosaicCard(
                         Row(horizontalArrangement = Arrangement.Start) {
                             IconButton(
                                 onClick = { onClickFavorite(bookmark.id, !bookmark.isMarked) },
-                                modifier = Modifier.size(36.dp)
+                                modifier = Modifier.size(48.dp)
                             ) {
                                 Icon(
                                     imageVector = if (bookmark.isMarked) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
                                     contentDescription = stringResource(R.string.action_favorite),
                                     tint = Color.White,
-                                    modifier = Modifier.size(20.dp)
+                                    modifier = Modifier.size(24.dp)
                                 )
                             }
                             IconButton(
                                 onClick = { onClickArchive(bookmark.id, !bookmark.isArchived) },
-                                modifier = Modifier.size(36.dp)
+                                modifier = Modifier.size(48.dp)
                             ) {
                                 Icon(
                                     imageVector = if (bookmark.isArchived) Icons.Filled.Inventory2 else Icons.Outlined.Inventory2,
                                     contentDescription = stringResource(R.string.action_archive),
                                     tint = Color.White,
-                                    modifier = Modifier.size(20.dp)
+                                    modifier = Modifier.size(24.dp)
                                 )
                             }
                             IconButton(
-                                onClick = { onClickOpenUrl(bookmark.id) },
-                                modifier = Modifier.size(36.dp)
+                                onClick = { onClickEditLabels(bookmark.id) },
+                                modifier = Modifier.size(48.dp)
                             ) {
                                 Icon(
-                                    imageVector = Icons.Filled.Language,
-                                    contentDescription = stringResource(R.string.action_view_original),
+                                    imageVector = Icons.AutoMirrored.Outlined.Label,
+                                    contentDescription = stringResource(R.string.edit_labels),
                                     tint = Color.White,
-                                    modifier = Modifier.size(20.dp)
+                                    modifier = Modifier.size(24.dp)
                                 )
+                            }
+                            // View-web-page icon is kept only on the roomy single-column (mobile
+                            // portrait) mosaic tile; multi-column tiles are too narrow for 5 icons,
+                            // and it's the one action that doesn't change the bookmark. (Still
+                            // reachable via long-press on the cramped layouts.)
+                            if (!isWideLayout) {
+                                IconButton(
+                                    onClick = { onClickOpenUrl(bookmark.id) },
+                                    modifier = Modifier.size(48.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = if (LocalOpenWebPageExternally.current) Icons.AutoMirrored.Filled.OpenInNew else Icons.Filled.Language,
+                                        contentDescription = stringResource(R.string.action_view_original),
+                                        tint = Color.White,
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                }
                             }
                         }
                         } else {
@@ -635,13 +663,13 @@ fun BookmarkMosaicCard(
                         } else {
                             IconButton(
                                 onClick = { onClickDelete(bookmark.id) },
-                                modifier = Modifier.size(36.dp)
+                                modifier = Modifier.size(48.dp)
                             ) {
                                 Icon(
                                     imageVector = Icons.Filled.Delete,
                                     contentDescription = stringResource(R.string.action_delete),
                                     tint = Color.White,
-                                    modifier = Modifier.size(20.dp)
+                                    modifier = Modifier.size(24.dp)
                                 )
                             }
                         }
@@ -679,6 +707,7 @@ fun BookmarkGridCard(
     onClickFavorite: (String, Boolean) -> Unit,
     onClickArchive: (String, Boolean) -> Unit,
     onClickLabel: (String) -> Unit = {},
+    onClickEditLabels: (String) -> Unit = {},
     onClickOpenUrl: (String) -> Unit = {},
     onClickOpenInBrowser: (String) -> Unit = {},
     onClickCopyLink: (String) -> Unit = {},
@@ -705,6 +734,7 @@ fun BookmarkGridCard(
             onClickFavorite = onClickFavorite,
             onClickArchive = onClickArchive,
             onClickLabel = onClickLabel,
+            onClickEditLabels = onClickEditLabels,
             onClickOpenUrl = onClickOpenUrl,
             onClickCopyLink = onClickCopyLink,
             onClickCopyLinkText = onClickCopyLinkText,
@@ -727,6 +757,7 @@ fun BookmarkGridCard(
             onClickFavorite = onClickFavorite,
             onClickArchive = onClickArchive,
             onClickLabel = onClickLabel,
+            onClickEditLabels = onClickEditLabels,
             onClickOpenUrl = onClickOpenUrl,
             onClickCopyLink = onClickCopyLink,
             onClickCopyLinkText = onClickCopyLinkText,
@@ -750,6 +781,7 @@ fun BookmarkGridCard(
             onClickFavorite = onClickFavorite,
             onClickArchive = onClickArchive,
             onClickLabel = onClickLabel,
+            onClickEditLabels = onClickEditLabels,
             onClickOpenUrl = onClickOpenUrl,
             onClickCopyLink = onClickCopyLink,
             onClickCopyLinkText = onClickCopyLinkText,
@@ -789,6 +821,7 @@ private fun BookmarkGridCardMobilePortrait(
     onClickFavorite: (String, Boolean) -> Unit,
     onClickArchive: (String, Boolean) -> Unit,
     onClickLabel: (String) -> Unit = {},
+    onClickEditLabels: (String) -> Unit = {},
     onClickOpenUrl: (String) -> Unit = {},
     onClickCopyLink: (String) -> Unit = {},
     onClickCopyLinkText: (String) -> Unit = {},
@@ -995,11 +1028,20 @@ private fun BookmarkGridCardMobilePortrait(
                                 )
                             }
                             IconButton(
+                                onClick = { onClickEditLabels(bookmark.id) },
+                                modifier = Modifier.size(48.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Outlined.Label,
+                                    contentDescription = stringResource(R.string.edit_labels),
+                                )
+                            }
+                            IconButton(
                                 onClick = { onClickOpenUrl(bookmark.id) },
                                 modifier = Modifier.size(48.dp)
                             ) {
                                 Icon(
-                                    imageVector = Icons.Filled.Language,
+                                    imageVector = if (LocalOpenWebPageExternally.current) Icons.AutoMirrored.Filled.OpenInNew else Icons.Filled.Language,
                                     contentDescription = stringResource(R.string.action_view_original),
                                 )
                             }
@@ -1078,6 +1120,7 @@ private fun BookmarkGridCardNarrow(
     onClickFavorite: (String, Boolean) -> Unit,
     onClickArchive: (String, Boolean) -> Unit,
     onClickLabel: (String) -> Unit = {},
+    onClickEditLabels: (String) -> Unit = {},
     onClickOpenUrl: (String) -> Unit = {},
     onClickCopyLink: (String) -> Unit = {},
     onClickCopyLinkText: (String) -> Unit = {},
@@ -1252,6 +1295,7 @@ private fun BookmarkGridCardNarrow(
                     onToggleSelection = onToggleSelection,
                     onClickFavorite = onClickFavorite,
                     onClickArchive = onClickArchive,
+                    onClickEditLabels = onClickEditLabels,
                     onClickOpenUrl = onClickOpenUrl,
                     onClickDelete = onClickDelete,
                 )
@@ -1288,6 +1332,7 @@ private fun BookmarkGridCardWide(
     onClickFavorite: (String, Boolean) -> Unit,
     onClickArchive: (String, Boolean) -> Unit,
     onClickLabel: (String) -> Unit = {},
+    onClickEditLabels: (String) -> Unit = {},
     onClickOpenUrl: (String) -> Unit = {},
     onClickCopyLink: (String) -> Unit = {},
     onClickCopyLinkText: (String) -> Unit = {},
@@ -1305,6 +1350,12 @@ private fun BookmarkGridCardWide(
 ) {
     var showBodyContextMenu by remember { mutableStateOf(false) }
     var showImageContextMenu by remember { mutableStateOf(false) }
+
+    // On a phone in landscape the grid columns are narrow and the card is short, so the standard
+    // 140dp image crowds the title/labels/actions. A phone (smallestScreenWidthDp < 600) only enters
+    // this multi-column grid in landscape, so use a shorter image there to free up content space.
+    val isMobileLandscapeGrid = isInGrid && LocalConfiguration.current.smallestScreenWidthDp < 600
+    val gridImageHeight = if (isMobileLandscapeGrid) 100.dp else 140.dp
 
     Box {
     Card(
@@ -1333,7 +1384,7 @@ private fun BookmarkGridCardWide(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .then(if (isInGrid) Modifier.height(140.dp) else Modifier.aspectRatio(16f / 9f))
+                    .then(if (isInGrid) Modifier.height(gridImageHeight) else Modifier.aspectRatio(16f / 9f))
             ) {
                 SubcomposeAsyncImage(
                     model = ImageRequest.Builder(LocalContext.current)
@@ -1432,6 +1483,12 @@ private fun BookmarkGridCardWide(
                     )
                 }
 
+                // Push the labels + action row to the bottom so labels always ride just above the
+                // actions (matching the mobile-portrait card) instead of floating under the site name.
+                if (isInGrid) {
+                    Spacer(modifier = Modifier.weight(1f))
+                }
+
                 // Labels row with tappable chips (single line, scrollable)
                 if (bookmark.labels.isNotEmpty()) {
                     Row(
@@ -1458,10 +1515,6 @@ private fun BookmarkGridCardWide(
                     }
                 }
 
-                if (isInGrid) {
-                    Spacer(modifier = Modifier.weight(1f))
-                }
-
                 BookmarkCardActionRow(
                     bookmark = bookmark,
                     isSelectionMode = isSelectionMode,
@@ -1469,6 +1522,7 @@ private fun BookmarkGridCardWide(
                     onToggleSelection = onToggleSelection,
                     onClickFavorite = onClickFavorite,
                     onClickArchive = onClickArchive,
+                    onClickEditLabels = onClickEditLabels,
                     onClickOpenUrl = onClickOpenUrl,
                     onClickDelete = onClickDelete,
                 )
@@ -1537,6 +1591,7 @@ fun BookmarkCompactCard(
     onClickFavorite: (String, Boolean) -> Unit,
     onClickArchive: (String, Boolean) -> Unit,
     onClickLabel: (String) -> Unit = {},
+    onClickEditLabels: (String) -> Unit = {},
     onClickOpenUrl: (String) -> Unit = {},
     onClickOpenInBrowser: (String) -> Unit = {},
     onClickCopyLink: (String) -> Unit = {},
@@ -1548,6 +1603,7 @@ fun BookmarkCompactCard(
     onClickDownloadImage: (String) -> Unit = {},
     onClickShareImage: (String) -> Unit = {},
     isWideLayout: Boolean = LocalIsWideLayout.current,
+    showFavicon: Boolean = true,
     isSelectionMode: Boolean = false,
     isSelected: Boolean = false,
     onToggleSelection: (String) -> Unit = {},
@@ -1561,6 +1617,7 @@ fun BookmarkCompactCard(
             onClickFavorite = onClickFavorite,
             onClickArchive = onClickArchive,
             onClickLabel = onClickLabel,
+            onClickEditLabels = onClickEditLabels,
             onClickOpenUrl = onClickOpenUrl,
             onClickCopyLink = onClickCopyLink,
             onClickCopyLinkText = onClickCopyLinkText,
@@ -1570,6 +1627,7 @@ fun BookmarkCompactCard(
             onClickCopyImage = onClickCopyImage,
             onClickDownloadImage = onClickDownloadImage,
             onClickShareImage = onClickShareImage,
+            showFavicon = showFavicon,
             isSelectionMode = isSelectionMode,
             isSelected = isSelected,
             onToggleSelection = onToggleSelection,
@@ -1583,6 +1641,7 @@ fun BookmarkCompactCard(
             onClickFavorite = onClickFavorite,
             onClickArchive = onClickArchive,
             onClickLabel = onClickLabel,
+            onClickEditLabels = onClickEditLabels,
             onClickOpenUrl = onClickOpenUrl,
             onClickCopyLink = onClickCopyLink,
             onClickCopyLinkText = onClickCopyLinkText,
@@ -1592,6 +1651,7 @@ fun BookmarkCompactCard(
             onClickCopyImage = onClickCopyImage,
             onClickDownloadImage = onClickDownloadImage,
             onClickShareImage = onClickShareImage,
+            showFavicon = showFavicon,
             isSelectionMode = isSelectionMode,
             isSelected = isSelected,
             onToggleSelection = onToggleSelection,
@@ -1609,6 +1669,7 @@ private fun BookmarkCompactCardNarrow(
     onClickFavorite: (String, Boolean) -> Unit,
     onClickArchive: (String, Boolean) -> Unit,
     onClickLabel: (String) -> Unit = {},
+    onClickEditLabels: (String) -> Unit = {},
     onClickOpenUrl: (String) -> Unit = {},
     onClickCopyLink: (String) -> Unit = {},
     onClickCopyLinkText: (String) -> Unit = {},
@@ -1618,6 +1679,7 @@ private fun BookmarkCompactCardNarrow(
     onClickCopyImage: (String) -> Unit = {},
     onClickDownloadImage: (String) -> Unit = {},
     onClickShareImage: (String) -> Unit = {},
+    showFavicon: Boolean = true,
     isSelectionMode: Boolean = false,
     isSelected: Boolean = false,
     onToggleSelection: (String) -> Unit = {},
@@ -1645,10 +1707,11 @@ private fun BookmarkCompactCardNarrow(
     ) {
         CompactStatusRail(
             bookmark = bookmark,
-            faviconSize = 28.dp
+            faviconSize = 28.dp,
+            showFavicon = showFavicon
         )
 
-        Spacer(Modifier.width(12.dp))
+        if (showFavicon) Spacer(Modifier.width(12.dp))
 
         // Right column: title, site info, labels, actions
         Column(modifier = Modifier.weight(1f)) {
@@ -1728,35 +1791,45 @@ private fun BookmarkCompactCardNarrow(
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             if (!isSelectionMode) {
-            Row(horizontalArrangement = Arrangement.Start) {
+            Row(horizontalArrangement = Arrangement.Start, verticalAlignment = Alignment.CenterVertically) {
                 IconButton(
                     onClick = { onClickFavorite(bookmark.id, !bookmark.isMarked) },
-                    modifier = Modifier.size(32.dp)
+                    modifier = Modifier.size(48.dp)
                 ) {
                     Icon(
                         imageVector = if (bookmark.isMarked) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
                         contentDescription = stringResource(R.string.action_favorite),
-                        modifier = Modifier.size(18.dp)
+                        modifier = Modifier.size(24.dp)
                     )
                 }
                 IconButton(
                     onClick = { onClickArchive(bookmark.id, !bookmark.isArchived) },
-                    modifier = Modifier.size(36.dp)
+                    modifier = Modifier.size(48.dp)
                 ) {
                     Icon(
                         imageVector = if (bookmark.isArchived) Icons.Filled.Inventory2 else Icons.Outlined.Inventory2,
                         contentDescription = stringResource(R.string.action_archive),
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+                IconButton(
+                    onClick = { onClickEditLabels(bookmark.id) },
+                    modifier = Modifier.size(48.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Outlined.Label,
+                        contentDescription = stringResource(R.string.edit_labels),
+                        modifier = Modifier.size(24.dp)
                     )
                 }
                 IconButton(
                     onClick = { onClickOpenUrl(bookmark.id) },
-                    modifier = Modifier.size(36.dp)
+                    modifier = Modifier.size(48.dp)
                 ) {
                     Icon(
-                        imageVector = Icons.Filled.Language,
+                        imageVector = if (LocalOpenWebPageExternally.current) Icons.AutoMirrored.Filled.OpenInNew else Icons.Filled.Language,
                         contentDescription = stringResource(R.string.action_view_original),
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(24.dp)
                     )
                 }
             }
@@ -1788,12 +1861,12 @@ private fun BookmarkCompactCardNarrow(
             } else {
                 IconButton(
                     onClick = { onClickDelete(bookmark.id) },
-                    modifier = Modifier.size(36.dp)
+                    modifier = Modifier.size(48.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Filled.Delete,
                         contentDescription = stringResource(R.string.action_delete),
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(24.dp)
                     )
                 }
             }
@@ -1829,6 +1902,7 @@ private fun BookmarkCompactCardWide(
     onClickFavorite: (String, Boolean) -> Unit,
     onClickArchive: (String, Boolean) -> Unit,
     onClickLabel: (String) -> Unit = {},
+    onClickEditLabels: (String) -> Unit = {},
     onClickOpenUrl: (String) -> Unit = {},
     onClickCopyLink: (String) -> Unit = {},
     onClickCopyLinkText: (String) -> Unit = {},
@@ -1838,6 +1912,7 @@ private fun BookmarkCompactCardWide(
     onClickCopyImage: (String) -> Unit = {},
     onClickDownloadImage: (String) -> Unit = {},
     onClickShareImage: (String) -> Unit = {},
+    showFavicon: Boolean = true,
     isSelectionMode: Boolean = false,
     isSelected: Boolean = false,
     onToggleSelection: (String) -> Unit = {},
@@ -1865,10 +1940,11 @@ private fun BookmarkCompactCardWide(
     ) {
         CompactStatusRail(
             bookmark = bookmark,
-            faviconSize = 24.dp
+            faviconSize = 24.dp,
+            showFavicon = showFavicon
         )
 
-        Spacer(Modifier.width(8.dp))
+        if (showFavicon) Spacer(Modifier.width(8.dp))
 
         // Right column: title row with actions, site info row
         Column(modifier = Modifier.weight(1f)) {
@@ -1910,42 +1986,52 @@ private fun BookmarkCompactCardWide(
                     // Action icons in title row (right-aligned)
                     IconButton(
                         onClick = { onClickFavorite(bookmark.id, !bookmark.isMarked) },
-                        modifier = Modifier.size(36.dp)
+                        modifier = Modifier.size(48.dp)
                     ) {
                         Icon(
                             imageVector = if (bookmark.isMarked) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
                             contentDescription = stringResource(R.string.action_favorite),
-                            modifier = Modifier.size(20.dp)
+                            modifier = Modifier.size(24.dp)
                         )
                     }
                     IconButton(
                         onClick = { onClickArchive(bookmark.id, !bookmark.isArchived) },
-                        modifier = Modifier.size(36.dp)
+                        modifier = Modifier.size(48.dp)
                     ) {
                         Icon(
                             imageVector = if (bookmark.isArchived) Icons.Filled.Inventory2 else Icons.Outlined.Inventory2,
                             contentDescription = stringResource(R.string.action_archive),
-                            modifier = Modifier.size(20.dp)
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+                    IconButton(
+                        onClick = { onClickEditLabels(bookmark.id) },
+                        modifier = Modifier.size(48.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Outlined.Label,
+                            contentDescription = stringResource(R.string.edit_labels),
+                            modifier = Modifier.size(24.dp)
                         )
                     }
                     IconButton(
                         onClick = { onClickOpenUrl(bookmark.id) },
-                        modifier = Modifier.size(36.dp)
+                        modifier = Modifier.size(48.dp)
                     ) {
                         Icon(
-                            imageVector = Icons.Filled.Language,
+                            imageVector = if (LocalOpenWebPageExternally.current) Icons.AutoMirrored.Filled.OpenInNew else Icons.Filled.Language,
                             contentDescription = stringResource(R.string.action_view_original),
-                            modifier = Modifier.size(20.dp)
+                            modifier = Modifier.size(24.dp)
                         )
                     }
                     IconButton(
                         onClick = { onClickDelete(bookmark.id) },
-                        modifier = Modifier.size(36.dp)
+                        modifier = Modifier.size(48.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Filled.Delete,
                             contentDescription = stringResource(R.string.action_delete),
-                            modifier = Modifier.size(20.dp)
+                            modifier = Modifier.size(24.dp)
                         )
                     }
                 }
@@ -2044,6 +2130,7 @@ private fun BookmarkCardActionRow(
     onToggleSelection: (String) -> Unit,
     onClickFavorite: (String, Boolean) -> Unit,
     onClickArchive: (String, Boolean) -> Unit,
+    onClickEditLabels: (String) -> Unit,
     onClickOpenUrl: (String) -> Unit,
     onClickDelete: (String) -> Unit,
 ) {
@@ -2057,32 +2144,42 @@ private fun BookmarkCardActionRow(
             Row(horizontalArrangement = Arrangement.Start) {
                 IconButton(
                     onClick = { onClickFavorite(bookmark.id, !bookmark.isMarked) },
-                    modifier = Modifier.size(36.dp)
+                    modifier = Modifier.size(48.dp)
                 ) {
                     Icon(
                         imageVector = if (bookmark.isMarked) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
                         contentDescription = stringResource(R.string.action_favorite),
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(24.dp)
                     )
                 }
                 IconButton(
                     onClick = { onClickArchive(bookmark.id, !bookmark.isArchived) },
-                    modifier = Modifier.size(36.dp)
+                    modifier = Modifier.size(48.dp)
                 ) {
                     Icon(
                         imageVector = if (bookmark.isArchived) Icons.Filled.Inventory2 else Icons.Outlined.Inventory2,
                         contentDescription = stringResource(R.string.action_archive),
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+                IconButton(
+                    onClick = { onClickEditLabels(bookmark.id) },
+                    modifier = Modifier.size(48.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Outlined.Label,
+                        contentDescription = stringResource(R.string.edit_labels),
+                        modifier = Modifier.size(24.dp)
                     )
                 }
                 IconButton(
                     onClick = { onClickOpenUrl(bookmark.id) },
-                    modifier = Modifier.size(36.dp)
+                    modifier = Modifier.size(48.dp)
                 ) {
                     Icon(
-                        imageVector = Icons.Filled.Language,
+                        imageVector = if (LocalOpenWebPageExternally.current) Icons.AutoMirrored.Filled.OpenInNew else Icons.Filled.Language,
                         contentDescription = stringResource(R.string.action_view_original),
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(24.dp)
                     )
                 }
             }
@@ -2112,12 +2209,12 @@ private fun BookmarkCardActionRow(
         } else {
             IconButton(
                 onClick = { onClickDelete(bookmark.id) },
-                modifier = Modifier.size(36.dp)
+                modifier = Modifier.size(48.dp)
             ) {
                 Icon(
                     imageVector = Icons.Filled.Delete,
                     contentDescription = stringResource(R.string.action_delete),
-                    modifier = Modifier.size(20.dp)
+                    modifier = Modifier.size(24.dp)
                 )
             }
         }

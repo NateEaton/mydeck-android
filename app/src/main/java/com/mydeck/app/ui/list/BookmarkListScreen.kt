@@ -84,6 +84,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
@@ -129,6 +130,7 @@ import com.mydeck.app.ui.components.FilterBottomSheet
 import com.mydeck.app.ui.components.ShareBookmarkChooser
 import com.mydeck.app.ui.components.VerticalScrollbar
 import com.mydeck.app.util.openUrlInCustomTab
+import com.mydeck.app.domain.model.OpenWebPagesIn
 import coil3.imageLoader
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -176,7 +178,11 @@ fun BookmarkListScreen(
     val multiSelectTargets = viewModel.multiSelectTargets.collectAsState()
     val offlineReadingEnabled = viewModel.offlineReadingEnabled.collectAsState()
     val showAddLabelsPicker = viewModel.showAddLabelsPicker.collectAsState()
+    val editLabelsTarget = viewModel.editLabelsTarget.collectAsState()
     val swipeConfig = viewModel.swipeConfig.collectAsState()
+    val showCompactFavicons = viewModel.showCompactFavicons.collectAsState()
+    val showAddBookmarkFab = viewModel.showAddBookmarkFab.collectAsState()
+    val openWebPagesIn = viewModel.openWebPagesIn.collectAsState()
 
     var showSelectionOverflowMenu by remember { mutableStateOf(false) }
     var showRenameLabelDialog by remember { mutableStateOf(false) }
@@ -774,7 +780,7 @@ fun BookmarkListScreen(
             }
         },
         floatingActionButton = {
-            if (!isMultiSelectMode) {
+            if (!isMultiSelectMode && showAddBookmarkFab.value) {
                 val clipboardManager = LocalClipboardManager.current
                 FloatingActionButton(
                     onClick = {
@@ -846,6 +852,10 @@ fun BookmarkListScreen(
                                 headlineResource = R.string.filter_no_results
                             )
                         } else {
+                    CompositionLocalProvider(
+                        LocalOpenWebPageExternally provides
+                            (openWebPagesIn.value == OpenWebPagesIn.EXTERNAL_BROWSER)
+                    ) {
                     BookmarkListView(
                                 filterKey = Pair(filterFormState.value, activeLabel.value),
                                 scrollToTopTrigger = scrollToTopTrigger,
@@ -855,6 +865,7 @@ fun BookmarkListScreen(
                                 isMultiSelectMode = isMultiSelectMode,
                                 selectedBookmarkIds = multiSelectState.value.selectedIds,
                                 swipeConfig = swipeConfig.value,
+                                showCompactFavicons = showCompactFavicons.value,
                                 onClickBookmark = onClickBookmark,
                                 onToggleBookmarkSelection = { viewModel.onToggleBookmarkSelected(it) },
                                 onClickDelete = onClickDelete,
@@ -863,6 +874,10 @@ fun BookmarkListScreen(
                                 onClickLabel = { label ->
                                     dismissPendingDeleteSnackbar()
                                     viewModel.onClickLabel(label)
+                                },
+                                onClickEditLabels = { bookmarkId ->
+                                    dismissPendingDeleteSnackbar()
+                                    viewModel.onOpenEditLabels(bookmarkId)
                                 },
                                 onClickOpenUrl = onClickOpenUrl,
                                 onClickOpenInBrowser = onClickOpenInBrowser,
@@ -876,6 +891,7 @@ fun BookmarkListScreen(
                         onClickShareImage = onClickShareImage,
                         onUserInteraction = dismissPendingDeleteSnackbar,
                     )
+                    }
                 }
                         // Consumes a shareIntent and creates the corresponding share dialog
                         ShareBookmarkChooser(
@@ -987,6 +1003,35 @@ fun BookmarkListScreen(
             labels = labelsWithCounts.value,
             mode = addLabelsMode,
             onDismiss = { viewModel.onDismissAddLabelsPicker() }
+        )
+    }
+
+    // Single-bookmark quick label edit (from the card label button). Replaces the bookmark's full
+    // label set, pre-populated with its current labels. The target's own labels are merged into the
+    // options so a label not yet in the global list still appears as selected.
+    editLabelsTarget.value?.let { target ->
+        val labelOptions = remember(labelsWithCounts.value, target) {
+            labelsWithCounts.value + target.currentLabels.associateWith { label ->
+                labelsWithCounts.value[label] ?: 0
+            }
+        }
+        // The mode must be referentially stable across recompositions, otherwise the picker's
+        // remember(mode)-keyed selection state resets to initialSelection on every recomposition
+        // (unchecks pop back, additions are lost). Key on target so it refreshes per bookmark.
+        val editLabelsMode = remember(target) {
+            LabelPickerMode.MultiSelect(
+                initialSelection = target.currentLabels.toSet(),
+                onDone = { selected ->
+                    val updated = target.currentLabels.filter { it in selected } +
+                        selected.filterNot { it in target.currentLabels }.sorted()
+                    viewModel.onSetLabelsForBookmark(target.bookmarkId, updated)
+                }
+            )
+        }
+        LabelPickerBottomSheet(
+            labels = labelOptions,
+            mode = editLabelsMode,
+            onDismiss = { viewModel.onDismissEditLabels() }
         )
     }
 
@@ -1349,6 +1394,7 @@ fun BookmarkListView(
     isMultiSelectMode: Boolean = false,
     selectedBookmarkIds: Set<String> = emptySet(),
     swipeConfig: SwipeConfig = SwipeConfig.Default,
+    showCompactFavicons: Boolean = true,
     isMultiColumn: Boolean = LocalIsWideLayout.current,
     onClickBookmark: (String) -> Unit,
     onToggleBookmarkSelection: (String) -> Unit = {},
@@ -1356,6 +1402,7 @@ fun BookmarkListView(
     onClickFavorite: (String, Boolean) -> Unit,
     onClickArchive: (String, Boolean) -> Unit,
     onClickLabel: (String) -> Unit = {},
+    onClickEditLabels: (String) -> Unit = {},
     onClickOpenUrl: (String) -> Unit = {},
     onClickOpenInBrowser: (String) -> Unit = {},
     onClickCopyLink: (String) -> Unit = {},
@@ -1435,6 +1482,7 @@ fun BookmarkListView(
                                 onClickArchive = if (actionsDisabled) noop2 else onClickArchive,
                                 onClickFavorite = if (actionsDisabled) noop2 else onClickFavorite,
                                 onClickLabel = if (actionsDisabled) noop else onClickLabel,
+                                onClickEditLabels = if (actionsDisabled) noop else onClickEditLabels,
                                 onClickOpenUrl = if (actionsDisabled) noop else onClickOpenUrl,
                                 onClickOpenInBrowser = if (actionsDisabled) noop else onClickOpenInBrowser,
                                 onClickCopyLink = if (actionsDisabled) noop else onClickCopyLink,
@@ -1458,6 +1506,7 @@ fun BookmarkListView(
                                 onClickArchive = if (actionsDisabled) noop2 else onClickArchive,
                                 onClickFavorite = if (actionsDisabled) noop2 else onClickFavorite,
                                 onClickLabel = if (actionsDisabled) noop else onClickLabel,
+                                onClickEditLabels = if (actionsDisabled) noop else onClickEditLabels,
                                 onClickOpenUrl = if (actionsDisabled) noop else onClickOpenUrl,
                                 onClickOpenInBrowser = if (actionsDisabled) noop else onClickOpenInBrowser,
                                 onClickCopyLink = if (actionsDisabled) noop else onClickCopyLink,
@@ -1468,6 +1517,7 @@ fun BookmarkListView(
                                 onClickDownloadLink = if (actionsDisabled) noop2s else onClickDownloadLink,
                                 onClickDownloadImage = if (actionsDisabled) noop else onClickDownloadImage,
                                 onClickShareImage = if (actionsDisabled) noop else onClickShareImage,
+                                showFavicon = showCompactFavicons,
                                 isSelectionMode = selectionModeForCard,
                                 isSelected = isSelected,
                                 onToggleSelection = onToggleBookmarkSelection,
@@ -1480,6 +1530,7 @@ fun BookmarkListView(
                                 onClickArchive = if (actionsDisabled) noop2 else onClickArchive,
                                 onClickFavorite = if (actionsDisabled) noop2 else onClickFavorite,
                                 onClickLabel = if (actionsDisabled) noop else onClickLabel,
+                                onClickEditLabels = if (actionsDisabled) noop else onClickEditLabels,
                                 onClickOpenUrl = if (actionsDisabled) noop else onClickOpenUrl,
                                 onClickOpenInBrowser = if (actionsDisabled) noop else onClickOpenInBrowser,
                                 onClickCopyLink = if (actionsDisabled) noop else onClickCopyLink,
@@ -1517,7 +1568,7 @@ fun BookmarkListView(
             if (lazyListState.isScrollInProgress) onUserInteraction()
         }
         Box(modifier = modifier) {
-            LazyColumn(state = lazyListState, modifier = Modifier.fillMaxSize()) {
+            LazyColumn(state = lazyListState, modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 88.dp)) {
                 itemsIndexed(bookmarks, key = { _, bookmark -> bookmark.id }) { index, bookmark ->
                     val isPendingDeletion = bookmark.id in pendingDeletionBookmarkIds
                     val confirmDelete: (String) -> Unit = { _ -> onUserInteraction() }
@@ -1552,6 +1603,7 @@ fun BookmarkListView(
                                 onClickArchive = if (actionsDisabled) noop2 else onClickArchive,
                                 onClickFavorite = if (actionsDisabled) noop2 else onClickFavorite,
                                 onClickLabel = if (actionsDisabled) noop else onClickLabel,
+                                onClickEditLabels = if (actionsDisabled) noop else onClickEditLabels,
                                 onClickOpenUrl = if (actionsDisabled) noop else onClickOpenUrl,
                                 onClickOpenInBrowser = if (actionsDisabled) noop else onClickOpenInBrowser,
                                 onClickCopyLink = if (actionsDisabled) noop else onClickCopyLink,
@@ -1575,6 +1627,7 @@ fun BookmarkListView(
                                 onClickArchive = if (actionsDisabled) noop2 else onClickArchive,
                                 onClickFavorite = if (actionsDisabled) noop2 else onClickFavorite,
                                 onClickLabel = if (actionsDisabled) noop else onClickLabel,
+                                onClickEditLabels = if (actionsDisabled) noop else onClickEditLabels,
                                 onClickOpenUrl = if (actionsDisabled) noop else onClickOpenUrl,
                                 onClickOpenInBrowser = if (actionsDisabled) noop else onClickOpenInBrowser,
                                 onClickCopyLink = if (actionsDisabled) noop else onClickCopyLink,
@@ -1585,6 +1638,7 @@ fun BookmarkListView(
                                 onClickDownloadLink = if (actionsDisabled) noop2s else onClickDownloadLink,
                                 onClickDownloadImage = if (actionsDisabled) noop else onClickDownloadImage,
                                 onClickShareImage = if (actionsDisabled) noop else onClickShareImage,
+                                showFavicon = showCompactFavicons,
                                 isSelectionMode = selectionModeForCard,
                                 isSelected = isSelected,
                                 onToggleSelection = onToggleBookmarkSelection,
@@ -1597,6 +1651,7 @@ fun BookmarkListView(
                                 onClickArchive = if (actionsDisabled) noop2 else onClickArchive,
                                 onClickFavorite = if (actionsDisabled) noop2 else onClickFavorite,
                                 onClickLabel = if (actionsDisabled) noop else onClickLabel,
+                                onClickEditLabels = if (actionsDisabled) noop else onClickEditLabels,
                                 onClickOpenUrl = if (actionsDisabled) noop else onClickOpenUrl,
                                 onClickOpenInBrowser = if (actionsDisabled) noop else onClickOpenInBrowser,
                                 onClickCopyLink = if (actionsDisabled) noop else onClickCopyLink,
@@ -1750,7 +1805,7 @@ private fun PendingDeleteSnackbar(
         action = {
             visuals.actionLabel?.let { actionLabel ->
                 TextButton(onClick = { snackbarData.performAction() }) {
-                    Text(actionLabel)
+                    Text(actionLabel, color = MaterialTheme.colorScheme.inversePrimary)
                 }
             }
         }

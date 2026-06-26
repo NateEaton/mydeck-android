@@ -12,6 +12,7 @@ import com.mydeck.app.R
 import com.mydeck.app.domain.model.BookmarkShareFormat
 import com.mydeck.app.domain.model.DarkAppearance
 import com.mydeck.app.domain.model.LightAppearance
+import com.mydeck.app.domain.model.OpenWebPagesIn
 import com.mydeck.app.domain.model.SwipeAction
 import com.mydeck.app.domain.model.SwipeConfig
 import com.mydeck.app.domain.model.Theme
@@ -43,6 +44,9 @@ class UiSettingsViewModel @Inject constructor(
     private val bookmarkShareFormat = MutableStateFlow(BookmarkShareFormat.URL_ONLY)
     private val keepScreenOnWhileReading = MutableStateFlow(true)
     private val fullscreenWhileReading = MutableStateFlow(false)
+    private val showCompactFavicons = MutableStateFlow(true)
+    private val showAddBookmarkFab = MutableStateFlow(true)
+    private val openWebPagesIn = MutableStateFlow(OpenWebPagesIn.IN_APP)
 
     init {
         viewModelScope.launch {
@@ -52,6 +56,9 @@ class UiSettingsViewModel @Inject constructor(
             bookmarkShareFormat.value = settingsDataStore.getBookmarkShareFormat()
             keepScreenOnWhileReading.value = settingsDataStore.isKeepScreenOnWhileReading()
             fullscreenWhileReading.value = settingsDataStore.isFullscreenWhileReading()
+            showCompactFavicons.value = settingsDataStore.isShowCompactFavicons()
+            showAddBookmarkFab.value = settingsDataStore.isShowAddBookmarkFab()
+            openWebPagesIn.value = settingsDataStore.getOpenWebPagesIn()
         }
     }
     val uiState = combine(
@@ -71,10 +78,22 @@ class UiSettingsViewModel @Inject constructor(
             bookmarkShareFormat = shareFormat,
             keepScreenOnWhileReading = keepScreenOn,
             fullscreenWhileReading = fullscreenWhileReading.value,
+            showCompactFavicons = showCompactFavicons.value,
+            showAddBookmarkFab = showAddBookmarkFab.value,
+            openWebPagesIn = openWebPagesIn.value,
         )
     }
         .combine(fullscreenWhileReading) { state, fullscreen ->
             state.copy(fullscreenWhileReading = fullscreen)
+        }
+        .combine(showCompactFavicons) { state, show ->
+            state.copy(showCompactFavicons = show)
+        }
+        .combine(showAddBookmarkFab) { state, show ->
+            state.copy(showAddBookmarkFab = show)
+        }
+        .combine(openWebPagesIn) { state, openIn ->
+            state.copy(openWebPagesIn = openIn)
         }
         .stateIn(
             scope = viewModelScope,
@@ -90,6 +109,9 @@ class UiSettingsViewModel @Inject constructor(
                     bookmarkShareFormat = BookmarkShareFormat.URL_ONLY,
                     keepScreenOnWhileReading = true,
                     fullscreenWhileReading = false,
+                    showCompactFavicons = true,
+                    showAddBookmarkFab = true,
+                    openWebPagesIn = OpenWebPagesIn.IN_APP,
                 )
         )
 
@@ -151,6 +173,27 @@ class UiSettingsViewModel @Inject constructor(
         }
     }
 
+    fun onShowCompactFaviconsToggled(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsDataStore.saveShowCompactFavicons(enabled)
+            showCompactFavicons.value = settingsDataStore.isShowCompactFavicons()
+        }
+    }
+
+    fun onShowAddBookmarkFabToggled(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsDataStore.saveShowAddBookmarkFab(enabled)
+            showAddBookmarkFab.value = settingsDataStore.isShowAddBookmarkFab()
+        }
+    }
+
+    fun onOpenWebPagesInSelected(value: OpenWebPagesIn) {
+        viewModelScope.launch {
+            settingsDataStore.saveOpenWebPagesIn(value)
+            openWebPagesIn.value = settingsDataStore.getOpenWebPagesIn()
+        }
+    }
+
     val swipeConfig: StateFlow<SwipeConfig> = settingsDataStore.swipeConfigFlow
 
     fun onSwipeEnabledChange(enabled: Boolean) {
@@ -203,6 +246,9 @@ data class UiSettingsUiState(
     val bookmarkShareFormat: BookmarkShareFormat,
     val keepScreenOnWhileReading: Boolean,
     val fullscreenWhileReading: Boolean,
+    val showCompactFavicons: Boolean,
+    val showAddBookmarkFab: Boolean,
+    val openWebPagesIn: OpenWebPagesIn,
 )
 
 data class ThemeOption(

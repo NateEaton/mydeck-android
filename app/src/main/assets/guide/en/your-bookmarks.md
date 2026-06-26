@@ -26,6 +26,8 @@ The top bar shows the **☰ menu**, the current section title, a **layout icon**
 
 Tap the **+** button at the bottom-right of the list to open the **Add Link** sheet. Enter the URL of the page you want to save, and optionally a title, labels, and mark it as a favorite (❤️), then tap **Add**.
 
+If you prefer to save bookmarks only from other apps, you can hide the **+** button with **Settings → User Interface → Bookmark List → Show add-bookmark button**.
+
 For labels, use the **Add labels** / **Edit labels** row in the Labels section. This opens a picker where you can select multiple labels (and create a new label from search text). When you pick a label from search results, the search clears, and your selected labels stay pinned below the search field while you continue choosing more. Tap **Done** to apply picker changes, or tap **Back** to cancel picker changes.
 
 - **Add** — saves the bookmark and closes the sheet
@@ -50,11 +52,11 @@ The default layout. Each card has a **thumbnail** on the left and the title, sou
 
 ### Compact Layout
 
-A denser view that uses the site's **favicon** instead of a full thumbnail. A fixed status rail on the left shows the favicon at the top. 
+A denser view that uses the site's **favicon** instead of a full thumbnail. A fixed status rail on the left shows the favicon at the top. You can hide these favicons with **Settings → User Interface → Bookmark List → Show source icons** to give the card text the full width.
 
 ### Mosaic Layout
 
-Each card is a large tile with the thumbnail filling the entire card and the title overlaid at the bottom. Labels are not shown in mosaic layout.
+Each card is a large tile with the thumbnail filling the entire card and the title overlaid at the bottom. Labels are not shown in mosaic layout. On multi-column mosaic views (tablets and landscape), the **View web page** icon is omitted to keep the smaller tiles uncluttered — open the original page from the bookmark's reading view instead, or long-press the card.
 
 ### Bookmark Types
 
@@ -85,11 +87,12 @@ In **Grid** and **Compact** layouts, the download icon appears on the site-info 
 
 ## Card Actions
 
-Each card has four action buttons:
+Each card has five action buttons:
 
 - **❤️ Favorite** — toggle the favorite status; filled when set
 - **📦 Archive** — move the bookmark to the archive (or back to My List if already archived); the card is removed from the current view when toggled
-- **🌐 View web page** — open the web page in an in-app viewer
+- **🏷️ Edit labels** — open the label picker for this bookmark to add or remove its labels right from the list, without opening Details. This is handy when clearing out your My List — tag a bookmark and archive it without leaving the list. See [Organizing](./organizing.md) for more on labels.
+- **🌐 View web page** — open the bookmark's original web page in an in-app viewer. If you turn off **Internal browser** in **Settings → User Interface → Reading**, this icon changes to an open-in-browser icon (↗) and opens the page directly in your external browser instead.
 - **🗑️ Delete** — delete the bookmark; the card is greyed out and a **"Deleting bookmark \"Title...\""** bar appears at the bottom with an **Undo** option and a short title snippet so you can tell which queued delete you are restoring. Tap **Undo** to restore the bookmark, or tap anywhere else (including the greyed-out card itself) to confirm deletion
 
 See [Organizing](./organizing.md) for more on how favorites, archive, labels, and deletion work across your whole collection.
@@ -109,7 +112,7 @@ Deleting via swipe shows the same **"Bookmark deleted — UNDO"** snackbar as th
 
 **Navigation drawer:** When swipe actions are enabled, the left-edge drag gesture that normally opens the navigation drawer is suppressed to avoid conflicts. Use the hamburger button in the top bar to open the drawer instead. If you disable swipe actions in settings, the drawer edge-swipe returns.
 
-To change which action each direction triggers — or to turn swipe off entirely — go to **Settings → UI Settings → Swipe actions**.
+To change which action each direction triggers — or to turn swipe off entirely — go to **Settings → User Interface → Bookmark List → Swipe actions**.
 
 ## Long-press Context Menu
 

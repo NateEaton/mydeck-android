@@ -54,6 +54,12 @@ class UiSettingsViewModelTest {
         coEvery { settingsDataStore.getBookmarkShareFormat() } returns BookmarkShareFormat.URL_ONLY
         coEvery { settingsDataStore.isKeepScreenOnWhileReading() } returns true
         coEvery { settingsDataStore.isFullscreenWhileReading() } returns false
+        coEvery { settingsDataStore.isShowCompactFavicons() } returns true
+        coEvery { settingsDataStore.isShowAddBookmarkFab() } returns true
+        coEvery { settingsDataStore.getOpenWebPagesIn() } returns com.mydeck.app.domain.model.OpenWebPagesIn.IN_APP
+        coEvery { settingsDataStore.saveShowCompactFavicons(any()) } returns Unit
+        coEvery { settingsDataStore.saveShowAddBookmarkFab(any()) } returns Unit
+        coEvery { settingsDataStore.saveOpenWebPagesIn(any()) } returns Unit
         coEvery { settingsDataStore.saveTheme(any()) } returns Unit
         coEvery { settingsDataStore.saveLightAppearance(any()) } returns Unit
         coEvery { settingsDataStore.saveDarkAppearance(any()) } returns Unit

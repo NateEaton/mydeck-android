@@ -33,6 +33,10 @@ import com.mydeck.app.ui.components.VerticalScrollbar
 import androidx.compose.ui.draw.alpha
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -155,6 +159,7 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import com.mydeck.app.R
 import com.mydeck.app.domain.model.ImageGalleryData
+import com.mydeck.app.domain.model.OpenWebPagesIn
 import com.mydeck.app.domain.model.Template
 import com.mydeck.app.domain.model.TextWidth
 import com.mydeck.app.util.openUrlInCustomTab
@@ -258,6 +263,8 @@ fun BookmarkDetailHost(
     }
     val onUpdateLabels: (String, List<String>) -> Unit = { id, labels -> viewModel.onUpdateLabels(id, labels) }
     val uiState = viewModel.uiState.collectAsState().value
+    val openWebPageExternally =
+        viewModel.openWebPagesIn.collectAsState().value == OpenWebPagesIn.EXTERNAL_BROWSER
     val contentLoadState = viewModel.contentLoadState.collectAsState().value
     val articleSearchState = viewModel.articleSearchState.collectAsState().value
     val annotationsState = viewModel.annotationsState.collectAsState().value
@@ -648,6 +655,7 @@ fun BookmarkDetailHost(
                     onArticleSearchActivate = onArticleSearchActivate,
                     uiState = uiState,
                     onClickOpenUrl = onClickOpenUrl,
+                    openWebPageExternally = openWebPageExternally,
                     onShowDetails = { detailOverlay = DetailOverlay.DETAILS },
                     onShowHighlights = {
                         dismissPendingDeleteSnackbar()
@@ -876,6 +884,7 @@ fun BookmarkDetailScreen(
     onClickOpenUrl: (String) -> Unit,
     onClickShareBookmark: (String, String) -> Unit,
     onClickOpenInBrowser: (String) -> Unit = {},
+    openWebPageExternally: Boolean = false,
     onArticleSearchActivate: () -> Unit = {},
     onShowDetails: () -> Unit = {},
     onShowHighlights: () -> Unit = {},
@@ -1109,6 +1118,7 @@ fun BookmarkDetailScreen(
                     uiState = uiState,
                     webViewDispatcher = webViewDispatcher,
                     onClickOpenUrl = onClickOpenUrl,
+                    openWebPageExternally = openWebPageExternally,
                     onScrollProgressChanged = { progress ->
                         readProgressPercent = progress.coerceIn(0, 100)
                         onScrollProgressChanged(progress)
@@ -1212,6 +1222,7 @@ fun BookmarkDetailScreen(
                     onClickDeleteBookmark = onClickDeleteBookmark,
                     onArticleSearchActivate = onArticleSearchActivate,
                     onClickOpenInBrowser = onClickOpenInBrowser,
+                    openWebPageExternally = openWebPageExternally,
                     onContentModeChange = onContentModeChange,
                     offlineReadingEnabled = offlineReadingEnabled,
                     isPinned = isPinned,
@@ -1453,6 +1464,7 @@ fun BookmarkDetailContent(
     uiState: BookmarkDetailViewModel.UiState.Success,
     webViewDispatcher: NestedScrollDispatcher,
     onClickOpenUrl: (String) -> Unit,
+    openWebPageExternally: Boolean = false,
     onScrollProgressChanged: (Int) -> Unit = {},
     initialReadProgress: Int = 0,
     contentMode: ContentMode = ContentMode.READER,
@@ -1553,14 +1565,26 @@ fun BookmarkDetailContent(
 
     Box(modifier = modifier) {
         if (contentMode == ContentMode.ORIGINAL) {
-            // Original mode: no outer scroll, WebView handles its own scrolling
-            // Header is not shown in Original mode - full content experience
-            BookmarkDetailOriginalWebView(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(top = topBarClearance),
-                url = uiState.bookmark.url
-            )
+            if (openWebPageExternally) {
+                // External-browser preference: don't load the page in-app. Show the bookmark's
+                // title and description with a "no content" note; the top-bar open-in-new icon
+                // and overflow remain available for opening externally and changing state.
+                OriginalViewNoContentPlaceholder(
+                    bookmark = uiState.bookmark,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(top = topBarClearance)
+                )
+            } else {
+                // Original mode: no outer scroll, WebView handles its own scrolling
+                // Header is not shown in Original mode - full content experience
+                BookmarkDetailOriginalWebView(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(top = topBarClearance),
+                    url = uiState.bookmark.url
+                )
+            }
         } else {
             // Reader mode: scrollable Column for article content
             Column(
@@ -1888,6 +1912,47 @@ fun BookmarkDetailErrorScreen() {
                 textAlign = TextAlign.Center
             )
         }
+    }
+}
+
+/**
+ * Shown in Original View when the user prefers the external browser: instead of loading the original
+ * page in-app, present the bookmark's title and description with a "no content" note. Opening the page
+ * externally is done from the top bar's open-in-new icon; all overflow actions remain available.
+ */
+@Composable
+private fun OriginalViewNoContentPlaceholder(
+    bookmark: BookmarkDetailViewModel.Bookmark,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 16.dp, vertical = 24.dp)
+    ) {
+        // Mirror the reader header: title ~24px/600, description ~15px italic at 0.75 opacity.
+        Text(
+            text = bookmark.title,
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+        if (bookmark.description.isNotBlank()) {
+            Spacer(Modifier.height(6.dp))
+            Text(
+                text = bookmark.description,
+                style = MaterialTheme.typography.bodyLarge,
+                fontStyle = FontStyle.Italic,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.75f)
+            )
+        }
+        Spacer(Modifier.height(40.dp))
+        Text(
+            text = stringResource(R.string.reader_no_content_available),
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Medium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }
 

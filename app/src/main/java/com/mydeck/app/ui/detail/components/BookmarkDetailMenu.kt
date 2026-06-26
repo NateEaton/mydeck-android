@@ -50,6 +50,7 @@ fun BookmarkDetailMenu(
     onShowDetails: () -> Unit = {},
     onShowHighlights: () -> Unit = {},
     onClickOpenInBrowser: (String) -> Unit = {},
+    openWebPageExternally: Boolean = false,
     contentMode: ContentMode = ContentMode.READER,
     onContentModeChange: (ContentMode) -> Unit = {},
     // Offline pinning (spec §4.1): the item is hidden entirely when offline storage is disabled,
@@ -188,12 +189,16 @@ fun BookmarkDetailMenu(
                             )
                         },
                         onClick = {
-                            onContentModeChange(if (contentMode == ContentMode.READER) ContentMode.ORIGINAL else ContentMode.READER)
+                            if (openWebPageExternally && contentMode == ContentMode.READER) {
+                                onClickOpenInBrowser(uiState.bookmark.url)
+                            } else {
+                                onContentModeChange(if (contentMode == ContentMode.READER) ContentMode.ORIGINAL else ContentMode.READER)
+                            }
                             expanded = false
                         },
                         leadingIcon = {
                             Icon(
-                                if (contentMode == ContentMode.READER) Icons.Default.Language else Icons.Outlined.Description,
+                                if (contentMode == ContentMode.READER) (if (openWebPageExternally) Icons.AutoMirrored.Filled.OpenInNew else Icons.Default.Language) else Icons.Outlined.Description,
                                 contentDescription = null
                             )
                         }
@@ -207,12 +212,16 @@ fun BookmarkDetailMenu(
                             )
                         },
                         onClick = {
-                            onContentModeChange(if (contentMode == ContentMode.READER) ContentMode.ORIGINAL else ContentMode.READER)
+                            if (openWebPageExternally && contentMode == ContentMode.READER) {
+                                onClickOpenInBrowser(uiState.bookmark.url)
+                            } else {
+                                onContentModeChange(if (contentMode == ContentMode.READER) ContentMode.ORIGINAL else ContentMode.READER)
+                            }
                             expanded = false
                         },
                         leadingIcon = {
                             Icon(
-                                if (contentMode == ContentMode.READER) Icons.Default.Language else Icons.Default.Movie,
+                                if (contentMode == ContentMode.READER) (if (openWebPageExternally) Icons.AutoMirrored.Filled.OpenInNew else Icons.Default.Language) else Icons.Default.Movie,
                                 contentDescription = null
                             )
                         }
@@ -226,12 +235,16 @@ fun BookmarkDetailMenu(
                             )
                         },
                         onClick = {
-                            onContentModeChange(if (contentMode == ContentMode.READER) ContentMode.ORIGINAL else ContentMode.READER)
+                            if (openWebPageExternally && contentMode == ContentMode.READER) {
+                                onClickOpenInBrowser(uiState.bookmark.url)
+                            } else {
+                                onContentModeChange(if (contentMode == ContentMode.READER) ContentMode.ORIGINAL else ContentMode.READER)
+                            }
                             expanded = false
                         },
                         leadingIcon = {
                             Icon(
-                                if (contentMode == ContentMode.READER) Icons.Default.Language else Icons.Default.Image,
+                                if (contentMode == ContentMode.READER) (if (openWebPageExternally) Icons.AutoMirrored.Filled.OpenInNew else Icons.Default.Language) else Icons.Default.Image,
                                 contentDescription = null
                             )
                         }

@@ -19,6 +19,7 @@ import com.mydeck.app.domain.model.Bookmark
 import com.mydeck.app.domain.model.BookmarkCounts
 import com.mydeck.app.domain.model.BookmarkListItem
 import com.mydeck.app.domain.model.DrawerPreset
+import com.mydeck.app.domain.model.OpenWebPagesIn
 import com.mydeck.app.domain.model.FilterFormState
 import com.mydeck.app.domain.model.LayoutMode
 import com.mydeck.app.domain.model.SortOption
@@ -181,6 +182,11 @@ class BookmarkListViewModel @Inject constructor(
     private val _showAddLabelsPicker = MutableStateFlow(false)
     val showAddLabelsPicker = _showAddLabelsPicker.asStateFlow()
 
+    // Single-bookmark quick label edit (from the card label button). Holds the target bookmark id and
+    // its current labels so the picker opens pre-populated; null when no edit is in progress.
+    private val _editLabelsTarget = MutableStateFlow<EditLabelsTarget?>(null)
+    val editLabelsTarget = _editLabelsTarget.asStateFlow()
+
     // Constraint feedback: one-shot snackbar message when content sync is blocked
     private val _constraintSnackbarEvent = Channel<Int>(Channel.BUFFERED)
     val constraintSnackbarEvent: Flow<Int> = _constraintSnackbarEvent.receiveAsFlow()
@@ -253,6 +259,9 @@ class BookmarkListViewModel @Inject constructor(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), BookmarkCounts(0, 0, 0, 0))
 
     val swipeConfig: StateFlow<SwipeConfig> = settingsDataStore.swipeConfigFlow
+    val showCompactFavicons: StateFlow<Boolean> = settingsDataStore.showCompactFaviconsFlow
+    val showAddBookmarkFab: StateFlow<Boolean> = settingsDataStore.showAddBookmarkFabFlow
+    val openWebPagesIn: StateFlow<OpenWebPagesIn> = settingsDataStore.openWebPagesInFlow
 
     val syncFraction: StateFlow<Float?> = bookmarkRepository.syncProgress
         .map { progress ->
@@ -530,6 +539,16 @@ class BookmarkListViewModel @Inject constructor(
 
     fun onClickBookmarkOpenOriginal(bookmarkId: String) {
         Timber.d("onClickBookmarkOpenOriginal")
+        // "View web page" is an explicit request for the original page. When the user prefers the
+        // external browser, open it there directly instead of the in-app Original View.
+        if (openWebPagesIn.value == OpenWebPagesIn.EXTERNAL_BROWSER) {
+            val url = (_uiState.value as? UiState.Success)?.bookmarks
+                ?.firstOrNull { it.id == bookmarkId }?.url
+            if (url != null) {
+                onClickOpenInBrowser(url)
+                return
+            }
+        }
         viewModelScope.launch { _navigationEvent.send(NavigationEvent.NavigateToBookmarkDetail(bookmarkId, showOriginal = true)) }
     }
 
@@ -816,6 +835,27 @@ class BookmarkListViewModel @Inject constructor(
             _batchActionSnackbarEvent.trySend(
                 BatchActionSnackbarEvent.LabelsAdded(selectedCount, priorByBookmark)
             )
+        }
+    }
+
+    // Open the single-bookmark label editor for [bookmarkId], seeding it with the bookmark's current
+    // labels from the visible list so the picker reflects the existing selection.
+    fun onOpenEditLabels(bookmarkId: String) {
+        val bookmark = (_uiState.value as? UiState.Success)?.bookmarks
+            ?.firstOrNull { it.id == bookmarkId } ?: return
+        _editLabelsTarget.value = EditLabelsTarget(bookmarkId, bookmark.labels)
+    }
+
+    fun onDismissEditLabels() {
+        _editLabelsTarget.value = null
+    }
+
+    // Replace the full label set on a single bookmark (set semantics, unlike the additive multi-select
+    // flow). Clears the editor regardless of outcome.
+    fun onSetLabelsForBookmark(bookmarkId: String, labels: List<String>) {
+        onDismissEditLabels()
+        viewModelScope.launch {
+            bookmarkRepository.updateLabels(bookmarkId, labels)
         }
     }
 
@@ -1197,6 +1237,12 @@ class BookmarkListViewModel @Inject constructor(
         data object NavigateToUserGuide : NavigationEvent()
         data class NavigateToBookmarkDetail(val bookmarkId: String, val showOriginal: Boolean = false) : NavigationEvent()
     }
+
+    /** Target of the single-bookmark quick label editor: the bookmark id and its current labels. */
+    data class EditLabelsTarget(
+        val bookmarkId: String,
+        val currentLabels: List<String>
+    )
 
     sealed class UiState {
         data object Loading : UiState()
