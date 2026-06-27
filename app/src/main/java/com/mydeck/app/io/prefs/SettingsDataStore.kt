@@ -141,10 +141,8 @@ interface SettingsDataStore {
     // Label search ranking preferences
     val labelSearchMatchingFlow: StateFlow<LabelSearchMatching>
     suspend fun saveLabelSearchMatching(matching: LabelSearchMatching)
-    suspend fun getLabelSearchMatching(): LabelSearchMatching
     val labelSearchSortFlow: StateFlow<LabelSearchSort>
     suspend fun saveLabelSearchSort(sort: LabelSearchSort)
-    suspend fun getLabelSearchSort(): LabelSearchSort
 
     // Swipe action preferences
     val swipeConfigFlow: StateFlow<SwipeConfig>
