@@ -10,7 +10,7 @@ Labels let you categorize your bookmarks with any words, phrases, or emojis you 
 
 You can add labels in four places:
 
-- **From a bookmark card** — tap the **🏷️ Edit labels** icon on any card in a list view to open the label picker for that bookmark, choose its labels, and tap **Done**. This is the quickest way to label a single bookmark without opening it — ideal when tidying your Deck.
+- **From a bookmark card** — tap the **🏷️ Edit labels** icon on any card in a list view to open the label picker for that bookmark, choose its labels, and tap **Done**. This is the quickest way to label a single bookmark without opening it — ideal when tidying My List.
 
 - **When saving a bookmark** — the Add Link sheet (opened from the **+** button or the Android share sheet) shows a **Labels** section with chips for current labels and an **Add labels** / **Edit labels** row. Tap that row to open a label picker, select one or more labels, then tap **Done** to save label changes.
 
