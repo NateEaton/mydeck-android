@@ -452,36 +452,10 @@ class SettingsDataStoreImpl @Inject constructor(@ApplicationContext private val 
         }
     }
 
-    override suspend fun getLabelSearchMatching(): LabelSearchMatching {
-        return userPreferences.getString(
-            KEY_LABEL_SEARCH_MATCHING.name,
-            LabelSearchMatching.CONTAINS.name
-        )?.let {
-            try {
-                LabelSearchMatching.valueOf(it)
-            } catch (_: IllegalArgumentException) {
-                LabelSearchMatching.CONTAINS
-            }
-        } ?: LabelSearchMatching.CONTAINS
-    }
-
     override suspend fun saveLabelSearchSort(sort: LabelSearchSort) {
         userPreferences.edit {
             putString(KEY_LABEL_SEARCH_SORT.name, sort.name)
         }
-    }
-
-    override suspend fun getLabelSearchSort(): LabelSearchSort {
-        return userPreferences.getString(
-            KEY_LABEL_SEARCH_SORT.name,
-            LabelSearchSort.ALPHABETICAL.name
-        )?.let {
-            try {
-                LabelSearchSort.valueOf(it)
-            } catch (_: IllegalArgumentException) {
-                LabelSearchSort.ALPHABETICAL
-            }
-        } ?: LabelSearchSort.ALPHABETICAL
     }
 
     override suspend fun saveSwipeEnabled(enabled: Boolean) {

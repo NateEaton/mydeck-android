@@ -416,7 +416,15 @@ fun LabelPickerBottomSheet(
                 onValueChange = { searchQuery = it },
                 placeholder = { Text(stringResource(R.string.labels_search_placeholder)) },
                 singleLine = true,
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                // In MultiSelect ("Add") mode, Enter commits/creates the typed label, so the
+                // key should read as an affirmative action (checkmark) rather than a search.
+                // SingleSelect is selection-only filtering, where the magnifying glass fits.
+                keyboardOptions = KeyboardOptions(
+                    imeAction = when (mode) {
+                        is LabelPickerMode.MultiSelect -> ImeAction.Done
+                        is LabelPickerMode.SingleSelect -> ImeAction.Search
+                    }
+                ),
                 keyboardActions = KeyboardActions(
                     onSearch = { commitSearch() },
                     onDone = { commitSearch() }
