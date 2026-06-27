@@ -62,6 +62,9 @@ import javax.inject.Inject
 // prior add is treated as the same add — effectively a rapid double-add, which is benign.
 private const val RECONCILE_SKEW_MARGIN_MS = 2 * 60_000L
 
+// Safety guard for the paginated has_errors=true scan in refreshServerErrorFlags().
+private const val MAX_ERROR_FLAG_PAGES = 1000
+
 class BookmarkRepositoryImpl @Inject constructor(
     private val database: MyDeckDatabase,
     private val bookmarkDao: BookmarkDao,
@@ -279,7 +282,9 @@ class BookmarkRepositoryImpl @Inject constructor(
             wordCount = wordCount,
             published = published?.toLocalDateTime(kotlinx.datetime.TimeZone.currentSystemDefault()),
             offlineState = deriveOfflineState(contentState, hasResources, source),
-            offlineEligible = deriveOfflineEligible(hasArticle, type, contentState)
+            offlineEligible = deriveOfflineEligible(hasArticle, type, contentState),
+            hasError = hasServerErrors || state == BookmarkEntity.State.ERROR,
+            hasNoContent = contentState == BookmarkEntity.ContentState.PERMANENT_NO_CONTENT
         )
 
     // Offline eligibility (pinnability) — same gate as LoadContentPackageUseCase: has article
@@ -396,6 +401,57 @@ class BookmarkRepositoryImpl @Inject constructor(
 
     override suspend fun replaceServerErrorFlags(bookmarkIds: Set<String>) {
         bookmarkDao.replaceServerErrorFlags(bookmarkIds.toList())
+    }
+
+    override suspend fun refreshServerErrorFlags() {
+        try {
+            val pageSize = 50
+            var offset = 0
+            var hasMorePages = true
+            var pagesFetched = 0
+            val serverErrorIds = mutableSetOf<String>()
+
+            while (hasMorePages) {
+                if (pagesFetched >= MAX_ERROR_FLAG_PAGES) {
+                    Timber.w("refreshServerErrorFlags: reached MAX_ERROR_FLAG_PAGES=$MAX_ERROR_FLAG_PAGES guard; aborting")
+                    break
+                }
+                val response = readeckApi.getBookmarks(
+                    limit = pageSize,
+                    offset = offset,
+                    updatedSince = null,
+                    sortOrder = ReadeckApi.SortOrder(ReadeckApi.Sort.Created),
+                    hasErrors = true
+                )
+
+                if (!response.isSuccessful || response.body() == null) {
+                    Timber.w("Skipping server error flag refresh: [code=${response.code()}]")
+                    return
+                }
+
+                serverErrorIds += (response.body() ?: emptyList()).map { it.id }
+                pagesFetched++
+
+                val totalPagesHeader = response.headers()[ReadeckApi.Header.TOTAL_PAGES]
+                val currentPageHeader = response.headers()[ReadeckApi.Header.CURRENT_PAGE]
+                if (totalPagesHeader == null || currentPageHeader == null) {
+                    Timber.w("Skipping server error flag refresh due to missing pagination headers")
+                    return
+                }
+
+                if (currentPageHeader.toInt() < totalPagesHeader.toInt()) {
+                    offset += pageSize
+                } else {
+                    hasMorePages = false
+                }
+            }
+
+            replaceServerErrorFlags(serverErrorIds)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Timber.w(e, "Failed to refresh server error flags")
+        }
     }
 
     override suspend fun getBookmarkById(id: String): Bookmark {
@@ -942,6 +998,12 @@ class BookmarkRepositoryImpl @Inject constructor(
 
             val deleted = bookmarkDao.removeDeletedBookmars(syncRunId)
             Timber.i("Deleted bookmarks: $deleted")
+
+            // The list summary never carries the errors array, so full sync alone leaves
+            // hasServerErrors=false on every row. Reconcile it from the dedicated has_errors query
+            // here so a fresh install / periodic full sync flags errored bookmarks without needing a
+            // content download. Failures are swallowed internally and never fail the sync.
+            refreshServerErrorFlags()
 
             Timber.i("Full sync complete: inserted $totalInserted bookmarks, deleted $deleted")
             BookmarkRepository.SyncResult.Success(countDeleted = deleted, countUpdated = totalInserted)

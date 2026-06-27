@@ -540,6 +540,8 @@ other{}
     <string name="bookmark_card_text_available">Text available</string>
     <string name="bookmark_card_available_offline">Available offline</string>
     <string name="bookmark_card_pinned">Pinned offline</string>
+    <string name="bookmark_card_has_error">Has extraction errors</string>
+    <string name="bookmark_card_no_content">No readable content; opens original page</string>
     <string name="action_share_image">Bild teilen</string>
     <string name="image_url_copied">Bild-URL kopiert</string>
     <string name="image_copied">Bild kopiert</string>

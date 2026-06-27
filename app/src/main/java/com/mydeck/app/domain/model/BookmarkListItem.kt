@@ -27,7 +27,18 @@ data class BookmarkListItem(
      * picture, and isn't PERMANENT_NO_CONTENT. Lets multi-select decide the Pin/Unpin toggle from
      * only the *pinnable* items, so a no-content item in the selection doesn't block Unpin.
      */
-    val offlineEligible: Boolean = false
+    val offlineEligible: Boolean = false,
+    /**
+     * The server reported an extraction problem, or the bookmark is in the hard ERROR state — the same
+     * "with errors" bucket the filter matches (`hasServerErrors = 1 OR state = ERROR`). Drives the card
+     * error badge (highest priority in the download-icon slot).
+     */
+    val hasError: Boolean = false,
+    /**
+     * The server confirmed there is nothing to extract (`PERMANENT_NO_CONTENT`). Drives the card's
+     * no-content badge ("opens the original page") when the bookmark isn't already flagged as an error.
+     */
+    val hasNoContent: Boolean = false
 ) {
     enum class OfflineState {
         NOT_DOWNLOADED,

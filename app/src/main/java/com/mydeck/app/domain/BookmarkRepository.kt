@@ -42,6 +42,14 @@ interface BookmarkRepository {
 
     suspend fun insertBookmarks(bookmarks: List<Bookmark>)
     suspend fun replaceServerErrorFlags(bookmarkIds: Set<String>)
+
+    /**
+     * Fetch the set of bookmarks the server currently flags with extraction errors
+     * (`GET /bookmarks?has_errors=true`) and reconcile the local `hasServerErrors` flag — setting it
+     * on errored rows and clearing it on all others. The list summary never carries the `errors`
+     * array, so this dedicated query is the only way the metadata sync can populate the flag.
+     */
+    suspend fun refreshServerErrorFlags()
     suspend fun getBookmarkById(id: String): Bookmark
     fun observeBookmark(id: String): Flow<Bookmark?>
     suspend fun deleteAllBookmarks()

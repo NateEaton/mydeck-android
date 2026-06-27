@@ -5,19 +5,15 @@ import com.mydeck.app.domain.mapper.toDomain
 import com.mydeck.app.domain.sync.OfflinePolicyEvaluator
 import com.mydeck.app.domain.sync.SyncScheduler
 import com.mydeck.app.io.prefs.SettingsDataStore
-import com.mydeck.app.io.rest.ReadeckApi
-import com.mydeck.app.io.rest.model.BookmarkDto
 import com.mydeck.app.io.rest.sync.MultipartSyncClient
 import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toInstant
 import timber.log.Timber
 import javax.inject.Inject
-import kotlin.coroutines.cancellation.CancellationException
 
 class LoadBookmarksUseCase @Inject constructor(
     private val bookmarkRepository: BookmarkRepository,
-    private val readeckApi: ReadeckApi,
     private val multipartSyncClient: MultipartSyncClient,
     private val settingsDataStore: SettingsDataStore,
     private val policyEvaluator: OfflinePolicyEvaluator,
@@ -104,7 +100,7 @@ class LoadBookmarksUseCase @Inject constructor(
                     Timber.i("Saved last bookmark timestamp: [utc=$maxUpdatedCursor]")
                 }
 
-                refreshServerErrorFlags(DEFAULT_PAGE_SIZE)
+                bookmarkRepository.refreshServerErrorFlags()
                 if (enqueueContentSyncAfterLoad) {
                     enqueueContentSyncIfNeeded()
                 }
@@ -139,61 +135,7 @@ class LoadBookmarksUseCase @Inject constructor(
 
     companion object {
         const val DEFAULT_PAGE_SIZE = 50
-        private const val MAX_PAGES = 1000
     }
 
     private fun Instant.truncateToSyncCursor(): Instant = Instant.fromEpochSeconds(epochSeconds)
-
-    private suspend fun refreshServerErrorFlags(pageSize: Int) {
-        try {
-            var offset = 0
-            var hasMorePages = true
-            var pagesFetched = 0
-            val serverErrorIds = mutableSetOf<String>()
-
-            while (hasMorePages) {
-                if (pagesFetched >= MAX_PAGES) {
-                    Timber.w("refreshServerErrorFlags: reached MAX_PAGES=$MAX_PAGES guard; aborting")
-                    break
-                }
-                val response = readeckApi.getBookmarks(
-                    limit = pageSize,
-                    offset = offset,
-                    updatedSince = null,
-                    sortOrder = ReadeckApi.SortOrder(ReadeckApi.Sort.Created),
-                    hasErrors = true
-                )
-
-                if (!response.isSuccessful || response.body() == null) {
-                    Timber.w("Skipping server error flag refresh: [code=${response.code()}]")
-                    return
-                }
-
-                val bookmarkDtos = response.body() ?: emptyList()
-                serverErrorIds += bookmarkDtos.map { it.id }
-                pagesFetched++
-
-                val totalPagesHeader = response.headers()[ReadeckApi.Header.TOTAL_PAGES]
-                val currentPageHeader = response.headers()[ReadeckApi.Header.CURRENT_PAGE]
-                if (totalPagesHeader == null || currentPageHeader == null) {
-                    Timber.w("Skipping server error flag refresh due to missing pagination headers")
-                    return
-                }
-
-                val totalPages = totalPagesHeader.toInt()
-                val currentPage = currentPageHeader.toInt()
-                if (currentPage < totalPages) {
-                    offset += pageSize
-                } else {
-                    hasMorePages = false
-                }
-            }
-
-            bookmarkRepository.replaceServerErrorFlags(serverErrorIds)
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            Timber.w(e, "Failed to refresh server error flags")
-        }
-    }
 }

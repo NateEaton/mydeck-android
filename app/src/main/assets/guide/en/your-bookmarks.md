@@ -83,7 +83,12 @@ All three layouts show whether a bookmark's content has been downloaded for offl
 - **Filled download icon** — the bookmark is fully available offline, downloaded automatically by your offline settings
 - **Filled download icon in a highlight colour** — the bookmark is fully available offline because you saved it yourself (by opening it while offline reading is on); these hand-picked items are kept and aren't removed by routine offline maintenance
 
-In **Grid** and **Compact** layouts, the download icon appears on the site-info row, next to the site name and reading time. In **Mosaic** layout, it appears on the title row near the top-right area of the card.
+The same slot also surfaces two status badges, which take priority over the download icon:
+
+- **Error icon** — your Readeck server reported a problem with this bookmark (for example, it couldn't extract the content). These are the same bookmarks matched by the **With errors** filter; open the bookmark to see the details. The badge appears once a metadata sync has run, without needing the content to be downloaded.
+- **Circle-slash icon** — there is no readable content to download; opening the card takes you to the original page.
+
+In **Grid** and **Compact** layouts, this icon appears on the site-info row, next to the site name and reading time. In **Mosaic** layout, it appears on the title row near the top-right area of the card.
 
 ## Card Actions
 

@@ -27,6 +27,7 @@ import kotlinx.datetime.atStartOfDayIn
 import kotlinx.datetime.plus
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -571,6 +572,20 @@ class BookmarkDaoTest {
             assertTrue(list.none { it.id == "test-19" })
             assertTrue(list.none { it.id == "test-27" })
             assertTrue(list.none { it.id == "test-29" })
+        }
+
+        @Test
+        fun `list projection surfaces hasServerErrors and state from the table`() = runTest(testDispatcher) {
+            val byId = bookmarkDao.getFilteredBookmarkListItems().first().associateBy { it.id }
+
+            // hasServerErrors mirrors the persisted column (set on 7/17/27 in the fixture).
+            assertTrue(byId.getValue("test-7").hasServerErrors)
+            assertFalse(byId.getValue("test-8").hasServerErrors)
+
+            // state is projected so the badge/filter can also catch hard ERROR rows (9/19/29).
+            assertEquals(BookmarkEntity.State.ERROR, byId.getValue("test-9").state)
+            assertEquals(BookmarkEntity.State.LOADING, byId.getValue("test-8").state)
+            assertEquals(BookmarkEntity.State.LOADED, byId.getValue("test-0").state)
         }
     }
 

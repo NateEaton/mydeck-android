@@ -40,6 +40,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DownloadForOffline
+import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Image
@@ -47,6 +48,7 @@ import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Movie
+import androidx.compose.material.icons.outlined.Block
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.DownloadForOffline
@@ -514,7 +516,9 @@ fun BookmarkMosaicCard(
                         BookmarkDownloadStatusIndicator(
                             offlineState = bookmark.offlineState,
                             modifier = Modifier.padding(top = 2.dp),
-                            isMosaic = true
+                            isMosaic = true,
+                            hasError = bookmark.hasError,
+                            hasNoContent = bookmark.hasNoContent
                         )
                     }
 
@@ -908,7 +912,9 @@ private fun BookmarkGridCardMobilePortrait(
                         }
                         BookmarkDownloadStatusIndicator(
                             offlineState = bookmark.offlineState,
-                            modifier = Modifier.padding(start = 4.dp)
+                            modifier = Modifier.padding(start = 4.dp),
+                            hasError = bookmark.hasError,
+                            hasNoContent = bookmark.hasNoContent
                         )
                     }
 
@@ -1201,7 +1207,9 @@ private fun BookmarkGridCardNarrow(
                     }
                     BookmarkDownloadStatusIndicator(
                         offlineState = bookmark.offlineState,
-                        modifier = Modifier.padding(start = 4.dp)
+                        modifier = Modifier.padding(start = 4.dp),
+                        hasError = bookmark.hasError,
+                        hasNoContent = bookmark.hasNoContent
                     )
                 }
 
@@ -1422,7 +1430,9 @@ private fun BookmarkGridCardWide(
                     }
                     BookmarkDownloadStatusIndicator(
                         offlineState = bookmark.offlineState,
-                        modifier = Modifier.padding(start = 4.dp)
+                        modifier = Modifier.padding(start = 4.dp),
+                        hasError = bookmark.hasError,
+                        hasNoContent = bookmark.hasNoContent
                     )
                 }
 
@@ -1497,33 +1507,58 @@ private fun BookmarkGridCardWide(
 private fun BookmarkDownloadStatusIndicator(
     offlineState: BookmarkListItem.OfflineState,
     modifier: Modifier = Modifier,
-    isMosaic: Boolean = false
+    isMosaic: Boolean = false,
+    hasError: Boolean = false,
+    hasNoContent: Boolean = false
 ) {
-    if (offlineState == BookmarkListItem.OfflineState.NOT_DOWNLOADED) return
-    val isPinned = offlineState == BookmarkListItem.OfflineState.PINNED
-    val isFull = offlineState == BookmarkListItem.OfflineState.DOWNLOADED_FULL
-    Icon(
-        imageVector = when {
-            isPinned -> Icons.Filled.PushPin
-            isFull -> Icons.Filled.DownloadForOffline
-            else -> Icons.Outlined.DownloadForOffline
-        },
-        contentDescription = stringResource(
-            when {
-                isPinned -> R.string.bookmark_card_pinned
-                isFull -> R.string.bookmark_card_available_offline
-                else -> R.string.bookmark_card_text_available
-            }
-        ),
-        modifier = modifier.size(BookmarkDownloadIconSize),
-        tint = if (isPinned) {
-            MaterialTheme.colorScheme.primary
-        } else if (isMosaic) {
-            Color.White.copy(alpha = 0.6f)
-        } else {
-            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+    // A single indicator in the download-icon slot, chosen by priority:
+    //   1. error      → the bookmark is in the "with errors" bucket (server errors or hard ERROR state)
+    //   2. no content → the server confirmed nothing to extract; the card opens the original page
+    //   3. else       → the normal download / offline-state icon
+    val mutedTint = if (isMosaic) {
+        Color.White.copy(alpha = 0.6f)
+    } else {
+        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+    }
+
+    when {
+        hasError -> Icon(
+            imageVector = Icons.Filled.ErrorOutline,
+            contentDescription = stringResource(R.string.bookmark_card_has_error),
+            modifier = modifier.size(BookmarkDownloadIconSize),
+            tint = MaterialTheme.colorScheme.error
+        )
+
+        hasNoContent -> Icon(
+            imageVector = Icons.Outlined.Block,
+            contentDescription = stringResource(R.string.bookmark_card_no_content),
+            modifier = modifier.size(BookmarkDownloadIconSize),
+            tint = mutedTint
+        )
+
+        offlineState == BookmarkListItem.OfflineState.NOT_DOWNLOADED -> Unit
+
+        else -> {
+            val isPinned = offlineState == BookmarkListItem.OfflineState.PINNED
+            val isFull = offlineState == BookmarkListItem.OfflineState.DOWNLOADED_FULL
+            Icon(
+                imageVector = when {
+                    isPinned -> Icons.Filled.PushPin
+                    isFull -> Icons.Filled.DownloadForOffline
+                    else -> Icons.Outlined.DownloadForOffline
+                },
+                contentDescription = stringResource(
+                    when {
+                        isPinned -> R.string.bookmark_card_pinned
+                        isFull -> R.string.bookmark_card_available_offline
+                        else -> R.string.bookmark_card_text_available
+                    }
+                ),
+                modifier = modifier.size(BookmarkDownloadIconSize),
+                tint = if (isPinned) MaterialTheme.colorScheme.primary else mutedTint
+            )
         }
-    )
+    }
 }
 
 @Composable
@@ -1695,7 +1730,9 @@ private fun BookmarkCompactCardNarrow(
                 }
                 BookmarkDownloadStatusIndicator(
                     offlineState = bookmark.offlineState,
-                    modifier = Modifier.padding(start = 4.dp)
+                    modifier = Modifier.padding(start = 4.dp),
+                    hasError = bookmark.hasError,
+                    hasNoContent = bookmark.hasNoContent
                 )
             }
 
@@ -2010,7 +2047,9 @@ private fun BookmarkCompactCardWide(
                 }
                 BookmarkDownloadStatusIndicator(
                     offlineState = bookmark.offlineState,
-                    modifier = Modifier.padding(start = 4.dp)
+                    modifier = Modifier.padding(start = 4.dp),
+                    hasError = bookmark.hasError,
+                    hasNoContent = bookmark.hasNoContent
                 )
 
                 // Labels inline after site name, single-line horizontal scroll

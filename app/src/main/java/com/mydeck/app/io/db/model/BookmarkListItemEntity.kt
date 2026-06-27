@@ -33,6 +33,10 @@ data class BookmarkListItemEntity(
     /** Server's article-content flag; with type/contentState drives offline eligibility (pinnability). */
     val hasArticle: Boolean,
     val contentState: BookmarkEntity.ContentState,
+    /** Server-reported extraction error flag (errors array non-empty), reconciled by the metadata sync. */
+    val hasServerErrors: Boolean,
+    /** Loaded/error/loading state; [BookmarkEntity.State.ERROR] is the hard-error case the badge also covers. */
+    val state: BookmarkEntity.State,
     /**
      * Whether this bookmark has downloaded resources (images).
      *
