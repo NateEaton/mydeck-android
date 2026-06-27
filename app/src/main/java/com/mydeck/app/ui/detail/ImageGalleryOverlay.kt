@@ -27,7 +27,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.OpenInNew
+import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -322,7 +322,7 @@ private fun GalleryTopBar(
         if (currentImage.linkHref != null) {
             IconButton(onClick = { onOpenLink(currentImage.linkHref) }) {
                 Icon(
-                    imageVector = Icons.AutoMirrored.Filled.OpenInNew,
+                    imageVector = Icons.Filled.Language,
                     contentDescription = stringResource(R.string.gallery_open_link),
                     tint = Color.White,
                 )

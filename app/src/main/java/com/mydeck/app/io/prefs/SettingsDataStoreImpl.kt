@@ -13,7 +13,10 @@ import com.mydeck.app.domain.model.BookmarkShareFormat
 import com.mydeck.app.domain.model.CachedServerInfo
 import com.mydeck.app.domain.model.DarkAppearance
 import com.mydeck.app.domain.model.HighlightsSyncMetadata
+import com.mydeck.app.domain.model.LabelSearchMatching
+import com.mydeck.app.domain.model.LabelSearchSort
 import com.mydeck.app.domain.model.LightAppearance
+import com.mydeck.app.domain.model.OpenWebPagesIn
 import com.mydeck.app.domain.model.ReaderFontFamily
 import com.mydeck.app.domain.model.SwipeAction
 import com.mydeck.app.domain.model.SwipeConfig
@@ -118,6 +121,12 @@ class SettingsDataStoreImpl @Inject constructor(@ApplicationContext private val 
     private val KEY_SERVER_INFO_RELEASE = stringPreferencesKey("server_info_release")
     private val KEY_SERVER_INFO_BUILD = stringPreferencesKey("server_info_build")
     private val KEY_SERVER_INFO_FEATURES = stringPreferencesKey("server_info_features")
+
+    private val KEY_SHOW_COMPACT_FAVICONS = booleanPreferencesKey("show_compact_favicons")
+    private val KEY_SHOW_ADD_BOOKMARK_FAB = booleanPreferencesKey("show_add_bookmark_fab")
+    private val KEY_OPEN_WEB_PAGES_IN = stringPreferencesKey("open_web_pages_in")
+    private val KEY_LABEL_SEARCH_MATCHING = stringPreferencesKey("label_search_matching")
+    private val KEY_LABEL_SEARCH_SORT = stringPreferencesKey("label_search_sort")
 
     private val KEY_SWIPE_ENABLED = booleanPreferencesKey("swipe_enabled")
     private val KEY_SWIPE_LEFT_ACTION = stringPreferencesKey("swipe_left_action")
@@ -398,6 +407,83 @@ class SettingsDataStoreImpl @Inject constructor(@ApplicationContext private val 
         return userPreferences.getBoolean(KEY_FULLSCREEN_WHILE_READING.name, false)
     }
 
+    override suspend fun saveShowCompactFavicons(enabled: Boolean) {
+        userPreferences.edit {
+            putBoolean(KEY_SHOW_COMPACT_FAVICONS.name, enabled)
+        }
+    }
+
+    override suspend fun isShowCompactFavicons(): Boolean {
+        return userPreferences.getBoolean(KEY_SHOW_COMPACT_FAVICONS.name, true)
+    }
+
+    override suspend fun saveShowAddBookmarkFab(enabled: Boolean) {
+        userPreferences.edit {
+            putBoolean(KEY_SHOW_ADD_BOOKMARK_FAB.name, enabled)
+        }
+    }
+
+    override suspend fun isShowAddBookmarkFab(): Boolean {
+        return userPreferences.getBoolean(KEY_SHOW_ADD_BOOKMARK_FAB.name, true)
+    }
+
+    override suspend fun saveOpenWebPagesIn(value: OpenWebPagesIn) {
+        userPreferences.edit {
+            putString(KEY_OPEN_WEB_PAGES_IN.name, value.name)
+        }
+    }
+
+    override suspend fun getOpenWebPagesIn(): OpenWebPagesIn {
+        return userPreferences.getString(
+            KEY_OPEN_WEB_PAGES_IN.name,
+            OpenWebPagesIn.IN_APP.name
+        )?.let {
+            try {
+                OpenWebPagesIn.valueOf(it)
+            } catch (_: IllegalArgumentException) {
+                OpenWebPagesIn.IN_APP
+            }
+        } ?: OpenWebPagesIn.IN_APP
+    }
+
+    override suspend fun saveLabelSearchMatching(matching: LabelSearchMatching) {
+        userPreferences.edit {
+            putString(KEY_LABEL_SEARCH_MATCHING.name, matching.name)
+        }
+    }
+
+    override suspend fun getLabelSearchMatching(): LabelSearchMatching {
+        return userPreferences.getString(
+            KEY_LABEL_SEARCH_MATCHING.name,
+            LabelSearchMatching.CONTAINS.name
+        )?.let {
+            try {
+                LabelSearchMatching.valueOf(it)
+            } catch (_: IllegalArgumentException) {
+                LabelSearchMatching.CONTAINS
+            }
+        } ?: LabelSearchMatching.CONTAINS
+    }
+
+    override suspend fun saveLabelSearchSort(sort: LabelSearchSort) {
+        userPreferences.edit {
+            putString(KEY_LABEL_SEARCH_SORT.name, sort.name)
+        }
+    }
+
+    override suspend fun getLabelSearchSort(): LabelSearchSort {
+        return userPreferences.getString(
+            KEY_LABEL_SEARCH_SORT.name,
+            LabelSearchSort.ALPHABETICAL.name
+        )?.let {
+            try {
+                LabelSearchSort.valueOf(it)
+            } catch (_: IllegalArgumentException) {
+                LabelSearchSort.ALPHABETICAL
+            }
+        } ?: LabelSearchSort.ALPHABETICAL
+    }
+
     override suspend fun saveSwipeEnabled(enabled: Boolean) {
         userPreferences.edit {
             putBoolean(KEY_SWIPE_ENABLED.name, enabled)
@@ -474,6 +560,28 @@ class SettingsDataStoreImpl @Inject constructor(@ApplicationContext private val 
         getBooleanFlow(userPreferences, KEY_KEEP_SCREEN_ON_READING.name, true)
     override val fullscreenWhileReadingFlow =
         getBooleanFlow(userPreferences, KEY_FULLSCREEN_WHILE_READING.name, false)
+    override val showCompactFaviconsFlow =
+        getBooleanFlow(userPreferences, KEY_SHOW_COMPACT_FAVICONS.name, true)
+    override val showAddBookmarkFabFlow =
+        getBooleanFlow(userPreferences, KEY_SHOW_ADD_BOOKMARK_FAB.name, true)
+    override val openWebPagesInFlow = getEnumFlow(
+        preferences = userPreferences,
+        key = KEY_OPEN_WEB_PAGES_IN.name,
+        defaultValue = OpenWebPagesIn.IN_APP,
+        parse = { value -> OpenWebPagesIn.valueOf(value) }
+    )
+    override val labelSearchMatchingFlow = getEnumFlow(
+        preferences = userPreferences,
+        key = KEY_LABEL_SEARCH_MATCHING.name,
+        defaultValue = LabelSearchMatching.CONTAINS,
+        parse = { value -> LabelSearchMatching.valueOf(value) }
+    )
+    override val labelSearchSortFlow = getEnumFlow(
+        preferences = userPreferences,
+        key = KEY_LABEL_SEARCH_SORT.name,
+        defaultValue = LabelSearchSort.ALPHABETICAL,
+        parse = { value -> LabelSearchSort.valueOf(value) }
+    )
 
     override suspend fun clearCredentials() {
         Timber.d("clearCredentials")

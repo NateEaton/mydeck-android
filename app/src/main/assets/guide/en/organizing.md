@@ -8,7 +8,9 @@ Labels let you categorize your bookmarks with any words, phrases, or emojis you 
 
 ### Adding Labels to a Bookmark
 
-You can add labels in three places:
+You can add labels in four places:
+
+- **From a bookmark card** — tap the **🏷️ Edit labels** icon on any card in a list view to open the label picker for that bookmark, choose its labels, and tap **Done**. This is the quickest way to label a single bookmark without opening it — ideal when tidying My List.
 
 - **When saving a bookmark** — the Add Link sheet (opened from the **+** button or the Android share sheet) shows a **Labels** section with chips for current labels and an **Add labels** / **Edit labels** row. Tap that row to open a label picker, select one or more labels, then tap **Done** to save label changes.
 
@@ -18,7 +20,16 @@ You can add labels in three places:
 
 ### Browsing by Label
 
-Open the navigation drawer and tap **Labels** to open the label sheet. It lists all your labels alphabetically, each with a count of bookmarks carrying it. Use the **Search labels** field at the top of the sheet to find a specific label quickly if you have many.
+Open the navigation drawer and tap **Labels** to open the label sheet. It lists all your labels (alphabetically by default), each with a count of bookmarks carrying it. Use the **Search labels** field at the top of the sheet to find a specific label quickly if you have many.
+
+### Tuning the Label Search
+
+Every label picker in the app — when browsing, saving, editing, or filtering — has two small toggles in its top bar that control how results are ranked. They're especially helpful when you have hundreds of labels:
+
+- **Matching** — `∗a∗` matches your typed text *anywhere* in a label name; tap to switch to `a∗`, which matches only labels that **start** with your text.
+- **Sort** — `abc` orders results alphabetically; tap to switch to `123`, which orders them by how many bookmarks use each label (most-used first).
+
+Long-press either toggle for a tooltip describing its current mode. Your choices are remembered and apply to every label picker. Tap the sheet's **title** to jump back to the top of the list.
 
 Tap a label to see all bookmarks with that label. The resulting list works like any other bookmark list — you can sort, filter, and use all the same card actions.
 

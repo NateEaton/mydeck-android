@@ -65,16 +65,20 @@ If you turn offline reading off, MyDeck removes all stored offline content — b
 
 ## User Interface
 
-The **User Interface Settings** screen controls the app's appearance.
+The **User Interface Settings** screen is organized into sections.
+
+### Appearance
 
 - **Theme** — choose **Light**, **Dark**, or **System** (follows your device's system setting)
 - **When app is light** — choose **Paper** or **Sepia** for the light appearance used throughout the app and reader
 - **When app is dark** — choose **Dark** or **Black** for the dark appearance used throughout the app and reader
-- **Share links as** — choose whether bookmark sharing sends just the URL or a two-line block with the bookmark title above the URL
-- **Fullscreen while reading** — when enabled, article reading view hides the system bars and top bar after a short delay so the page can use the full screen. Swipe from the edge or tap near the top edge to reveal them temporarily.
-- **Keep screen on while reading** — when enabled, the screen stays on while you have a bookmark open in reading view. Enabled by default.
 
-### Swipe actions
+### Bookmark List
+
+- **Show source icons** — when on (the default), the Compact layout shows each site's favicon in the status rail. Turn it off to hide the favicons and give the card text the full width.
+- **Show add-bookmark button** — when on (the default), the **+** button appears at the bottom-right of the bookmark list. Turn it off if you only ever save bookmarks with Android's share sheet.
+
+#### Swipe actions
 
 Controls the horizontal swipe gesture on bookmark cards.
 
@@ -83,6 +87,16 @@ Controls the horizontal swipe gesture on bookmark cards.
 - **Swipe left action** — choose what a left swipe does: **Archive**, **Delete**, **Favorite**, or **None** (disables the left direction only).
 
 Setting a direction to **None** leaves the other direction active.
+
+### Reading
+
+- **Internal browser** — when on (the default), a bookmark's original web page opens in the in-app web viewer for an immersive experience. When off, the **View web page** action opens the page in your device's external browser instead, and a bookmark with no readable content shows its title and description with a *No content available* note and a button to open it externally. (This affects only the original-web-page view; links you tap inside an article are unaffected.)
+- **Fullscreen while reading** — when enabled, article reading view hides the system bars and top bar after a short delay so the page can use the full screen. Swipe from the edge or tap near the top edge to reveal them temporarily.
+- **Keep screen on while reading** — when enabled, the screen stays on while you have a bookmark open in reading view. Enabled by default.
+
+### Sharing
+
+- **Share links as** — choose whether bookmark sharing sends just the URL or a two-line block with the bookmark title above the URL
 
 ## Logs
 

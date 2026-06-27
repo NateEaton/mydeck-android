@@ -28,7 +28,11 @@ MyDeck supports two view formats for bookmarks: **extracted content view** (Arti
 - **From Article, Video, or Picture view:** tap **⋮** → **View web page**
 - **From web view:** tap **⋮** → **View [bookmark type]** to return to the extracted content view
 
-> **No article content:** If Readeck was unable to extract article content when the bookmark was saved, MyDeck automatically opens the bookmark in **web view** instead of showing an empty reading view. In that case, the overflow menu hides the **View [bookmark type]** action because extracted content is unavailable.
+While in **web view**, an **open-in-browser icon** (↗) appears in the top bar. Tap it to open the page in your device's external browser — useful when you'd rather read the original with your browser's own ad-blocking, sign-ins, and extensions.
+
+> **Internal browser:** By default, **View web page** opens the original in the in-app web viewer. If you turn **Internal browser** off in **Settings → User Interface → Reading**, **View web page** (and the **View web page** icon on bookmark cards) opens the page directly in your external browser instead, and the card icon changes from a globe to the open-in-browser icon. Links you tap *inside* an article are not affected by this setting.
+
+> **No article content:** If Readeck was unable to extract article content when the bookmark was saved, MyDeck automatically opens the bookmark in **web view** instead of showing an empty reading view. In that case, the overflow menu hides the **View [bookmark type]** action because extracted content is unavailable. With **Internal browser** turned off, this view shows the bookmark's title and description with a **No content available** note instead of loading the original page; use the top-bar open-in-browser icon to read it externally.
 
 > **No cached media reader content:** Video and picture bookmarks can include embedded or extracted reader content, but some only have their original web page available. When MyDeck already knows that no local reader payload is available for a media bookmark, it falls back to **web view** instead of leaving the reader on a loading spinner.
 
@@ -147,7 +151,7 @@ Tap any image in an article or picture bookmark to open it in a fullscreen light
 
 When the content contains multiple images, a thumbnail strip appears at the bottom of the lightbox. Tap any thumbnail to jump directly to that image.
 
-If the current image was originally a hyperlink (linking to another page or site), an **external link icon** (↗) appears in the top-right corner of the lightbox. Tap it to open the linked URL in the browser.
+If the current image was originally a hyperlink (linking to another page or site), a **globe icon** (🌐) appears in the top-right corner of the lightbox. Tap it to open the linked URL in an in-app browser overlay, the same way links in article content open.
 
 ## Bookmark Details
 

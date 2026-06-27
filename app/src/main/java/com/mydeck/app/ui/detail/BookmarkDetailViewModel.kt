@@ -10,6 +10,7 @@ import androidx.lifecycle.viewModelScope
 import com.mydeck.app.R
 import com.mydeck.app.domain.BookmarkRepository
 import com.mydeck.app.domain.model.Annotation
+import com.mydeck.app.domain.model.OpenWebPagesIn
 import com.mydeck.app.domain.model.Bookmark.ContentState
 import com.mydeck.app.domain.model.DarkAppearance
 import com.mydeck.app.domain.model.EffectiveAppearance
@@ -169,6 +170,7 @@ class BookmarkDetailViewModel @Inject constructor(
     private val typographySettings = settingsDataStore.typographySettingsFlow
     val keepScreenOnWhileReading: StateFlow<Boolean> = settingsDataStore.keepScreenOnWhileReadingFlow
     val fullscreenWhileReading: StateFlow<Boolean> = settingsDataStore.fullscreenWhileReadingFlow
+    val openWebPagesIn: StateFlow<OpenWebPagesIn> = settingsDataStore.openWebPagesInFlow
     private val updateState = MutableStateFlow<UpdateBookmarkState?>(null)
     private val _pendingArchiveState = MutableStateFlow<Boolean?>(null)
 

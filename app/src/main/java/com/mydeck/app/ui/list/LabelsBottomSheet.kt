@@ -17,6 +17,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.clickable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.Label
@@ -35,27 +36,40 @@ import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.PlainTooltip
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
+import androidx.compose.material3.TooltipBox
+import androidx.compose.material3.TooltipDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.material3.rememberTooltipState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.mydeck.app.domain.model.LabelSearchMatching
+import com.mydeck.app.domain.model.LabelSearchSort
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import com.mydeck.app.R
 import com.mydeck.app.ui.components.VerticalScrollbar
+import kotlinx.coroutines.launch
 
 sealed interface LabelPickerMode {
     data class SingleSelect(
@@ -80,6 +94,9 @@ fun LabelPickerBottomSheet(
 ) {
     var availableLabels by remember(labels) { mutableStateOf(labels) }
     var searchQuery by remember { mutableStateOf("") }
+    // Hoisted so the title-tap affordance can scroll the results list (see the scrollable branch).
+    val lazyListState = rememberLazyListState()
+    val coroutineScope = rememberCoroutineScope()
     val screenHeight = LocalConfiguration.current.screenHeightDp.dp
     var contextMenuLabel by remember { mutableStateOf<String?>(null) }
     var showRenameDialog by remember { mutableStateOf(false) }
@@ -95,26 +112,40 @@ fun LabelPickerBottomSheet(
         )
     }
 
-    val filteredLabels = remember(availableLabels, searchQuery) {
-        if (searchQuery.isBlank()) {
-            availableLabels.entries
-                .sortedWith(
-                    compareBy<Map.Entry<String, Int>>(
-                        { it.key.lowercase() },
-                        { it.key }
-                    )
-                )
-                .toList()
+    val labelSearchSettings: LabelSearchSettingsViewModel = hiltViewModel()
+    val labelSearchMatching by labelSearchSettings.matching.collectAsState()
+    val labelSearchSort by labelSearchSettings.sort.collectAsState()
+
+    val filteredLabels = remember(availableLabels, searchQuery, labelSearchMatching, labelSearchSort) {
+        val query = searchQuery.trim()
+        val matched = if (query.isBlank()) {
+            availableLabels.entries.toList()
         } else {
-            availableLabels.entries
-                .filter { it.key.contains(searchQuery, ignoreCase = true) }
-                .sortedWith(
+            availableLabels.entries.filter { entry ->
+                when (labelSearchMatching) {
+                    LabelSearchMatching.STARTS_WITH -> entry.key.startsWith(query, ignoreCase = true)
+                    LabelSearchMatching.CONTAINS -> entry.key.contains(query, ignoreCase = true)
+                }
+            }
+        }
+        when (labelSearchSort) {
+            LabelSearchSort.ALPHABETICAL ->
+                matched.sortedWith(
                     compareBy<Map.Entry<String, Int>>(
                         { it.key.lowercase() },
                         { it.key }
                     )
                 )
-                .toList()
+            // By frequency: surface prefix matches first (moot for STARTS_WITH or a blank query),
+            // then most-used (count desc), then alphabetical as a stable tiebreak.
+            LabelSearchSort.BY_FREQUENCY ->
+                matched.sortedWith(
+                    compareByDescending<Map.Entry<String, Int>> {
+                        query.isNotBlank() && it.key.startsWith(query, ignoreCase = true)
+                    }
+                        .thenByDescending { it.value }
+                        .thenBy { it.key.lowercase() }
+                )
         }
     }
 
@@ -305,7 +336,14 @@ fun LabelPickerBottomSheet(
                 .heightIn(min = screenHeight)
         ) {
             TopAppBar(
-                title = { Text(title) },
+                title = {
+                    Text(
+                        text = title,
+                        modifier = Modifier.clickable {
+                            coroutineScope.launch { lazyListState.animateScrollToItem(0) }
+                        }
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = onDismiss) {
                         Icon(
@@ -315,6 +353,51 @@ fun LabelPickerBottomSheet(
                     }
                 },
                 actions = {
+                    // Label-search ranking toggles (persisted globally). Placed before Done so they
+                    // shift left to make room for it on the multi-select sheet. Each shows the current
+                    // mode as a monospace glyph and flips on tap; long-press reveals a tooltip.
+                    val matchingDescription = stringResource(
+                        if (labelSearchMatching == LabelSearchMatching.STARTS_WITH)
+                            R.string.label_search_matching_prefix
+                        else R.string.label_search_matching_contains
+                    )
+                    TooltipBox(
+                        positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
+                        tooltip = { PlainTooltip { Text(matchingDescription) } },
+                        state = rememberTooltipState()
+                    ) {
+                        IconButton(onClick = { labelSearchSettings.toggleMatching() }) {
+                            Text(
+                                text = if (labelSearchMatching == LabelSearchMatching.STARTS_WITH) "a∗" else "∗a∗",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontFamily = FontFamily.Monospace,
+                                modifier = Modifier.clearAndSetSemantics {
+                                    contentDescription = matchingDescription
+                                }
+                            )
+                        }
+                    }
+                    val sortDescription = stringResource(
+                        if (labelSearchSort == LabelSearchSort.ALPHABETICAL)
+                            R.string.label_search_sort_alpha
+                        else R.string.label_search_sort_count
+                    )
+                    TooltipBox(
+                        positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
+                        tooltip = { PlainTooltip { Text(sortDescription) } },
+                        state = rememberTooltipState()
+                    ) {
+                        IconButton(onClick = { labelSearchSettings.toggleSort() }) {
+                            Text(
+                                text = if (labelSearchSort == LabelSearchSort.ALPHABETICAL) "abc" else "123",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontFamily = FontFamily.Monospace,
+                                modifier = Modifier.clearAndSetSemantics {
+                                    contentDescription = sortDescription
+                                }
+                            )
+                        }
+                    }
                     if (mode is LabelPickerMode.MultiSelect) {
                         TextButton(
                             onClick = {
@@ -406,7 +489,6 @@ fun LabelPickerBottomSheet(
                     )
                 }
                 showScrollableResults -> {
-                    val lazyListState = rememberLazyListState()
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()

@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -60,6 +61,7 @@ import com.mydeck.app.R
 import com.mydeck.app.domain.model.BookmarkShareFormat
 import com.mydeck.app.domain.model.DarkAppearance
 import com.mydeck.app.domain.model.LightAppearance
+import com.mydeck.app.domain.model.OpenWebPagesIn
 import com.mydeck.app.domain.model.SwipeAction
 import com.mydeck.app.domain.model.SwipeConfig
 import com.mydeck.app.domain.model.Theme
@@ -103,6 +105,9 @@ fun UiSettingsScreen(
         onBookmarkShareFormatSelected = onBookmarkShareFormatSelected,
         onKeepScreenOnWhileReadingToggled = onKeepScreenOnWhileReadingToggled,
         onFullscreenWhileReadingToggled = onFullscreenWhileReadingToggled,
+        onShowCompactFaviconsToggled = { viewModel.onShowCompactFaviconsToggled(it) },
+        onShowAddBookmarkFabToggled = { viewModel.onShowAddBookmarkFabToggled(it) },
+        onOpenWebPagesInSelected = { viewModel.onOpenWebPagesInSelected(it) },
         settingsUiState = settingsUiState,
         swipeConfig = swipeConfig,
         onSwipeEnabledChange = { viewModel.onSwipeEnabledChange(it) },
@@ -123,6 +128,9 @@ fun UiSettingsView(
     onBookmarkShareFormatSelected: (BookmarkShareFormat) -> Unit,
     onKeepScreenOnWhileReadingToggled: (Boolean) -> Unit,
     onFullscreenWhileReadingToggled: (Boolean) -> Unit,
+    onShowCompactFaviconsToggled: (Boolean) -> Unit = {},
+    onShowAddBookmarkFabToggled: (Boolean) -> Unit = {},
+    onOpenWebPagesInSelected: (OpenWebPagesIn) -> Unit = {},
     onClickBack: () -> Unit,
     swipeConfig: SwipeConfig = SwipeConfig.Default,
     onSwipeEnabledChange: (Boolean) -> Unit = {},
@@ -158,6 +166,11 @@ fun UiSettingsView(
                 .fillMaxSize(),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            // ── Appearance ──
+            SettingsSectionHeader(
+                title = stringResource(R.string.ui_settings_section_appearance),
+                showDivider = false
+            )
             // Theme mode selection (Light/Dark/System)
             Column(
                 verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -223,6 +236,178 @@ fun UiSettingsView(
                 )
             }
 
+            // ── Bookmark List ──
+            SettingsSectionHeader(title = stringResource(R.string.ui_settings_section_bookmark_list))
+            ListItem(
+                modifier = Modifier.clickable {
+                    onShowCompactFaviconsToggled(!settingsUiState.showCompactFavicons)
+                },
+                headlineContent = {
+                    Text(
+                        text = stringResource(R.string.ui_settings_show_compact_favicons),
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+                },
+                supportingContent = {
+                    Text(
+                        text = stringResource(R.string.ui_settings_show_compact_favicons_desc),
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                },
+                trailingContent = {
+                    Switch(
+                        checked = settingsUiState.showCompactFavicons,
+                        onCheckedChange = onShowCompactFaviconsToggled
+                    )
+                }
+            )
+            ListItem(
+                modifier = Modifier.clickable {
+                    onShowAddBookmarkFabToggled(!settingsUiState.showAddBookmarkFab)
+                },
+                headlineContent = {
+                    Text(
+                        text = stringResource(R.string.ui_settings_show_add_fab),
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+                },
+                supportingContent = {
+                    Text(
+                        text = stringResource(R.string.ui_settings_show_add_fab_desc),
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                },
+                trailingContent = {
+                    Switch(
+                        checked = settingsUiState.showAddBookmarkFab,
+                        onCheckedChange = onShowAddBookmarkFabToggled
+                    )
+                }
+            )
+
+            // Swipe actions — a bookmark-list gesture, nested under Bookmark List
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(0.dp)
+            ) {
+                Text(
+                    text = stringResource(R.string.swipe_settings_section_title),
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(vertical = 4.dp)
+                )
+                ListItem(
+                    modifier = Modifier.clickable { onSwipeEnabledChange(!swipeConfig.enabled) },
+                    headlineContent = {
+                        Text(
+                            text = stringResource(R.string.swipe_settings_enable),
+                            style = MaterialTheme.typography.bodyLarge
+                        )
+                    },
+                    trailingContent = {
+                        Switch(
+                            checked = swipeConfig.enabled,
+                            onCheckedChange = onSwipeEnabledChange
+                        )
+                    }
+                )
+                SwipeActionPicker(
+                    label = stringResource(R.string.swipe_settings_left_action),
+                    selected = swipeConfig.leftAction,
+                    enabled = swipeConfig.enabled,
+                    onActionSelected = onSwipeLeftActionChange,
+                )
+                SwipeActionPicker(
+                    label = stringResource(R.string.swipe_settings_right_action),
+                    selected = swipeConfig.rightAction,
+                    enabled = swipeConfig.enabled,
+                    onActionSelected = onSwipeRightActionChange,
+                )
+            }
+
+            // ── Reading ──
+            SettingsSectionHeader(title = stringResource(R.string.ui_settings_section_reading))
+            ListItem(
+                modifier = Modifier.clickable {
+                    onOpenWebPagesInSelected(
+                        if (settingsUiState.openWebPagesIn == OpenWebPagesIn.IN_APP) OpenWebPagesIn.EXTERNAL_BROWSER
+                        else OpenWebPagesIn.IN_APP
+                    )
+                },
+                headlineContent = {
+                    Text(
+                        text = stringResource(R.string.ui_settings_internal_browser_title),
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+                },
+                supportingContent = {
+                    Text(
+                        text = stringResource(R.string.ui_settings_internal_browser_desc),
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                },
+                trailingContent = {
+                    Switch(
+                        checked = settingsUiState.openWebPagesIn == OpenWebPagesIn.IN_APP,
+                        onCheckedChange = { checked ->
+                            onOpenWebPagesInSelected(
+                                if (checked) OpenWebPagesIn.IN_APP else OpenWebPagesIn.EXTERNAL_BROWSER
+                            )
+                        }
+                    )
+                }
+            )
+            ListItem(
+                modifier = Modifier
+                    .testTag(UiSettingsScreenTestTags.FULLSCREEN_READING_ROW)
+                    .clickable {
+                        onFullscreenWhileReadingToggled(!settingsUiState.fullscreenWhileReading)
+                    },
+                headlineContent = {
+                    Text(
+                        text = stringResource(R.string.ui_settings_fullscreen_reading_title),
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+                },
+                supportingContent = {
+                    Text(
+                        text = stringResource(R.string.ui_settings_fullscreen_reading_description),
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                },
+                trailingContent = {
+                    Switch(
+                        checked = settingsUiState.fullscreenWhileReading,
+                        onCheckedChange = onFullscreenWhileReadingToggled
+                    )
+                }
+            )
+            ListItem(
+                modifier = Modifier
+                    .testTag(UiSettingsScreenTestTags.KEEP_SCREEN_ON_ROW)
+                    .clickable { onKeepScreenOnWhileReadingToggled(!settingsUiState.keepScreenOnWhileReading) },
+                headlineContent = {
+                    Text(
+                        text = stringResource(R.string.ui_settings_keep_screen_on_title),
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+                },
+                supportingContent = {
+                    Text(
+                        text = stringResource(R.string.ui_settings_keep_screen_on_description),
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                },
+                trailingContent = {
+                    Switch(
+                        checked = settingsUiState.keepScreenOnWhileReading,
+                        onCheckedChange = onKeepScreenOnWhileReadingToggled
+                    )
+                }
+            )
+
+            // ── Sharing ──
+            SettingsSectionHeader(title = stringResource(R.string.ui_settings_section_sharing))
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -266,96 +451,6 @@ fun UiSettingsView(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-
-            ListItem(
-                modifier = Modifier
-                    .testTag(UiSettingsScreenTestTags.FULLSCREEN_READING_ROW)
-                    .clickable {
-                        onFullscreenWhileReadingToggled(!settingsUiState.fullscreenWhileReading)
-                    },
-                headlineContent = {
-                    Text(
-                        text = stringResource(R.string.ui_settings_fullscreen_reading_title),
-                        style = MaterialTheme.typography.bodyLarge
-                    )
-                },
-                supportingContent = {
-                    Text(
-                        text = stringResource(R.string.ui_settings_fullscreen_reading_description),
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                },
-                trailingContent = {
-                    Switch(
-                        checked = settingsUiState.fullscreenWhileReading,
-                        onCheckedChange = onFullscreenWhileReadingToggled
-                    )
-                }
-            )
-
-            // Keep screen on while reading toggle
-            ListItem(
-                modifier = Modifier
-                    .testTag(UiSettingsScreenTestTags.KEEP_SCREEN_ON_ROW)
-                    .clickable { onKeepScreenOnWhileReadingToggled(!settingsUiState.keepScreenOnWhileReading) },
-                headlineContent = {
-                    Text(
-                        text = stringResource(R.string.ui_settings_keep_screen_on_title),
-                        style = MaterialTheme.typography.bodyLarge
-                    )
-                },
-                supportingContent = {
-                    Text(
-                        text = stringResource(R.string.ui_settings_keep_screen_on_description),
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                },
-                trailingContent = {
-                    Switch(
-                        checked = settingsUiState.keepScreenOnWhileReading,
-                        onCheckedChange = onKeepScreenOnWhileReadingToggled
-                    )
-                }
-            )
-
-            // Swipe actions section
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(0.dp)
-            ) {
-                Text(
-                    text = stringResource(R.string.swipe_settings_section_title),
-                    style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.padding(horizontal = 0.dp, vertical = 4.dp)
-                )
-                ListItem(
-                    modifier = Modifier.clickable { onSwipeEnabledChange(!swipeConfig.enabled) },
-                    headlineContent = {
-                        Text(
-                            text = stringResource(R.string.swipe_settings_enable),
-                            style = MaterialTheme.typography.bodyLarge
-                        )
-                    },
-                    trailingContent = {
-                        Switch(
-                            checked = swipeConfig.enabled,
-                            onCheckedChange = onSwipeEnabledChange
-                        )
-                    }
-                )
-                SwipeActionPicker(
-                    label = stringResource(R.string.swipe_settings_left_action),
-                    selected = swipeConfig.leftAction,
-                    enabled = swipeConfig.enabled,
-                    onActionSelected = onSwipeLeftActionChange,
-                )
-                SwipeActionPicker(
-                    label = stringResource(R.string.swipe_settings_right_action),
-                    selected = swipeConfig.rightAction,
-                    enabled = swipeConfig.enabled,
-                    onActionSelected = onSwipeRightActionChange,
-                )
-            }
         }
     }
 }
@@ -373,6 +468,9 @@ fun UiSettingsScreenViewPreview() {
         bookmarkShareFormat = BookmarkShareFormat.URL_ONLY,
         keepScreenOnWhileReading = true,
         fullscreenWhileReading = false,
+        showCompactFavicons = true,
+        showAddBookmarkFab = true,
+        openWebPagesIn = OpenWebPagesIn.IN_APP,
     )
     UiSettingsView(
         modifier = Modifier,
@@ -384,6 +482,8 @@ fun UiSettingsScreenViewPreview() {
         onBookmarkShareFormatSelected = {},
         onKeepScreenOnWhileReadingToggled = {},
         onFullscreenWhileReadingToggled = {},
+        onShowCompactFaviconsToggled = {},
+        onShowAddBookmarkFabToggled = {},
         settingsUiState = settingsUiState
     )
 }
@@ -435,6 +535,17 @@ private fun SwipeActionPicker(
                 }
             }
         }
+    )
+}
+
+@Composable
+private fun SettingsSectionHeader(title: String, showDivider: Boolean = true) {
+    if (showDivider) HorizontalDivider()
+    Text(
+        text = title,
+        style = MaterialTheme.typography.titleMedium,
+        color = MaterialTheme.colorScheme.primary,
+        modifier = Modifier.padding(top = if (showDivider) 4.dp else 0.dp)
     )
 }
 

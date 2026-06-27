@@ -5,7 +5,10 @@ import com.mydeck.app.domain.model.CachedServerInfo
 import com.mydeck.app.domain.model.BookmarkShareFormat
 import com.mydeck.app.domain.model.DarkAppearance
 import com.mydeck.app.domain.model.HighlightsSyncMetadata
+import com.mydeck.app.domain.model.LabelSearchMatching
+import com.mydeck.app.domain.model.LabelSearchSort
 import com.mydeck.app.domain.model.LightAppearance
+import com.mydeck.app.domain.model.OpenWebPagesIn
 import com.mydeck.app.domain.model.SwipeAction
 import com.mydeck.app.domain.model.SwipeConfig
 import com.mydeck.app.domain.model.Theme
@@ -120,6 +123,28 @@ interface SettingsDataStore {
     val fullscreenWhileReadingFlow: StateFlow<Boolean>
     suspend fun saveFullscreenWhileReading(enabled: Boolean)
     suspend fun isFullscreenWhileReading(): Boolean
+
+    // Bookmark list display preferences
+    val showCompactFaviconsFlow: StateFlow<Boolean>
+    suspend fun saveShowCompactFavicons(enabled: Boolean)
+    suspend fun isShowCompactFavicons(): Boolean
+
+    val showAddBookmarkFabFlow: StateFlow<Boolean>
+    suspend fun saveShowAddBookmarkFab(enabled: Boolean)
+    suspend fun isShowAddBookmarkFab(): Boolean
+
+    // Where a bookmark's original web page opens (Original View vs external browser)
+    val openWebPagesInFlow: StateFlow<OpenWebPagesIn>
+    suspend fun saveOpenWebPagesIn(value: OpenWebPagesIn)
+    suspend fun getOpenWebPagesIn(): OpenWebPagesIn
+
+    // Label search ranking preferences
+    val labelSearchMatchingFlow: StateFlow<LabelSearchMatching>
+    suspend fun saveLabelSearchMatching(matching: LabelSearchMatching)
+    suspend fun getLabelSearchMatching(): LabelSearchMatching
+    val labelSearchSortFlow: StateFlow<LabelSearchSort>
+    suspend fun saveLabelSearchSort(sort: LabelSearchSort)
+    suspend fun getLabelSearchSort(): LabelSearchSort
 
     // Swipe action preferences
     val swipeConfigFlow: StateFlow<SwipeConfig>

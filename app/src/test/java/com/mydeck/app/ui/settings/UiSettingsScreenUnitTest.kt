@@ -10,6 +10,7 @@ import androidx.compose.ui.test.performScrollTo
 import com.mydeck.app.domain.model.BookmarkShareFormat
 import com.mydeck.app.domain.model.DarkAppearance
 import com.mydeck.app.domain.model.LightAppearance
+import com.mydeck.app.domain.model.OpenWebPagesIn
 import com.mydeck.app.domain.model.Theme
 import com.mydeck.app.ui.theme.MyDeckTheme
 import dagger.hilt.android.testing.HiltAndroidRule
@@ -52,6 +53,9 @@ class UiSettingsScreenUnitTest {
         bookmarkShareFormat = shareFormat,
         keepScreenOnWhileReading = keepScreenOn,
         fullscreenWhileReading = fullscreenWhileReading,
+        showCompactFavicons = true,
+        showAddBookmarkFab = true,
+        openWebPagesIn = OpenWebPagesIn.IN_APP,
     )
 
     @Before

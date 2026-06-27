@@ -144,6 +144,9 @@ class BookmarkListViewModelTest {
         coEvery { settingsDataStore.getLayoutMode() } returns null
         coEvery { settingsDataStore.getSortOption() } returns null
         every { settingsDataStore.swipeConfigFlow } returns kotlinx.coroutines.flow.MutableStateFlow(SwipeConfig.Default)
+        every { settingsDataStore.showCompactFaviconsFlow } returns kotlinx.coroutines.flow.MutableStateFlow(true)
+        every { settingsDataStore.showAddBookmarkFabFlow } returns kotlinx.coroutines.flow.MutableStateFlow(true)
+        every { settingsDataStore.openWebPagesInFlow } returns kotlinx.coroutines.flow.MutableStateFlow(com.mydeck.app.domain.model.OpenWebPagesIn.IN_APP)
         coEvery { settingsDataStore.getBookmarkShareFormat() } returns BookmarkShareFormat.URL_ONLY
         every { settingsDataStore.urlFlow } returns kotlinx.coroutines.flow.MutableStateFlow(null)
         every { settingsDataStore.tokenFlow } returns kotlinx.coroutines.flow.MutableStateFlow(null)

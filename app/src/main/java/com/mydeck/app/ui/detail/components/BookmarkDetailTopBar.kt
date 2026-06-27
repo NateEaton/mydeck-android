@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.outlined.FindInPage
@@ -46,6 +47,7 @@ fun BookmarkDetailTopBar(
     onClickDeleteBookmark: (String) -> Unit,
     onArticleSearchActivate: () -> Unit,
     onClickOpenInBrowser: (String) -> Unit,
+    openWebPageExternally: Boolean = false,
     onContentModeChange: (ContentMode) -> Unit,
     scrollBehavior: TopAppBarScrollBehavior,
     canScrollToTop: Boolean = true,
@@ -108,6 +110,14 @@ fun BookmarkDetailTopBar(
                         )
                     }
                 }
+                if (contentMode == ContentMode.ORIGINAL) {
+                    IconButton(onClick = { onClickOpenInBrowser(uiState.bookmark.url) }) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.OpenInNew,
+                            contentDescription = stringResource(R.string.action_open_in_browser)
+                        )
+                    }
+                }
                 BookmarkDetailMenu(
                     uiState = uiState,
                     onClickToggleFavorite = onClickToggleFavorite,
@@ -118,6 +128,7 @@ fun BookmarkDetailTopBar(
                     onShowDetails = onShowDetails,
                     onShowHighlights = onShowHighlights,
                     onClickOpenInBrowser = onClickOpenInBrowser,
+                    openWebPageExternally = openWebPageExternally,
                     contentMode = contentMode,
                     onContentModeChange = onContentModeChange,
                     offlineReadingEnabled = offlineReadingEnabled,
