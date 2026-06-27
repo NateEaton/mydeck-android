@@ -199,40 +199,6 @@ private fun ThumbnailReadingStatusIndicator(
 }
 
 @Composable
-private fun OfflineStateIndicator(
-    offlineState: BookmarkListItem.OfflineState,
-    modifier: Modifier = Modifier,
-    badgeSize: Dp = ThumbnailStatusBadgeSize,
-    iconSize: Dp = ThumbnailStatusIconSize
-) {
-    if (offlineState == BookmarkListItem.OfflineState.NOT_DOWNLOADED) return
-    Box(
-        modifier = modifier
-            .size(badgeSize)
-            .background(
-                color = Color.Gray.copy(alpha = 0.5f),
-                shape = CircleShape
-            ),
-        contentAlignment = Alignment.Center
-    ) {
-        Icon(
-            imageVector = when (offlineState) {
-                BookmarkListItem.OfflineState.PINNED -> Icons.Filled.PushPin
-                BookmarkListItem.OfflineState.DOWNLOADED_FULL -> Icons.Filled.DownloadForOffline
-                else -> Icons.Outlined.DownloadForOffline
-            },
-            contentDescription = null,
-            tint = if (offlineState == BookmarkListItem.OfflineState.PINNED) {
-                MaterialTheme.colorScheme.primary
-            } else {
-                Color.White
-            },
-            modifier = Modifier.size(iconSize)
-        )
-    }
-}
-
-@Composable
 private fun CompactReadingStatusIndicator(
     readProgress: Int,
     modifier: Modifier = Modifier,
@@ -282,29 +248,6 @@ private fun CompactReadingStatusIndicator(
             }
         }
     }
-}
-
-@Composable
-private fun CompactOfflineStateIndicator(
-    offlineState: BookmarkListItem.OfflineState,
-    modifier: Modifier = Modifier,
-    iconSize: Dp = CompactStatusIconSize
-) {
-    if (offlineState == BookmarkListItem.OfflineState.NOT_DOWNLOADED) return
-    Icon(
-        imageVector = when (offlineState) {
-            BookmarkListItem.OfflineState.PINNED -> Icons.Filled.PushPin
-            BookmarkListItem.OfflineState.DOWNLOADED_FULL -> Icons.Filled.DownloadForOffline
-            else -> Icons.Outlined.DownloadForOffline
-        },
-        contentDescription = null,
-        tint = if (offlineState == BookmarkListItem.OfflineState.PINNED) {
-            MaterialTheme.colorScheme.primary
-        } else {
-            MaterialTheme.colorScheme.onSurfaceVariant
-        },
-        modifier = modifier.size(iconSize)
-    )
 }
 
 @Composable
