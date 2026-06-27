@@ -5,7 +5,6 @@ import com.mydeck.app.domain.sync.SyncScheduler
 import com.mydeck.app.domain.mapper.toDomain
 import com.mydeck.app.domain.sync.OfflinePolicyEvaluator
 import com.mydeck.app.io.prefs.SettingsDataStore
-import com.mydeck.app.io.rest.ReadeckApi
 import com.mydeck.app.io.rest.model.BookmarkDto
 import com.mydeck.app.io.rest.model.ImageResource
 import com.mydeck.app.io.rest.model.Resource
@@ -17,16 +16,13 @@ import io.mockk.coVerify
 import io.mockk.mockk
 import kotlinx.coroutines.runBlocking
 import kotlinx.datetime.Instant
-import okhttp3.Headers
 import org.junit.Assert.*
 import org.junit.Before
 import org.junit.Test
-import retrofit2.Response
 
 class LoadBookmarksUseCaseTest {
 
     private lateinit var bookmarkRepository: BookmarkRepository
-    private lateinit var readeckApi: ReadeckApi
     private lateinit var multipartSyncClient: MultipartSyncClient
     private lateinit var settingsDataStore: SettingsDataStore
     private lateinit var policyEvaluator: OfflinePolicyEvaluator
@@ -36,7 +32,6 @@ class LoadBookmarksUseCaseTest {
     @Before
     fun setUp() {
         bookmarkRepository = mockk(relaxed = true)
-        readeckApi = mockk()
         multipartSyncClient = mockk(relaxed = true)
         settingsDataStore = mockk(relaxed = true)
         policyEvaluator = mockk(relaxed = true)
@@ -44,7 +39,6 @@ class LoadBookmarksUseCaseTest {
         coEvery { policyEvaluator.shouldAutoFetchContent() } returns false
         loadBookmarksUseCase = LoadBookmarksUseCase(
             bookmarkRepository,
-            readeckApi,
             multipartSyncClient,
             settingsDataStore,
             policyEvaluator,
@@ -59,13 +53,6 @@ class LoadBookmarksUseCaseTest {
         coEvery { bookmarkRepository.insertBookmarks(any()) } returns Unit
         coEvery { settingsDataStore.getLastBookmarkTimestamp() } returns null
         coEvery { settingsDataStore.saveLastBookmarkTimestamp(any()) } returns Unit
-        coEvery { readeckApi.getBookmarks(any(), any(), any(), any(), any()) } returns Response.success(
-            emptyList(),
-            Headers.headersOf(
-                ReadeckApi.Header.TOTAL_PAGES, "1",
-                ReadeckApi.Header.CURRENT_PAGE, "1"
-            )
-        )
 
         // Execute the use case
         val result = loadBookmarksUseCase.execute(updatedIds = listOf("2"), pageSize = 10, initialOffset = 0)
@@ -75,6 +62,8 @@ class LoadBookmarksUseCaseTest {
         assertTrue(result is LoadBookmarksUseCase.UseCaseResult.Success<*>)
         coVerify { multipartSyncClient.fetchMetadata(listOf("2")) }
         coVerify { bookmarkRepository.insertBookmarks(match { it.size == 1 && it.first().id == "2" }) }
+        // The metadata sync delegates server-error reconciliation to the repository.
+        coVerify { bookmarkRepository.refreshServerErrorFlags() }
     }
 
     @Test
@@ -127,13 +116,6 @@ class LoadBookmarksUseCaseTest {
         coEvery { settingsDataStore.getLastBookmarkTimestamp() } returns null
         coEvery { settingsDataStore.saveLastBookmarkTimestamp(any()) } returns Unit
         coEvery { bookmarkRepository.insertBookmarks(any()) } returns Unit
-        coEvery { readeckApi.getBookmarks(any(), any(), any(), any(), any()) } returns Response.success(
-            emptyList(),
-            Headers.headersOf(
-                ReadeckApi.Header.TOTAL_PAGES, "1",
-                ReadeckApi.Header.CURRENT_PAGE, "1"
-            )
-        )
 
         loadBookmarksUseCase.execute(updatedIds = listOf("2", "1"), pageSize = 10, initialOffset = 0)
 

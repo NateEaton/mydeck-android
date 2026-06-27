@@ -47,6 +47,7 @@ import okhttp3.Headers
 import okhttp3.ResponseBody.Companion.toResponseBody
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -116,6 +117,18 @@ class BookmarkRepositoryImplTest {
         
         // Standard mocks for BookmarkDao batch operations
         coEvery { bookmarkDao.getBookmarksByIds(any()) } returns emptyList()
+
+        // performFullSync reconciles server-error flags via a has_errors=true scan; default it to an
+        // empty page so the broader full-sync tests don't need to stub it individually.
+        coEvery {
+            readeckApi.getBookmarks(any(), any(), any(), any(), hasErrors = true)
+        } returns Response.success(
+            emptyList(),
+            Headers.headersOf(
+                ReadeckApi.Header.TOTAL_PAGES, "1",
+                ReadeckApi.Header.CURRENT_PAGE, "1"
+            )
+        )
 
         bookmarkRepositoryImpl = BookmarkRepositoryImpl(
             database = database,
@@ -1426,6 +1439,55 @@ class BookmarkRepositoryImplTest {
         assertEquals("item-1", emission[0].id)
     }
 
+    @Test
+    fun `refreshServerErrorFlags reconciles flags from the has_errors scan`() = runTest {
+        val captured = mutableListOf<List<String>>()
+        coEvery {
+            readeckApi.getBookmarks(any(), any(), any(), any(), hasErrors = true)
+        } returns Response.success(
+            listOf(bookmarkDto.copy(id = "e1"), bookmarkDto.copy(id = "e2")),
+            Headers.headersOf(
+                ReadeckApi.Header.TOTAL_PAGES, "1",
+                ReadeckApi.Header.CURRENT_PAGE, "1"
+            )
+        )
+        coEvery { bookmarkDao.replaceServerErrorFlags(capture(captured)) } just runs
+
+        bookmarkRepositoryImpl.refreshServerErrorFlags()
+
+        coVerify { readeckApi.getBookmarks(any(), any(), any(), any(), hasErrors = true) }
+        assertEquals(setOf("e1", "e2"), captured.single().toSet())
+    }
+
+    @Test
+    fun `list item maps server-error and no-content signals into hasError and hasNoContent`() = runTest {
+        val serverError = bookmarkListItemEntity.copy(id = "err", hasServerErrors = true)
+        val hardError = bookmarkListItemEntity.copy(id = "hard", state = BookmarkEntity.State.ERROR)
+        val noContent = bookmarkListItemEntity.copy(
+            id = "empty",
+            hasArticle = false,
+            contentState = BookmarkEntity.ContentState.PERMANENT_NO_CONTENT
+        )
+        val clean = bookmarkListItemEntity.copy(id = "clean")
+        every {
+            bookmarkDao.getFilteredBookmarkListItems(
+                searchQuery = any(), title = any(), author = any(), site = any(),
+                types = any(), progressFilters = any(), isArchived = any(),
+                isFavorite = any(), label = any(), fromDate = any(), toDate = any(),
+                isLoaded = any(), withLabels = any(), withErrors = any(), orderBy = any()
+            )
+        } returns flowOf(listOf(serverError, hardError, noContent, clean))
+
+        val emission = bookmarkRepositoryImpl.observeFilteredBookmarkListItems().first().associateBy { it.id }
+
+        assertTrue(emission.getValue("err").hasError)
+        assertTrue(emission.getValue("hard").hasError)
+        assertFalse(emission.getValue("empty").hasError)
+        assertTrue(emission.getValue("empty").hasNoContent)
+        assertFalse(emission.getValue("clean").hasError)
+        assertFalse(emission.getValue("clean").hasNoContent)
+    }
+
     private val bookmarkListItemEntity = BookmarkListItemEntity(
         id = "item-1",
         href = "https://example.com/item-1",
@@ -1446,6 +1508,8 @@ class BookmarkRepositoryImplTest {
         published = null,
         hasArticle = true,
         contentState = BookmarkEntity.ContentState.NOT_ATTEMPTED,
+        hasServerErrors = false,
+        state = BookmarkEntity.State.LOADED,
         hasResources = null,
         source = null
     )
