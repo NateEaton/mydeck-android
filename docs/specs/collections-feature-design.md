@@ -81,9 +81,9 @@ data class Collection(
 | `progress` (`Set<ProgressFilter>`) | `read_status` (`List<String>`) | `ProgressFilter` enum → `"unread"` / `"reading"` / `"read"` |
 | `isFavorite`            | `is_marked`      | Nullable Boolean passthrough                                        |
 | `isArchived`            | `is_archived`    | Nullable Boolean passthrough                                        |
-| `isLoaded`              | _(no equivalent)_ | **Omit when persisting; default `null` when loading**              |
-| `withLabels`            | _(no equivalent)_ | **Omit when persisting; default `null` when loading**              |
-| `withErrors`            | _(no equivalent)_ | **Omit when persisting; default `null` when loading**              |
+| `isLoaded` ("Downloaded")| _(no equivalent)_ | **Device-local** (content persisted on device). The server's `is_loaded` is a *different* concept (server-side fetch), so there is no collection equivalent — omit on persist, `null` on load, and **hide its control in the collection editor sheet**. The device-local "available offline" need is served by the Nav spec's Offline Content view, not by collections. |
+| `withLabels`            | `has_labels`     | Nullable Boolean passthrough. **Server-supported — confirmed round-trip** (overturns the original "no equivalent" claim). |
+| `withErrors`            | `has_errors`     | Nullable Boolean passthrough. **Server-supported — confirmed round-trip** (overturns the original "no equivalent" claim). |
 
 Add the adapter as extension functions in a new file `domain/model/CollectionFilterAdapter.kt`:
 

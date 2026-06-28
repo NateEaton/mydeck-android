@@ -284,6 +284,24 @@ N2 badge.
 
 ---
 
+**Collection filter fields — final mapping (2026-06-28, verified against the live server):**
+- `withErrors → has_errors` and `withLabels → has_labels` **are server-supported** and round-trip
+  (maintainer created native-UI collections; both returned `true`). They were dropped in error by C1's
+  original "no API equivalent" reading. **Add these two** Boolean columns to the DTOs/entity/adapter;
+  amend `MIGRATION_17_18` + `18.json` in place (C1 unmerged — no new migration version).
+- The app's **"Downloaded"** filter is **device-local** (content persisted on device) and is **excluded**
+  from collections. The server's `is_loaded` is a *different* concept (server-side fetch), so there is no
+  collection equivalent — treat the device field as local-only (drop on persist) and **hide its control
+  in the collection editor sheet**. (Verify which `FilterFormState` field backs the "Downloaded" control;
+  the original spec called it `isLoaded`.)
+- The 6 reading-time/word-count fields stay local-only/dropped (not in the API vocabulary).
+- The device-local "available offline" need is already covered by the **Navigation Settings spec** — its
+  predefined **Offline Content view** (`NavView.OFFLINE`, default off, user-enableable) plus the **custom
+  collection view** (`NavView.CUSTOM`). No new spec work; a mobile-only collection field would require a
+  future server enhancement and is out of scope.
+
+---
+
 ## 12. Kickoff prompt template (coordinator → slice thread)
 
 The coordinator delivers a concrete prompt per thread (not all at once), as raw markdown for the user to
