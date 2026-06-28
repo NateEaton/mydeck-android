@@ -27,6 +27,8 @@ class CollectionFilterAdapterTest {
         readStatus: List<String>? = null,
         isMarked: Boolean? = null,
         isArchived: Boolean? = null,
+        hasErrors: Boolean? = null,
+        hasLabels: Boolean? = null,
         rangeStart: String? = null,
         rangeEnd: String? = null,
         created: String = isoCreated,
@@ -48,6 +50,8 @@ class CollectionFilterAdapterTest {
         readStatus = readStatus,
         isMarked = isMarked,
         isArchived = isArchived,
+        hasErrors = hasErrors,
+        hasLabels = hasLabels,
         rangeStart = rangeStart,
         rangeEnd = rangeEnd,
     )
@@ -68,6 +72,8 @@ class CollectionFilterAdapterTest {
             progress = linkedSetOf(ProgressFilter.UNVIEWED, ProgressFilter.IN_PROGRESS, ProgressFilter.COMPLETED),
             isFavorite = true,
             isArchived = false,
+            withErrors = true,
+            withLabels = false,
             fromDate = from,
             toDate = to,
         )
@@ -85,6 +91,8 @@ class CollectionFilterAdapterTest {
         assertEquals(setOf("unread", "reading", "read"), dto.readStatus?.toSet())
         assertTrue(dto.isMarked == true)
         assertTrue(dto.isArchived == false)
+        assertTrue(dto.hasErrors == true)
+        assertTrue(dto.hasLabels == false)
         assertEquals(from.toString(), dto.rangeStart)
         assertEquals(to.toString(), dto.rangeEnd)
     }
@@ -98,12 +106,19 @@ class CollectionFilterAdapterTest {
     }
 
     @Test
+    fun `toCreateCollectionDto persists has_errors and has_labels`() {
+        val dto = FilterFormState(withErrors = true, withLabels = true).toCreateCollectionDto("WE")
+        assertTrue(dto.hasErrors == true)
+        assertTrue(dto.hasLabels == true)
+    }
+
+    @Test
     fun `toCreateCollectionDto ignores local-only fields`() {
+        // isLoaded ("Downloaded") and the reading-time/word-count fields have no collection-API
+        // equivalent and must not surface on the request body.
         val filter = FilterFormState(
             search = "hello",
             isLoaded = true,
-            withLabels = true,
-            withErrors = true,
             minReadingTime = 5,
             minWordCount = 10,
         )
@@ -126,6 +141,8 @@ class CollectionFilterAdapterTest {
             rangeEnd = rangeEnd,
             isMarked = true,
             isArchived = false,
+            hasErrors = true,
+            hasLabels = false,
         )
 
         val state = dto.toFilterFormState()
@@ -133,9 +150,10 @@ class CollectionFilterAdapterTest {
         assertEquals(setOf(Bookmark.Type.Article, Bookmark.Type.Video), state.types)
         assertEquals(setOf(ProgressFilter.UNVIEWED, ProgressFilter.COMPLETED), state.progress)
         assertEquals("x", state.label)
+        // has_errors / has_labels round-trip; isLoaded ("Downloaded") stays local-only (null).
+        assertTrue(state.withErrors == true)
+        assertTrue(state.withLabels == false)
         assertNull(state.isLoaded)
-        assertNull(state.withLabels)
-        assertNull(state.withErrors)
         assertEquals(Instant.parse(rangeStart), state.fromDate)
         assertEquals(Instant.parse(rangeEnd), state.toDate)
         assertTrue(state.isFavorite == true)
@@ -168,6 +186,8 @@ class CollectionFilterAdapterTest {
             labels = "tech,science",
             isMarked = true,
             isArchived = false,
+            hasErrors = true,
+            hasLabels = true,
             rangeStart = isoCreated,
             rangeEnd = isoUpdated,
             created = isoCreated,
@@ -187,5 +207,7 @@ class CollectionFilterAdapterTest {
         assertEquals("tech", domain.filter.label)
         assertTrue(domain.filter.isFavorite == true)
         assertTrue(domain.filter.isArchived == false)
+        assertTrue(domain.filter.withErrors == true)
+        assertTrue(domain.filter.withLabels == true)
     }
 }

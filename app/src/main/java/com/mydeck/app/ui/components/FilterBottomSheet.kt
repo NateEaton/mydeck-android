@@ -45,6 +45,7 @@ import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -71,82 +72,107 @@ import java.util.Locale
 
 private const val FOCUSED_FIELD_BRING_INTO_VIEW_DELAY_MS = 250L
 
+/**
+ * Mutable working copy of a [FilterFormState] for the filter editing UI. Holds every editable field
+ * as Compose state so the same control set can back both [FilterBottomSheet] and the collection
+ * editor sheet. Reset whenever [currentFilter] changes via [rememberFilterEditorState].
+ */
+@Stable
+class FilterEditorState(initial: FilterFormState) {
+    var search by mutableStateOf(initial.search ?: "")
+    var title by mutableStateOf(initial.title ?: "")
+    var author by mutableStateOf(initial.author ?: "")
+    var site by mutableStateOf(initial.site ?: "")
+    var label by mutableStateOf(initial.label)
+    var fromDate by mutableStateOf(initial.fromDate)
+    var toDate by mutableStateOf(initial.toDate)
+    var types by mutableStateOf(initial.types)
+    var progress by mutableStateOf(initial.progress)
+    var isFavorite by mutableStateOf(initial.isFavorite)
+    var isArchived by mutableStateOf(initial.isArchived)
+    var isLoaded by mutableStateOf(initial.isLoaded)
+    var withLabels by mutableStateOf(initial.withLabels)
+    var withErrors by mutableStateOf(initial.withErrors)
+    var minReadingTime by mutableStateOf(initial.minReadingTime?.toString() ?: "")
+    var maxReadingTime by mutableStateOf(initial.maxReadingTime?.toString() ?: "")
+    var includeNullReadingTime by mutableStateOf(initial.includeNullReadingTime)
+    var minWordCount by mutableStateOf(initial.minWordCount?.toString() ?: "")
+    var maxWordCount by mutableStateOf(initial.maxWordCount?.toString() ?: "")
+    var includeNullWordCount by mutableStateOf(initial.includeNullWordCount)
+
+    val readingTimeError: Boolean
+        get() = minReadingTime.isNotEmpty() && maxReadingTime.isNotEmpty() &&
+            (minReadingTime.toIntOrNull() ?: 0) > (maxReadingTime.toIntOrNull() ?: 0)
+
+    val wordCountError: Boolean
+        get() = minWordCount.isNotEmpty() && maxWordCount.isNotEmpty() &&
+            (minWordCount.toIntOrNull() ?: 0) > (maxWordCount.toIntOrNull() ?: 0)
+
+    val hasValidationError: Boolean get() = readingTimeError || wordCountError
+
+    val hasActiveFilters: Boolean
+        get() = search.isNotBlank() || title.isNotBlank() || author.isNotBlank() ||
+            site.isNotBlank() || label != null || fromDate != null || toDate != null ||
+            types.isNotEmpty() || progress.isNotEmpty() || isFavorite != null ||
+            isArchived != null || isLoaded != null || withLabels != null || withErrors != null ||
+            minReadingTime.isNotBlank() || maxReadingTime.isNotBlank() || includeNullReadingTime ||
+            minWordCount.isNotBlank() || maxWordCount.isNotBlank() || includeNullWordCount
+
+    fun toFilterFormState(): FilterFormState = FilterFormState(
+        search = search.ifBlank { null },
+        title = title.ifBlank { null },
+        author = author.ifBlank { null },
+        site = site.ifBlank { null },
+        label = label,
+        fromDate = fromDate,
+        toDate = toDate,
+        types = types,
+        progress = progress,
+        isFavorite = isFavorite,
+        isArchived = isArchived,
+        isLoaded = isLoaded,
+        withLabels = withLabels,
+        withErrors = withErrors,
+        minReadingTime = minReadingTime.toIntOrNull(),
+        maxReadingTime = maxReadingTime.toIntOrNull(),
+        includeNullReadingTime = includeNullReadingTime,
+        minWordCount = minWordCount.toIntOrNull(),
+        maxWordCount = maxWordCount.toIntOrNull(),
+        includeNullWordCount = includeNullWordCount,
+    )
+}
+
+@Composable
+fun rememberFilterEditorState(currentFilter: FilterFormState): FilterEditorState =
+    remember(currentFilter) { FilterEditorState(currentFilter) }
+
+/**
+ * The full set of filter-criteria controls (search, title/author, site/label, dates, length, type
+ * and progress chips, and the boolean tri-state rows), backed by [state]. Renders as a plain
+ * [Column] meant to be placed inside a scrolling parent; the caller supplies the surrounding sheet
+ * chrome and action buttons. Reused by [FilterBottomSheet] and the collection editor sheet.
+ *
+ * [onImeAction] runs when the keyboard "search/done" action fires on a text field (e.g. apply the
+ * filter); pass null to make the action a no-op.
+ *
+ * [includeLocalOnlyFilters] controls the device-local criteria that cannot be persisted to a Readeck
+ * collection: the **Length** (reading-time / word-count) filter and the **Downloaded** (`isLoaded`)
+ * tri-state. Pass false from the collection editor so those controls aren't offered (they would be
+ * silently dropped on save). `With labels` and `With errors` are server-supported and always shown.
+ */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
-fun FilterBottomSheet(
-    currentFilter: FilterFormState,
-    labels: Map<String, Int> = emptyMap(),
-    onApply: (FilterFormState) -> Unit,
-    onReset: () -> Unit,
-    onDismiss: () -> Unit,
+fun FilterControls(
+    state: FilterEditorState,
+    labels: Map<String, Int>,
+    modifier: Modifier = Modifier,
+    onImeAction: (() -> Unit)? = null,
+    includeLocalOnlyFilters: Boolean = true,
 ) {
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
-
-    var search by remember(currentFilter) { mutableStateOf(currentFilter.search ?: "") }
-    var title by remember(currentFilter) { mutableStateOf(currentFilter.title ?: "") }
-    var author by remember(currentFilter) { mutableStateOf(currentFilter.author ?: "") }
-    var site by remember(currentFilter) { mutableStateOf(currentFilter.site ?: "") }
-    var label by remember(currentFilter) { mutableStateOf(currentFilter.label) }
-    var fromDate by remember(currentFilter) { mutableStateOf(currentFilter.fromDate) }
-    var toDate by remember(currentFilter) { mutableStateOf(currentFilter.toDate) }
-    var types by remember(currentFilter) { mutableStateOf(currentFilter.types) }
-    var progress by remember(currentFilter) { mutableStateOf(currentFilter.progress) }
-    var isFavorite by remember(currentFilter) { mutableStateOf(currentFilter.isFavorite) }
-    var isArchived by remember(currentFilter) { mutableStateOf(currentFilter.isArchived) }
-    var isLoaded by remember(currentFilter) { mutableStateOf(currentFilter.isLoaded) }
-    var withLabels by remember(currentFilter) { mutableStateOf(currentFilter.withLabels) }
-    var withErrors by remember(currentFilter) { mutableStateOf(currentFilter.withErrors) }
-    var minReadingTime by remember(currentFilter) { mutableStateOf(currentFilter.minReadingTime?.toString() ?: "") }
-    var maxReadingTime by remember(currentFilter) { mutableStateOf(currentFilter.maxReadingTime?.toString() ?: "") }
-    var includeNullReadingTime by remember(currentFilter) { mutableStateOf(currentFilter.includeNullReadingTime) }
-    var minWordCount by remember(currentFilter) { mutableStateOf(currentFilter.minWordCount?.toString() ?: "") }
-    var maxWordCount by remember(currentFilter) { mutableStateOf(currentFilter.maxWordCount?.toString() ?: "") }
-    var includeNullWordCount by remember(currentFilter) { mutableStateOf(currentFilter.includeNullWordCount) }
-
-    val readingTimeError = minReadingTime.isNotEmpty() && maxReadingTime.isNotEmpty() &&
-        (minReadingTime.toIntOrNull() ?: 0) > (maxReadingTime.toIntOrNull() ?: 0)
-    val wordCountError = minWordCount.isNotEmpty() && maxWordCount.isNotEmpty() &&
-        (minWordCount.toIntOrNull() ?: 0) > (maxWordCount.toIntOrNull() ?: 0)
-    val hasValidationError = readingTimeError || wordCountError
-
     var showLabelPicker by remember { mutableStateOf(false) }
     var showFromDatePicker by remember { mutableStateOf(false) }
     var showToDatePicker by remember { mutableStateOf(false) }
     var showLengthFilterDialog by remember { mutableStateOf(false) }
-
-    val hasActiveFilters = search.isNotBlank() || title.isNotBlank() || author.isNotBlank() ||
-        site.isNotBlank() || label != null || fromDate != null || toDate != null ||
-        types.isNotEmpty() || progress.isNotEmpty() || isFavorite != null ||
-        isArchived != null || isLoaded != null || withLabels != null || withErrors != null ||
-        minReadingTime.isNotBlank() || maxReadingTime.isNotBlank() || includeNullReadingTime ||
-        minWordCount.isNotBlank() || maxWordCount.isNotBlank() || includeNullWordCount
-
-    val applyFilter = {
-        if (!hasValidationError) {
-            onApply(FilterFormState(
-                search = search.ifBlank { null },
-                title = title.ifBlank { null },
-                author = author.ifBlank { null },
-                site = site.ifBlank { null },
-                label = label,
-                fromDate = fromDate,
-                toDate = toDate,
-                types = types,
-                progress = progress,
-                isFavorite = isFavorite,
-                isArchived = isArchived,
-                isLoaded = isLoaded,
-                withLabels = withLabels,
-                withErrors = withErrors,
-                minReadingTime = minReadingTime.toIntOrNull(),
-                maxReadingTime = maxReadingTime.toIntOrNull(),
-                includeNullReadingTime = includeNullReadingTime,
-                minWordCount = minWordCount.toIntOrNull(),
-                maxWordCount = maxWordCount.toIntOrNull(),
-                includeNullWordCount = includeNullWordCount,
-            ))
-        }
-    }
 
     // Colors that make a disabled OutlinedTextField look like an enabled one.
     // Required for read-only picker fields (label, dates) because enabled=false is needed
@@ -161,13 +187,341 @@ fun FilterBottomSheet(
 
     val dateFormatter = remember { SimpleDateFormat("MMM d, yyyy", Locale.getDefault()) }
     val lengthSummary = lengthFilterSummary(
-        minReadingTime = minReadingTime.toIntOrNull(),
-        maxReadingTime = maxReadingTime.toIntOrNull(),
-        includeNullReadingTime = includeNullReadingTime,
-        minWordCount = minWordCount.toIntOrNull(),
-        maxWordCount = maxWordCount.toIntOrNull(),
-        includeNullWordCount = includeNullWordCount,
+        minReadingTime = state.minReadingTime.toIntOrNull(),
+        maxReadingTime = state.maxReadingTime.toIntOrNull(),
+        includeNullReadingTime = state.includeNullReadingTime,
+        minWordCount = state.minWordCount.toIntOrNull(),
+        maxWordCount = state.maxWordCount.toIntOrNull(),
+        includeNullWordCount = state.includeNullWordCount,
     )
+
+    Column(modifier = modifier.fillMaxWidth()) {
+        // -- Search (full width, keyboard entry)
+        OutlinedTextField(
+            value = state.search,
+            onValueChange = { state.search = it },
+            label = { Text(stringResource(R.string.filter_search)) },
+            placeholder = { Text(stringResource(R.string.search_bookmarks)) },
+            trailingIcon = {
+                if (state.search.isNotEmpty()) {
+                    IconButton(onClick = { state.search = "" }) {
+                        Icon(Icons.Filled.Clear, contentDescription = null, modifier = Modifier.size(20.dp))
+                    }
+                }
+            },
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+            keyboardActions = KeyboardActions(onSearch = { onImeAction?.invoke() }),
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        Spacer(Modifier.height(12.dp))
+
+        // -- Title / Author (side-by-side)
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedTextField(
+                value = state.title,
+                onValueChange = { state.title = it },
+                label = { Text(stringResource(R.string.filter_title)) },
+                trailingIcon = {
+                    if (state.title.isNotEmpty()) {
+                        IconButton(onClick = { state.title = "" }) {
+                            Icon(Icons.Filled.Clear, contentDescription = null, modifier = Modifier.size(16.dp))
+                        }
+                    }
+                },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                keyboardActions = KeyboardActions(onSearch = { onImeAction?.invoke() }),
+                modifier = Modifier.weight(1f)
+            )
+            OutlinedTextField(
+                value = state.author,
+                onValueChange = { state.author = it },
+                label = { Text(stringResource(R.string.filter_author)) },
+                trailingIcon = {
+                    if (state.author.isNotEmpty()) {
+                        IconButton(onClick = { state.author = "" }) {
+                            Icon(Icons.Filled.Clear, contentDescription = null, modifier = Modifier.size(16.dp))
+                        }
+                    }
+                },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                keyboardActions = KeyboardActions(onSearch = { onImeAction?.invoke() }),
+                modifier = Modifier.weight(1f)
+            )
+        }
+
+        Spacer(Modifier.height(12.dp))
+
+        // -- Site / Label (side-by-side)
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedTextField(
+                value = state.site,
+                onValueChange = { state.site = it },
+                label = { Text(stringResource(R.string.filter_site)) },
+                trailingIcon = {
+                    if (state.site.isNotEmpty()) {
+                        IconButton(onClick = { state.site = "" }) {
+                            Icon(Icons.Filled.Clear, contentDescription = null, modifier = Modifier.size(16.dp))
+                        }
+                    }
+                },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                keyboardActions = KeyboardActions(onSearch = { onImeAction?.invoke() }),
+                modifier = Modifier.weight(1f)
+            )
+            OutlinedTextField(
+                value = state.label ?: "",
+                onValueChange = {},
+                readOnly = true,
+                enabled = false,
+                colors = pickerColors,
+                label = { Text(stringResource(R.string.filter_label)) },
+                placeholder = { Text(stringResource(R.string.filter_select_label)) },
+                trailingIcon = {
+                    if (state.label != null) {
+                        IconButton(onClick = { state.label = null }) {
+                            Icon(Icons.Filled.Clear, contentDescription = null, modifier = Modifier.size(16.dp))
+                        }
+                    }
+                },
+                modifier = Modifier
+                    .weight(1f)
+                    .clickable { showLabelPicker = true }
+            )
+        }
+
+        Spacer(Modifier.height(12.dp))
+
+        // -- From Date / To Date (side-by-side)
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedTextField(
+                value = state.fromDate?.let { dateFormatter.format(Date(it.toEpochMilliseconds())) } ?: "",
+                onValueChange = {},
+                readOnly = true,
+                enabled = false,
+                colors = pickerColors,
+                label = { Text(stringResource(R.string.filter_from_date)) },
+                trailingIcon = {
+                    if (state.fromDate != null) {
+                        IconButton(onClick = { state.fromDate = null }) {
+                            Icon(Icons.Filled.Clear, contentDescription = null, modifier = Modifier.size(16.dp))
+                        }
+                    }
+                },
+                modifier = Modifier
+                    .weight(1f)
+                    .clickable { showFromDatePicker = true }
+            )
+            OutlinedTextField(
+                value = state.toDate?.let { dateFormatter.format(Date(it.toEpochMilliseconds())) } ?: "",
+                onValueChange = {},
+                readOnly = true,
+                enabled = false,
+                colors = pickerColors,
+                label = { Text(stringResource(R.string.filter_to_date)) },
+                trailingIcon = {
+                    if (state.toDate != null) {
+                        IconButton(onClick = { state.toDate = null }) {
+                            Icon(Icons.Filled.Clear, contentDescription = null, modifier = Modifier.size(16.dp))
+                        }
+                    }
+                },
+                modifier = Modifier
+                    .weight(1f)
+                    .clickable { showToDatePicker = true }
+            )
+        }
+
+        Spacer(Modifier.height(12.dp))
+
+        if (includeLocalOnlyFilters) {
+            OutlinedTextField(
+                value = lengthSummary ?: "",
+                onValueChange = {},
+                readOnly = true,
+                enabled = false,
+                colors = pickerColors,
+                label = { Text(stringResource(R.string.filter_length)) },
+                placeholder = { Text(stringResource(R.string.filter_length_summary_none)) },
+                trailingIcon = {
+                    if (lengthSummary != null) {
+                        IconButton(onClick = {
+                            state.minReadingTime = ""
+                            state.maxReadingTime = ""
+                            state.includeNullReadingTime = false
+                            state.minWordCount = ""
+                            state.maxWordCount = ""
+                            state.includeNullWordCount = false
+                        }) {
+                            Icon(Icons.Filled.Clear, contentDescription = null, modifier = Modifier.size(16.dp))
+                        }
+                    }
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { showLengthFilterDialog = true }
+            )
+
+            Spacer(Modifier.height(12.dp))
+        }
+
+        // -- Type chips
+        Text(stringResource(R.string.filter_type), style = MaterialTheme.typography.labelLarge)
+        Spacer(Modifier.height(8.dp))
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            FilterChip(
+                selected = Bookmark.Type.Article in state.types,
+                onClick = { state.types = if (Bookmark.Type.Article in state.types) state.types - Bookmark.Type.Article else state.types + Bookmark.Type.Article },
+                label = { Text(stringResource(R.string.filter_type_article)) }
+            )
+            FilterChip(
+                selected = Bookmark.Type.Video in state.types,
+                onClick = { state.types = if (Bookmark.Type.Video in state.types) state.types - Bookmark.Type.Video else state.types + Bookmark.Type.Video },
+                label = { Text(stringResource(R.string.filter_type_video)) }
+            )
+            FilterChip(
+                selected = Bookmark.Type.Picture in state.types,
+                onClick = { state.types = if (Bookmark.Type.Picture in state.types) state.types - Bookmark.Type.Picture else state.types + Bookmark.Type.Picture },
+                label = { Text(stringResource(R.string.filter_type_picture)) }
+            )
+        }
+
+        Spacer(Modifier.height(16.dp))
+
+        // -- Progress chips
+        Text(stringResource(R.string.filter_progress), style = MaterialTheme.typography.labelLarge)
+        Spacer(Modifier.height(8.dp))
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            FilterChip(
+                selected = ProgressFilter.UNVIEWED in state.progress,
+                onClick = { state.progress = if (ProgressFilter.UNVIEWED in state.progress) state.progress - ProgressFilter.UNVIEWED else state.progress + ProgressFilter.UNVIEWED },
+                label = { Text(stringResource(R.string.progress_unviewed)) }
+            )
+            FilterChip(
+                selected = ProgressFilter.IN_PROGRESS in state.progress,
+                onClick = { state.progress = if (ProgressFilter.IN_PROGRESS in state.progress) state.progress - ProgressFilter.IN_PROGRESS else state.progress + ProgressFilter.IN_PROGRESS },
+                label = { Text(stringResource(R.string.progress_in_progress)) }
+            )
+            FilterChip(
+                selected = ProgressFilter.COMPLETED in state.progress,
+                onClick = { state.progress = if (ProgressFilter.COMPLETED in state.progress) state.progress - ProgressFilter.COMPLETED else state.progress + ProgressFilter.COMPLETED },
+                label = { Text(stringResource(R.string.progress_completed)) }
+            )
+        }
+
+        Spacer(Modifier.height(16.dp))
+
+        // -- Boolean filters (compact label-beside-control rows)
+        CompactTriStateRow(stringResource(R.string.filter_is_favorite), state.isFavorite) { state.isFavorite = it }
+        Spacer(Modifier.height(8.dp))
+        CompactTriStateRow(stringResource(R.string.filter_is_archived), state.isArchived) { state.isArchived = it }
+        Spacer(Modifier.height(8.dp))
+        if (includeLocalOnlyFilters) {
+            CompactTriStateRow(stringResource(R.string.filter_is_loaded), state.isLoaded) { state.isLoaded = it }
+            Spacer(Modifier.height(8.dp))
+        }
+        CompactTriStateRow(stringResource(R.string.filter_with_labels), state.withLabels) { state.withLabels = it }
+        Spacer(Modifier.height(8.dp))
+        CompactTriStateRow(stringResource(R.string.filter_with_errors), state.withErrors) { state.withErrors = it }
+    }
+
+    if (showLengthFilterDialog) {
+        LengthFilterDialog(
+            initialMinReadingTime = state.minReadingTime,
+            initialMaxReadingTime = state.maxReadingTime,
+            initialIncludeNullReadingTime = state.includeNullReadingTime,
+            initialMinWordCount = state.minWordCount,
+            initialMaxWordCount = state.maxWordCount,
+            initialIncludeNullWordCount = state.includeNullWordCount,
+            onApply = { newMinReadingTime,
+                    newMaxReadingTime,
+                    newIncludeNullReadingTime,
+                    newMinWordCount,
+                    newMaxWordCount,
+                    newIncludeNullWordCount ->
+                state.minReadingTime = newMinReadingTime
+                state.maxReadingTime = newMaxReadingTime
+                state.includeNullReadingTime = newIncludeNullReadingTime
+                state.minWordCount = newMinWordCount
+                state.maxWordCount = newMaxWordCount
+                state.includeNullWordCount = newIncludeNullWordCount
+                showLengthFilterDialog = false
+            },
+            onDismiss = { showLengthFilterDialog = false }
+        )
+    }
+
+    // Label picker (selection-only — no rename/delete)
+    if (showLabelPicker) {
+        LabelPickerBottomSheet(
+            labels = labels,
+            mode = LabelPickerMode.SingleSelect(
+                selectedLabel = state.label,
+                onLabelSelected = { selected ->
+                    state.label = selected
+                    showLabelPicker = false
+                }
+            ),
+            onDismiss = { showLabelPicker = false }
+        )
+    }
+
+    // From Date picker
+    if (showFromDatePicker) {
+        val pickerState = rememberDatePickerState(initialSelectedDateMillis = state.fromDate?.toEpochMilliseconds())
+        DatePickerDialog(
+            onDismissRequest = { showFromDatePicker = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    pickerState.selectedDateMillis?.let { state.fromDate = Instant.fromEpochMilliseconds(it) }
+                    showFromDatePicker = false
+                }) { Text(stringResource(R.string.ok)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showFromDatePicker = false }) { Text(stringResource(R.string.cancel)) }
+            }
+        ) { DatePicker(state = pickerState) }
+    }
+
+    // To Date picker
+    if (showToDatePicker) {
+        val pickerState = rememberDatePickerState(initialSelectedDateMillis = state.toDate?.toEpochMilliseconds())
+        DatePickerDialog(
+            onDismissRequest = { showToDatePicker = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    pickerState.selectedDateMillis?.let { state.toDate = Instant.fromEpochMilliseconds(it) }
+                    showToDatePicker = false
+                }) { Text(stringResource(R.string.ok)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showToDatePicker = false }) { Text(stringResource(R.string.cancel)) }
+            }
+        ) { DatePicker(state = pickerState) }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@Composable
+fun FilterBottomSheet(
+    currentFilter: FilterFormState,
+    labels: Map<String, Int> = emptyMap(),
+    onApply: (FilterFormState) -> Unit,
+    onReset: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
+    val state = rememberFilterEditorState(currentFilter)
+
+    val applyFilter = {
+        if (!state.hasValidationError) {
+            onApply(state.toFilterFormState())
+        }
+    }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -180,322 +534,25 @@ fun FilterBottomSheet(
                 .padding(horizontal = 24.dp)
                 .navigationBarsPadding()
         ) {
-            // -- Search (full width, keyboard entry)
-            OutlinedTextField(
-                value = search,
-                onValueChange = { search = it },
-                label = { Text(stringResource(R.string.filter_search)) },
-                placeholder = { Text(stringResource(R.string.search_bookmarks)) },
-                trailingIcon = {
-                    if (search.isNotEmpty()) {
-                        IconButton(onClick = { search = "" }) {
-                            Icon(Icons.Filled.Clear, contentDescription = null, modifier = Modifier.size(20.dp))
-                        }
-                    }
-                },
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                keyboardActions = KeyboardActions(onSearch = { applyFilter() }),
-                modifier = Modifier.fillMaxWidth()
+            FilterControls(
+                state = state,
+                labels = labels,
+                onImeAction = applyFilter,
             )
-
-            Spacer(Modifier.height(12.dp))
-
-            // -- Title / Author (side-by-side)
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(
-                    value = title,
-                    onValueChange = { title = it },
-                    label = { Text(stringResource(R.string.filter_title)) },
-                    trailingIcon = {
-                        if (title.isNotEmpty()) {
-                            IconButton(onClick = { title = "" }) {
-                                Icon(Icons.Filled.Clear, contentDescription = null, modifier = Modifier.size(16.dp))
-                            }
-                        }
-                    },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                    keyboardActions = KeyboardActions(onSearch = { applyFilter() }),
-                    modifier = Modifier.weight(1f)
-                )
-                OutlinedTextField(
-                    value = author,
-                    onValueChange = { author = it },
-                    label = { Text(stringResource(R.string.filter_author)) },
-                    trailingIcon = {
-                        if (author.isNotEmpty()) {
-                            IconButton(onClick = { author = "" }) {
-                                Icon(Icons.Filled.Clear, contentDescription = null, modifier = Modifier.size(16.dp))
-                            }
-                        }
-                    },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                    keyboardActions = KeyboardActions(onSearch = { applyFilter() }),
-                    modifier = Modifier.weight(1f)
-                )
-            }
-
-            Spacer(Modifier.height(12.dp))
-
-            // -- Site / Label (side-by-side)
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(
-                    value = site,
-                    onValueChange = { site = it },
-                    label = { Text(stringResource(R.string.filter_site)) },
-                    trailingIcon = {
-                        if (site.isNotEmpty()) {
-                            IconButton(onClick = { site = "" }) {
-                                Icon(Icons.Filled.Clear, contentDescription = null, modifier = Modifier.size(16.dp))
-                            }
-                        }
-                    },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                    keyboardActions = KeyboardActions(onSearch = { applyFilter() }),
-                    modifier = Modifier.weight(1f)
-                )
-                OutlinedTextField(
-                    value = label ?: "",
-                    onValueChange = {},
-                    readOnly = true,
-                    enabled = false,
-                    colors = pickerColors,
-                    label = { Text(stringResource(R.string.filter_label)) },
-                    placeholder = { Text(stringResource(R.string.filter_select_label)) },
-                    trailingIcon = {
-                        if (label != null) {
-                            IconButton(onClick = { label = null }) {
-                                Icon(Icons.Filled.Clear, contentDescription = null, modifier = Modifier.size(16.dp))
-                            }
-                        }
-                    },
-                    modifier = Modifier
-                        .weight(1f)
-                        .clickable { showLabelPicker = true }
-                )
-            }
-
-            Spacer(Modifier.height(12.dp))
-
-            // -- From Date / To Date (side-by-side)
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(
-                    value = fromDate?.let { dateFormatter.format(Date(it.toEpochMilliseconds())) } ?: "",
-                    onValueChange = {},
-                    readOnly = true,
-                    enabled = false,
-                    colors = pickerColors,
-                    label = { Text(stringResource(R.string.filter_from_date)) },
-                    trailingIcon = {
-                        if (fromDate != null) {
-                            IconButton(onClick = { fromDate = null }) {
-                                Icon(Icons.Filled.Clear, contentDescription = null, modifier = Modifier.size(16.dp))
-                            }
-                        }
-                    },
-                    modifier = Modifier
-                        .weight(1f)
-                        .clickable { showFromDatePicker = true }
-                )
-                OutlinedTextField(
-                    value = toDate?.let { dateFormatter.format(Date(it.toEpochMilliseconds())) } ?: "",
-                    onValueChange = {},
-                    readOnly = true,
-                    enabled = false,
-                    colors = pickerColors,
-                    label = { Text(stringResource(R.string.filter_to_date)) },
-                    trailingIcon = {
-                        if (toDate != null) {
-                            IconButton(onClick = { toDate = null }) {
-                                Icon(Icons.Filled.Clear, contentDescription = null, modifier = Modifier.size(16.dp))
-                            }
-                        }
-                    },
-                    modifier = Modifier
-                        .weight(1f)
-                        .clickable { showToDatePicker = true }
-                )
-            }
-
-            Spacer(Modifier.height(12.dp))
-
-            OutlinedTextField(
-                value = lengthSummary ?: "",
-                onValueChange = {},
-                readOnly = true,
-                enabled = false,
-                colors = pickerColors,
-                label = { Text(stringResource(R.string.filter_length)) },
-                placeholder = { Text(stringResource(R.string.filter_length_summary_none)) },
-                trailingIcon = {
-                    if (lengthSummary != null) {
-                        IconButton(onClick = {
-                            minReadingTime = ""
-                            maxReadingTime = ""
-                            includeNullReadingTime = false
-                            minWordCount = ""
-                            maxWordCount = ""
-                            includeNullWordCount = false
-                        }) {
-                            Icon(Icons.Filled.Clear, contentDescription = null, modifier = Modifier.size(16.dp))
-                        }
-                    }
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { showLengthFilterDialog = true }
-            )
-
-            Spacer(Modifier.height(12.dp))
-
-            // -- Type chips
-            Text(stringResource(R.string.filter_type), style = MaterialTheme.typography.labelLarge)
-            Spacer(Modifier.height(8.dp))
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                FilterChip(
-                    selected = Bookmark.Type.Article in types,
-                    onClick = { types = if (Bookmark.Type.Article in types) types - Bookmark.Type.Article else types + Bookmark.Type.Article },
-                    label = { Text(stringResource(R.string.filter_type_article)) }
-                )
-                FilterChip(
-                    selected = Bookmark.Type.Video in types,
-                    onClick = { types = if (Bookmark.Type.Video in types) types - Bookmark.Type.Video else types + Bookmark.Type.Video },
-                    label = { Text(stringResource(R.string.filter_type_video)) }
-                )
-                FilterChip(
-                    selected = Bookmark.Type.Picture in types,
-                    onClick = { types = if (Bookmark.Type.Picture in types) types - Bookmark.Type.Picture else types + Bookmark.Type.Picture },
-                    label = { Text(stringResource(R.string.filter_type_picture)) }
-                )
-            }
-
-            Spacer(Modifier.height(16.dp))
-
-            // -- Progress chips
-            Text(stringResource(R.string.filter_progress), style = MaterialTheme.typography.labelLarge)
-            Spacer(Modifier.height(8.dp))
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                FilterChip(
-                    selected = ProgressFilter.UNVIEWED in progress,
-                    onClick = { progress = if (ProgressFilter.UNVIEWED in progress) progress - ProgressFilter.UNVIEWED else progress + ProgressFilter.UNVIEWED },
-                    label = { Text(stringResource(R.string.progress_unviewed)) }
-                )
-                FilterChip(
-                    selected = ProgressFilter.IN_PROGRESS in progress,
-                    onClick = { progress = if (ProgressFilter.IN_PROGRESS in progress) progress - ProgressFilter.IN_PROGRESS else progress + ProgressFilter.IN_PROGRESS },
-                    label = { Text(stringResource(R.string.progress_in_progress)) }
-                )
-                FilterChip(
-                    selected = ProgressFilter.COMPLETED in progress,
-                    onClick = { progress = if (ProgressFilter.COMPLETED in progress) progress - ProgressFilter.COMPLETED else progress + ProgressFilter.COMPLETED },
-                    label = { Text(stringResource(R.string.progress_completed)) }
-                )
-            }
-
-            Spacer(Modifier.height(16.dp))
-
-            // -- Boolean filters (compact label-beside-control rows)
-            CompactTriStateRow(stringResource(R.string.filter_is_favorite), isFavorite) { isFavorite = it }
-            Spacer(Modifier.height(8.dp))
-            CompactTriStateRow(stringResource(R.string.filter_is_archived), isArchived) { isArchived = it }
-            Spacer(Modifier.height(8.dp))
-            CompactTriStateRow(stringResource(R.string.filter_is_loaded), isLoaded) { isLoaded = it }
-            Spacer(Modifier.height(8.dp))
-            CompactTriStateRow(stringResource(R.string.filter_with_labels), withLabels) { withLabels = it }
-            Spacer(Modifier.height(8.dp))
-            CompactTriStateRow(stringResource(R.string.filter_with_errors), withErrors) { withErrors = it }
 
             Spacer(Modifier.height(20.dp))
 
             // -- Action buttons
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                if (hasActiveFilters) {
+                if (state.hasActiveFilters) {
                     TextButton(onClick = onReset) { Text(stringResource(R.string.filter_reset)) }
                     Spacer(Modifier.width(8.dp))
                 }
-                Button(onClick = { applyFilter() }, enabled = !hasValidationError) { Text(stringResource(R.string.search)) }
+                Button(onClick = { applyFilter() }, enabled = !state.hasValidationError) { Text(stringResource(R.string.search)) }
             }
 
             Spacer(Modifier.height(16.dp))
         }
-    }
-
-    if (showLengthFilterDialog) {
-        LengthFilterDialog(
-            initialMinReadingTime = minReadingTime,
-            initialMaxReadingTime = maxReadingTime,
-            initialIncludeNullReadingTime = includeNullReadingTime,
-            initialMinWordCount = minWordCount,
-            initialMaxWordCount = maxWordCount,
-            initialIncludeNullWordCount = includeNullWordCount,
-            onApply = { newMinReadingTime,
-                    newMaxReadingTime,
-                    newIncludeNullReadingTime,
-                    newMinWordCount,
-                    newMaxWordCount,
-                    newIncludeNullWordCount ->
-                minReadingTime = newMinReadingTime
-                maxReadingTime = newMaxReadingTime
-                includeNullReadingTime = newIncludeNullReadingTime
-                minWordCount = newMinWordCount
-                maxWordCount = newMaxWordCount
-                includeNullWordCount = newIncludeNullWordCount
-                showLengthFilterDialog = false
-            },
-            onDismiss = { showLengthFilterDialog = false }
-        )
-    }
-
-    // Label picker (selection-only — no rename/delete)
-    if (showLabelPicker) {
-        LabelPickerBottomSheet(
-            labels = labels,
-            mode = LabelPickerMode.SingleSelect(
-                selectedLabel = label,
-                onLabelSelected = { selected ->
-                    label = selected
-                    showLabelPicker = false
-                }
-            ),
-            onDismiss = { showLabelPicker = false }
-        )
-    }
-
-    // From Date picker
-    if (showFromDatePicker) {
-        val state = rememberDatePickerState(initialSelectedDateMillis = fromDate?.toEpochMilliseconds())
-        DatePickerDialog(
-            onDismissRequest = { showFromDatePicker = false },
-            confirmButton = {
-                TextButton(onClick = {
-                    state.selectedDateMillis?.let { fromDate = Instant.fromEpochMilliseconds(it) }
-                    showFromDatePicker = false
-                }) { Text(stringResource(R.string.ok)) }
-            },
-            dismissButton = {
-                TextButton(onClick = { showFromDatePicker = false }) { Text(stringResource(R.string.cancel)) }
-            }
-        ) { DatePicker(state = state) }
-    }
-
-    // To Date picker
-    if (showToDatePicker) {
-        val state = rememberDatePickerState(initialSelectedDateMillis = toDate?.toEpochMilliseconds())
-        DatePickerDialog(
-            onDismissRequest = { showToDatePicker = false },
-            confirmButton = {
-                TextButton(onClick = {
-                    state.selectedDateMillis?.let { toDate = Instant.fromEpochMilliseconds(it) }
-                    showToDatePicker = false
-                }) { Text(stringResource(R.string.ok)) }
-            },
-            dismissButton = {
-                TextButton(onClick = { showToDatePicker = false }) { Text(stringResource(R.string.cancel)) }
-            }
-        ) { DatePicker(state = state) }
     }
 }
 

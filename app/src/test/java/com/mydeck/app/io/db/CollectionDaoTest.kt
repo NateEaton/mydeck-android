@@ -39,6 +39,7 @@ class CollectionDaoTest {
         id: String,
         name: String,
         isPinned: Boolean = false,
+        created: Long = 0L,
     ) = CollectionEntity(
         id = id,
         name = name,
@@ -52,28 +53,31 @@ class CollectionDaoTest {
         readStatus = emptyList(),
         isMarked = null,
         isArchived = null,
+        hasErrors = null,
+        hasLabels = null,
         rangeStart = null,
         rangeEnd = null,
-        created = 0L,
+        created = created,
         updated = 0L,
     )
 
     @Test
-    fun `observeCollections returns entities ordered by isPinned DESC then name ASC`() = runTest {
+    fun `observeCollections returns entities ordered by isPinned DESC then created DESC`() = runTest {
         dao.upsertCollections(
             listOf(
-                entity("beta-id", "Beta", isPinned = false),
-                entity("zeta-id", "Zeta", isPinned = true),
-                entity("alpha-id", "Alpha", isPinned = false),
+                entity("old-id", "Old", isPinned = false, created = 100L),
+                entity("pinned-id", "Pinned", isPinned = true, created = 50L),
+                entity("new-id", "New", isPinned = false, created = 200L),
             )
         )
 
         val result = dao.observeCollections().first()
 
         assertEquals(3, result.size)
-        assertEquals("zeta-id", result[0].id)
-        assertEquals("alpha-id", result[1].id)
-        assertEquals("beta-id", result[2].id)
+        // Pinned first, then unpinned newest-first.
+        assertEquals("pinned-id", result[0].id)
+        assertEquals("new-id", result[1].id)
+        assertEquals("old-id", result[2].id)
     }
 
     @Test

@@ -94,6 +94,8 @@ class CollectionRepositoryImplTest {
         readStatus = emptyList(),
         isMarked = null,
         isArchived = null,
+        hasErrors = null,
+        hasLabels = null,
         rangeStart = null,
         rangeEnd = null,
         created = 0L,

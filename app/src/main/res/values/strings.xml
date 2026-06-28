@@ -208,6 +208,14 @@ other{}
     <string name="action_decrease_line_spacing">Decrease line spacing</string>
     <string name="action_search_in_article">Find in article</string>
     <string name="action_find_in_page">Find in page</string>
+    <!-- Collections -->
+    <string name="collections_drawer_item">Collections</string>
+    <string name="collections_screen_title">Collections</string>
+    <string name="collection_create_fab">New Collection</string>
+    <string name="collection_name_hint">Collection name</string>
+    <string name="collection_editor_save">Save</string>
+    <string name="collections_empty_title">No collections yet</string>
+    <string name="collections_empty_message">Save a filter as a collection to see it here.</string>
     <string name="highlights_title">Highlights</string>
     <string name="highlights_empty">No highlights yet</string>
     <string name="highlights_refreshing">Refreshing highlights...</string>

@@ -17,11 +17,14 @@ import timber.log.Timber
  * - `types` ↔ `type` — [Bookmark.Type] ↔ "article" / "photo" / "video".
  * - `progress` ↔ `read_status` — [ProgressFilter] ↔ "unread" / "reading" / "read".
  * - `isFavorite` ↔ `is_marked`, `isArchived` ↔ `is_archived` — nullable Boolean passthrough.
+ * - `withErrors` ↔ `has_errors`, `withLabels` ↔ `has_labels` — nullable Boolean passthrough
+ *   (server-supported on collections, verified against the live API).
  *
- * Local-only fields with no API equivalent are **dropped on persist and default on load**:
- * `isLoaded`, `withLabels`, `withErrors`, and the reading-time / word-count range fields
- * (`minReadingTime`, `maxReadingTime`, `includeNullReadingTime`, `minWordCount`, `maxWordCount`,
- * `includeNullWordCount`).
+ * Local-only fields with no collection-API equivalent are **dropped on persist and default on load**:
+ * `isLoaded` (the device-local "Downloaded" state; the server's `is_loaded` is a different,
+ * server-side fetch concept not stored on collections) and the reading-time / word-count range
+ * fields (`minReadingTime`, `maxReadingTime`, `includeNullReadingTime`, `minWordCount`,
+ * `maxWordCount`, `includeNullWordCount`).
  */
 
 // --- enum <-> wire string helpers (shared by DTO and entity conversions) ---
@@ -101,6 +104,8 @@ fun FilterFormState.toCreateCollectionDto(
     readStatus = progress.progressOrNull(),
     isMarked = isFavorite,
     isArchived = isArchived,
+    hasErrors = withErrors,
+    hasLabels = withLabels,
     rangeStart = fromDate?.toString(),
     rangeEnd = toDate?.toString(),
 )
@@ -119,11 +124,11 @@ fun CollectionDto.toFilterFormState(): FilterFormState = FilterFormState(
     progress = readStatus?.mapNotNull { it.toProgressFilterOrNull() }?.toSet() ?: emptySet(),
     isFavorite = isMarked,
     isArchived = isArchived,
-    // Local-only fields (no API equivalent): isLoaded/withLabels/withErrors default null; the
-    // reading-time/word-count fields default (null / false) by omission from this constructor call.
+    withErrors = hasErrors,
+    withLabels = hasLabels,
+    // Local-only: isLoaded ("Downloaded") has no collection equivalent → null; the reading-time /
+    // word-count fields default (null / false) by omission from this constructor call.
     isLoaded = null,
-    withLabels = null,
-    withErrors = null,
 )
 
 // --- DTO -> Entity (for caching) ---
@@ -141,6 +146,8 @@ fun CollectionDto.toEntity(): CollectionEntity = CollectionEntity(
     readStatus = readStatus ?: emptyList(),
     isMarked = isMarked,
     isArchived = isArchived,
+    hasErrors = hasErrors,
+    hasLabels = hasLabels,
     rangeStart = rangeStart,
     rangeEnd = rangeEnd,
     created = (parseInstantOrNull(created) ?: Instant.fromEpochMilliseconds(0)).toEpochMilliseconds(),
@@ -161,10 +168,10 @@ fun CollectionEntity.toFilterFormState(): FilterFormState = FilterFormState(
     progress = readStatus.mapNotNull { it.toProgressFilterOrNull() }.toSet(),
     isFavorite = isMarked,
     isArchived = isArchived,
-    // Local-only fields default as in CollectionDto.toFilterFormState (no persisted equivalent).
+    withErrors = hasErrors,
+    withLabels = hasLabels,
+    // Local-only: isLoaded ("Downloaded") has no persisted equivalent (see CollectionDto.toFilterFormState).
     isLoaded = null,
-    withLabels = null,
-    withErrors = null,
 )
 
 fun CollectionEntity.toDomain(): Collection = Collection(

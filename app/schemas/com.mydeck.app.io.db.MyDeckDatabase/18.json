@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 18,
-    "identityHash": "e7253f849f5193ea30ff1b9bc091d813",
+    "identityHash": "f5b4f527b305222dffe6b7c1bfb520ec",
     "entities": [
       {
         "tableName": "bookmarks",
@@ -727,7 +727,7 @@
       },
       {
         "tableName": "collections",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `name` TEXT NOT NULL, `isPinned` INTEGER NOT NULL, `search` TEXT, `title` TEXT, `author` TEXT, `site` TEXT, `labels` TEXT, `type` TEXT NOT NULL, `readStatus` TEXT NOT NULL, `isMarked` INTEGER, `isArchived` INTEGER, `rangeStart` TEXT, `rangeEnd` TEXT, `created` INTEGER NOT NULL, `updated` INTEGER NOT NULL, PRIMARY KEY(`id`))",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `name` TEXT NOT NULL, `isPinned` INTEGER NOT NULL, `search` TEXT, `title` TEXT, `author` TEXT, `site` TEXT, `labels` TEXT, `type` TEXT NOT NULL, `readStatus` TEXT NOT NULL, `isMarked` INTEGER, `isArchived` INTEGER, `hasErrors` INTEGER, `hasLabels` INTEGER, `rangeStart` TEXT, `rangeEnd` TEXT, `created` INTEGER NOT NULL, `updated` INTEGER NOT NULL, PRIMARY KEY(`id`))",
         "fields": [
           {
             "fieldPath": "id",
@@ -795,6 +795,16 @@
             "affinity": "INTEGER"
           },
           {
+            "fieldPath": "hasErrors",
+            "columnName": "hasErrors",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "hasLabels",
+            "columnName": "hasLabels",
+            "affinity": "INTEGER"
+          },
+          {
             "fieldPath": "rangeStart",
             "columnName": "rangeStart",
             "affinity": "TEXT"
@@ -827,7 +837,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'e7253f849f5193ea30ff1b9bc091d813')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'f5b4f527b305222dffe6b7c1bfb520ec')"
     ]
   }
 }

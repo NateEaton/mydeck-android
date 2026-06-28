@@ -197,6 +197,14 @@ To return to a standard view you can:
 
 Tap **Search** to apply, or **Reset** to clear all filters.
 
+## Collections
+
+A **collection** is a saved set of filter criteria you can return to with a single tap. Open **Collections** from the navigation drawer (or the navigation rail in wide layouts) to see all your collections, each shown as a card with its name and the date it was created.
+
+To create one, tap the **New Collection** button. A sheet opens with the same filter controls as the filter sheet, plus a **name** field at the top. Set the criteria you want, give the collection a name, and tap **Save** (Save stays disabled until you enter a name). MyDeck opens the new collection right away.
+
+Tap any collection card to open it. The list then shows that collection as its own view: the top bar displays the collection's name with a leading icon, and the collection's own criteria are not shown as filter chips — it reads like an ordinary list. To leave a collection, pick any other view (My List, Archive, a label, etc.) from the navigation drawer.
+
 ## Selecting Multiple Bookmarks
 
 Open the **⋮ overflow menu** and tap **Select bookmarks** to enter selection mode. The top bar switches to an **✕** (exit), the number of selected bookmarks as the title, an **📦 Archive** and a **❤️ Favorite** action, and a **⋮ overflow**. Tap any card to select or deselect it — each card's action buttons become dimmed icons showing its current favorite and archive state, with a selection indicator on the right. Tap **✕** to exit and clear the selection.

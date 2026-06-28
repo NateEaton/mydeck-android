@@ -21,6 +21,8 @@ data class CollectionEntity(
     val readStatus: List<String>,
     val isMarked: Boolean?,
     val isArchived: Boolean?,
+    val hasErrors: Boolean?,
+    val hasLabels: Boolean?,
     val rangeStart: String?,
     val rangeEnd: String?,
     val created: Long,

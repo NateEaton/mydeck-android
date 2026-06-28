@@ -55,6 +55,7 @@ import com.mydeck.app.ui.navigation.AboutRoute
 import com.mydeck.app.ui.navigation.AccountSettingsRoute
 import com.mydeck.app.ui.navigation.BookmarkDetailRoute
 import com.mydeck.app.ui.navigation.BookmarkListRoute
+import com.mydeck.app.ui.navigation.CollectionsRoute
 import com.mydeck.app.ui.navigation.HighlightsRoute
 import com.mydeck.app.ui.navigation.LogViewRoute
 import com.mydeck.app.ui.navigation.OpenSourceLibrariesRoute
@@ -64,6 +65,7 @@ import com.mydeck.app.ui.navigation.UiSettingsRoute
 import com.mydeck.app.ui.navigation.UserGuideRoute
 import com.mydeck.app.ui.navigation.UserGuideSectionRoute
 import com.mydeck.app.ui.navigation.WelcomeRoute
+import com.mydeck.app.ui.collections.CollectionsScreen
 import com.mydeck.app.ui.highlights.HighlightsScreen
 import com.mydeck.app.ui.settings.AccountSettingsScreen
 import com.mydeck.app.ui.settings.LogViewScreen
@@ -122,6 +124,8 @@ fun AppShell(
         drawerPreset.value
     }
 
+    val isCollectionsScreen = currentDestination.matchesRoute<CollectionsRoute>()
+
     when (layoutTier) {
         "compact" -> CompositionLocalProvider(
             LocalReaderMaxWidth provides Dp.Unspecified,
@@ -136,6 +140,7 @@ fun AppShell(
             bookmarkCounts = bookmarkCounts.value,
             labelsWithCounts = labelsWithCounts.value,
             isOnline = isOnline.value,
+            isCollectionsScreen = isCollectionsScreen,
         )
         } // end CompactAppShell CompositionLocalProvider
         "expanded" -> CompositionLocalProvider(LocalReaderMaxWidth provides Dimens.ReaderMaxWidthExpanded) {
@@ -149,6 +154,7 @@ fun AppShell(
             labelsWithCounts = labelsWithCounts.value,
             isOnline = isOnline.value,
             hideNavigation = hideNavigation,
+            isCollectionsScreen = isCollectionsScreen,
         )
         } // end ExpandedAppShell CompositionLocalProvider
         else -> CompositionLocalProvider(LocalReaderMaxWidth provides Dimens.ReaderMaxWidthMedium) {
@@ -160,6 +166,7 @@ fun AppShell(
             activeLabel = activeLabel.value,
             bookmarkCounts = bookmarkCounts.value,
             hideNavigation = hideNavigation,
+            isCollectionsScreen = isCollectionsScreen,
         )
         } // end MediumAppShell CompositionLocalProvider
     }
@@ -176,6 +183,7 @@ private fun CompactAppShell(
     bookmarkCounts: com.mydeck.app.domain.model.BookmarkCounts,
     labelsWithCounts: Map<String, Int>,
     isOnline: Boolean,
+    isCollectionsScreen: Boolean,
 ) {
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
@@ -198,6 +206,13 @@ private fun CompactAppShell(
                 is BookmarkListViewModel.NavigationEvent.NavigateToAbout -> {
                     navController.navigate(AboutRoute) { launchSingleTop = true }
                     scope.launch { drawerState.close() }
+                }
+
+                is BookmarkListViewModel.NavigationEvent.NavigateToBookmarkList -> {
+                    navController.navigate(BookmarkListRoute()) {
+                        popUpTo(BookmarkListRoute()) { inclusive = true }
+                        launchSingleTop = true
+                    }
                 }
 
                 is BookmarkListViewModel.NavigationEvent.NavigateToBookmarkDetail -> {
@@ -260,6 +275,10 @@ private fun CompactAppShell(
                     navController.navigate(HighlightsRoute) { launchSingleTop = true }
                     scope.launch { drawerState.close() }
                 },
+                onClickCollections = {
+                    navController.navigate(CollectionsRoute) { launchSingleTop = true }
+                    scope.launch { drawerState.close() }
+                },
                 onClickSettings = {
                     bookmarkListViewModel.onClickSettings()
                     scope.launch { drawerState.close() }
@@ -272,6 +291,7 @@ private fun CompactAppShell(
                     bookmarkListViewModel.onClickAbout()
                     scope.launch { drawerState.close() }
                 },
+                isCollectionsScreen = isCollectionsScreen,
             )
         }
     ) {
@@ -310,6 +330,9 @@ private fun CompactAppShell(
                 }
                 composable<HighlightsRoute> {
                     HighlightsScreen(navController)
+                }
+                composable<CollectionsRoute> {
+                    CollectionsScreen(navController, bookmarkListViewModel)
                 }
                 composable<SettingsRoute> { SettingsScreen(navController) }
                 composable<WelcomeRoute> { WelcomeScreen(navController) }
@@ -384,6 +407,7 @@ private fun MediumAppShell(
     activeLabel: String?,
     bookmarkCounts: com.mydeck.app.domain.model.BookmarkCounts,
     hideNavigation: Boolean,
+    isCollectionsScreen: Boolean,
 ) {
     LaunchedEffect(Unit) {
         bookmarkListViewModel.navigationEvent.collectLatest { event ->
@@ -398,6 +422,13 @@ private fun MediumAppShell(
 
                 is BookmarkListViewModel.NavigationEvent.NavigateToAbout -> {
                     navController.navigate(AboutRoute) { launchSingleTop = true }
+                }
+
+                is BookmarkListViewModel.NavigationEvent.NavigateToBookmarkList -> {
+                    navController.navigate(BookmarkListRoute()) {
+                        popUpTo(BookmarkListRoute()) { inclusive = true }
+                        launchSingleTop = true
+                    }
                 }
 
                 is BookmarkListViewModel.NavigationEvent.NavigateToBookmarkDetail -> {
@@ -450,6 +481,8 @@ private fun MediumAppShell(
                     onClickPictures = { navigateToListAndApply { bookmarkListViewModel.onClickPictures() } },
                     onClickLabels = { navigateToListAndApply { bookmarkListViewModel.onOpenLabelsSheet() } },
                     onClickHighlights = { navController.navigate(HighlightsRoute) { launchSingleTop = true } },
+                    onClickCollections = { navController.navigate(CollectionsRoute) { launchSingleTop = true } },
+                    isCollectionsScreen = isCollectionsScreen,
                     onClickSettings = { bookmarkListViewModel.onClickSettings() },
                     onClickUserGuide = { bookmarkListViewModel.onClickUserGuide() },
                     onClickAbout = { bookmarkListViewModel.onClickAbout() },
@@ -518,6 +551,9 @@ private fun AppShellNavHost(
             }
             composable<HighlightsRoute> {
                 HighlightsScreen(navController, showBackButton = false)
+            }
+            composable<CollectionsRoute> {
+                CollectionsScreen(navController, bookmarkListViewModel, showBackButton = false)
             }
             composable<SettingsRoute> { SettingsScreen(navController, showBackButton = false) }
             composable<WelcomeRoute> { WelcomeScreen(navController) }
@@ -593,6 +629,7 @@ private fun ExpandedAppShell(
     labelsWithCounts: Map<String, Int>,
     isOnline: Boolean,
     hideNavigation: Boolean,
+    isCollectionsScreen: Boolean,
 ) {
     LaunchedEffect(Unit) {
         bookmarkListViewModel.navigationEvent.collectLatest { event ->
@@ -607,6 +644,13 @@ private fun ExpandedAppShell(
 
                 is BookmarkListViewModel.NavigationEvent.NavigateToAbout -> {
                     navController.navigate(AboutRoute) { launchSingleTop = true }
+                }
+
+                is BookmarkListViewModel.NavigationEvent.NavigateToBookmarkList -> {
+                    navController.navigate(BookmarkListRoute()) {
+                        popUpTo(BookmarkListRoute()) { inclusive = true }
+                        launchSingleTop = true
+                    }
                 }
 
                 is BookmarkListViewModel.NavigationEvent.NavigateToBookmarkDetail -> {
@@ -656,9 +700,11 @@ private fun ExpandedAppShell(
                 onClickPictures = { navigateToListAndApply { bookmarkListViewModel.onClickPictures() } },
                 onClickLabels = { navigateToListAndApply { bookmarkListViewModel.onOpenLabelsSheet() } },
                 onClickHighlights = { navController.navigate(HighlightsRoute) { launchSingleTop = true } },
+                onClickCollections = { navController.navigate(CollectionsRoute) { launchSingleTop = true } },
                 onClickSettings = { bookmarkListViewModel.onClickSettings() },
                 onClickUserGuide = { bookmarkListViewModel.onClickUserGuide() },
                 onClickAbout = { bookmarkListViewModel.onClickAbout() },
+                isCollectionsScreen = isCollectionsScreen,
             )
         }
 

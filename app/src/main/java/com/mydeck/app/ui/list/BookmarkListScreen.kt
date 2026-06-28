@@ -125,6 +125,7 @@ import com.mydeck.app.domain.model.LayoutMode
 import com.mydeck.app.domain.model.SortOption
 import com.mydeck.app.domain.model.SwipeAction
 import com.mydeck.app.domain.model.SwipeConfig
+import com.mydeck.app.ui.collections.CollectionIcon
 import com.mydeck.app.ui.components.FilterBar
 import com.mydeck.app.ui.components.FilterBottomSheet
 import com.mydeck.app.ui.components.ShareBookmarkChooser
@@ -167,6 +168,7 @@ fun BookmarkListScreen(
     val drawerPreset = viewModel.drawerPreset.collectAsState()
     val filterFormState = viewModel.filterFormState.collectAsState()
     val activeLabel = viewModel.activeLabel.collectAsState()
+    val selectedCollection = viewModel.selectedCollection.collectAsState()
     val isFilterSheetOpen = viewModel.isFilterSheetOpen.collectAsState()
     val layoutMode = viewModel.layoutMode.collectAsState()
     val sortOption = viewModel.sortOption.collectAsState()
@@ -202,6 +204,7 @@ fun BookmarkListScreen(
     val syncFraction by viewModel.syncFraction.collectAsState()
 
     val isLabelMode = activeLabel.value != null
+    val isCollectionMode = selectedCollection.value != null
     val isMultiSelectMode = multiSelectState.value.active
     val dismissPendingDeleteSnackbar: () -> Unit = {
         snackbarHostState.currentSnackbarData?.dismiss()
@@ -578,6 +581,23 @@ fun BookmarkListScreen(
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(text = activeLabel.value!!)
                         }
+                    } else if (isCollectionMode) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.clickable {
+                                dismissPendingDeleteSnackbar()
+                                scrollToTopTrigger++
+                            }
+                        ) {
+                            Icon(
+                                imageVector = CollectionIcon,
+                                contentDescription = null,
+                                modifier = Modifier.size(20.dp),
+                                tint = MaterialTheme.colorScheme.onSurface
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(text = selectedCollection.value!!.name)
+                        }
                     } else {
                         Text(
                             text = currentViewTitle,
@@ -817,8 +837,10 @@ fun BookmarkListScreen(
                     }
                 }
         ) {
-            // FilterBar: visible when filters are active beyond preset defaults, not in label mode
-            if (!isLabelMode && !isMultiSelectMode) {
+            // FilterBar: visible when filters are active beyond preset defaults, not in label mode.
+            // While a collection is active its own criteria are suppressed (the active-collection
+            // view reads as an ordinary list); C3 adds chips for filters layered on top.
+            if (!isLabelMode && !isCollectionMode && !isMultiSelectMode) {
                 FilterBar(
                     filterFormState = filterFormState.value,
                     drawerPreset = drawerPreset.value,

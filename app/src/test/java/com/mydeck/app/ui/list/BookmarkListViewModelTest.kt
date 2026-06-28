@@ -1575,6 +1575,65 @@ class BookmarkListViewModelTest {
     }
 
     @Test
+    fun `onCreateCollection persists the explicit filter and selects the created collection`() = runTest {
+        val explicitFilter = FilterFormState(author = "Ada")
+        val created = sampleCollection(id = "made-id", filter = explicitFilter)
+        collectionRepository.createResult = Result.success(created)
+        buildViewModelWithBookmarks()
+        backgroundScope.launch { viewModel.collections.collect {} }
+
+        viewModel.onCreateCollection("New one", explicitFilter)
+        advanceUntilIdle()
+
+        assertEquals("New one", collectionRepository.lastCreateName)
+        assertEquals(explicitFilter, collectionRepository.lastCreateFilter)
+        assertEquals("made-id", viewModel.selectedCollectionId.value)
+        assertEquals(explicitFilter, viewModel.filterFormState.value)
+        assertEquals(null, viewModel.activeLabel.value)
+    }
+
+    @Test
+    fun `onCreateCollection does not select on failure`() = runTest {
+        collectionRepository.createResult = Result.failure(RuntimeException("boom"))
+        buildViewModelWithBookmarks()
+
+        viewModel.onCreateCollection("New one", FilterFormState(author = "Ada"))
+        advanceUntilIdle()
+
+        assertEquals(null, viewModel.selectedCollectionId.value)
+    }
+
+    @Test
+    fun `onCreateCollection does not disturb the visible list filter on failure`() = runTest {
+        collectionRepository.createResult = Result.failure(RuntimeException("boom"))
+        buildViewModelWithBookmarks()
+        val before = viewModel.filterFormState.value
+
+        viewModel.onCreateCollection("New one", FilterFormState(author = "Ada"))
+        advanceUntilIdle()
+
+        assertEquals(before, viewModel.filterFormState.value)
+    }
+
+    @Test
+    fun `selectedCollection reflects the active collection and clears on deselect`() = runTest {
+        val collection = sampleCollection()
+        collectionRepository.collectionsFlow.value = listOf(collection)
+        buildViewModelWithBookmarks()
+        backgroundScope.launch { viewModel.collections.collect {} }
+        backgroundScope.launch { viewModel.selectedCollection.collect {} }
+        advanceUntilIdle()
+
+        viewModel.onSelectCollection(collection.id)
+        advanceUntilIdle()
+        assertEquals(collection, viewModel.selectedCollection.value)
+
+        viewModel.onClearCollection()
+        advanceUntilIdle()
+        assertEquals(null, viewModel.selectedCollection.value)
+    }
+
+    @Test
     fun `onRenameLabel calls repository and updates activeLabel if label was active`() = runTest {
         coEvery { settingsDataStore.isInitialSyncPerformed() } returns false
         every { bookmarkRepository.observeFilteredBookmarkListItems(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()) } returns flowOf(bookmarks)

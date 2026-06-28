@@ -258,6 +258,11 @@ class BookmarkListViewModel @Inject constructor(
         .observeCollections()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    /** The currently-active collection (its full model), or null when none is selected. */
+    val selectedCollection: StateFlow<Collection?> = combine(collections, _selectedCollectionId) { list, id ->
+        id?.let { selectedId -> list.find { it.id == selectedId } }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
     private val _isFilterSheetOpen = MutableStateFlow(false)
     val isFilterSheetOpen = _isFilterSheetOpen.asStateFlow()
 
@@ -469,6 +474,9 @@ class BookmarkListViewModel @Inject constructor(
 
     fun onClearCollection() {
         _selectedCollectionId.value = null
+        // Drop the collection's criteria too so the list returns to its preset default rather than
+        // staying silently filtered by the (now inactive) collection.
+        _filterFormState.value = FilterFormState.fromPreset(_drawerPreset.value)
     }
 
     fun refreshCollections() {
@@ -480,6 +488,25 @@ class BookmarkListViewModel @Inject constructor(
             collectionRepository.createCollection(name, _filterFormState.value)
                 .onSuccess { collection -> _selectedCollectionId.value = collection.id }
                 .onFailure { Timber.e(it, "Failed to save collection") }
+        }
+    }
+
+    /**
+     * Creates a collection from an explicit [filter] (the editor sheet's working copy) and, on
+     * success, makes it the active view: selects it, applies its filter, and emits
+     * [NavigationEvent.NavigateToBookmarkList] so callers on other screens land on the active list.
+     */
+    fun onCreateCollection(name: String, filter: FilterFormState) {
+        viewModelScope.launch {
+            collectionRepository.createCollection(name, filter)
+                .onSuccess { collection ->
+                    clearMultiSelectState()
+                    _selectedCollectionId.value = collection.id
+                    _filterFormState.value = collection.filter
+                    _activeLabel.value = null
+                    _navigationEvent.trySend(NavigationEvent.NavigateToBookmarkList)
+                }
+                .onFailure { Timber.e(it, "Failed to create collection") }
         }
     }
 
@@ -503,6 +530,9 @@ class BookmarkListViewModel @Inject constructor(
 
     fun onClickLabel(label: String) {
         clearMultiSelectState()
+        // Label and collection views are mutually exclusive (a preset/collection select clears the
+        // label; selecting a label clears any active collection).
+        _selectedCollectionId.value = null
         if (_activeLabel.value == label) {
             // Toggle off label mode, return to previous drawer preset
             _activeLabel.value = null
@@ -1290,6 +1320,7 @@ class BookmarkListViewModel @Inject constructor(
         data object NavigateToSettings : NavigationEvent()
         data object NavigateToAbout : NavigationEvent()
         data object NavigateToUserGuide : NavigationEvent()
+        data object NavigateToBookmarkList : NavigationEvent()
         data class NavigateToBookmarkDetail(val bookmarkId: String, val showOriginal: Boolean = false) : NavigationEvent()
     }
 

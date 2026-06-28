@@ -341,6 +341,8 @@ abstract class MyDeckDatabase : RoomDatabase() {
                         `readStatus` TEXT NOT NULL,
                         `isMarked` INTEGER,
                         `isArchived` INTEGER,
+                        `hasErrors` INTEGER,
+                        `hasLabels` INTEGER,
                         `rangeStart` TEXT,
                         `rangeEnd` TEXT,
                         `created` INTEGER NOT NULL,

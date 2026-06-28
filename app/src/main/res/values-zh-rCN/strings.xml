@@ -504,6 +504,14 @@
     <string name="gallery_image_counter">%1$d of %2$d</string>
     <string name="action_view_photograph">View Photograph</string>
     <string name="action_find_in_page">Find in Page</string>
+    <!-- Collections -->
+    <string name="collections_drawer_item">Collections</string>
+    <string name="collections_screen_title">Collections</string>
+    <string name="collection_create_fab">New Collection</string>
+    <string name="collection_name_hint">Collection name</string>
+    <string name="collection_editor_save">Save</string>
+    <string name="collections_empty_title">No collections yet</string>
+    <string name="collections_empty_message">Save a filter as a collection to see it here.</string>
     <string name="highlights_title">Highlights</string>
     <string name="highlights_empty">No highlights yet</string>
     <string name="highlights_refreshing">Refreshing highlights...</string>

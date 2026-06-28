@@ -30,6 +30,10 @@ data class CreateCollectionDto(
     val isMarked: Boolean? = null,
     @SerialName("is_archived")
     val isArchived: Boolean? = null,
+    @SerialName("has_errors")
+    val hasErrors: Boolean? = null,
+    @SerialName("has_labels")
+    val hasLabels: Boolean? = null,
     @SerialName("range_start")
     val rangeStart: String? = null,
     @SerialName("range_end")

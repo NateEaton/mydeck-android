@@ -9,7 +9,7 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface CollectionDao {
-    @Query("SELECT * FROM collections ORDER BY isPinned DESC, name ASC")
+    @Query("SELECT * FROM collections ORDER BY isPinned DESC, created DESC")
     fun observeCollections(): Flow<List<CollectionEntity>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)

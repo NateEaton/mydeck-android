@@ -455,7 +455,7 @@ class MyDeckDatabaseMigrationTest {
         val expectedColumns = listOf(
             "id", "name", "isPinned", "search", "title", "author", "site",
             "labels", "type", "readStatus", "isMarked", "isArchived",
-            "rangeStart", "rangeEnd", "created", "updated"
+            "hasErrors", "hasLabels", "rangeStart", "rangeEnd", "created", "updated"
         )
         expectedColumns.forEach { col ->
             assertTrue("Expected column '$col' in collections table", columns.containsKey(col))
