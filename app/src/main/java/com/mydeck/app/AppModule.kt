@@ -12,6 +12,8 @@ import com.mydeck.app.coroutine.ApplicationScope
 import com.mydeck.app.coroutine.IoDispatcher
 import com.mydeck.app.domain.BookmarkRepository
 import com.mydeck.app.domain.BookmarkRepositoryImpl
+import com.mydeck.app.domain.CollectionRepository
+import com.mydeck.app.domain.CollectionRepositoryImpl
 import com.mydeck.app.domain.UserRepository
 import com.mydeck.app.domain.UserRepositoryImpl
 import com.mydeck.app.domain.sync.ConnectivityMonitor
@@ -34,6 +36,10 @@ abstract class AppModule {
     @Binds
     @Singleton
     abstract fun bindBookmarkRepository(bookmarkRepositoryImpl: BookmarkRepositoryImpl): BookmarkRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindCollectionRepository(impl: CollectionRepositoryImpl): CollectionRepository
 
     @Binds
     abstract fun bindUserRepository(userRepositoryImpl: UserRepositoryImpl): UserRepository

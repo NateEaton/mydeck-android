@@ -7,8 +7,10 @@ import androidx.room.withTransaction
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.mydeck.app.io.db.dao.BookmarkDao
+import com.mydeck.app.io.db.dao.CollectionDao
 import com.mydeck.app.io.db.dao.ContentPackageDao
 import com.mydeck.app.io.db.model.ArticleContentEntity
+import com.mydeck.app.io.db.model.CollectionEntity
 import com.mydeck.app.io.db.model.BookmarkEntity
 import com.mydeck.app.io.db.model.ContentPackageEntity
 import com.mydeck.app.io.db.model.ContentResourceEntity
@@ -21,8 +23,10 @@ import com.mydeck.app.io.db.model.BookmarkAnnotationSyncMetadataEntity
 import com.mydeck.app.io.db.model.CachedAnnotationEntity
 
 @Database(
-    entities = [BookmarkEntity::class, ArticleContentEntity::class, ContentPackageEntity::class, ContentResourceEntity::class, RemoteBookmarkIdEntity::class, RemoteAnnotationIdEntity::class, PendingActionEntity::class, CachedAnnotationEntity::class, BookmarkAnnotationSyncMetadataEntity::class],
-    version = 17,
+    entities = [BookmarkEntity::class, ArticleContentEntity::class, ContentPackageEntity::class, ContentResourceEntity::class, RemoteBookmarkIdEntity::class, RemoteAnnotationIdEntity::class, PendingActionEntity::class, CachedAnnotationEntity::class, BookmarkAnnotationSyncMetadataEntity::class, CollectionEntity::class],
+    // PORT: DB version. MyDeck is at v18 (Collections added v17→v18). The Readeck port may be at a
+    // different base version; renumber the migration and exported schema to the target's vN→vN+1.
+    version = 18,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
@@ -31,6 +35,7 @@ abstract class MyDeckDatabase : RoomDatabase() {
     abstract fun getPendingActionDao(): PendingActionDao
     abstract fun getContentPackageDao(): ContentPackageDao
     abstract fun getCachedAnnotationDao(): CachedAnnotationDao
+    abstract fun getCollectionDao(): CollectionDao
 
     open suspend fun <R> performTransaction(block: suspend () -> R): R = withTransaction(block)
 
@@ -310,6 +315,39 @@ abstract class MyDeckDatabase : RoomDatabase() {
             override fun migrate(database: SupportSQLiteDatabase) {
                 database.execSQL(
                     "ALTER TABLE content_package ADD COLUMN source TEXT NOT NULL DEFAULT 'AUTOMATIC'"
+                )
+            }
+        }
+
+        // PORT: migration version. Collections table added here as MyDeck v17→v18; renumber to the
+        // port target's next version (vN→vN+1) and regenerate the exported schema there.
+        val MIGRATION_17_18 = object : Migration(17, 18) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                // No DEFAULT clauses on the NOT NULL columns: the entity declares no @ColumnInfo
+                // defaults, and Room's schema validation compares defaults — adding them here would
+                // mismatch the generated schema. The table is created empty, so NOT NULL is safe.
+                database.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `collections` (
+                        `id` TEXT NOT NULL,
+                        `name` TEXT NOT NULL,
+                        `isPinned` INTEGER NOT NULL,
+                        `search` TEXT,
+                        `title` TEXT,
+                        `author` TEXT,
+                        `site` TEXT,
+                        `labels` TEXT,
+                        `type` TEXT NOT NULL,
+                        `readStatus` TEXT NOT NULL,
+                        `isMarked` INTEGER,
+                        `isArchived` INTEGER,
+                        `rangeStart` TEXT,
+                        `rangeEnd` TEXT,
+                        `created` INTEGER NOT NULL,
+                        `updated` INTEGER NOT NULL,
+                        PRIMARY KEY(`id`)
+                    )
+                    """.trimIndent()
                 )
             }
         }

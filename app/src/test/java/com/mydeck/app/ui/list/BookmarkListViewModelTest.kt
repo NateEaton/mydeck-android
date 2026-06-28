@@ -9,8 +9,12 @@ import androidx.work.WorkManager
 import com.mydeck.app.R
 import com.mydeck.app.domain.BookmarkBatchUpdate
 import com.mydeck.app.domain.BookmarkRepository
+import com.mydeck.app.domain.CollectionRepository
 import com.mydeck.app.domain.HighlightsRepository
 import com.mydeck.app.domain.model.Bookmark
+import com.mydeck.app.domain.model.Collection
+import com.mydeck.app.domain.model.DrawerPreset
+import com.mydeck.app.domain.model.FilterFormState
 import com.mydeck.app.domain.model.BookmarkShareFormat
 import com.mydeck.app.domain.model.BookmarkCounts
 import com.mydeck.app.domain.model.BookmarkListItem
@@ -79,6 +83,7 @@ class BookmarkListViewModelTest {
     private lateinit var contentPackageManager: ContentPackageManager
     private lateinit var highlightsRepository: HighlightsRepository
     private lateinit var syncScheduler: SyncScheduler
+    private lateinit var collectionRepository: FakeCollectionRepository
 
     private lateinit var workInfoFlow: MutableStateFlow<List<WorkInfo>>
     private lateinit var initialSyncPerformedFlow: MutableStateFlow<Boolean>
@@ -98,6 +103,9 @@ class BookmarkListViewModelTest {
         contentPackageManager = mockk()
         highlightsRepository = mockk()
         syncScheduler = mockk(relaxed = true)
+        // A hand-written fake, not a MockK mock: MockK mishandles suspend functions returning the
+        // kotlin.Result value class (ClassCastException). The fake returns Results directly.
+        collectionRepository = FakeCollectionRepository()
         coEvery { contentSyncPolicyEvaluator.shouldAutoFetchContent() } returns false
         coEvery { highlightsRepository.requestRefresh(any()) } returns Result.success(Unit)
 
@@ -163,6 +171,7 @@ class BookmarkListViewModelTest {
         contentSyncPolicyEvaluator,
         contentPackageManager,
         syncScheduler,
+        collectionRepository,
         connectivityMonitor
     )
 
@@ -188,6 +197,7 @@ class BookmarkListViewModelTest {
             contentSyncPolicyEvaluator,
             contentPackageManager,
             syncScheduler,
+            collectionRepository,
             connectivityMonitor
         )
         // Since we emit empty list by default from mock, and filter/query are empty/default,
@@ -212,6 +222,7 @@ class BookmarkListViewModelTest {
             contentSyncPolicyEvaluator,
             contentPackageManager,
             syncScheduler,
+            collectionRepository,
             connectivityMonitor
         )
         advanceUntilIdle()
@@ -239,6 +250,7 @@ class BookmarkListViewModelTest {
             contentSyncPolicyEvaluator,
             contentPackageManager,
             syncScheduler,
+            collectionRepository,
             connectivityMonitor
         )
 
@@ -266,6 +278,7 @@ class BookmarkListViewModelTest {
             contentSyncPolicyEvaluator,
             contentPackageManager,
             syncScheduler,
+            collectionRepository,
             connectivityMonitor
         )
         // Just verify that it doesn't throw an exception for now
@@ -288,6 +301,7 @@ class BookmarkListViewModelTest {
             contentSyncPolicyEvaluator,
             contentPackageManager,
             syncScheduler,
+            collectionRepository,
             connectivityMonitor
         )
 
@@ -312,6 +326,7 @@ class BookmarkListViewModelTest {
             contentSyncPolicyEvaluator,
             contentPackageManager,
             syncScheduler,
+            collectionRepository,
             connectivityMonitor
         )
 
@@ -336,6 +351,7 @@ class BookmarkListViewModelTest {
             contentSyncPolicyEvaluator,
             contentPackageManager,
             syncScheduler,
+            collectionRepository,
             connectivityMonitor
         )
 
@@ -368,6 +384,7 @@ class BookmarkListViewModelTest {
             contentSyncPolicyEvaluator,
             contentPackageManager,
             syncScheduler,
+            collectionRepository,
             connectivityMonitor
         )
         viewModel.onClickMyList()
@@ -392,6 +409,7 @@ class BookmarkListViewModelTest {
             contentSyncPolicyEvaluator,
             contentPackageManager,
             syncScheduler,
+            collectionRepository,
             connectivityMonitor
         )
         viewModel.onClickArchive()
@@ -415,6 +433,7 @@ class BookmarkListViewModelTest {
             contentSyncPolicyEvaluator,
             contentPackageManager,
             syncScheduler,
+            collectionRepository,
             connectivityMonitor
         )
         viewModel.onClickFavorite()
@@ -438,6 +457,7 @@ class BookmarkListViewModelTest {
             contentSyncPolicyEvaluator,
             contentPackageManager,
             syncScheduler,
+            collectionRepository,
             connectivityMonitor
         )
         viewModel.onClickSettings()
@@ -461,6 +481,7 @@ class BookmarkListViewModelTest {
             contentSyncPolicyEvaluator,
             contentPackageManager,
             syncScheduler,
+            collectionRepository,
             connectivityMonitor
         )
         val bookmarkId = "someBookmarkId"
@@ -537,6 +558,7 @@ class BookmarkListViewModelTest {
             contentSyncPolicyEvaluator,
             contentPackageManager,
             syncScheduler,
+            collectionRepository,
             connectivityMonitor
         )
 
@@ -568,6 +590,7 @@ class BookmarkListViewModelTest {
             contentSyncPolicyEvaluator,
             contentPackageManager,
             syncScheduler,
+            collectionRepository,
             connectivityMonitor
         )
         viewModel.openCreateBookmarkDialog()
@@ -588,6 +611,7 @@ class BookmarkListViewModelTest {
             contentSyncPolicyEvaluator,
             contentPackageManager,
             syncScheduler,
+            collectionRepository,
             connectivityMonitor
         )
         viewModel.openCreateBookmarkDialog()
@@ -610,6 +634,7 @@ class BookmarkListViewModelTest {
                 contentSyncPolicyEvaluator,
                 contentPackageManager,
             syncScheduler,
+                collectionRepository,
                 connectivityMonitor
             )
             viewModel.openCreateBookmarkDialog()
@@ -640,6 +665,7 @@ class BookmarkListViewModelTest {
                 contentSyncPolicyEvaluator,
                 contentPackageManager,
             syncScheduler,
+                collectionRepository,
                 connectivityMonitor
             )
             viewModel.openCreateBookmarkDialog()
@@ -669,6 +695,7 @@ class BookmarkListViewModelTest {
             contentSyncPolicyEvaluator,
             contentPackageManager,
             syncScheduler,
+            collectionRepository,
             connectivityMonitor
         )
         viewModel.openCreateBookmarkDialog()
@@ -696,6 +723,7 @@ class BookmarkListViewModelTest {
             contentSyncPolicyEvaluator,
             contentPackageManager,
             syncScheduler,
+            collectionRepository,
             connectivityMonitor
         )
         viewModel.openCreateBookmarkDialog()
@@ -725,6 +753,7 @@ class BookmarkListViewModelTest {
             contentSyncPolicyEvaluator,
             contentPackageManager,
             syncScheduler,
+            collectionRepository,
             connectivityMonitor
         )
         viewModel.openCreateBookmarkDialog()
@@ -757,6 +786,7 @@ class BookmarkListViewModelTest {
             contentSyncPolicyEvaluator,
             contentPackageManager,
             syncScheduler,
+            collectionRepository,
             connectivityMonitor
         )
 
@@ -785,6 +815,7 @@ class BookmarkListViewModelTest {
                 contentSyncPolicyEvaluator,
                 contentPackageManager,
             syncScheduler,
+                collectionRepository,
                 connectivityMonitor
             )
 
@@ -825,6 +856,7 @@ class BookmarkListViewModelTest {
                 contentSyncPolicyEvaluator,
                 contentPackageManager,
             syncScheduler,
+                collectionRepository,
                 connectivityMonitor
             )
 
@@ -889,6 +921,7 @@ class BookmarkListViewModelTest {
                 contentSyncPolicyEvaluator,
                 contentPackageManager,
             syncScheduler,
+                collectionRepository,
                 connectivityMonitor
             )
 
@@ -953,6 +986,7 @@ class BookmarkListViewModelTest {
                 contentSyncPolicyEvaluator,
                 contentPackageManager,
             syncScheduler,
+                collectionRepository,
                 connectivityMonitor
             )
 
@@ -1016,6 +1050,7 @@ class BookmarkListViewModelTest {
                 contentSyncPolicyEvaluator,
                 contentPackageManager,
             syncScheduler,
+                collectionRepository,
                 connectivityMonitor
             )
 
@@ -1080,6 +1115,7 @@ class BookmarkListViewModelTest {
                 contentSyncPolicyEvaluator,
                 contentPackageManager,
             syncScheduler,
+                collectionRepository,
                 connectivityMonitor
             )
 
@@ -1144,6 +1180,7 @@ class BookmarkListViewModelTest {
                 contentSyncPolicyEvaluator,
                 contentPackageManager,
             syncScheduler,
+                collectionRepository,
                 connectivityMonitor
             )
 
@@ -1208,6 +1245,7 @@ class BookmarkListViewModelTest {
                 contentSyncPolicyEvaluator,
                 contentPackageManager,
             syncScheduler,
+                collectionRepository,
                 connectivityMonitor
             )
 
@@ -1272,6 +1310,7 @@ class BookmarkListViewModelTest {
                 contentSyncPolicyEvaluator,
                 contentPackageManager,
             syncScheduler,
+                collectionRepository,
                 connectivityMonitor
             )
 
@@ -1336,6 +1375,7 @@ class BookmarkListViewModelTest {
                 contentSyncPolicyEvaluator,
                 contentPackageManager,
             syncScheduler,
+                collectionRepository,
                 connectivityMonitor
             )
 
@@ -1385,6 +1425,7 @@ class BookmarkListViewModelTest {
             contentSyncPolicyEvaluator,
             contentPackageManager,
             syncScheduler,
+            collectionRepository,
             connectivityMonitor
         )
 
@@ -1392,6 +1433,145 @@ class BookmarkListViewModelTest {
         viewModel.onClickLabel(label)
 
         assertEquals(label, viewModel.activeLabel.value)
+    }
+
+    // --- Collections ---
+
+    private fun sampleCollection(
+        id: String = "col-1",
+        name: String = "Tech reads",
+        filter: FilterFormState = FilterFormState(site = "example.com"),
+    ) = Collection(
+        id = id,
+        name = name,
+        isPinned = false,
+        filter = filter,
+        created = kotlinx.datetime.Clock.System.now(),
+        updated = kotlinx.datetime.Clock.System.now(),
+    )
+
+    private fun buildViewModelWithBookmarks() {
+        coEvery { settingsDataStore.isInitialSyncPerformed() } returns false
+        every { bookmarkRepository.observeFilteredBookmarkListItems(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()) } returns flowOf(bookmarks)
+        viewModel = createViewModel()
+    }
+
+    @Test
+    fun `onSelectCollection sets selectedCollectionId and applies its filter`() = runTest {
+        val collection = sampleCollection()
+        collectionRepository.collectionsFlow.value = listOf(collection)
+        buildViewModelWithBookmarks()
+        backgroundScope.launch { viewModel.collections.collect {} }
+        advanceUntilIdle()
+
+        viewModel.onSelectCollection(collection.id)
+
+        assertEquals(collection.id, viewModel.selectedCollectionId.value)
+        assertEquals(collection.filter, viewModel.filterFormState.value)
+    }
+
+    @Test
+    fun `onSelectCollection ignores unknown id`() = runTest {
+        buildViewModelWithBookmarks()
+
+        viewModel.onSelectCollection("does-not-exist")
+
+        assertEquals(null, viewModel.selectedCollectionId.value)
+    }
+
+    @Test
+    fun `onClearCollection clears selectedCollectionId`() = runTest {
+        val collection = sampleCollection()
+        collectionRepository.collectionsFlow.value = listOf(collection)
+        buildViewModelWithBookmarks()
+        backgroundScope.launch { viewModel.collections.collect {} }
+        advanceUntilIdle()
+        viewModel.onSelectCollection(collection.id)
+
+        viewModel.onClearCollection()
+
+        assertEquals(null, viewModel.selectedCollectionId.value)
+    }
+
+    @Test
+    fun `onSelectDrawerPreset clears active collection`() = runTest {
+        val collection = sampleCollection()
+        collectionRepository.collectionsFlow.value = listOf(collection)
+        buildViewModelWithBookmarks()
+        backgroundScope.launch { viewModel.collections.collect {} }
+        advanceUntilIdle()
+        viewModel.onSelectCollection(collection.id)
+
+        viewModel.onSelectDrawerPreset(DrawerPreset.ARCHIVE)
+
+        assertEquals(null, viewModel.selectedCollectionId.value)
+    }
+
+    @Test
+    fun `onSaveCurrentFilterAsCollection selects the created collection on success`() = runTest {
+        val created = sampleCollection(id = "new-id")
+        collectionRepository.createResult = Result.success(created)
+        buildViewModelWithBookmarks()
+
+        viewModel.onSaveCurrentFilterAsCollection("My collection")
+        advanceUntilIdle()
+
+        assertEquals("new-id", viewModel.selectedCollectionId.value)
+        assertEquals("My collection", collectionRepository.lastCreateName)
+    }
+
+    @Test
+    fun `onSaveCurrentFilterAsCollection does not select on failure`() = runTest {
+        collectionRepository.createResult = Result.failure(RuntimeException("boom"))
+        buildViewModelWithBookmarks()
+
+        viewModel.onSaveCurrentFilterAsCollection("My collection")
+        advanceUntilIdle()
+
+        assertEquals(null, viewModel.selectedCollectionId.value)
+    }
+
+    @Test
+    fun `onDeleteCollection clears selection when deleting the active collection`() = runTest {
+        val collection = sampleCollection()
+        collectionRepository.collectionsFlow.value = listOf(collection)
+        collectionRepository.deleteResult = Result.success(Unit)
+        buildViewModelWithBookmarks()
+        backgroundScope.launch { viewModel.collections.collect {} }
+        advanceUntilIdle()
+        viewModel.onSelectCollection(collection.id)
+
+        viewModel.onDeleteCollection(collection.id)
+        advanceUntilIdle()
+
+        assertEquals(null, viewModel.selectedCollectionId.value)
+        assertEquals(collection.id, collectionRepository.lastDeletedId)
+    }
+
+    @Test
+    fun `onUpdateActiveCollection updates the active collection with current filter`() = runTest {
+        val collection = sampleCollection()
+        collectionRepository.collectionsFlow.value = listOf(collection)
+        collectionRepository.updateResult = Result.success(collection)
+        buildViewModelWithBookmarks()
+        backgroundScope.launch { viewModel.collections.collect {} }
+        advanceUntilIdle()
+        viewModel.onSelectCollection(collection.id)
+
+        viewModel.onUpdateActiveCollection("Renamed")
+        advanceUntilIdle()
+
+        assertEquals(collection.id, collectionRepository.lastUpdatedId)
+    }
+
+    @Test
+    fun `onUpdateActiveCollection is a no-op when no collection is active`() = runTest {
+        buildViewModelWithBookmarks()
+
+        viewModel.onUpdateActiveCollection("Renamed")
+        advanceUntilIdle()
+
+        assertEquals(null, collectionRepository.lastUpdatedId)
     }
 
     @Test
@@ -1411,6 +1591,7 @@ class BookmarkListViewModelTest {
             contentSyncPolicyEvaluator,
             contentPackageManager,
             syncScheduler,
+            collectionRepository,
             connectivityMonitor
         )
 
@@ -1445,6 +1626,7 @@ class BookmarkListViewModelTest {
             contentSyncPolicyEvaluator,
             contentPackageManager,
             syncScheduler,
+            collectionRepository,
             connectivityMonitor
         )
 
@@ -1473,6 +1655,7 @@ class BookmarkListViewModelTest {
             contentSyncPolicyEvaluator,
             contentPackageManager,
             syncScheduler,
+            collectionRepository,
             connectivityMonitor
         )
 
@@ -2466,4 +2649,42 @@ class BookmarkListViewModelTest {
             published = null
         )
     )
+}
+
+/**
+ * Hand-written fake for [CollectionRepository]. Used instead of a MockK mock because MockK
+ * mishandles suspend functions whose return type is the inline value class [Result], producing a
+ * ClassCastException at the call site.
+ */
+private class FakeCollectionRepository : CollectionRepository {
+    val collectionsFlow = MutableStateFlow<List<Collection>>(emptyList())
+    var refreshResult: Result<Unit> = Result.success(Unit)
+    var createResult: Result<Collection> = Result.failure(NotImplementedError())
+    var updateResult: Result<Collection> = Result.failure(NotImplementedError())
+    var deleteResult: Result<Unit> = Result.success(Unit)
+
+    var lastCreateName: String? = null
+    var lastCreateFilter: FilterFormState? = null
+    var lastUpdatedId: String? = null
+    var lastDeletedId: String? = null
+
+    override fun observeCollections() = collectionsFlow
+
+    override suspend fun refreshCollections(): Result<Unit> = refreshResult
+
+    override suspend fun createCollection(name: String, filter: FilterFormState): Result<Collection> {
+        lastCreateName = name
+        lastCreateFilter = filter
+        return createResult
+    }
+
+    override suspend fun updateCollection(id: String, name: String, filter: FilterFormState): Result<Collection> {
+        lastUpdatedId = id
+        return updateResult
+    }
+
+    override suspend fun deleteCollection(id: String): Result<Unit> {
+        lastDeletedId = id
+        return deleteResult
+    }
 }

@@ -20,6 +20,8 @@ import com.mydeck.app.domain.model.BookmarkCounts
 import com.mydeck.app.domain.model.BookmarkListItem
 import com.mydeck.app.domain.model.DrawerPreset
 import com.mydeck.app.domain.model.OpenWebPagesIn
+import com.mydeck.app.domain.CollectionRepository
+import com.mydeck.app.domain.model.Collection
 import com.mydeck.app.domain.model.FilterFormState
 import com.mydeck.app.domain.model.LayoutMode
 import com.mydeck.app.domain.model.SortOption
@@ -131,6 +133,7 @@ class BookmarkListViewModel @Inject constructor(
     private val contentSyncPolicyEvaluator: OfflinePolicyEvaluator,
     private val contentPackageManager: ContentPackageManager,
     private val syncScheduler: com.mydeck.app.domain.sync.SyncScheduler,
+    private val collectionRepository: CollectionRepository,
     connectivityMonitor: ConnectivityMonitor
 ) : ViewModel() {
 
@@ -245,6 +248,15 @@ class BookmarkListViewModel @Inject constructor(
 
     private val _activeLabel = MutableStateFlow<String?>(null)
     val activeLabel = _activeLabel.asStateFlow()
+
+    // --- Collections ---
+
+    private val _selectedCollectionId = MutableStateFlow<String?>(null)
+    val selectedCollectionId: StateFlow<String?> = _selectedCollectionId.asStateFlow()
+
+    val collections: StateFlow<List<Collection>> = collectionRepository
+        .observeCollections()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     private val _isFilterSheetOpen = MutableStateFlow(false)
     val isFilterSheetOpen = _isFilterSheetOpen.asStateFlow()
@@ -435,6 +447,7 @@ class BookmarkListViewModel @Inject constructor(
         _drawerPreset.value = preset
         _filterFormState.value = FilterFormState.fromPreset(preset)
         _activeLabel.value = null
+        _selectedCollectionId.value = null
     }
 
     fun onClickMyList() = onSelectDrawerPreset(DrawerPreset.MY_LIST)
@@ -443,6 +456,48 @@ class BookmarkListViewModel @Inject constructor(
     fun onClickArticles() = onSelectDrawerPreset(DrawerPreset.ARTICLES)
     fun onClickVideos() = onSelectDrawerPreset(DrawerPreset.VIDEOS)
     fun onClickPictures() = onSelectDrawerPreset(DrawerPreset.PICTURES)
+
+    // --- Collections actions ---
+
+    fun onSelectCollection(collectionId: String) {
+        val collection = collections.value.find { it.id == collectionId } ?: return
+        clearMultiSelectState()
+        _selectedCollectionId.value = collectionId
+        _filterFormState.value = collection.filter
+        _activeLabel.value = null
+    }
+
+    fun onClearCollection() {
+        _selectedCollectionId.value = null
+    }
+
+    fun refreshCollections() {
+        viewModelScope.launch { collectionRepository.refreshCollections() }
+    }
+
+    fun onSaveCurrentFilterAsCollection(name: String) {
+        viewModelScope.launch {
+            collectionRepository.createCollection(name, _filterFormState.value)
+                .onSuccess { collection -> _selectedCollectionId.value = collection.id }
+                .onFailure { Timber.e(it, "Failed to save collection") }
+        }
+    }
+
+    fun onUpdateActiveCollection(newName: String) {
+        val id = _selectedCollectionId.value ?: return
+        viewModelScope.launch {
+            collectionRepository.updateCollection(id, newName, _filterFormState.value)
+                .onFailure { Timber.e(it, "Failed to update collection") }
+        }
+    }
+
+    fun onDeleteCollection(id: String) {
+        viewModelScope.launch {
+            collectionRepository.deleteCollection(id)
+                .onSuccess { if (_selectedCollectionId.value == id) onClearCollection() }
+                .onFailure { Timber.e(it, "Failed to delete collection") }
+        }
+    }
 
     // --- Label mode ---
 

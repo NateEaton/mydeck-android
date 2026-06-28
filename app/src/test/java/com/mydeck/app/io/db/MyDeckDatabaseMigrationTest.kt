@@ -424,4 +424,45 @@ class MyDeckDatabaseMigrationTest {
         dbV17.close()
         db.close()
     }
+
+    @Test
+    @Throws(IOException::class)
+    fun migrate17To18CreatesCollectionsTable() {
+        val helper = MigrationTestHelper(
+            InstrumentationRegistry.getInstrumentation(),
+            MyDeckDatabase::class.java,
+            emptyList<AutoMigrationSpec>(), // workaround for https://issuetracker.google.com/issues/298459978
+            FrameworkSQLiteOpenHelperFactory()
+        )
+        val db = helper.createDatabase(TEST_DB, 17).apply {
+            close()
+        }
+
+        val dbV18 = helper.runMigrationsAndValidate(TEST_DB, 18, true, MyDeckDatabase.MIGRATION_17_18)
+
+        val columns = mutableMapOf<String, ContentValues>()
+        val info = dbV18.query("PRAGMA table_info('collections')")
+        try {
+            while (info.moveToNext()) {
+                val cv = ContentValues()
+                DatabaseUtils.cursorRowToContentValues(info, cv)
+                columns[cv.getAsString("name")] = cv
+            }
+        } finally {
+            info.close()
+        }
+
+        val expectedColumns = listOf(
+            "id", "name", "isPinned", "search", "title", "author", "site",
+            "labels", "type", "readStatus", "isMarked", "isArchived",
+            "rangeStart", "rangeEnd", "created", "updated"
+        )
+        expectedColumns.forEach { col ->
+            assertTrue("Expected column '$col' in collections table", columns.containsKey(col))
+        }
+        assertEquals(1, columns.getValue("id").getAsInteger("pk"))
+
+        dbV18.close()
+        db.close()
+    }
 }

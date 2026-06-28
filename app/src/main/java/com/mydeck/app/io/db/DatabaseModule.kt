@@ -9,6 +9,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import com.mydeck.app.io.db.dao.BookmarkDao
 import com.mydeck.app.io.db.dao.CachedAnnotationDao
+import com.mydeck.app.io.db.dao.CollectionDao
 import com.mydeck.app.io.db.dao.ContentPackageDao
 import com.mydeck.app.io.db.dao.PendingActionDao
 import com.mydeck.app.domain.content.ContentPackageManager
@@ -39,7 +40,8 @@ object DatabaseModule {
                 MyDeckDatabase.MIGRATION_13_14,
                 MyDeckDatabase.MIGRATION_14_15,
                 MyDeckDatabase.MIGRATION_15_16,
-                MyDeckDatabase.MIGRATION_16_17
+                MyDeckDatabase.MIGRATION_16_17,
+                MyDeckDatabase.MIGRATION_17_18
             )
             .build()
     }
@@ -63,6 +65,11 @@ object DatabaseModule {
     @Singleton
     fun provideCachedAnnotationDao(readeckDatabase: MyDeckDatabase): CachedAnnotationDao =
         readeckDatabase.getCachedAnnotationDao()
+
+    @Provides
+    @Singleton
+    fun provideCollectionDao(readeckDatabase: MyDeckDatabase): CollectionDao =
+        readeckDatabase.getCollectionDao()
 
     @Provides
     @Singleton

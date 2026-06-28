@@ -2,8 +2,11 @@ package com.mydeck.app.io.rest
 
 import com.mydeck.app.io.rest.model.AnnotationDto
 import com.mydeck.app.io.rest.model.BookmarkDto
+import com.mydeck.app.io.rest.model.CollectionDto
 import com.mydeck.app.io.rest.model.CreateAnnotationDto
 import com.mydeck.app.io.rest.model.CreateBookmarkDto
+import com.mydeck.app.io.rest.model.CreateCollectionDto
+import com.mydeck.app.io.rest.model.UpdateCollectionDto
 import com.mydeck.app.io.rest.model.EditBookmarkDto
 import com.mydeck.app.io.rest.model.EditBookmarkErrorDto
 import com.mydeck.app.io.rest.model.EditBookmarkResponseDto
@@ -136,6 +139,33 @@ interface ReadeckApi {
     @DELETE("bookmarks/{id}")
     suspend fun deleteBookmark(@Path("id") id: String): Response<Unit>
 
+    // --- Collections ---
+
+    @GET("bookmarks/collections")
+    suspend fun getCollections(
+        @Query("limit") limit: Int = 100,
+        @Query("offset") offset: Int = 0
+    ): Response<List<CollectionDto>>
+
+    @GET("bookmarks/collections/{id}")
+    suspend fun getCollectionById(
+        @Path("id") id: String
+    ): Response<CollectionDto>
+
+    // POST returns 201 with a Location header pointing at the new collection; the body is only the
+    // generic status/message schema (no id). Callers read the Location header to resolve the id.
+    @POST("bookmarks/collections")
+    suspend fun createCollection(
+        @Body body: CreateCollectionDto
+    ): Response<StatusMessageDto>
+
+    @Headers("Accept: application/json")
+    @PATCH("bookmarks/collections/{id}")
+    suspend fun updateCollection(
+        @Path("id") id: String,
+        @Body body: UpdateCollectionDto
+    ): Response<CollectionDto>
+
     data class SortOrder(val sort: Sort, val order: Order = Order.Ascending) {
         override fun toString(): String {
             return "${order.value}${sort.value}"
@@ -162,6 +192,7 @@ interface ReadeckApi {
             const val TOTAL_COUNT = "total-count"
             const val CURRENT_PAGE = "current-page"
             const val BOOKMARK_ID = "bookmark-id"
+            const val LOCATION = "location"
         }
     }
 }
