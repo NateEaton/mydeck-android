@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.14.3] - 2026-06-27
+
+### Added
+
+- User Interface Settings are now organized into clear sections: Appearance, Bookmark List, Reading, and Sharing.
+- Internal browser toggle: choose whether a bookmark's original web page opens in the in-app viewer or your device's external browser.
+- Label search options: match the start of a label or anywhere within it, and sort labels alphabetically or by most used.
+- Show or hide the add-bookmark (+) button in the bookmark list.
+- Show or hide website source icons in the Compact layout.
+- "With errors" filter to find bookmarks whose content could not be extracted, plus card badges marking bookmarks with extraction errors or no readable content.
+
+### Changed
+
+- Label picker: in "Add" mode the on-screen Enter key now shows a checkmark and commits or creates the typed label; filter mode keeps the search action.
+- Bookmarks with no readable content now show their title and description with a "No content available" note and a button to open the original page.
+
+### Fixed
+
+- The "With errors" filter now correctly returns bookmarks that failed extraction.
+
 ## [0.14.2] - 2026-06-19
 
 ### Added

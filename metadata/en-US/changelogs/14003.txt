@@ -1,0 +1,8 @@
+<b>Added</b>
+- Settings reorganized into sections, with new toggles for the add-bookmark button and compact source icons
+- Choose how original web pages open: in-app browser or your external browser
+- Label search: match the start or anywhere, sort A–Z or by most used
+- "With errors" filter and card badges for bookmarks that failed to extract
+
+<b>Changed</b>
+- Label picker "Add" mode: Enter now commits the typed label (checkmark)
