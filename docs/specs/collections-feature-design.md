@@ -8,7 +8,9 @@
 
 ## Overview
 
-Collections allow users to save named sets of filter criteria as persistent, server-side entities. When selected from the sidebar drawer, the bookmark list updates to show only bookmarks matching those saved filters. Collections are managed server-side via the Readeck API and cached locally in Room for offline availability and reactive UI updates.
+Collections allow users to save named sets of filter criteria as persistent, server-side entities. Users browse and create them on a dedicated **Collections screen** (reached from a "Collections" entry in the navigation drawer's Tools group), and selecting one opens the bookmark list as an **active-collection view** showing only bookmarks matching those saved filters. A single collection may also be surfaced as a custom view selector in the drawer/rail (see the Navigation Settings spec). Collections are managed server-side via the Readeck API and cached locally in Room for offline availability and reactive UI updates.
+
+> **UI note (2026-06-28):** This document's original UI sketch placed collections as an inline list inside the navigation drawer with per-item actions (including Duplicate). That was superseded by the screen-based design below, agreed with the maintainer. The data / repository / ViewModel layers (slice C1) are unaffected; only the UI sections changed. See `collections-nav-rollout-plan.md` §11.
 
 ---
 
@@ -39,6 +41,10 @@ Collection logic goes into a dedicated `CollectionRepository` rather than extend
 ### 5. Pagination
 
 The `GET /bookmarks/collections` endpoint supports pagination via `limit`/`offset`. The refresh implementation should page through all results (e.g. 100 per page) and replace the local cache atomically.
+
+### 6. UI: dedicated Collections screen, not an inline drawer list
+
+Collections are browsed and created on a dedicated **Collections screen** modeled on the Highlights screen, reached from a single **"Collections"** entry in the drawer's Tools group (below Highlights). The selected-collection state on the main list mirrors the **active-label list view** (collection name as the app-bar title + a leading icon, no chips for the collection's own criteria). There is **no** inline drawer list of collections and **no Duplicate action**. Create and edit share one unified **collection editor sheet**. See "UI Components".
 
 ---
 
@@ -293,10 +299,10 @@ val collections: StateFlow<List<Collection>> = collectionRepository
 
 fun onSelectCollection(collectionId: String) {
     val collection = collections.value.find { it.id == collectionId } ?: return
-    _selectedCollectionId.value = collectionId
-    _drawerPreset.value = null
+    _selectedCollectionId.value = collectionId   // discriminator; drives the active-collection view
     _filterFormState.value = collection.filter
-    // Close drawer, trigger list refresh
+    // navigate to the main list; app bar shows the collection name + leading icon
+    // (no _drawerPreset = null — _drawerPreset is non-nullable; see rollout-plan §11. As built in C1.)
 }
 
 fun onClearCollection() {
@@ -335,47 +341,54 @@ fun onDeleteCollection(id: String) {
 
 ## UI Components
 
-### `AppDrawerContent.kt` — Collections Section
+The collections UI reuses two existing app patterns: the **Highlights screen** (browsing/creating) and the **active-label list view** (the selected-collection state). Collections are **not** rendered inline in the navigation drawer.
 
-Add a "Collections" section below the existing Labels section. The section should:
+### Navigation drawer / rail — "Collections" entry
 
-- Show a "Collections" header with a trailing `+` `IconButton` to trigger collection creation.
-- Display each collection as a `NavigationDrawerItem`. Pinned collections render with a pin indicator.
-- Highlight the item when `selectedCollectionId == collection.id`.
-- Show a `MoreVert` icon button per item (or support long-press) that opens a dropdown menu with:
-  - **Edit** — opens filter sheet pre-filled with the collection's filter, and on Apply calls `onUpdateActiveCollection`.
-  - **Duplicate** — calls `onSaveCurrentFilterAsCollection` with a copy of the collection's filter.
-  - **Delete** — shows confirmation dialog, then calls `onDeleteCollection`.
+Add a single **"Collections"** item to the drawer's **Tools** group, directly below **Highlights** (a single entry, like Highlights and Labels — not an expanded list). Selecting it navigates to the Collections screen. The same entry appears in the wide-layout navigation rail. (For this branch the entry is added to the existing static drawer/rail; the Navigation Settings feature later makes the drawer/rail data-driven.)
 
-The composable receives collections data and callbacks via its existing parameter pattern.
+### Collections screen
 
-```kotlin
-// Sketch of new section within AppDrawerContent
-if (collections.isNotEmpty()) {
-    Divider()
-    CollectionsSectionHeader(onCreateClick = onCreateCollection)
-    collections.forEach { collection ->
-        CollectionDrawerItem(
-            collection = collection,
-            selected = selectedCollectionId == collection.id,
-            onSelect = { onSelectCollection(collection.id) },
-            onEdit = { onEditCollection(collection.id) },
-            onDuplicate = { onDuplicateCollection(collection.id) },
-            onDelete = { onDeleteCollection(collection.id) },
-        )
-    }
-}
-```
+A dedicated screen (route + screen + state, modeled on the Highlights screen):
 
-### Filter Bottom Sheet — "Save as Collection"
+- Each collection renders as a **card** showing the **name** and **created date/time** only — no per-card action icons (parity with Highlights cards).
+- **Tap a card** → `onSelectCollection(id)`; navigate to the main bookmark list as the active-collection view (below).
+- A **FAB** ("New Collection") opens the **collection editor sheet** (empty) to compose and save a new collection.
+- **Empty state** (M3 pattern) when there are no collections, inviting creation via the FAB.
+- Future / out of scope for v1: sort/filter controls in the app bar — the screen reserves app-bar space for these, which is why create is a FAB rather than an app-bar action.
 
-Add a **"Save as Collection"** outlined button at the bottom of `FilterBottomSheet.kt`, between the Reset and Apply buttons. It is only enabled when `filterFormState.hasActiveFilters()`. Pressing it opens a `AlertDialog` with a name `TextField` and a Confirm button.
+### Active-collection view (main bookmark list)
 
-### `BookmarkListScreen` — Active Collection Banner
+When a collection is selected, the main list mirrors the **active-label list view**:
 
-When `selectedCollectionId != null`, render a `SuggestionChip` or `AssistChip` below the `FilterBar` row showing the collection name. The chip has two trailing icon buttons:
-- ✏️ **Edit**: opens the filter sheet, allowing filter modification and save.
-- 🗑 **Delete**: shows confirmation, then calls `onDeleteCollection`.
+- The **top app bar** shows the **collection name as the title** with a **leading icon** to its left (same treatment as a label-filtered list). All other app-bar actions and overflow items mirror the normal list.
+- **No filter chips** are shown for the collection's own criteria — an active collection reads as an ordinary list view.
+- If the user **applies an additional filter** on top of the active collection, those **added criteria render as chips** (the collection stays the active view; the app-bar title remains the collection name). The saved collection is unchanged until explicitly saved.
+- While a collection is active, the **overflow menu** gains **Edit collection** and **Delete collection**:
+  - **Edit collection** → opens the editor sheet pre-filled with the **combined** filter (the collection's saved criteria + any currently-applied additional filter) and the existing name.
+  - **Delete collection** → confirmation dialog → `onDeleteCollection(id)`.
+
+### Collection editor sheet (unified create + edit)
+
+A single reusable sheet = the filter-criteria controls (reusing `FilterBottomSheet`'s controls) **plus a name `TextField` at the top**. Three entry points:
+
+| Entry point | Pre-fill | Buttons |
+|---|---|---|
+| FAB (Collections screen) | empty criteria, blank name | Save / Cancel |
+| Main-list overflow "Save as Collection" (filter active, no collection selected) | current filter, blank name | Save / Cancel |
+| Overflow "Edit collection" (collection active) | combined filter + existing name | Save / Delete (+ Cancel) |
+
+- **Save**, no active collection → `onSaveCurrentFilterAsCollection(name)` (create).
+- **Save**, editing → `onUpdateActiveCollection(name)` (persists the combined filter under the name; **rename is supported** via the name field).
+- **Delete** (edit mode) → confirmation → `onDeleteCollection(id)`.
+- Save is disabled until the name is non-blank.
+
+### Main-list overflow — create entry
+
+The main-list overflow is a small state machine:
+- **no collection + active filter** → show **"Save as Collection"** (opens the editor sheet pre-filled with the current filter).
+- **no collection + no filter** → nothing (create lives on the Collections screen FAB).
+- **collection active** → show **Edit collection** + **Delete collection** (never "Save as Collection").
 
 ---
 
@@ -384,16 +397,19 @@ When `selectedCollectionId != null`, render a `SuggestionChip` or `AssistChip` b
 Add to `app/src/main/res/values/strings.xml` and all language files per `CLAUDE.md`:
 
 ```xml
-<string name="collections_section_header">Collections</string>
-<string name="collection_create_button">New Collection</string>
+<string name="collections_drawer_item">Collections</string>
+<string name="collections_screen_title">Collections</string>
+<string name="collection_create_fab">New Collection</string>
 <string name="collection_name_hint">Collection name</string>
-<string name="collection_save_filter_button">Save as Collection</string>
-<string name="collection_edit_action">Edit</string>
-<string name="collection_duplicate_action">Duplicate</string>
-<string name="collection_delete_action">Delete</string>
-<string name="collection_delete_confirm_title">Delete Collection?</string>
+<string name="collection_editor_save">Save</string>
+<string name="collection_save_as_action">Save as Collection</string>
+<string name="collection_edit_action">Edit collection</string>
+<string name="collection_delete_action">Delete collection</string>
+<string name="collection_delete_confirm_title">Delete collection?</string>
 <string name="collection_delete_confirm_message">"%s" will be permanently deleted.</string>
-<string name="collection_active_label">Collection: %s</string>
+<string name="collections_empty_title">No collections yet</string>
+<string name="collections_empty_message">Save a filter as a collection to see it here.</string>
+<string name="collection_save_error">Failed to save collection</string>
 <string name="collection_update_error">Failed to update collection</string>
 <string name="collection_delete_error">Failed to delete collection</string>
 <string name="collection_load_error">Failed to load collections</string>
@@ -424,8 +440,8 @@ Add to `app/src/main/res/values/strings.xml` and all language files per `CLAUDE.
 7. **Repository impl** — Implement `CollectionRepositoryImpl` using DAO + API.
 8. **DI** — Add Hilt bindings for `CollectionRepository` in the appropriate `@Module`.
 9. **ViewModel** — Inject `CollectionRepository` into `BookmarkListViewModel`; add state and functions.
-10. **`AppDrawerContent`** — Add Collections section with full CRUD UI.
-11. **`FilterBottomSheet`** — Add "Save as Collection" button.
-12. **`BookmarkListScreen`** — Add active-collection banner chip.
-13. **String resources** — Add all new strings to all 10 locale files.
-14. **Tests** — Unit tests for adapter, DAO queries, `CollectionRepositoryImpl`, and `BookmarkListViewModel` collection logic.
+10. **Drawer/rail "Collections" entry + Collections screen** *(Slice C2)* — add the Tools-group "Collections" item (below Highlights) to `AppDrawerContent` (Compact + Expanded) and `AppNavigationRailContent`; build the Collections screen (route + screen + state) with name/created cards, FAB, and empty state; tap → `onSelectCollection` → active-collection view.
+11. **Active-collection view** *(Slice C3)* — main-list app-bar title + leading icon mirroring the active-label view; chips for filters added on top of a collection; overflow **Edit collection** / **Delete collection**.
+12. **Collection editor sheet + main-list "Save as Collection"** *(Slice C3)* — unified create/edit sheet (filter controls + name field; Save / Delete); main-list overflow "Save as Collection" when a filter is active and no collection is selected.
+13. **String resources** — add all new strings to all 10 locale files (distributed into C2/C3 as each is needed).
+14. **Tests** — adapter, DAO queries, `CollectionRepositoryImpl`, `BookmarkListViewModel` collection logic, plus the editor-sheet / active-collection state logic. (No Duplicate.)

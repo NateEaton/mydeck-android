@@ -264,6 +264,26 @@ N2 badge.
 
 ---
 
+**C2/C3 UI model (2026-06-28 — supersedes the Collections spec's original drawer-section UI; specs now updated to match):**
+- Collections are **not** an inline drawer list. A single **"Collections"** item in the Tools group
+  (below Highlights) opens a dedicated **Collections screen** — Highlights-style cards (name + created
+  date/time, no per-card actions), a **FAB** to create, tap a card → active-collection view.
+- **Active-collection view** mirrors the **active-label list view**: collection name as the app-bar
+  title + leading icon, no chips for the collection's own criteria. Filters added on top render as
+  chips. Overflow gains **Edit collection** / **Delete collection** while a collection is active.
+- **Unified collection editor sheet** = filter controls + name field. Entry points: FAB (empty);
+  main-list overflow **"Save as Collection"** (filter active, no collection selected; pre-filled);
+  **Edit collection** (combined filter + existing name; Save + Delete). **Rename is supported** via the
+  name field.
+- **Duplicate: dropped** — no `onDuplicateCollection`. (Retires one MockK-fake test case.)
+- **Nav custom view** = one collection surfaced as a view selector with a **fixed app-chosen icon** (no
+  icon picker in v1); complementary to, and separate from, the Collections screen.
+- **Re-slice unchanged** in count: C2 = Collections screen + drawer/rail entry + select→active view;
+  C3 = active-collection app-bar state + overflow create/edit/delete + editor sheet. C1 backend is
+  unaffected (its VM functions still fit; only the never-built `onDuplicateCollection` is dropped).
+
+---
+
 ## 12. Kickoff prompt template (coordinator → slice thread)
 
 The coordinator delivers a concrete prompt per thread (not all at once), as raw markdown for the user to
