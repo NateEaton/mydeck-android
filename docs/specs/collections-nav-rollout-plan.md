@@ -228,7 +228,43 @@ accurate markers. The port itself runs **in the Readeck repo (TARGET)** followin
 
 ---
 
-## 11. Kickoff prompt template (coordinator → slice thread)
+## 11. Spec drift reconciliation (living — confirmed against current code)
+
+The specs predate the current codebase by several schema versions. Confirmed deltas (verified, do
+not re-litigate per thread):
+
+**C1 (confirmed against code + `docs/openapi-spec.json`):**
+- **DB version:** spec's "v7→v8 / `MIGRATION_7_8`" is stale — current DB is **v17**
+  (`MyDeckDatabase.kt:25`) and `MIGRATION_7_8` already exists. Implement **v17→v18 / `MIGRATION_17_18`**,
+  register in `DatabaseModule.kt`, generate `app/schemas/.../18.json`, write a `migrate17To18` test.
+  (Port flag: DB version number — renumbers again for the Readeck port per §8/methodology §5.)
+- **Serialization:** project uses **kotlinx.serialization** (`@Serializable`/`@SerialName`,
+  `explicitNulls=false`), not Gson `@SerializedName`. Write DTOs like `EditBookmarkDto.kt`; sparse
+  Create/Patch bodies fall out of `explicitNulls=false`.
+- **FilterFormState local-only fields:** beyond the spec's `isLoaded`/`withLabels`/`withErrors`, the
+  model now also has `minReadingTime`, `maxReadingTime`, `includeNullReadingTime`, `minWordCount`,
+  `maxWordCount`, `includeNullWordCount` — no `CollectionDto` equivalents. Treat all as local-only
+  (dropped on persist, default on load). Saved collections won't preserve reading-time/word-count filters.
+- **`onSelectCollection` discriminator:** `_drawerPreset` is non-nullable (`MutableStateFlow<DrawerPreset>`,
+  defaults `MY_LIST`). Use `selectedCollectionId != null` as the discriminator; do not assign
+  `_drawerPreset = null` (won't compile). Drawer visual deselect is a C2 concern.
+- **Create-id mechanism (verified via OpenAPI):** `POST /bookmarks/collections` → **201 + `Location`
+  header**; body is only the generic `message` schema (no id, no object); no custom header. Keep POST
+  typed `Response<StatusMessageDto>`; read `Location`, take the trailing path segment, then
+  `getCollectionById(id)` to hydrate + cache. Add a `LOCATION = "location"` constant to
+  `ReadeckApi.Header` (alongside `bookmark-id`, `total-pages`, …).
+
+**Anchors downstream threads (C2/C3/N1/N2/N3) must verify in their own design-review phase** (the
+per-slice design review is demonstrably catching drift, so we verify at slice start rather than in one
+upfront pass): current `DrawerPreset` enum values; `AppDrawerContent` / `AppNavigationRailContent` /
+`AppShell` callback surface; the **list-source type** the standard query uses (`@RawQuery`+`FilterFormState`
+vs `PagingSource`) — this gates N2's offline query design; the `SettingsDataStore` JSON-persistence
+pattern; and whether `BookmarkCounts` already exposes an archive-inclusive offline-content total for the
+N2 badge.
+
+---
+
+## 12. Kickoff prompt template (coordinator → slice thread)
 
 The coordinator delivers a concrete prompt per thread (not all at once), as raw markdown for the user to
 paste into a fresh session. Each prompt includes: repo + branch (already created), the spec doc + exact
