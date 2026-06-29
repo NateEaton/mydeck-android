@@ -1,0 +1,2 @@
+<b>fixed</b>
+- Emergency fix: sign-in now works against recent Readeck nightly server builds. 
