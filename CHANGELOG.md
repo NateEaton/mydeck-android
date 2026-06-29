@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.14.4] - 2026-06-29
+
+### Fixed
+
+- Sign-in now succeeds against Readeck nightly server builds that no longer return `reader_settings` in the user profile response
+
 ## [0.14.3] - 2026-06-27
 
 ### Added

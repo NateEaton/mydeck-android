@@ -34,7 +34,7 @@ data class SettingsDto(
     val debugInfo: Boolean,
     val lang: String,
     @SerialName("reader_settings")
-    val readerSettings: ReaderSettingsDto
+    val readerSettings: ReaderSettingsDto? = null
 )
 
 @Serializable
