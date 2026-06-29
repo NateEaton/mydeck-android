@@ -39,6 +39,3 @@ data class CreateCollectionDto(
     @SerialName("range_end")
     val rangeEnd: String? = null,
 )
-
-/** PATCH body reuses the same shape (all fields optional). */
-typealias UpdateCollectionDto = CreateCollectionDto

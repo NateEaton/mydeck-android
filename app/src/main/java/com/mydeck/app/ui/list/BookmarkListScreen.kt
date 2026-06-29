@@ -277,7 +277,9 @@ fun BookmarkListScreen(
 
     fun stageCollectionDeleteWithSnackbar(collection: Collection) {
         // Mirror bookmark delete: stage now (hide + leave the view), defer the actual delete until the
-        // Undo snackbar is dismissed by an interaction other than Undo.
+        // Undo snackbar is dismissed by an interaction other than Undo. Dismiss any in-flight
+        // pending-delete snackbar first so this one shows immediately rather than queueing behind it.
+        dismissPendingDeleteSnackbar()
         viewModel.onStageDeleteCollection(collection.id)
         scope.launch {
             val result = snackbarHostState.showSnackbar(
@@ -810,7 +812,8 @@ fun BookmarkListScreen(
                     BookmarkListBarActions(
                         isLabelMode = isLabelMode,
                         isCollectionMode = isCollectionMode,
-                        canSaveAsCollection = filterFormState.value.differsFromPreset(drawerPreset.value),
+                        canSaveAsCollection = !isCollectionMode &&
+                            filterFormState.value.differsFromPreset(drawerPreset.value),
                         layoutMode = layoutMode.value,
                         sortOption = sortOption.value,
                         onLayoutModeSelected = { viewModel.onLayoutModeSelected(it) },
