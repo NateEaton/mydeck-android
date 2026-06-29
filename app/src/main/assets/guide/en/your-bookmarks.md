@@ -209,7 +209,7 @@ Tap any collection card to open it. The list then shows that collection as its o
 
 **Layering filters on a collection.** While viewing a collection you can still apply additional filters (⋮ → Filter). Those extra criteria appear as chips on top of the collection; the app-bar title stays the collection's name, and the saved collection is unchanged until you explicitly save. Dismiss a chip (or tap **Reset** in the filter sheet) to return to just the collection's own criteria.
 
-**Editing, renaming, and deleting.** While a collection is active, the **⋮ overflow menu** offers **Edit collection** and **Delete collection**. Edit opens the editor pre-filled with the collection's criteria (plus any filter you've layered on) and its current name — change the name to rename it, adjust the criteria, and Save. Delete (from the overflow or the editor's Delete button) asks for confirmation before removing the collection.
+**Editing, renaming, and deleting.** While a collection is active, the **⋮ overflow menu** offers **Edit collection** and **Delete collection**. Edit opens the editor pre-filled with the collection's criteria (plus any filter you've layered on) and its current name — change the name to rename it, adjust the criteria, and Save. Delete (from the overflow or the editor's **Delete** button) removes the collection and shows a **"Collection deleted"** snackbar with **Undo** — the same as deleting a bookmark, the removal is held until the snackbar goes away, so tap Undo to keep it.
 
 Note: the **Downloaded** filter and the **Length** (reading time / word count) filters are specific to this device and aren't stored in collections, so they don't appear in the collection editor. They remain available in the normal list filter.
 

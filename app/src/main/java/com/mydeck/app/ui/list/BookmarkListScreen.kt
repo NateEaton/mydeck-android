@@ -193,7 +193,6 @@ fun BookmarkListScreen(
     var showRenameLabelDialog by remember { mutableStateOf(false) }
     var showDeleteLabelDialog by remember { mutableStateOf(false) }
     var showCollectionEditor by remember { mutableStateOf(false) }
-    var collectionPendingDelete by remember { mutableStateOf<Collection?>(null) }
     var scrollToTopTrigger by remember { mutableStateOf(0) }
 
     val scope = rememberCoroutineScope()
@@ -272,6 +271,24 @@ fun BookmarkListScreen(
                 viewModel.onCancelDeleteBookmark(bookmarkId)
             } else {
                 viewModel.onConfirmDeleteBookmark(bookmarkId)
+            }
+        }
+    }
+
+    fun stageCollectionDeleteWithSnackbar(collection: Collection) {
+        // Mirror bookmark delete: stage now (hide + leave the view), defer the actual delete until the
+        // Undo snackbar is dismissed by an interaction other than Undo.
+        viewModel.onStageDeleteCollection(collection.id)
+        scope.launch {
+            val result = snackbarHostState.showSnackbar(
+                message = context.getString(R.string.collection_deleted),
+                actionLabel = undoActionLabel,
+                duration = SnackbarDuration.Indefinite
+            )
+            if (result == androidx.compose.material3.SnackbarResult.ActionPerformed) {
+                viewModel.onCancelDeleteCollection(collection.id)
+            } else {
+                viewModel.onConfirmDeleteCollection(collection.id)
             }
         }
     }
@@ -444,6 +461,16 @@ fun BookmarkListScreen(
     // Constraint feedback snackbar (fires once after app-open sync if content sync is blocked)
     LaunchedEffect(Unit) {
         viewModel.constraintSnackbarEvent.collect { messageRes ->
+            snackbarHostState.showSnackbar(
+                message = context.getString(messageRes),
+                duration = SnackbarDuration.Short
+            )
+        }
+    }
+
+    // Collection create/update/delete/load failures (shared ViewModel; only the foreground screen collects)
+    LaunchedEffect(Unit) {
+        viewModel.collectionMessageEvent.collect { messageRes ->
             snackbarHostState.showSnackbar(
                 message = context.getString(messageRes),
                 duration = SnackbarDuration.Short
@@ -795,7 +822,9 @@ fun BookmarkListScreen(
                         onRequestDeleteLabel = { showDeleteLabelDialog = true },
                         onSaveAsCollection = { showCollectionEditor = true },
                         onEditCollection = { showCollectionEditor = true },
-                        onRequestDeleteCollection = { collectionPendingDelete = selectedCollection.value },
+                        onRequestDeleteCollection = {
+                            selectedCollection.value?.let { stageCollectionDeleteWithSnackbar(it) }
+                        },
                     )
                     }
                 }
@@ -1173,31 +1202,10 @@ fun BookmarkListScreen(
             onDelete = if (editing != null) {
                 {
                     showCollectionEditor = false
-                    collectionPendingDelete = editing
+                    stageCollectionDeleteWithSnackbar(editing)
                 }
             } else null,
             onDismiss = { showCollectionEditor = false },
-        )
-    }
-
-    collectionPendingDelete?.let { collection ->
-        AlertDialog(
-            onDismissRequest = { collectionPendingDelete = null },
-            title = { Text(stringResource(R.string.collection_delete_confirm_title)) },
-            text = { Text(stringResource(R.string.collection_delete_confirm_message, collection.name)) },
-            confirmButton = {
-                Button(onClick = {
-                    collectionPendingDelete = null
-                    viewModel.onDeleteCollection(collection.id)
-                }) {
-                    Text(stringResource(R.string.collection_delete_action))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { collectionPendingDelete = null }) {
-                    Text(stringResource(R.string.cancel))
-                }
-            }
         )
     }
 }

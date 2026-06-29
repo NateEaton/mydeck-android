@@ -22,6 +22,8 @@ import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.IconButton
@@ -35,6 +37,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -67,13 +70,24 @@ fun CollectionsScreen(
     viewModel: BookmarkListViewModel,
     showBackButton: Boolean = true,
 ) {
-    val collections by viewModel.collections.collectAsState()
+    val collections by viewModel.visibleCollections.collectAsState()
     val labels by viewModel.labelsWithCounts.collectAsState()
     var showEditor by remember { mutableStateOf(false) }
+    val snackbarHostState = remember { SnackbarHostState() }
+    val context = LocalContext.current
 
     LaunchedEffect(Unit) { viewModel.refreshCollections() }
 
+    // Collection failures (e.g. a create from the FAB that doesn't reach the server) surface here
+    // while the Collections screen is foreground; the ViewModel is shared with the bookmark list.
+    LaunchedEffect(Unit) {
+        viewModel.collectionMessageEvent.collect { messageRes ->
+            snackbarHostState.showSnackbar(context.getString(messageRes))
+        }
+    }
+
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.collections_screen_title)) },

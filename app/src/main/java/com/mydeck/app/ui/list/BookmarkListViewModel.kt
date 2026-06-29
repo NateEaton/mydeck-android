@@ -153,6 +153,11 @@ class BookmarkListViewModel @Inject constructor(
 
     private val _openUrlEvent = Channel<String>(Channel.BUFFERED)
     val openUrlEvent = _openUrlEvent.receiveAsFlow()
+
+    // One-shot user-facing messages for collection create/update/delete/load failures (string res).
+    // Collected by whichever Collections-related screen is foreground (they share this ViewModel).
+    private val _collectionMessageEvent = Channel<Int>(Channel.BUFFERED)
+    val collectionMessageEvent: Flow<Int> = _collectionMessageEvent.receiveAsFlow()
     private val _createBookmarkUiState = MutableStateFlow<CreateBookmarkUiState>(CreateBookmarkUiState.Closed)
     val createBookmarkUiState = _createBookmarkUiState.asStateFlow()
 
@@ -257,6 +262,14 @@ class BookmarkListViewModel @Inject constructor(
     val collections: StateFlow<List<Collection>> = collectionRepository
         .observeCollections()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    /** A collection staged for deletion (snackbar shown, actual delete deferred); hidden from lists. */
+    private val _pendingCollectionDeleteId = MutableStateFlow<String?>(null)
+
+    /** Collections to show in the Collections screen, excluding any staged-for-deletion entry. */
+    val visibleCollections: StateFlow<List<Collection>> = combine(collections, _pendingCollectionDeleteId) { list, pendingId ->
+        if (pendingId == null) list else list.filterNot { it.id == pendingId }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     /** The currently-active collection (its full model), or null when none is selected. */
     val selectedCollection: StateFlow<Collection?> = combine(collections, _selectedCollectionId) { list, id ->
@@ -480,7 +493,10 @@ class BookmarkListViewModel @Inject constructor(
     }
 
     fun refreshCollections() {
-        viewModelScope.launch { collectionRepository.refreshCollections() }
+        viewModelScope.launch {
+            collectionRepository.refreshCollections()
+                .onFailure { _collectionMessageEvent.trySend(R.string.collection_load_error) }
+        }
     }
 
     /**
@@ -498,7 +514,10 @@ class BookmarkListViewModel @Inject constructor(
                     _activeLabel.value = null
                     _navigationEvent.trySend(NavigationEvent.NavigateToBookmarkList)
                 }
-                .onFailure { Timber.e(it, "Failed to create collection") }
+                .onFailure {
+                    Timber.e(it, "Failed to create collection")
+                    _collectionMessageEvent.trySend(R.string.collection_save_error)
+                }
         }
     }
 
@@ -516,15 +535,42 @@ class BookmarkListViewModel @Inject constructor(
                         _filterFormState.value = collection.filter
                     }
                 }
-                .onFailure { Timber.e(it, "Failed to update collection") }
+                .onFailure {
+                    Timber.e(it, "Failed to update collection")
+                    _collectionMessageEvent.trySend(R.string.collection_update_error)
+                }
         }
     }
 
-    fun onDeleteCollection(id: String) {
+    /**
+     * Stages a collection for deletion: it's hidden from the lists and the active view leaves it, but
+     * the actual server delete is deferred until [onConfirmDeleteCollection] (mirrors bookmark delete,
+     * which holds until the Undo snackbar is dismissed). [onCancelDeleteCollection] restores it.
+     */
+    fun onStageDeleteCollection(id: String) {
+        _pendingCollectionDeleteId.value = id
+        if (_selectedCollectionId.value == id) onClearCollection()
+    }
+
+    /** Undo: un-stage the collection and restore it as the active view. */
+    fun onCancelDeleteCollection(id: String) {
+        if (_pendingCollectionDeleteId.value == id) {
+            _pendingCollectionDeleteId.value = null
+            onSelectCollection(id)
+        }
+    }
+
+    /** Commit the staged deletion (server DELETE + cache removal). On failure it reappears. */
+    fun onConfirmDeleteCollection(id: String) {
+        if (_pendingCollectionDeleteId.value != id) return
         viewModelScope.launch {
             collectionRepository.deleteCollection(id)
-                .onSuccess { if (_selectedCollectionId.value == id) onClearCollection() }
-                .onFailure { Timber.e(it, "Failed to delete collection") }
+                .onSuccess { _pendingCollectionDeleteId.value = null }
+                .onFailure {
+                    Timber.e(it, "Failed to delete collection")
+                    _pendingCollectionDeleteId.value = null
+                    _collectionMessageEvent.trySend(R.string.collection_delete_error)
+                }
         }
     }
 

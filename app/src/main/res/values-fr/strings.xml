@@ -419,8 +419,11 @@
     <string name="collection_save_as_action">Save as Collection</string>
     <string name="collection_edit_action">Edit collection</string>
     <string name="collection_delete_action">Delete collection</string>
-    <string name="collection_delete_confirm_title">Delete collection?</string>
-    <string name="collection_delete_confirm_message">\"%s\" will be permanently deleted.</string>
+    <string name="collection_deleted">Collection deleted</string>
+    <string name="collection_save_error">Failed to save collection</string>
+    <string name="collection_update_error">Failed to update collection</string>
+    <string name="collection_delete_error">Failed to delete collection</string>
+    <string name="collection_load_error">Failed to load collections</string>
     <string name="collections_empty_title">No collections yet</string>
     <string name="collections_empty_message">Save a filter as a collection to see it here.</string>
     <string name="highlights_title">Highlights</string>

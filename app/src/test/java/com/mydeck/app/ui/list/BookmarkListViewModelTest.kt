@@ -1508,7 +1508,25 @@ class BookmarkListViewModelTest {
     }
 
     @Test
-    fun `onDeleteCollection clears selection when deleting the active collection`() = runTest {
+    fun `onStageDeleteCollection hides it and leaves the active view without deleting yet`() = runTest {
+        val collection = sampleCollection()
+        collectionRepository.collectionsFlow.value = listOf(collection)
+        buildViewModelWithBookmarks()
+        backgroundScope.launch { viewModel.collections.collect {} }
+        backgroundScope.launch { viewModel.visibleCollections.collect {} }
+        advanceUntilIdle()
+        viewModel.onSelectCollection(collection.id)
+
+        viewModel.onStageDeleteCollection(collection.id)
+        advanceUntilIdle()
+
+        assertEquals(null, viewModel.selectedCollectionId.value)
+        assertEquals(emptyList<Collection>(), viewModel.visibleCollections.value)
+        assertEquals(null, collectionRepository.lastDeletedId) // not deleted until confirmed
+    }
+
+    @Test
+    fun `onConfirmDeleteCollection deletes via repository`() = runTest {
         val collection = sampleCollection()
         collectionRepository.collectionsFlow.value = listOf(collection)
         collectionRepository.deleteResult = Result.success(Unit)
@@ -1516,12 +1534,47 @@ class BookmarkListViewModelTest {
         backgroundScope.launch { viewModel.collections.collect {} }
         advanceUntilIdle()
         viewModel.onSelectCollection(collection.id)
+        viewModel.onStageDeleteCollection(collection.id)
 
-        viewModel.onDeleteCollection(collection.id)
+        viewModel.onConfirmDeleteCollection(collection.id)
         advanceUntilIdle()
 
-        assertEquals(null, viewModel.selectedCollectionId.value)
         assertEquals(collection.id, collectionRepository.lastDeletedId)
+    }
+
+    @Test
+    fun `onCancelDeleteCollection restores the staged collection as active`() = runTest {
+        val collection = sampleCollection()
+        collectionRepository.collectionsFlow.value = listOf(collection)
+        buildViewModelWithBookmarks()
+        backgroundScope.launch { viewModel.collections.collect {} }
+        backgroundScope.launch { viewModel.visibleCollections.collect {} }
+        advanceUntilIdle()
+        viewModel.onSelectCollection(collection.id)
+        viewModel.onStageDeleteCollection(collection.id)
+        advanceUntilIdle()
+
+        viewModel.onCancelDeleteCollection(collection.id)
+        advanceUntilIdle()
+
+        assertEquals(listOf(collection), viewModel.visibleCollections.value)
+        assertEquals(collection.id, viewModel.selectedCollectionId.value)
+        assertEquals(null, collectionRepository.lastDeletedId)
+    }
+
+    @Test
+    fun `onConfirmDeleteCollection emits an error message on failure`() = runTest {
+        val collection = sampleCollection()
+        collectionRepository.deleteResult = Result.failure(RuntimeException("boom"))
+        buildViewModelWithBookmarks()
+        viewModel.onStageDeleteCollection(collection.id)
+
+        viewModel.onConfirmDeleteCollection(collection.id)
+
+        assertEquals(
+            com.mydeck.app.R.string.collection_delete_error,
+            viewModel.collectionMessageEvent.first()
+        )
     }
 
     @Test
