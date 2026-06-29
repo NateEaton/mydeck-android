@@ -416,6 +416,11 @@
     <string name="collection_create_fab">New Collection</string>
     <string name="collection_name_hint">Collection name</string>
     <string name="collection_editor_save">Save</string>
+    <string name="collection_save_as_action">Save as Collection</string>
+    <string name="collection_edit_action">Edit collection</string>
+    <string name="collection_delete_action">Delete collection</string>
+    <string name="collection_delete_confirm_title">Delete collection?</string>
+    <string name="collection_delete_confirm_message">\"%s\" will be permanently deleted.</string>
     <string name="collections_empty_title">No collections yet</string>
     <string name="collections_empty_message">Save a filter as a collection to see it here.</string>
     <string name="highlights_title">Highlights</string>

@@ -205,6 +205,14 @@ To create one, tap the **New Collection** button. A sheet opens with the same fi
 
 Tap any collection card to open it. The list then shows that collection as its own view: the top bar displays the collection's name with a leading icon, and the collection's own criteria are not shown as filter chips — it reads like an ordinary list. To leave a collection, pick any other view (My List, Archive, a label, etc.) from the navigation drawer.
 
+**Saving the current filter as a collection.** When you've applied a filter to an ordinary list (so chips are showing), open the **⋮ overflow menu** and tap **Save as Collection**. The editor opens pre-filled with your current filter; name it and tap Save to keep it.
+
+**Layering filters on a collection.** While viewing a collection you can still apply additional filters (⋮ → Filter). Those extra criteria appear as chips on top of the collection; the app-bar title stays the collection's name, and the saved collection is unchanged until you explicitly save. Dismiss a chip (or tap **Reset** in the filter sheet) to return to just the collection's own criteria.
+
+**Editing, renaming, and deleting.** While a collection is active, the **⋮ overflow menu** offers **Edit collection** and **Delete collection**. Edit opens the editor pre-filled with the collection's criteria (plus any filter you've layered on) and its current name — change the name to rename it, adjust the criteria, and Save. Delete (from the overflow or the editor's Delete button) asks for confirmation before removing the collection.
+
+Note: the **Downloaded** filter and the **Length** (reading time / word count) filters are specific to this device and aren't stored in collections, so they don't appear in the collection editor. They remain available in the normal list filter.
+
 ## Selecting Multiple Bookmarks
 
 Open the **⋮ overflow menu** and tap **Select bookmarks** to enter selection mode. The top bar switches to an **✕** (exit), the number of selected bookmarks as the title, an **📦 Archive** and a **❤️ Favorite** action, and a **⋮ overflow**. Tap any card to select or deselect it — each card's action buttons become dimmed icons showing its current favorite and archive state, with a selection indicator on the right. Tap **✕** to exit and clear the selection.

@@ -483,14 +483,6 @@ class BookmarkListViewModel @Inject constructor(
         viewModelScope.launch { collectionRepository.refreshCollections() }
     }
 
-    fun onSaveCurrentFilterAsCollection(name: String) {
-        viewModelScope.launch {
-            collectionRepository.createCollection(name, _filterFormState.value)
-                .onSuccess { collection -> _selectedCollectionId.value = collection.id }
-                .onFailure { Timber.e(it, "Failed to save collection") }
-        }
-    }
-
     /**
      * Creates a collection from an explicit [filter] (the editor sheet's working copy) and, on
      * success, makes it the active view: selects it, applies its filter, and emits
@@ -510,10 +502,20 @@ class BookmarkListViewModel @Inject constructor(
         }
     }
 
-    fun onUpdateActiveCollection(newName: String) {
-        val id = _selectedCollectionId.value ?: return
+    /**
+     * Updates an existing collection's name and/or criteria from an explicit [filter] (the editor
+     * sheet's working copy — the collection's saved criteria plus any layered filter). Rename is
+     * supported via [name]. When the edited collection is the active view, its applied filter is
+     * refreshed to the saved (round-tripped) result so the list reflects what was persisted.
+     */
+    fun onUpdateCollection(id: String, name: String, filter: FilterFormState) {
         viewModelScope.launch {
-            collectionRepository.updateCollection(id, newName, _filterFormState.value)
+            collectionRepository.updateCollection(id, name, filter)
+                .onSuccess { collection ->
+                    if (_selectedCollectionId.value == id) {
+                        _filterFormState.value = collection.filter
+                    }
+                }
                 .onFailure { Timber.e(it, "Failed to update collection") }
         }
     }
@@ -596,7 +598,10 @@ class BookmarkListViewModel @Inject constructor(
 
     fun onResetFilter() {
         clearMultiSelectState()
-        _filterFormState.value = FilterFormState.fromPreset(_drawerPreset.value)
+        // While a collection is active, "reset" restores the collection's own criteria (clearing any
+        // layered filter); otherwise it restores the drawer preset's defaults.
+        _filterFormState.value = selectedCollection.value?.filter
+            ?: FilterFormState.fromPreset(_drawerPreset.value)
         _isFilterSheetOpen.value = false
     }
 

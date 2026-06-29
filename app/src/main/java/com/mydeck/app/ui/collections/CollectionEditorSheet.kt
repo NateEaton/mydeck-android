@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
@@ -24,6 +25,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -33,11 +35,12 @@ import com.mydeck.app.ui.components.FilterControls
 import com.mydeck.app.ui.components.rememberFilterEditorState
 
 /**
- * Unified collection editor: a name field on top of the shared [FilterControls]. In C2 this is used
- * only for creating a collection (FAB on the Collections screen). C3 extends it with edit/delete
- * modes and the main-list "Save as Collection" entry point.
+ * Unified collection editor: a name field on top of the shared [FilterControls]. Used for creating
+ * (FAB on the Collections screen, or main-list "Save as Collection") and editing a collection.
  *
- * Save is disabled until [title] (the name) is non-blank and the filter has no validation error.
+ * Entry points pass the appropriate [heading]/[initialName]/[initialFilter]. When [onDelete] is
+ * non-null (edit mode) a Delete action is shown alongside Save. Save is disabled until the name is
+ * non-blank and the filter has no validation error. Rename is supported via the name field.
  */
 // PORT: "MyDeck" brand never appears here; the editor reuses generic filter controls.
 @OptIn(ExperimentalMaterial3Api::class)
@@ -49,6 +52,7 @@ fun CollectionEditorSheet(
     labels: Map<String, Int>,
     onSave: (name: String, filter: FilterFormState) -> Unit,
     onDismiss: () -> Unit,
+    onDelete: (() -> Unit)? = null,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var name by remember(initialName) { mutableStateOf(initialName) }
@@ -92,7 +96,19 @@ fun CollectionEditorSheet(
 
             Spacer(Modifier.height(20.dp))
 
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                if (onDelete != null) {
+                    TextButton(
+                        onClick = onDelete,
+                        colors = ButtonDefaults.textButtonColors(
+                            contentColor = MaterialTheme.colorScheme.error
+                        ),
+                    ) { Text(stringResource(R.string.collection_delete_action)) }
+                }
+                Spacer(Modifier.weight(1f))
                 TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
                 Spacer(Modifier.width(8.dp))
                 Button(

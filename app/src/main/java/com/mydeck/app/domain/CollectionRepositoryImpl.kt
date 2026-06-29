@@ -4,13 +4,13 @@ import com.mydeck.app.coroutine.IoDispatcher
 import com.mydeck.app.domain.model.Collection
 import com.mydeck.app.domain.model.FilterFormState
 import com.mydeck.app.domain.model.toCreateCollectionDto
+import com.mydeck.app.domain.model.toUpdateCollectionJson
 import com.mydeck.app.domain.model.toDomain
 import com.mydeck.app.domain.model.toEntity
 import com.mydeck.app.io.db.MyDeckDatabase
 import com.mydeck.app.io.db.dao.CollectionDao
 import com.mydeck.app.io.db.model.CollectionEntity
 import com.mydeck.app.io.rest.ReadeckApi
-import com.mydeck.app.io.rest.model.UpdateCollectionDto
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
@@ -114,11 +114,20 @@ class CollectionRepositoryImpl @Inject constructor(
         filter: FilterFormState,
     ): Result<Collection> = withContext(dispatcher) {
         try {
-            val response = readeckApi.updateCollection(id, filter.toCreateCollectionDto(name))
-            val dto = response.body()
-            if (!response.isSuccessful || dto == null) {
+            // PATCH returns only a partial "updated fields" summary (no id/href/created), so we don't
+            // read its body; on success re-fetch the full object to cache (mirrors createCollection).
+            // The body sends explicit nulls (toUpdateCollectionJson) so cleared criteria are cleared.
+            val response = readeckApi.updateCollection(id, filter.toUpdateCollectionJson(name))
+            if (!response.isSuccessful) {
                 return@withContext Result.failure(
                     Exception("Failed to update collection $id: HTTP ${response.code()}")
+                )
+            }
+            val fetched = readeckApi.getCollectionById(id)
+            val dto = fetched.body()
+            if (!fetched.isSuccessful || dto == null) {
+                return@withContext Result.failure(
+                    Exception("Failed to load updated collection $id: HTTP ${fetched.code()}")
                 )
             }
             val entity = dto.toEntity()
@@ -134,17 +143,7 @@ class CollectionRepositoryImpl @Inject constructor(
 
     override suspend fun deleteCollection(id: String): Result<Unit> = withContext(dispatcher) {
         try {
-            // Soft delete: PATCH is_deleted=true. The PATCH body requires a name, so reuse the
-            // cached name (unchanged); the server has no DELETE endpoint for collections.
-            val name = collectionDao.getById(id)?.name
-                ?: readeckApi.getCollectionById(id).let { if (it.isSuccessful) it.body()?.name else null }
-                ?: return@withContext Result.failure(
-                    Exception("Cannot delete unknown collection $id")
-                )
-            val response = readeckApi.updateCollection(
-                id,
-                UpdateCollectionDto(name = name, isDeleted = true)
-            )
+            val response = readeckApi.deleteCollection(id)
             if (!response.isSuccessful) {
                 return@withContext Result.failure(
                     Exception("Failed to delete collection $id: HTTP ${response.code()}")

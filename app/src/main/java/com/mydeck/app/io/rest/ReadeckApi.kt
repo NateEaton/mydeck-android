@@ -6,7 +6,6 @@ import com.mydeck.app.io.rest.model.CollectionDto
 import com.mydeck.app.io.rest.model.CreateAnnotationDto
 import com.mydeck.app.io.rest.model.CreateBookmarkDto
 import com.mydeck.app.io.rest.model.CreateCollectionDto
-import com.mydeck.app.io.rest.model.UpdateCollectionDto
 import com.mydeck.app.io.rest.model.EditBookmarkDto
 import com.mydeck.app.io.rest.model.EditBookmarkErrorDto
 import com.mydeck.app.io.rest.model.EditBookmarkResponseDto
@@ -23,6 +22,7 @@ import com.mydeck.app.io.rest.model.StatusMessageDto
 import com.mydeck.app.io.rest.model.SyncStatusDto
 import com.mydeck.app.io.rest.model.UpdateAnnotationDto
 import com.mydeck.app.io.rest.model.UserProfileDto
+import kotlinx.serialization.json.JsonObject
 import kotlinx.datetime.Instant
 import okhttp3.ResponseBody
 import retrofit2.Response
@@ -159,12 +159,22 @@ interface ReadeckApi {
         @Body body: CreateCollectionDto
     ): Response<StatusMessageDto>
 
+    // Body is a JsonObject (not UpdateCollectionDto) so cleared filter fields can be sent as explicit
+    // nulls — the shared Json uses explicitNulls=false, which would drop them and leave PATCH a no-op
+    // for that field. See FilterFormState.toUpdateCollectionJson. PATCH returns 200 with a partial
+    // `collectionSummary` (no id/href/created), so the body is ignored (Response<Unit>) and the repo
+    // re-fetches the full object via getCollectionById to cache it.
     @Headers("Accept: application/json")
     @PATCH("bookmarks/collections/{id}")
     suspend fun updateCollection(
         @Path("id") id: String,
-        @Body body: UpdateCollectionDto
-    ): Response<CollectionDto>
+        @Body body: JsonObject
+    ): Response<Unit>
+
+    @DELETE("bookmarks/collections/{id}")
+    suspend fun deleteCollection(
+        @Path("id") id: String
+    ): Response<Unit>
 
     data class SortOrder(val sort: Sort, val order: Order = Order.Ascending) {
         override fun toString(): String {

@@ -3,6 +3,10 @@ package com.mydeck.app.domain.model
 import com.mydeck.app.io.db.model.CollectionEntity
 import com.mydeck.app.io.rest.model.CollectionDto
 import kotlinx.datetime.Instant
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.boolean
+import kotlinx.serialization.json.jsonPrimitive
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -125,6 +129,45 @@ class CollectionFilterAdapterTest {
         val dto = filter.toCreateCollectionDto("Local Only Test")
         // No crash; search should still round-trip
         assertEquals("hello", dto.search)
+    }
+
+    // --- toUpdateCollectionJson (PATCH body) ---
+
+    @Test
+    fun `toUpdateCollectionJson sends explicit nulls for cleared fields so PATCH clears them`() {
+        // An all-unset filter must still send every managed field as JSON null (not omit them),
+        // otherwise PATCH leaves the previous values in place.
+        val json = FilterFormState().toUpdateCollectionJson("My Collection")
+
+        assertEquals("My Collection", json["name"]?.jsonPrimitive?.content)
+        listOf(
+            "search", "title", "author", "site", "labels",
+            "is_marked", "is_archived", "has_errors", "has_labels",
+            "range_start", "range_end", "type", "read_status",
+        ).forEach { key ->
+            assertTrue("expected key '$key' present", json.containsKey(key))
+            assertTrue("expected '$key' to be JSON null", json[key] is JsonNull)
+        }
+        // is_pinned / is_deleted are deliberately omitted so editing doesn't disturb them.
+        assertNull(json["is_pinned"])
+        assertNull(json["is_deleted"])
+    }
+
+    @Test
+    fun `toUpdateCollectionJson encodes set fields with their values`() {
+        val json = FilterFormState(
+            author = "Ada",
+            withErrors = true,
+            withLabels = false,
+            isFavorite = true,
+            types = linkedSetOf(Bookmark.Type.Article),
+        ).toUpdateCollectionJson("C")
+
+        assertEquals("Ada", json["author"]?.jsonPrimitive?.content)
+        assertEquals(true, json["has_errors"]?.jsonPrimitive?.boolean)
+        assertEquals(false, json["has_labels"]?.jsonPrimitive?.boolean)
+        assertEquals(true, json["is_marked"]?.jsonPrimitive?.boolean)
+        assertEquals("article", (json["type"] as JsonArray)[0].jsonPrimitive.content)
     }
 
     // --- CollectionDto.toFilterFormState ---

@@ -7,11 +7,9 @@ import com.mydeck.app.io.db.dao.CollectionDao
 import com.mydeck.app.io.db.model.CollectionEntity
 import com.mydeck.app.io.rest.ReadeckApi
 import com.mydeck.app.io.rest.model.CollectionDto
-import com.mydeck.app.io.rest.model.CreateCollectionDto
 import com.mydeck.app.io.rest.model.StatusMessageDto
 import io.mockk.coEvery
 import io.mockk.mockk
-import io.mockk.slot
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
@@ -185,8 +183,10 @@ class CollectionRepositoryImplTest {
     // --- updateCollection ---
 
     @Test
-    fun `updateCollection success caches updated entity`() = runTest {
-        coEvery { readeckApi.updateCollection("c1", any()) } returns
+    fun `updateCollection success refetches full object and caches it`() = runTest {
+        // PATCH returns only a partial summary (Response<Unit>); the impl re-fetches by id to cache.
+        coEvery { readeckApi.updateCollection("c1", any()) } returns Response.success(Unit)
+        coEvery { readeckApi.getCollectionById("c1") } returns
             Response.success(dto(id = "c1", name = "Updated"))
 
         val result = impl.updateCollection("c1", "Updated", com.mydeck.app.domain.model.FilterFormState())
@@ -209,27 +209,25 @@ class CollectionRepositoryImplTest {
     // --- deleteCollection ---
 
     @Test
-    fun `deleteCollection soft deletes with correct name and removes from local cache`() = runTest {
+    fun `deleteCollection removes from local cache on success`() = runTest {
         collectionDao.upsertCollections(listOf(entity("c1", "Keeper")))
-        val bodySlot = slot<CreateCollectionDto>()
-        coEvery { readeckApi.updateCollection("c1", capture(bodySlot)) } returns
-            Response.success(dto(id = "c1", name = "Keeper", isDeleted = true))
+        coEvery { readeckApi.deleteCollection("c1") } returns Response.success(Unit)
 
         val result = impl.deleteCollection("c1")
 
         assertTrue(result.isSuccess)
-        assertTrue(bodySlot.captured.isDeleted == true)
-        assertEquals("Keeper", bodySlot.captured.name)
         assertNull(collectionDao.getById("c1"))
     }
 
     @Test
-    fun `deleteCollection unknown id with api 404 returns failure`() = runTest {
-        coEvery { readeckApi.getCollectionById("x") } returns
-            Response.error(404, "".toResponseBody(null))
+    fun `deleteCollection HTTP error returns failure and keeps local cache`() = runTest {
+        collectionDao.upsertCollections(listOf(entity("c1", "Keeper")))
+        coEvery { readeckApi.deleteCollection("c1") } returns
+            Response.error(500, "".toResponseBody(null))
 
-        val result = impl.deleteCollection("x")
+        val result = impl.deleteCollection("c1")
 
         assertTrue(result.isFailure)
+        assertNotNull(collectionDao.getById("c1"))
     }
 }

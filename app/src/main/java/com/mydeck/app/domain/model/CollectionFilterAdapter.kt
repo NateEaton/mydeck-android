@@ -4,6 +4,12 @@ import com.mydeck.app.io.db.model.CollectionEntity
 import com.mydeck.app.io.rest.model.CollectionDto
 import com.mydeck.app.io.rest.model.CreateCollectionDto
 import kotlinx.datetime.Instant
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 import timber.log.Timber
 
 /**
@@ -109,6 +115,30 @@ fun FilterFormState.toCreateCollectionDto(
     rangeStart = fromDate?.toString(),
     rangeEnd = toDate?.toString(),
 )
+
+/**
+ * Builds the PATCH (update) body for a collection. Unlike create, this serialises every managed
+ * filter field **explicitly, including nulls**, so clearing a criterion is sent as `null` and the
+ * server actually clears it. (The shared Json uses `explicitNulls = false`, which would otherwise
+ * omit cleared fields and PATCH would leave them unchanged.) `is_pinned` / `is_deleted` are
+ * deliberately omitted so editing a collection never disturbs its pin/deletion state.
+ */
+fun FilterFormState.toUpdateCollectionJson(name: String): JsonObject = buildJsonObject {
+    put("name", name)
+    put("search", search)
+    put("title", title)
+    put("author", author)
+    put("site", site)
+    put("labels", label)
+    put("is_marked", isFavorite)
+    put("is_archived", isArchived)
+    put("has_errors", withErrors)
+    put("has_labels", withLabels)
+    put("range_start", fromDate?.toString())
+    put("range_end", toDate?.toString())
+    put("type", if (types.isEmpty()) JsonNull else JsonArray(types.map { JsonPrimitive(it.toWire()) }))
+    put("read_status", if (progress.isEmpty()) JsonNull else JsonArray(progress.map { JsonPrimitive(it.toWire()) }))
+}
 
 // --- DTO -> FilterFormState ---
 

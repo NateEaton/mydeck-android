@@ -16,7 +16,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.mydeck.app.R
 import com.mydeck.app.domain.model.Bookmark
-import com.mydeck.app.domain.model.DrawerPreset
 import com.mydeck.app.domain.model.FilterFormState
 import com.mydeck.app.domain.model.ProgressFilter
 import kotlinx.datetime.TimeZone
@@ -26,73 +25,74 @@ import java.util.Date
 import java.util.Locale
 
 /**
- * A horizontal row of InputChip elements summarising the active filters that differ from
- * the current drawer preset defaults.  Each chip has a trailing ✕ to dismiss that specific
- * filter.  Tapping anywhere on the bar (not on a chip) opens the filter bottom sheet.
+ * A horizontal row of InputChip elements summarising the active filters that differ from a
+ * [baseline] filter.  Each chip has a trailing ✕ to dismiss that specific filter (reverting that
+ * field to the baseline value).  Tapping anywhere on the bar (not on a chip) opens the filter sheet.
  *
- * The bar is only rendered when at least one chip is visible (i.e. when the current
- * filter state differs from the preset default in a user-visible way).
+ * The [baseline] is the drawer preset's defaults for an ordinary list, or the active collection's
+ * own criteria when a collection is selected — so collection chips show only the filters layered on
+ * top of the collection, not the collection's own criteria.
+ *
+ * The bar is only rendered when at least one chip is visible (i.e. the current filter differs from
+ * the baseline in a user-visible way).
  */
 @Composable
 fun FilterBar(
     filterFormState: FilterFormState,
-    drawerPreset: DrawerPreset,
+    baseline: FilterFormState,
     onFilterChanged: (FilterFormState) -> Unit,
     onOpenFilterSheet: () -> Unit,
 ) {
-    // Compute which chips to show by comparing against the preset defaults.
-    val preset = remember(drawerPreset) { FilterFormState.fromPreset(drawerPreset) }
-
     data class Chip(val label: String, val onDismiss: () -> Unit)
 
     val dateFormatter = remember { SimpleDateFormat("MMM d, yyyy", Locale.getDefault()) }
 
     val chips = buildList<Chip> {
-        filterFormState.search?.let { v ->
-            add(Chip("${stringResource(R.string.filter_search)}: $v") {
-                onFilterChanged(filterFormState.copy(search = null))
+        if (filterFormState.search != null && filterFormState.search != baseline.search) {
+            add(Chip("${stringResource(R.string.filter_search)}: ${filterFormState.search}") {
+                onFilterChanged(filterFormState.copy(search = baseline.search))
             })
         }
-        filterFormState.title?.let { v ->
-            add(Chip("${stringResource(R.string.filter_title)}: $v") {
-                onFilterChanged(filterFormState.copy(title = null))
+        if (filterFormState.title != null && filterFormState.title != baseline.title) {
+            add(Chip("${stringResource(R.string.filter_title)}: ${filterFormState.title}") {
+                onFilterChanged(filterFormState.copy(title = baseline.title))
             })
         }
-        filterFormState.author?.let { v ->
-            add(Chip("${stringResource(R.string.filter_author)}: $v") {
-                onFilterChanged(filterFormState.copy(author = null))
+        if (filterFormState.author != null && filterFormState.author != baseline.author) {
+            add(Chip("${stringResource(R.string.filter_author)}: ${filterFormState.author}") {
+                onFilterChanged(filterFormState.copy(author = baseline.author))
             })
         }
-        filterFormState.site?.let { v ->
-            add(Chip("${stringResource(R.string.filter_site)}: $v") {
-                onFilterChanged(filterFormState.copy(site = null))
+        if (filterFormState.site != null && filterFormState.site != baseline.site) {
+            add(Chip("${stringResource(R.string.filter_site)}: ${filterFormState.site}") {
+                onFilterChanged(filterFormState.copy(site = baseline.site))
             })
         }
-        filterFormState.label?.let { v ->
-            add(Chip("${stringResource(R.string.filter_label)}: $v") {
-                onFilterChanged(filterFormState.copy(label = null))
+        if (filterFormState.label != null && filterFormState.label != baseline.label) {
+            add(Chip("${stringResource(R.string.filter_label)}: ${filterFormState.label}") {
+                onFilterChanged(filterFormState.copy(label = baseline.label))
             })
         }
-        filterFormState.fromDate?.let { v ->
-            val formatted = dateFormatter.format(Date(v.toEpochMilliseconds()))
+        if (filterFormState.fromDate != null && filterFormState.fromDate != baseline.fromDate) {
+            val formatted = dateFormatter.format(Date(filterFormState.fromDate.toEpochMilliseconds()))
             add(Chip("${stringResource(R.string.filter_from_date)}: $formatted") {
-                onFilterChanged(filterFormState.copy(fromDate = null))
+                onFilterChanged(filterFormState.copy(fromDate = baseline.fromDate))
             })
         }
-        filterFormState.toDate?.let { v ->
-            val formatted = dateFormatter.format(Date(v.toEpochMilliseconds()))
+        if (filterFormState.toDate != null && filterFormState.toDate != baseline.toDate) {
+            val formatted = dateFormatter.format(Date(filterFormState.toDate.toEpochMilliseconds()))
             add(Chip("${stringResource(R.string.filter_to_date)}: $formatted") {
-                onFilterChanged(filterFormState.copy(toDate = null))
+                onFilterChanged(filterFormState.copy(toDate = baseline.toDate))
             })
         }
-        // Type chips: show synthetic "Any" chip when preset types were cleared,
-        // otherwise show each type that was added beyond the preset.
-        if (filterFormState.types.isEmpty() && preset.types.isNotEmpty()) {
+        // Type chips: show synthetic "Any" chip when the baseline's types were cleared,
+        // otherwise show each type that was added beyond the baseline.
+        if (filterFormState.types.isEmpty() && baseline.types.isNotEmpty()) {
             add(Chip("${stringResource(R.string.filter_type)}: ${stringResource(R.string.filter_type_any)}") {
-                onFilterChanged(filterFormState.copy(types = preset.types))
+                onFilterChanged(filterFormState.copy(types = baseline.types))
             })
         } else {
-            val addedTypes = filterFormState.types - preset.types
+            val addedTypes = filterFormState.types - baseline.types
             addedTypes.forEach { type ->
                 val typeName = when (type) {
                     Bookmark.Type.Article -> stringResource(R.string.filter_type_article)
@@ -104,8 +104,8 @@ fun FilterBar(
                 })
             }
         }
-        // Progress chips
-        filterFormState.progress.forEach { pf ->
+        // Progress chips: each status added beyond the baseline.
+        (filterFormState.progress - baseline.progress).forEach { pf ->
             val pfName = when (pf) {
                 ProgressFilter.UNVIEWED -> stringResource(R.string.progress_unviewed)
                 ProgressFilter.IN_PROGRESS -> stringResource(R.string.progress_in_progress)
@@ -116,49 +116,49 @@ fun FilterBar(
             })
         }
         // isFavorite — show explicit chip when non-null and differs, or synthetic N/A chip
-        // when null and preset is non-null (broadened scope).
-        if (filterFormState.isFavorite != preset.isFavorite) {
+        // when null and the baseline is non-null (broadened scope).
+        if (filterFormState.isFavorite != baseline.isFavorite) {
             if (filterFormState.isFavorite != null) {
                 val yesNo = if (filterFormState.isFavorite) stringResource(R.string.tri_state_yes) else stringResource(R.string.tri_state_no)
                 add(Chip("${stringResource(R.string.filter_is_favorite)}: $yesNo") {
-                    onFilterChanged(filterFormState.copy(isFavorite = preset.isFavorite))
+                    onFilterChanged(filterFormState.copy(isFavorite = baseline.isFavorite))
                 })
-            } else if (preset.isFavorite != null) {
+            } else if (baseline.isFavorite != null) {
                 add(Chip("${stringResource(R.string.filter_is_favorite)}: ${stringResource(R.string.tri_state_any)}") {
-                    onFilterChanged(filterFormState.copy(isFavorite = preset.isFavorite))
+                    onFilterChanged(filterFormState.copy(isFavorite = baseline.isFavorite))
                 })
             }
         }
         // isArchived — show explicit chip when non-null and differs, or synthetic N/A chip
-        // when null and preset is non-null (broadened scope).
-        if (filterFormState.isArchived != preset.isArchived) {
+        // when null and the baseline is non-null (broadened scope).
+        if (filterFormState.isArchived != baseline.isArchived) {
             if (filterFormState.isArchived != null) {
                 val yesNo = if (filterFormState.isArchived) stringResource(R.string.tri_state_yes) else stringResource(R.string.tri_state_no)
                 add(Chip("${stringResource(R.string.filter_is_archived)}: $yesNo") {
-                    onFilterChanged(filterFormState.copy(isArchived = preset.isArchived))
+                    onFilterChanged(filterFormState.copy(isArchived = baseline.isArchived))
                 })
-            } else if (preset.isArchived != null) {
+            } else if (baseline.isArchived != null) {
                 add(Chip("${stringResource(R.string.filter_is_archived)}: ${stringResource(R.string.tri_state_any)}") {
-                    onFilterChanged(filterFormState.copy(isArchived = preset.isArchived))
+                    onFilterChanged(filterFormState.copy(isArchived = baseline.isArchived))
                 })
             }
         }
-        filterFormState.isLoaded?.let { v ->
-            val yesNo = if (v) stringResource(R.string.tri_state_yes) else stringResource(R.string.tri_state_no)
+        if (filterFormState.isLoaded != null && filterFormState.isLoaded != baseline.isLoaded) {
+            val yesNo = if (filterFormState.isLoaded) stringResource(R.string.tri_state_yes) else stringResource(R.string.tri_state_no)
             add(Chip("${stringResource(R.string.filter_is_loaded)}: $yesNo") {
-                onFilterChanged(filterFormState.copy(isLoaded = null))
+                onFilterChanged(filterFormState.copy(isLoaded = baseline.isLoaded))
             })
         }
-        filterFormState.withLabels?.let { v ->
-            val yesNo = if (v) stringResource(R.string.tri_state_yes) else stringResource(R.string.tri_state_no)
+        if (filterFormState.withLabels != null && filterFormState.withLabels != baseline.withLabels) {
+            val yesNo = if (filterFormState.withLabels) stringResource(R.string.tri_state_yes) else stringResource(R.string.tri_state_no)
             add(Chip("${stringResource(R.string.filter_with_labels)}: $yesNo") {
-                onFilterChanged(filterFormState.copy(withLabels = null))
+                onFilterChanged(filterFormState.copy(withLabels = baseline.withLabels))
             })
         }
-        filterFormState.withErrors?.let { v ->
-            val yesNo = if (v) stringResource(R.string.tri_state_yes) else stringResource(R.string.tri_state_no)
+        if (filterFormState.withErrors != null && filterFormState.withErrors != baseline.withErrors) {
+            val yesNo = if (filterFormState.withErrors) stringResource(R.string.tri_state_yes) else stringResource(R.string.tri_state_no)
             add(Chip("${stringResource(R.string.filter_with_errors)}: $yesNo") {
-                onFilterChanged(filterFormState.copy(withErrors = null))
+                onFilterChanged(filterFormState.copy(withErrors = baseline.withErrors))
             })
         }
         val unknownLabel = stringResource(R.string.filter_length_unknown)

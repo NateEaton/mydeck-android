@@ -1508,30 +1508,6 @@ class BookmarkListViewModelTest {
     }
 
     @Test
-    fun `onSaveCurrentFilterAsCollection selects the created collection on success`() = runTest {
-        val created = sampleCollection(id = "new-id")
-        collectionRepository.createResult = Result.success(created)
-        buildViewModelWithBookmarks()
-
-        viewModel.onSaveCurrentFilterAsCollection("My collection")
-        advanceUntilIdle()
-
-        assertEquals("new-id", viewModel.selectedCollectionId.value)
-        assertEquals("My collection", collectionRepository.lastCreateName)
-    }
-
-    @Test
-    fun `onSaveCurrentFilterAsCollection does not select on failure`() = runTest {
-        collectionRepository.createResult = Result.failure(RuntimeException("boom"))
-        buildViewModelWithBookmarks()
-
-        viewModel.onSaveCurrentFilterAsCollection("My collection")
-        advanceUntilIdle()
-
-        assertEquals(null, viewModel.selectedCollectionId.value)
-    }
-
-    @Test
     fun `onDeleteCollection clears selection when deleting the active collection`() = runTest {
         val collection = sampleCollection()
         collectionRepository.collectionsFlow.value = listOf(collection)
@@ -1549,29 +1525,46 @@ class BookmarkListViewModelTest {
     }
 
     @Test
-    fun `onUpdateActiveCollection updates the active collection with current filter`() = runTest {
+    fun `onUpdateCollection persists explicit name and filter and refreshes the active filter`() = runTest {
         val collection = sampleCollection()
+        val savedFilter = FilterFormState(author = "Grace")
+        val saved = sampleCollection(name = "Renamed", filter = savedFilter)
         collectionRepository.collectionsFlow.value = listOf(collection)
-        collectionRepository.updateResult = Result.success(collection)
+        collectionRepository.updateResult = Result.success(saved)
         buildViewModelWithBookmarks()
         backgroundScope.launch { viewModel.collections.collect {} }
+        backgroundScope.launch { viewModel.selectedCollection.collect {} }
         advanceUntilIdle()
         viewModel.onSelectCollection(collection.id)
 
-        viewModel.onUpdateActiveCollection("Renamed")
+        val editedFilter = FilterFormState(author = "Grace")
+        viewModel.onUpdateCollection(collection.id, "Renamed", editedFilter)
         advanceUntilIdle()
 
         assertEquals(collection.id, collectionRepository.lastUpdatedId)
+        assertEquals("Renamed", collectionRepository.lastUpdateName)
+        assertEquals(editedFilter, collectionRepository.lastUpdateFilter)
+        // Active collection's applied filter is refreshed to the persisted (round-tripped) result.
+        assertEquals(savedFilter, viewModel.filterFormState.value)
     }
 
     @Test
-    fun `onUpdateActiveCollection is a no-op when no collection is active`() = runTest {
+    fun `onUpdateCollection does not change the visible filter for a non-active collection`() = runTest {
+        val active = sampleCollection(id = "active", filter = FilterFormState(site = "a.com"))
+        val other = sampleCollection(id = "other")
+        collectionRepository.collectionsFlow.value = listOf(active, other)
+        collectionRepository.updateResult = Result.success(other)
         buildViewModelWithBookmarks()
+        backgroundScope.launch { viewModel.collections.collect {} }
+        advanceUntilIdle()
+        viewModel.onSelectCollection(active.id)
+        val applied = viewModel.filterFormState.value
 
-        viewModel.onUpdateActiveCollection("Renamed")
+        viewModel.onUpdateCollection(other.id, "Other renamed", FilterFormState(title = "x"))
         advanceUntilIdle()
 
-        assertEquals(null, collectionRepository.lastUpdatedId)
+        assertEquals("other", collectionRepository.lastUpdatedId)
+        assertEquals(applied, viewModel.filterFormState.value)
     }
 
     @Test
@@ -2725,6 +2718,8 @@ private class FakeCollectionRepository : CollectionRepository {
     var lastCreateName: String? = null
     var lastCreateFilter: FilterFormState? = null
     var lastUpdatedId: String? = null
+    var lastUpdateName: String? = null
+    var lastUpdateFilter: FilterFormState? = null
     var lastDeletedId: String? = null
 
     override fun observeCollections() = collectionsFlow
@@ -2739,6 +2734,8 @@ private class FakeCollectionRepository : CollectionRepository {
 
     override suspend fun updateCollection(id: String, name: String, filter: FilterFormState): Result<Collection> {
         lastUpdatedId = id
+        lastUpdateName = name
+        lastUpdateFilter = filter
         return updateResult
     }
 
