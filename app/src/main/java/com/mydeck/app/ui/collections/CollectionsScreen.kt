@@ -15,8 +15,13 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ArrowDownward
+import androidx.compose.material.icons.filled.ArrowUpward
+import androidx.compose.material.icons.filled.SwapVert
 import androidx.compose.material.icons.outlined.Bookmarks
 import androidx.compose.material3.Card
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
@@ -39,8 +44,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.mydeck.app.domain.model.CollectionSortOption
 import androidx.navigation.NavHostController
 import com.mydeck.app.R
 import com.mydeck.app.domain.model.Collection
@@ -72,7 +79,9 @@ fun CollectionsScreen(
 ) {
     val collections by viewModel.visibleCollections.collectAsState()
     val labels by viewModel.labelsWithCounts.collectAsState()
+    val sortOption by viewModel.collectionSortOption.collectAsState()
     var showEditor by remember { mutableStateOf(false) }
+    var showSortMenu by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
 
@@ -98,6 +107,56 @@ fun CollectionsScreen(
                                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                                 contentDescription = stringResource(R.string.back)
                             )
+                        }
+                    }
+                },
+                actions = {
+                    Box {
+                        IconButton(onClick = { showSortMenu = true }) {
+                            Icon(Icons.Filled.SwapVert, contentDescription = stringResource(R.string.sort))
+                        }
+                        DropdownMenu(
+                            expanded = showSortMenu,
+                            onDismissRequest = { showSortMenu = false }
+                        ) {
+                            val sortGroups = listOf(
+                                Triple("Added", CollectionSortOption.DATE_NEWEST, CollectionSortOption.DATE_OLDEST),
+                                Triple("Name", CollectionSortOption.NAME_A_TO_Z, CollectionSortOption.NAME_Z_TO_A),
+                            )
+                            sortGroups.forEach { (label, firstOption, secondOption) ->
+                                val isFirstSelected = sortOption == firstOption
+                                val isSecondSelected = sortOption == secondOption
+                                val isGroupSelected = isFirstSelected || isSecondSelected
+                                DropdownMenuItem(
+                                    leadingIcon = {
+                                        if (isGroupSelected) {
+                                            Icon(
+                                                imageVector = if (sortOption.isDescending) Icons.Filled.ArrowDownward else Icons.Filled.ArrowUpward,
+                                                contentDescription = null,
+                                                tint = MaterialTheme.colorScheme.primary,
+                                            )
+                                        } else {
+                                            Spacer(Modifier.size(24.dp))
+                                        }
+                                    },
+                                    text = {
+                                        Text(
+                                            text = label,
+                                            color = if (isGroupSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                                            fontWeight = if (isGroupSelected) FontWeight.Bold else FontWeight.Normal,
+                                        )
+                                    },
+                                    onClick = {
+                                        val newOption = when {
+                                            isFirstSelected -> secondOption
+                                            isSecondSelected -> firstOption
+                                            else -> firstOption
+                                        }
+                                        viewModel.onCollectionSortSelected(newOption)
+                                        showSortMenu = false
+                                    }
+                                )
+                            }
                         }
                     }
                 },

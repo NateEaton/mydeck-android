@@ -37,6 +37,7 @@ fun AppNavigationRailContent(
     onClickHighlights: () -> Unit,
     onClickCollections: () -> Unit,
     isCollectionsScreen: Boolean = false,
+    collectionCount: Int = 0,
     onClickSettings: () -> Unit,
     onClickUserGuide: () -> Unit,
     onClickAbout: () -> Unit,

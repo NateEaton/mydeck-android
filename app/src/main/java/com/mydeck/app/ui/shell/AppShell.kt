@@ -96,6 +96,7 @@ fun AppShell(
     val activeLabel = bookmarkListViewModel.activeLabel.collectAsState()
     val bookmarkCounts = bookmarkListViewModel.bookmarkCounts.collectAsState()
     val labelsWithCounts = bookmarkListViewModel.labelsWithCounts.collectAsState()
+    val collectionCount = bookmarkListViewModel.visibleCollections.collectAsState()
     val isOnline = bookmarkListViewModel.isOnline.collectAsState()
 
     val windowSizeClass = currentWindowAdaptiveInfo().windowSizeClass
@@ -141,6 +142,7 @@ fun AppShell(
             labelsWithCounts = labelsWithCounts.value,
             isOnline = isOnline.value,
             isCollectionsScreen = isCollectionsScreen,
+            collectionCount = collectionCount.value.size,
         )
         } // end CompactAppShell CompositionLocalProvider
         "expanded" -> CompositionLocalProvider(LocalReaderMaxWidth provides Dimens.ReaderMaxWidthExpanded) {
@@ -155,6 +157,7 @@ fun AppShell(
             isOnline = isOnline.value,
             hideNavigation = hideNavigation,
             isCollectionsScreen = isCollectionsScreen,
+            collectionCount = collectionCount.value.size,
         )
         } // end ExpandedAppShell CompositionLocalProvider
         else -> CompositionLocalProvider(LocalReaderMaxWidth provides Dimens.ReaderMaxWidthMedium) {
@@ -167,6 +170,7 @@ fun AppShell(
             bookmarkCounts = bookmarkCounts.value,
             hideNavigation = hideNavigation,
             isCollectionsScreen = isCollectionsScreen,
+            collectionCount = collectionCount.value.size,
         )
         } // end MediumAppShell CompositionLocalProvider
     }
@@ -184,6 +188,7 @@ private fun CompactAppShell(
     labelsWithCounts: Map<String, Int>,
     isOnline: Boolean,
     isCollectionsScreen: Boolean,
+    collectionCount: Int,
 ) {
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
@@ -292,6 +297,7 @@ private fun CompactAppShell(
                     scope.launch { drawerState.close() }
                 },
                 isCollectionsScreen = isCollectionsScreen,
+                collectionCount = collectionCount,
             )
         }
     ) {
@@ -408,6 +414,7 @@ private fun MediumAppShell(
     bookmarkCounts: com.mydeck.app.domain.model.BookmarkCounts,
     hideNavigation: Boolean,
     isCollectionsScreen: Boolean,
+    collectionCount: Int,
 ) {
     LaunchedEffect(Unit) {
         bookmarkListViewModel.navigationEvent.collectLatest { event ->
@@ -483,6 +490,7 @@ private fun MediumAppShell(
                     onClickHighlights = { navController.navigate(HighlightsRoute) { launchSingleTop = true } },
                     onClickCollections = { navController.navigate(CollectionsRoute) { launchSingleTop = true } },
                     isCollectionsScreen = isCollectionsScreen,
+                    collectionCount = collectionCount,
                     onClickSettings = { bookmarkListViewModel.onClickSettings() },
                     onClickUserGuide = { bookmarkListViewModel.onClickUserGuide() },
                     onClickAbout = { bookmarkListViewModel.onClickAbout() },
@@ -630,6 +638,7 @@ private fun ExpandedAppShell(
     isOnline: Boolean,
     hideNavigation: Boolean,
     isCollectionsScreen: Boolean,
+    collectionCount: Int,
 ) {
     LaunchedEffect(Unit) {
         bookmarkListViewModel.navigationEvent.collectLatest { event ->
@@ -705,6 +714,7 @@ private fun ExpandedAppShell(
                 onClickUserGuide = { bookmarkListViewModel.onClickUserGuide() },
                 onClickAbout = { bookmarkListViewModel.onClickAbout() },
                 isCollectionsScreen = isCollectionsScreen,
+                collectionCount = collectionCount,
             )
         }
 

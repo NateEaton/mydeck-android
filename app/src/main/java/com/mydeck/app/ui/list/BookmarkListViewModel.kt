@@ -22,6 +22,7 @@ import com.mydeck.app.domain.model.DrawerPreset
 import com.mydeck.app.domain.model.OpenWebPagesIn
 import com.mydeck.app.domain.CollectionRepository
 import com.mydeck.app.domain.model.Collection
+import com.mydeck.app.domain.model.CollectionSortOption
 import com.mydeck.app.domain.model.FilterFormState
 import com.mydeck.app.domain.model.LayoutMode
 import com.mydeck.app.domain.model.SortOption
@@ -266,9 +267,17 @@ class BookmarkListViewModel @Inject constructor(
     /** A collection staged for deletion (snackbar shown, actual delete deferred); hidden from lists. */
     private val _pendingCollectionDeleteId = MutableStateFlow<String?>(null)
 
-    /** Collections to show in the Collections screen, excluding any staged-for-deletion entry. */
-    val visibleCollections: StateFlow<List<Collection>> = combine(collections, _pendingCollectionDeleteId) { list, pendingId ->
-        if (pendingId == null) list else list.filterNot { it.id == pendingId }
+    private val _collectionSortOption = MutableStateFlow(CollectionSortOption.DATE_NEWEST)
+    val collectionSortOption: StateFlow<CollectionSortOption> = _collectionSortOption.asStateFlow()
+
+    fun onCollectionSortSelected(option: CollectionSortOption) {
+        _collectionSortOption.value = option
+    }
+
+    /** Collections to show in the Collections screen, excluding any staged-for-deletion entry, sorted per user preference. */
+    val visibleCollections: StateFlow<List<Collection>> = combine(collections, _pendingCollectionDeleteId, _collectionSortOption) { list, pendingId, sortOption ->
+        val filtered = if (pendingId == null) list else list.filterNot { it.id == pendingId }
+        filtered.sortedWith(sortOption.comparator)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     /** The currently-active collection (its full model), or null when none is selected. */

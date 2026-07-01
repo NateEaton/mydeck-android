@@ -63,6 +63,7 @@ fun AppDrawerContent(
     onClickUserGuide: () -> Unit,
     onClickAbout: () -> Unit,
     isCollectionsScreen: Boolean = false,
+    collectionCount: Int = 0,
     usePermanentSheet: Boolean = false,
 ) {
     val isLabelMode = activeLabel != null
@@ -86,6 +87,7 @@ fun AppDrawerContent(
                 onClickHighlights = onClickHighlights,
                 onClickCollections = onClickCollections,
                 isCollectionsScreen = isCollectionsScreen,
+                collectionCount = collectionCount,
                 onClickSettings = onClickSettings,
                 onClickUserGuide = onClickUserGuide,
                 onClickAbout = onClickAbout,
@@ -112,6 +114,7 @@ fun AppDrawerContent(
                 onClickHighlights = onClickHighlights,
                 onClickCollections = onClickCollections,
                 isCollectionsScreen = isCollectionsScreen,
+                collectionCount = collectionCount,
                 onClickSettings = onClickSettings,
                 onClickUserGuide = onClickUserGuide,
                 onClickAbout = onClickAbout,
@@ -138,6 +141,7 @@ private fun DrawerColumnContent(
     onClickHighlights: () -> Unit,
     onClickCollections: () -> Unit,
     isCollectionsScreen: Boolean,
+    collectionCount: Int = 0,
     onClickSettings: () -> Unit,
     onClickUserGuide: () -> Unit,
     onClickAbout: () -> Unit,
@@ -373,6 +377,13 @@ private fun DrawerColumnContent(
                 )
             },
             icon = { Icon(CollectionIcon, contentDescription = null) },
+            badge = {
+                if (collectionCount > 0) {
+                    Badge(containerColor = MaterialTheme.colorScheme.secondaryContainer) {
+                        Text(text = collectionCount.toString())
+                    }
+                }
+            },
             selected = isCollectionsScreen,
             colors = prominentItemColors,
             onClick = onClickCollections,
