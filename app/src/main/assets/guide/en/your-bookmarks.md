@@ -13,9 +13,10 @@ Tap the **menu icon** (☰) in the top-left corner to open the navigation drawer
 - **Videos** — video-type bookmarks only
 - **Pictures** — picture-type bookmarks only
 - **Labels** — open the label sheet; tap a label to see all bookmarks with that label
-- **Highlights** — a global index of all highlights saved across all your bookmarks. Pull down on the list to refresh highlights immediately. If a sync fails partway through, MyDeck shows a banner indicating highlights may be incomplete — pull to refresh to retry.
+- **Highlights** — a global index of all highlights saved across all your bookmarks
+- **Collections** — your saved filter views; tap one to open it as the active list
 
-Each item shows a count of how many bookmarks it contains.
+Most items show a count of how many bookmarks they contain; Collections shows how many collections you've saved.
 Tap outside the drawer or swipe it closed to dismiss it without changing sections.
 
 The top bar shows the **☰ menu**, the current section title, a **layout icon**, a **sort icon**, and a **⋮ overflow menu**. The overflow holds **Filter** and **Select bookmarks**. (When you're viewing a single label, the overflow instead offers **Rename label**, **Delete label**, and **Select bookmarks**.)

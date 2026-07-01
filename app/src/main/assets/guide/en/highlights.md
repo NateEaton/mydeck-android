@@ -42,7 +42,9 @@ Tap the **sort icon** (↕) in the top bar to toggle between newest-first and ol
 
 ## Sync and Refresh
 
-MyDeck keeps your highlights in sync with your Readeck server. 
+MyDeck keeps your highlights in sync with your Readeck server.
+- Pull down on the list to refresh highlights immediately.
 - A **progress bar** at the top shows when a refresh is in progress.
 - If a refresh fails, saved highlights remain visible and a **Retry** button appears.
+- If a background sync fails partway through, a banner indicates highlights may be incomplete — pull to refresh to retry.
 - When you reopen downloaded content while online, MyDeck checks whether the server-side highlights have changed and refreshes the content if needed.
