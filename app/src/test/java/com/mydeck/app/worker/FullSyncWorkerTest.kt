@@ -6,6 +6,7 @@ import androidx.work.ListenableWorker
 import androidx.work.WorkerParameters
 import com.mydeck.app.domain.BookmarkAnnotationSyncReason
 import com.mydeck.app.domain.BookmarkRepository
+import com.mydeck.app.domain.CollectionRepository
 import com.mydeck.app.domain.HighlightsRefreshReason
 import com.mydeck.app.domain.HighlightsRepository
 import com.mydeck.app.domain.SyncPriority
@@ -60,6 +61,24 @@ class FullSyncWorkerTest {
                 priority = SyncPriority.Normal
             )
         }
+    }
+
+    @Test
+    fun `doWork refreshes collections after a successful sync`() = runTest {
+        val fixture = fixture()
+
+        coEvery { fixture.bookmarkRepository.performDeltaSync(any()) } returns BookmarkRepository.SyncResult.Success(
+            countDeleted = 0,
+            countUpdated = 0,
+            updatedIds = emptyList(),
+            maxServerTime = Clock.System.now()
+        )
+        coEvery { fixture.loadBookmarksUseCase.enqueueContentSyncIfNeeded() } returns Unit
+
+        val result = fixture.worker.doWork()
+
+        assertTrue(result::class == ListenableWorker.Result.success()::class)
+        coVerify(exactly = 1) { fixture.collectionRepository.refreshCollections() }
     }
 
     @Test
@@ -199,6 +218,7 @@ class FullSyncWorkerTest {
         val loadBookmarksUseCase = mockk<LoadBookmarksUseCase>()
         val freshnessMarkerUseCase = mockk<FreshnessMarkerUseCase>()
         val highlightsRepository = mockk<HighlightsRepository>()
+        val collectionRepository = mockk<CollectionRepository>()
 
         coEvery { bookmarkRepository.syncPendingActions() } returns BookmarkRepository.UpdateResult.Success
         coEvery { settingsDataStore.getLastSyncTimestamp() } returns Clock.System.now()
@@ -206,6 +226,7 @@ class FullSyncWorkerTest {
         coEvery { settingsDataStore.saveLastSyncTimestamp(any()) } returns Unit
         coEvery { settingsDataStore.saveLastFullSyncTimestamp(any()) } returns Unit
         coEvery { highlightsRepository.requestRefresh(any()) } returns Result.success(Unit)
+        coEvery { collectionRepository.refreshCollections() } returns Result.success(Unit)
 
         val worker = FullSyncWorker(
             appContext = mockk<Context>(relaxed = true),
@@ -215,7 +236,8 @@ class FullSyncWorkerTest {
             loadBookmarksUseCase = loadBookmarksUseCase,
             freshnessMarkerUseCase = freshnessMarkerUseCase,
             highlightsRepository = highlightsRepository,
-            bookmarkMetadataSyncCoordinator = BookmarkMetadataSyncCoordinator()
+            bookmarkMetadataSyncCoordinator = BookmarkMetadataSyncCoordinator(),
+            collectionRepository = collectionRepository
         )
         return Fixture(
             worker = worker,
@@ -224,6 +246,7 @@ class FullSyncWorkerTest {
             loadBookmarksUseCase = loadBookmarksUseCase,
             freshnessMarkerUseCase = freshnessMarkerUseCase,
             highlightsRepository = highlightsRepository,
+            collectionRepository = collectionRepository,
         )
     }
 
@@ -234,5 +257,6 @@ class FullSyncWorkerTest {
         val loadBookmarksUseCase: LoadBookmarksUseCase,
         val freshnessMarkerUseCase: FreshnessMarkerUseCase,
         val highlightsRepository: HighlightsRepository,
+        val collectionRepository: CollectionRepository,
     )
 }

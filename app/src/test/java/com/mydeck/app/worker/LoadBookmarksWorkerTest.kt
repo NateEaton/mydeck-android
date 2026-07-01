@@ -6,6 +6,7 @@ import androidx.work.ListenableWorker
 import androidx.work.WorkerParameters
 import com.mydeck.app.domain.BookmarkAnnotationSyncReason
 import com.mydeck.app.domain.BookmarkRepository
+import com.mydeck.app.domain.CollectionRepository
 import com.mydeck.app.domain.HighlightsRefreshReason
 import com.mydeck.app.domain.HighlightsRepository
 import com.mydeck.app.domain.SyncPriority
@@ -96,7 +97,10 @@ class LoadBookmarksWorkerTest {
             bookmarkRepository = bookmarkRepository,
             settingsDataStore = settingsDataStore,
             highlightsRepository = highlightsRepository,
-            bookmarkMetadataSyncCoordinator = BookmarkMetadataSyncCoordinator()
+            bookmarkMetadataSyncCoordinator = BookmarkMetadataSyncCoordinator(),
+            collectionRepository = mockk<CollectionRepository>().also {
+                coEvery { it.refreshCollections() } returns Result.success(Unit)
+            }
         )
 
         val result = worker.doWork()
@@ -123,6 +127,7 @@ class LoadBookmarksWorkerTest {
         val bookmarkRepository = mockk<BookmarkRepository>()
         val settingsDataStore = mockk<SettingsDataStore>()
         val highlightsRepository = mockk<HighlightsRepository>()
+        val collectionRepository = mockk<CollectionRepository>()
         val updatedIds = listOf("bk-1", "bk-2")
 
         coEvery { settingsDataStore.getLastSyncTimestamp() } returns Instant.parse("2026-03-10T08:00:00Z")
@@ -140,6 +145,7 @@ class LoadBookmarksWorkerTest {
         coEvery { settingsDataStore.saveLastSyncTimestamp(any()) } returns Unit
         coEvery { settingsDataStore.isInitialSyncPerformed() } returns true
         coEvery { highlightsRepository.requestRefresh(any()) } returns Result.success(Unit)
+        coEvery { collectionRepository.refreshCollections() } returns Result.success(Unit)
         coEvery {
             highlightsRepository.requestBookmarkAnnotationChecks(
                 bookmarkIds = updatedIds,
@@ -155,7 +161,8 @@ class LoadBookmarksWorkerTest {
             bookmarkRepository = bookmarkRepository,
             settingsDataStore = settingsDataStore,
             highlightsRepository = highlightsRepository,
-            bookmarkMetadataSyncCoordinator = BookmarkMetadataSyncCoordinator()
+            bookmarkMetadataSyncCoordinator = BookmarkMetadataSyncCoordinator(),
+            collectionRepository = collectionRepository
         )
 
         val result = worker.doWork()
@@ -172,6 +179,7 @@ class LoadBookmarksWorkerTest {
         coVerify(exactly = 1) {
             highlightsRepository.requestRefresh(HighlightsRefreshReason.APP_OPEN)
         }
+        coVerify(exactly = 1) { collectionRepository.refreshCollections() }
     }
 
     @Test
@@ -209,7 +217,10 @@ class LoadBookmarksWorkerTest {
             bookmarkRepository = bookmarkRepository,
             settingsDataStore = settingsDataStore,
             highlightsRepository = highlightsRepository,
-            bookmarkMetadataSyncCoordinator = BookmarkMetadataSyncCoordinator()
+            bookmarkMetadataSyncCoordinator = BookmarkMetadataSyncCoordinator(),
+            collectionRepository = mockk<CollectionRepository>().also {
+                coEvery { it.refreshCollections() } returns Result.success(Unit)
+            }
         )
 
         val result = worker.doWork()
@@ -275,7 +286,10 @@ class LoadBookmarksWorkerTest {
             bookmarkRepository = bookmarkRepository,
             settingsDataStore = settingsDataStore,
             highlightsRepository = highlightsRepository,
-            bookmarkMetadataSyncCoordinator = BookmarkMetadataSyncCoordinator()
+            bookmarkMetadataSyncCoordinator = BookmarkMetadataSyncCoordinator(),
+            collectionRepository = mockk<CollectionRepository>().also {
+                coEvery { it.refreshCollections() } returns Result.success(Unit)
+            }
         )
 
         val result = worker.doWork()

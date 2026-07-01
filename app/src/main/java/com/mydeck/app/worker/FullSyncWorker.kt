@@ -16,6 +16,7 @@ import com.mydeck.app.MainActivity
 import com.mydeck.app.R
 import com.mydeck.app.domain.BookmarkAnnotationSyncReason
 import com.mydeck.app.domain.BookmarkRepository
+import com.mydeck.app.domain.CollectionRepository
 import com.mydeck.app.domain.HighlightsRefreshReason
 import com.mydeck.app.domain.HighlightsRepository
 import com.mydeck.app.domain.SyncPriority
@@ -40,6 +41,7 @@ class FullSyncWorker @AssistedInject constructor(
     val freshnessMarkerUseCase: FreshnessMarkerUseCase,
     val highlightsRepository: HighlightsRepository,
     val bookmarkMetadataSyncCoordinator: BookmarkMetadataSyncCoordinator,
+    val collectionRepository: CollectionRepository,
 ) : CoroutineWorker(appContext, workerParams) {
     override suspend fun doWork(): Result {
         try {
@@ -88,6 +90,7 @@ class FullSyncWorker @AssistedInject constructor(
             if (outcome.requestGlobalHighlightsBackstop) {
                 requestGlobalHighlightsBackstop(globalBackstopReason)
             }
+            refreshCollections()
 
             return outcome.result
         } catch (e: CancellationException) {
@@ -219,6 +222,16 @@ class FullSyncWorker @AssistedInject constructor(
                 }
             }
         }
+    }
+
+    /**
+     * Best-effort refresh of the cached collections list. Collections are server-side saved filters
+     * — the same data tier as bookmark metadata and highlights, so they ride along with every sync.
+     * A collections failure must never fail a bookmark sync, so this is logged and swallowed.
+     */
+    private suspend fun refreshCollections() {
+        collectionRepository.refreshCollections()
+            .onFailure { Timber.w(it, "Collections refresh failed during full sync") }
     }
 
     private suspend fun requestGlobalHighlightsBackstop(reason: HighlightsRefreshReason) {

@@ -5,6 +5,7 @@ import androidx.work.Data
 import androidx.work.ListenableWorker
 import androidx.work.WorkerParameters
 import com.mydeck.app.domain.BookmarkRepository
+import com.mydeck.app.domain.CollectionRepository
 import com.mydeck.app.domain.HighlightsRepository
 import com.mydeck.app.domain.sync.BookmarkMetadataSyncCoordinator
 import com.mydeck.app.domain.usecase.FreshnessMarkerUseCase
@@ -206,7 +207,10 @@ class BookmarkMetadataSyncCoordinatorWorkerTest {
             bookmarkRepository = bookmarkRepository,
             settingsDataStore = settingsDataStore,
             highlightsRepository = highlightsRepository,
-            bookmarkMetadataSyncCoordinator = coordinator
+            bookmarkMetadataSyncCoordinator = coordinator,
+            collectionRepository = mockk<CollectionRepository>().also {
+                coEvery { it.refreshCollections() } returns Result.success(Unit)
+            }
         )
     }
 
@@ -235,7 +239,10 @@ class BookmarkMetadataSyncCoordinatorWorkerTest {
             loadBookmarksUseCase = loadBookmarksUseCase,
             freshnessMarkerUseCase = freshnessMarkerUseCase,
             highlightsRepository = highlightsRepository,
-            bookmarkMetadataSyncCoordinator = coordinator
+            bookmarkMetadataSyncCoordinator = coordinator,
+            collectionRepository = mockk<CollectionRepository>().also {
+                coEvery { it.refreshCollections() } returns Result.success(Unit)
+            }
         )
     }
 }
