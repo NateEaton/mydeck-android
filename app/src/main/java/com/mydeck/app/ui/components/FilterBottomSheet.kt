@@ -2,6 +2,7 @@ package com.mydeck.app.ui.components
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -36,13 +37,17 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.PlainTooltip
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TooltipBox
+import androidx.compose.material3.TooltipDefaults
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.material3.rememberTooltipState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
@@ -52,9 +57,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.focus.onFocusEvent
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -155,10 +162,13 @@ fun rememberFilterEditorState(currentFilter: FilterFormState): FilterEditorState
  * [onImeAction] runs when the keyboard "search/done" action fires on a text field (e.g. apply the
  * filter); pass null to make the action a no-op.
  *
- * [includeLocalOnlyFilters] controls the device-local criteria that cannot be persisted to a Readeck
+ * [localOnlyFiltersEditable] controls the device-local criteria that cannot be persisted to a Readeck
  * collection: the **Length** (reading-time / word-count) filter and the **Downloaded** (`isLoaded`)
- * tri-state. Pass false from the collection editor so those controls aren't offered (they would be
- * silently dropped on save). `With labels` and `With errors` are server-supported and always shown.
+ * tri-state. When true (the normal filter sheet) they are fully editable. When false (the collection
+ * editor) they are still shown in their usual positions but rendered disabled with an "Unavailable"
+ * value and a long-press tooltip explaining why — so the user sees the criteria exist and learns they
+ * can't be saved, rather than the fields silently vanishing. `With labels` and `With errors` are
+ * server-supported and always editable.
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -167,7 +177,7 @@ fun FilterControls(
     labels: Map<String, Int>,
     modifier: Modifier = Modifier,
     onImeAction: (() -> Unit)? = null,
-    includeLocalOnlyFilters: Boolean = true,
+    localOnlyFiltersEditable: Boolean = true,
 ) {
     var showLabelPicker by remember { mutableStateOf(false) }
     var showFromDatePicker by remember { mutableStateOf(false) }
@@ -338,7 +348,7 @@ fun FilterControls(
 
         Spacer(Modifier.height(12.dp))
 
-        if (includeLocalOnlyFilters) {
+        if (localOnlyFiltersEditable) {
             OutlinedTextField(
                 value = lengthSummary ?: "",
                 onValueChange = {},
@@ -366,6 +376,9 @@ fun FilterControls(
                     .clickable { showLengthFilterDialog = true }
             )
 
+            Spacer(Modifier.height(12.dp))
+        } else {
+            UnavailableInCollectionField(label = stringResource(R.string.filter_length))
             Spacer(Modifier.height(12.dp))
         }
 
@@ -420,8 +433,11 @@ fun FilterControls(
         Spacer(Modifier.height(8.dp))
         CompactTriStateRow(stringResource(R.string.filter_is_archived), state.isArchived) { state.isArchived = it }
         Spacer(Modifier.height(8.dp))
-        if (includeLocalOnlyFilters) {
+        if (localOnlyFiltersEditable) {
             CompactTriStateRow(stringResource(R.string.filter_is_loaded), state.isLoaded) { state.isLoaded = it }
+            Spacer(Modifier.height(8.dp))
+        } else {
+            UnavailableInCollectionRow(label = stringResource(R.string.filter_is_loaded))
             Spacer(Modifier.height(8.dp))
         }
         CompactTriStateRow(stringResource(R.string.filter_with_labels), state.withLabels) { state.withLabels = it }
@@ -800,6 +816,102 @@ private fun Modifier.bringFocusedFieldIntoView(): Modifier {
     return this
         .bringIntoViewRequester(bringIntoViewRequester)
         .onFocusEvent { state -> isFocused = state.isFocused }
+}
+
+/**
+ * The **Length** picker field rendered non-editable for the collection editor: the label and outlined
+ * box look normal (matching the editable filter fields), only the value reads a greyed "Unavailable".
+ * A long-press tooltip explains that this device-local criterion can't be saved in a collection.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun UnavailableInCollectionField(label: String) {
+    TooltipBox(
+        positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
+        tooltip = { PlainTooltip { Text(stringResource(R.string.filter_unavailable_in_collection_tooltip)) } },
+        state = rememberTooltipState(),
+    ) {
+        OutlinedTextField(
+            value = stringResource(R.string.filter_unavailable),
+            onValueChange = {},
+            readOnly = true,
+            enabled = false,
+            label = { Text(label) },
+            // Normal label + border; only the value text is greyed to read as "not set here".
+            colors = OutlinedTextFieldDefaults.colors(
+                disabledTextColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
+                disabledBorderColor = MaterialTheme.colorScheme.outline,
+                disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            ),
+            modifier = Modifier.fillMaxWidth(),
+        )
+    }
+}
+
+/**
+ * A boolean tri-state row (e.g. **Downloaded**) rendered non-editable for the collection editor: the
+ * label stays in place and the 3-value segmented control is replaced by a single segmented pill with
+ * a normal outline and a greyed, centered "Unavailable". A long-press tooltip explains why the
+ * criterion can't be saved in a collection.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun UnavailableInCollectionRow(label: String) {
+    val unavailableColors = SegmentedButtonDefaults.colors(
+        disabledInactiveBorderColor = MaterialTheme.colorScheme.outline,
+        disabledInactiveContentColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
+    )
+    TooltipBox(
+        positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
+        tooltip = { PlainTooltip { Text(stringResource(R.string.filter_unavailable_in_collection_tooltip)) } },
+        state = rememberTooltipState(),
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.weight(1f)
+            )
+            // The pill must match the width of the editable 3-value tri-state controls above/below it.
+            // That width is content- and locale-dependent, so an invisible reference copy of the
+            // 3-value control sizes the Box, and the visible single pill fills it via matchParentSize.
+            Box {
+                val triLabels = listOf(
+                    stringResource(R.string.tri_state_any),
+                    stringResource(R.string.tri_state_yes),
+                    stringResource(R.string.tri_state_no),
+                )
+                SingleChoiceSegmentedButtonRow(
+                    modifier = Modifier
+                        .alpha(0f)
+                        .clearAndSetSemantics {}
+                ) {
+                    triLabels.forEachIndexed { index, text ->
+                        SegmentedButton(
+                            shape = SegmentedButtonDefaults.itemShape(index = index, count = triLabels.size),
+                            onClick = {},
+                            selected = false,
+                            enabled = false,
+                        ) { Text(text) }
+                    }
+                }
+                SingleChoiceSegmentedButtonRow(modifier = Modifier.matchParentSize()) {
+                    SegmentedButton(
+                        shape = SegmentedButtonDefaults.itemShape(index = 0, count = 1),
+                        onClick = {},
+                        selected = false,
+                        enabled = false,
+                        colors = unavailableColors,
+                    ) {
+                        Text(stringResource(R.string.filter_unavailable))
+                    }
+                }
+            }
+        }
+    }
 }
 
 /** Single-row tri-state control: label on the left, [N/A | Yes | No] on the right. */

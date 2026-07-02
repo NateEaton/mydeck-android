@@ -90,8 +90,9 @@ fun CollectionEditorSheet(
                 state = filterState,
                 labels = labels,
                 // Collections can't persist the device-local "Downloaded" state or the reading-time /
-                // word-count filters, so those controls are hidden here to avoid silent data loss.
-                includeLocalOnlyFilters = false,
+                // word-count filters. Rather than hide them (which silently drops any such criteria the
+                // user had applied), show them disabled as "Unavailable" with an explanatory tooltip.
+                localOnlyFiltersEditable = false,
             )
 
             Spacer(Modifier.height(20.dp))
