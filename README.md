@@ -28,6 +28,7 @@ It began as a fork of [ReadeckApp](https://github.com/jensomato/ReadeckApp) and 
 - Sort and filter bookmark list views on things like title, author, site, labels, etc.
 - Reading progress tracking with per-card visual indicators
 - Readeck highlight and annotation support — view, create, edit, and delete highlights in the reader, and access to all highlights from the navigation drawer
+- Collections — save any filter as a reusable, server-synced view accessible from the navigation drawer
 - Reading typography customization (font family, size, line spacing, content width)
 - In-article text search with highlighted match navigation
 - Bookmark metadata editor for title, description, site name, authors, and more

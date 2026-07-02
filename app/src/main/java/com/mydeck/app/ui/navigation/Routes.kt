@@ -16,6 +16,9 @@ data class BookmarkDetailRoute(
 object HighlightsRoute
 
 @Serializable
+object CollectionsRoute
+
+@Serializable
 object WelcomeRoute
 
 @Serializable

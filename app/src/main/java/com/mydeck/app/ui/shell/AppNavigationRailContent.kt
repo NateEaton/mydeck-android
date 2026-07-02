@@ -20,6 +20,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import com.mydeck.app.domain.model.BookmarkCounts
 import com.mydeck.app.domain.model.DrawerPreset
+import com.mydeck.app.ui.collections.CollectionIcon
 
 @Composable
 fun AppNavigationRailContent(
@@ -34,6 +35,9 @@ fun AppNavigationRailContent(
     onClickPictures: () -> Unit,
     onClickLabels: () -> Unit,
     onClickHighlights: () -> Unit,
+    onClickCollections: () -> Unit,
+    isCollectionsScreen: Boolean = false,
+    collectionCount: Int = 0,
     onClickSettings: () -> Unit,
     onClickUserGuide: () -> Unit,
     onClickAbout: () -> Unit,
@@ -80,6 +84,11 @@ fun AppNavigationRailContent(
             selected = !isLabelMode && drawerPreset == DrawerPreset.HIGHLIGHTS,
             onClick = onClickHighlights,
             icon = { Icon(imageVector = Icons.Outlined.EditNote, contentDescription = null) },
+        )
+        NavigationRailItem(
+            selected = isCollectionsScreen,
+            onClick = onClickCollections,
+            icon = { Icon(imageVector = CollectionIcon, contentDescription = null) },
         )
         Spacer(Modifier.weight(1f))
         NavigationRailItem(

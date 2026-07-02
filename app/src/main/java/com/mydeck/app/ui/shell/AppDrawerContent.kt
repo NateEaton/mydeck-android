@@ -41,6 +41,7 @@ import androidx.compose.ui.unit.dp
 import com.mydeck.app.R
 import com.mydeck.app.domain.model.BookmarkCounts
 import com.mydeck.app.domain.model.DrawerPreset
+import com.mydeck.app.ui.collections.CollectionIcon
 
 @Composable
 fun AppDrawerContent(
@@ -57,9 +58,12 @@ fun AppDrawerContent(
     onClickPictures: () -> Unit,
     onClickLabels: () -> Unit,
     onClickHighlights: () -> Unit,
+    onClickCollections: () -> Unit,
     onClickSettings: () -> Unit,
     onClickUserGuide: () -> Unit,
     onClickAbout: () -> Unit,
+    isCollectionsScreen: Boolean = false,
+    collectionCount: Int = 0,
     usePermanentSheet: Boolean = false,
 ) {
     val isLabelMode = activeLabel != null
@@ -81,6 +85,9 @@ fun AppDrawerContent(
                 onClickPictures = onClickPictures,
                 onClickLabels = onClickLabels,
                 onClickHighlights = onClickHighlights,
+                onClickCollections = onClickCollections,
+                isCollectionsScreen = isCollectionsScreen,
+                collectionCount = collectionCount,
                 onClickSettings = onClickSettings,
                 onClickUserGuide = onClickUserGuide,
                 onClickAbout = onClickAbout,
@@ -105,6 +112,9 @@ fun AppDrawerContent(
                 onClickPictures = onClickPictures,
                 onClickLabels = onClickLabels,
                 onClickHighlights = onClickHighlights,
+                onClickCollections = onClickCollections,
+                isCollectionsScreen = isCollectionsScreen,
+                collectionCount = collectionCount,
                 onClickSettings = onClickSettings,
                 onClickUserGuide = onClickUserGuide,
                 onClickAbout = onClickAbout,
@@ -129,6 +139,9 @@ private fun DrawerColumnContent(
     onClickPictures: () -> Unit,
     onClickLabels: () -> Unit,
     onClickHighlights: () -> Unit,
+    onClickCollections: () -> Unit,
+    isCollectionsScreen: Boolean,
+    collectionCount: Int = 0,
     onClickSettings: () -> Unit,
     onClickUserGuide: () -> Unit,
     onClickAbout: () -> Unit,
@@ -355,6 +368,25 @@ private fun DrawerColumnContent(
             selected = drawerPreset == com.mydeck.app.domain.model.DrawerPreset.HIGHLIGHTS,
             colors = prominentItemColors,
             onClick = onClickHighlights,
+        )
+        NavigationDrawerItem(
+            label = {
+                Text(
+                    style = MaterialTheme.typography.titleMedium,
+                    text = stringResource(R.string.collections_drawer_item)
+                )
+            },
+            icon = { Icon(CollectionIcon, contentDescription = null) },
+            badge = {
+                if (collectionCount > 0) {
+                    Badge(containerColor = MaterialTheme.colorScheme.secondaryContainer) {
+                        Text(text = collectionCount.toString())
+                    }
+                }
+            },
+            selected = isCollectionsScreen,
+            colors = prominentItemColors,
+            onClick = onClickCollections,
         )
         HorizontalDivider(
             modifier = Modifier.padding(vertical = 4.dp).fillMaxWidth(),

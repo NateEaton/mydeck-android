@@ -86,7 +86,7 @@ items across groups, and there is no user-placed divider entity in v1.
 |--------------|-------------------------------------------------------------|--------------------------------------------------|
 | **Status**   | My List, Archive, Favourites                                | —                                                |
 | **Type**     | Articles, Videos, Pictures, *Custom view*, *Offline Content*| —                                                |
-| **Tools**    | —                                                           | Labels, Highlights                               |
+| **Tools**    | —                                                           | Labels, Highlights, Collections                  |
 | **Footer**   | —                                                           | Settings, User Guide, About                      |
 
 Custom view and Offline Content live in the **Type** group and are reorderable
@@ -112,6 +112,14 @@ A custom view *is* a saved Collection. Selecting it calls the existing
 `onSelectCollection(collectionId)` from the Collections spec — no new list/query
 path. Only **one** custom view is supported in v1 (multiple is a future
 extension).
+
+The custom view is surfaced with a single **fixed, app-chosen icon** signifying a
+user-defined view — there is **no per-view icon picker** in v1. The custom view is
+the *only* place a collection appears as a drawer/rail item; the collection list
+itself lives on the dedicated **Collections screen** (a fixed Tools-group entry,
+per the Collections spec) and is **never** rendered inline in the drawer. (The
+original Collections spec sketch of an inline drawer list was superseded; see that
+spec's UI note.)
 
 ### 4. Offline Content is a new local-only view
 

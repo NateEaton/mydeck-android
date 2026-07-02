@@ -125,6 +125,10 @@ import com.mydeck.app.domain.model.LayoutMode
 import com.mydeck.app.domain.model.SortOption
 import com.mydeck.app.domain.model.SwipeAction
 import com.mydeck.app.domain.model.SwipeConfig
+import com.mydeck.app.domain.model.Collection
+import com.mydeck.app.domain.model.FilterFormState
+import com.mydeck.app.ui.collections.CollectionEditorSheet
+import com.mydeck.app.ui.collections.CollectionIcon
 import com.mydeck.app.ui.components.FilterBar
 import com.mydeck.app.ui.components.FilterBottomSheet
 import com.mydeck.app.ui.components.ShareBookmarkChooser
@@ -167,6 +171,7 @@ fun BookmarkListScreen(
     val drawerPreset = viewModel.drawerPreset.collectAsState()
     val filterFormState = viewModel.filterFormState.collectAsState()
     val activeLabel = viewModel.activeLabel.collectAsState()
+    val selectedCollection = viewModel.selectedCollection.collectAsState()
     val isFilterSheetOpen = viewModel.isFilterSheetOpen.collectAsState()
     val layoutMode = viewModel.layoutMode.collectAsState()
     val sortOption = viewModel.sortOption.collectAsState()
@@ -187,6 +192,7 @@ fun BookmarkListScreen(
     var showSelectionOverflowMenu by remember { mutableStateOf(false) }
     var showRenameLabelDialog by remember { mutableStateOf(false) }
     var showDeleteLabelDialog by remember { mutableStateOf(false) }
+    var showCollectionEditor by remember { mutableStateOf(false) }
     var scrollToTopTrigger by remember { mutableStateOf(0) }
 
     val scope = rememberCoroutineScope()
@@ -202,6 +208,7 @@ fun BookmarkListScreen(
     val syncFraction by viewModel.syncFraction.collectAsState()
 
     val isLabelMode = activeLabel.value != null
+    val isCollectionMode = selectedCollection.value != null
     val isMultiSelectMode = multiSelectState.value.active
     val dismissPendingDeleteSnackbar: () -> Unit = {
         snackbarHostState.currentSnackbarData?.dismiss()
@@ -264,6 +271,26 @@ fun BookmarkListScreen(
                 viewModel.onCancelDeleteBookmark(bookmarkId)
             } else {
                 viewModel.onConfirmDeleteBookmark(bookmarkId)
+            }
+        }
+    }
+
+    fun stageCollectionDeleteWithSnackbar(collection: Collection) {
+        // Mirror bookmark delete: stage now (hide + leave the view), defer the actual delete until the
+        // Undo snackbar is dismissed by an interaction other than Undo. Dismiss any in-flight
+        // pending-delete snackbar first so this one shows immediately rather than queueing behind it.
+        dismissPendingDeleteSnackbar()
+        viewModel.onStageDeleteCollection(collection.id)
+        scope.launch {
+            val result = snackbarHostState.showSnackbar(
+                message = context.getString(R.string.collection_deleted),
+                actionLabel = undoActionLabel,
+                duration = SnackbarDuration.Indefinite
+            )
+            if (result == androidx.compose.material3.SnackbarResult.ActionPerformed) {
+                viewModel.onCancelDeleteCollection(collection.id)
+            } else {
+                viewModel.onConfirmDeleteCollection(collection.id)
             }
         }
     }
@@ -443,6 +470,16 @@ fun BookmarkListScreen(
         }
     }
 
+    // Collection create/update/delete/load failures (shared ViewModel; only the foreground screen collects)
+    LaunchedEffect(Unit) {
+        viewModel.collectionMessageEvent.collect { messageRes ->
+            snackbarHostState.showSnackbar(
+                message = context.getString(messageRes),
+                duration = SnackbarDuration.Short
+            )
+        }
+    }
+
     val resources = context.resources
     LaunchedEffect(Unit) {
         viewModel.batchActionSnackbarEvent.collect { event ->
@@ -577,6 +614,23 @@ fun BookmarkListScreen(
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(text = activeLabel.value!!)
+                        }
+                    } else if (isCollectionMode) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.clickable {
+                                dismissPendingDeleteSnackbar()
+                                scrollToTopTrigger++
+                            }
+                        ) {
+                            Icon(
+                                imageVector = CollectionIcon,
+                                contentDescription = null,
+                                modifier = Modifier.size(20.dp),
+                                tint = MaterialTheme.colorScheme.onSurface
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(text = selectedCollection.value!!.name)
                         }
                     } else {
                         Text(
@@ -757,6 +811,9 @@ fun BookmarkListScreen(
                     } else {
                     BookmarkListBarActions(
                         isLabelMode = isLabelMode,
+                        isCollectionMode = isCollectionMode,
+                        canSaveAsCollection = !isCollectionMode &&
+                            filterFormState.value.differsFromPreset(drawerPreset.value),
                         layoutMode = layoutMode.value,
                         sortOption = sortOption.value,
                         onLayoutModeSelected = { viewModel.onLayoutModeSelected(it) },
@@ -766,6 +823,11 @@ fun BookmarkListScreen(
                         onEnterMultiSelectMode = { viewModel.onEnterMultiSelectMode() },
                         onRequestRenameLabel = { showRenameLabelDialog = true },
                         onRequestDeleteLabel = { showDeleteLabelDialog = true },
+                        onSaveAsCollection = { showCollectionEditor = true },
+                        onEditCollection = { showCollectionEditor = true },
+                        onRequestDeleteCollection = {
+                            selectedCollection.value?.let { stageCollectionDeleteWithSnackbar(it) }
+                        },
                     )
                     }
                 }
@@ -817,11 +879,15 @@ fun BookmarkListScreen(
                     }
                 }
         ) {
-            // FilterBar: visible when filters are active beyond preset defaults, not in label mode
+            // FilterBar: chips for filters that deviate from the baseline (the drawer preset, or the
+            // active collection's own criteria). A collection's own criteria are part of the baseline
+            // so they aren't shown — only filters layered on top of the collection appear as chips.
             if (!isLabelMode && !isMultiSelectMode) {
+                val filterBaseline = selectedCollection.value?.filter
+                    ?: FilterFormState.fromPreset(drawerPreset.value)
                 FilterBar(
                     filterFormState = filterFormState.value,
-                    drawerPreset = drawerPreset.value,
+                    baseline = filterBaseline,
                     onFilterChanged = { viewModel.onApplyFilter(it) },
                     onOpenFilterSheet = { viewModel.onOpenFilterSheet() }
                 )
@@ -1113,6 +1179,38 @@ fun BookmarkListScreen(
             }
         )
     }
+
+    // Collection editor sheet: edit mode when a collection is active, otherwise "Save as Collection"
+    // from the current list filter. Both pre-fill from the visible filter (the active collection's
+    // combined criteria, or the layered list filter when none is active).
+    if (showCollectionEditor) {
+        val editing = selectedCollection.value
+        CollectionEditorSheet(
+            heading = if (editing != null) {
+                stringResource(R.string.collection_edit_action)
+            } else {
+                stringResource(R.string.collection_save_as_action)
+            },
+            initialName = editing?.name ?: "",
+            initialFilter = filterFormState.value,
+            labels = labelsWithCounts.value,
+            onSave = { name, filter ->
+                showCollectionEditor = false
+                if (editing != null) {
+                    viewModel.onUpdateCollection(editing.id, name, filter)
+                } else {
+                    viewModel.onCreateCollection(name, filter)
+                }
+            },
+            onDelete = if (editing != null) {
+                {
+                    showCollectionEditor = false
+                    stageCollectionDeleteWithSnackbar(editing)
+                }
+            } else null,
+            onDismiss = { showCollectionEditor = false },
+        )
+    }
 }
 
 /**
@@ -1123,6 +1221,8 @@ fun BookmarkListScreen(
 @Composable
 internal fun BookmarkListBarActions(
     isLabelMode: Boolean,
+    isCollectionMode: Boolean,
+    canSaveAsCollection: Boolean,
     layoutMode: LayoutMode,
     sortOption: SortOption,
     onLayoutModeSelected: (LayoutMode) -> Unit,
@@ -1132,6 +1232,9 @@ internal fun BookmarkListBarActions(
     onEnterMultiSelectMode: () -> Unit,
     onRequestRenameLabel: () -> Unit,
     onRequestDeleteLabel: () -> Unit,
+    onSaveAsCollection: () -> Unit,
+    onEditCollection: () -> Unit,
+    onRequestDeleteCollection: () -> Unit,
 ) {
     var showLayoutMenu by remember { mutableStateOf(false) }
     var showSortMenu by remember { mutableStateOf(false) }
@@ -1289,6 +1392,36 @@ internal fun BookmarkListBarActions(
                         onOpenFilterSheet()
                     }
                 )
+                if (isCollectionMode) {
+                    DropdownMenuItem(
+                        leadingIcon = { Icon(Icons.Outlined.Edit, contentDescription = null) },
+                        text = { Text(stringResource(R.string.collection_edit_action)) },
+                        onClick = {
+                            showOverflowMenu = false
+                            onDismissPendingDelete()
+                            onEditCollection()
+                        }
+                    )
+                    DropdownMenuItem(
+                        leadingIcon = { Icon(Icons.Outlined.Delete, contentDescription = null) },
+                        text = { Text(stringResource(R.string.collection_delete_action)) },
+                        onClick = {
+                            showOverflowMenu = false
+                            onDismissPendingDelete()
+                            onRequestDeleteCollection()
+                        }
+                    )
+                } else if (canSaveAsCollection) {
+                    DropdownMenuItem(
+                        leadingIcon = { Icon(CollectionIcon, contentDescription = null) },
+                        text = { Text(stringResource(R.string.collection_save_as_action)) },
+                        onClick = {
+                            showOverflowMenu = false
+                            onDismissPendingDelete()
+                            onSaveAsCollection()
+                        }
+                    )
+                }
             }
             DropdownMenuItem(
                 leadingIcon = {

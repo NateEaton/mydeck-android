@@ -13,9 +13,10 @@ Tap the **menu icon** (☰) in the top-left corner to open the navigation drawer
 - **Videos** — video-type bookmarks only
 - **Pictures** — picture-type bookmarks only
 - **Labels** — open the label sheet; tap a label to see all bookmarks with that label
-- **Highlights** — a global index of all highlights saved across all your bookmarks. Pull down on the list to refresh highlights immediately. If a sync fails partway through, MyDeck shows a banner indicating highlights may be incomplete — pull to refresh to retry.
+- **Highlights** — a global index of all highlights saved across all your bookmarks
+- **Collections** — your saved filter views; tap one to open it as the active list
 
-Each item shows a count of how many bookmarks it contains.
+Most items show a count of how many bookmarks they contain; Collections shows how many collections you've saved.
 Tap outside the drawer or swipe it closed to dismiss it without changing sections.
 
 The top bar shows the **☰ menu**, the current section title, a **layout icon**, a **sort icon**, and a **⋮ overflow menu**. The overflow holds **Filter** and **Select bookmarks**. (When you're viewing a single label, the overflow instead offers **Rename label**, **Delete label**, and **Select bookmarks**.)
@@ -196,6 +197,22 @@ To return to a standard view you can:
 - select a predefined view (My List, Archive, etc.) from the navigation drawer.
 
 Tap **Search** to apply, or **Reset** to clear all filters.
+
+## Collections
+
+A **collection** is a saved set of filter criteria you can return to with a single tap. Open **Collections** from the navigation drawer (or the navigation rail in wide layouts) to see all your collections, each shown as a card with its name and the date it was created.
+
+To create one, tap the **New Collection** button. A sheet opens with the same filter controls as the filter sheet, plus a **name** field at the top. Set the criteria you want, give the collection a name, and tap **Save** (Save stays disabled until you enter a name). MyDeck opens the new collection right away.
+
+Tap any collection card to open it. The list then shows that collection as its own view: the top bar displays the collection's name with a leading icon, and the collection's own criteria are not shown as filter chips — it reads like an ordinary list. To leave a collection, pick any other view (My List, Archive, a label, etc.) from the navigation drawer.
+
+**Saving the current filter as a collection.** When you've applied a filter to an ordinary list (so chips are showing), open the **⋮ overflow menu** and tap **Save as Collection**. The editor opens pre-filled with your current filter; name it and tap Save to keep it.
+
+**Layering filters on a collection.** While viewing a collection you can still apply additional filters (⋮ → Filter). Those extra criteria appear as chips on top of the collection; the app-bar title stays the collection's name, and the saved collection is unchanged until you explicitly save. Dismiss a chip (or tap **Reset** in the filter sheet) to return to just the collection's own criteria.
+
+**Editing, renaming, and deleting.** While a collection is active, the **⋮ overflow menu** offers **Edit collection** and **Delete collection**. Edit opens the editor pre-filled with the collection's criteria (plus any filter you've layered on) and its current name — change the name to rename it, adjust the criteria, and Save. Delete (from the overflow or the editor's **Delete** button) removes the collection and shows a **"Collection deleted"** snackbar with **Undo** — the same as deleting a bookmark, the removal is held until the snackbar goes away, so tap Undo to keep it.
+
+Note: the **Downloaded** filter and the **Length** (reading time / word count) filters are specific to this device and aren't stored in collections, so they don't appear in the collection editor. They remain available in the normal list filter.
 
 ## Selecting Multiple Bookmarks
 

@@ -20,6 +20,9 @@ import com.mydeck.app.domain.model.BookmarkCounts
 import com.mydeck.app.domain.model.BookmarkListItem
 import com.mydeck.app.domain.model.DrawerPreset
 import com.mydeck.app.domain.model.OpenWebPagesIn
+import com.mydeck.app.domain.CollectionRepository
+import com.mydeck.app.domain.model.Collection
+import com.mydeck.app.domain.model.CollectionSortOption
 import com.mydeck.app.domain.model.FilterFormState
 import com.mydeck.app.domain.model.LayoutMode
 import com.mydeck.app.domain.model.SortOption
@@ -131,6 +134,7 @@ class BookmarkListViewModel @Inject constructor(
     private val contentSyncPolicyEvaluator: OfflinePolicyEvaluator,
     private val contentPackageManager: ContentPackageManager,
     private val syncScheduler: com.mydeck.app.domain.sync.SyncScheduler,
+    private val collectionRepository: CollectionRepository,
     connectivityMonitor: ConnectivityMonitor
 ) : ViewModel() {
 
@@ -150,6 +154,11 @@ class BookmarkListViewModel @Inject constructor(
 
     private val _openUrlEvent = Channel<String>(Channel.BUFFERED)
     val openUrlEvent = _openUrlEvent.receiveAsFlow()
+
+    // One-shot user-facing messages for collection create/update/delete/load failures (string res).
+    // Collected by whichever Collections-related screen is foreground (they share this ViewModel).
+    private val _collectionMessageEvent = Channel<Int>(Channel.BUFFERED)
+    val collectionMessageEvent: Flow<Int> = _collectionMessageEvent.receiveAsFlow()
     private val _createBookmarkUiState = MutableStateFlow<CreateBookmarkUiState>(CreateBookmarkUiState.Closed)
     val createBookmarkUiState = _createBookmarkUiState.asStateFlow()
 
@@ -245,6 +254,36 @@ class BookmarkListViewModel @Inject constructor(
 
     private val _activeLabel = MutableStateFlow<String?>(null)
     val activeLabel = _activeLabel.asStateFlow()
+
+    // --- Collections ---
+
+    private val _selectedCollectionId = MutableStateFlow<String?>(null)
+    val selectedCollectionId: StateFlow<String?> = _selectedCollectionId.asStateFlow()
+
+    val collections: StateFlow<List<Collection>> = collectionRepository
+        .observeCollections()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    /** A collection staged for deletion (snackbar shown, actual delete deferred); hidden from lists. */
+    private val _pendingCollectionDeleteId = MutableStateFlow<String?>(null)
+
+    private val _collectionSortOption = MutableStateFlow(CollectionSortOption.DATE_NEWEST)
+    val collectionSortOption: StateFlow<CollectionSortOption> = _collectionSortOption.asStateFlow()
+
+    fun onCollectionSortSelected(option: CollectionSortOption) {
+        _collectionSortOption.value = option
+    }
+
+    /** Collections to show in the Collections screen, excluding any staged-for-deletion entry, sorted per user preference. */
+    val visibleCollections: StateFlow<List<Collection>> = combine(collections, _pendingCollectionDeleteId, _collectionSortOption) { list, pendingId, sortOption ->
+        val filtered = if (pendingId == null) list else list.filterNot { it.id == pendingId }
+        filtered.sortedWith(sortOption.comparator)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    /** The currently-active collection (its full model), or null when none is selected. */
+    val selectedCollection: StateFlow<Collection?> = combine(collections, _selectedCollectionId) { list, id ->
+        id?.let { selectedId -> list.find { it.id == selectedId } }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
     private val _isFilterSheetOpen = MutableStateFlow(false)
     val isFilterSheetOpen = _isFilterSheetOpen.asStateFlow()
@@ -435,6 +474,7 @@ class BookmarkListViewModel @Inject constructor(
         _drawerPreset.value = preset
         _filterFormState.value = FilterFormState.fromPreset(preset)
         _activeLabel.value = null
+        _selectedCollectionId.value = null
     }
 
     fun onClickMyList() = onSelectDrawerPreset(DrawerPreset.MY_LIST)
@@ -444,10 +484,112 @@ class BookmarkListViewModel @Inject constructor(
     fun onClickVideos() = onSelectDrawerPreset(DrawerPreset.VIDEOS)
     fun onClickPictures() = onSelectDrawerPreset(DrawerPreset.PICTURES)
 
+    // --- Collections actions ---
+
+    fun onSelectCollection(collectionId: String) {
+        val collection = collections.value.find { it.id == collectionId } ?: return
+        clearMultiSelectState()
+        _selectedCollectionId.value = collectionId
+        _filterFormState.value = collection.filter
+        _activeLabel.value = null
+    }
+
+    fun onClearCollection() {
+        _selectedCollectionId.value = null
+        // Drop the collection's criteria too so the list returns to its preset default rather than
+        // staying silently filtered by the (now inactive) collection.
+        _filterFormState.value = FilterFormState.fromPreset(_drawerPreset.value)
+    }
+
+    fun refreshCollections() {
+        viewModelScope.launch {
+            collectionRepository.refreshCollections()
+                .onFailure { _collectionMessageEvent.trySend(R.string.collection_load_error) }
+        }
+    }
+
+    /**
+     * Creates a collection from an explicit [filter] (the editor sheet's working copy) and, on
+     * success, makes it the active view: selects it, applies its filter, and emits
+     * [NavigationEvent.NavigateToBookmarkList] so callers on other screens land on the active list.
+     */
+    fun onCreateCollection(name: String, filter: FilterFormState) {
+        viewModelScope.launch {
+            collectionRepository.createCollection(name, filter)
+                .onSuccess { collection ->
+                    clearMultiSelectState()
+                    _selectedCollectionId.value = collection.id
+                    _filterFormState.value = collection.filter
+                    _activeLabel.value = null
+                    _navigationEvent.trySend(NavigationEvent.NavigateToBookmarkList)
+                }
+                .onFailure {
+                    Timber.e(it, "Failed to create collection")
+                    _collectionMessageEvent.trySend(R.string.collection_save_error)
+                }
+        }
+    }
+
+    /**
+     * Updates an existing collection's name and/or criteria from an explicit [filter] (the editor
+     * sheet's working copy — the collection's saved criteria plus any layered filter). Rename is
+     * supported via [name]. When the edited collection is the active view, its applied filter is
+     * refreshed to the saved (round-tripped) result so the list reflects what was persisted.
+     */
+    fun onUpdateCollection(id: String, name: String, filter: FilterFormState) {
+        viewModelScope.launch {
+            collectionRepository.updateCollection(id, name, filter)
+                .onSuccess { collection ->
+                    if (_selectedCollectionId.value == id) {
+                        _filterFormState.value = collection.filter
+                    }
+                }
+                .onFailure {
+                    Timber.e(it, "Failed to update collection")
+                    _collectionMessageEvent.trySend(R.string.collection_update_error)
+                }
+        }
+    }
+
+    /**
+     * Stages a collection for deletion: it's hidden from the lists and the active view leaves it, but
+     * the actual server delete is deferred until [onConfirmDeleteCollection] (mirrors bookmark delete,
+     * which holds until the Undo snackbar is dismissed). [onCancelDeleteCollection] restores it.
+     */
+    fun onStageDeleteCollection(id: String) {
+        _pendingCollectionDeleteId.value = id
+        if (_selectedCollectionId.value == id) onClearCollection()
+    }
+
+    /** Undo: un-stage the collection and restore it as the active view. */
+    fun onCancelDeleteCollection(id: String) {
+        if (_pendingCollectionDeleteId.value == id) {
+            _pendingCollectionDeleteId.value = null
+            onSelectCollection(id)
+        }
+    }
+
+    /** Commit the staged deletion (server DELETE + cache removal). On failure it reappears. */
+    fun onConfirmDeleteCollection(id: String) {
+        if (_pendingCollectionDeleteId.value != id) return
+        viewModelScope.launch {
+            collectionRepository.deleteCollection(id)
+                .onSuccess { _pendingCollectionDeleteId.value = null }
+                .onFailure {
+                    Timber.e(it, "Failed to delete collection")
+                    _pendingCollectionDeleteId.value = null
+                    _collectionMessageEvent.trySend(R.string.collection_delete_error)
+                }
+        }
+    }
+
     // --- Label mode ---
 
     fun onClickLabel(label: String) {
         clearMultiSelectState()
+        // Label and collection views are mutually exclusive (a preset/collection select clears the
+        // label; selecting a label clears any active collection).
+        _selectedCollectionId.value = null
         if (_activeLabel.value == label) {
             // Toggle off label mode, return to previous drawer preset
             _activeLabel.value = null
@@ -511,7 +653,10 @@ class BookmarkListViewModel @Inject constructor(
 
     fun onResetFilter() {
         clearMultiSelectState()
-        _filterFormState.value = FilterFormState.fromPreset(_drawerPreset.value)
+        // While a collection is active, "reset" restores the collection's own criteria (clearing any
+        // layered filter); otherwise it restores the drawer preset's defaults.
+        _filterFormState.value = selectedCollection.value?.filter
+            ?: FilterFormState.fromPreset(_drawerPreset.value)
         _isFilterSheetOpen.value = false
     }
 
@@ -1235,6 +1380,7 @@ class BookmarkListViewModel @Inject constructor(
         data object NavigateToSettings : NavigationEvent()
         data object NavigateToAbout : NavigationEvent()
         data object NavigateToUserGuide : NavigationEvent()
+        data object NavigateToBookmarkList : NavigationEvent()
         data class NavigateToBookmarkDetail(val bookmarkId: String, val showOriginal: Boolean = false) : NavigationEvent()
     }
 
