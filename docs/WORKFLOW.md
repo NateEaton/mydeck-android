@@ -17,6 +17,7 @@ We use a **Main-First** (Trunk-based) workflow.
 *   **In Branches:** Commit often. Messy history is fine.
 *   **To Main:** Always use **Squash and Merge**. This keeps the `main` history clean and linear.
 *   **Conventional Commits:** Use `feat:`, `fix:`, `chore:`, etc., when merging to `main`.
+*   **Changelog Maintenance:** Every PR/merge to `main` records its user-facing changes in the `## [Unreleased]` section of `CHANGELOG.md` in the same commit. (At release time, Step 1 of the release process moves `[Unreleased]` into the new version heading.)
 
 ---
 
@@ -139,7 +140,25 @@ This is documented in `AGENTS.md` and `CLAUDE.md` so the agent knows to ask rath
 5.  Commit: `chore(release): bump version to X.Y.Z`.
 6.  Open PR -> Merge to `main`.
 
-### Step 2: Tag and Publish
+### Step 2: Pre-release Validation
+
+Before tagging, install the `latest-snapshot` build (updated automatically on merge to `main`) and run the smoke test below against **both** your day-to-day stable Readeck instance and a freshly pulled Readeck nightly build container. The nightly test catches server-side API changes before they reach users.
+
+#### Smoke test
+
+| Area | What to verify |
+|---|---|
+| **Authentication** | Sign out; complete the full device-auth flow (enter server URL → get code → confirm in browser → app lands on bookmark list) |
+| **Bookmark list** | List loads; switch between card, compact, and grid layouts; pull-to-refresh works |
+| **Filtering & sorting** | Apply a label filter, the Unread filter, and the With Errors filter; confirm counts match expectations |
+| **Add bookmark** | Share a URL from the browser; confirm it appears in the list after sync |
+| **Reading** | Open an article; scroll; use the in-app reader; open original page via external browser |
+| **Organising** | Toggle favourite; archive a bookmark; apply and remove a label via the quick-edit button |
+| **Settings** | Toggle at least one UI setting (e.g. show/hide add button) and confirm it takes effect |
+
+If any step fails against the nightly build, determine whether it is a server regression or an app compatibility issue before tagging.
+
+### Step 3: Tag and Publish
 1.  💻 `git checkout main && git pull`
 2.  💻 `git tag vX.Y.Z`
 3.  💻 `git push origin vX.Y.Z`
@@ -160,14 +179,14 @@ If none of those apply, tag final and ship. `latest-snapshot` already acts as a 
 
 *   **Step 1 (Prep the Release):** unchanged. Bump to the **target** version (e.g. `versionName = "0.13.2"`, `versionCode = 13002`). The `-rc.N` suffix lives only in the git tag, never in `build.gradle.kts` or the changelog.
 
-*   **Step 2 (Tag and Publish):** replaced with the loop below.
+*   **Step 3 (Tag and Publish):** replaced with the loop below.
 
-#### Step 2 (RC variant): Iterate, Then Promote
+#### Step 3 (RC variant): Iterate, Then Promote
 
 1.  💻 `git checkout main && git pull`
 2.  💻 `git tag vX.Y.Z-rc.1`
 3.  💻 `git push origin vX.Y.Z-rc.1` — `release.yml` produces a draft **prerelease** with the APK and `checksums.txt`.
-4.  📱 Install the RC APK. Smoke test.
+4.  📱 Install the RC APK. Run the smoke test above against both stable and nightly Readeck builds.
 5.  If issues are found: fix on `main` via the normal PR flow, then cut the next RC from the new tip (`vX.Y.Z-rc.2`, push, retest). Each RC produces its own independent draft prerelease.
 6.  When an RC is accepted, **tag the final from the same commit as that RC**:
     *   💻 `git tag vX.Y.Z <commit-sha-of-accepted-rc>`

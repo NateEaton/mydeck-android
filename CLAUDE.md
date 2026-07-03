@@ -80,6 +80,12 @@ The English text serves as a placeholder until professional translators provide 
 
 ---
 
+## Changelog Maintenance
+
+**Important:** Every PR commit must update the `## [Unreleased]` section of `CHANGELOG.md` with its user-facing changes, in the same commit as the change. At release time, the release-prep PR moves `[Unreleased]` into a new versioned heading (see `docs/WORKFLOW.md`).
+
+---
+
 ## Branching
 
 - **Always verify the current branch before creating a new one.** Run `git branch --show-current` (or `git status`) first. Do not assume the branch the session started on, or the branch a previous task left you on, is the right base.
