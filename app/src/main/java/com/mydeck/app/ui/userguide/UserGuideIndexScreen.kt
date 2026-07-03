@@ -185,7 +185,10 @@ fun UserGuideIndexScreen(
                                             navHostController.navigate(
                                                 UserGuideSectionRoute(
                                                     fileName = result.section.fileName,
-                                                    title = result.section.title
+                                                    title = result.section.title,
+                                                    anchor = result.matchedHeading
+                                                        ?: uiState.searchQuery.trim(),
+                                                    query = uiState.searchQuery.trim()
                                                 )
                                             ) { launchSingleTop = true }
                                         }

@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Welcome screen quick-access buttons: reach **About**, the **User Guide**, and **Logs** before connecting to a server — handy when diagnosing a connection problem.
-- The in-app User Guide now has a **search field** to look up a feature by name, and **Labels**, **Highlights**, **Collections**, and **Offline Reading** each have their own page in the guide's table of contents.
+- The in-app User Guide now has a **search field** to look up a feature by name — tapping a result opens the page, jumps to the match, and highlights every occurrence of the term — and **Labels**, **Highlights**, **Collections**, and **Offline Reading** each have their own page in the guide's table of contents.
 
 ### Changed
 

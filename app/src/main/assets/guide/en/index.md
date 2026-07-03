@@ -8,11 +8,11 @@ TOC:
     - getting-started
     - your-bookmarks
     - reading
+    - organizing
+    - offline-reading
     - labels
     - highlights
     - collections
-    - organizing
-    - offline-reading
     - settings
 ---
 
@@ -25,9 +25,9 @@ MyDeck is a mobile reader for [Readeck](https://readeck.org), a self-hosted read
 - [Getting Started](./getting-started.md)
 - [Your Bookmarks](./your-bookmarks.md)
 - [Reading](./reading.md)
+- [Organizing](./organizing.md)
+- [Offline Reading](./offline-reading.md)
 - [Labels](./labels.md)
 - [Highlights](./highlights.md)
 - [Collections](./collections.md)
-- [Organizing](./organizing.md)
-- [Offline Reading](./offline-reading.md)
 - [Settings](./settings.md)

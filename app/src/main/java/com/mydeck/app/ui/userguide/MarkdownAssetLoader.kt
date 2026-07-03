@@ -36,18 +36,17 @@ class MarkdownAssetLoader @Inject constructor(
     companion object {
         private const val ASSETS_BASE_PATH = "guide"
         private const val DEFAULT_LOCALE = "en"
-        // Single source of truth for the in-app table of contents. Order mirrors
-        // the navigation drawer's Tools group (Labels → Highlights → Collections).
+        // Single source of truth for the in-app table of contents.
         // index.md (used by the website) is kept in sync with this list by hand.
         val DEFAULT_SECTIONS = listOf(
             GuideSection("Getting Started", "getting-started.md", 0),
             GuideSection("Your Bookmarks",  "your-bookmarks.md",  1),
             GuideSection("Reading",         "reading.md",         2),
-            GuideSection("Labels",          "labels.md",          3),
-            GuideSection("Highlights",      "highlights.md",      4),
-            GuideSection("Collections",     "collections.md",     5),
-            GuideSection("Organizing",      "organizing.md",      6),
-            GuideSection("Offline Reading", "offline-reading.md", 7),
+            GuideSection("Organizing",      "organizing.md",      3),
+            GuideSection("Offline Reading", "offline-reading.md", 4),
+            GuideSection("Labels",          "labels.md",          5),
+            GuideSection("Highlights",      "highlights.md",      6),
+            GuideSection("Collections",     "collections.md",     7),
             GuideSection("Settings",        "settings.md",        8)
         )
     }

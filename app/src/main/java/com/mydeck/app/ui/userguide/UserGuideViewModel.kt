@@ -104,7 +104,13 @@ class UserGuideSectionViewModel @Inject constructor(
 
     private val route: UserGuideSectionRoute = savedStateHandle.toRoute()
 
-    var uiState by mutableStateOf(UserGuideSectionUiState(title = route.title))
+    var uiState by mutableStateOf(
+        UserGuideSectionUiState(
+            title = route.title,
+            searchAnchor = route.anchor,
+            searchQuery = route.query
+        )
+    )
         private set
 
     init {
@@ -131,5 +137,7 @@ data class UserGuideSectionUiState(
     val isLoading: Boolean = false,
     val title: String = "",
     val content: String = "",
-    val error: String? = null
+    val error: String? = null,
+    val searchAnchor: String? = null,
+    val searchQuery: String? = null
 )

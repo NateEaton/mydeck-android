@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -54,8 +55,13 @@ class AboutViewModel @Inject constructor(
                 serverInfoLoading = cachedInfo == null
             )
 
-            // If network is available, fetch fresh info in background
-            if (connectivityMonitor.isNetworkAvailable()) {
+            // Before sign-in there is no server configured, so there is nothing to
+            // fetch — attempting the call would fail (no base URL). Show the
+            // unavailable state instead of firing a doomed request.
+            val hasServer = !settingsDataStore.urlFlow.first().isNullOrBlank()
+
+            // If network is available and a server is configured, fetch fresh info.
+            if (hasServer && connectivityMonitor.isNetworkAvailable()) {
                 try {
                     val response = readeckApi.getInfo()
                     if (response.isSuccessful) {
@@ -103,10 +109,17 @@ class AboutViewModel @Inject constructor(
                     Timber.e(e, "Error fetching server info")
                 }
             } else {
-                // No network - if we have cache, show it; otherwise keep loading=true
+                // No server configured, or no network: if we have cached info, show it;
+                // otherwise there is nothing to show, so surface the unavailable state
+                // rather than spinning forever.
                 if (cachedInfo != null) {
                     _uiState.value = _uiState.value.copy(
                         serverInfoLoading = false
+                    )
+                } else {
+                    _uiState.value = _uiState.value.copy(
+                        serverInfoLoading = false,
+                        serverInfoError = true
                     )
                 }
             }

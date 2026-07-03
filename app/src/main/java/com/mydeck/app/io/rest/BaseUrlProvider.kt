@@ -32,5 +32,11 @@ class BaseUrlProvider @Inject constructor(
         }
     }
 
-    fun getBaseUrl(): String = baseUrl ?: throw IllegalStateException("BaseUrl not initialized")
+    /**
+     * The configured server base URL, or null when no server is set yet (e.g. before
+     * sign-in). Callers on the OkHttp chain must treat null as "not configured" and
+     * fail with an IOException so the failure is delivered through normal call
+     * callbacks rather than crashing the dispatcher thread.
+     */
+    fun getBaseUrl(): String? = baseUrl
 }
