@@ -1,0 +1,8 @@
+<b>Added</b>
+- Collections: save filter criteria as a named, reusable view; create from the Collections screen or "Save as Collection"
+- Welcome screen quick-access buttons for About, User Guide, and Logs before connecting
+- User Guide search, plus dedicated Labels, Highlights, Collections, and Offline Reading pages
+
+<b>Changed</b>
+- Clearer sign-in errors for outdated or non-Readeck servers
+- User Guide reorganized to reduce duplication
