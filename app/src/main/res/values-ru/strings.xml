@@ -714,4 +714,12 @@ other{}
     <string name="font_source_serif" translatable="false">Source Serif</string>
     <string name="font_noto_sans" translatable="false">Noto Sans</string>
     <string name="font_jetbrains_mono" translatable="false">JetBrains Mono</string>
+    <string name="account_login_server_no_oauth">This Readeck server (version %1$s) does not support the authentication method required by this app. Please update your server to version 0.21 or later.</string>
+    <string name="account_login_not_readeck_server">Could not connect to a Readeck server at this address. If your server is running a version older than 0.21, it is not supported by this app. Please check the URL and ensure your server is reachable and up to date.</string>
+    <string name="welcome_about_content_description">About</string>
+    <string name="welcome_user_guide_content_description">User guide</string>
+    <string name="welcome_logs_content_description">Logs</string>
+    <string name="user_guide_search_hint">Search the guide</string>
+    <string name="user_guide_search_clear">Clear search</string>
+    <string name="user_guide_search_no_results">No results found</string>
 </resources>

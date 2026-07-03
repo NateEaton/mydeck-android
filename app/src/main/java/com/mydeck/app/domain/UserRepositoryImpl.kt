@@ -1,5 +1,7 @@
 package com.mydeck.app.domain
 
+import android.content.Context
+import com.mydeck.app.R
 import com.mydeck.app.domain.model.AuthenticationDetails
 import com.mydeck.app.domain.model.CachedServerInfo
 import com.mydeck.app.domain.model.User
@@ -10,6 +12,7 @@ import com.mydeck.app.io.rest.ReadeckApi
 import com.mydeck.app.io.rest.ReadeckNetworkPolicy
 import com.mydeck.app.io.rest.isHttpBlockedByBuildPolicy
 import com.mydeck.app.io.rest.model.OAuthRevokeRequestDto
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
@@ -17,12 +20,14 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
 import timber.log.Timber
 import java.io.IOException
 import javax.inject.Inject
 
 class UserRepositoryImpl @Inject constructor(
+    @ApplicationContext private val context: Context,
     private val settingsDataStore: SettingsDataStore,
     private val readeckApi: ReadeckApi,
     private val json: Json,
@@ -69,7 +74,10 @@ class UserRepositoryImpl @Inject constructor(
                 if (!info.features.contains("oauth")) {
                     settingsDataStore.clearCredentials()
                     return@withContext UserRepository.LoginResult.Error(
-                        "This server does not support OAuth authentication.",
+                        context.getString(
+                            R.string.account_login_server_no_oauth,
+                            info.version.release
+                        ),
                         code = infoResponse.code()
                     )
                 }
@@ -106,6 +114,15 @@ class UserRepositoryImpl @Inject constructor(
                 } else {
                     UserRepository.LoginResult.NetworkError("Network error: ${e.message}")
                 }
+            } catch (e: SerializationException) {
+                // /api/info returned something that is not the expected JSON (e.g. an HTML
+                // page). This happens when the server is older than 0.20 (no /api/info route)
+                // or the URL does not point at a Readeck API endpoint.
+                settingsDataStore.clearCredentials()
+                UserRepository.LoginResult.Error(
+                    context.getString(R.string.account_login_not_readeck_server),
+                    ex = e
+                )
             } catch (e: Exception) {
                 settingsDataStore.clearCredentials()
                 UserRepository.LoginResult.Error(

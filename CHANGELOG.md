@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Welcome screen quick-access buttons: reach **About**, the **User Guide**, and **Logs** before connecting to a server — handy when diagnosing a connection problem.
+- The in-app User Guide now has a **search field** to look up a feature by name, and **Labels**, **Highlights**, **Collections**, and **Offline Reading** each have their own page in the guide's table of contents.
+
+### Changed
+
+- Clearer sign-in errors: connecting to a Readeck server older than 0.21 now explains the server needs updating, and pointing at something that isn't a Readeck server says so, instead of showing a generic error.
+- User Guide reorganized to reduce duplication — offline-reading and download-status details now live on a single Offline Reading page, and labels and collections have their own pages.
+
 ## [0.14.4] - 2026-06-29
 
 ### Fixed

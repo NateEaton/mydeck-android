@@ -78,13 +78,9 @@ Tap **🔍** to open the in-content search bar. Type to search; matching text in
 
 ### Highlights
 
-Article bookmarks support Readeck highlights directly in the reading view. Video bookmarks also support highlights when Readeck provides text content such as a transcript.
+Article bookmarks — and videos with transcript text — support Readeck highlights directly in the reading view. To create one, select text and tap **Highlight** in the Android text selection menu, then choose a color and optionally add a note. Tap **⋮ → Highlights** to browse the highlights saved in the current bookmark.
 
-To create a highlight, select text in the article or transcript and tap **Highlight** in the Android text selection menu, then choose a color and optionally enter a note. If your selection overlaps one or more existing highlights, **Save** changes the color and note for those highlights and **Delete** removes them immediately.
-
-To edit or delete an existing highlight directly, tap the highlighted text. Clear the note field and save to remove a highlight note. You can also open **⋮ → Highlights** to browse saved highlights and jump to any one in the article or transcript.
-
-The main **Highlights** destination in the navigation drawer opens a global list of all your highlights across all bookmarks. Tap any highlight in that list to open its source bookmark and scroll directly to that highlight. See the [Highlights](./highlights.md) guide for more details.
+See the [Highlights](./highlights.md) guide for editing, deleting, colors and notes, and the global Highlights list across all your bookmarks.
 
 ## End-of-content Actions
 
@@ -101,7 +97,7 @@ Tap **⋮** in the top bar for additional actions:
 - **Add to favorites / Remove favorite** — toggle the favorite status
 - **Archive / Unarchive** — move the bookmark to the archive (or back to My List)
 - **Mark as read / Mark as unread** — toggle whether the bookmark has been read; this is reflected back in the bookmark list
-- **Pin offline / Unpin offline** — keep this bookmark on your device for offline reading (or release it back to automatic management). Pinned bookmarks are protected from the automatic offline limit and show a **pin** icon in the bookmark list. This action appears only while offline reading is enabled
+- **Pin offline / Unpin offline** — keep this bookmark on your device for offline reading (or release it back to automatic management). Appears only while offline reading is enabled; see [Offline Reading](./offline-reading.md)
 - **View web page / View [bookmark type]** — switch between the reading view and the web page in an in-app viewer (see above)
 - **Share link** — open the Android share sheet to share the bookmark using the format selected in **Settings → User Interface**
 - **Details** — open the Bookmark Details screen (see below)

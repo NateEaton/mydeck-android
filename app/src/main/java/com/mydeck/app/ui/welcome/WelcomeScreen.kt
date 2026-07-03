@@ -3,6 +3,10 @@ package com.mydeck.app.ui.welcome
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.List
+import androidx.compose.material.icons.outlined.HelpOutline
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import kotlinx.coroutines.flow.collectLatest
@@ -18,7 +22,10 @@ import androidx.navigation.NavHostController
 import com.mydeck.app.R
 import com.mydeck.app.ui.components.MyDeckBrandHeader
 import com.mydeck.app.ui.login.DeviceAuthorizationScreen
+import com.mydeck.app.ui.navigation.AboutRoute
 import com.mydeck.app.ui.navigation.BookmarkListRoute
+import com.mydeck.app.ui.navigation.LogViewRoute
+import com.mydeck.app.ui.navigation.UserGuideRoute
 import com.mydeck.app.ui.navigation.WelcomeRoute
 import com.mydeck.app.ui.settings.AccountSettingsViewModel
 import com.mydeck.app.ui.settings.HttpUrlWarningText
@@ -141,6 +148,50 @@ fun WelcomeScreen(
                         textAlign = TextAlign.Center,
                         modifier = Modifier.fillMaxWidth()
                     )
+                }
+
+                // Quick-access buttons: reach About, User Guide, and Logs before
+                // signing in (useful when diagnosing a connection problem). Each
+                // destination's back button pops the stack back to this screen.
+                Spacer(modifier = Modifier.weight(1f))
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 16.dp),
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    FilledTonalIconButton(
+                        onClick = {
+                            navHostController.navigate(AboutRoute) { launchSingleTop = true }
+                        }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Info,
+                            contentDescription = stringResource(R.string.welcome_about_content_description)
+                        )
+                    }
+                    FilledTonalIconButton(
+                        onClick = {
+                            navHostController.navigate(UserGuideRoute) { launchSingleTop = true }
+                        }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.HelpOutline,
+                            contentDescription = stringResource(R.string.welcome_user_guide_content_description)
+                        )
+                    }
+                    FilledTonalIconButton(
+                        onClick = {
+                            navHostController.navigate(LogViewRoute) { launchSingleTop = true }
+                        }
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Outlined.List,
+                            contentDescription = stringResource(R.string.welcome_logs_content_description)
+                        )
+                    }
                 }
             }
         }
