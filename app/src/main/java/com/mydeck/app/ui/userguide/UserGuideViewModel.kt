@@ -20,6 +20,8 @@ class UserGuideIndexViewModel @Inject constructor(
     var uiState by mutableStateOf(UserGuideIndexUiState())
         private set
 
+    private var searchDocs: List<GuideSearchDoc> = emptyList()
+
     init {
         loadSections()
     }
@@ -38,12 +40,60 @@ class UserGuideIndexViewModel @Inject constructor(
             }
         }
     }
+
+    fun onSearchQueryChange(query: String) {
+        uiState = uiState.copy(searchQuery = query, searchResults = search(query))
+    }
+
+    fun clearSearch() {
+        uiState = uiState.copy(searchQuery = "", searchResults = emptyList())
+    }
+
+    private fun search(query: String): List<GuideSearchResult> {
+        val trimmed = query.trim()
+        if (trimmed.isEmpty()) return emptyList()
+        if (searchDocs.isEmpty()) {
+            searchDocs = markdownLoader.loadSearchDocs()
+        }
+        val needle = trimmed.lowercase()
+        val headingMatches = mutableListOf<GuideSearchResult>()
+        val bodyMatches = mutableListOf<GuideSearchResult>()
+        for (doc in searchDocs) {
+            val heading = doc.headings.firstOrNull { it.lowercase().contains(needle) }
+            if (heading != null) {
+                headingMatches += GuideSearchResult(doc.section, heading, heading)
+            } else {
+                val idx = doc.body.lowercase().indexOf(needle)
+                if (idx >= 0) {
+                    bodyMatches += GuideSearchResult(doc.section, null, snippet(doc.body, idx, needle.length))
+                }
+            }
+        }
+        return headingMatches + bodyMatches
+    }
+
+    /** A short window of body text around the match, for display in the result row. */
+    private fun snippet(body: String, matchIndex: Int, matchLength: Int): String {
+        val start = (matchIndex - 40).coerceAtLeast(0)
+        val end = (matchIndex + matchLength + 40).coerceAtMost(body.length)
+        val prefix = if (start > 0) "…" else ""
+        val suffix = if (end < body.length) "…" else ""
+        return prefix + body.substring(start, end).trim() + suffix
+    }
 }
 
 data class UserGuideIndexUiState(
     val isLoading: Boolean = false,
     val sections: List<GuideSection> = emptyList(),
-    val error: String? = null
+    val error: String? = null,
+    val searchQuery: String = "",
+    val searchResults: List<GuideSearchResult> = emptyList()
+)
+
+data class GuideSearchResult(
+    val section: GuideSection,
+    val matchedHeading: String?,
+    val snippet: String
 )
 
 @HiltViewModel
@@ -54,7 +104,13 @@ class UserGuideSectionViewModel @Inject constructor(
 
     private val route: UserGuideSectionRoute = savedStateHandle.toRoute()
 
-    var uiState by mutableStateOf(UserGuideSectionUiState(title = route.title))
+    var uiState by mutableStateOf(
+        UserGuideSectionUiState(
+            title = route.title,
+            searchAnchor = route.anchor,
+            searchQuery = route.query
+        )
+    )
         private set
 
     init {
@@ -81,5 +137,7 @@ data class UserGuideSectionUiState(
     val isLoading: Boolean = false,
     val title: String = "",
     val content: String = "",
-    val error: String? = null
+    val error: String? = null,
+    val searchAnchor: String? = null,
+    val searchQuery: String? = null
 )

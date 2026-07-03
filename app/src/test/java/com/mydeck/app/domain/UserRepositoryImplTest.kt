@@ -69,7 +69,13 @@ class UserRepositoryImplTest {
         every { settingsDataStore.usernameFlow } returns usernameFlow
         every { settingsDataStore.tokenFlow } returns tokenFlow
 
-        userRepository = UserRepositoryImpl(settingsDataStore, readeckApi, json, oauthDeviceAuthUseCase)
+        userRepository = UserRepositoryImpl(
+            mockk<android.content.Context>(relaxed = true),
+            settingsDataStore,
+            readeckApi,
+            json,
+            oauthDeviceAuthUseCase
+        )
     }
 
     @After

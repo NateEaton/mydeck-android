@@ -12,7 +12,9 @@ The standard MyDeck app accepts `https://` URLs only. If you enter an `http://` 
 
 A separate **HTTP-enabled APK** is published for setups that genuinely cannot use HTTPS (for example, connecting directly to a tailnet IP over HTTP). It installs alongside the standard app as its own package and shows an insecure-connection warning when you enter an `http://` URL.
 
-If the URL is invalid or the server cannot be reached, an error message will appear below the field. Double-check the address and make sure your device has network access to the server.
+MyDeck requires a Readeck server running **version 0.21 or later** (the first release to support the sign-in method MyDeck uses). If you enter the address of an older server, MyDeck tells you the server is too old and needs updating rather than showing a cryptic error. If the address doesn't point to a Readeck server at all — or the server can't be reached — you'll see a message explaining that instead. Double-check the address and make sure your device has network access to the server.
+
+At the bottom of the welcome screen are three quick-access buttons — **About**, **User Guide**, and **Logs** — so you can read the guide, check app details, or inspect logs before connecting. This is handy when diagnosing a connection problem. Tap the back arrow on any of those screens to return to the welcome screen.
 
 ## Signing In
 

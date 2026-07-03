@@ -77,19 +77,7 @@ Progress is tracked based on how far you scroll in the article — it reflects t
 
 ## Download Status
 
-All three layouts show whether a bookmark's content has been downloaded for offline reading:
-
-- **No indicator** — content not yet downloaded
-- **Outlined download icon** — text has been cached on demand for reading
-- **Filled download icon** — the bookmark is fully available offline, downloaded automatically by your offline settings
-- **Filled download icon in a highlight colour** — the bookmark is fully available offline because you saved it yourself (by opening it while offline reading is on); these hand-picked items are kept and aren't removed by routine offline maintenance
-
-The same slot also surfaces two status badges, which take priority over the download icon:
-
-- **Error icon** — your Readeck server reported a problem with this bookmark (for example, it couldn't extract the content). These are the same bookmarks matched by the **With errors** filter; open the bookmark to see the details. The badge appears once a metadata sync has run, without needing the content to be downloaded.
-- **Circle-slash icon** — there is no readable content to download; opening the card takes you to the original page.
-
-In **Grid** and **Compact** layouts, this icon appears on the site-info row, next to the site name and reading time. In **Mosaic** layout, it appears on the title row near the top-right area of the card.
+Each card also shows a small icon indicating whether the bookmark's content has been downloaded for offline reading, and two status badges (an **error** badge and a **no-content** badge) that take priority over it. See [Offline Reading](./offline-reading.md) for what each download icon and badge means.
 
 ## Card Actions
 
@@ -200,19 +188,7 @@ Tap **Search** to apply, or **Reset** to clear all filters.
 
 ## Collections
 
-A **collection** is a saved set of filter criteria you can return to with a single tap. Open **Collections** from the navigation drawer (or the navigation rail in wide layouts) to see all your collections, each shown as a card with its name and the date it was created.
-
-To create one, tap the **New Collection** button. A sheet opens with the same filter controls as the filter sheet, plus a **name** field at the top. Set the criteria you want, give the collection a name, and tap **Save** (Save stays disabled until you enter a name). MyDeck opens the new collection right away.
-
-Tap any collection card to open it. The list then shows that collection as its own view: the top bar displays the collection's name with a leading icon, and the collection's own criteria are not shown as filter chips — it reads like an ordinary list. To leave a collection, pick any other view (My List, Archive, a label, etc.) from the navigation drawer.
-
-**Saving the current filter as a collection.** When you've applied a filter to an ordinary list (so chips are showing), open the **⋮ overflow menu** and tap **Save as Collection**. The editor opens pre-filled with your current filter; name it and tap Save to keep it.
-
-**Layering filters on a collection.** While viewing a collection you can still apply additional filters (⋮ → Filter). Those extra criteria appear as chips on top of the collection; the app-bar title stays the collection's name, and the saved collection is unchanged until you explicitly save. Dismiss a chip (or tap **Reset** in the filter sheet) to return to just the collection's own criteria.
-
-**Editing, renaming, and deleting.** While a collection is active, the **⋮ overflow menu** offers **Edit collection** and **Delete collection**. Edit opens the editor pre-filled with the collection's criteria (plus any filter you've layered on) and its current name — change the name to rename it, adjust the criteria, and Save. Delete (from the overflow or the editor's **Delete** button) removes the collection and shows a **"Collection deleted"** snackbar with **Undo** — the same as deleting a bookmark, the removal is held until the snackbar goes away, so tap Undo to keep it.
-
-Note: the **Downloaded** filter and the **Length** (reading time / word count) filters are specific to this device and aren't stored in collections, so they don't appear in the collection editor. They remain available in the normal list filter.
+A **collection** is a saved set of filter criteria you can return to with a single tap. Open **Collections** from the navigation drawer (or the navigation rail in wide layouts), or save your current filter with **⋮ → Save as Collection**. See the [Collections](./collections.md) guide for creating, opening, editing, and deleting collections.
 
 ## Selecting Multiple Bookmarks
 
@@ -229,7 +205,7 @@ Archive and Favorite apply immediately and **keep you in selection mode**, so yo
 
 **Delete** is held until the snackbar goes away: the bookmarks stay greyed out while it's showing, so you can tap **Undo** to keep them, or dismiss the snackbar (or tap elsewhere) to confirm the deletion.
 
-**Pin offline** keeps the selected bookmarks on your device for offline reading. Pinned bookmarks are protected — the automatic offline limit won't remove them (only unpinning, clearing offline content, or turning offline reading off does; see [Settings](./settings.md)). MyDeck downloads anything that isn't already stored in the background under your sync settings (Wi-Fi only, battery saver), and each pinned card shows a **pin** icon. The menu reads **Unpin offline** instead when every selected bookmark is already pinned; unpinning hands those bookmarks back to automatic management (it doesn't delete them — they're just no longer protected). Like Archive and Favorite, pinning **keeps you in selection mode**. A snackbar summarizes the result, such as "8 pinned offline" or "8 pinned offline · 2 have no offline content" when some selected items (for example, link-only bookmarks or videos with no article) have nothing to store. The Pin/Unpin option is hidden while offline reading is turned off. You can also pin or unpin a single article from the **⋮ menu** while reading it.
+**Pin offline / Unpin offline** keeps the selected bookmarks on your device for offline reading (or hands them back to automatic management). Like Archive and Favorite, it keeps you in selection mode and shows a summary snackbar. The option is hidden while offline reading is turned off. See [Offline Reading](./offline-reading.md) for how pinning works.
 
 ## Refreshing
 

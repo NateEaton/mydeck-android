@@ -1,13 +1,18 @@
 ---
 Title: Table of Contents
 # !! IMPORTANT: DO NOT TRANSLATE THE PART BELOW
+# This list mirrors MarkdownAssetLoader.DEFAULT_SECTIONS (the in-app TOC).
+# Keep the two in sync when adding or reordering guide pages.
 TOC:
     - ""
     - getting-started
     - your-bookmarks
     - reading
     - organizing
+    - offline-reading
+    - labels
     - highlights
+    - collections
     - settings
 ---
 
@@ -18,8 +23,11 @@ MyDeck is a mobile reader for [Readeck](https://readeck.org), a self-hosted read
 ## Contents
 
 - [Getting Started](./getting-started.md)
-- [Bookmarks](./your-bookmarks.md)
+- [Your Bookmarks](./your-bookmarks.md)
 - [Reading](./reading.md)
 - [Organizing](./organizing.md)
+- [Offline Reading](./offline-reading.md)
+- [Labels](./labels.md)
 - [Highlights](./highlights.md)
+- [Collections](./collections.md)
 - [Settings](./settings.md)

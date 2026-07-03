@@ -13,9 +13,7 @@ The **Account** option in the drawer shows your username. Tapping it opens the *
 
 ## Server URL Security
 
-The standard MyDeck app accepts HTTPS Readeck server URLs only. If an older install was already signed in to an `http://` server URL, MyDeck shows a startup screen with two choices: switch to an HTTPS URL and sign in again, or install the separate HTTP-enabled APK.
-
-The HTTP-enabled APK is for trusted private-network setups that cannot use HTTPS. It installs beside the standard app and keeps separate credentials and local data.
+The standard MyDeck app accepts HTTPS Readeck server URLs only; a separate HTTP-enabled APK exists for trusted private-network setups that cannot use HTTPS. See [Getting Started](./getting-started.md) for the full explanation, including what happens if an older install was already signed in over `http://`.
 
 ## Synchronization
 
@@ -32,9 +30,7 @@ Above the sync button, the **Bookmarks** counts show how many bookmarks are in y
 
 ### Offline Reading
 
-Offline reading is optional and off by default. When enabled, MyDeck automatically downloads and keeps eligible bookmarks available so you can read them without internet access. A status indicator below the toggle shows whether content is actively syncing, up to date, or waiting on a connection or battery constraint.
-
-MyDeck keeps two kinds of offline content: **automatic** content that it manages for you within the limits below (this includes bookmarks you simply open while offline reading is on), and **pinned** content that you deliberately keep. Pin a bookmark from its reading view (**⋮ → Pin offline**) or pin several at once with **Pin offline** in the bookmark-list selection menu. Pinned bookmarks are protected from automatic trimming — only unpinning them, **Clear All Offline Content**, turning offline reading off, or the maximum storage cap will remove them.
+Offline reading is optional and off by default. The **Enable offline reading** toggle turns it on; a status indicator below shows whether content is actively syncing, up to date, or waiting on a connection or battery constraint. For what offline reading does, how automatic and pinned content differ, and how download status appears on your cards, see the [Offline Reading](./offline-reading.md) guide. The controls below decide *how much* MyDeck keeps and *when* it downloads.
 
 #### What to keep offline
 

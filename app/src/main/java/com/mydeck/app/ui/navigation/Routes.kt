@@ -48,5 +48,11 @@ object UserGuideRoute
 @Serializable
 data class UserGuideSectionRoute(
     val fileName: String,
-    val title: String
+    val title: String,
+    // Optional text to scroll to when the page opens (e.g. a matched heading or
+    // the search query when arriving from guide search). Null for normal navigation.
+    val anchor: String? = null,
+    // Optional search term to highlight throughout the page when arriving from
+    // guide search. Null for normal navigation.
+    val query: String? = null
 )

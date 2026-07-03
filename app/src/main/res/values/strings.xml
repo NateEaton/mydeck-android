@@ -17,6 +17,8 @@
     <string name="account_settings_url_http_warning">This HTTP URL sends OAuth tokens without TLS. You are using the HTTP-enabled MyDeck build; prefer a Tailscale Serve HTTPS URL or a reverse proxy with HTTPS when possible.</string>
     <string name="account_settings_http_blocked_error">HTTP Readeck server URLs are not allowed in this MyDeck build.</string>
     <string name="account_settings_initial_sync_failed">Initial sync failed. Please check your connection and try again.</string>
+    <string name="account_login_server_no_oauth">This Readeck server (version %1$s) does not support the authentication method required by this app. Please update your server to version 0.21 or later.</string>
+    <string name="account_login_not_readeck_server">Could not connect to a Readeck server at this address. If your server is running a version older than 0.21, it is not supported by this app. Please check the URL and ensure your server is reachable and up to date.</string>
     <string name="account_settings_username_error">Email address cannot be empty</string>
     <string name="account_settings_password_error">Password cannot be empty</string>
     <string name="account_settings_allow_unencrypted">Allow unencrypted connections</string>
@@ -52,6 +54,9 @@ other{}
     <string name="settings">Settings</string>
     <string name="user_guide">User Guide</string>
     <string name="user_guide_contents">Contents</string>
+    <string name="user_guide_search_hint">Search the guide</string>
+    <string name="user_guide_search_clear">Clear search</string>
+    <string name="user_guide_search_no_results">No results found</string>
     <string name="an_error_occurred">An error occurred.</string>
     <string name="no_bookmarks_found">No bookmarks found.</string>
     <string name="add_bookmark">Add Bookmark</string>
@@ -585,6 +590,9 @@ other{}
     <string name="welcome_title">Welcome to MyDeck</string>
     <string name="welcome_message">MyDeck is a read-later app for Readeck. Enter your Readeck server address below to get started. You\'ll be guided through a quick authorization process to connect your account.</string>
     <string name="welcome_connect_button">Connect</string>
+    <string name="welcome_about_content_description">About</string>
+    <string name="welcome_user_guide_content_description">User guide</string>
+    <string name="welcome_logs_content_description">Logs</string>
 
     <!-- HTTP URL Migration -->
     <string name="http_migration_title">HTTP server URL blocked</string>
