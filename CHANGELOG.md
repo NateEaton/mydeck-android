@@ -7,8 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.14.5] - 2026-07-03
+
 ### Added
 
+- Collections: save a set of filter criteria (search, labels, type, date range, and more) as a named, reusable view. Create one from the new Collections screen (navigation drawer/rail) or save your current filter directly from a list via "Save as Collection". Opening a collection shows it as its own list view, and you can layer additional filters on top without changing the saved collection. Rename, edit, or delete collections at any time.
 - Welcome screen quick-access buttons: reach **About**, the **User Guide**, and **Logs** before connecting to a server — handy when diagnosing a connection problem.
 - The in-app User Guide now has a **search field** to look up a feature by name — tapping a result opens the page, jumps to the match, and highlights every occurrence of the term — and **Labels**, **Highlights**, **Collections**, and **Offline Reading** each have their own page in the guide's table of contents.
 
