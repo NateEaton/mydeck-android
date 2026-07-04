@@ -24,11 +24,20 @@
             android:configChanges="screenLayout|orientation|screenSize|keyboard|keyboardHidden|smallestScreenSize"
             android:exported="true"
             android:label="${appLabel}"
+            android:launchMode="singleTop"
             android:theme="@style/Theme.MyDeck.Starting">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
                 <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:scheme="${oauthCallbackScheme}"
+                    android:host="${oauthCallbackHost}" />
             </intent-filter>
         </activity>
         <activity

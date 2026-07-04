@@ -12,7 +12,9 @@
     <string name="account_settings_username_label">Email Address</string>
     <string name="account_settings_password_label">Password</string>
     <string name="account_settings_password_placeholder">password</string>
-    <string name="account_settings_login">Login</string>
+    <string name="account_settings_login">Sign In</string>
+    <string name="account_settings_signing_in">Signing in…</string>
+    <string name="account_settings_sign_in_with_code">Sign in with a code instead</string>
     <string name="account_settings_url_error">Invalid URL</string>
     <string name="account_settings_url_http_warning">This HTTP URL sends OAuth tokens without TLS. You are using the HTTP-enabled MyDeck build; prefer a Tailscale Serve HTTPS URL or a reverse proxy with HTTPS when possible.</string>
     <string name="account_settings_http_blocked_error">HTTP Readeck server URLs are not allowed in this MyDeck build.</string>
@@ -621,6 +623,15 @@ other{}
     <string name="oauth_device_auth_denied">Authorization was denied.</string>
     <string name="oauth_device_auth_success">Successfully authorized!</string>
     <string name="oauth_error_network">Network error. Please check your connection.</string>
+
+    <!-- OAuth Authorization Code + PKCE -->
+    <string name="oauth_auth_code_browser_launched">Waiting for browser authorization…</string>
+    <string name="oauth_auth_code_browser_hint">Complete sign-in in your browser. You will be returned here automatically.</string>
+    <string name="oauth_auth_code_exchanging">Completing sign-in…</string>
+    <string name="oauth_auth_code_access_denied">Authorization was denied in the browser.</string>
+    <string name="oauth_auth_code_state_mismatch_error">Sign-in failed: security state mismatch. Please try again.</string>
+    <string name="oauth_auth_code_exchange_failed">Sign-in failed. Please try again.</string>
+
     <string name="logout_confirm_title">Sign Out</string>
     <string name="logout_confirm_message">Are you sure you want to sign out?</string>
 

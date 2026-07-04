@@ -1,16 +1,20 @@
 package com.mydeck.app.ui.settings
 
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
 import android.content.Context
 import com.mydeck.app.BuildConfig
 import com.mydeck.app.R
 import com.mydeck.app.domain.BookmarkRepository
+import com.mydeck.app.domain.OAuthCallbackRepository
 import com.mydeck.app.domain.UserRepository
 import com.mydeck.app.domain.model.OAuthDeviceAuthorizationState
+import com.mydeck.app.domain.usecase.OAuthAuthorizationCodeUseCase
 import com.mydeck.app.domain.usecase.OAuthDeviceAuthorizationUseCase
 import com.mydeck.app.io.prefs.SettingsDataStore
 import com.mydeck.app.ui.migration.HttpUrlMigrationLoginCoordinator
+import com.mydeck.app.util.openUrlInCustomTab
 import com.mydeck.app.worker.LoadBookmarksWorker
 import com.mydeck.app.util.isValidUrl
 import com.mydeck.app.coroutine.ApplicationScope
@@ -40,10 +44,13 @@ import java.util.UUID
 
 @HiltViewModel
 class AccountSettingsViewModel @Inject constructor(
+    private val savedStateHandle: SavedStateHandle,
     private val settingsDataStore: SettingsDataStore,
     private val bookmarkRepository: BookmarkRepository,
     private val userRepository: UserRepository,
     private val oauthDeviceAuthUseCase: OAuthDeviceAuthorizationUseCase,
+    private val oauthAuthCodeUseCase: OAuthAuthorizationCodeUseCase,
+    private val oauthCallbackRepository: OAuthCallbackRepository,
     private val workManager: WorkManager,
     @ApplicationContext private val context: Context,
     @ApplicationScope private val applicationScope: CoroutineScope,
@@ -64,6 +71,8 @@ class AccountSettingsViewModel @Inject constructor(
         data object Idle : AuthStatus()
         data object Loading : AuthStatus()
         data object WaitingForAuthorization : AuthStatus()
+        data object BrowserLaunched : AuthStatus()
+        data object Exchanging : AuthStatus()
         data object Success : AuthStatus()
         data class Error(val message: String) : AuthStatus()
     }
@@ -74,7 +83,11 @@ class AccountSettingsViewModel @Inject constructor(
     private val _navigationEvent = Channel<NavigationEvent>(Channel.BUFFERED)
     val navigationEvent: Flow<NavigationEvent> = _navigationEvent.receiveAsFlow()
 
+    private val _browserLaunchEvent = Channel<String>(Channel.BUFFERED)
+    val browserLaunchEvent: Flow<String> = _browserLaunchEvent.receiveAsFlow()
+
     private var pollingJob: Job? = null
+    private var authCodeJob: Job? = null
 
     sealed class NavigationEvent {
         data object NavigateToBookmarkList : NavigationEvent()
@@ -93,7 +106,17 @@ class AccountSettingsViewModel @Inject constructor(
                 )
             }
             if (pendingMigrationLoginUrl != null) {
-                startLogin(pendingMigrationLoginUrl)
+                startDeviceCodeLogin(pendingMigrationLoginUrl)
+            } else {
+                // Restore BrowserLaunched state after process death during Custom Tab
+                val pendingVerifier = savedStateHandle.get<String>(KEY_CODE_VERIFIER)
+                val pendingState = savedStateHandle.get<String>(KEY_AUTH_STATE)
+                val pendingServerUrl = savedStateHandle.get<String>(KEY_SERVER_URL)
+                if (pendingVerifier != null && pendingState != null && pendingServerUrl != null) {
+                    Timber.d("Restoring BrowserLaunched state after process death")
+                    _uiState.update { it.copy(authStatus = AuthStatus.BrowserLaunched) }
+                    awaitOAuthCallback(pendingServerUrl, pendingVerifier, pendingState)
+                }
             }
         }
     }
@@ -102,16 +125,120 @@ class AccountSettingsViewModel @Inject constructor(
         validateUrl(url)
     }
 
+    /** Primary sign-in action — launches browser-based OAuth Authorization Code + PKCE flow. */
     fun login() {
         val url = normalizeApiUrl(_uiState.value.url)
         Timber.d("login() called with normalized URL: $url")
-
-        viewModelScope.launch {
-            startLogin(url)
+        authCodeJob?.cancel()
+        authCodeJob = viewModelScope.launch {
+            startAuthCodeLogin(url)
         }
     }
 
-    private suspend fun startLogin(url: String) {
+    /** Switches to the Device Code flow, cancelling any in-progress auth-code flow. */
+    fun switchToDeviceCodeFlow() {
+        authCodeJob?.cancel()
+        clearAuthCodePendingState()
+        if (!isValidUrlForCurrentSettings(_uiState.value.url)) {
+            _uiState.update { it.copy(authStatus = AuthStatus.Idle) }
+            return
+        }
+        val url = normalizeApiUrl(_uiState.value.url)
+        viewModelScope.launch {
+            startDeviceCodeLogin(url)
+        }
+    }
+
+    private suspend fun startAuthCodeLogin(url: String) {
+        _uiState.update { it.copy(authStatus = AuthStatus.Loading) }
+        settingsDataStore.saveUrl(url)
+
+        when (val result = oauthAuthCodeUseCase.initiateAuthorization(url)) {
+            is OAuthAuthorizationCodeUseCase.AuthCodeInitiateResult.Ready -> {
+                val initResult = result.result
+                // Persist PKCE state for process-death survival
+                savedStateHandle[KEY_CODE_VERIFIER] = initResult.codeVerifier
+                savedStateHandle[KEY_AUTH_STATE] = initResult.state
+                savedStateHandle[KEY_SERVER_URL] = url
+
+                _uiState.update { it.copy(authStatus = AuthStatus.BrowserLaunched) }
+                _browserLaunchEvent.trySend(initResult.authorizeUrl)
+                awaitOAuthCallback(url, initResult.codeVerifier, initResult.state)
+            }
+
+            OAuthAuthorizationCodeUseCase.AuthCodeInitiateResult.HttpBlockedByBuildPolicy -> {
+                _uiState.update { it.copy(authStatus = AuthStatus.Error(context.getString(R.string.account_settings_http_blocked_error))) }
+            }
+
+            is OAuthAuthorizationCodeUseCase.AuthCodeInitiateResult.Error -> {
+                Timber.e("Auth code initiation error: ${result.message}")
+                _uiState.update { it.copy(authStatus = AuthStatus.Error(result.message)) }
+            }
+        }
+    }
+
+    private suspend fun awaitOAuthCallback(serverUrl: String, codeVerifier: String, expectedState: String) {
+        oauthCallbackRepository.events.first { event ->
+            when (event) {
+                is OAuthCallbackRepository.OAuthCallbackEvent.Success -> {
+                    if (event.state != expectedState) {
+                        Timber.e("OAuth state mismatch — possible CSRF. Expected $expectedState, got ${event.state}")
+                        _uiState.update {
+                            it.copy(authStatus = AuthStatus.Error(context.getString(R.string.oauth_auth_code_state_mismatch_error)))
+                        }
+                        clearAuthCodePendingState()
+                        return@first true
+                    }
+                    _uiState.update { it.copy(authStatus = AuthStatus.Exchanging) }
+                    when (val exchangeResult = oauthAuthCodeUseCase.exchangeCode(event.code, codeVerifier)) {
+                        is OAuthAuthorizationCodeUseCase.TokenExchangeResult.Success -> {
+                            clearAuthCodePendingState()
+                            when (val loginResult = userRepository.completeLogin(serverUrl, exchangeResult.accessToken)) {
+                                is UserRepository.LoginResult.Success -> onLoginSuccess()
+                                is UserRepository.LoginResult.Error ->
+                                    _uiState.update { it.copy(authStatus = AuthStatus.Error(loginResult.errorMessage)) }
+                                UserRepository.LoginResult.HttpBlockedByBuildPolicy ->
+                                    _uiState.update { it.copy(authStatus = AuthStatus.Error(context.getString(R.string.account_settings_http_blocked_error))) }
+                                else ->
+                                    _uiState.update { it.copy(authStatus = AuthStatus.Error(context.getString(R.string.oauth_auth_code_exchange_failed))) }
+                            }
+                        }
+                        is OAuthAuthorizationCodeUseCase.TokenExchangeResult.UserDenied -> {
+                            clearAuthCodePendingState()
+                            _uiState.update { it.copy(authStatus = AuthStatus.Error(exchangeResult.message)) }
+                        }
+                        OAuthAuthorizationCodeUseCase.TokenExchangeResult.HttpBlockedByBuildPolicy -> {
+                            clearAuthCodePendingState()
+                            _uiState.update { it.copy(authStatus = AuthStatus.Error(context.getString(R.string.account_settings_http_blocked_error))) }
+                        }
+                        is OAuthAuthorizationCodeUseCase.TokenExchangeResult.Error -> {
+                            clearAuthCodePendingState()
+                            _uiState.update { it.copy(authStatus = AuthStatus.Error(exchangeResult.message)) }
+                        }
+                    }
+                    true
+                }
+                is OAuthCallbackRepository.OAuthCallbackEvent.Error -> {
+                    Timber.w("OAuth callback error: ${event.error} — ${event.errorDescription}")
+                    clearAuthCodePendingState()
+                    val message = when (event.error) {
+                        "access_denied" -> context.getString(R.string.oauth_auth_code_access_denied)
+                        else -> event.errorDescription ?: context.getString(R.string.oauth_auth_code_exchange_failed)
+                    }
+                    _uiState.update { it.copy(authStatus = AuthStatus.Error(message)) }
+                    true
+                }
+            }
+        }
+    }
+
+    private fun clearAuthCodePendingState() {
+        savedStateHandle.remove<String>(KEY_CODE_VERIFIER)
+        savedStateHandle.remove<String>(KEY_AUTH_STATE)
+        savedStateHandle.remove<String>(KEY_SERVER_URL)
+    }
+
+    private suspend fun startDeviceCodeLogin(url: String) {
         _uiState.update { it.copy(authStatus = AuthStatus.Loading) }
 
         val result = userRepository.initiateLogin(url)
@@ -129,7 +256,6 @@ class AccountSettingsViewModel @Inject constructor(
             }
 
             is UserRepository.LoginResult.Success -> {
-                // Shouldn't happen from initiateLogin, but handle it
                 onLoginSuccess()
             }
 
@@ -180,7 +306,6 @@ class AccountSettingsViewModel @Inject constructor(
                     is OAuthDeviceAuthorizationUseCase.TokenPollResult.Success -> {
                         Timber.i("Token received, completing login")
 
-                        // Complete login: save token, fetch profile
                         when (val loginResult = userRepository.completeLogin(url, result.accessToken)) {
                             is UserRepository.LoginResult.Success -> onLoginSuccess()
                             is UserRepository.LoginResult.Error -> {
@@ -221,7 +346,6 @@ class AccountSettingsViewModel @Inject constructor(
 
                     is OAuthDeviceAuthorizationUseCase.TokenPollResult.NetworkError -> {
                         Timber.w("Network error during polling, will retry: ${result.message}")
-                        // Don't break — transient network errors are retryable
                     }
 
                     OAuthDeviceAuthorizationUseCase.TokenPollResult.HttpBlockedByBuildPolicy -> {
@@ -304,8 +428,11 @@ class AccountSettingsViewModel @Inject constructor(
         }
     }
 
+    /** Cancels any in-progress auth flow (device-code polling or auth-code await) and resets state. */
     fun cancelAuthorization() {
         pollingJob?.cancel()
+        authCodeJob?.cancel()
+        clearAuthCodePendingState()
         _uiState.update {
             it.copy(authStatus = AuthStatus.Idle, deviceAuthState = null)
         }
@@ -317,7 +444,7 @@ class AccountSettingsViewModel @Inject constructor(
             val logoutResult = userRepository.logout()
             Timber.d("logout result: $logoutResult")
             _uiState.update {
-                AccountSettingsUiState(url = it.url) // Reset to logged-out state
+                AccountSettingsUiState(url = it.url)
             }
         }
     }
@@ -388,5 +515,8 @@ class AccountSettingsViewModel @Inject constructor(
 
     private companion object {
         val INITIAL_SYNC_START_TIMEOUT = 20.seconds
+        const val KEY_CODE_VERIFIER = "oauth_code_verifier"
+        const val KEY_AUTH_STATE = "oauth_auth_state"
+        const val KEY_SERVER_URL = "oauth_server_url"
     }
 }

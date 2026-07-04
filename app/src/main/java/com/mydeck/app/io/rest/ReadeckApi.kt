@@ -14,6 +14,7 @@ import com.mydeck.app.io.rest.model.OAuthClientRegistrationRequestDto
 import com.mydeck.app.io.rest.model.OAuthClientRegistrationResponseDto
 import com.mydeck.app.io.rest.model.OAuthDeviceAuthorizationRequestDto
 import com.mydeck.app.io.rest.model.OAuthDeviceAuthorizationResponseDto
+import com.mydeck.app.io.rest.model.OAuthAuthCodeTokenRequestDto
 import com.mydeck.app.io.rest.model.OAuthRevokeRequestDto
 import com.mydeck.app.io.rest.model.OAuthTokenRequestDto
 import com.mydeck.app.io.rest.model.OAuthTokenResponseDto
@@ -75,6 +76,11 @@ interface ReadeckApi {
     @POST("oauth/token")
     suspend fun requestToken(
         @Body body: OAuthTokenRequestDto
+    ): Response<OAuthTokenResponseDto>
+
+    @POST("oauth/token")
+    suspend fun requestTokenWithAuthCode(
+        @Body body: OAuthAuthCodeTokenRequestDto
     ): Response<OAuthTokenResponseDto>
 
     @POST("oauth/revoke")

@@ -18,18 +18,24 @@ At the bottom of the welcome screen are three quick-access buttons — **About**
 
 ## Signing In
 
-MyDeck uses the OAuth device authorization flow to sign you in securely without ever handling your password. After tapping **Connect**, the screen shows two things:
+MyDeck uses OAuth to sign you in securely without ever handling your password.
 
-1. **A verification URL** — the address to visit in your browser (for example, `https://readeck.example.com/device`)
+### Browser-based sign-in (default)
+
+After entering your server address and tapping **Sign In**, MyDeck opens the Readeck authorization page in your browser. Log in to Readeck if you are not already logged in, review the permissions, and tap **Authorize**. You are returned to MyDeck automatically and the sign-in is complete.
+
+If you close the browser before completing the authorization, tap **Cancel** in MyDeck and try again.
+
+### Sign in with a code instead
+
+If you cannot use the browser flow — for example, on a TV or e-reader, or if your device browser cannot reach the server — tap **Sign in with a code instead** on the sign-in screen. The screen shows:
+
+1. **A verification URL** — the address to visit in any browser (for example, `https://readeck.example.com/device`)
 2. **Your user code** — a short one-time code to enter on that page
 
-The easiest way to sign in is to tap **Open in Browser**, which opens the Readeck authorization page directly. Log in to Readeck if prompted, review the permissions requested, and tap **Authorize**.
+Tap **Open in Browser** to open the Readeck page directly, or tap **Copy URL** and **Copy Code** to use them manually. Once you authorize in the browser, MyDeck detects the approval automatically.
 
-If you prefer to do it manually, tap **Copy URL** to copy the verification address and open it yourself, then tap **Copy Code** to copy the code and enter it when prompted.
-
-Once you tap Authorize, MyDeck detects the approval automatically and the sign-in is complete. When the Readeck page updates to show a "Return to Readeck" button, close the browser and return to MyDeck.
-
-> **Note:** The user code expires after 5 minutes. If the countdown reaches zero before you finish, go back and start the connection process again.
+> **Note:** The user code expires after 5 minutes. If the countdown reaches zero, go back and start the process again.
 
 ## First Load
 
@@ -39,5 +45,5 @@ After signing in, MyDeck syncs your bookmarks from the server. Depending on how 
 
 To sign out or connect to a different server, open the navigation drawer and tap **Settings**, then tap **Account**.
 
-- To **switch servers**, update the **Readeck URL** field and tap **Login** to re-authenticate.
+- To **switch servers**, update the **Readeck URL** field and tap **Sign In** to re-authenticate.
 - To **sign out**, tap **Sign Out**. This removes all locally stored bookmarks from the device and returns you to the welcome screen.

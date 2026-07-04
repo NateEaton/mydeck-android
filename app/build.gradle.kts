@@ -34,6 +34,8 @@ android {
         versionName = "0.14.5"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        manifestPlaceholders["oauthCallbackScheme"] = "mydeck"
+        manifestPlaceholders["oauthCallbackHost"] = "oauth-callback"
     }
 
     signingConfigs {

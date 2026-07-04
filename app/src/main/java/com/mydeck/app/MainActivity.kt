@@ -15,6 +15,7 @@ import androidx.compose.runtime.remember
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.navigation.compose.rememberNavController
 import dagger.hilt.android.AndroidEntryPoint
+import com.mydeck.app.domain.OAuthCallbackRepository
 import com.mydeck.app.domain.model.resolveEffectiveAppearance
 import com.mydeck.app.domain.model.Theme
 import com.mydeck.app.ui.navigation.AccountSettingsRoute
@@ -31,6 +32,9 @@ class MainActivity : ComponentActivity() {
 
     @Inject
     lateinit var settingsDataStore: SettingsDataStore
+
+    @Inject
+    lateinit var oauthCallbackRepository: OAuthCallbackRepository
 
     private lateinit var intentState: MutableState<Intent?>
 
@@ -65,6 +69,7 @@ class MainActivity : ComponentActivity() {
                             navController.navigate(BookmarkDetailRoute(bookmarkId))
                         }
                     }
+                    dispatchOAuthCallbackIfPresent(newIntent)
                     // Consume the intent after processing
                     intentState.value = null
                 }
@@ -90,5 +95,33 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         intentState.value = intent
+    }
+
+    private fun dispatchOAuthCallbackIfPresent(intent: Intent) {
+        val data = intent.data ?: return
+        if (data.scheme != "mydeck" || data.host != "oauth-callback") return
+
+        val code = data.getQueryParameter("code")
+        val state = data.getQueryParameter("state")
+        val error = data.getQueryParameter("error")
+
+        when {
+            error != null -> {
+                val errorDescription = data.getQueryParameter("error_description")
+                Timber.w("OAuth callback error: $error — $errorDescription")
+                oauthCallbackRepository.dispatch(
+                    OAuthCallbackRepository.OAuthCallbackEvent.Error(error, errorDescription)
+                )
+            }
+            !code.isNullOrBlank() && !state.isNullOrBlank() -> {
+                Timber.d("OAuth callback received: code present, state=$state")
+                oauthCallbackRepository.dispatch(
+                    OAuthCallbackRepository.OAuthCallbackEvent.Success(code, state)
+                )
+            }
+            else -> {
+                Timber.w("OAuth callback received but missing both error and valid code+state — ignoring")
+            }
+        }
     }
 }

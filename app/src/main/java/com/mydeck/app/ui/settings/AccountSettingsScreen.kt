@@ -22,7 +22,9 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import com.mydeck.app.R
+import com.mydeck.app.ui.components.MyDeckBrandHeader
 import com.mydeck.app.ui.login.DeviceAuthorizationScreen
+import com.mydeck.app.util.openUrlInCustomTab
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -32,6 +34,7 @@ fun AccountSettingsScreen(
 ) {
     val settingsUiState = viewModel.uiState.collectAsState().value
     val keyboardController = LocalSoftwareKeyboardController.current
+    val context = LocalContext.current
     val onUrlChanged: (String) -> Unit = { url -> viewModel.updateUrl(url) }
     val onLoginClicked: () -> Unit = { viewModel.login() }
     val onSignOut: () -> Unit = { viewModel.signOut() }
@@ -52,27 +55,82 @@ fun AccountSettingsScreen(
         }
     ) { scaffoldPadding ->
 
-    // When device authorization is in progress, show the auth screen instead of the form
-    if (settingsUiState.authStatus is AccountSettingsViewModel.AuthStatus.WaitingForAuthorization &&
-        settingsUiState.deviceAuthState != null) {
-        DeviceAuthorizationScreen(
-            userCode = settingsUiState.deviceAuthState!!.userCode,
-            verificationUri = settingsUiState.deviceAuthState!!.verificationUri,
-            verificationUriComplete = settingsUiState.deviceAuthState!!.verificationUriComplete,
-            expiresAt = settingsUiState.deviceAuthState!!.expiresAt,
-            onCancel = { viewModel.cancelAuthorization() },
-            modifier = Modifier.padding(scaffoldPadding)
-        )
-    } else {
+    when {
+        settingsUiState.authStatus is AccountSettingsViewModel.AuthStatus.WaitingForAuthorization &&
+            settingsUiState.deviceAuthState != null -> {
+            DeviceAuthorizationScreen(
+                userCode = settingsUiState.deviceAuthState!!.userCode,
+                verificationUri = settingsUiState.deviceAuthState!!.verificationUri,
+                verificationUriComplete = settingsUiState.deviceAuthState!!.verificationUriComplete,
+                expiresAt = settingsUiState.deviceAuthState!!.expiresAt,
+                onCancel = { viewModel.cancelAuthorization() },
+                modifier = Modifier.padding(scaffoldPadding)
+            )
+        }
+        settingsUiState.authStatus is AccountSettingsViewModel.AuthStatus.BrowserLaunched ||
+            settingsUiState.authStatus is AccountSettingsViewModel.AuthStatus.Exchanging -> {
+            BrowserLoginWaitingScreen(
+                isExchanging = settingsUiState.authStatus is AccountSettingsViewModel.AuthStatus.Exchanging,
+                onCancel = { viewModel.cancelAuthorization() },
+                onUseCodeInstead = { viewModel.switchToDeviceCodeFlow() },
+                modifier = Modifier.padding(scaffoldPadding)
+            )
+        }
+        else -> {
+            LoginFormContent(
+                settingsUiState = settingsUiState,
+                onUrlChanged = onUrlChanged,
+                onLoginClicked = onLoginClicked,
+                onSignInWithCodeClicked = { viewModel.switchToDeviceCodeFlow() },
+                onSignOut = onSignOut,
+                keyboardController = keyboardController,
+                modifier = Modifier.padding(scaffoldPadding)
+            )
+        }
+    }
 
+    } // end Scaffold
+
+    LaunchedEffect(Unit) {
+        viewModel.navigationEvent.collectLatest { event ->
+            when (event) {
+                is AccountSettingsViewModel.NavigationEvent.NavigateBack -> {
+                    navHostController.popBackStack()
+                }
+                is AccountSettingsViewModel.NavigationEvent.NavigateToBookmarkList -> {
+                    navHostController.navigate(com.mydeck.app.ui.navigation.BookmarkListRoute()) {
+                        popUpTo(com.mydeck.app.ui.navigation.AccountSettingsRoute) { inclusive = true }
+                    }
+                }
+            }
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        viewModel.browserLaunchEvent.collect { url ->
+            openUrlInCustomTab(context, url)
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun LoginFormContent(
+    settingsUiState: AccountSettingsViewModel.AccountSettingsUiState,
+    onUrlChanged: (String) -> Unit,
+    onLoginClicked: () -> Unit,
+    onSignInWithCodeClicked: () -> Unit,
+    onSignOut: () -> Unit,
+    keyboardController: androidx.compose.ui.platform.SoftwareKeyboardController?,
+    modifier: Modifier = Modifier
+) {
     LazyColumn(
-        modifier = Modifier
-            .padding(scaffoldPadding)
+        modifier = modifier
             .padding(16.dp)
             .fillMaxSize(),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(8.dp),
-        contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = 48.dp)
+        contentPadding = PaddingValues(bottom = 48.dp)
     ) {
         item {
             OutlinedTextField(
@@ -112,7 +170,16 @@ fun AccountSettingsScreen(
             )
         }
 
-        // Error message display
+        item {
+            TextButton(
+                onClick = onSignInWithCodeClicked,
+                enabled = settingsUiState.loginEnabled && settingsUiState.authStatus !is AccountSettingsViewModel.AuthStatus.Loading,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(stringResource(R.string.account_settings_sign_in_with_code))
+            }
+        }
+
         if (settingsUiState.authStatus is AccountSettingsViewModel.AuthStatus.Error) {
             item {
                 Text(
@@ -126,7 +193,6 @@ fun AccountSettingsScreen(
             }
         }
 
-        // Sign-out section (only show when logged in)
         if (settingsUiState.isLoggedIn) {
             item {
                 HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
@@ -152,22 +218,62 @@ fun AccountSettingsScreen(
             }
         }
     }
+}
 
-    } // end else (non-auth form)
-    } // end Scaffold
+@Composable
+internal fun BrowserLoginWaitingScreen(
+    isExchanging: Boolean,
+    onCancel: () -> Unit,
+    onUseCodeInstead: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .padding(horizontal = 20.dp, vertical = 24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Spacer(modifier = Modifier.height(24.dp))
 
-    LaunchedEffect(Unit) {
-        viewModel.navigationEvent.collectLatest { event ->
-            when (event) {
-                is AccountSettingsViewModel.NavigationEvent.NavigateBack -> {
-                    navHostController.popBackStack()
-                }
-                is AccountSettingsViewModel.NavigationEvent.NavigateToBookmarkList -> {
-                    navHostController.navigate(com.mydeck.app.ui.navigation.BookmarkListRoute()) {
-                        popUpTo(com.mydeck.app.ui.navigation.AccountSettingsRoute) { inclusive = true }
-                    }
-                }
+        MyDeckBrandHeader()
+
+        Spacer(modifier = Modifier.weight(1f))
+
+        CircularProgressIndicator(modifier = Modifier.size(40.dp), strokeWidth = 3.dp)
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        Text(
+            text = if (isExchanging) {
+                stringResource(R.string.oauth_auth_code_exchanging)
+            } else {
+                stringResource(R.string.oauth_auth_code_browser_launched)
+            },
+            style = MaterialTheme.typography.bodyLarge,
+            textAlign = TextAlign.Center
+        )
+
+        if (!isExchanging) {
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = stringResource(R.string.oauth_auth_code_browser_hint),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center
+            )
+        }
+
+        Spacer(modifier = Modifier.weight(1f))
+
+        if (!isExchanging) {
+            TextButton(onClick = onUseCodeInstead) {
+                Text(stringResource(R.string.account_settings_sign_in_with_code))
             }
+            Spacer(modifier = Modifier.height(8.dp))
+        }
+
+        OutlinedButton(onClick = onCancel, modifier = Modifier.fillMaxWidth()) {
+            Text(stringResource(android.R.string.cancel))
         }
     }
 }
@@ -191,7 +297,7 @@ fun LoginButton(
                     strokeWidth = 2.dp
                 )
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Signing in...")
+                Text(stringResource(R.string.account_settings_signing_in))
             }
             else -> {
                 Text(stringResource(R.string.account_settings_login))
