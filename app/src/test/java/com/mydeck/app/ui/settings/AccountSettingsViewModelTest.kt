@@ -88,6 +88,7 @@ class AccountSettingsViewModelTest {
         
         every { settingsDataStore.urlFlow } returns MutableStateFlow("")
         every { settingsDataStore.tokenFlow } returns MutableStateFlow(null)
+        every { settingsDataStore.saveUrl(any()) } returns Unit
         every { workManager.getWorkInfosForUniqueWorkFlow(any()) } returns flowOf(emptyList())
         every { LoadBookmarksWorker.enqueue(any(), any<Boolean>()) } returns UUID.randomUUID()
         every { context.getString(R.string.account_settings_initial_sync_failed) } returns
@@ -271,6 +272,150 @@ class AccountSettingsViewModelTest {
         viewModel.cancelAuthorization()
         runCurrent()
         unmockkStatic("com.mydeck.app.util.UtilsKt")
+    }
+
+    private fun stubAuthCodeInitiate(
+        url: String = "https://example.com/api",
+        state: String = "test-state",
+        verifier: String = "test-verifier"
+    ) {
+        coEvery { oauthAuthCodeUseCase.initiateAuthorization(url) } returns
+            OAuthAuthorizationCodeUseCase.AuthCodeInitiateResult.Ready(
+                OAuthAuthorizationCodeUseCase.InitiateResult(
+                    authorizeUrl = "https://example.com/authorize?test=1",
+                    codeVerifier = verifier,
+                    state = state,
+                    clientId = "test-client"
+                )
+            )
+    }
+
+    private fun stubInitialSyncSuccess(): UUID {
+        val workId = UUID.randomUUID()
+        val succeededWorkInfo = mockk<WorkInfo> {
+            every { id } returns workId
+            every { state } returns WorkInfo.State.SUCCEEDED
+        }
+        every { LoadBookmarksWorker.enqueue(any(), true) } returns workId
+        every { workManager.getWorkInfosForUniqueWorkFlow(LoadBookmarksWorker.UNIQUE_WORK_NAME) } returns
+            flowOf(listOf(succeededWorkInfo))
+        return workId
+    }
+
+    @Test
+    fun `auth-code callback with matching state exchanges code and completes login`() = runTest {
+        mockkStatic("com.mydeck.app.util.UtilsKt")
+        every { openUrlInCustomTab(any(), any()) } just Runs
+        stubAuthCodeInitiate()
+        coEvery { oauthAuthCodeUseCase.exchangeCode("auth-code-123", "test-verifier") } returns
+            OAuthAuthorizationCodeUseCase.TokenExchangeResult.Success("token-123")
+        coEvery { userRepository.completeLogin("https://example.com/api", "token-123") } returns
+            UserRepository.LoginResult.Success
+        stubInitialSyncSuccess()
+
+        viewModel.updateUrl("https://example.com")
+        viewModel.login()
+        runCurrent()
+        assertEquals(AccountSettingsViewModel.AuthStatus.BrowserLaunched, viewModel.uiState.value.authStatus)
+
+        oauthCallbackRepository.dispatch(
+            OAuthCallbackRepository.OAuthCallbackEvent.Success("auth-code-123", "test-state")
+        )
+        advanceUntilIdle()
+
+        assertEquals(AccountSettingsViewModel.AuthStatus.Success, viewModel.uiState.value.authStatus)
+        coVerify { oauthAuthCodeUseCase.exchangeCode("auth-code-123", "test-verifier") }
+        coVerify { userRepository.completeLogin("https://example.com/api", "token-123") }
+        unmockkStatic("com.mydeck.app.util.UtilsKt")
+    }
+
+    @Test
+    fun `auth-code callback with mismatched state shows error and never exchanges`() = runTest {
+        mockkStatic("com.mydeck.app.util.UtilsKt")
+        every { openUrlInCustomTab(any(), any()) } just Runs
+        every { context.getString(R.string.oauth_auth_code_state_mismatch_error) } returns "state mismatch"
+        stubAuthCodeInitiate()
+
+        viewModel.updateUrl("https://example.com")
+        viewModel.login()
+        runCurrent()
+
+        oauthCallbackRepository.dispatch(
+            OAuthCallbackRepository.OAuthCallbackEvent.Success("auth-code-123", "WRONG-STATE")
+        )
+        advanceUntilIdle()
+
+        assertEquals(
+            AccountSettingsViewModel.AuthStatus.Error("state mismatch"),
+            viewModel.uiState.value.authStatus
+        )
+        coVerify(exactly = 0) { oauthAuthCodeUseCase.exchangeCode(any(), any()) }
+        coVerify(exactly = 0) { userRepository.completeLogin(any(), any()) }
+        unmockkStatic("com.mydeck.app.util.UtilsKt")
+    }
+
+    @Test
+    fun `auth-code callback error access_denied surfaces denied message`() = runTest {
+        mockkStatic("com.mydeck.app.util.UtilsKt")
+        every { openUrlInCustomTab(any(), any()) } just Runs
+        every { context.getString(R.string.oauth_auth_code_access_denied) } returns "denied in browser"
+        stubAuthCodeInitiate()
+
+        viewModel.updateUrl("https://example.com")
+        viewModel.login()
+        runCurrent()
+
+        oauthCallbackRepository.dispatch(
+            OAuthCallbackRepository.OAuthCallbackEvent.Error("access_denied", "User denied")
+        )
+        advanceUntilIdle()
+
+        assertEquals(
+            AccountSettingsViewModel.AuthStatus.Error("denied in browser"),
+            viewModel.uiState.value.authStatus
+        )
+        coVerify(exactly = 0) { oauthAuthCodeUseCase.exchangeCode(any(), any()) }
+        unmockkStatic("com.mydeck.app.util.UtilsKt")
+    }
+
+    @Test
+    fun `restores auth-code flow after process death and completes on replayed callback`() = runTest {
+        // Simulate the callback being dispatched (from MainActivity onCreate) BEFORE the recreated
+        // ViewModel re-subscribes. replay=1 must still deliver it to the restored flow.
+        oauthCallbackRepository.dispatch(
+            OAuthCallbackRepository.OAuthCallbackEvent.Success("restored-code", "restored-state")
+        )
+        coEvery { oauthAuthCodeUseCase.exchangeCode("restored-code", "restored-verifier") } returns
+            OAuthAuthorizationCodeUseCase.TokenExchangeResult.Success("token-restored")
+        coEvery { userRepository.completeLogin("https://example.com/api", "token-restored") } returns
+            UserRepository.LoginResult.Success
+        stubInitialSyncSuccess()
+
+        val restoredHandle = SavedStateHandle(
+            mapOf(
+                "oauth_code_verifier" to "restored-verifier",
+                "oauth_auth_state" to "restored-state",
+                "oauth_server_url" to "https://example.com/api"
+            )
+        )
+        viewModel = AccountSettingsViewModel(
+            savedStateHandle = restoredHandle,
+            settingsDataStore = settingsDataStore,
+            bookmarkRepository = bookmarkRepository,
+            userRepository = userRepository,
+            oauthDeviceAuthUseCase = oauthDeviceAuthUseCase,
+            oauthAuthCodeUseCase = oauthAuthCodeUseCase,
+            oauthCallbackRepository = oauthCallbackRepository,
+            workManager = workManager,
+            context = context,
+            applicationScope = applicationScope,
+            httpUrlMigrationLoginCoordinator = httpUrlMigrationLoginCoordinator
+        )
+        advanceUntilIdle()
+
+        assertEquals(AccountSettingsViewModel.AuthStatus.Success, viewModel.uiState.value.authStatus)
+        coVerify { oauthAuthCodeUseCase.exchangeCode("restored-code", "restored-verifier") }
+        coVerify { userRepository.completeLogin("https://example.com/api", "token-restored") }
     }
 
     @Test

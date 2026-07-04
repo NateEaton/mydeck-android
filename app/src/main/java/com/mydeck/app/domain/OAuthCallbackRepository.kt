@@ -10,6 +10,14 @@ import javax.inject.Singleton
 /**
  * Application-scoped event bus that bridges OAuth redirect intents (received in MainActivity)
  * to the login ViewModel, surviving process death and ViewModel recreation.
+ *
+ * Uses `replay = 1` deliberately: after a full process death the redirect intent can be dispatched
+ * from `MainActivity.onCreate` *before* the recreated ViewModel re-subscribes. With `replay = 0`
+ * that emission would be dropped and the login would hang on the "waiting" screen. With `replay = 1`
+ * the late subscriber still receives the callback.
+ *
+ * The consumer MUST call [consume] once it has handled (or rejected) an event, so a stale callback
+ * is not replayed into a subsequent, unrelated login attempt.
  */
 @Singleton
 class OAuthCallbackRepository @Inject constructor() {
@@ -20,6 +28,7 @@ class OAuthCallbackRepository @Inject constructor() {
     }
 
     private val _events = MutableSharedFlow<OAuthCallbackEvent>(
+        replay = 1,
         extraBufferCapacity = 1,
         onBufferOverflow = BufferOverflow.DROP_OLDEST
     )
@@ -27,5 +36,10 @@ class OAuthCallbackRepository @Inject constructor() {
 
     fun dispatch(event: OAuthCallbackEvent) {
         _events.tryEmit(event)
+    }
+
+    /** Clears the replayed event after it has been handled, so it is not re-delivered. */
+    fun consume() {
+        _events.resetReplayCache()
     }
 }

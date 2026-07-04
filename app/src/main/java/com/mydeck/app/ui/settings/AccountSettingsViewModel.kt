@@ -129,6 +129,7 @@ class AccountSettingsViewModel @Inject constructor(
     fun login() {
         val url = normalizeApiUrl(_uiState.value.url)
         Timber.d("login() called with normalized URL: $url")
+        pollingJob?.cancel()
         authCodeJob?.cancel()
         authCodeJob = viewModelScope.launch {
             startAuthCodeLogin(url)
@@ -139,6 +140,7 @@ class AccountSettingsViewModel @Inject constructor(
     fun switchToDeviceCodeFlow() {
         authCodeJob?.cancel()
         clearAuthCodePendingState()
+        oauthCallbackRepository.consume()
         if (!isValidUrlForCurrentSettings(_uiState.value.url)) {
             _uiState.update { it.copy(authStatus = AuthStatus.Idle) }
             return
@@ -151,6 +153,8 @@ class AccountSettingsViewModel @Inject constructor(
 
     private suspend fun startAuthCodeLogin(url: String) {
         _uiState.update { it.copy(authStatus = AuthStatus.Loading) }
+        // Drop any stale callback from a prior attempt before we subscribe for this one.
+        oauthCallbackRepository.consume()
         settingsDataStore.saveUrl(url)
 
         when (val result = oauthAuthCodeUseCase.initiateAuthorization(url)) {
@@ -178,56 +182,58 @@ class AccountSettingsViewModel @Inject constructor(
     }
 
     private suspend fun awaitOAuthCallback(serverUrl: String, codeVerifier: String, expectedState: String) {
-        oauthCallbackRepository.events.first { event ->
-            when (event) {
-                is OAuthCallbackRepository.OAuthCallbackEvent.Success -> {
-                    if (event.state != expectedState) {
-                        Timber.e("OAuth state mismatch — possible CSRF. Expected $expectedState, got ${event.state}")
-                        _uiState.update {
-                            it.copy(authStatus = AuthStatus.Error(context.getString(R.string.oauth_auth_code_state_mismatch_error)))
-                        }
-                        clearAuthCodePendingState()
-                        return@first true
-                    }
-                    _uiState.update { it.copy(authStatus = AuthStatus.Exchanging) }
-                    when (val exchangeResult = oauthAuthCodeUseCase.exchangeCode(event.code, codeVerifier)) {
-                        is OAuthAuthorizationCodeUseCase.TokenExchangeResult.Success -> {
-                            clearAuthCodePendingState()
-                            when (val loginResult = userRepository.completeLogin(serverUrl, exchangeResult.accessToken)) {
-                                is UserRepository.LoginResult.Success -> onLoginSuccess()
-                                is UserRepository.LoginResult.Error ->
-                                    _uiState.update { it.copy(authStatus = AuthStatus.Error(loginResult.errorMessage)) }
-                                UserRepository.LoginResult.HttpBlockedByBuildPolicy ->
-                                    _uiState.update { it.copy(authStatus = AuthStatus.Error(context.getString(R.string.account_settings_http_blocked_error))) }
-                                else ->
-                                    _uiState.update { it.copy(authStatus = AuthStatus.Error(context.getString(R.string.oauth_auth_code_exchange_failed))) }
-                            }
-                        }
-                        is OAuthAuthorizationCodeUseCase.TokenExchangeResult.UserDenied -> {
-                            clearAuthCodePendingState()
-                            _uiState.update { it.copy(authStatus = AuthStatus.Error(exchangeResult.message)) }
-                        }
-                        OAuthAuthorizationCodeUseCase.TokenExchangeResult.HttpBlockedByBuildPolicy -> {
-                            clearAuthCodePendingState()
-                            _uiState.update { it.copy(authStatus = AuthStatus.Error(context.getString(R.string.account_settings_http_blocked_error))) }
-                        }
-                        is OAuthAuthorizationCodeUseCase.TokenExchangeResult.Error -> {
-                            clearAuthCodePendingState()
-                            _uiState.update { it.copy(authStatus = AuthStatus.Error(exchangeResult.message)) }
-                        }
-                    }
-                    true
-                }
-                is OAuthCallbackRepository.OAuthCallbackEvent.Error -> {
-                    Timber.w("OAuth callback error: ${event.error} — ${event.errorDescription}")
+        // Suspends until MainActivity dispatches a redirect. `events` has replay=1 so a callback
+        // delivered before this subscription (e.g. after process death) is still received here.
+        val event = oauthCallbackRepository.events.first()
+        // Clear the replay cache immediately so this callback can't be re-delivered to a later flow.
+        oauthCallbackRepository.consume()
+
+        when (event) {
+            is OAuthCallbackRepository.OAuthCallbackEvent.Success -> {
+                if (event.state != expectedState) {
+                    Timber.e("OAuth state mismatch — possible CSRF. Expected $expectedState, got ${event.state}")
                     clearAuthCodePendingState()
-                    val message = when (event.error) {
-                        "access_denied" -> context.getString(R.string.oauth_auth_code_access_denied)
-                        else -> event.errorDescription ?: context.getString(R.string.oauth_auth_code_exchange_failed)
+                    _uiState.update {
+                        it.copy(authStatus = AuthStatus.Error(context.getString(R.string.oauth_auth_code_state_mismatch_error)))
                     }
-                    _uiState.update { it.copy(authStatus = AuthStatus.Error(message)) }
-                    true
+                    return
                 }
+                _uiState.update { it.copy(authStatus = AuthStatus.Exchanging) }
+                when (val exchangeResult = oauthAuthCodeUseCase.exchangeCode(event.code, codeVerifier)) {
+                    is OAuthAuthorizationCodeUseCase.TokenExchangeResult.Success -> {
+                        clearAuthCodePendingState()
+                        when (val loginResult = userRepository.completeLogin(serverUrl, exchangeResult.accessToken)) {
+                            is UserRepository.LoginResult.Success -> onLoginSuccess()
+                            is UserRepository.LoginResult.Error ->
+                                _uiState.update { it.copy(authStatus = AuthStatus.Error(loginResult.errorMessage)) }
+                            UserRepository.LoginResult.HttpBlockedByBuildPolicy ->
+                                _uiState.update { it.copy(authStatus = AuthStatus.Error(context.getString(R.string.account_settings_http_blocked_error))) }
+                            else ->
+                                _uiState.update { it.copy(authStatus = AuthStatus.Error(context.getString(R.string.oauth_auth_code_exchange_failed))) }
+                        }
+                    }
+                    is OAuthAuthorizationCodeUseCase.TokenExchangeResult.UserDenied -> {
+                        clearAuthCodePendingState()
+                        _uiState.update { it.copy(authStatus = AuthStatus.Error(exchangeResult.message)) }
+                    }
+                    OAuthAuthorizationCodeUseCase.TokenExchangeResult.HttpBlockedByBuildPolicy -> {
+                        clearAuthCodePendingState()
+                        _uiState.update { it.copy(authStatus = AuthStatus.Error(context.getString(R.string.account_settings_http_blocked_error))) }
+                    }
+                    is OAuthAuthorizationCodeUseCase.TokenExchangeResult.Error -> {
+                        clearAuthCodePendingState()
+                        _uiState.update { it.copy(authStatus = AuthStatus.Error(exchangeResult.message)) }
+                    }
+                }
+            }
+            is OAuthCallbackRepository.OAuthCallbackEvent.Error -> {
+                Timber.w("OAuth callback error: ${event.error} — ${event.errorDescription}")
+                clearAuthCodePendingState()
+                val message = when (event.error) {
+                    "access_denied" -> context.getString(R.string.oauth_auth_code_access_denied)
+                    else -> event.errorDescription ?: context.getString(R.string.oauth_auth_code_exchange_failed)
+                }
+                _uiState.update { it.copy(authStatus = AuthStatus.Error(message)) }
             }
         }
     }
@@ -372,32 +378,33 @@ class AccountSettingsViewModel @Inject constructor(
      * on constrained ENQUEUED/BLOCKED states.
      */
     private suspend fun onLoginSuccess() {
-        try {
-            prepareForInitialSync()
-            val initialSyncWorkId = LoadBookmarksWorker.enqueue(context, isInitialLoad = true)
-
-            if (waitForInitialSyncToStart(initialSyncWorkId) == InitialSyncStartResult.TIMED_OUT) {
-                Timber.w("Initial sync did not start within timeout; cancelling work.")
-                workManager.cancelWorkById(initialSyncWorkId)
-            }
-
-            _uiState.update {
-                it.copy(
-                    authStatus = AuthStatus.Success,
-                    isLoggedIn = true,
-                    deviceAuthState = null
-                )
-            }
-            _navigationEvent.trySend(NavigationEvent.NavigateToBookmarkList)
-        } catch (e: Exception) {
-            Timber.e(e, "Failed to prepare initial sync after login")
-            _uiState.update {
-                it.copy(
-                    authStatus = AuthStatus.Error(context.getString(R.string.account_settings_initial_sync_failed)),
-                    deviceAuthState = null
-                )
+        // Run the post-login initial sync on the application scope so navigation or this
+        // ViewModel being cleared — e.g. while the process-death OAuth restore settles — cannot
+        // cancel it mid-flight and leave the bookmark list unpopulated. Mirrors the device-code
+        // polling job, which runs on applicationScope for the same reason.
+        val syncJob = applicationScope.launch {
+            try {
+                prepareForInitialSync()
+                val initialSyncWorkId = LoadBookmarksWorker.enqueue(context, isInitialLoad = true)
+                if (waitForInitialSyncToStart(initialSyncWorkId) == InitialSyncStartResult.TIMED_OUT) {
+                    Timber.w("Initial sync did not start within timeout; cancelling work.")
+                    workManager.cancelWorkById(initialSyncWorkId)
+                }
+            } catch (e: Exception) {
+                // A failed initial sync must not block login — the list recovers on next refresh.
+                Timber.e(e, "Initial sync after login failed to start")
             }
         }
+        syncJob.join()
+
+        _uiState.update {
+            it.copy(
+                authStatus = AuthStatus.Success,
+                isLoggedIn = true,
+                deviceAuthState = null
+            )
+        }
+        _navigationEvent.trySend(NavigationEvent.NavigateToBookmarkList)
     }
 
     private suspend fun prepareForInitialSync() {
@@ -433,6 +440,7 @@ class AccountSettingsViewModel @Inject constructor(
         pollingJob?.cancel()
         authCodeJob?.cancel()
         clearAuthCodePendingState()
+        oauthCallbackRepository.consume()
         _uiState.update {
             it.copy(authStatus = AuthStatus.Idle, deviceAuthState = null)
         }

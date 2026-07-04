@@ -15,6 +15,7 @@ import androidx.compose.runtime.remember
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.navigation.compose.rememberNavController
 import dagger.hilt.android.AndroidEntryPoint
+import com.mydeck.app.BuildConfig
 import com.mydeck.app.domain.OAuthCallbackRepository
 import com.mydeck.app.domain.model.resolveEffectiveAppearance
 import com.mydeck.app.domain.model.Theme
@@ -94,12 +95,21 @@ class MainActivity : ComponentActivity() {
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
-        intentState.value = intent
+        // onNewIntent can arrive during resume — after onCreate returns but before setContent's
+        // composition has initialized `intentState` (e.g. the cold-start OAuth redirect after a
+        // process death). Update the activity intent so the initial composition picks it up, and
+        // only touch the Compose state once it actually exists.
+        setIntent(intent)
+        if (::intentState.isInitialized) {
+            intentState.value = intent
+        }
     }
 
     private fun dispatchOAuthCallbackIfPresent(intent: Intent) {
         val data = intent.data ?: return
-        if (data.scheme != "mydeck" || data.host != "oauth-callback") return
+        if (data.scheme != BuildConfig.OAUTH_CALLBACK_SCHEME ||
+            data.host != BuildConfig.OAUTH_CALLBACK_HOST
+        ) return
 
         val code = data.getQueryParameter("code")
         val state = data.getQueryParameter("state")

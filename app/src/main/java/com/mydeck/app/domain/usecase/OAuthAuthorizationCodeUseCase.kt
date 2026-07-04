@@ -2,6 +2,7 @@ package com.mydeck.app.domain.usecase
 
 import android.content.Context
 import android.os.Build
+import com.mydeck.app.BuildConfig
 import com.mydeck.app.io.rest.ReadeckApi
 import com.mydeck.app.io.rest.isHttpBlockedByBuildPolicy
 import com.mydeck.app.io.rest.model.OAuthAuthCodeTokenRequestDto
@@ -27,7 +28,9 @@ class OAuthAuthorizationCodeUseCase @Inject constructor(
         private const val REQUIRED_SCOPES = "bookmarks:read bookmarks:write profile:read"
         private const val CLIENT_URI = "https://github.com/NateEaton/mydeck-android"
         private const val SOFTWARE_ID = "com.mydeck.app"
-        const val REDIRECT_URI = "mydeck://oauth-callback"
+        // Derived from the single build-config source so the manifest intent-filter,
+        // MainActivity's matcher, and this registered redirect_uri can never drift.
+        val REDIRECT_URI = "${BuildConfig.OAUTH_CALLBACK_SCHEME}://${BuildConfig.OAUTH_CALLBACK_HOST}"
         private val CLIENT_NAME get() = "MyDeck Android — ${Build.MANUFACTURER} ${Build.MODEL}"
     }
 
