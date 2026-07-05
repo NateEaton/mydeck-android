@@ -13,6 +13,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Sign in with a code instead** fallback: users who cannot use the browser flow (e.g. on constrained devices) can still sign in via the existing OAuth Device Code flow by tapping the new secondary action on the sign-in screen.
 - The sign-in flow now survives process death while the browser is open — if Android reclaims the app, returning from the browser resumes where it left off.
 
+### Changed
+
+- **Label delete confirmation** now shows how many bookmarks the label will be removed from, so the scope of the action is clear before confirming.
+- **Bulk bookmark delete** now requires an extra confirmation step when 25 or more bookmarks are selected, showing the count before proceeding to the usual undo snackbar flow.
+
 ## [0.14.5] - 2026-07-03
 
 ### Added

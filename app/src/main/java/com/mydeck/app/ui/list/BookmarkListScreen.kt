@@ -192,6 +192,7 @@ fun BookmarkListScreen(
     var showSelectionOverflowMenu by remember { mutableStateOf(false) }
     var showRenameLabelDialog by remember { mutableStateOf(false) }
     var showDeleteLabelDialog by remember { mutableStateOf(false) }
+    var showDeleteSelectionConfirmDialog by remember { mutableStateOf(false) }
     var showCollectionEditor by remember { mutableStateOf(false) }
     var scrollToTopTrigger by remember { mutableStateOf(0) }
 
@@ -740,9 +741,13 @@ fun BookmarkListScreen(
                                         text = { Text(stringResource(R.string.action_delete)) },
                                         onClick = {
                                             showSelectionOverflowMenu = false
-                                            dismissPendingDeleteSnackbar()
                                             hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
-                                            viewModel.onDeleteSelectedBookmarks()
+                                            if (multiSelectState.value.selectedCount >= 25) {
+                                                showDeleteSelectionConfirmDialog = true
+                                            } else {
+                                                dismissPendingDeleteSnackbar()
+                                                viewModel.onDeleteSelectedBookmarks()
+                                            }
                                         }
                                     )
                                     DropdownMenuItem(
@@ -1138,10 +1143,11 @@ fun BookmarkListScreen(
     // Label mode: Delete label dialog (from TopAppBar overflow menu)
     if (showDeleteLabelDialog && activeLabel.value != null) {
         val currentLabel = activeLabel.value!!
+        val labelBookmarkCount = labelsWithCounts.value[currentLabel] ?: 0
         AlertDialog(
             onDismissRequest = { showDeleteLabelDialog = false },
             title = { Text(stringResource(R.string.delete_label)) },
-            text = { Text(stringResource(R.string.delete_label_confirm_message, currentLabel)) },
+            text = { Text(stringResource(R.string.delete_label_confirm_message, currentLabel, labelBookmarkCount)) },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -1154,6 +1160,32 @@ fun BookmarkListScreen(
             },
             dismissButton = {
                 TextButton(onClick = { showDeleteLabelDialog = false }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            }
+        )
+    }
+
+    // Multi-select bulk delete confirmation dialog (shown when ≥25 bookmarks are selected)
+    if (showDeleteSelectionConfirmDialog) {
+        val selectionCount = multiSelectState.value.selectedCount
+        AlertDialog(
+            onDismissRequest = { showDeleteSelectionConfirmDialog = false },
+            title = { Text(stringResource(R.string.action_delete)) },
+            text = { Text(stringResource(R.string.delete_selected_bookmarks_confirm_message, selectionCount)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showDeleteSelectionConfirmDialog = false
+                        dismissPendingDeleteSnackbar()
+                        viewModel.onDeleteSelectedBookmarks()
+                    }
+                ) {
+                    Text(stringResource(R.string.delete))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteSelectionConfirmDialog = false }) {
                     Text(stringResource(R.string.cancel))
                 }
             }

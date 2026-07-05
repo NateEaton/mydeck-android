@@ -601,10 +601,11 @@ fun LabelPickerBottomSheet(
 
     if (mode is LabelPickerMode.SingleSelect && showDeleteDialog) {
         val labelToDelete = renameText
+        val labelBookmarkCount = labels[labelToDelete] ?: 0
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
             title = { Text(stringResource(R.string.delete_label)) },
-            text = { Text(stringResource(R.string.delete_label_confirm_message, labelToDelete)) },
+            text = { Text(stringResource(R.string.delete_label_confirm_message, labelToDelete, labelBookmarkCount)) },
             confirmButton = {
                 TextButton(
                     onClick = {

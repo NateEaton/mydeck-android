@@ -363,7 +363,8 @@ other{}
     <string name="rename_label">Rename label</string>
     <string name="rename">Rename</string>
     <string name="delete">Delete</string>
-    <string name="delete_label_confirm_message">Are you sure you want to delete the label \"%1$s\"? It will be removed from all bookmarks.</string>
+    <string name="delete_label_confirm_message">Are you sure you want to delete the label \"%1$s\"? It will be removed from %2$d bookmarks.</string>
+    <string name="delete_selected_bookmarks_confirm_message">Delete %1$d selected bookmarks?</string>
 
     <!-- Filter System -->
     <string name="filter_bookmarks">Filter bookmarks</string>
