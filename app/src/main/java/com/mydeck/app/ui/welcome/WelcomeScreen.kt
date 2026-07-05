@@ -19,10 +19,13 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
+import androidx.compose.ui.platform.LocalContext
 import com.mydeck.app.R
 import com.mydeck.app.ui.components.MyDeckBrandHeader
 import com.mydeck.app.ui.login.DeviceAuthorizationScreen
 import com.mydeck.app.ui.navigation.AboutRoute
+import com.mydeck.app.ui.settings.BrowserLoginWaitingScreen
+import com.mydeck.app.util.openUrlInCustomTab
 import com.mydeck.app.ui.navigation.BookmarkListRoute
 import com.mydeck.app.ui.navigation.LogViewRoute
 import com.mydeck.app.ui.navigation.UserGuideRoute
@@ -38,6 +41,13 @@ fun WelcomeScreen(
 ) {
     val settingsUiState = viewModel.uiState.collectAsState().value
     val keyboardController = LocalSoftwareKeyboardController.current
+    val context = LocalContext.current
+
+    LaunchedEffect(Unit) {
+        viewModel.browserLaunchEvent.collect { url ->
+            openUrlInCustomTab(context, url)
+        }
+    }
 
     LaunchedEffect(Unit) {
         viewModel.navigationEvent.collectLatest { event ->
@@ -55,17 +65,28 @@ fun WelcomeScreen(
     }
 
     Scaffold { scaffoldPadding ->
-        if (settingsUiState.authStatus is AccountSettingsViewModel.AuthStatus.WaitingForAuthorization &&
-            settingsUiState.deviceAuthState != null) {
-            DeviceAuthorizationScreen(
-                userCode = settingsUiState.deviceAuthState!!.userCode,
-                verificationUri = settingsUiState.deviceAuthState!!.verificationUri,
-                verificationUriComplete = settingsUiState.deviceAuthState!!.verificationUriComplete,
-                expiresAt = settingsUiState.deviceAuthState!!.expiresAt,
-                onCancel = { viewModel.cancelAuthorization() },
-                modifier = Modifier.padding(scaffoldPadding)
-            )
-        } else {
+        when {
+            settingsUiState.authStatus is AccountSettingsViewModel.AuthStatus.WaitingForAuthorization &&
+                settingsUiState.deviceAuthState != null -> {
+                DeviceAuthorizationScreen(
+                    userCode = settingsUiState.deviceAuthState!!.userCode,
+                    verificationUri = settingsUiState.deviceAuthState!!.verificationUri,
+                    verificationUriComplete = settingsUiState.deviceAuthState!!.verificationUriComplete,
+                    expiresAt = settingsUiState.deviceAuthState!!.expiresAt,
+                    onCancel = { viewModel.cancelAuthorization() },
+                    modifier = Modifier.padding(scaffoldPadding)
+                )
+            }
+            settingsUiState.authStatus is AccountSettingsViewModel.AuthStatus.BrowserLaunched ||
+                settingsUiState.authStatus is AccountSettingsViewModel.AuthStatus.Exchanging -> {
+                BrowserLoginWaitingScreen(
+                    isExchanging = settingsUiState.authStatus is AccountSettingsViewModel.AuthStatus.Exchanging,
+                    onCancel = { viewModel.cancelAuthorization() },
+                    onUseCodeInstead = { viewModel.switchToDeviceCodeFlow() },
+                    modifier = Modifier.padding(scaffoldPadding)
+                )
+            }
+            else -> {
             Column(
                 modifier = Modifier
                     .padding(scaffoldPadding)
@@ -131,12 +152,21 @@ fun WelcomeScreen(
                                 strokeWidth = 2.dp
                             )
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("Connecting...")
+                            Text(stringResource(R.string.account_settings_signing_in))
                         }
                         else -> {
-                            Text(stringResource(R.string.welcome_connect_button))
+                            Text(stringResource(R.string.account_settings_login))
                         }
                     }
+                }
+
+                TextButton(
+                    onClick = { viewModel.switchToDeviceCodeFlow() },
+                    enabled = settingsUiState.loginEnabled &&
+                            settingsUiState.authStatus !is AccountSettingsViewModel.AuthStatus.Loading,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(stringResource(R.string.account_settings_sign_in_with_code))
                 }
 
                 if (settingsUiState.authStatus is AccountSettingsViewModel.AuthStatus.Error) {
@@ -194,6 +224,7 @@ fun WelcomeScreen(
                     }
                 }
             }
+        }
         }
     }
 }

@@ -1,95 +1,96 @@
 # Cross-repo port methodology — MyDeck ⇄ Readeck for Android
 
 **Status:** Durable, reusable process doc. Not tied to any one feature.
-**Scope:** MyDeck (`com.mydeck.app`) and Readeck for Android (`org.readeck.apps.android`) are sibling apps that share most of their offline/sync/create/reader code. A fix or feature landed in one frequently needs to be ported to the other. This doc is the **direction-agnostic** harness for doing that; per-feature port checklists are separate, short docs that this harness produces.
+**Scope:** MyDeck and Readeck for Android are **sibling apps built from the same codebase**. Readeck for Android was forked from MyDeck at a known commit (see §0.2 for the anchor), and — deliberately — **they still share the exact same Kotlin source package (`com.mydeck.app`)**. This was done partly as an homage to MyDeck's heritage, but mostly to make porting between them trivial. A fix or feature landed in one frequently needs porting to the other; this doc is the direction-agnostic harness for doing that.
 
-> **Keep this doc mirrored in BOTH repos.** Either repo can be the source of a change, so whichever one you're working in should carry an up-to-date copy. When you edit this methodology, copy it to the other repo.
+> **Keep this doc mirrored in BOTH repos.** Either repo can be the source of a change. When you edit this methodology, copy it to the other repo.
 
 ---
 
-## 1. Roles (not fixed repos)
+## 0. Fixed facts — the ground truth (DO NOT re-derive these)
 
-A port has two roles. **Neither is permanently MyDeck or Readeck** — assign them per port:
-- **SOURCE** — the repo where the change already landed (the commits/PR you are porting *from*).
-- **TARGET** — the repo you are modifying (porting *into*).
+The two apps are the same codebase with a thin branding skin. Internalize this before porting; it means **the default outcome of a port is "the files are byte-identical except a small, closed set of branding differences."**
 
-The first port of the offline-content rework was SOURCE = MyDeck, TARGET = Readeck (the issues surfaced in MyDeck). Future ports will often be the reverse (SOURCE = Readeck). Do not hard-code a direction.
+1. **Same source package: `com.mydeck.app` in BOTH repos, on purpose.** The `namespace`, the `com/mydeck/app/...` directory tree, and every `package`/`import` are identical across the two apps. **There is never a package/import rewrite.** (`applicationId` differs — see §1 — but that is build config, not source.)
+2. **Shared git history — the fork point is a known commit (the anchor).** Readeck for Android was forked from MyDeck at the last common ancestor, **MyDeck commit `2923470`** ("Archived specs for features and fixes in v0.14.0", 2026-06-05). Readeck's own history begins one commit later at **`a570865`** ("Rebrand as Readeck for Android", 2026-06-08), which only skins branding on top. Use `2923470` as the common-ancestor anchor. Because the rebrand touched only branding, files untouched by it remain **byte-identical** in both repos to this day — so a source diff applies cleanly and unchanged files copy verbatim.
+3. **The default port is: copy byte-identical, then patch the branding.** Assume every changed/new source file copies as-is. The only edits are the enumerated branding points in §2. Do not go re-confirming package roots, channel ids, task names, or locale sets — they are fixed (§1) and identical.
+4. **The ONE thing that needs real work: data-model / Room changes.** These are NEVER copied. Regenerate the model/migration in the TARGET at its own DB version and regenerate its schema JSON (§4). Everything else is copy-plus-branding.
+5. **Cross-repo git is available.** The repos are local siblings; add the other as a remote to cherry-pick across them (§3). Do not conclude "no shared history" just because `git merge-base` fails across two separate checkouts — fetch first.
 
-## 2. Setup assumption (the assisting agent)
+If a port ever turns out NOT to match these facts (e.g. a source file is unexpectedly different from the target baseline), that is a signal worth surfacing — not something to silently work around.
 
-You (the assisting model) are running **in the TARGET repo** — that is the working copy you edit, build, and verify. You have **read access to the SOURCE repo** (a sibling checkout, or via `gh`/`git` against its remote). You read the source change there; you never edit it.
+---
 
-**Confirm before touching code:**
-1. Which repo am I in? → that is the **TARGET**.
-2. Where is the **SOURCE** repo, and what is the exact change set? (branch, PR number, or commit range.)
-3. Is the port a **cherry-pick** or a **manual re-apply**? (§4.)
-4. Fill the **divergence map** (§3) with the *actual* values read from each repo — do not assume.
+## 1. Repo reference table (filled — look up, don't discover)
 
-If any of these is unclear, ask before proceeding.
-
-## 3. Divergence map (the transform points)
-
-These differ between the repos and must be transformed when code crosses either direction. **Read the real values from each repo at port time — the table below names the *axes*, with known MyDeck values; confirm the counterpart in the other repo rather than guessing.**
+Assign roles per port (§ Roles below). To port, read the **TARGET's** column. These values are stable; update this table only if a repo actually changes one.
 
 | Axis | MyDeck | Readeck for Android |
 |---|---|---|
+| Source package (`namespace`, dirs, `package`/`import`) | `com.mydeck.app` | `com.mydeck.app` **(same — never rewrite)** |
 | `applicationId` | `com.mydeck.app` | `org.readeck.apps.android` |
-| Source package root (`com/.../...` dirs + `package`/`import`) | `com.mydeck.app` | *(confirm in repo)* |
-| Build flavors / variant task names | `githubSnapshot`, `githubSnapshotHttp` (e.g. `assembleGithubSnapshotDebug`) | *(confirm — do NOT copy MyDeck flavor names)* |
-| Aggregate verify tasks | `:app:assembleDebugAll`, `:app:testDebugUnitTestAll`, `:app:lintDebugAll` | *(confirm — these "All" tasks may be MyDeck-only)* |
-| Notification channel ids | e.g. `SYNC_NOTIFICATION_CHANNEL_ID = "FullSyncNotificationChannelId"` | *(confirm)* |
-| Branding strings/assets (`app_name`, icons, store copy) | "MyDeck" + icons | "Readeck" + upstream branding — **never port verbatim** |
-| Localized string sets | `values/` + the project's locale folders | *(confirm the locale set matches; it may differ)* |
-| Install/run on device | `scripts/install-phone.sh` (+ project's device setup) | *(confirm the target's run path)* |
-| Remotes | `origin NateEaton/mydeck-android` (+ upstream) | *(confirm)* |
+| Build flavors | `githubSnapshot`, `githubSnapshotHttp`, `githubRelease`, `githubReleaseHttp` | `snapshot`, `stable` |
+| Aggregate verify tasks | `:app:assembleDebugAll`, `:app:testDebugUnitTestAll`, `:app:lintDebugAll` | **same names** |
+| Install on device | `scripts/install-phone.sh` | `scripts/install-phone.sh` **(same)** |
+| Notification channel ids / internal constants | `FullSyncNotificationChannelId` etc. | **identical (same codebase)** |
+| Locale folders | `values/` + `-de-rDE, -es-rES, -fr, -gl-rES, -pl, -pt-rPT, -ru, -uk, -zh-rCN` | **same set** |
+| `app_name` / `appLabel` | "MyDeck" | "Readeck" |
+| OAuth client constants (`OAuth*UseCase`: `CLIENT_URI`, `SOFTWARE_ID`, `CLIENT_NAME`) | `https://github.com/NateEaton/mydeck-android`, `com.mydeck.app`, `"MyDeck Android — …"` | `https://codeberg.org/readeck/readeck-android`, `org.readeck.apps.android`, `"Readeck for Android — …"` |
+| OAuth redirect scheme (custom-scheme features) | `mydeck://…` | `readeck://…` |
+| Host / `origin` remote | **GitHub** — `git@github.com:NateEaton/mydeck-android.git` (+ `upstream` jensomato/ReadeckApp, `readeck-local`, `codeberg`) | **Codeberg** — `git@codeberg.org:readeck/readeck-android.git` |
+| CI / release automation | **GitHub Actions** — `.github/workflows/{checks,release,snapshot}.yml`; snapshot builds dispatched from the Actions tab | **Local** — no GitHub Actions; verification + builds run via `scripts/{ci-verify,build-snapshot,build-release,verify-release}.sh` (Codeberg host) |
+| Fork anchor (common ancestor) | `2923470` "Archived specs … v0.14.0" (2026-06-05) | first rebrand commit `a570865` "Rebrand as Readeck for Android" (2026-06-08) |
 
-## 4. Cherry-pick vs manual re-apply
+## 2. Branding transform points — the ONLY things that ever change
 
-Decide once per port:
-- **Cherry-pick** — viable only if the repos share enough git history that the source commits apply with mostly path/package fixups. Faster. After applying, you still run the §6 transforms (package rewrite, channel ids, flavors, strings, branding) and reconcile migrations (§5).
-- **Manual re-apply** — when histories have diverged: re-implement the change file-by-file in the target, using the source diff as the spec. Slower but unavoidable when cherry-pick produces noise.
+This is a **closed list**. If a diff touches something not on it, it is repo-agnostic logic and copies verbatim.
 
-Determine viability by checking shared history between SOURCE and TARGET (`git log`/merge-base if both are reachable). When in doubt, manual re-apply of the *logic* + transforms is the safe default.
+- `applicationId` and the **flavor block** (names/suffixes) in `app/build.gradle.kts`.
+- `app_name` / `appLabel` / launcher icons / store copy / colors.
+- **OAuth client-registration constants** (`CLIENT_URI`, `SOFTWARE_ID`, `CLIENT_NAME`) — use the TARGET's values from §1.
+- Any **brand-prefixed URL or custom URI scheme** (e.g. `mydeck://` ⇄ `readeck://`). Prefer sourcing these from `BuildConfig`/`manifestPlaceholders` so the port changes one place.
+- **User-guide + CHANGELOG wording** (the app is named in prose) — adapt to the target's name.
 
-## 5. Schema / migration reconciliation (highest-risk gotcha)
+Everything else — logic, DTOs, ViewModels, Compose UI, tests, DAOs, workers, string *keys* — is identical and copies byte-for-byte.
 
-Room DB versions and migration registration are **repo-specific**:
-- A migration added in SOURCE as `vN → vN+1` almost certainly maps to a **different version number** in TARGET (its current DB version differs). Renumber it.
-- Regenerate the TARGET's exported schema JSON for its new version (don't copy SOURCE's `N.json`).
-- Register the migration in the TARGET's database module and add/port its migration test.
-- Verify the column/table additions don't already exist under a different name in TARGET.
+**Never ports across repos** (per-repo infra, not branding): CI config (MyDeck's `.github/workflows/*` has no Readeck counterpart — Readeck verifies via local `scripts/*.sh`), Room schema versions + migrations (§4), signing/keystore config. A source change that only touches these does not port at all; a change that touches them *and* logic ports only the logic.
 
-## 6. Port procedure (direction-agnostic)
+## 3. Roles + cross-repo git
 
-1. **Enumerate** the SOURCE change set (commits/files). Use any inline "keep repo-agnostic / flag divergence" notes the source author left (they mark exactly the transform points).
-2. **Classify each change:** *repo-agnostic logic* (applies verbatim) · *divergence-touching* (package refs, channel ids, flavors, manifest, branding, strings — transform via §3) · *target-specific* (UI/branding that legitimately differs — adapt, don't copy).
-3. **Apply** the logic (cherry-pick or manual), then run the §3 transforms.
-4. **Reconcile migrations** (§5) if any schema changed.
-5. **Re-localize:** add the new strings to the TARGET's string set, in *its* locale folders. **Do not** `git checkout <ref> -- strings.xml` wholesale — that restores the entire file from the source tree and silently drops strings the target added independently. Insert the specific new keys surgically.
-6. **Docs:** port user-guide updates into the TARGET's guide (its wording/branding).
-7. **Verify:** the TARGET's build/test/lint (its task names, not MyDeck's) green; on-device check the ported behavior where feasible (especially anything touching workers/scheduler/migrations).
-8. **Commit/PR** in the TARGET per its conventions. Per repo rules, propose state-changing git/PR commands for the maintainer rather than running them.
+- **SOURCE** = repo the change landed in (read-only; never edit). **TARGET** = repo you're porting into (the one you're working in). Neither is permanently MyDeck or Readeck.
+- To cherry-pick or read source commits from the TARGET, add the sibling as a local remote and fetch:
+  `git remote add <source> <path-or-url> && git fetch <source>` (a local path like `/Users/nathan/development/MyDeck` works). Then `git cherry-pick <sha>` or `git show <sha>:<path>`.
+- Because the source package is identical (§0), cherry-picks apply with no path/package fixups — only the §2 branding edits and any §4 model regeneration remain.
 
-## 7. Recurring gotchas (the durable lessons)
+## 4. Data-model / migration reconciliation (the only real gotcha)
 
-- **Renumber + regenerate migrations** (§5) — never copy a version number across repos.
-- **Channel ids and flavor/variant task names differ** — don't copy `githubSnapshotDebug` or a MyDeck channel constant verbatim.
-- **Branding strings/assets** (`app_name`, store copy, icons) are *intentional* divergences — never port.
-- **Package/import rewrite** across the whole moved set (`com.mydeck.app.*` ⇄ the target root).
-- **Manifest divergence** — permissions and foreground-service types may already differ; merge, don't overwrite.
-- **Surgical string inserts**, never whole-file restores from another tree (clobbers independently-added keys).
-- **Locale set may differ** — confirm the target's languages before assuming the same N files.
+Room DB versions and migration registration are **repo-specific and never copied**:
+- A migration added in SOURCE as `vN → vN+1` maps to a **different version number** in TARGET — renumber it to TARGET's next version.
+- **Regenerate** the TARGET's exported schema JSON for its new version (don't copy SOURCE's `N.json`).
+- Register the migration in TARGET's database module; add/port its migration test.
+- Confirm the added columns/tables don't already exist under a different name in TARGET.
 
-## 8. Per-feature port checklists
+If a port has no schema change, this section is a no-op — skip it entirely.
 
-This methodology is the reusable harness. Each concrete port gets its own short checklist (e.g. `docs/porting/offline-content-rework-port.md`) listing that feature's commits, files, and specific divergences — **finalized against the shipped code** (after the source PR merges), and seeded from the inline divergence flags the source author left while the work was fresh.
+## 5. Port procedure
 
-## 9. Start-of-port checklist (copy/run this each time)
+1. **Identify** SOURCE change set (branch/PR/commit range) and read its diff.
+2. **Copy** the changed/new files (verbatim — cherry-pick per §3, or copy the source-branch version of each file since baselines are identical per §0.2). New files drop in as-is; modified files' baselines match, so the source version is a clean superset.
+3. **Apply the §2 branding edits** — the only edits. For `build.gradle.kts` and `AndroidManifest.xml`, do NOT copy wholesale (flavors/applicationId/manifest entries differ); merge the added blocks.
+4. **Regenerate models** (§4) if any schema changed.
+5. **Localize:** insert the new string *keys* into the TARGET's `values/` + locale files surgically. Never `git checkout <ref> -- strings.xml` (clobbers independently-added keys). Keys and English values port as-is.
+6. **Docs:** port guide + CHANGELOG additions in the target's wording.
+7. **Verify:** `:app:assembleDebugAll`, `:app:testDebugUnitTestAll`, `:app:lintDebugAll` green (same names in both). On-device check via `scripts/install-phone.sh`, especially anything touching workers/scheduler/migrations.
+8. **Commit/PR** per the target's conventions. Per repo rules, **propose** state-changing git/PR commands for the maintainer rather than running them.
 
-- [ ] Confirm TARGET = the repo I'm in; SOURCE located and read-accessible.
+## 6. Per-feature port checklists
+
+This methodology is the reusable harness. Each concrete port gets a short checklist (e.g. `docs/porting/<feature>-port.md`) listing that feature's commits, files, and the specific §2 branding values used — finalized against the shipped source code. Seed it from any inline "keep repo-agnostic / flag divergence" notes the source author left.
+
+## 7. Start-of-port checklist (most boxes are pre-answered by §0–§1)
+
+- [ ] TARGET = the repo I'm in; SOURCE located and read-accessible (add as remote if cherry-picking, §3).
 - [ ] Source change set identified (branch/PR/commit range).
-- [ ] Cherry-pick vs manual re-apply decided (§4).
-- [ ] Divergence map (§3) filled with real values from both repos.
-- [ ] TARGET current DB version + migration registration point identified (§5).
-- [ ] TARGET build/test/lint task names + on-device run path identified.
-- [ ] Localization locale set in TARGET confirmed.
+- [ ] Confirmed the changed source files match §0.2 (source base == target current) — if not, surface it.
+- [ ] Does the change touch the data model? If yes → §4 (regenerate). If no → skip §4.
+- [ ] Branding values for the TARGET pulled from §1.

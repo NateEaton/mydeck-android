@@ -34,6 +34,17 @@ android {
         versionName = "0.14.5"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        // Single source of truth for the OAuth authorization-code redirect URI.
+        // The manifest intent-filter, MainActivity's callback matcher, and the use case's
+        // registered redirect_uri all derive from these — change them here only.
+        // (For the Readeck port, swap these values or move them per-flavor.)
+        val oauthCallbackScheme = "mydeck"
+        val oauthCallbackHost = "oauth-callback"
+        manifestPlaceholders["oauthCallbackScheme"] = oauthCallbackScheme
+        manifestPlaceholders["oauthCallbackHost"] = oauthCallbackHost
+        buildConfigField("String", "OAUTH_CALLBACK_SCHEME", "\"$oauthCallbackScheme\"")
+        buildConfigField("String", "OAUTH_CALLBACK_HOST", "\"$oauthCallbackHost\"")
     }
 
     signingConfigs {

@@ -3,22 +3,30 @@ package com.mydeck.app.ui.settings
 import com.mydeck.app.R
 import com.mydeck.app.BuildConfig
 import com.mydeck.app.domain.BookmarkRepository
+import com.mydeck.app.domain.OAuthCallbackRepository
 import com.mydeck.app.domain.UserRepository
 import com.mydeck.app.domain.model.OAuthDeviceAuthorizationState
+import com.mydeck.app.domain.usecase.OAuthAuthorizationCodeUseCase
 import com.mydeck.app.domain.usecase.OAuthDeviceAuthorizationUseCase
 import com.mydeck.app.io.prefs.SettingsDataStore
 import com.mydeck.app.ui.migration.HttpUrlMigrationLoginCoordinator
 import com.mydeck.app.worker.LoadBookmarksWorker
 import android.content.Context
+import androidx.lifecycle.SavedStateHandle
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
+import com.mydeck.app.util.openUrlInCustomTab
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockkObject
+import io.mockk.mockkStatic
 import io.mockk.mockk
 import io.mockk.unmockkObject
+import io.mockk.unmockkStatic
 import io.mockk.verify
+import io.mockk.just
+import io.mockk.Runs
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -48,10 +56,13 @@ import java.util.UUID
 class AccountSettingsViewModelTest {
 
     private val testDispatcher = StandardTestDispatcher()
+    private lateinit var savedStateHandle: SavedStateHandle
     private lateinit var settingsDataStore: SettingsDataStore
     private lateinit var bookmarkRepository: BookmarkRepository
     private lateinit var userRepository: UserRepository
     private lateinit var oauthDeviceAuthUseCase: OAuthDeviceAuthorizationUseCase
+    private lateinit var oauthAuthCodeUseCase: OAuthAuthorizationCodeUseCase
+    private lateinit var oauthCallbackRepository: OAuthCallbackRepository
     private lateinit var workManager: WorkManager
     private lateinit var context: Context
     private lateinit var applicationScope: CoroutineScope
@@ -62,10 +73,13 @@ class AccountSettingsViewModelTest {
     fun setUp() {
         val testDispatcher = StandardTestDispatcher()
         Dispatchers.setMain(testDispatcher)
+        savedStateHandle = SavedStateHandle()
         settingsDataStore = mockk()
         bookmarkRepository = mockk(relaxed = true)
         userRepository = mockk(relaxed = true)
         oauthDeviceAuthUseCase = mockk()
+        oauthAuthCodeUseCase = mockk()
+        oauthCallbackRepository = OAuthCallbackRepository()
         workManager = mockk()
         context = mockk()
         applicationScope = TestScope(testDispatcher)
@@ -74,6 +88,7 @@ class AccountSettingsViewModelTest {
         
         every { settingsDataStore.urlFlow } returns MutableStateFlow("")
         every { settingsDataStore.tokenFlow } returns MutableStateFlow(null)
+        every { settingsDataStore.saveUrl(any()) } returns Unit
         every { workManager.getWorkInfosForUniqueWorkFlow(any()) } returns flowOf(emptyList())
         every { LoadBookmarksWorker.enqueue(any(), any<Boolean>()) } returns UUID.randomUUID()
         every { context.getString(R.string.account_settings_initial_sync_failed) } returns
@@ -85,10 +100,13 @@ class AccountSettingsViewModelTest {
         coEvery { userRepository.logout() } returns UserRepository.LogoutResult.Success
         
         viewModel = AccountSettingsViewModel(
+            savedStateHandle = savedStateHandle,
             settingsDataStore = settingsDataStore,
             bookmarkRepository = bookmarkRepository,
             userRepository = userRepository,
             oauthDeviceAuthUseCase = oauthDeviceAuthUseCase,
+            oauthAuthCodeUseCase = oauthAuthCodeUseCase,
+            oauthCallbackRepository = oauthCallbackRepository,
             workManager = workManager,
             context = context,
             applicationScope = applicationScope,
@@ -107,10 +125,13 @@ class AccountSettingsViewModelTest {
         every { settingsDataStore.urlFlow } returns MutableStateFlow("https://example.com")
         every { settingsDataStore.tokenFlow } returns MutableStateFlow("valid-token") // Non-empty token to set isLoggedIn=true
         viewModel = AccountSettingsViewModel(
+            savedStateHandle = savedStateHandle,
             settingsDataStore = settingsDataStore,
             bookmarkRepository = bookmarkRepository,
             userRepository = userRepository,
             oauthDeviceAuthUseCase = oauthDeviceAuthUseCase,
+            oauthAuthCodeUseCase = oauthAuthCodeUseCase,
+            oauthCallbackRepository = oauthCallbackRepository,
             workManager = workManager,
             context = context,
             applicationScope = applicationScope,
@@ -131,10 +152,13 @@ class AccountSettingsViewModelTest {
         every { settingsDataStore.urlFlow } returns MutableStateFlow("https://example.com/api")
         every { settingsDataStore.tokenFlow } returns MutableStateFlow("valid-token")
         viewModel = AccountSettingsViewModel(
+            savedStateHandle = savedStateHandle,
             settingsDataStore = settingsDataStore,
             bookmarkRepository = bookmarkRepository,
             userRepository = userRepository,
             oauthDeviceAuthUseCase = oauthDeviceAuthUseCase,
+            oauthAuthCodeUseCase = oauthAuthCodeUseCase,
+            oauthCallbackRepository = oauthCallbackRepository,
             workManager = workManager,
             context = context,
             applicationScope = applicationScope,
@@ -170,10 +194,13 @@ class AccountSettingsViewModelTest {
         } returns OAuthDeviceAuthorizationUseCase.TokenPollResult.StillPending
 
         viewModel = AccountSettingsViewModel(
+            savedStateHandle = savedStateHandle,
             settingsDataStore = settingsDataStore,
             bookmarkRepository = bookmarkRepository,
             userRepository = userRepository,
             oauthDeviceAuthUseCase = oauthDeviceAuthUseCase,
+            oauthAuthCodeUseCase = oauthAuthCodeUseCase,
+            oauthCallbackRepository = oauthCallbackRepository,
             workManager = workManager,
             context = context,
             applicationScope = applicationScope,
@@ -221,42 +248,174 @@ class AccountSettingsViewModelTest {
     }
 
     @Test
-    fun `login should trigger OAuth flow`() = runTest {
-        // Mock successful OAuth initiation
-        coEvery { userRepository.initiateLogin("https://example.com/api") } returns UserRepository.LoginResult.DeviceAuthorizationRequired(
-            OAuthDeviceAuthorizationState(
-                clientId = "test-client",
-                deviceCode = "TEST-CODE",
-                userCode = "TEST-USER-CODE",
-                verificationUri = "https://example.com/auth",
-                verificationUriComplete = "https://example.com/auth?code=TEST-USER-CODE",
-                expiresAt = System.currentTimeMillis() + 1800_000,
-                pollingInterval = 5
+    fun `login should trigger auth-code browser flow`() = runTest {
+        mockkStatic("com.mydeck.app.util.UtilsKt")
+        every { openUrlInCustomTab(any(), any()) } just Runs
+
+        coEvery {
+            oauthAuthCodeUseCase.initiateAuthorization("https://example.com/api")
+        } returns OAuthAuthorizationCodeUseCase.AuthCodeInitiateResult.Ready(
+            OAuthAuthorizationCodeUseCase.InitiateResult(
+                authorizeUrl = "https://example.com/authorize?test=1",
+                codeVerifier = "test-verifier",
+                state = "test-state",
+                clientId = "test-client"
             )
         )
 
-        // Polling runs in a background coroutine; provide a stub so it can't throw MockKException
-        // if the test scheduler advances time.
-        coEvery {
-            oauthDeviceAuthUseCase.pollForToken(
-                clientId = any(),
-                deviceCode = any(),
-                currentInterval = any()
-            )
-        } returns OAuthDeviceAuthorizationUseCase.TokenPollResult.StillPending
-        
         viewModel.updateUrl("https://example.com")
         viewModel.login()
-        // Only run immediate tasks; don't advance time into the polling loop delay.
         runCurrent()
-        
-        val uiState = viewModel.uiState.first()
-        assertEquals(AccountSettingsViewModel.AuthStatus.WaitingForAuthorization, uiState.authStatus)
-        assertNotNull(uiState.deviceAuthState)
 
-        // Stop the polling job so the test can complete deterministically.
+        assertEquals(AccountSettingsViewModel.AuthStatus.BrowserLaunched, viewModel.uiState.value.authStatus)
+
         viewModel.cancelAuthorization()
         runCurrent()
+        unmockkStatic("com.mydeck.app.util.UtilsKt")
+    }
+
+    private fun stubAuthCodeInitiate(
+        url: String = "https://example.com/api",
+        state: String = "test-state",
+        verifier: String = "test-verifier"
+    ) {
+        coEvery { oauthAuthCodeUseCase.initiateAuthorization(url) } returns
+            OAuthAuthorizationCodeUseCase.AuthCodeInitiateResult.Ready(
+                OAuthAuthorizationCodeUseCase.InitiateResult(
+                    authorizeUrl = "https://example.com/authorize?test=1",
+                    codeVerifier = verifier,
+                    state = state,
+                    clientId = "test-client"
+                )
+            )
+    }
+
+    private fun stubInitialSyncSuccess(): UUID {
+        val workId = UUID.randomUUID()
+        val succeededWorkInfo = mockk<WorkInfo> {
+            every { id } returns workId
+            every { state } returns WorkInfo.State.SUCCEEDED
+        }
+        every { LoadBookmarksWorker.enqueue(any(), true) } returns workId
+        every { workManager.getWorkInfosForUniqueWorkFlow(LoadBookmarksWorker.UNIQUE_WORK_NAME) } returns
+            flowOf(listOf(succeededWorkInfo))
+        return workId
+    }
+
+    @Test
+    fun `auth-code callback with matching state exchanges code and completes login`() = runTest {
+        mockkStatic("com.mydeck.app.util.UtilsKt")
+        every { openUrlInCustomTab(any(), any()) } just Runs
+        stubAuthCodeInitiate()
+        coEvery { oauthAuthCodeUseCase.exchangeCode("auth-code-123", "test-verifier") } returns
+            OAuthAuthorizationCodeUseCase.TokenExchangeResult.Success("token-123")
+        coEvery { userRepository.completeLogin("https://example.com/api", "token-123") } returns
+            UserRepository.LoginResult.Success
+        stubInitialSyncSuccess()
+
+        viewModel.updateUrl("https://example.com")
+        viewModel.login()
+        runCurrent()
+        assertEquals(AccountSettingsViewModel.AuthStatus.BrowserLaunched, viewModel.uiState.value.authStatus)
+
+        oauthCallbackRepository.dispatch(
+            OAuthCallbackRepository.OAuthCallbackEvent.Success("auth-code-123", "test-state")
+        )
+        advanceUntilIdle()
+
+        assertEquals(AccountSettingsViewModel.AuthStatus.Success, viewModel.uiState.value.authStatus)
+        coVerify { oauthAuthCodeUseCase.exchangeCode("auth-code-123", "test-verifier") }
+        coVerify { userRepository.completeLogin("https://example.com/api", "token-123") }
+        unmockkStatic("com.mydeck.app.util.UtilsKt")
+    }
+
+    @Test
+    fun `auth-code callback with mismatched state shows error and never exchanges`() = runTest {
+        mockkStatic("com.mydeck.app.util.UtilsKt")
+        every { openUrlInCustomTab(any(), any()) } just Runs
+        every { context.getString(R.string.oauth_auth_code_state_mismatch_error) } returns "state mismatch"
+        stubAuthCodeInitiate()
+
+        viewModel.updateUrl("https://example.com")
+        viewModel.login()
+        runCurrent()
+
+        oauthCallbackRepository.dispatch(
+            OAuthCallbackRepository.OAuthCallbackEvent.Success("auth-code-123", "WRONG-STATE")
+        )
+        advanceUntilIdle()
+
+        assertEquals(
+            AccountSettingsViewModel.AuthStatus.Error("state mismatch"),
+            viewModel.uiState.value.authStatus
+        )
+        coVerify(exactly = 0) { oauthAuthCodeUseCase.exchangeCode(any(), any()) }
+        coVerify(exactly = 0) { userRepository.completeLogin(any(), any()) }
+        unmockkStatic("com.mydeck.app.util.UtilsKt")
+    }
+
+    @Test
+    fun `auth-code callback error access_denied surfaces denied message`() = runTest {
+        mockkStatic("com.mydeck.app.util.UtilsKt")
+        every { openUrlInCustomTab(any(), any()) } just Runs
+        every { context.getString(R.string.oauth_auth_code_access_denied) } returns "denied in browser"
+        stubAuthCodeInitiate()
+
+        viewModel.updateUrl("https://example.com")
+        viewModel.login()
+        runCurrent()
+
+        oauthCallbackRepository.dispatch(
+            OAuthCallbackRepository.OAuthCallbackEvent.Error("access_denied", "User denied")
+        )
+        advanceUntilIdle()
+
+        assertEquals(
+            AccountSettingsViewModel.AuthStatus.Error("denied in browser"),
+            viewModel.uiState.value.authStatus
+        )
+        coVerify(exactly = 0) { oauthAuthCodeUseCase.exchangeCode(any(), any()) }
+        unmockkStatic("com.mydeck.app.util.UtilsKt")
+    }
+
+    @Test
+    fun `restores auth-code flow after process death and completes on replayed callback`() = runTest {
+        // Simulate the callback being dispatched (from MainActivity onCreate) BEFORE the recreated
+        // ViewModel re-subscribes. replay=1 must still deliver it to the restored flow.
+        oauthCallbackRepository.dispatch(
+            OAuthCallbackRepository.OAuthCallbackEvent.Success("restored-code", "restored-state")
+        )
+        coEvery { oauthAuthCodeUseCase.exchangeCode("restored-code", "restored-verifier") } returns
+            OAuthAuthorizationCodeUseCase.TokenExchangeResult.Success("token-restored")
+        coEvery { userRepository.completeLogin("https://example.com/api", "token-restored") } returns
+            UserRepository.LoginResult.Success
+        stubInitialSyncSuccess()
+
+        val restoredHandle = SavedStateHandle(
+            mapOf(
+                "oauth_code_verifier" to "restored-verifier",
+                "oauth_auth_state" to "restored-state",
+                "oauth_server_url" to "https://example.com/api"
+            )
+        )
+        viewModel = AccountSettingsViewModel(
+            savedStateHandle = restoredHandle,
+            settingsDataStore = settingsDataStore,
+            bookmarkRepository = bookmarkRepository,
+            userRepository = userRepository,
+            oauthDeviceAuthUseCase = oauthDeviceAuthUseCase,
+            oauthAuthCodeUseCase = oauthAuthCodeUseCase,
+            oauthCallbackRepository = oauthCallbackRepository,
+            workManager = workManager,
+            context = context,
+            applicationScope = applicationScope,
+            httpUrlMigrationLoginCoordinator = httpUrlMigrationLoginCoordinator
+        )
+        advanceUntilIdle()
+
+        assertEquals(AccountSettingsViewModel.AuthStatus.Success, viewModel.uiState.value.authStatus)
+        coVerify { oauthAuthCodeUseCase.exchangeCode("restored-code", "restored-verifier") }
+        coVerify { userRepository.completeLogin("https://example.com/api", "token-restored") }
     }
 
     @Test
@@ -296,7 +455,7 @@ class AccountSettingsViewModelTest {
         val navJob = launch { viewModel.navigationEvent.collect { navEvents.add(it) } }
 
         viewModel.updateUrl("https://example.com")
-        viewModel.login()
+        viewModel.switchToDeviceCodeFlow()
         advanceUntilIdle()
         navJob.cancel()
 
@@ -344,7 +503,7 @@ class AccountSettingsViewModelTest {
         val navJob = launch { viewModel.navigationEvent.collect { navEvents.add(it) } }
 
         viewModel.updateUrl("https://example.com")
-        viewModel.login()
+        viewModel.switchToDeviceCodeFlow()
         advanceUntilIdle()
         navJob.cancel()
 
@@ -392,7 +551,7 @@ class AccountSettingsViewModelTest {
         val navJob = launch { viewModel.navigationEvent.collect { navEvents.add(it) } }
 
         viewModel.updateUrl("https://example.com")
-        viewModel.login()
+        viewModel.switchToDeviceCodeFlow()
         runCurrent()
         advanceTimeBy(20_000)
         advanceUntilIdle()

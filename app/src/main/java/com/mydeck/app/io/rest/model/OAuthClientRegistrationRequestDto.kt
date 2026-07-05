@@ -18,5 +18,8 @@ data class OAuthClientRegistrationRequestDto(
     val softwareVersion: String,
 
     @SerialName("grant_types")
-    val grantTypes: List<String>
+    val grantTypes: List<String>,
+
+    @SerialName("redirect_uris")
+    val redirectUris: List<String>? = null
 )
