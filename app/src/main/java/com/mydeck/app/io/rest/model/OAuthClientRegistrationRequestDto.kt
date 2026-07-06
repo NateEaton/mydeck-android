@@ -21,5 +21,8 @@ data class OAuthClientRegistrationRequestDto(
     val grantTypes: List<String>,
 
     @SerialName("redirect_uris")
-    val redirectUris: List<String>? = null
+    val redirectUris: List<String>? = null,
+
+    @SerialName("logo_uri")
+    val logoUri: String? = null
 )
