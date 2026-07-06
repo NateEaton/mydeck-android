@@ -439,7 +439,8 @@ other{}
     <string name="rename_label">Renombrar etiqueta</string>
     <string name="rename">Renombrar</string>
     <string name="delete">Eliminar</string>
-    <string name="delete_label_confirm_message">¿Estás seguro de que deseas eliminar la etiqueta "%1$s"? Se eliminará de todos los marcadores.</string>
+    <string name="delete_label_confirm_message">Are you sure you want to delete the label \"%1$s\"? It will be removed from %2$d bookmarks.</string>
+    <string name="delete_selected_bookmarks_confirm_message">Delete %1$d selected bookmarks?</string>
 
     <!-- Filter System -->
     <string name="filter_bookmarks">Filtrar marcadores</string>
