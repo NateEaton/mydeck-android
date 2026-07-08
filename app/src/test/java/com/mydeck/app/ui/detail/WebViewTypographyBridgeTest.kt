@@ -142,7 +142,7 @@ class WebViewTypographyBridgeTest {
         
         assertTrue(js.contains("@font-face"))
         assertTrue(js.contains("Literata"))
-        assertTrue(js.contains("literata-regular.woff2"))
+        assertTrue(js.contains("literata-latin-400.woff2"))
     }
 
     @Test
@@ -156,45 +156,87 @@ class WebViewTypographyBridgeTest {
 
     @Test
     fun `applyTypography applies font to headings`() {
-        val settings = TypographySettings(fontFamily = ReaderFontFamily.NOTO_SERIF)
+        val settings = TypographySettings(fontFamily = ReaderFontFamily.LITERATA)
         val js = WebViewTypographyBridge.applyTypography(settings, 100)
-        
+
         assertTrue(js.contains("querySelectorAll('h1,h2,h3,h4,h5,h6')"))
         assertTrue(js.contains("h.style.fontFamily"))
     }
 
     @Test
-    fun `applyTypography generates correct font-face for Noto Serif`() {
-        val settings = TypographySettings(fontFamily = ReaderFontFamily.NOTO_SERIF)
+    fun `applyTypography generates correct font-face for Merriweather`() {
+        val settings = TypographySettings(fontFamily = ReaderFontFamily.MERRIWEATHER)
         val js = WebViewTypographyBridge.applyTypography(settings, 100)
-        
-        assertTrue(js.contains("noto-serif-regular.woff2"))
+
+        assertTrue(js.contains("merriweather-latin-400.woff2"))
     }
 
     @Test
-    fun `applyTypography generates correct font-face for Source Serif`() {
-        val settings = TypographySettings(fontFamily = ReaderFontFamily.SOURCE_SERIF)
+    fun `applyTypography generates correct font-face for Lora`() {
+        val settings = TypographySettings(fontFamily = ReaderFontFamily.LORA)
         val js = WebViewTypographyBridge.applyTypography(settings, 100)
-        
-        assertTrue(js.contains("source-serif-4-regular.woff2"))
+
+        assertTrue(js.contains("lora-latin-400.woff2"))
+    }
+
+    @Test
+    fun `applyTypography generates correct font-face for Cormorant Garamond`() {
+        val settings = TypographySettings(fontFamily = ReaderFontFamily.CORMORANT_GARAMOND)
+        val js = WebViewTypographyBridge.applyTypography(settings, 100)
+
+        assertTrue(js.contains("cormorant-garamond-latin-500.woff2"))
+    }
+
+    @Test
+    fun `applyTypography generates correct font-face for Luciole`() {
+        val settings = TypographySettings(fontFamily = ReaderFontFamily.LUCIOLE)
+        val js = WebViewTypographyBridge.applyTypography(settings, 100)
+
+        assertTrue(js.contains("luciole-latin-400.woff2"))
     }
 
     @Test
     fun `applyTypography generates correct font-face for JetBrains Mono`() {
         val settings = TypographySettings(fontFamily = ReaderFontFamily.JETBRAINS_MONO)
         val js = WebViewTypographyBridge.applyTypography(settings, 100)
-        
-        assertTrue(js.contains("jetbrains-mono-regular.woff2"))
+
+        assertTrue(js.contains("jetbrains-mono-latin-400.woff2"))
     }
 
     @Test
-    fun `applyTypography does not include font-face declaration for Noto Sans`() {
-        val settings = TypographySettings(fontFamily = ReaderFontFamily.NOTO_SANS)
+    fun `applyTypography includes a real bold 700 face with unicode-range`() {
+        val settings = TypographySettings(fontFamily = ReaderFontFamily.LITERATA)
         val js = WebViewTypographyBridge.applyTypography(settings, 100)
-        
-        // Noto Sans is a system font on most Android devices
-        assertFalse(js.contains("@font-face {"))
-        assertFalse(js.contains(".woff2"))
+
+        assertTrue(js.contains("literata-latin-700.woff2"))
+        assertTrue(js.contains("font-weight: 700"))
+        assertTrue(js.contains("unicode-range:"))
+    }
+
+    @Test
+    fun `applyTypography includes a cyrillic face for cyrillic-capable fonts`() {
+        val settings = TypographySettings(fontFamily = ReaderFontFamily.LITERATA)
+        val js = WebViewTypographyBridge.applyTypography(settings, 100)
+
+        assertTrue(js.contains("literata-cyrillic-400.woff2"))
+    }
+
+    @Test
+    fun `applyTypography omits cyrillic for latin-only fonts`() {
+        val settings = TypographySettings(fontFamily = ReaderFontFamily.PUBLIC_SANS)
+        val js = WebViewTypographyBridge.applyTypography(settings, 100)
+
+        assertTrue(js.contains("public-sans-latin-400.woff2"))
+        assertFalse(js.contains("cyrillic"))
+    }
+
+    @Test
+    fun `applyTypography uses Cormorant Medium 500 as its normal face plus bold`() {
+        val settings = TypographySettings(fontFamily = ReaderFontFamily.CORMORANT_GARAMOND)
+        val js = WebViewTypographyBridge.applyTypography(settings, 100)
+
+        assertTrue(js.contains("cormorant-garamond-latin-500.woff2"))
+        assertTrue(js.contains("cormorant-garamond-latin-700.woff2"))
     }
 
     @Test

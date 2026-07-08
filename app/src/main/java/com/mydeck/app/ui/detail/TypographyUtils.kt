@@ -12,11 +12,21 @@ object TypographyUtils {
     fun getFontFamily(fontFamily: ReaderFontFamily): FontFamily {
         return when (fontFamily) {
             ReaderFontFamily.JETBRAINS_MONO -> FontFamily.Monospace
-            ReaderFontFamily.NOTO_SERIF,
             ReaderFontFamily.LITERATA,
-            ReaderFontFamily.SOURCE_SERIF -> FontFamily.Serif
+            ReaderFontFamily.LORA,
+            ReaderFontFamily.MERRIWEATHER,
+            ReaderFontFamily.CORMORANT_GARAMOND,
+            ReaderFontFamily.BITTER,
+            ReaderFontFamily.GENTIUM,
+            ReaderFontFamily.OLD_STANDARD,
+            ReaderFontFamily.PLEX_SERIF -> FontFamily.Serif
             ReaderFontFamily.SYSTEM_DEFAULT,
-            ReaderFontFamily.NOTO_SANS -> FontFamily.SansSerif
+            ReaderFontFamily.CANTARELL,
+            ReaderFontFamily.RECURSIVE,
+            ReaderFontFamily.PUBLIC_SANS,
+            ReaderFontFamily.INTER,
+            ReaderFontFamily.LUCIOLE,
+            ReaderFontFamily.ATKINSON -> FontFamily.SansSerif
         }
     }
 

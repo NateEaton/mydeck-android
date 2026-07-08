@@ -719,12 +719,6 @@ other{}
     <string name="clear_search">Clear search</string>
     <string name="search_no_results">No results found</string>
     <string name="sync_content_waiting_network">Content download waiting for network</string>
-    <string name="font_system_default" translatable="false">System Default</string>
-    <string name="font_noto_serif" translatable="false">Noto Serif</string>
-    <string name="font_literata" translatable="false">Literata</string>
-    <string name="font_source_serif" translatable="false">Source Serif</string>
-    <string name="font_noto_sans" translatable="false">Noto Sans</string>
-    <string name="font_jetbrains_mono" translatable="false">JetBrains Mono</string>
     <string name="account_login_server_no_oauth">This Readeck server (version %1$s) does not support the authentication method required by this app. Please update your server to version 0.21 or later.</string>
     <string name="account_login_not_readeck_server">Could not connect to a Readeck server at this address. If your server is running a version older than 0.21, it is not supported by this app. Please check the URL and ensure your server is reachable and up to date.</string>
     <string name="welcome_about_content_description">About</string>
@@ -733,4 +727,11 @@ other{}
     <string name="user_guide_search_hint">Search the guide</string>
     <string name="user_guide_search_clear">Clear search</string>
     <string name="user_guide_search_no_results">No results found</string>
+    <string name="ui_settings_font_visibility_title">Include native Readeck fonts</string>
+    <string name="ui_settings_font_visibility_description">Add the fonts from the native Readeck reader to the font picker.</string>
+    <string name="about_font_licenses">Font licenses</string>
+    <string name="about_font_licenses_subtitle">Licenses for the bundled reading fonts</string>
+    <string name="font_licenses_intro">The reading-view fonts bundled with the app are provided under the following licenses.</string>
+    <string name="select_font_title">Select font</string>
+    <string name="select_font_done">Done</string>
 </resources>

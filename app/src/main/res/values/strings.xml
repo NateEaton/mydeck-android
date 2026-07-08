@@ -656,12 +656,6 @@ other{}
     <string name="typography_reset_theme">Reset theme</string>
 
     <!-- Font family names (not translated — proper nouns) -->
-    <string name="font_system_default" translatable="false">System Default</string>
-    <string name="font_noto_serif" translatable="false">Noto Serif</string>
-    <string name="font_literata" translatable="false">Literata</string>
-    <string name="font_source_serif" translatable="false">Source Serif</string>
-    <string name="font_noto_sans" translatable="false">Noto Sans</string>
-    <string name="font_jetbrains_mono" translatable="false">JetBrains Mono</string>
 
     <!-- Line spacing options -->
     <string name="line_spacing_tight">Tight</string>
@@ -758,4 +752,11 @@ other{}
     <string name="video_fullscreen_rotate">Rotate</string>
     <string name="gallery_open_link">Open link</string>
     <string name="gallery_image_counter">%1$d of %2$d</string>
+    <string name="ui_settings_font_visibility_title">Include native Readeck fonts</string>
+    <string name="ui_settings_font_visibility_description">Add the fonts from the native Readeck reader to the font picker.</string>
+    <string name="about_font_licenses">Font licenses</string>
+    <string name="about_font_licenses_subtitle">Licenses for the bundled reading fonts</string>
+    <string name="font_licenses_intro">The reading-view fonts bundled with the app are provided under the following licenses.</string>
+    <string name="select_font_title">Select font</string>
+    <string name="select_font_done">Done</string>
 </resources>

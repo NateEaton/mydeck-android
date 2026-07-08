@@ -11,11 +11,13 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import com.mydeck.app.R
 import com.mydeck.app.domain.model.BookmarkShareFormat
 import com.mydeck.app.domain.model.DarkAppearance
+import com.mydeck.app.domain.model.FontVisibility
 import com.mydeck.app.domain.model.LightAppearance
 import com.mydeck.app.domain.model.OpenWebPagesIn
 import com.mydeck.app.domain.model.SwipeAction
 import com.mydeck.app.domain.model.SwipeConfig
 import com.mydeck.app.domain.model.Theme
+import com.mydeck.app.domain.model.TypographySettings
 import com.mydeck.app.io.prefs.SettingsDataStore
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
@@ -191,6 +193,16 @@ class UiSettingsViewModel @Inject constructor(
         viewModelScope.launch {
             settingsDataStore.saveOpenWebPagesIn(value)
             openWebPagesIn.value = settingsDataStore.getOpenWebPagesIn()
+        }
+    }
+
+    val typography: StateFlow<TypographySettings> = settingsDataStore.typographySettingsFlow
+
+    fun onFontVisibilitySelected(visibility: FontVisibility) {
+        Timber.d("onFontVisibilitySelected [visibility=$visibility]")
+        viewModelScope.launch {
+            val current = settingsDataStore.typographySettingsFlow.value
+            settingsDataStore.saveTypographySettings(current.copy(fontVisibility = visibility))
         }
     }
 

@@ -1,9 +1,12 @@
 package com.mydeck.app.io.prefs
 
+import com.mydeck.app.domain.model.FontVisibility
 import com.mydeck.app.domain.model.ReaderFontFamily
 import com.mydeck.app.domain.model.TextWidth
 import com.mydeck.app.domain.model.TypographySettings
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
@@ -19,23 +22,21 @@ class TypographySettingsTest {
     fun `ReaderFontFamily cssValue produces valid CSS strings`() {
         // Test each font family produces valid CSS
         assertEquals("-apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, \"Helvetica Neue\", Arial, \"Noto Sans\", sans-serif", ReaderFontFamily.SYSTEM_DEFAULT.cssValue)
-        assertEquals("\"Noto Serif\", Georgia, serif", ReaderFontFamily.NOTO_SERIF.cssValue)
         assertEquals("\"Literata\", Georgia, serif", ReaderFontFamily.LITERATA.cssValue)
-        assertEquals("\"Source Serif 4\", Georgia, serif", ReaderFontFamily.SOURCE_SERIF.cssValue)
-        assertEquals("\"Noto Sans\", Roboto, sans-serif", ReaderFontFamily.NOTO_SANS.cssValue)
+        assertEquals("\"Cormorant Garamond\", Georgia, serif", ReaderFontFamily.CORMORANT_GARAMOND.cssValue)
+        assertEquals("\"Luciole\", Roboto, sans-serif", ReaderFontFamily.LUCIOLE.cssValue)
         assertEquals("\"JetBrains Mono\", monospace", ReaderFontFamily.JETBRAINS_MONO.cssValue)
     }
 
     @Test
     fun `ReaderFontFamily requiresBundledFont is correct`() {
-        // System fonts should not require bundling
+        // Only System Default falls back to the platform font stack.
         assertEquals(false, ReaderFontFamily.SYSTEM_DEFAULT.requiresBundledFont)
-        assertEquals(false, ReaderFontFamily.NOTO_SANS.requiresBundledFont)
-        
-        // Custom fonts should require bundling
-        assertEquals(true, ReaderFontFamily.NOTO_SERIF.requiresBundledFont)
+
+        // Everything else ships a bundled woff2 (including Luciole).
         assertEquals(true, ReaderFontFamily.LITERATA.requiresBundledFont)
-        assertEquals(true, ReaderFontFamily.SOURCE_SERIF.requiresBundledFont)
+        assertEquals(true, ReaderFontFamily.CORMORANT_GARAMOND.requiresBundledFont)
+        assertEquals(true, ReaderFontFamily.LUCIOLE.requiresBundledFont)
         assertEquals(true, ReaderFontFamily.JETBRAINS_MONO.requiresBundledFont)
     }
 
@@ -48,6 +49,33 @@ class TypographySettingsTest {
         assertEquals(TextWidth.MEDIUM, defaults.textWidth)
         assertEquals(false, defaults.justified)
         assertEquals(false, defaults.hyphenation)
+        assertEquals(FontVisibility.CORE, defaults.fontVisibility)
+    }
+
+    @Test
+    fun `fontsFor core is the curated set incl Literata and JetBrains, no native-only fonts`() {
+        val core = ReaderFontFamily.fontsFor(FontVisibility.CORE)
+        assertEquals(ReaderFontFamily.SYSTEM_DEFAULT, core.first())
+        assertEquals(9, core.size)
+        assertTrue(core.contains(ReaderFontFamily.LITERATA))
+        assertTrue(core.contains(ReaderFontFamily.JETBRAINS_MONO))
+        // native-only fonts are excluded from CORE
+        assertFalse(core.contains(ReaderFontFamily.LORA))
+        assertFalse(core.contains(ReaderFontFamily.LUCIOLE))
+        assertEquals(ReaderFontFamily.JETBRAINS_MONO, core.last())
+    }
+
+    @Test
+    fun `fontsFor all lists non-native first then Readeck native, mono last`() {
+        val all = ReaderFontFamily.fontsFor(FontVisibility.ALL)
+        assertEquals(16, all.size)
+        assertEquals(ReaderFontFamily.SYSTEM_DEFAULT, all.first())
+        assertEquals(ReaderFontFamily.JETBRAINS_MONO, all.last())
+        // Shared fonts appear once, in their native sequence (after the non-native block).
+        assertEquals(1, all.count { it == ReaderFontFamily.LITERATA })
+        assertTrue(
+            all.indexOf(ReaderFontFamily.CORMORANT_GARAMOND) < all.indexOf(ReaderFontFamily.LORA)
+        )
     }
 
     @Test

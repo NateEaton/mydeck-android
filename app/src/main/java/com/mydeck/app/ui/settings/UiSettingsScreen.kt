@@ -61,6 +61,7 @@ import com.mydeck.app.R
 import com.mydeck.app.domain.model.BookmarkShareFormat
 import com.mydeck.app.domain.model.DarkAppearance
 import com.mydeck.app.domain.model.LightAppearance
+import com.mydeck.app.domain.model.FontVisibility
 import com.mydeck.app.domain.model.OpenWebPagesIn
 import com.mydeck.app.domain.model.SwipeAction
 import com.mydeck.app.domain.model.SwipeConfig
@@ -74,6 +75,7 @@ fun UiSettingsScreen(
     val viewModel: UiSettingsViewModel = hiltViewModel()
     val settingsUiState = viewModel.uiState.collectAsState().value
     val swipeConfig = viewModel.swipeConfig.collectAsState().value
+    val typography = viewModel.typography.collectAsState().value
     val onClickBack: () -> Unit = { viewModel.onClickBack() }
     val onThemeModeSelected: (Theme) -> Unit = { viewModel.onThemeModeSelected(it) }
     val onLightAppearanceSelected: (LightAppearance) -> Unit = { viewModel.onLightAppearanceSelected(it) }
@@ -109,6 +111,8 @@ fun UiSettingsScreen(
         onShowAddBookmarkFabToggled = { viewModel.onShowAddBookmarkFabToggled(it) },
         onOpenWebPagesInSelected = { viewModel.onOpenWebPagesInSelected(it) },
         settingsUiState = settingsUiState,
+        fontVisibility = typography.fontVisibility,
+        onFontVisibilitySelected = { viewModel.onFontVisibilitySelected(it) },
         swipeConfig = swipeConfig,
         onSwipeEnabledChange = { viewModel.onSwipeEnabledChange(it) },
         onSwipeLeftActionChange = { viewModel.onSwipeLeftActionChange(it) },
@@ -132,6 +136,8 @@ fun UiSettingsView(
     onShowAddBookmarkFabToggled: (Boolean) -> Unit = {},
     onOpenWebPagesInSelected: (OpenWebPagesIn) -> Unit = {},
     onClickBack: () -> Unit,
+    fontVisibility: FontVisibility = FontVisibility.CORE,
+    onFontVisibilitySelected: (FontVisibility) -> Unit = {},
     swipeConfig: SwipeConfig = SwipeConfig.Default,
     onSwipeEnabledChange: (Boolean) -> Unit = {},
     onSwipeLeftActionChange: (SwipeAction) -> Unit = {},
@@ -328,32 +334,25 @@ fun UiSettingsView(
             // ── Reading ──
             SettingsSectionHeader(title = stringResource(R.string.ui_settings_section_reading))
             ListItem(
-                modifier = Modifier.clickable {
-                    onOpenWebPagesInSelected(
-                        if (settingsUiState.openWebPagesIn == OpenWebPagesIn.IN_APP) OpenWebPagesIn.EXTERNAL_BROWSER
-                        else OpenWebPagesIn.IN_APP
-                    )
-                },
+                modifier = Modifier
+                    .testTag(UiSettingsScreenTestTags.KEEP_SCREEN_ON_ROW)
+                    .clickable { onKeepScreenOnWhileReadingToggled(!settingsUiState.keepScreenOnWhileReading) },
                 headlineContent = {
                     Text(
-                        text = stringResource(R.string.ui_settings_internal_browser_title),
+                        text = stringResource(R.string.ui_settings_keep_screen_on_title),
                         style = MaterialTheme.typography.bodyLarge
                     )
                 },
                 supportingContent = {
                     Text(
-                        text = stringResource(R.string.ui_settings_internal_browser_desc),
+                        text = stringResource(R.string.ui_settings_keep_screen_on_description),
                         style = MaterialTheme.typography.bodyMedium
                     )
                 },
                 trailingContent = {
                     Switch(
-                        checked = settingsUiState.openWebPagesIn == OpenWebPagesIn.IN_APP,
-                        onCheckedChange = { checked ->
-                            onOpenWebPagesInSelected(
-                                if (checked) OpenWebPagesIn.IN_APP else OpenWebPagesIn.EXTERNAL_BROWSER
-                            )
-                        }
+                        checked = settingsUiState.keepScreenOnWhileReading,
+                        onCheckedChange = onKeepScreenOnWhileReadingToggled
                     )
                 }
             )
@@ -383,25 +382,65 @@ fun UiSettingsView(
                 }
             )
             ListItem(
-                modifier = Modifier
-                    .testTag(UiSettingsScreenTestTags.KEEP_SCREEN_ON_ROW)
-                    .clickable { onKeepScreenOnWhileReadingToggled(!settingsUiState.keepScreenOnWhileReading) },
+                modifier = Modifier.clickable {
+                    onOpenWebPagesInSelected(
+                        if (settingsUiState.openWebPagesIn == OpenWebPagesIn.IN_APP) OpenWebPagesIn.EXTERNAL_BROWSER
+                        else OpenWebPagesIn.IN_APP
+                    )
+                },
                 headlineContent = {
                     Text(
-                        text = stringResource(R.string.ui_settings_keep_screen_on_title),
+                        text = stringResource(R.string.ui_settings_internal_browser_title),
                         style = MaterialTheme.typography.bodyLarge
                     )
                 },
                 supportingContent = {
                     Text(
-                        text = stringResource(R.string.ui_settings_keep_screen_on_description),
+                        text = stringResource(R.string.ui_settings_internal_browser_desc),
                         style = MaterialTheme.typography.bodyMedium
                     )
                 },
                 trailingContent = {
                     Switch(
-                        checked = settingsUiState.keepScreenOnWhileReading,
-                        onCheckedChange = onKeepScreenOnWhileReadingToggled
+                        checked = settingsUiState.openWebPagesIn == OpenWebPagesIn.IN_APP,
+                        onCheckedChange = { checked ->
+                            onOpenWebPagesInSelected(
+                                if (checked) OpenWebPagesIn.IN_APP else OpenWebPagesIn.EXTERNAL_BROWSER
+                            )
+                        }
+                    )
+                }
+            )
+
+            // Reading view fonts — optionally add the native Readeck fonts to the picker.
+            ListItem(
+                modifier = Modifier
+                    .clickable {
+                        onFontVisibilitySelected(
+                            if (fontVisibility == FontVisibility.ALL) FontVisibility.CORE
+                            else FontVisibility.ALL
+                        )
+                    },
+                headlineContent = {
+                    Text(
+                        text = stringResource(R.string.ui_settings_font_visibility_title),
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+                },
+                supportingContent = {
+                    Text(
+                        text = stringResource(R.string.ui_settings_font_visibility_description),
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                },
+                trailingContent = {
+                    Switch(
+                        checked = fontVisibility == FontVisibility.ALL,
+                        onCheckedChange = { checked ->
+                            onFontVisibilitySelected(
+                                if (checked) FontVisibility.ALL else FontVisibility.CORE
+                            )
+                        }
                     )
                 }
             )

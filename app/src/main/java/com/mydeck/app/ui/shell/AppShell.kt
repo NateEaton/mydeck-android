@@ -58,6 +58,7 @@ import com.mydeck.app.ui.navigation.BookmarkListRoute
 import com.mydeck.app.ui.navigation.CollectionsRoute
 import com.mydeck.app.ui.navigation.HighlightsRoute
 import com.mydeck.app.ui.navigation.LogViewRoute
+import com.mydeck.app.ui.navigation.FontLicensesRoute
 import com.mydeck.app.ui.navigation.OpenSourceLibrariesRoute
 import com.mydeck.app.ui.navigation.SettingsRoute
 import com.mydeck.app.ui.navigation.SyncSettingsRoute
@@ -69,6 +70,7 @@ import com.mydeck.app.ui.collections.CollectionsScreen
 import com.mydeck.app.ui.highlights.HighlightsScreen
 import com.mydeck.app.ui.settings.AccountSettingsScreen
 import com.mydeck.app.ui.settings.LogViewScreen
+import com.mydeck.app.ui.settings.FontLicensesScreen
 import com.mydeck.app.ui.settings.OpenSourceLibrariesScreen
 import com.mydeck.app.ui.settings.SettingsScreen
 import com.mydeck.app.ui.settings.SyncSettingsScreen
@@ -380,6 +382,9 @@ private fun CompactAppShell(
                 composable<OpenSourceLibrariesRoute> {
                     OpenSourceLibrariesScreen(navHostController = navController)
                 }
+                composable<FontLicensesRoute> {
+                    FontLicensesScreen(navHostController = navController)
+                }
                 composable<LogViewRoute> {
                     LogViewScreen(navController = navController)
                 }
@@ -602,6 +607,9 @@ private fun AppShellNavHost(
             }
             composable<OpenSourceLibrariesRoute> {
                 OpenSourceLibrariesScreen(navHostController = navController)
+            }
+            composable<FontLicensesRoute> {
+                FontLicensesScreen(navHostController = navController)
             }
             composable<LogViewRoute> {
                 LogViewScreen(navController = navController)

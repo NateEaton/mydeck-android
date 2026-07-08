@@ -31,6 +31,9 @@ object SettingsRoute
 object OpenSourceLibrariesRoute
 
 @Serializable
+object FontLicensesRoute
+
+@Serializable
 object LogViewRoute
 
 @Serializable
