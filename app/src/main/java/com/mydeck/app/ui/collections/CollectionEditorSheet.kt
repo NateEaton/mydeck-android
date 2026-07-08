@@ -24,6 +24,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -32,6 +33,7 @@ import androidx.compose.ui.unit.dp
 import com.mydeck.app.R
 import com.mydeck.app.domain.model.FilterFormState
 import com.mydeck.app.ui.components.FilterControls
+import com.mydeck.app.ui.components.dismissSheet
 import com.mydeck.app.ui.components.rememberFilterEditorState
 
 /**
@@ -55,6 +57,7 @@ fun CollectionEditorSheet(
     onDelete: (() -> Unit)? = null,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val scope = rememberCoroutineScope()
     var name by remember(initialName) { mutableStateOf(initialName) }
     val filterState = rememberFilterEditorState(initialFilter)
 
@@ -103,17 +106,23 @@ fun CollectionEditorSheet(
             ) {
                 if (onDelete != null) {
                     TextButton(
-                        onClick = onDelete,
+                        onClick = { scope.dismissSheet(sheetState) { onDelete() } },
                         colors = ButtonDefaults.textButtonColors(
                             contentColor = MaterialTheme.colorScheme.error
                         ),
                     ) { Text(stringResource(R.string.collection_delete_action)) }
                 }
                 Spacer(Modifier.weight(1f))
-                TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
+                TextButton(onClick = { scope.dismissSheet(sheetState) { onDismiss() } }) {
+                    Text(stringResource(R.string.cancel))
+                }
                 Spacer(Modifier.width(8.dp))
                 Button(
-                    onClick = { onSave(name.trim(), filterState.toFilterFormState()) },
+                    onClick = {
+                        scope.dismissSheet(sheetState) {
+                            onSave(name.trim(), filterState.toFilterFormState())
+                        }
+                    },
                     enabled = name.isNotBlank() && !filterState.hasValidationError,
                 ) { Text(stringResource(R.string.collection_editor_save)) }
             }

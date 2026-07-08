@@ -54,6 +54,7 @@ import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -531,11 +532,12 @@ fun FilterBottomSheet(
     onDismiss: () -> Unit,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
+    val scope = rememberCoroutineScope()
     val state = rememberFilterEditorState(currentFilter)
 
     val applyFilter = {
         if (!state.hasValidationError) {
-            onApply(state.toFilterFormState())
+            scope.dismissSheet(sheetState) { onApply(state.toFilterFormState()) }
         }
     }
 
@@ -561,7 +563,9 @@ fun FilterBottomSheet(
             // -- Action buttons
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                 if (state.hasActiveFilters) {
-                    TextButton(onClick = onReset) { Text(stringResource(R.string.filter_reset)) }
+                    TextButton(onClick = { scope.dismissSheet(sheetState) { onReset() } }) {
+                        Text(stringResource(R.string.filter_reset))
+                    }
                     Spacer(Modifier.width(8.dp))
                 }
                 Button(onClick = { applyFilter() }, enabled = !state.hasValidationError) { Text(stringResource(R.string.search)) }

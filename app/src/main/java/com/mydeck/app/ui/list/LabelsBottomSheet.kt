@@ -19,7 +19,6 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.clickable
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.Label
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Clear
@@ -69,6 +68,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import com.mydeck.app.R
 import com.mydeck.app.ui.components.VerticalScrollbar
+import com.mydeck.app.ui.components.dismissSheet
 import kotlinx.coroutines.launch
 
 sealed interface LabelPickerMode {
@@ -97,6 +97,9 @@ fun LabelPickerBottomSheet(
     // Hoisted so the title-tap affordance can scroll the results list (see the scrollable branch).
     val lazyListState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
+    // Declared here (ahead of commitSearch / the item click handlers) so every dismiss path can
+    // animate the sheet closed via dismissSheet instead of flipping the caller's flag instantly.
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val screenHeight = LocalConfiguration.current.screenHeightDp.dp
     var contextMenuLabel by remember { mutableStateOf<String?>(null) }
     var showRenameDialog by remember { mutableStateOf(false) }
@@ -203,8 +206,10 @@ fun LabelPickerBottomSheet(
                 // Single-select mode is selection-only: only existing labels can be applied.
                 if (exactLabel != null) {
                     searchQuery = ""
-                    mode.onLabelSelected(exactLabel)
-                    onDismiss()
+                    coroutineScope.dismissSheet(sheetState) {
+                        mode.onLabelSelected(exactLabel)
+                        onDismiss()
+                    }
                 }
             }
         }
@@ -220,7 +225,6 @@ fun LabelPickerBottomSheet(
         searchQuery = ""
     }
 
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val showSearchEmptyState = filteredLabels.isEmpty() && !showCreateAction
     val showScrollableResults = showCreateAction || unselectedFilteredLabels.isNotEmpty()
 
@@ -284,8 +288,10 @@ fun LabelPickerBottomSheet(
                         onClick = {
                             when (mode) {
                                 is LabelPickerMode.SingleSelect -> {
-                                    mode.onLabelSelected(label)
-                                    onDismiss()
+                                    coroutineScope.dismissSheet(sheetState) {
+                                        mode.onLabelSelected(label)
+                                        onDismiss()
+                                    }
                                 }
 
                                 is LabelPickerMode.MultiSelect -> {
@@ -344,14 +350,6 @@ fun LabelPickerBottomSheet(
                         }
                     )
                 },
-                navigationIcon = {
-                    IconButton(onClick = onDismiss) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(R.string.back)
-                        )
-                    }
-                },
                 actions = {
                     // Label-search ranking toggles (persisted globally). Placed before Done so they
                     // shift left to make room for it on the multi-select sheet. Each shows the current
@@ -401,8 +399,10 @@ fun LabelPickerBottomSheet(
                     if (mode is LabelPickerMode.MultiSelect) {
                         TextButton(
                             onClick = {
-                                mode.onDone(tempSelection.toSet())
-                                onDismiss()
+                                coroutineScope.dismissSheet(sheetState) {
+                                    mode.onDone(tempSelection.toSet())
+                                    onDismiss()
+                                }
                             }
                         ) {
                             Text(stringResource(R.string.label_picker_done))
