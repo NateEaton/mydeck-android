@@ -134,8 +134,13 @@ class AboutViewModel @Inject constructor(
         _navigationEvent.trySend(NavigationEvent.NavigateToOpenSourceLibraries)
     }
 
+    fun onClickFontLicenses() {
+        _navigationEvent.trySend(NavigationEvent.NavigateToFontLicenses)
+    }
+
     sealed class NavigationEvent {
         data object NavigateBack : NavigationEvent()
         data object NavigateToOpenSourceLibraries : NavigationEvent()
+        data object NavigateToFontLicenses : NavigationEvent()
     }
 }

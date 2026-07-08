@@ -5,14 +5,20 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.background
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -25,12 +31,15 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Remove
 import androidx.compose.material.icons.outlined.RestartAlt
+import androidx.compose.material.icons.outlined.UnfoldMore
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.AssistChip
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
@@ -41,12 +50,19 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import timber.log.Timber
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.SubcomposeLayout
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
@@ -54,9 +70,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.Velocity
 import com.mydeck.app.R
 import com.mydeck.app.domain.model.EffectiveAppearance
 import com.mydeck.app.domain.model.ReaderFontFamily
@@ -78,12 +94,15 @@ private enum class ReaderSettingsSheetSlot {
     ACTIVE_BODY,
 }
 
-private data class ReaderSettingsSheetMeasureSlot(val tab: ReaderSettingsTab)
 
 private val ReaderSettingsSectionSpacing = 16.dp
 private val ReaderSettingsSheetHorizontalPadding = 24.dp
-private val ReaderSettingsSheetBottomPadding = 40.dp
-private const val ReaderSettingsMaxHeightFraction = 0.85f
+private val ReaderSettingsSheetBottomPadding = 12.dp
+// Both reader sheets use one fixed height sized to fit the Layout tab's controls, capped so
+// it never exceeds most of a short screen. Fixed (not a raw fraction) so the two sheets are
+// the same height everywhere (aligned handles); compact on large screens, usable on short ones.
+private val ReaderSettingsSheetTargetHeight = 340.dp
+private const val ReaderSettingsMaxHeightFraction = 0.9f
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -101,10 +120,14 @@ fun ReaderSettingsBottomSheet(
         mutableStateOf(currentAppearanceSelection)
     }
     var selectedTab by remember { mutableStateOf(ReaderSettingsTab.TEXT) }
+    var showFontSheet by remember { mutableStateOf(false) }
     val isSystemDark = isSystemInDarkTheme()
     val activeAppearance = appearanceSelection.effectiveAppearance(isSystemDark)
     val screenHeight = LocalConfiguration.current.screenHeightDp.dp
-    val maxSheetHeight = screenHeight * ReaderSettingsMaxHeightFraction
+    val maxSheetHeight = minOf(
+        ReaderSettingsSheetTargetHeight,
+        screenHeight * ReaderSettingsMaxHeightFraction,
+    )
     val defaultSettings = remember { TypographySettings() }
     val sectionLabelStyle = MaterialTheme.typography.titleMedium
     val sectionLabelColor = MaterialTheme.colorScheme.onSurfaceVariant
@@ -176,6 +199,18 @@ fun ReaderSettingsBottomSheet(
             sectionLabelColor = sectionLabelColor,
             sectionLabelStyle = sectionLabelStyle,
             widthOptions = widthOptions,
+            onOpenFontSheet = { showFontSheet = true },
+        )
+    }
+
+    // Dedicated font-selection sheet, opened from the current-font chip and overlaying the
+    // typography sheet. Selecting a font applies it live to the reading view behind.
+    if (showFontSheet) {
+        SelectFontSheet(
+            settings = settings,
+            onFontSelected = { font -> update(settings.copy(fontFamily = font)) },
+            maxSheetHeight = maxSheetHeight,
+            onDismiss = { showFontSheet = false },
         )
     }
 }
@@ -196,6 +231,7 @@ private fun ReaderSettingsSheetContent(
     sectionLabelStyle: androidx.compose.ui.text.TextStyle,
     sectionLabelColor: Color,
     widthOptions: List<TextWidth>,
+    onOpenFontSheet: () -> Unit,
 ) {
     val sectionSpacingPx = with(androidx.compose.ui.platform.LocalDensity.current) {
         ReaderSettingsSectionSpacing.roundToPx()
@@ -232,32 +268,12 @@ private fun ReaderSettingsSheetContent(
         }.map { it.measure(fullWidthConstraints) }
         val footerHeight = footerPlaceables.maxOfOrNull { it.height } ?: 0
 
-        val naturalBodyHeights = ReaderSettingsTab.entries.associateWith { tab ->
-            subcompose(ReaderSettingsSheetMeasureSlot(tab)) {
-                ReaderSettingsTabBody(
-                    tab = tab,
-                    settings = settings,
-                    onSettingsChanged = onSettingsChanged,
-                    appearanceSelection = appearanceSelection,
-                    activeAppearance = activeAppearance,
-                    onAppearanceSelectionChanged = onAppearanceSelectionChanged,
-                    isSystemDark = isSystemDark,
-                    sectionLabelStyle = sectionLabelStyle,
-                    sectionLabelColor = sectionLabelColor,
-                    widthOptions = widthOptions,
-                    scrollable = false,
-                )
-            }.map { measurable ->
-                measurable.measure(
-                    fullWidthConstraints.copy(maxHeight = Constraints.Infinity)
-                )
-            }.maxOfOrNull { it.height } ?: 0
-        }
-
-        val tallestBodyHeight = naturalBodyHeights.values.maxOrNull() ?: 0
+        // Fill the sheet to its fixed height (rather than sizing to the tallest tab) so the
+        // typography sheet is always exactly maxSheetHeight — matching the Select font sheet,
+        // which is also fixed at maxSheetHeight — keeping their drag handles aligned across
+        // form factors. The active body scrolls internally if a tab overflows.
         val chromeHeight = headerHeight + footerHeight + (sectionSpacingPx * 2)
-        val maxBodyHeight = (maxSheetHeightPx - chromeHeight).coerceAtLeast(0)
-        val bodyViewportHeight = tallestBodyHeight.coerceAtMost(maxBodyHeight)
+        val bodyViewportHeight = (maxSheetHeightPx - chromeHeight).coerceAtLeast(0)
 
         val bodyPlaceables = subcompose(ReaderSettingsSheetSlot.ACTIVE_BODY) {
             ReaderSettingsTabBody(
@@ -272,6 +288,7 @@ private fun ReaderSettingsSheetContent(
                 sectionLabelColor = sectionLabelColor,
                 widthOptions = widthOptions,
                 scrollable = true,
+                onOpenFontSheet = onOpenFontSheet,
             )
         }.map { measurable ->
             measurable.measure(
@@ -367,6 +384,7 @@ private fun ReaderSettingsTabBody(
     sectionLabelColor: Color,
     widthOptions: List<TextWidth>,
     scrollable: Boolean,
+    onOpenFontSheet: () -> Unit,
 ) {
     val scrollModifier = if (scrollable) {
         Modifier.verticalScroll(rememberScrollState())
@@ -382,48 +400,35 @@ private fun ReaderSettingsTabBody(
                     .then(scrollModifier),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                Column(
+                // Font row: label on the left, current-font chip (in its own typeface) on the
+                // right. Tapping the chip opens the dedicated Select font sheet.
+                Row(
                     modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
                         text = stringResource(R.string.typography_section_font),
                         style = sectionLabelStyle,
                         color = sectionLabelColor,
                     )
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .horizontalScroll(rememberScrollState()),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        ReaderFontFamily.entries.forEach { font ->
-                            val isSelected = font == settings.fontFamily
-                            FilterChip(
-                                selected = isSelected,
-                                onClick = {
-                                    onSettingsChanged(settings.copy(fontFamily = font))
-                                },
-                                leadingIcon = if (isSelected) {
-                                    {
-                                        Icon(
-                                            imageVector = Icons.Filled.Check,
-                                            contentDescription = null,
-                                            modifier = Modifier.size(18.dp)
-                                        )
-                                    }
-                                } else {
-                                    null
-                                },
-                                label = {
-                                    Text(
-                                        text = getFontDisplayName(font),
-                                        fontFamily = TypographyUtils.getFontFamily(font),
-                                    )
-                                }
-                            )
-                        }
-                    }
+                    AssistChip(
+                        onClick = onOpenFontSheet,
+                        label = {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = getFontDisplayName(settings.fontFamily),
+                                    fontFamily = TypographyUtils.getFontFamily(settings.fontFamily),
+                                )
+                                Spacer(Modifier.width(6.dp))
+                                Icon(
+                                    imageVector = Icons.Outlined.UnfoldMore,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp),
+                                )
+                            }
+                        },
+                    )
                 }
 
                 Row(
@@ -710,17 +715,173 @@ private fun ReaderSettingsTabBody(
     }
 }
 
+@OptIn(
+    ExperimentalMaterial3Api::class,
+    ExperimentalFoundationApi::class,
+    ExperimentalLayoutApi::class,
+)
 @Composable
-private fun getFontDisplayName(font: ReaderFontFamily): String {
-    return when (font) {
-        ReaderFontFamily.SYSTEM_DEFAULT -> stringResource(R.string.font_system_default)
-        ReaderFontFamily.NOTO_SERIF -> stringResource(R.string.font_noto_serif)
-        ReaderFontFamily.LITERATA -> stringResource(R.string.font_literata)
-        ReaderFontFamily.SOURCE_SERIF -> stringResource(R.string.font_source_serif)
-        ReaderFontFamily.NOTO_SANS -> stringResource(R.string.font_noto_sans)
-        ReaderFontFamily.JETBRAINS_MONO -> stringResource(R.string.font_jetbrains_mono)
+private fun SelectFontSheet(
+    settings: TypographySettings,
+    onFontSelected: (ReaderFontFamily) -> Unit,
+    maxSheetHeight: Dp,
+    onDismiss: () -> Unit,
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    // Transparent scrim so the reading view behind isn't double-dimmed — the underlying
+    // typography sheet's scrim already dims it, and we want the live font preview visible.
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        scrimColor = Color.Transparent,
+    ) {
+        val fonts = ReaderFontFamily.fontsFor(settings.fontVisibility).let {
+            if (settings.fontFamily in it) it else it + settings.fontFamily
+        }
+        val activeFontRequester = remember { BringIntoViewRequester() }
+        LaunchedEffect(Unit) { activeFontRequester.bringIntoView() }
+
+        // Dismiss guard: a downward gesture on the list closes the sheet only if it never
+        // scrolled — i.e. the list was already at the top (or too short to scroll). Once a
+        // gesture has scrolled the list, its leftover downward drag/fling is swallowed so it
+        // can't turn into a dismiss. (The drag handle and Done button still close it.)
+        val scrollDismissGuard = remember {
+            object : NestedScrollConnection {
+                var scrolled = false
+                override fun onPostScroll(
+                    consumed: Offset,
+                    available: Offset,
+                    source: NestedScrollSource,
+                ): Offset {
+                    if (consumed.y != 0f) scrolled = true
+                    return if (scrolled && available.y > 0f) Offset(0f, available.y) else Offset.Zero
+                }
+
+                override suspend fun onPreFling(available: Velocity): Velocity =
+                    if (scrolled && available.y > 0f) available else Velocity.Zero
+
+                override suspend fun onPostFling(consumed: Velocity, available: Velocity): Velocity {
+                    scrolled = false // gesture over — allow the next one to dismiss from the top
+                    return Velocity.Zero
+                }
+            }
+        }
+
+        val fontScrollState = rememberScrollState()
+        val sheetContainer = BottomSheetDefaults.ContainerColor
+
+        Column(
+            // Bottom padding is applied OUTSIDE the fixed height (added to the total) so this
+            // sheet's overall height matches the typography sheet — whose SubcomposeLayout also
+            // adds the bottom padding around its content — keeping the drag handles aligned.
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = ReaderSettingsSheetBottomPadding)
+                .height(maxSheetHeight)
+                .padding(horizontal = ReaderSettingsSheetHorizontalPadding)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = stringResource(R.string.select_font_title),
+                    style = MaterialTheme.typography.titleMedium,
+                )
+                TextButton(onClick = onDismiss) {
+                    Text(stringResource(R.string.select_font_done))
+                }
+            }
+            Spacer(Modifier.height(8.dp))
+            Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
+                FlowRow(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .nestedScroll(scrollDismissGuard)
+                        .verticalScroll(fontScrollState),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    fonts.forEach { font ->
+                        FontFilterChip(
+                            font = font,
+                            selected = font == settings.fontFamily,
+                            onClick = {
+                                Timber.d("Reader font selected: %s", font.name)
+                                onFontSelected(font)
+                            },
+                            modifier = if (font == settings.fontFamily) {
+                                Modifier.bringIntoViewRequester(activeFontRequester)
+                            } else {
+                                Modifier
+                            },
+                        )
+                    }
+                }
+                // Fade at the bottom edge to signal the font cloud continues below the fold.
+                // Tall enough to visibly catch the last row even when it sits just above the
+                // viewport edge (otherwise the gradient lands on the row gap and reads as blank).
+                if (fontScrollState.canScrollForward) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.BottomCenter)
+                            .fillMaxWidth()
+                            .height(72.dp)
+                            .background(
+                                Brush.verticalGradient(listOf(Color.Transparent, sheetContainer))
+                            )
+                    )
+                }
+            }
+        }
     }
 }
+
+@Composable
+private fun FontFilterChip(
+    font: ReaderFontFamily,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    FilterChip(
+        modifier = modifier,
+        selected = selected,
+        onClick = onClick,
+        leadingIcon = if (selected) {
+            {
+                Icon(
+                    imageVector = Icons.Filled.Check,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+        } else {
+            null
+        },
+        // M3 drops the outline on a selected FilterChip; keep a same-weight (1dp) border in a
+        // distinct color so the active chip still reads as bordered in the cloud.
+        border = BorderStroke(
+            width = 1.dp,
+            color = if (selected) {
+                MaterialTheme.colorScheme.primary
+            } else {
+                MaterialTheme.colorScheme.outlineVariant
+            },
+        ),
+        label = {
+            Text(
+                text = getFontDisplayName(font),
+                fontFamily = TypographyUtils.getFontFamily(font),
+            )
+        }
+    )
+}
+
+// Spike: font names are display literals (from the enum) to avoid touching all
+// locale files. The real feature would add font_* string resources per font.
+private fun getFontDisplayName(font: ReaderFontFamily): String = font.displayName
 
 @Composable
 private fun getWidthContentDescription(width: TextWidth): String {

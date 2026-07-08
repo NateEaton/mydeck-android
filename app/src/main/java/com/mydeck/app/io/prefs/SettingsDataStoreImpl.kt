@@ -17,6 +17,7 @@ import com.mydeck.app.domain.model.LabelSearchMatching
 import com.mydeck.app.domain.model.LabelSearchSort
 import com.mydeck.app.domain.model.LightAppearance
 import com.mydeck.app.domain.model.OpenWebPagesIn
+import com.mydeck.app.domain.model.FontVisibility
 import com.mydeck.app.domain.model.ReaderFontFamily
 import com.mydeck.app.domain.model.SwipeAction
 import com.mydeck.app.domain.model.SwipeConfig
@@ -116,6 +117,7 @@ class SettingsDataStoreImpl @Inject constructor(@ApplicationContext private val 
     private val KEY_TYPO_TEXT_WIDTH = stringPreferencesKey("typography_text_width")
     private val KEY_TYPO_JUSTIFIED = booleanPreferencesKey("typography_justified")
     private val KEY_TYPO_HYPHENATION = booleanPreferencesKey("typography_hyphenation")
+    private val KEY_TYPO_FONT_VISIBILITY = stringPreferencesKey("typography_font_visibility")
 
     private val KEY_SERVER_INFO_CANONICAL = stringPreferencesKey("server_info_canonical")
     private val KEY_SERVER_INFO_RELEASE = stringPreferencesKey("server_info_release")
@@ -915,7 +917,15 @@ class SettingsDataStoreImpl @Inject constructor(@ApplicationContext private val 
                 TextWidth.MEDIUM
             },
             justified = userPreferences.getBoolean(KEY_TYPO_JUSTIFIED.name, false),
-            hyphenation = userPreferences.getBoolean(KEY_TYPO_HYPHENATION.name, false)
+            hyphenation = userPreferences.getBoolean(KEY_TYPO_HYPHENATION.name, false),
+            fontVisibility = try {
+                FontVisibility.valueOf(
+                    userPreferences.getString(KEY_TYPO_FONT_VISIBILITY.name, null)
+                        ?: FontVisibility.CORE.name
+                )
+            } catch (_: IllegalArgumentException) {
+                FontVisibility.CORE
+            }
         )
     }
 
@@ -932,6 +942,7 @@ class SettingsDataStoreImpl @Inject constructor(@ApplicationContext private val 
             putString(KEY_TYPO_TEXT_WIDTH.name, sanitizedSettings.textWidth.name)
             putBoolean(KEY_TYPO_JUSTIFIED.name, sanitizedSettings.justified)
             putBoolean(KEY_TYPO_HYPHENATION.name, sanitizedSettings.hyphenation)
+            putString(KEY_TYPO_FONT_VISIBILITY.name, sanitizedSettings.fontVisibility.name)
         }
         _typographySettingsFlow.value = sanitizedSettings
     }

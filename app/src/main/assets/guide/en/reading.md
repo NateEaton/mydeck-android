@@ -59,8 +59,8 @@ Tap **TT** in the top bar to open the reading settings sheet.
 - **Text** tab — contains the controls for Font, Font size, and Spacing
 - **Layout** tab — contains the controls for Width, Justify text, and Hyphenate words
 - **Theme** tab — contains the controls for Paper, Sepia, Dark, and Black reading themes
-- The settings sheet automatically sizes itself to the tallest tab that fits on screen, so it stays compact on larger devices and only scrolls when a tab truly needs the extra space
-- **Font** — scroll the font row to choose from: System Default, Noto Serif, Literata, Source Serif, Noto Sans, or JetBrains Mono
+- The settings sheet stays compact — roughly the lower part of the screen — so the article text remains visible above it while you change settings and see the effect live
+- **Font** — the Font row shows the current font in a chip, rendered in its own typeface. Tap it to open the **Select font** sheet — a scrollable list of the available fonts, each shown in its own typeface. Tap a font to apply it immediately (the change is visible live in the reading view behind), then tap **Done** or swipe down to return to the settings. By default the picker offers the app's own font set — System Default, Literata, Cantarell, Cormorant Garamond, Recursive, Bitter, Gentium, Old Standard, and JetBrains Mono. Turn on **Include native Readeck fonts** in Settings to also add the fonts from Readeck's native reading view (Lora, Public Sans, Merriweather, Inter, IBM Plex Serif, Luciole, and Atkinson Hyperlegible)
 - **Font size** — tap **−** or **+** to adjust in 5% steps (from 80% to 170%, shown as a percentage of the default)
 - **Spacing** — tap **−** or **+** to adjust in 5% steps (from 80% to 125%, shown as a percentage of the default)
 - **Width** — choose the Narrow, Medium, or Wide layout button (75%, 85%, or 98% of the reader width)

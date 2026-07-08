@@ -67,6 +67,8 @@ class UiSettingsViewModelTest {
         coEvery { settingsDataStore.saveKeepScreenOnWhileReading(any()) } returns Unit
         coEvery { settingsDataStore.saveFullscreenWhileReading(any()) } returns Unit
         every { settingsDataStore.swipeConfigFlow } returns MutableStateFlow(SwipeConfig.Default)
+        every { settingsDataStore.typographySettingsFlow } returns
+            MutableStateFlow(com.mydeck.app.domain.model.TypographySettings())
 
         viewModel = UiSettingsViewModel(settingsDataStore, context)
     }

@@ -20,6 +20,7 @@ import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.List
+import androidx.compose.material.icons.filled.TextFields
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -51,6 +52,7 @@ import com.mydeck.app.R
 import com.mydeck.app.util.AppVersion
 import com.mydeck.app.domain.model.CachedServerInfo
 import com.mydeck.app.ui.components.MyDeckBrandHeader
+import com.mydeck.app.ui.navigation.FontLicensesRoute
 import com.mydeck.app.ui.navigation.OpenSourceLibrariesRoute
 import com.mydeck.app.util.openUrlInCustomTab
 import java.text.SimpleDateFormat
@@ -71,6 +73,9 @@ fun AboutScreen(navHostController: NavHostController, showBackButton: Boolean = 
                 AboutViewModel.NavigationEvent.NavigateToOpenSourceLibraries -> {
                     navHostController.navigate(OpenSourceLibrariesRoute) { launchSingleTop = true }
                 }
+                AboutViewModel.NavigationEvent.NavigateToFontLicenses -> {
+                    navHostController.navigate(FontLicensesRoute) { launchSingleTop = true }
+                }
             }
         }
     }
@@ -82,6 +87,7 @@ fun AboutScreen(navHostController: NavHostController, showBackButton: Boolean = 
         serverUrl = serverUrl.value,
         onBackClick = { viewModel.onClickBack() },
         onOpenSourceLibrariesClick = { viewModel.onClickOpenSourceLibraries() },
+        onFontLicensesClick = { viewModel.onClickFontLicenses() },
         onUrlClick = { url -> openUrlInCustomTab(context, url) },
         showBackButton = showBackButton,
     )
@@ -94,6 +100,7 @@ fun AboutScreenContent(
     serverUrl: String? = null,
     onBackClick: () -> Unit,
     onOpenSourceLibrariesClick: () -> Unit,
+    onFontLicensesClick: () -> Unit = {},
     onUrlClick: (String) -> Unit,
     showBackButton: Boolean = true,
 ) {
@@ -432,6 +439,31 @@ fun AboutScreenContent(
                     )
                     Text(
                         text = stringResource(R.string.settings_open_source_libraries_subtitle),
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+            }
+
+            // Font Licenses Link
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onFontLicensesClick() }
+                    .padding(vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(
+                    Icons.Filled.TextFields,
+                    contentDescription = stringResource(R.string.about_font_licenses),
+                    modifier = Modifier.padding(end = 16.dp)
+                )
+                Column {
+                    Text(
+                        text = stringResource(R.string.about_font_licenses),
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                    Text(
+                        text = stringResource(R.string.about_font_licenses_subtitle),
                         style = MaterialTheme.typography.bodyMedium
                     )
                 }

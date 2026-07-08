@@ -107,29 +107,53 @@ object WebViewTypographyBridge {
         """.trimIndent()
     }
 
+    // Standard Google/Fontsource subset ranges. Files are bundled per subset so the WebView
+    // only loads the subset(s) a given article actually uses.
+    private const val LATIN_RANGE =
+        "U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329," +
+            "U+2000-206F,U+2074,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD"
+    // Latin Extended-A/B — covers Polish and other European scripts. Deliberately narrower
+    // than Google's full latin-ext (drops phonetic/medievalist blocks no locale needs), which
+    // keeps the linguistics-heavy Gentium subset small.
+    private const val LATIN_EXT_RANGE = "U+0100-024F"
+    private const val CYRILLIC_RANGE = "U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116"
+
     /**
-     * Builds @font-face CSS declarations for bundled fonts.
-     * Returns empty string for system fonts.
+     * Builds @font-face declarations for a bundled font: one per (subset × weight), so the
+     * reader has real Bold (700) and covers Latin, Latin Extended, and — where available —
+     * Cyrillic. Returns empty string for system fonts.
      */
     private fun buildFontFaceCss(fontFamily: ReaderFontFamily): String {
         if (!fontFamily.requiresBundledFont) return ""
-        
-        val fileName = when (fontFamily) {
-            ReaderFontFamily.NOTO_SERIF -> "noto-serif-regular.woff2"
-            ReaderFontFamily.LITERATA -> "literata-regular.woff2"
-            ReaderFontFamily.SOURCE_SERIF -> "source-serif-4-regular.woff2"
-            ReaderFontFamily.JETBRAINS_MONO -> "jetbrains-mono-regular.woff2"
-            else -> return ""
-        }
-        
+
         val familyName = fontFamily.cssValue.substringAfter('"').substringBefore('"')
-        return """
-            @font-face {
-                font-family: "$familyName";
-                src: url("file:///android_asset/fonts/$fileName") format("woff2");
-                font-weight: 400;
-                font-display: swap;
+        val subsets = buildList {
+            add("latin" to LATIN_RANGE)
+            add("latin-ext" to LATIN_EXT_RANGE)
+            if (fontFamily.hasCyrillic) add("cyrillic" to CYRILLIC_RANGE)
+        }
+        // (cssWeight to bundled file weight). Cormorant's normal face is its Medium (500) file.
+        val weights = listOf(400 to fontFamily.regularWeight, 700 to 700)
+
+        return buildString {
+            for ((subset, range) in subsets) {
+                for ((cssWeight, fileWeight) in weights) {
+                    val file = "${fontFamily.fileSlug}-$subset-$fileWeight.woff2"
+                    append(
+                        """
+                        @font-face {
+                            font-family: "$familyName";
+                            src: url("file:///android_asset/fonts/$file") format("woff2");
+                            font-weight: $cssWeight;
+                            font-style: normal;
+                            font-display: swap;
+                            unicode-range: $range;
+                        }
+                        """.trimIndent()
+                    )
+                    append("\n")
+                }
             }
-        """.trimIndent()
+        }
     }
 }

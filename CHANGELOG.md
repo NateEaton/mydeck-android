@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Reading fonts** — the reading view now offers a curated app font set (System Default, Literata, Cantarell, Cormorant Garamond, Recursive, Bitter, Gentium, Old Standard, JetBrains Mono). A new **Include native Readeck fonts** setting (off by default) adds the fonts from Readeck's native reading view (Lora, Public Sans, Merriweather, Inter, IBM Plex Serif, Luciole, Atkinson Hyperlegible).
+- **Font picker** — the reading settings sheet shows the current font as a chip (in its own typeface); tapping it opens a dedicated **Select font** sheet with the full list, each font shown in its own typeface and applied live on tap.
+- **Font licenses** page under **About**, listing the SIL Open Font License and Luciole (CC BY 4.0) attributions for every bundled font.
+- **Wider reading-font coverage** — bundled reading fonts now render real **bold** and cover **Latin Extended** (e.g. Polish) and, where the font supports it, **Cyrillic** (Russian, Ukrainian), instead of basic Latin only. Gentium updated to SIL **Gentium 7.000**.
 - OAuth Authorization Code + PKCE sign-in: tapping **Sign In** now opens the Readeck authorization page in your browser, completing sign-in without entering a code. PKCE ensures the flow is secure even with a custom URI scheme redirect.
 - The app's icon is now sent as `logo_uri` during OAuth client registration, so the Readeck authorization page can display it in the Application information section.
 - **Sign in with a code instead** fallback: users who cannot use the browser flow (e.g. on constrained devices) can still sign in via the existing OAuth Device Code flow by tapping the new secondary action on the sign-in screen.
