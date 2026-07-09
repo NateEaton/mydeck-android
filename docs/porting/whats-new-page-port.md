@@ -169,3 +169,46 @@ On-device / emulator:
   exist for the current version); "See previous releases" from the sheet, and
   the history screen's own list, both work; tapping a past entry reopens its
   notes.
+
+## Addendum (2026-07-09): fresh-install disambiguation + release dates
+
+**Source:** Readeck for Android `feat/whats-new-page` commit `b6eeb55`
+("feat: disambiguate fresh installs from pre-feature upgrades; add release
+dates + rc1-rc5 history content").
+
+Ported the two logic refinements only — **not** the `whatsnew/*.md` content
+files (all locales' rc1–rc5 notes). Those are Readeck's own curated release
+notes, out of scope here for the same reason as delta 3 above.
+
+- **Fresh-install vs. pre-feature-upgrade disambiguation**
+  (`WhatsNewViewModel.kt`): a null `last_seen_whatsnew_version` marker used to
+  always mean "suppress the sheet, show the guide nudge instead" — but that's
+  wrong for an existing tester upgrading from a build that predates this
+  feature; they should see the sheet like any other version change. Fix: on a
+  null marker, check `settingsDataStore.isInitialSyncPerformed()` (pre-existing
+  flag, confirmed present in MyDeck) — true means treat it as a normal version
+  change; false means it's genuinely fresh. Extracted `showNotesIfAvailable()`
+  to share the "load notes, update state" logic between this branch and the
+  existing version-change branch.
+- **Release dates in history** (`WhatsNewAssetLoader.kt`,
+  `WhatsNewHistoryViewModel.kt`, `WhatsNewHistoryScreen.kt`): new
+  `WhatsNewHistoryEntry(version, date: LocalDate?)`; `listAvailableVersions()`
+  now returns `List<WhatsNewHistoryEntry>` instead of `List<String>`; new pure
+  `parseFrontmatterDate(raw): LocalDate?` reads an optional `date: YYYY-MM-DD`
+  YAML frontmatter field (missing/malformed → null, never throws); shared
+  `readRawFile()` private helper avoids duplicating the asset-open/try-catch
+  between note-loading and date-parsing. History rows show the date under the
+  version. `kotlinx.datetime.LocalDate` was already a MyDeck dependency — no
+  new dependency added. Date intentionally shown only in history, not on the
+  popup sheet itself (see source spec's Resolved decisions §7 for the
+  rationale).
+- `WhatsNewAssetLoaderTest.kt` — four new `parseFrontmatterDate` cases (valid
+  date, no frontmatter, frontmatter without `date:`, malformed date).
+- `docs/WORKFLOW.md` — amended MyDeck's own release-prep step (already
+  renumbered per delta 5 above) to show the `date:` frontmatter block in the
+  `whatsnew/en/X.Y.Z.md` template, instead of copying Readeck's differently-
+  numbered step verbatim.
+- All five touched code files were confirmed byte-identical to MyDeck's
+  existing (already-ported) versions before merging — a clean port, same as
+  the original three commits.
+- No new branding deltas, no schema changes.
