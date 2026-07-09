@@ -147,15 +147,31 @@ This is documented in `AGENTS.md` and `CLAUDE.md` so the agent knows to ask rath
     date: X.Y.Z's release date, YYYY-MM-DD
     ---
     # What's New in X.Y.Z
+
+    **Feature name:** One or two sentences describing what it does, in plain
+    user-facing language.
+
+    **Another change:** Same shape — a bold lead-in, a colon, then the
+    description.
     ```
     The date is shown in the release-history list (About → What's New → See
     previous releases); it's parsed from frontmatter, not the filename. Curate
     the body from the `CHANGELOG.md` section just written, but don't copy it
-    verbatim: use short, explanatory, user-facing language (bold lead-ins per
-    feature), and drop internal-only entries (refactors, fixes with no visible
-    behavior change) that don't merit a user's attention. No file for a
-    version = the sheet silently never fires for it, so skip this step for an
-    internal-only release with nothing worth highlighting. Add
+    verbatim: use short, explanatory, user-facing language and drop
+    internal-only entries (refactors, fixes with no visible behavior change)
+    that don't merit a user's attention.
+
+    **Format each entry consistently** as `**Bold lead-in:** description` —
+    the bold title and its colon inside the `**…**`, followed by the
+    description on the same line, one blank line between entries. This inline
+    colon form keeps even a busy release to a single no-scroll sheet. Do **not**
+    use an em dash (`—`) as the title/description separator (or elsewhere in the
+    copy); the renderer collapses a bare newline to a space, so a title on its
+    own line would run into its paragraph anyway. Group several small fixes
+    under one `**Fixes:**` entry rather than listing each.
+
+    No file for a version = the sheet silently never fires for it, so skip this
+    step for an internal-only release with nothing worth highlighting. Add
     English-placeholder copies (frontmatter included) at
     `app/src/main/assets/whatsnew/<locale>/X.Y.Z.md` for every other supported
     locale (`de, es, fr, gl, pl, pt, ru, uk, zh`), matching the localization
