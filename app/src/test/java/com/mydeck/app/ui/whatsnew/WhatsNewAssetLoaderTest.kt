@@ -1,6 +1,8 @@
 package com.mydeck.app.ui.whatsnew
 
+import kotlinx.datetime.LocalDate
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -48,5 +50,45 @@ class WhatsNewAssetLoaderTest {
             listOf("1.0.0", "1.0.0-rc5", "1.0.0-rc4", "1.0.0-rc3", "0.9.0"),
             sorted
         )
+    }
+
+    @Test
+    fun `parseFrontmatterDate reads a date field from the frontmatter block`() {
+        val raw = """
+            ---
+            date: 2026-07-03
+            ---
+            # What's New in 1.0.0-rc5
+
+            Body text.
+        """.trimIndent()
+        assertEquals(LocalDate(2026, 7, 3), WhatsNewAssetLoader.parseFrontmatterDate(raw))
+    }
+
+    @Test
+    fun `parseFrontmatterDate returns null with no frontmatter block`() {
+        assertNull(WhatsNewAssetLoader.parseFrontmatterDate("# What's New in 1.0.0-rc5\n\nBody text."))
+    }
+
+    @Test
+    fun `parseFrontmatterDate returns null when frontmatter has no date field`() {
+        val raw = """
+            ---
+            title: Ignored
+            ---
+            Body text.
+        """.trimIndent()
+        assertNull(WhatsNewAssetLoader.parseFrontmatterDate(raw))
+    }
+
+    @Test
+    fun `parseFrontmatterDate returns null for a malformed date instead of throwing`() {
+        val raw = """
+            ---
+            date: not-a-date
+            ---
+            Body text.
+        """.trimIndent()
+        assertNull(WhatsNewAssetLoader.parseFrontmatterDate(raw))
     }
 }

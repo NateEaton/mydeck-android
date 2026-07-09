@@ -139,13 +139,24 @@ This is documented in `AGENTS.md` and `CLAUDE.md` so the agent knows to ask rath
 4.  Update `CHANGELOG.md`: move items from `[Unreleased]` into a new `## [X.Y.Z] - YYYY-MM-DD` section.
 5.  Author `app/src/main/assets/whatsnew/en/X.Y.Z.md` — the in-app "What's New"
     sheet shown on first launch after updating to this version (see
-    `docs/specs/whats-new-page-spec.md`). Curate this from the `CHANGELOG.md`
-    section just written, but don't copy it verbatim: use short, explanatory,
-    user-facing language (bold lead-ins per feature), and drop internal-only
-    entries (refactors, fixes with no visible behavior change) that don't merit
-    a user's attention. No file for a version = the sheet silently never fires
-    for it, so skip this step for an internal-only release with nothing worth
-    highlighting. Add English-placeholder copies at
+    `docs/specs/whats-new-page-spec.md`). Start the file with a YAML
+    frontmatter block giving the release date (matching the `CHANGELOG.md`
+    heading just written), e.g.:
+    ```
+    ---
+    date: X.Y.Z's release date, YYYY-MM-DD
+    ---
+    # What's New in X.Y.Z
+    ```
+    The date is shown in the release-history list (About → What's New → See
+    previous releases); it's parsed from frontmatter, not the filename. Curate
+    the body from the `CHANGELOG.md` section just written, but don't copy it
+    verbatim: use short, explanatory, user-facing language (bold lead-ins per
+    feature), and drop internal-only entries (refactors, fixes with no visible
+    behavior change) that don't merit a user's attention. No file for a
+    version = the sheet silently never fires for it, so skip this step for an
+    internal-only release with nothing worth highlighting. Add
+    English-placeholder copies (frontmatter included) at
     `app/src/main/assets/whatsnew/<locale>/X.Y.Z.md` for every other supported
     locale (`de, es, fr, gl, pl, pt, ru, uk, zh`), matching the localization
     rule in `CLAUDE.md`.

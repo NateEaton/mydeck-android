@@ -62,8 +62,9 @@ before diving in.
 | Content source | **Curated, decoupled** from `CHANGELOG.md`; hand-synced at release-prep time. |
 | Scope shown on update | **Only the new release**, with an optional "See previous releases" link. |
 | Localization | **Full locale set** (en + placeholder files for all supported locales), following the guide pattern. |
-| Fresh install | **Suppress** What's New; show an optional dismissible **User Guide nudge** instead. |
+| Fresh install | **Suppress** What's New; show an optional dismissible **User Guide nudge** instead. A null marker is disambiguated from "upgrade from a pre-feature build" via `isInitialSyncPerformed()` — see Resolved decisions §6. |
 | Doc status | This spec stays **untracked** for now (active unrelated branch in flight). |
+| Release dates | Each `whatsnew/*.md` carries a `date:` YAML frontmatter field, shown in the history list (not the popup sheet — see Resolved decisions §7). |
 
 ## Design
 
@@ -108,10 +109,16 @@ current = AppVersion.versionName(context)
 lastSeen = prefs.last_seen_whatsnew_version   // may be null
 
 if lastSeen == null:
-    // Fresh install (or upgrade from a build predating this feature).
-    // Do NOT show What's New. Record current so it never fires retroactively.
     prefs.last_seen_whatsnew_version = current
-    maybeShowWelcomeGuidePrompt()             // see §5
+    if settingsDataStore.isInitialSyncPerformed():
+        // No marker, but this account already has synced data: an upgrade
+        // from a build that predates this feature, not a fresh install.
+        // Treat like any other version change — see Resolved decisions §6.
+        if assetExists("whatsnew/<locale-or-en>/$current.md"):
+            show What's New sheet for `current`
+    else:
+        // Genuinely fresh install. Do NOT show What's New.
+        maybeShowWelcomeGuidePrompt()          // see §5
 else if current != lastSeen AND assetExists("whatsnew/<locale-or-en>/$current.md"):
     show What's New sheet for `current`
     prefs.last_seen_whatsnew_version = current
@@ -230,9 +237,12 @@ authenticated shell is reached with `welcome_guide_prompt_shown == false`).
    — those remain reachable manually via the History screen (below).
 2. **History shipped as a fast-follow (§6).** `WhatsNewHistoryRoute` lists every
    version with notes, newest-first via a numeric-aware comparator, and is
-   registered in both nav graphs. The About row now opens history (its top entry
-   is the current version, subsuming the original v1 direct-open behavior), and
-   the auto-triggered sheet's "See previous releases" link navigates there too.
+   registered in both nav graphs. **Refined after initial ship:** the About row
+   opens the *current* version's note directly if one exists (falling back
+   straight to history if not) — closer to the original v1 behavior than pure
+   history-first, since that's the more common case. The sheet itself (both the
+   auto-triggered one and About's) carries a "See previous releases" link into
+   history; tapping any past entry there reopens it in the same sheet.
 3. **Sheet dismissal:** any dismissal — "Got it", swipe-away, or tap-outside —
    is equivalent, since the marker is already advanced at show-time (§3). No
    extra state needed; standard `ModalBottomSheet` dismiss behavior applies.
@@ -240,6 +250,32 @@ authenticated shell is reached with `welcome_guide_prompt_shown == false`).
    version silently and show only the guide nudge — never both surfaces at once.
 5. **Future (out of scope):** an optional interactive coached-overlay tutorial
    (spotlight tips on real UI) as a richer alternative to the guide-link nudge.
+6. **Null-marker disambiguation via `isInitialSyncPerformed()` (2026-07-09).**
+   The original design collapsed "fresh install" and "upgrade from a
+   pre-feature build" into one null-marker branch that always suppressed the
+   sheet, since a bare `null` can't tell them apart on its own — but it doesn't
+   have to be guessed blindly. `isInitialSyncPerformed()` (existing sync-state
+   flag) is already a reliable proxy: a genuinely new user hasn't completed
+   their first sync yet at this point, while an existing account upgrading
+   from a pre-feature build has been syncing for a while. So on `lastSeen ==
+   null`: if `isInitialSyncPerformed()` is true, treat it as a normal version
+   change (show the sheet if a note exists for the current version); if false,
+   treat it as fresh (silent record + guide nudge). No new state — reuses an
+   existing flag. Edge case: a user who signed in but hadn't completed their
+   first sync yet (e.g., offline) on the old build, then upgrades, incorrectly
+   gets the nudge once instead of the sheet — rare and harmless.
+7. **Release dates via frontmatter (2026-07-09).** Convention check: iOS's
+   `RELEASE_NOTES.md` and typical App/Play Store "what's new" text don't date
+   their entries — the OS/store already timestamps "updated on," making an
+   in-app date redundant for the *current*-version popup sheet. The **history**
+   list is different: it's changelog-style browsing spanning months (including
+   the MyDeck → Readeck rebrand), where "how long ago" is genuinely useful
+   context, and `CHANGELOG.md` already records a date per version anyway. So:
+   no date in `WhatsNewSheet` itself; each `whatsnew/*.md` carries a `date:
+   YYYY-MM-DD` YAML frontmatter field, parsed by `WhatsNewAssetLoader
+   .parseFrontmatterDate` (a pure, unit-tested companion function; malformed or
+   missing dates degrade to "no date shown," never a crash) and displayed
+   under the version in each `WhatsNewHistoryScreen` row.
 
 ## Implementation checklist
 
@@ -472,3 +508,69 @@ route needed in v1).
      advances.
 3. Dark/light theme rendering of the sheet's markdown matches the User Guide's
    existing look (shared `MarkdownRenderer` styling).
+
+---
+
+## Addendum (2026-07-09): null-marker refinement, release dates, rc1–rc5 content
+
+Covers the two logic refinements in Resolved decisions §6–§7, plus authoring
+real content for the backlog of already-shipped versions.
+
+### Code changes
+
+- `ui/whatsnew/WhatsNewViewModel.kt` — `evaluateIfNeeded()`'s null-marker branch
+  now checks `settingsDataStore.isInitialSyncPerformed()` before deciding
+  between "show the sheet" and "show the guide nudge" (§6). Extracted a
+  `showNotesIfAvailable(version)` helper shared by both the null-marker and
+  normal version-change paths.
+- `ui/whatsnew/WhatsNewAssetLoader.kt` — new `WhatsNewHistoryEntry(version,
+  date: LocalDate?)` data class; `listAvailableVersions()` now returns
+  `List<WhatsNewHistoryEntry>` instead of `List<String>` (still newest-first);
+  new pure companion function `parseFrontmatterDate(raw): LocalDate?`; shared
+  `readRawFile(version)` private helper so `loadNotesForVersion` and the new
+  date parsing don't duplicate the asset-open/try-catch.
+- `ui/whatsnew/WhatsNewHistoryViewModel.kt` / `WhatsNewHistoryScreen.kt` —
+  updated for the `WhatsNewHistoryEntry` type; each history row now shows the
+  parsed date (ISO `YYYY-MM-DD`, locale-neutral) under the version, when present.
+- `WhatsNewAssetLoaderTest.kt` — added `parseFrontmatterDate` cases: reads a
+  valid date, returns null with no frontmatter, returns null with frontmatter
+  but no `date:` field, returns null (not a crash) for a malformed date.
+- `docs/WORKFLOW.md` — release-prep step 4 now shows the `date:` frontmatter
+  block in its `whatsnew/en/X.Y.Z.md` template.
+
+### Content authored
+
+Real (not placeholder-only) English content for every version since the
+MyDeck → Readeck rebrand, each with `date:` frontmatter matching its
+`CHANGELOG.md` heading, curated (not copy-pasted) per the workflow rule —
+internal-only entries (F-Droid build changes, dead-code removal) dropped:
+
+- `whatsnew/en/1.0.0-rc1.md` (2026-06-08) — the rebrand itself: new name, new
+  home on Codeberg.
+- `whatsnew/en/1.0.0-rc2.md` (2026-06-21) — offline pinning, storage-pool split,
+  foreground-service downloads.
+- `whatsnew/en/1.0.0-rc3.md` (2026-06-27) — quick label-edit, UI-customization
+  toggles, label search ranking, error/no-content badges, assorted fixes.
+- `whatsnew/en/1.0.0-rc4.md` (2026-06-29) — nightly-server sign-in fix.
+- `whatsnew/en/1.0.0-rc5.md` (2026-07-03) — added `date:` frontmatter to the
+  file authored during initial development (content unchanged).
+
+English-placeholder copies (verbatim, per the localization rule) created for
+all five versions across all nine other locales (`de, es, fr, gl, pl, pt, ru,
+uk, zh`) — 45 additional files.
+
+**v1.0.0 (production release) is deliberately not authored yet** — see the
+"What to do with v1.0.0" discussion (2026-07-09, not written into this doc
+verbatim): plan is a short milestone-style note ("official 1.0.0 release, now
+on Google Play," with a one-line nod to the MyDeck rebrand) rather than a
+bare "no changes" note, authored at actual release-prep time once versioning
+is finalized.
+
+### Note on auto-popup semantics for already-installed testers
+
+Because this feature didn't exist before rc5, any tester already on rc5 will
+hit the null-marker branch the first time they update to whichever version
+ships this feature. With the §6 refinement, since they'll have
+`isInitialSyncPerformed() == true`, they *will* see that version's sheet (if a
+note exists) rather than just the nudge — the original gap this refinement
+was built to close.

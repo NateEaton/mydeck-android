@@ -6,6 +6,10 @@ import java.io.IOException
 import java.util.Locale
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlinx.datetime.LocalDate
+
+/** A version with notes, plus the release date parsed from its frontmatter (if any). */
+data class WhatsNewHistoryEntry(val version: String, val date: LocalDate?)
 
 @Singleton
 class WhatsNewAssetLoader @Inject constructor(
@@ -58,6 +62,25 @@ class WhatsNewAssetLoader @Inject constructor(
             val main = parts[0].split(".").map { it.toIntOrNull() ?: 0 }
             return main to parts.getOrNull(1)
         }
+
+        /**
+         * Parses an optional `date: YYYY-MM-DD` field from a leading YAML
+         * frontmatter block (`--- ... ---`). Returns null if there's no
+         * frontmatter, no date field, or the date fails to parse — a
+         * missing/malformed date just means the history list shows no date for
+         * that entry, not an error.
+         */
+        fun parseFrontmatterDate(raw: String): LocalDate? {
+            val frontmatter = Regex("^---([\\s\\S]*?)---").find(raw)?.groupValues?.get(1)
+                ?: return null
+            val dateStr = Regex("""date:\s*(\S+)""").find(frontmatter)?.groupValues?.get(1)
+                ?: return null
+            return try {
+                LocalDate.parse(dateStr)
+            } catch (e: IllegalArgumentException) {
+                null
+            }
+        }
     }
 
     private fun getLocalePath(): String {
@@ -66,26 +89,30 @@ class WhatsNewAssetLoader @Inject constructor(
         return "$ASSETS_BASE_PATH/$locale"
     }
 
-    /**
-     * Loads the notes for [version], or null if no notes exist for that exact
-     * version — the expected outcome for rc/snapshot builds, not an error.
-     */
-    fun loadNotesForVersion(version: String): String? {
+    private fun readRawFile(version: String): String? {
         val localePath = getLocalePath()
         return try {
-            val raw = context.assets.open("$localePath/$version.md").use { inputStream ->
+            context.assets.open("$localePath/$version.md").use { inputStream ->
                 inputStream.bufferedReader().use { reader -> reader.readText() }
             }
-            raw
-                .replace(Regex("^---[\\s\\S]*?---\\n*"), "")
-                .replace(Regex("^# [^\n]+\\n+"), "")
         } catch (e: IOException) {
             null
         }
     }
 
+    /**
+     * Loads the notes for [version], or null if no notes exist for that exact
+     * version — the expected outcome for rc/snapshot builds, not an error.
+     */
+    fun loadNotesForVersion(version: String): String? {
+        val raw = readRawFile(version) ?: return null
+        return raw
+            .replace(Regex("^---[\\s\\S]*?---\\n*"), "")
+            .replace(Regex("^# [^\n]+\\n+"), "")
+    }
+
     /** All versions with notes for the resolved locale, newest first. */
-    fun listAvailableVersions(): List<String> {
+    fun listAvailableVersions(): List<WhatsNewHistoryEntry> {
         val localePath = getLocalePath()
         val versions = try {
             context.assets.list(localePath)
@@ -95,6 +122,8 @@ class WhatsNewAssetLoader @Inject constructor(
         } catch (e: IOException) {
             emptyList()
         }
-        return versions.sortedWith { a, b -> compareVersions(b, a) }
+        return versions
+            .sortedWith { a, b -> compareVersions(b, a) }
+            .map { version -> WhatsNewHistoryEntry(version, readRawFile(version)?.let(::parseFrontmatterDate)) }
     }
 }

@@ -2,6 +2,7 @@ package com.mydeck.app.ui.whatsnew
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -64,15 +65,25 @@ fun WhatsNewHistoryScreen(
             }
         } else {
             LazyColumn(modifier = Modifier.padding(padding)) {
-                items(uiState.versions) { version ->
-                    Text(
-                        text = version,
-                        style = MaterialTheme.typography.titleMedium,
+                items(uiState.versions) { entry ->
+                    Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable { viewModel.onVersionClick(version) }
+                            .clickable { viewModel.onVersionClick(entry.version) }
                             .padding(horizontal = 16.dp, vertical = 16.dp)
-                    )
+                    ) {
+                        Text(
+                            text = entry.version,
+                            style = MaterialTheme.typography.titleMedium
+                        )
+                        if (entry.date != null) {
+                            Text(
+                                text = entry.date.toString(),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
                     HorizontalDivider()
                 }
             }

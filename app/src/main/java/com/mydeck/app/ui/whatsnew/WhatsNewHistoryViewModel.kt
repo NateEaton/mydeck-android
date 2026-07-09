@@ -36,7 +36,7 @@ class WhatsNewHistoryViewModel @Inject constructor(
 }
 
 data class WhatsNewHistoryUiState(
-    val versions: List<String> = emptyList(),
+    val versions: List<WhatsNewHistoryEntry> = emptyList(),
     val selectedVersion: String? = null,
     val selectedContent: String? = null,
 )

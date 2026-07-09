@@ -36,22 +36,33 @@ class WhatsNewViewModel @Inject constructor(
             val current = WhatsNewAssetLoader.normalizeVersion(AppVersion.versionName(context))
             val lastSeen = settingsDataStore.getLastSeenWhatsNewVersion()
             if (lastSeen == null) {
-                // Fresh install (or upgrade from a build predating this feature).
-                // Never show What's New here; record silently so it can't fire
-                // retroactively, and offer the guide nudge instead.
                 settingsDataStore.saveLastSeenWhatsNewVersion(current)
-                if (!settingsDataStore.isWelcomeGuidePromptShown()) {
-                    uiState = uiState.copy(showGuideNudge = true)
+                if (settingsDataStore.isInitialSyncPerformed()) {
+                    // No marker, but this account has already completed its first
+                    // sync — this is an upgrade from a build that predates this
+                    // feature, not a fresh install. Treat it like any other
+                    // version change instead of silently suppressing.
+                    showNotesIfAvailable(current)
+                } else {
+                    // Genuinely fresh install: nothing to show yet, offer the
+                    // guide nudge instead.
+                    if (!settingsDataStore.isWelcomeGuidePromptShown()) {
+                        uiState = uiState.copy(showGuideNudge = true)
+                    }
                 }
                 return@launch
             }
             if (current != lastSeen) {
-                val notes = loader.loadNotesForVersion(current)
                 settingsDataStore.saveLastSeenWhatsNewVersion(current)
-                if (notes != null) {
-                    uiState = uiState.copy(whatsNewContent = notes, whatsNewVersion = current)
-                }
+                showNotesIfAvailable(current)
             }
+        }
+    }
+
+    private fun showNotesIfAvailable(version: String) {
+        val notes = loader.loadNotesForVersion(version)
+        if (notes != null) {
+            uiState = uiState.copy(whatsNewContent = notes, whatsNewVersion = version)
         }
     }
 
