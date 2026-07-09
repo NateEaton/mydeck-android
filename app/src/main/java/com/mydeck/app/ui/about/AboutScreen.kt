@@ -56,6 +56,7 @@ import com.mydeck.app.ui.components.MyDeckBrandHeader
 import com.mydeck.app.ui.navigation.FontLicensesRoute
 import com.mydeck.app.ui.navigation.OpenSourceLibrariesRoute
 import com.mydeck.app.ui.navigation.WhatsNewHistoryRoute
+import com.mydeck.app.ui.whatsnew.WhatsNewSheet
 import com.mydeck.app.util.openUrlInCustomTab
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -94,6 +95,8 @@ fun AboutScreen(navHostController: NavHostController, showBackButton: Boolean = 
         onOpenSourceLibrariesClick = { viewModel.onClickOpenSourceLibraries() },
         onFontLicensesClick = { viewModel.onClickFontLicenses() },
         onWhatsNewClick = { viewModel.onClickWhatsNew() },
+        onWhatsNewDismiss = { viewModel.onDismissWhatsNewSheet() },
+        onWhatsNewHistoryClick = { viewModel.onClickWhatsNewHistory() },
         onUrlClick = { url -> openUrlInCustomTab(context, url) },
         showBackButton = showBackButton,
     )
@@ -108,6 +111,8 @@ fun AboutScreenContent(
     onOpenSourceLibrariesClick: () -> Unit,
     onFontLicensesClick: () -> Unit = {},
     onWhatsNewClick: () -> Unit = {},
+    onWhatsNewDismiss: () -> Unit = {},
+    onWhatsNewHistoryClick: () -> Unit = {},
     onUrlClick: (String) -> Unit,
     showBackButton: Boolean = true,
 ) {
@@ -510,6 +515,17 @@ fun AboutScreenContent(
 
             Spacer(modifier = Modifier.height(16.dp))
         }
+    }
+
+    val whatsNewVersion = uiState.whatsNewVersion
+    val whatsNewContent = uiState.whatsNewContent
+    if (whatsNewVersion != null && whatsNewContent != null) {
+        WhatsNewSheet(
+            version = whatsNewVersion,
+            content = whatsNewContent,
+            onDismiss = onWhatsNewDismiss,
+            onSeePreviousReleases = onWhatsNewHistoryClick,
+        )
     }
 }
 

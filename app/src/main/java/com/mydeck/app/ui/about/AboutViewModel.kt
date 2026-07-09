@@ -1,13 +1,16 @@
 package com.mydeck.app.ui.about
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import dagger.hilt.android.lifecycle.HiltViewModel
 import com.mydeck.app.domain.model.CachedServerInfo
 import com.mydeck.app.domain.sync.ConnectivityMonitor
 import com.mydeck.app.io.prefs.SettingsDataStore
 import com.mydeck.app.io.rest.ReadeckApi
 import com.mydeck.app.ui.whatsnew.WhatsNewAssetLoader
+import com.mydeck.app.util.AppVersion
+import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -23,6 +26,7 @@ import javax.inject.Inject
 
 @HiltViewModel
 class AboutViewModel @Inject constructor(
+    @ApplicationContext private val context: Context,
     private val settingsDataStore: SettingsDataStore,
     private val connectivityMonitor: ConnectivityMonitor,
     private val readeckApi: ReadeckApi,
@@ -34,6 +38,8 @@ class AboutViewModel @Inject constructor(
         val serverInfoLoading: Boolean = false,
         val serverInfoError: Boolean = false,
         val hasWhatsNewHistory: Boolean = false,
+        val whatsNewVersion: String? = null,
+        val whatsNewContent: String? = null,
     )
 
     private val _navigationEvent = Channel<NavigationEvent>(Channel.BUFFERED)
@@ -150,6 +156,29 @@ class AboutViewModel @Inject constructor(
     }
 
     fun onClickWhatsNew() {
+        viewModelScope.launch {
+            val currentVersion = WhatsNewAssetLoader.normalizeVersion(AppVersion.versionName(context))
+            val content = whatsNewLoader.loadNotesForVersion(currentVersion)
+            if (content != null) {
+                _uiState.value = _uiState.value.copy(
+                    whatsNewVersion = currentVersion,
+                    whatsNewContent = content,
+                )
+            } else {
+                _navigationEvent.trySend(NavigationEvent.NavigateToWhatsNewHistory)
+            }
+        }
+    }
+
+    fun onDismissWhatsNewSheet() {
+        _uiState.value = _uiState.value.copy(
+            whatsNewVersion = null,
+            whatsNewContent = null,
+        )
+    }
+
+    fun onClickWhatsNewHistory() {
+        onDismissWhatsNewSheet()
         _navigationEvent.trySend(NavigationEvent.NavigateToWhatsNewHistory)
     }
 
