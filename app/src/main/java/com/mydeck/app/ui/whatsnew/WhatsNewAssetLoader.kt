@@ -27,6 +27,37 @@ class WhatsNewAssetLoader @Inject constructor(
          * preview the upcoming release's notes rather than never matching.
          */
         fun normalizeVersion(versionName: String): String = versionName.removeSuffix(SNAPSHOT_SUFFIX)
+
+        /**
+         * Compares two `X.Y.Z[-preRelease]` version strings, newest-first when
+         * used with [sortedWith] directly (returns > 0 when [a] is newer than
+         * [b]). Numeric-component comparison so "1.0.10" sorts after "1.0.9"
+         * (a plain string sort would get this backwards); a version with no
+         * pre-release suffix is newer than one with (a release supersedes its
+         * own rc's), and two pre-release suffixes compare by their trailing
+         * digits (so "rc10" sorts after "rc9").
+         */
+        fun compareVersions(a: String, b: String): Int {
+            val (aMain, aPre) = splitVersion(a)
+            val (bMain, bPre) = splitVersion(b)
+            val maxParts = maxOf(aMain.size, bMain.size)
+            for (i in 0 until maxParts) {
+                val cmp = aMain.getOrElse(i) { 0 }.compareTo(bMain.getOrElse(i) { 0 })
+                if (cmp != 0) return cmp
+            }
+            if (aPre == null && bPre != null) return 1
+            if (aPre != null && bPre == null) return -1
+            if (aPre == null && bPre == null) return 0
+            val aPreNum = aPre.orEmpty().filter { it.isDigit() }.toIntOrNull() ?: 0
+            val bPreNum = bPre.orEmpty().filter { it.isDigit() }.toIntOrNull() ?: 0
+            return aPreNum.compareTo(bPreNum)
+        }
+
+        private fun splitVersion(version: String): Pair<List<Int>, String?> {
+            val parts = version.split("-", limit = 2)
+            val main = parts[0].split(".").map { it.toIntOrNull() ?: 0 }
+            return main to parts.getOrNull(1)
+        }
     }
 
     private fun getLocalePath(): String {
@@ -51,5 +82,19 @@ class WhatsNewAssetLoader @Inject constructor(
         } catch (e: IOException) {
             null
         }
+    }
+
+    /** All versions with notes for the resolved locale, newest first. */
+    fun listAvailableVersions(): List<String> {
+        val localePath = getLocalePath()
+        val versions = try {
+            context.assets.list(localePath)
+                ?.filter { it.endsWith(".md") }
+                ?.map { it.removeSuffix(".md") }
+                ?: emptyList()
+        } catch (e: IOException) {
+            emptyList()
+        }
+        return versions.sortedWith { a, b -> compareVersions(b, a) }
     }
 }

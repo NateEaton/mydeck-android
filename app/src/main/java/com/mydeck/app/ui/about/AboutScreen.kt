@@ -55,7 +55,7 @@ import com.mydeck.app.domain.model.CachedServerInfo
 import com.mydeck.app.ui.components.MyDeckBrandHeader
 import com.mydeck.app.ui.navigation.FontLicensesRoute
 import com.mydeck.app.ui.navigation.OpenSourceLibrariesRoute
-import com.mydeck.app.ui.whatsnew.WhatsNewSheet
+import com.mydeck.app.ui.navigation.WhatsNewHistoryRoute
 import com.mydeck.app.util.openUrlInCustomTab
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -78,6 +78,9 @@ fun AboutScreen(navHostController: NavHostController, showBackButton: Boolean = 
                 AboutViewModel.NavigationEvent.NavigateToFontLicenses -> {
                     navHostController.navigate(FontLicensesRoute) { launchSingleTop = true }
                 }
+                AboutViewModel.NavigationEvent.NavigateToWhatsNewHistory -> {
+                    navHostController.navigate(WhatsNewHistoryRoute) { launchSingleTop = true }
+                }
             }
         }
     }
@@ -91,7 +94,6 @@ fun AboutScreen(navHostController: NavHostController, showBackButton: Boolean = 
         onOpenSourceLibrariesClick = { viewModel.onClickOpenSourceLibraries() },
         onFontLicensesClick = { viewModel.onClickFontLicenses() },
         onWhatsNewClick = { viewModel.onClickWhatsNew() },
-        onDismissWhatsNewSheet = { viewModel.onDismissWhatsNewSheet() },
         onUrlClick = { url -> openUrlInCustomTab(context, url) },
         showBackButton = showBackButton,
     )
@@ -106,7 +108,6 @@ fun AboutScreenContent(
     onOpenSourceLibrariesClick: () -> Unit,
     onFontLicensesClick: () -> Unit = {},
     onWhatsNewClick: () -> Unit = {},
-    onDismissWhatsNewSheet: () -> Unit = {},
     onUrlClick: (String) -> Unit,
     showBackButton: Boolean = true,
 ) {
@@ -164,8 +165,8 @@ fun AboutScreenContent(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // What's New Link (only when notes exist for the current version)
-            if (uiState.whatsNewContent != null) {
+            // What's New Link (only when there is any release history to show)
+            if (uiState.hasWhatsNewHistory) {
                 HorizontalDivider()
                 Spacer(modifier = Modifier.height(16.dp))
 
@@ -509,14 +510,6 @@ fun AboutScreenContent(
 
             Spacer(modifier = Modifier.height(16.dp))
         }
-    }
-
-    if (uiState.showWhatsNewSheet && uiState.whatsNewContent != null) {
-        WhatsNewSheet(
-            version = uiState.whatsNewVersion,
-            content = uiState.whatsNewContent,
-            onDismiss = onDismissWhatsNewSheet,
-        )
     }
 }
 

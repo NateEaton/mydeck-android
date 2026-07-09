@@ -46,6 +46,9 @@ object UiSettingsRoute
 object AboutRoute
 
 @Serializable
+object WhatsNewHistoryRoute
+
+@Serializable
 object UserGuideRoute
 
 @Serializable

@@ -156,33 +156,50 @@ authenticated shell is reached with `welcome_guide_prompt_shown == false`).
   interactive coached overlay. An overlay-style tutorial is noted as a possible
   future enhancement in Open decisions.
 
-### 6. Manual entry (v1); history (fast-follow)
+### 6. Manual entry + history (both shipped)
 
-- **About screen (v1):** add a "What's New" row (`ui/about/AboutScreen.kt`) that
-  opens the *current* version's notes sheet directly. Makes the content
-  re-findable after dismissal, matching iOS, without needing history.
-- **History screen (fast-follow, not v1):** `WhatsNewHistoryRoute` lists every
-  `whatsnew/<locale>/*.md` via `AssetManager.list(...)`, sorted newest-first,
-  each opening its notes. Register the route in **both** nav graphs when built.
-  At that point, the About row switches to opening history (or gains a second
-  entry point), and the sheet regains its "See previous releases" link.
+- **History screen:** `WhatsNewHistoryRoute` (`ui/whatsnew/WhatsNewHistoryScreen.kt`
+  + `WhatsNewHistoryViewModel.kt`) lists every version with notes for the
+  resolved locale via `WhatsNewAssetLoader.listAvailableVersions()`
+  (`context.assets.list(...)`, `.md` suffix stripped), sorted newest-first with
+  a small numeric-aware `compareVersions` comparator (a plain string sort would
+  put `"1.0.10"` before `"1.0.9"`, and would rank a release below its own `-rc`
+  builds). Tapping a row loads that version's notes and shows them in the same
+  `WhatsNewSheet` used elsewhere. Registered in **both** `NavHost` blocks in
+  `AppShell.kt` (the inline one in `CompactAppShell` and the shared
+  `AppShellNavHost` used by `MediumAppShell`/`ExpandedAppShell`).
+- **About screen:** the "What's New" row now navigates to `WhatsNewHistoryRoute`
+  (via the existing `NavigationEvent` channel pattern) instead of opening the
+  current version's sheet directly — the top entry in history *is* the current
+  version, so this subsumes the original v1 behavior without a second affordance.
+  The row is gated on `AboutViewModel.UiState.hasWhatsNewHistory`
+  (`listAvailableVersions().isNotEmpty()`), not on the current version having
+  notes specifically.
+- **Auto-triggered sheet:** the on-update `WhatsNewSheet` shown from `AppShell`
+  gained the `onSeePreviousReleases` link (dismisses the sheet, then navigates to
+  `WhatsNewHistoryRoute`).
 
-## Files touched (v1)
+## Files touched
 
 - **New:** `app/src/main/assets/whatsnew/<locale>/<version>.md` (all locales).
-- **New:** `ui/whatsnew/WhatsNewSheet.kt`, `WhatsNewViewModel.kt`, a loader (either
-  generalize `MarkdownAssetLoader` to take a base path, or a thin sibling).
-- **Edit:** `io/prefs/SettingsDataStoreImpl.kt` (+ interface) — two new keys.
-- **Edit:** `ui/shell/AppShell.kt` — trigger `LaunchedEffect` + sheet state (both
-  compact and expanded shells).
-- **Edit:** `ui/about/AboutScreen.kt` — "What's New" row (opens current notes).
+- **New:** `ui/whatsnew/WhatsNewAssetLoader.kt`, `WhatsNewViewModel.kt`,
+  `WhatsNewSheet.kt`, `WelcomeGuideNudgeDialog.kt`, `WhatsNewHistoryViewModel.kt`,
+  `WhatsNewHistoryScreen.kt`.
+- **Edit:** `io/prefs/SettingsDataStore.kt` + `SettingsDataStoreImpl.kt` — two
+  new keys.
+- **Edit:** `ui/navigation/Routes.kt` — `WhatsNewHistoryRoute`.
+- **Edit:** `ui/shell/AppShell.kt` — trigger `LaunchedEffect` + sheet/dialog
+  overlays (once, top-level); `WhatsNewHistoryRoute` registered in both
+  `NavHost` blocks.
+- **Edit:** `ui/about/AboutViewModel.kt` + `AboutScreen.kt` — "What's New" row
+  navigating to history.
 - **New strings** in `values/strings.xml` **and every** `values-*/strings.xml`
-  (English placeholders) per the localization rule: sheet title, "Got it",
-  welcome-nudge title/body, "Open the User Guide", "Not now", About row label.
-
-**Deferred to fast-follow:** `ui/whatsnew/WhatsNewHistoryScreen.kt`,
-`WhatsNewHistoryRoute` + registration in both `NavHost` blocks, "See previous
-releases" string.
+  (English placeholders): sheet title, "Got it", "See previous releases",
+  welcome-nudge title/body, "Open the User Guide", "Not now", About row
+  label/subtitle, history screen title/empty-state.
+- **New test:** `WhatsNewAssetLoaderTest.kt` — covers `normalizeVersion` and the
+  `compareVersions` numeric/pre-release ordering (pure functions, no Robolectric
+  needed).
 
 ## Workflow / process changes
 
@@ -210,12 +227,12 @@ releases" string.
    only when shown" are functionally equivalent here; always-advance is simpler.
    Note this means a user who updates straight through several versions (e.g.
    1.0.0 → 1.0.3) only ever auto-sees 1.0.3's notes, never the skipped-over ones
-   — those remain reachable manually once the History screen (below) ships.
-2. **History deferred to a fast-follow.** v1 ships the trigger, single-version
-   sheet, and an About row that opens the *current* version's notes only. The
-   `WhatsNewHistoryRoute` (asset-listing, newest-first, both nav graphs) is a
-   follow-up PR. The sheet's "See previous releases" link is omitted from v1
-   copy rather than shipped disabled.
+   — those remain reachable manually via the History screen (below).
+2. **History shipped as a fast-follow (§6).** `WhatsNewHistoryRoute` lists every
+   version with notes, newest-first via a numeric-aware comparator, and is
+   registered in both nav graphs. The About row now opens history (its top entry
+   is the current version, subsuming the original v1 direct-open behavior), and
+   the auto-triggered sheet's "See previous releases" link navigates there too.
 3. **Sheet dismissal:** any dismissal — "Got it", swipe-away, or tap-outside —
    is equivalent, since the marker is already advanced at show-time (§3). No
    extra state needed; standard `ModalBottomSheet` dismiss behavior applies.

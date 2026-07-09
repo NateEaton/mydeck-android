@@ -28,6 +28,7 @@ fun WhatsNewSheet(
     version: String,
     content: String,
     onDismiss: () -> Unit,
+    onSeePreviousReleases: (() -> Unit)? = null,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
@@ -71,12 +72,26 @@ fun WhatsNewSheet(
                 onClick = { scope.dismissSheet(sheetState) { onDismiss() } },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 16.dp)
+                    .padding(top = 16.dp)
             ) {
                 Text(
                     text = stringResource(R.string.whats_new_got_it),
                     modifier = Modifier.padding(4.dp)
                 )
+            }
+
+            if (onSeePreviousReleases != null) {
+                TextButton(
+                    onClick = { scope.dismissSheet(sheetState) { onSeePreviousReleases() } },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 16.dp)
+                ) {
+                    Text(
+                        text = stringResource(R.string.whats_new_see_previous_releases),
+                        modifier = Modifier.padding(4.dp)
+                    )
+                }
             }
         }
     }

@@ -66,6 +66,7 @@ import com.mydeck.app.ui.navigation.UiSettingsRoute
 import com.mydeck.app.ui.navigation.UserGuideRoute
 import com.mydeck.app.ui.navigation.UserGuideSectionRoute
 import com.mydeck.app.ui.navigation.WelcomeRoute
+import com.mydeck.app.ui.navigation.WhatsNewHistoryRoute
 import com.mydeck.app.ui.collections.CollectionsScreen
 import com.mydeck.app.ui.highlights.HighlightsScreen
 import com.mydeck.app.ui.settings.AccountSettingsScreen
@@ -79,6 +80,7 @@ import com.mydeck.app.ui.userguide.UserGuideIndexScreen
 import com.mydeck.app.ui.userguide.UserGuideSectionScreen
 import com.mydeck.app.ui.welcome.WelcomeScreen
 import com.mydeck.app.ui.whatsnew.WelcomeGuideNudgeDialog
+import com.mydeck.app.ui.whatsnew.WhatsNewHistoryScreen
 import com.mydeck.app.ui.whatsnew.WhatsNewSheet
 import com.mydeck.app.ui.whatsnew.WhatsNewViewModel
 import kotlinx.coroutines.flow.collectLatest
@@ -198,6 +200,10 @@ fun AppShell(
             version = whatsNewState.whatsNewVersion,
             content = content,
             onDismiss = whatsNewViewModel::onWhatsNewDismissed,
+            onSeePreviousReleases = {
+                whatsNewViewModel.onWhatsNewDismissed()
+                navController.navigate(WhatsNewHistoryRoute) { launchSingleTop = true }
+            },
         )
     }
     if (whatsNewState.showGuideNudge) {
@@ -436,6 +442,9 @@ private fun CompactAppShell(
                 composable<AboutRoute> {
                     AboutScreen(navHostController = navController)
                 }
+                composable<WhatsNewHistoryRoute> {
+                    WhatsNewHistoryScreen(navHostController = navController)
+                }
             }
         }
     }
@@ -661,6 +670,9 @@ private fun AppShellNavHost(
             }
             composable<AboutRoute> {
                 AboutScreen(navHostController = navController, showBackButton = false)
+            }
+            composable<WhatsNewHistoryRoute> {
+                WhatsNewHistoryScreen(navHostController = navController)
             }
         }
     }

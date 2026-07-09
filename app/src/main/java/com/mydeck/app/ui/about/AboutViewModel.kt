@@ -1,16 +1,13 @@
 package com.mydeck.app.ui.about
 
-import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
-import dagger.hilt.android.qualifiers.ApplicationContext
 import com.mydeck.app.domain.model.CachedServerInfo
 import com.mydeck.app.domain.sync.ConnectivityMonitor
 import com.mydeck.app.io.prefs.SettingsDataStore
 import com.mydeck.app.io.rest.ReadeckApi
 import com.mydeck.app.ui.whatsnew.WhatsNewAssetLoader
-import com.mydeck.app.util.AppVersion
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -26,7 +23,6 @@ import javax.inject.Inject
 
 @HiltViewModel
 class AboutViewModel @Inject constructor(
-    @ApplicationContext private val context: Context,
     private val settingsDataStore: SettingsDataStore,
     private val connectivityMonitor: ConnectivityMonitor,
     private val readeckApi: ReadeckApi,
@@ -37,9 +33,7 @@ class AboutViewModel @Inject constructor(
         val serverInfo: CachedServerInfo? = null,
         val serverInfoLoading: Boolean = false,
         val serverInfoError: Boolean = false,
-        val showWhatsNewSheet: Boolean = false,
-        val whatsNewContent: String? = null,
-        val whatsNewVersion: String = "",
+        val hasWhatsNewHistory: Boolean = false,
     )
 
     private val _navigationEvent = Channel<NavigationEvent>(Channel.BUFFERED)
@@ -53,14 +47,13 @@ class AboutViewModel @Inject constructor(
 
     init {
         loadAndRefreshServerInfo()
-        loadWhatsNewContent()
+        checkWhatsNewHistoryAvailable()
     }
 
-    private fun loadWhatsNewContent() {
+    private fun checkWhatsNewHistoryAvailable() {
         viewModelScope.launch {
-            val version = WhatsNewAssetLoader.normalizeVersion(AppVersion.versionName(context))
-            val content = whatsNewLoader.loadNotesForVersion(version)
-            _uiState.value = _uiState.value.copy(whatsNewContent = content, whatsNewVersion = version)
+            val hasHistory = whatsNewLoader.listAvailableVersions().isNotEmpty()
+            _uiState.value = _uiState.value.copy(hasWhatsNewHistory = hasHistory)
         }
     }
 
@@ -157,16 +150,13 @@ class AboutViewModel @Inject constructor(
     }
 
     fun onClickWhatsNew() {
-        _uiState.value = _uiState.value.copy(showWhatsNewSheet = true)
-    }
-
-    fun onDismissWhatsNewSheet() {
-        _uiState.value = _uiState.value.copy(showWhatsNewSheet = false)
+        _navigationEvent.trySend(NavigationEvent.NavigateToWhatsNewHistory)
     }
 
     sealed class NavigationEvent {
         data object NavigateBack : NavigationEvent()
         data object NavigateToOpenSourceLibraries : NavigationEvent()
         data object NavigateToFontLicenses : NavigationEvent()
+        data object NavigateToWhatsNewHistory : NavigationEvent()
     }
 }
