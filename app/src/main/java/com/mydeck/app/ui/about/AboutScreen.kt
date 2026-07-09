@@ -20,6 +20,7 @@ import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.List
+import androidx.compose.material.icons.filled.NewReleases
 import androidx.compose.material.icons.filled.TextFields
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -54,6 +55,7 @@ import com.mydeck.app.domain.model.CachedServerInfo
 import com.mydeck.app.ui.components.MyDeckBrandHeader
 import com.mydeck.app.ui.navigation.FontLicensesRoute
 import com.mydeck.app.ui.navigation.OpenSourceLibrariesRoute
+import com.mydeck.app.ui.whatsnew.WhatsNewSheet
 import com.mydeck.app.util.openUrlInCustomTab
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -88,6 +90,8 @@ fun AboutScreen(navHostController: NavHostController, showBackButton: Boolean = 
         onBackClick = { viewModel.onClickBack() },
         onOpenSourceLibrariesClick = { viewModel.onClickOpenSourceLibraries() },
         onFontLicensesClick = { viewModel.onClickFontLicenses() },
+        onWhatsNewClick = { viewModel.onClickWhatsNew() },
+        onDismissWhatsNewSheet = { viewModel.onDismissWhatsNewSheet() },
         onUrlClick = { url -> openUrlInCustomTab(context, url) },
         showBackButton = showBackButton,
     )
@@ -101,6 +105,8 @@ fun AboutScreenContent(
     onBackClick: () -> Unit,
     onOpenSourceLibrariesClick: () -> Unit,
     onFontLicensesClick: () -> Unit = {},
+    onWhatsNewClick: () -> Unit = {},
+    onDismissWhatsNewSheet: () -> Unit = {},
     onUrlClick: (String) -> Unit,
     showBackButton: Boolean = true,
 ) {
@@ -157,6 +163,38 @@ fun AboutScreenContent(
             )
 
             Spacer(modifier = Modifier.height(24.dp))
+
+            // What's New Link (only when notes exist for the current version)
+            if (uiState.whatsNewContent != null) {
+                HorizontalDivider()
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onWhatsNewClick() }
+                        .padding(vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(
+                        Icons.Filled.NewReleases,
+                        contentDescription = stringResource(R.string.about_whats_new),
+                        modifier = Modifier.padding(end = 16.dp)
+                    )
+                    Column {
+                        Text(
+                            text = stringResource(R.string.about_whats_new),
+                            style = MaterialTheme.typography.titleMedium
+                        )
+                        Text(
+                            text = stringResource(R.string.about_whats_new_subtitle),
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+            }
 
             // Credits Section
             HorizontalDivider()
@@ -471,6 +509,14 @@ fun AboutScreenContent(
 
             Spacer(modifier = Modifier.height(16.dp))
         }
+    }
+
+    if (uiState.showWhatsNewSheet && uiState.whatsNewContent != null) {
+        WhatsNewSheet(
+            version = uiState.whatsNewVersion,
+            content = uiState.whatsNewContent,
+            onDismiss = onDismissWhatsNewSheet,
+        )
     }
 }
 

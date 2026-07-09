@@ -124,6 +124,14 @@ interface SettingsDataStore {
     suspend fun saveFullscreenWhileReading(enabled: Boolean)
     suspend fun isFullscreenWhileReading(): Boolean
 
+    // "What's New" on-update sheet: last app version whose notes were shown (or
+    // silently recorded on fresh install), and whether the first-launch guide
+    // nudge has already been shown.
+    suspend fun getLastSeenWhatsNewVersion(): String?
+    suspend fun saveLastSeenWhatsNewVersion(version: String)
+    suspend fun isWelcomeGuidePromptShown(): Boolean
+    suspend fun saveWelcomeGuidePromptShown(shown: Boolean)
+
     // Bookmark list display preferences
     val showCompactFaviconsFlow: StateFlow<Boolean>
     suspend fun saveShowCompactFavicons(enabled: Boolean)

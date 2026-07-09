@@ -1,12 +1,16 @@
 package com.mydeck.app.ui.about
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import com.mydeck.app.domain.model.CachedServerInfo
 import com.mydeck.app.domain.sync.ConnectivityMonitor
 import com.mydeck.app.io.prefs.SettingsDataStore
 import com.mydeck.app.io.rest.ReadeckApi
+import com.mydeck.app.ui.whatsnew.WhatsNewAssetLoader
+import com.mydeck.app.util.AppVersion
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -22,15 +26,20 @@ import javax.inject.Inject
 
 @HiltViewModel
 class AboutViewModel @Inject constructor(
+    @ApplicationContext private val context: Context,
     private val settingsDataStore: SettingsDataStore,
     private val connectivityMonitor: ConnectivityMonitor,
     private val readeckApi: ReadeckApi,
+    private val whatsNewLoader: WhatsNewAssetLoader,
 ) : ViewModel() {
 
     data class UiState(
         val serverInfo: CachedServerInfo? = null,
         val serverInfoLoading: Boolean = false,
-        val serverInfoError: Boolean = false
+        val serverInfoError: Boolean = false,
+        val showWhatsNewSheet: Boolean = false,
+        val whatsNewContent: String? = null,
+        val whatsNewVersion: String = "",
     )
 
     private val _navigationEvent = Channel<NavigationEvent>(Channel.BUFFERED)
@@ -44,6 +53,15 @@ class AboutViewModel @Inject constructor(
 
     init {
         loadAndRefreshServerInfo()
+        loadWhatsNewContent()
+    }
+
+    private fun loadWhatsNewContent() {
+        viewModelScope.launch {
+            val version = WhatsNewAssetLoader.normalizeVersion(AppVersion.versionName(context))
+            val content = whatsNewLoader.loadNotesForVersion(version)
+            _uiState.value = _uiState.value.copy(whatsNewContent = content, whatsNewVersion = version)
+        }
     }
 
     private fun loadAndRefreshServerInfo() {
@@ -136,6 +154,14 @@ class AboutViewModel @Inject constructor(
 
     fun onClickFontLicenses() {
         _navigationEvent.trySend(NavigationEvent.NavigateToFontLicenses)
+    }
+
+    fun onClickWhatsNew() {
+        _uiState.value = _uiState.value.copy(showWhatsNewSheet = true)
+    }
+
+    fun onDismissWhatsNewSheet() {
+        _uiState.value = _uiState.value.copy(showWhatsNewSheet = false)
     }
 
     sealed class NavigationEvent {

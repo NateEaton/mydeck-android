@@ -137,8 +137,20 @@ This is documented in `AGENTS.md` and `CLAUDE.md` so the agent knows to ask rath
     *   `versionName`: `"X.Y.Z"`
 3.  Add changelog: `metadata/en-US/changelogs/<versionCode>.txt`.
 4.  Update `CHANGELOG.md`: move items from `[Unreleased]` into a new `## [X.Y.Z] - YYYY-MM-DD` section.
-5.  Commit: `chore(release): bump version to X.Y.Z`.
-6.  Open PR -> Merge to `main`.
+5.  Author `app/src/main/assets/whatsnew/en/X.Y.Z.md` — the in-app "What's New"
+    sheet shown on first launch after updating to this version (see
+    `docs/specs/whats-new-page-spec.md`). Curate this from the `CHANGELOG.md`
+    section just written, but don't copy it verbatim: use short, explanatory,
+    user-facing language (bold lead-ins per feature), and drop internal-only
+    entries (refactors, fixes with no visible behavior change) that don't merit
+    a user's attention. No file for a version = the sheet silently never fires
+    for it, so skip this step for an internal-only release with nothing worth
+    highlighting. Add English-placeholder copies at
+    `app/src/main/assets/whatsnew/<locale>/X.Y.Z.md` for every other supported
+    locale (`de, es, fr, gl, pl, pt, ru, uk, zh`), matching the localization
+    rule in `CLAUDE.md`.
+6.  Commit: `chore(release): bump version to X.Y.Z`.
+7.  Open PR -> Merge to `main`.
 
 ### Step 2: Pre-release Validation
 
