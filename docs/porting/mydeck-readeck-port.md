@@ -61,6 +61,7 @@ Everything else — logic, DTOs, ViewModels, Compose UI, tests, DAOs, workers, s
 - To cherry-pick or read source commits from the TARGET, add the sibling as a local remote and fetch:
   `git remote add <source> <path-or-url> && git fetch <source>` (a local path like `/Users/nathan/development/MyDeck` works). Then `git cherry-pick <sha>` or `git show <sha>:<path>`.
 - Because the source package is identical (§0), cherry-picks apply with no path/package fixups — only the §2 branding edits and any §4 model regeneration remain.
+- **Remove the remote once done.** A remote added solely to cherry-pick for a port is scratch, not durable repo config — once the port is complete (committed/PR proposed), `git remote remove <source>`. Exception: if another port from the same source is already queued in the same session, leave it until the last queued port from that source completes, then remove it.
 
 ## 4. Data-model / migration reconciliation (the only real gotcha)
 
@@ -86,6 +87,8 @@ If a port has no schema change, this section is a no-op — skip it entirely.
 ## 6. Per-feature port checklists
 
 This methodology is the reusable harness. Each concrete port gets a short checklist (e.g. `docs/porting/<feature>-port.md`) listing that feature's commits, files, and the specific §2 branding values used — finalized against the shipped source code. Seed it from any inline "keep repo-agnostic / flag divergence" notes the source author left.
+
+**Once a port is complete, the checklist doc must exist in BOTH repos** — same rule as this methodology doc (see the note at the top of this file). Copy the finalized checklist into the other repo's `docs/porting/` alongside it. It's fine to leave that copy uncommitted if the other repo has its own pending doc cleanup in flight — just don't skip the copy.
 
 ## 7. Start-of-port checklist (most boxes are pre-answered by §0–§1)
 
