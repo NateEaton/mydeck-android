@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Label delete confirmation** now shows how many bookmarks the label will be removed from, so the scope of the action is clear before confirming.
 - **Bulk bookmark delete** now requires an extra confirmation step when 25 or more bookmarks are selected, showing the count before proceeding to the usual undo snackbar flow.
+- **Bottom sheets** now slide closed consistently — closing one with a button (e.g. Done, Save, Search) animates out the same way as swiping it down, instead of vanishing instantly. The label picker also drops its back arrow to match the other sheets.
 
 ## [0.14.5] - 2026-07-03
 

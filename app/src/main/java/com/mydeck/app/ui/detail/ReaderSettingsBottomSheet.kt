@@ -55,6 +55,7 @@ import timber.log.Timber
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.geometry.Offset
@@ -74,6 +75,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.Velocity
 import com.mydeck.app.R
+import com.mydeck.app.ui.components.dismissSheet
 import com.mydeck.app.domain.model.EffectiveAppearance
 import com.mydeck.app.domain.model.ReaderFontFamily
 import com.mydeck.app.domain.model.ReaderAppearanceSelection
@@ -728,6 +730,7 @@ private fun SelectFontSheet(
     onDismiss: () -> Unit,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val scope = rememberCoroutineScope()
     // Transparent scrim so the reading view behind isn't double-dimmed — the underlying
     // typography sheet's scrim already dims it, and we want the live font preview visible.
     ModalBottomSheet(
@@ -789,7 +792,7 @@ private fun SelectFontSheet(
                     text = stringResource(R.string.select_font_title),
                     style = MaterialTheme.typography.titleMedium,
                 )
-                TextButton(onClick = onDismiss) {
+                TextButton(onClick = { scope.dismissSheet(sheetState) { onDismiss() } }) {
                     Text(stringResource(R.string.select_font_done))
                 }
             }
