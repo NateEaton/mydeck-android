@@ -66,6 +66,7 @@ import com.mydeck.app.ui.navigation.UiSettingsRoute
 import com.mydeck.app.ui.navigation.UserGuideRoute
 import com.mydeck.app.ui.navigation.UserGuideSectionRoute
 import com.mydeck.app.ui.navigation.WelcomeRoute
+import com.mydeck.app.ui.navigation.WhatsNewHistoryRoute
 import com.mydeck.app.ui.collections.CollectionsScreen
 import com.mydeck.app.ui.highlights.HighlightsScreen
 import com.mydeck.app.ui.settings.AccountSettingsScreen
@@ -78,6 +79,10 @@ import com.mydeck.app.ui.settings.UiSettingsScreen
 import com.mydeck.app.ui.userguide.UserGuideIndexScreen
 import com.mydeck.app.ui.userguide.UserGuideSectionScreen
 import com.mydeck.app.ui.welcome.WelcomeScreen
+import com.mydeck.app.ui.whatsnew.WelcomeGuideNudgeDialog
+import com.mydeck.app.ui.whatsnew.WhatsNewHistoryScreen
+import com.mydeck.app.ui.whatsnew.WhatsNewSheet
+import com.mydeck.app.ui.whatsnew.WhatsNewViewModel
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
@@ -129,6 +134,19 @@ fun AppShell(
 
     val isCollectionsScreen = currentDestination.matchesRoute<CollectionsRoute>()
 
+    // "What's New" on-update sheet + first-launch guide nudge. Lives once, here
+    // at the top-level shell (rather than duplicated in each layout tier below),
+    // since ModalBottomSheet/AlertDialog render into their own window regardless
+    // of which tier's NavHost is active.
+    val whatsNewViewModel: WhatsNewViewModel = hiltViewModel()
+    val whatsNewState = whatsNewViewModel.uiState
+    val token = settingsDataStore?.tokenFlow?.collectAsState()?.value
+    LaunchedEffect(token) {
+        if (!token.isNullOrBlank()) {
+            whatsNewViewModel.evaluateIfNeeded()
+        }
+    }
+
     when (layoutTier) {
         "compact" -> CompositionLocalProvider(
             LocalReaderMaxWidth provides Dp.Unspecified,
@@ -175,6 +193,27 @@ fun AppShell(
             collectionCount = collectionCount.value.size,
         )
         } // end MediumAppShell CompositionLocalProvider
+    }
+
+    whatsNewState.whatsNewContent?.let { content ->
+        WhatsNewSheet(
+            version = whatsNewState.whatsNewVersion,
+            content = content,
+            onDismiss = whatsNewViewModel::onWhatsNewDismissed,
+            onSeePreviousReleases = {
+                whatsNewViewModel.onWhatsNewDismissed()
+                navController.navigate(WhatsNewHistoryRoute) { launchSingleTop = true }
+            },
+        )
+    }
+    if (whatsNewState.showGuideNudge) {
+        WelcomeGuideNudgeDialog(
+            onOpenGuide = {
+                whatsNewViewModel.onGuideNudgeOpenGuide()
+                navController.navigate(UserGuideRoute) { launchSingleTop = true }
+            },
+            onDismiss = whatsNewViewModel::onGuideNudgeDismissed,
+        )
     }
 }
 
@@ -403,6 +442,9 @@ private fun CompactAppShell(
                 composable<AboutRoute> {
                     AboutScreen(navHostController = navController)
                 }
+                composable<WhatsNewHistoryRoute> {
+                    WhatsNewHistoryScreen(navHostController = navController)
+                }
             }
         }
     }
@@ -628,6 +670,9 @@ private fun AppShellNavHost(
             }
             composable<AboutRoute> {
                 AboutScreen(navHostController = navController, showBackButton = false)
+            }
+            composable<WhatsNewHistoryRoute> {
+                WhatsNewHistoryScreen(navHostController = navController)
             }
         }
     }

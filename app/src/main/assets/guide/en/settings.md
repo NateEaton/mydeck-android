@@ -106,4 +106,4 @@ The **Logs** screen shows the app's log output, which can be useful for troubles
 
 ---
 
-The navigation drawer also has an **About** entry, which shows the current app version, build details, and links to the MyDeck and Readeck project pages.
+The navigation drawer also has an **About** entry, which shows the current app version, build details, and links to the MyDeck and Readeck project pages. After an update, a **What's New** sheet highlights what changed in the new version; you can reopen it any time from **About → What's New**.

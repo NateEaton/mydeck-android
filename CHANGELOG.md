@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The app's icon is now sent as `logo_uri` during OAuth client registration, so the Readeck authorization page can display it in the Application information section.
 - **Sign in with a code instead** fallback: users who cannot use the browser flow (e.g. on constrained devices) can still sign in via the existing OAuth Device Code flow by tapping the new secondary action on the sign-in screen.
 - The sign-in flow now survives process death while the browser is open — if Android reclaims the app, returning from the browser resumes where it left off.
+- **What's New**: after updating, a short sheet highlights what changed in the new version. First-time installs don't see it — instead they get a one-time, dismissible nudge to check out the User Guide. **About → What's New** lists every past release's notes, newest first.
 
 ### Changed
 

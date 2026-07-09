@@ -134,6 +134,9 @@ class SettingsDataStoreImpl @Inject constructor(@ApplicationContext private val 
     private val KEY_SWIPE_LEFT_ACTION = stringPreferencesKey("swipe_left_action")
     private val KEY_SWIPE_RIGHT_ACTION = stringPreferencesKey("swipe_right_action")
 
+    private val KEY_LAST_SEEN_WHATSNEW_VERSION = stringPreferencesKey("last_seen_whatsnew_version")
+    private val KEY_WELCOME_GUIDE_PROMPT_SHOWN = booleanPreferencesKey("welcome_guide_prompt_shown")
+
     init {
         migrateLegacySepiaSetting(encryptedSharedPreferences)
         migrateNonSensitivePreferencesIfNeeded()
@@ -407,6 +410,26 @@ class SettingsDataStoreImpl @Inject constructor(@ApplicationContext private val 
 
     override suspend fun isFullscreenWhileReading(): Boolean {
         return userPreferences.getBoolean(KEY_FULLSCREEN_WHILE_READING.name, false)
+    }
+
+    override suspend fun getLastSeenWhatsNewVersion(): String? {
+        return userPreferences.getString(KEY_LAST_SEEN_WHATSNEW_VERSION.name, null)
+    }
+
+    override suspend fun saveLastSeenWhatsNewVersion(version: String) {
+        userPreferences.edit {
+            putString(KEY_LAST_SEEN_WHATSNEW_VERSION.name, version)
+        }
+    }
+
+    override suspend fun isWelcomeGuidePromptShown(): Boolean {
+        return userPreferences.getBoolean(KEY_WELCOME_GUIDE_PROMPT_SHOWN.name, false)
+    }
+
+    override suspend fun saveWelcomeGuidePromptShown(shown: Boolean) {
+        userPreferences.edit {
+            putBoolean(KEY_WELCOME_GUIDE_PROMPT_SHOWN.name, shown)
+        }
     }
 
     override suspend fun saveShowCompactFavicons(enabled: Boolean) {

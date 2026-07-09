@@ -735,4 +735,16 @@ other{}
     <string name="font_licenses_intro">The reading-view fonts bundled with the app are provided under the following licenses.</string>
     <string name="select_font_title">Select font</string>
     <string name="select_font_done">Done</string>
+    <!-- What's New -->
+    <string name="whats_new_title">What\'s New</string>
+    <string name="whats_new_got_it">Got it</string>
+    <string name="whats_new_guide_nudge_title">Welcome to MyDeck</string>
+    <string name="whats_new_guide_nudge_body">New here? Take a quick tour of the User Guide to get the most out of MyDeck.</string>
+    <string name="whats_new_guide_nudge_open_guide">Open the User Guide</string>
+    <string name="whats_new_guide_nudge_not_now">Not now</string>
+    <string name="whats_new_see_previous_releases">See previous releases</string>
+    <string name="whats_new_history_title">Release Notes</string>
+    <string name="whats_new_history_empty">No release notes available yet.</string>
+    <string name="about_whats_new">What\'s New</string>
+    <string name="about_whats_new_subtitle">See what changed across releases</string>
 </resources>
