@@ -2,7 +2,7 @@
 
 **Date:** 2026-02-19
 **Branch:** `claude/bookmark-features-design-C1m9G`
-**Status:** Draft
+**Status:** Implemented (shipped in v0.14.5 — see the `## [0.14.5]` section of `CHANGELOG.md`)
 
 ---
 

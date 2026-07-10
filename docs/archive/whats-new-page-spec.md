@@ -1,6 +1,6 @@
 # "What's New" on update + first-launch guide nudge (spec)
 
-Status: draft · Ported from Readeck for Android · Author aid: Claude
+Status: Implemented (shipped in PR #226, `feat/whats-new-page`) · Ported from Readeck for Android · Author aid: Claude
 
 ## Problem
 
