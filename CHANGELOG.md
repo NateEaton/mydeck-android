@@ -25,6 +25,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Bulk bookmark delete** now requires an extra confirmation step when 25 or more bookmarks are selected, showing the count before proceeding to the usual undo snackbar flow.
 - **Bottom sheets** now slide closed consistently — closing one with a button (e.g. Done, Save, Search) animates out the same way as swiping it down, instead of vanishing instantly. The label picker also drops its back arrow to match the other sheets.
 
+### Fixed
+
+- Signing in via the browser (Authorization Code) flow now shows your actual username on the Settings **Account** row, instead of a placeholder — the profile lookup right after sign-in could previously run before the new token was in place.
+
 ## [0.14.5] - 2026-07-03
 
 ### Added

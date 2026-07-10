@@ -30,6 +30,12 @@ interface SettingsDataStore {
     val lastSyncTimestampFlow: StateFlow<String?>
     val lastContentSyncTimestampFlow: StateFlow<String?>
     fun saveToken(token: String)
+    /**
+     * Synchronous, read-after-write-consistent token read for the auth interceptor.
+     * Unlike collecting [tokenFlow], this reflects a [saveToken] write immediately, so a
+     * request fired right after login (e.g. GET /profile in completeLogin) carries the new token.
+     */
+    fun getTokenSync(): String?
     fun saveUrl(url: String)
     suspend fun saveLastBookmarkTimestamp(timestamp: Instant)
     suspend fun getLastBookmarkTimestamp(): Instant?

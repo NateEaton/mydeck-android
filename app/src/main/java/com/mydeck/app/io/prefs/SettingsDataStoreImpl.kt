@@ -151,6 +151,9 @@ class SettingsDataStoreImpl @Inject constructor(@ApplicationContext private val 
         }
     }
 
+    override fun getTokenSync(): String? =
+        encryptedSharedPreferences.getString(KEY_TOKEN.name, null)
+
     override fun saveUrl(url: String) {
         Timber.d("saveUrl")
         encryptedSharedPreferences.edit {
