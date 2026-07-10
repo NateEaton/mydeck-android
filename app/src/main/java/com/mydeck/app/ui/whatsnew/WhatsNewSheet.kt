@@ -3,6 +3,8 @@ package com.mydeck.app.ui.whatsnew
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
@@ -39,7 +41,11 @@ fun WhatsNewSheet(
         onDismissRequest = { scope.dismissSheet(sheetState) { onDismiss() } },
         sheetState = sheetState,
     ) {
-        Column(modifier = Modifier.padding(horizontal = 24.dp)) {
+        Column(
+            modifier = Modifier
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 24.dp)
+        ) {
             Text(
                 text = stringResource(R.string.whats_new_title),
                 style = MaterialTheme.typography.headlineSmall
