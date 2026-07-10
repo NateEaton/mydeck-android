@@ -1,0 +1,13 @@
+<b>Added</b>
+- Reading fonts: a curated set of app fonts with a live font picker, plus an optional set of Readeck's own reader fonts
+- Wider font coverage: real bold, Latin Extended, and Cyrillic where the font supports it; new Font licenses page under About
+- Browser-based OAuth sign-in (Authorization Code + PKCE): tap Sign In to authorize in your browser, no code entry; a "Sign in with a code instead" fallback remains
+- What's New sheet on update, plus a release-history list under About
+
+<b>Changed</b>
+- Label delete confirmation now shows how many bookmarks are affected
+- Deleting 25 or more bookmarks at once asks for an extra confirmation
+- Bottom sheets slide closed consistently when dismissed with a button
+
+<b>Fixed</b>
+- Browser sign-in now shows your actual username on the Account screen

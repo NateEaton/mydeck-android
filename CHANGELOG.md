@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.14.6] - 2026-07-10
+
 ### Added
 
 - **Reading fonts** — the reading view now offers a curated app font set (System Default, Literata, Cantarell, Cormorant Garamond, Recursive, Bitter, Gentium, Old Standard, JetBrains Mono). A new **Include native Readeck fonts** setting (off by default) adds the fonts from Readeck's native reading view (Lora, Public Sans, Merriweather, Inter, IBM Plex Serif, Luciole, Atkinson Hyperlegible).
