@@ -1,6 +1,6 @@
 # User Guide Rework — Specification (DRAFT, untracked)
 
-**Status:** Draft for review. Not part of the `feat/collections` branch scope — framed now, executed later (target: alongside the final changes for the Readeck release).
+**Status:** Implemented (shipped in v0.14.5 — see the `## [0.14.5]` section of `CHANGELOG.md`).
 **Author context:** Produced from a top-to-bottom review of the bundled guide (`app/src/main/assets/guide/en/`) and its in-app renderer (`app/src/main/java/com/mydeck/app/ui/userguide/`).
 **Applies to:** MyDeck first; then ported to the Readeck for Android guide with branding differences (see §9).
 

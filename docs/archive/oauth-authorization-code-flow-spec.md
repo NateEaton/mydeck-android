@@ -1,6 +1,6 @@
 # OAuth Authorization Code Flow — Technical Spec
 
-Status: Proposed (targeting next release; portable to Readeck Android rc6 / v1.0.0)
+Status: Implemented (shipped in PR #221, `feat/oauth-auth-code`)
 Related archives: `docs/archive/TECH_SPEC_OAuth_Device_Code_Authentication.md`, `docs/archive/IMPLEMENTATION_CODE_OAuth_Device_Code.md`
 Authoritative server contract: `docs/openapi-spec.json`
 

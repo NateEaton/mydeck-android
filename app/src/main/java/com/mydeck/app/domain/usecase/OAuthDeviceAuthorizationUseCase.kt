@@ -1,7 +1,6 @@
 package com.mydeck.app.domain.usecase
 
 import android.content.Context
-import android.os.Build
 import com.mydeck.app.domain.model.OAuthDeviceAuthorizationState
 import com.mydeck.app.io.rest.ReadeckApi
 import com.mydeck.app.io.rest.isHttpBlockedByBuildPolicy
@@ -27,11 +26,7 @@ class OAuthDeviceAuthorizationUseCase @Inject constructor(
 ) {
     companion object {
         private const val GRANT_TYPE_DEVICE_CODE = "urn:ietf:params:oauth:grant-type:device_code"
-        private const val REQUIRED_SCOPES = "bookmarks:read bookmarks:write profile:read"
-        private const val CLIENT_URI = "https://github.com/NateEaton/mydeck-android"
-        private const val SOFTWARE_ID = "com.mydeck.app"
         private const val SLOW_DOWN_ADDITIONAL_INTERVAL = 5 // seconds
-        private val CLIENT_NAME = "MyDeck Android — ${Build.MANUFACTURER} ${Build.MODEL}"
     }
 
     sealed class DeviceAuthResult {
@@ -62,9 +57,9 @@ class OAuthDeviceAuthorizationUseCase @Inject constructor(
             // Step 1.1: Register OAuth client
             Timber.d("Registering OAuth client")
             val clientRegistrationRequest = OAuthClientRegistrationRequestDto(
-                clientName = CLIENT_NAME,
-                clientUri = CLIENT_URI,
-                softwareId = SOFTWARE_ID,
+                clientName = OAuthClientConstants.CLIENT_NAME,
+                clientUri = OAuthClientConstants.CLIENT_URI,
+                softwareId = OAuthClientConstants.SOFTWARE_ID,
                 softwareVersion = AppVersion.versionName(context),
                 grantTypes = listOf(GRANT_TYPE_DEVICE_CODE)
             )
@@ -72,7 +67,7 @@ class OAuthDeviceAuthorizationUseCase @Inject constructor(
             val clientResponse = readeckApi.registerOAuthClient(clientRegistrationRequest)
 
             if (!clientResponse.isSuccessful || clientResponse.body() == null) {
-                val errorMessage = parseOAuthError(clientResponse.errorBody()?.string())
+                val errorMessage = OAuthClientConstants.parseOAuthError(json, clientResponse.errorBody()?.string())
                 Timber.e("Client registration failed: $errorMessage")
                 return DeviceAuthResult.Error("Failed to register with server: $errorMessage")
             }
@@ -84,13 +79,13 @@ class OAuthDeviceAuthorizationUseCase @Inject constructor(
             Timber.d("Requesting device authorization")
             val deviceAuthRequest = OAuthDeviceAuthorizationRequestDto(
                 clientId = registeredClientId,
-                scope = REQUIRED_SCOPES
+                scope = OAuthClientConstants.REQUIRED_SCOPES
             )
 
             val deviceAuthResponse = readeckApi.authorizeDevice(deviceAuthRequest)
 
             if (!deviceAuthResponse.isSuccessful || deviceAuthResponse.body() == null) {
-                val errorMessage = parseOAuthError(deviceAuthResponse.errorBody()?.string())
+                val errorMessage = OAuthClientConstants.parseOAuthError(json, deviceAuthResponse.errorBody()?.string())
                 Timber.e("Device authorization failed: $errorMessage")
                 return DeviceAuthResult.Error("Failed to authorize device: $errorMessage")
             }
@@ -227,19 +222,6 @@ class OAuthDeviceAuthorizationUseCase @Inject constructor(
         } catch (e: Exception) {
             Timber.e(e, "Unexpected error while polling for token")
             return TokenPollResult.Error("Unexpected error: ${e.message}", e)
-        }
-    }
-
-    private fun parseOAuthError(errorBody: String?): String {
-        if (errorBody.isNullOrBlank()) {
-            return "Unknown error"
-        }
-
-        return try {
-            val oauthError = json.decodeFromString<OAuthErrorDto>(errorBody)
-            oauthError.errorDescription ?: oauthError.error
-        } catch (e: SerializationException) {
-            "Server error"
         }
     }
 }
