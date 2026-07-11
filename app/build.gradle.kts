@@ -38,7 +38,10 @@ android {
         // Single source of truth for the OAuth authorization-code redirect URI.
         // The manifest intent-filter, MainActivity's callback matcher, and the use case's
         // registered redirect_uri all derive from these — change them here only.
-        // (For the Readeck port, swap these values or move them per-flavor.)
+        // Every non-production flavor overrides the scheme (see below) so its build can
+        // coexist with the production install without an app-chooser on the browser redirect.
+        // NOTE: changing the scheme requires a CLEAN build — REDIRECT_URI is a constant-folded
+        // BuildConfig expression that incremental compilation may not recompile.
         val oauthCallbackScheme = "mydeck"
         val oauthCallbackHost = "oauth-callback"
         manifestPlaceholders["oauthCallbackScheme"] = oauthCallbackScheme
@@ -102,6 +105,10 @@ android {
             buildConfigField("boolean", "ALLOW_INSECURE_HTTP", "false")
             buildConfigField("boolean", "ALLOW_USER_CA_CERTIFICATES", "false")
             buildConfigField("boolean", "IS_HTTP_ENABLED_BUILD", "false")
+            // Distinct OAuth callback scheme so this build can coexist with production
+            // (and other variants) without the browser redirect popping an app-chooser.
+            manifestPlaceholders["oauthCallbackScheme"] = "mydeck-snapshot"
+            buildConfigField("String", "OAUTH_CALLBACK_SCHEME", "\"mydeck-snapshot\"")
             if (signingConfigs.getByName("release").storeFile != null) {
                 signingConfig = signingConfigs.getByName("release")
             }
@@ -119,6 +126,10 @@ android {
             buildConfigField("boolean", "ALLOW_INSECURE_HTTP", "true")
             buildConfigField("boolean", "ALLOW_USER_CA_CERTIFICATES", "true")
             buildConfigField("boolean", "IS_HTTP_ENABLED_BUILD", "true")
+            // Distinct OAuth callback scheme so this build can coexist with production
+            // (and other variants) without the browser redirect popping an app-chooser.
+            manifestPlaceholders["oauthCallbackScheme"] = "mydeck-snapshot-permissive"
+            buildConfigField("String", "OAUTH_CALLBACK_SCHEME", "\"mydeck-snapshot-permissive\"")
             if (signingConfigs.getByName("release").storeFile != null) {
                 signingConfig = signingConfigs.getByName("release")
             }
@@ -152,6 +163,10 @@ android {
             buildConfigField("boolean", "ALLOW_INSECURE_HTTP", "true")
             buildConfigField("boolean", "ALLOW_USER_CA_CERTIFICATES", "true")
             buildConfigField("boolean", "IS_HTTP_ENABLED_BUILD", "true")
+            // Distinct OAuth callback scheme so this build can coexist with production
+            // (and other variants) without the browser redirect popping an app-chooser.
+            manifestPlaceholders["oauthCallbackScheme"] = "mydeck-permissive"
+            buildConfigField("String", "OAUTH_CALLBACK_SCHEME", "\"mydeck-permissive\"")
             if (signingConfigs.getByName("release").storeFile != null) {
                 signingConfig = signingConfigs.getByName("release")
             }
