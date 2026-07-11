@@ -3,6 +3,7 @@ package com.mydeck.app.domain.usecase
 import android.content.Context
 import android.content.pm.PackageInfo
 import android.content.pm.PackageManager
+import com.mydeck.app.BuildConfig
 import com.mydeck.app.io.rest.ReadeckApi
 import com.mydeck.app.io.rest.model.OAuthAuthCodeTokenRequestDto
 import com.mydeck.app.io.rest.model.OAuthClientRegistrationRequestDto
@@ -82,7 +83,10 @@ class OAuthAuthorizationCodeUseCaseTest {
         val captured = registrationSlot.captured
         assertTrue(captured.grantTypes.contains("authorization_code"))
         assertNotNull(captured.redirectUris)
-        assertTrue(captured.redirectUris!!.contains("mydeck://oauth-callback"))
+        // Derived from BuildConfig so it's correct for every flavor (each non-production
+        // flavor overrides the scheme, e.g. mydeck-snapshot://oauth-callback).
+        val expectedRedirect = "${BuildConfig.OAUTH_CALLBACK_SCHEME}://${BuildConfig.OAUTH_CALLBACK_HOST}"
+        assertTrue(captured.redirectUris!!.contains(expectedRedirect))
     }
 
     @Test
