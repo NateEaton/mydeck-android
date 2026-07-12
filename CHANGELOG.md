@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - **F-Droid build compatibility** — signing config lookups in the Gradle build now use a null-safe `findByName` instead of `getByName`, so the build no longer crashes when a build tool (like F-Droid's) strips the `release` signing config block. No change to normal build behavior.
+- **Label sort by name/count** now works in the label picker shown from Add Bookmark (including the share-sheet "Save to MyDeck" flow) and from the Bookmark Details page's Edit Labels — these previously showed no count chips and ignored the sort toggle because bookmark counts weren't passed through to the picker.
 
 ## [0.14.6] - 2026-07-10
 

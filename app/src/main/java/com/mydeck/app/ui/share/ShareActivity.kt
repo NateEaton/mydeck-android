@@ -82,7 +82,7 @@ class ShareActivity : ComponentActivity() {
             val themeState = remember { mutableStateOf(Theme.SYSTEM) }
             val lightAppearanceState = remember { mutableStateOf(LightAppearance.PAPER) }
             val darkAppearanceState = remember { mutableStateOf(DarkAppearance.DARK) }
-            val existingLabels = remember { mutableStateOf<List<String>>(emptyList()) }
+            val existingLabelCounts = remember { mutableStateOf<Map<String, Int>>(emptyMap()) }
 
             LaunchedEffect(Unit) {
                 themeString.collect { value ->
@@ -105,8 +105,7 @@ class ShareActivity : ComponentActivity() {
             }
 
             LaunchedEffect(Unit) {
-                val labelsMap = bookmarkRepository.observeAllLabelsWithCounts().first()
-                existingLabels.value = labelsMap.keys.toList()
+                existingLabelCounts.value = bookmarkRepository.observeAllLabelsWithCounts().first()
             }
 
             val effectiveAppearance = resolveEffectiveAppearance(
@@ -120,7 +119,7 @@ class ShareActivity : ComponentActivity() {
                 ShareBookmarkContent(
                     initialUrl = sharedText.first,
                     initialTitle = sharedText.second,
-                    existingLabels = existingLabels.value,
+                    existingLabelCounts = existingLabelCounts.value,
                     onAction = { action, url, title, labels, isFavorite ->
                         handleAction(action, url, title, labels, isFavorite)
                     },
@@ -248,7 +247,7 @@ class ShareActivity : ComponentActivity() {
 private fun ShareBookmarkContent(
     initialUrl: String,
     initialTitle: String,
-    existingLabels: List<String> = emptyList(),
+    existingLabelCounts: Map<String, Int> = emptyMap(),
     onAction: (SaveAction, String, String, List<String>, Boolean) -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -286,7 +285,7 @@ private fun ShareBookmarkContent(
                 isCreateEnabled = isCreateEnabled,
                 labels = labels,
                 isFavorite = isFavorite,
-                existingLabels = existingLabels,
+                existingLabelCounts = existingLabelCounts,
                 onUrlChange = { url = it },
                 onTitleChange = { title = it },
                 onLabelsChange = { labels = it },

@@ -781,7 +781,7 @@ fun BookmarkDetailHost(
                     onLabelsUpdate = { newLabels ->
                         onUpdateLabels(uiState.bookmark.bookmarkId, newLabels)
                     },
-                    existingLabels = labelsWithCounts.keys.toList(),
+                    existingLabelCounts = labelsWithCounts,
                     onExportDebugJson = { viewModel.onExportDebugJson() },
                     onClickOpenInBrowser = onClickOpenInBrowser,
                     onRefreshContent = {
