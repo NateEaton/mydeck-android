@@ -94,6 +94,32 @@ The English text serves as a placeholder until professional translators provide 
 
 ---
 
+## Cross-Repo Fetches — Never Import Tags
+
+When adding the sibling repo (MyDeck ⇄ Readeck) as a scratch remote for a port,
+ALWAYS configure it to never fetch tags, in the same command that creates it:
+
+    git remote add --no-tags <name> <path>
+    git fetch <name>
+
+Never run a bare `git fetch` against a remote that lacks `tagOpt = --no-tags`
+(check with `git config remote.<name>.tagOpt`). Git's default fetch auto-follows
+tags into the local shared tag namespace, polluting this repo with the sibling's
+tags — and `git remote remove` does NOT clean fetched tags up afterward. This
+applies to the durable `codeberg` remote too (its `tagOpt` is set locally —
+verify before fetching it).
+
+---
+
+## Never Bulk-Delete Refs
+
+Never delete tags or branches by pattern/filter (`grep | xargs git tag -d`,
+wildcard `git push --delete`, etc.). If stray refs are found, present the
+explicit, complete list of names and get the maintainer's approval before
+deleting anything — one literal command, no patterns.
+
+---
+
 ## GitHub Interactions
 
 The `gh` CLI is installed and authenticated locally. Use it freely for **read-only** inspection — `gh pr view`, `gh pr list`, `gh pr diff`, `gh run view`, `gh api` GETs, etc. This is the preferred way to verify PR/CI state instead of guessing from local git.
