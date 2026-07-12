@@ -11,8 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- **F-Droid build compatibility** — signing config lookups in the Gradle build now use a null-safe `findByName` instead of `getByName`, so the build no longer crashes when a build tool (like F-Droid's) strips the `release` signing config block. No change to normal build behavior.
+- **Browser sign-in with multiple builds installed** — snapshot and HTTP builds now use a distinct OAuth callback scheme per flavor, so signing in through the browser no longer pops an app chooser or risks routing the redirect to the wrong installed build. Production builds are unaffected.
 - **Label sort by name/count** now works in the label picker shown from Add Bookmark (including the share-sheet "Save to MyDeck" flow) and from the Bookmark Details page's Edit Labels — these previously showed no count chips and ignored the sort toggle because bookmark counts weren't passed through to the picker.
+- **F-Droid build compatibility** — signing config lookups in the Gradle build now use a null-safe `findByName` instead of `getByName`, so the build no longer crashes when a build tool (like F-Droid's) strips the `release` signing config block. No change to normal build behavior.
 
 ## [0.14.6] - 2026-07-10
 
