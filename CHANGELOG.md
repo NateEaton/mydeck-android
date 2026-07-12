@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.14.7] - 2026-07-11
+
 ### Fixed
 
 - **F-Droid build compatibility** — signing config lookups in the Gradle build now use a null-safe `findByName` instead of `getByName`, so the build no longer crashes when a build tool (like F-Droid's) strips the `release` signing config block. No change to normal build behavior.
