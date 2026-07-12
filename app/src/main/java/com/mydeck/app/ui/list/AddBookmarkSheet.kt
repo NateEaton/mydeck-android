@@ -62,7 +62,7 @@ fun AddBookmarkSheet(
     isCreateEnabled: Boolean,
     labels: List<String>,
     isFavorite: Boolean = false,
-    existingLabels: List<String> = emptyList(),
+    existingLabelCounts: Map<String, Int> = emptyMap(),
     onUrlChange: (String) -> Unit,
     onTitleChange: (String) -> Unit,
     onLabelsChange: (List<String>) -> Unit,
@@ -205,7 +205,7 @@ fun AddBookmarkSheet(
         CreateBookmarkLabelsSection(
             labels = labels,
             isFavorite = isFavorite,
-            existingLabels = existingLabels,
+            existingLabelCounts = existingLabelCounts,
             onOpenLabelPicker = cancelAutoSave,
             onSetLabels = { updatedLabels ->
                 onLabelsChange(updatedLabels)
@@ -261,15 +261,15 @@ fun AddBookmarkSheet(
 private fun CreateBookmarkLabelsSection(
     labels: List<String>,
     isFavorite: Boolean = false,
-    existingLabels: List<String> = emptyList(),
+    existingLabelCounts: Map<String, Int> = emptyMap(),
     onOpenLabelPicker: () -> Unit = {},
     onSetLabels: (List<String>) -> Unit,
     onRemoveLabel: (String) -> Unit,
     onFavoriteToggle: (Boolean) -> Unit = {}
 ) {
     var showLabelPicker by remember { mutableStateOf(false) }
-    val labelOptions = remember(existingLabels, labels) {
-        (existingLabels + labels).distinct().associateWith { 0 }
+    val labelOptions = remember(existingLabelCounts, labels) {
+        existingLabelCounts + labels.associateWith { existingLabelCounts[it] ?: 0 }
     }
 
     Column(

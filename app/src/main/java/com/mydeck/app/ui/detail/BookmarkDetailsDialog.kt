@@ -104,7 +104,7 @@ fun BookmarkDetailsDialog(
     bookmark: BookmarkDetailViewModel.Bookmark,
     onDismissRequest: () -> Unit,
     onLabelsUpdate: (List<String>) -> Unit = {},
-    existingLabels: List<String> = emptyList(),
+    existingLabelCounts: Map<String, Int> = emptyMap(),
     onExportDebugJson: () -> Unit = {},
     onRefreshContent: () -> Unit = {},
     canRefreshContent: Boolean = false,
@@ -307,7 +307,7 @@ fun BookmarkDetailsDialog(
             // Labels Section
             LabelsSection(
                 labels = labels,
-                existingLabels = existingLabels,
+                existingLabelCounts = existingLabelCounts,
                 onSetLabels = { updated ->
                     labels = updated.toMutableList()
                     onLabelsUpdate(labels)
@@ -426,13 +426,13 @@ private fun MetadataFieldWithIcon(
 @Composable
 private fun LabelsSection(
     labels: List<String>,
-    existingLabels: List<String> = emptyList(),
+    existingLabelCounts: Map<String, Int> = emptyMap(),
     onSetLabels: (List<String>) -> Unit,
     onRemoveLabel: (String) -> Unit
 ) {
     var showLabelPicker by remember { mutableStateOf(false) }
-    val labelOptions = remember(existingLabels, labels) {
-        (existingLabels + labels).distinct().associateWith { 0 }
+    val labelOptions = remember(existingLabelCounts, labels) {
+        existingLabelCounts + labels.associateWith { existingLabelCounts[it] ?: 0 }
     }
 
     Column(
