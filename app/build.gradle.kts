@@ -76,11 +76,8 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            signingConfig = if (signingConfigs.getByName("release").storeFile != null) {
-                signingConfigs.getByName("release")
-            } else {
-                signingConfigs.getByName("debug")
-            }
+            signingConfig = signingConfigs.findByName("release")?.takeIf { it.storeFile != null }
+                ?: signingConfigs.findByName("debug")
         }
         debug {
             isMinifyEnabled = false
@@ -109,8 +106,8 @@ android {
             // (and other variants) without the browser redirect popping an app-chooser.
             manifestPlaceholders["oauthCallbackScheme"] = "mydeck-snapshot"
             buildConfigField("String", "OAUTH_CALLBACK_SCHEME", "\"mydeck-snapshot\"")
-            if (signingConfigs.getByName("release").storeFile != null) {
-                signingConfig = signingConfigs.getByName("release")
+            signingConfigs.findByName("release")?.takeIf { it.storeFile != null }?.let {
+                signingConfig = it
             }
         }
         create("githubSnapshotHttp") {
@@ -130,8 +127,8 @@ android {
             // (and other variants) without the browser redirect popping an app-chooser.
             manifestPlaceholders["oauthCallbackScheme"] = "mydeck-snapshot-permissive"
             buildConfigField("String", "OAUTH_CALLBACK_SCHEME", "\"mydeck-snapshot-permissive\"")
-            if (signingConfigs.getByName("release").storeFile != null) {
-                signingConfig = signingConfigs.getByName("release")
+            signingConfigs.findByName("release")?.takeIf { it.storeFile != null }?.let {
+                signingConfig = it
             }
         }
         create("githubRelease") {
@@ -146,8 +143,8 @@ android {
             buildConfigField("boolean", "ALLOW_INSECURE_HTTP", "false")
             buildConfigField("boolean", "ALLOW_USER_CA_CERTIFICATES", "false")
             buildConfigField("boolean", "IS_HTTP_ENABLED_BUILD", "false")
-            if (signingConfigs.getByName("release").storeFile != null) {
-                signingConfig = signingConfigs.getByName("release")
+            signingConfigs.findByName("release")?.takeIf { it.storeFile != null }?.let {
+                signingConfig = it
             }
         }
         create("githubReleaseHttp") {
@@ -167,8 +164,8 @@ android {
             // (and other variants) without the browser redirect popping an app-chooser.
             manifestPlaceholders["oauthCallbackScheme"] = "mydeck-permissive"
             buildConfigField("String", "OAUTH_CALLBACK_SCHEME", "\"mydeck-permissive\"")
-            if (signingConfigs.getByName("release").storeFile != null) {
-                signingConfig = signingConfigs.getByName("release")
+            signingConfigs.findByName("release")?.takeIf { it.storeFile != null }?.let {
+                signingConfig = it
             }
         }
     }
