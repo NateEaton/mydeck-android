@@ -1,0 +1,3 @@
+<b>Fixed</b>
+- F-Droid build compatibility: the Gradle build no longer fails when the release signing config is stripped by a build tool like F-Droid's
+- Label sort by name/count now works in the label picker from Add Bookmark (including the share sheet) and from Bookmark Details' Edit Labels, with count chips shown
