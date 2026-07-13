@@ -3,6 +3,12 @@
 [![License](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
 [![Latest Release](https://img.shields.io/github/v/release/NateEaton/mydeck-android)](https://github.com/NateEaton/mydeck-android/releases/latest)
 
+> [!IMPORTANT]
+> **Development of MyDeck has moved to [Readeck for Android](https://codeberg.org/readeck/readeck-android), the official Android client for Readeck.**
+> This repository is frozen at **v0.14.7** — the final MyDeck release — and preserved as-is. Please direct bug reports and feature requests to the [official issue tracker](https://codeberg.org/readeck/readeck-android/issues).
+>
+> **Switching?** Install the new app and sign in to your server again — your bookmarks, labels, and highlights live on your Readeck server, so everything carries over.
+
 MyDeck is an Android client for [Readeck](https://readeck.org/en/), a self-hosted read-it-later service. It provides a Pocket-inspired interface for managing and reading your saved articles, videos, and photos.
 
 It began as a fork of [ReadeckApp](https://github.com/jensomato/ReadeckApp) and has evolved into an independently developed client with its own UX direction while remaining fully compatible with Readeck servers.
@@ -10,6 +16,8 @@ It began as a fork of [ReadeckApp](https://github.com/jensomato/ReadeckApp) and 
 **Requirements:** A Readeck account and self-hosted Readeck server instance.
 
 ## Download
+
+**v0.14.7 is the final MyDeck release.** For future updates, switch to [Readeck for Android](https://codeberg.org/readeck/readeck-android).
 
 ### Which APK do I want?
 
