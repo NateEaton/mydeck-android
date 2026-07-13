@@ -1074,10 +1074,51 @@
       color: rgba(255, 255, 255, 0.5);
       letter-spacing: 0.04em;
     }
+    /* Sunset banner */
+    .sunset-banner {
+      background: var(--hero-bg, #1E5F5E);
+      color: #fff;
+      text-align: center;
+      padding: 14px 20px;
+      font-size: 0.95rem;
+      line-height: 1.5;
+    }
+
+    .sunset-banner a {
+      color: #ffd166;
+      font-weight: 600;
+      text-decoration: underline;
+    }
+
+    .sunset-banner .sunset-sub {
+      display: block;
+      font-size: 0.85rem;
+      opacity: 0.88;
+      margin-top: 4px;
+    }
+
+    .start-note a {
+      color: rgba(255, 255, 255, 0.6);
+      text-decoration: underline;
+    }
+
+    .footer-bottom a {
+      color: rgb(var(--c-primary));
+    }
   </style>
 </head>
 
 <body>
+
+  <!-- SUNSET BANNER ═════════════════════════ -->
+  <div class="sunset-banner">
+    <strong>Development of MyDeck has moved to
+      <a href="https://codeberg.org/readeck/readeck-android">Readeck for Android</a>,
+      the official Android client for Readeck.</strong>
+    MyDeck is frozen at v0.14.7 — get the official app for all future updates.
+    <span class="sunset-sub">Switching? Install the new app and sign in to your server again — your bookmarks, labels,
+      and highlights live on your Readeck server, so everything carries over.</span>
+  </div>
 
   <!-- NAV ══════════════════════════════════ -->
   <nav class="site-nav">
@@ -1088,7 +1129,7 @@
       </a>
       <div class="nav-links">
         <a href="#features" class="btn-outline">Features</a>
-        <a href="https://github.com/NateEaton/mydeck-android/releases/latest" class="btn-cta">⬇ Download</a>
+        <a href="https://codeberg.org/readeck/readeck-android" class="btn-cta">Get the official app</a>
       </div>
     </div>
   </nav>
@@ -1103,8 +1144,9 @@
         your self-hosted read-it-later service.
       </p>
       <div class="hero-actions">
-        <a href="https://github.com/NateEaton/mydeck-android/releases/latest" class="btn-cta btn-cta-lg">⬇ Download
-          APK</a>
+        <a href="https://codeberg.org/readeck/readeck-android" class="btn-cta btn-cta-lg">Get Readeck for Android</a>
+        <a href="https://github.com/NateEaton/mydeck-android/releases/latest" class="btn-ghost">⬇ Final MyDeck APK
+          (v0.14.7)</a>
         <a href="https://github.com/NateEaton/mydeck-android" class="btn-ghost">View on GitHub</a>
       </div>
       <p class="hero-note">Requires a self-hosted Readeck server &nbsp;·&nbsp; GPL v3</p>
@@ -1375,9 +1417,9 @@
     <div class="container">
       <h2>Own your reading.</h2>
       <p>No algorithms. No tracking. No subscription.</p>
-      <a href="https://github.com/NateEaton/mydeck-android/releases/latest" class="btn-cta">⬇ Download Latest
-        Release</a>
-      <p class="start-note">GPL v3 &nbsp;·&nbsp; Free forever &nbsp;</p>
+      <a href="https://codeberg.org/readeck/readeck-android" class="btn-cta">Get Readeck for Android</a>
+      <p class="start-note">GPL v3 &nbsp;·&nbsp; Free forever &nbsp;·&nbsp;
+        <a href="https://github.com/NateEaton/mydeck-android/releases/latest">Final MyDeck release (v0.14.7)</a></p>
     </div>
   </div>
 
@@ -1394,14 +1436,17 @@
             Built on the foundation of <a href="https://github.com/jensomato/ReadeckApp" target="_blank"
               rel="noopener noreferrer">ReadeckApp</a> by jensomato.
             Licensed under the <a href="https://github.com/NateEaton/mydeck-android/blob/main/LICENSE">GPL v3</a>.
+            Succeeded by <a href="https://codeberg.org/readeck/readeck-android">Readeck for Android</a>,
+            the official Readeck client.
           </p>
         </div>
         <div class="footer-col">
           <h3>Links</h3>
           <ul>
+            <li><a href="https://codeberg.org/readeck/readeck-android">Readeck for Android (official)</a></li>
             <li><a href="https://github.com/NateEaton/mydeck-android">GitHub</a></li>
             <li><a href="https://github.com/NateEaton/mydeck-android/releases">Releases</a></li>
-            <li><a href="https://github.com/NateEaton/mydeck-android/issues">Report Issues</a></li>
+            <li><a href="https://codeberg.org/readeck/readeck-android/issues">Report Issues (official tracker)</a></li>
             <li><a href="https://readeck.org/en/" target="_blank" rel="noopener noreferrer">Readeck</a></li>
             <li><a href="https://github.com/jensomato/ReadeckApp" target="_blank"
                 rel="noopener noreferrer">ReadeckApp</a></li>
@@ -1410,7 +1455,9 @@
         </div>
       </div>
       <div class="footer-bottom">
-        © 2025 Nathan A. Eaton Jr. &nbsp;·&nbsp; MyDeck is not affiliated with the Readeck project.
+        © 2025–2026 Nathan A. Eaton Jr. &nbsp;·&nbsp; MyDeck was the predecessor of
+        <a href="https://codeberg.org/readeck/readeck-android">Readeck for Android</a>, the official Readeck client.
+        This site is preserved for the final MyDeck release.
       </div>
     </div>
   </footer>
