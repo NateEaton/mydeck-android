@@ -58,10 +58,11 @@ Everything else — logic, DTOs, ViewModels, Compose UI, tests, DAOs, workers, s
 ## 3. Roles + cross-repo git
 
 - **SOURCE** = repo the change landed in (read-only; never edit). **TARGET** = repo you're porting into (the one you're working in). Neither is permanently MyDeck or Readeck.
-- To cherry-pick or read source commits from the TARGET, add the sibling as a local remote and fetch:
-  `git remote add <source> <path-or-url> && git fetch <source>` (a local path like `/Users/nathan/development/MyDeck` works). Then `git cherry-pick <sha>` or `git show <sha>:<path>`.
+- To cherry-pick or read source commits from the TARGET, add the sibling as a local remote **with tag-following disabled** and fetch:
+  `git remote add --no-tags <source> <path-or-url> && git fetch <source>` (a local path like `/Users/nathan/development/MyDeck` works). Then `git cherry-pick <sha>` or `git show <sha>:<path>`.
+  **The `--no-tags` flag is mandatory.** A default fetch auto-follows the source repo's tags into the target's shared tag namespace (release tags, archive/* tags, backups — dozens of refs that don't belong there), and `git remote remove` does not remove fetched tags. If a fetch ever does import stray tags, do not bulk-delete by pattern: list them explicitly and have the maintainer approve the exact deletion command.
 - Because the source package is identical (§0), cherry-picks apply with no path/package fixups — only the §2 branding edits and any §4 model regeneration remain.
-- **Remove the remote once done.** A remote added solely to cherry-pick for a port is scratch, not durable repo config — once the port is complete (committed/PR proposed), `git remote remove <source>`. Exception: if another port from the same source is already queued in the same session, leave it until the last queued port from that source completes, then remove it.
+- **Remove the remote once done.** A remote added solely to cherry-pick for a port is scratch, not durable repo config — once the port is complete (committed/PR proposed), `git remote remove <source>`. Exception: if another port from the same source is already queued in the same session, leave it until the last queued port from that source completes, then remove it. After removing the remote, verify no tags came over: `git tag -l` should show no refs originating from the source repo.
 
 ## 4. Data-model / migration reconciliation (the only real gotcha)
 
